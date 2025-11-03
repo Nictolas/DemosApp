@@ -143,38 +143,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Mutation per il login
   const loginMutation = useMutation<User, Error, LoginCredentials>({
     mutationFn: async (credentials) => {
-      const response = await fetch(getApiUrl(API_CONFIG.AUTH.LOGIN), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const result = await response.json();
+      const apiUrl = getApiUrl(API_CONFIG.AUTH.LOGIN);
+      console.log('🔐 LOGIN CLIENT: Tentativo di login per', credentials.email);
+      console.log('🔐 LOGIN CLIENT: URL API:', apiUrl);
       
-      if (!response.ok) {
-        // Gestisci il caso speciale di email non verificata
-        if (result.requiresVerification) {
-          const verificationError = new Error(result.error || 'Email non verificata');
-          (verificationError as any).requiresVerification = true;
-          (verificationError as any).email = credentials.email;
-          throw verificationError;
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+        });
+
+        console.log('🔐 LOGIN CLIENT: Risposta ricevuta, status:', response.status);
+        
+        // Leggi il testo della risposta per debug
+        const responseText = await response.text();
+        console.log('🔐 LOGIN CLIENT: Risposta raw:', responseText.substring(0, 200));
+        
+        let result;
+        try {
+          result = JSON.parse(responseText);
+          console.log('🔐 LOGIN CLIENT: Risposta parsata:', {
+            success: result.success,
+            hasAccessToken: !!result.accessToken,
+            hasUser: !!result.user,
+            error: result.error
+          });
+        } catch (parseError) {
+          console.error('❌ LOGIN CLIENT: Errore parsing JSON:', parseError);
+          throw new Error('Risposta non valida dal server');
         }
         
-        throw new Error(result.error || 'Login fallito');
-      }
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Login fallito');
-      }
+        if (!response.ok) {
+          // Gestisci il caso speciale di email non verificata
+          if (result.requiresVerification) {
+            const verificationError = new Error(result.error || 'Email non verificata');
+            (verificationError as any).requiresVerification = true;
+            (verificationError as any).email = credentials.email;
+            throw verificationError;
+          }
+          
+          throw new Error(result.error || result.message || 'Login fallito');
+        }
+        
+        if (!result.success) {
+          throw new Error(result.error || result.message || 'Login fallito');
+        }
 
-      // Salva il token JWT reale
-      const userToken = result.accessToken || result.token || 'mock_token_' + Date.now();
-      localStorage.setItem('auth_token', userToken);
-      setToken(userToken);
+        // Verifica che il token esista
+        const userToken = result.accessToken || result.token;
+        if (!userToken) {
+          console.error('❌ LOGIN CLIENT: Token mancante nella risposta');
+          throw new Error('Token di autenticazione non ricevuto dal server');
+        }
 
-      return result.user; // ✅ Restituisce result.user invece di result.data
+        // Salva il token JWT reale
+        localStorage.setItem('auth_token', userToken);
+        setToken(userToken);
+        console.log('✅ LOGIN CLIENT: Token salvato con successo');
+
+        if (!result.user) {
+          console.error('❌ LOGIN CLIENT: Dati utente mancanti nella risposta');
+          throw new Error('Dati utente non ricevuti dal server');
+        }
+
+        return result.user;
+      } catch (error: any) {
+        // Se è già un Error, rilancialo
+        if (error instanceof Error) {
+          console.error('❌ LOGIN CLIENT: Errore durante login:', error.message);
+          throw error;
+        }
+        
+        // Altrimenti crea un nuovo Error
+        console.error('❌ LOGIN CLIENT: Errore sconosciuto:', error);
+        throw new Error(error?.message || 'Errore di connessione. Verifica la tua connessione internet.');
+      }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], data);

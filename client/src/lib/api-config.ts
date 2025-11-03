@@ -7,7 +7,21 @@ const resolveBaseUrl = (): string => {
     return '/api'; // Usa il proxy di Vite
   }
   
+  // Se VITE_API_BASE_URL è definito, usalo
+  if (typeof importMetaEnv !== 'undefined' && importMetaEnv.VITE_API_BASE_URL) {
+    return importMetaEnv.VITE_API_BASE_URL;
+  }
+  
   // Produzione - usa il server di produzione
+  // In produzione su demos.community, usa l'URL relativo che passa attraverso il proxy
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Se siamo su demos.community o www.demos.community, usa il proxy interno
+    if (hostname === 'demos.community' || hostname === 'www.demos.community') {
+      return '/api'; // Usa il proxy interno di Render/Cloudflare
+    }
+  }
+  
   return 'https://demos-c7k0.onrender.com/api';
 };
 
