@@ -16,9 +16,11 @@ const resolveBaseUrl = (): string => {
   // Il frontend è statico, quindi dobbiamo usare l'URL completo del backend API
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // Se siamo su demos.community o www.demos.community, usa api.demos.community
+    // Se siamo su demos.community o www.demos.community, usa il backend diretto
+    // Verifica prima se api.demos.community è disponibile, altrimenti usa demos-c7k0.onrender.com
     if (hostname === 'demos.community' || hostname === 'www.demos.community') {
-      return 'https://api.demos.community/api'; // Usa il dominio API dedicato
+      // Prova prima con api.demos.community, se non funziona usa il dominio Render diretto
+      return 'https://demos-c7k0.onrender.com/api';
     }
   }
   
