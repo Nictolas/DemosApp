@@ -127,7 +127,12 @@ router.get('/', async (req, res) => {
             ra.sitoweb as sitoWeb,
             COUNT(vra.referendum_id) as voti
           FROM referendum_abrogativi ra
-          LEFT JOIN voti_referendum_abrogativi vra ON ra.id::text = vra.referendum_id
+          LEFT JOIN voti_referendum_abrogativi vra ON (
+            ra.id::text = vra.referendum_id OR 
+            REPLACE(ra.id::text, '-', '') = vra.referendum_id OR
+            ra.id::text = REPLACE(vra.referendum_id, '-', '') OR
+            REPLACE(ra.id::text, '-', '') = REPLACE(vra.referendum_id, '-', '')
+          )
           WHERE ra.quorum != 'proposta' AND (ra.esito = 'In Attesa' OR ra.esito IS NULL)
           GROUP BY ra.id, ra.nome, ra.sitoweb
           ORDER BY voti DESC, ra.nome ASC
@@ -515,6 +520,102 @@ router.post('/:id/rifiuta', verifyToken, async (req, res) => {
       success: false,
       error: 'Errore interno del server'
     });
+  }
+});
+
+// POST /api/referendum-abrogativi/vota - Salva i voti dell'utente
+router.post('/vota', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    // Usa req.userId come negli altri endpoint, con fallback a req.user.id
+    const userId = req.userId || req.user?.id;
+    const { voti } = req.body;
+    
+    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Utente:', userId);
+    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - req.userId:', req.userId);
+    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - req.user:', req.user);
+    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Voti da salvare:', voti);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Autenticazione richiesta'
+      });
+    }
+    
+    // Limita a massimo 1 voto come da limite configurato
+    const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
+    
+    // Verifica che gli ID dei referendum esistano
+    if (votiDaSalvare.length > 0) {
+      const referendumCheckQuery = 'SELECT id FROM referendum_abrogativi WHERE id = ANY($1)';
+      const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
+      console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
+      console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
+      
+      // Verifica che tutti gli ID dei referendum esistano
+      if (referendumCheckResult.rows.length !== votiDaSalvare.length) {
+        const missingIds = votiDaSalvare.filter(id => !referendumCheckResult.rows.some(row => row.id === id));
+        console.error('❌ DEBUG /api/referendum-abrogativi/vota - ID referendum non trovati:', missingIds);
+        return res.status(400).json({
+          success: false,
+          error: `Alcuni referendum non esistono: ${missingIds.join(', ')}`
+        });
+      }
+    }
+    
+    await client.query('BEGIN');
+    
+    // Prima cancella TUTTI i voti esistenti dell'utente (sia come UUID che come text)
+    const deleteQuery = `
+      DELETE FROM voti_referendum_abrogativi 
+      WHERE userid::text = $1 OR userid = $1::uuid
+    `;
+    const deleteResult = await client.query(deleteQuery, [userId]);
+    console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Voti eliminati: ${deleteResult.rowCount}`);
+    
+    // Poi inserisce i nuovi voti (massimo 1)
+    if (votiDaSalvare.length > 0) {
+      const referendumId = votiDaSalvare[0];
+      await client.query(
+        'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
+        [userId, referendumId]
+      );
+      console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Voto inserito: ${referendumId}`);
+    }
+    
+    await client.query('COMMIT');
+    
+    console.log('✅ DEBUG /api/referendum-abrogativi/vota - Voti salvati con successo');
+    
+    res.json({
+      success: true,
+      message: 'Voti salvati con successo'
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK').catch(err => {
+      console.error('❌ Errore nel ROLLBACK:', err);
+    });
+    console.error('❌ Errore nel salvataggio voti referendum abrogativi:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        details: error.message
+      });
+    }
+  } finally {
+    client.release();
   }
 });
 
