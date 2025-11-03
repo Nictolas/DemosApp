@@ -148,13 +148,13 @@ router.get('/', async (req, res) => {
           SELECT 
             ra.nome,
             ra.sitoweb as sitoWeb,
-            COUNT(vra.referendum_id) as voti
+            COUNT(CASE WHEN vra.referendum_id IS NOT NULL THEN 1 END) as voti
           FROM referendum_abrogativi ra
           LEFT JOIN voti_referendum_abrogativi vra ON (
-            ra.id::text = vra.referendum_id OR 
-            REPLACE(ra.id::text, '-', '') = vra.referendum_id OR
-            ra.id::text = REPLACE(vra.referendum_id, '-', '') OR
-            REPLACE(ra.id::text, '-', '') = REPLACE(vra.referendum_id, '-', '')
+            ra.id::text = vra.referendum_id::text OR 
+            REPLACE(ra.id::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '') OR
+            ra.id::uuid::text = vra.referendum_id::text OR
+            REPLACE(ra.id::uuid::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
           )
           WHERE ra.quorum != 'proposta' AND (ra.esito = 'In Attesa' OR ra.esito IS NULL)
           GROUP BY ra.id, ra.nome, ra.sitoweb
@@ -179,14 +179,27 @@ router.get('/', async (req, res) => {
         if (debugVotiResult.rows.length > 0 && debugReferendumResult.rows.length > 0) {
           console.log('🔍 DEBUG - Verifica corrispondenza manuale:');
           debugVotiResult.rows.forEach(voto => {
+            console.log(`🔍 DEBUG - Analizzando voto con referendum_id: ${voto.referendum_id} (tipo: ${typeof voto.referendum_id})`);
             debugReferendumResult.rows.forEach(ref => {
               const refIdText = ref.id.toString();
               const refIdNoDash = refIdText.replace(/-/g, '');
-              const votoId = voto.referendum_id;
-              const votoIdNoDash = String(votoId).replace(/-/g, '');
+              const votoId = String(voto.referendum_id);
+              const votoIdNoDash = votoId.replace(/-/g, '');
               
-              if (refIdText === votoId || refIdNoDash === votoId || refIdText === votoIdNoDash || refIdNoDash === votoIdNoDash) {
-                console.log(`✅ MATCH trovato: ${ref.nome} (${ref.id}) <-> voto (${votoId})`);
+              console.log(`🔍 DEBUG - Confronto: "${ref.nome}" ref.id=${refIdText} (noDash=${refIdNoDash}) vs voto.referendum_id=${votoId} (noDash=${votoIdNoDash})`);
+              
+              const match1 = refIdText === votoId;
+              const match2 = refIdNoDash === votoId;
+              const match3 = refIdText === votoIdNoDash;
+              const match4 = refIdNoDash === votoIdNoDash;
+              
+              if (match1 || match2 || match3 || match4) {
+                console.log(`✅ MATCH trovato per "${ref.nome}": ${ref.id} <-> ${votoId} (match1=${match1}, match2=${match2}, match3=${match3}, match4=${match4})`);
+              } else {
+                // Log solo per "Cannabis Legale" o se il voto non ha match
+                if (ref.nome.toLowerCase().includes('cannabis') || debugVotiResult.rows.length === 1) {
+                  console.log(`❌ NO MATCH per "${ref.nome}": ref.id=${refIdText} vs voto.referendum_id=${votoId}`);
+                }
               }
             });
           });
@@ -628,27 +641,52 @@ router.post('/vota', verifyToken, async (req, res) => {
     const deleteResult = await client.query(deleteQuery, [userId]);
     console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Voti eliminati: ${deleteResult.rowCount}`);
     
-    // Poi inserisce i nuovi voti (massimo 1)
-    if (votiDaSalvare.length > 0) {
-      const referendumId = votiDaSalvare[0];
-      console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Tentativo inserimento voto:`, {
-        userId,
-        referendumId,
-        referendumIdType: typeof referendumId
-      });
-      
-      // Converti referendumId a string per assicurarsi che sia nel formato corretto
-      const referendumIdString = String(referendumId);
-      
-      await client.query(
-        'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
-        [userId, referendumIdString]
-      );
-      console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
-        referendumId: referendumIdString,
-        userId
-      });
-    }
+      // Poi inserisce i nuovi voti (massimo 1)
+      if (votiDaSalvare.length > 0) {
+        const referendumId = votiDaSalvare[0];
+        console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Tentativo inserimento voto:`, {
+          userId,
+          referendumId,
+          referendumIdType: typeof referendumId
+        });
+
+        // Verifica quale referendum corrisponde a questo ID
+        const refInfoQuery = 'SELECT id, nome FROM referendum_abrogativi WHERE id = $1 OR id::text = $1';
+        const refInfoResult = await client.query(refInfoQuery, [referendumId]);
+        if (refInfoResult.rows.length > 0) {
+          console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovato:`, {
+            id: refInfoResult.rows[0].id,
+            idText: refInfoResult.rows[0].id.toString(),
+            nome: refInfoResult.rows[0].nome,
+            referendumIdInserito: referendumId
+          });
+        } else {
+          console.log(`⚠️ DEBUG /api/referendum-abrogativi/vota - Referendum non trovato con ID:`, referendumId);
+        }
+
+        // Converti referendumId a string per assicurarsi che sia nel formato corretto
+        const referendumIdString = String(referendumId);
+
+        await client.query(
+          'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
+          [userId, referendumIdString]
+        );
+        console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
+          referendumId: referendumIdString,
+          userId
+        });
+        
+        // Verifica subito dopo l'inserimento che il voto sia stato salvato correttamente
+        const verifyQuery = 'SELECT referendum_id, userid FROM voti_referendum_abrogativi WHERE userid = $1 ORDER BY created_at DESC LIMIT 1';
+        const verifyResult = await client.query(verifyQuery, [userId]);
+        if (verifyResult.rows.length > 0) {
+          console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Verifica dopo inserimento:`, {
+            referendum_id_salvato: verifyResult.rows[0].referendum_id,
+            referendum_id_atteso: referendumIdString,
+            corrispondono: verifyResult.rows[0].referendum_id === referendumIdString || verifyResult.rows[0].referendum_id === referendumId
+          });
+        }
+      }
     
     await client.query('COMMIT');
     
