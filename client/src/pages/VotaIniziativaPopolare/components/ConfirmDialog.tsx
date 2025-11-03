@@ -15,6 +15,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   isPending
 }) => {
+  const handleConfirm = () => {
+    console.log('🔍 DEBUG ConfirmDialog - Conferma clickata');
+    onConfirm();
+  };
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white">
@@ -25,11 +30,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => {
+            console.log('🔍 DEBUG ConfirmDialog - Annulla clickata');
+            onOpenChange(false);
+          }}>
             Annulla
           </Button>
-          <Button onClick={onConfirm} disabled={isPending}>
-            Conferma
+          <Button onClick={handleConfirm} disabled={isPending}>
+            {isPending ? 'Salvataggio...' : 'Conferma'}
           </Button>
         </DialogFooter>
       </DialogContent>

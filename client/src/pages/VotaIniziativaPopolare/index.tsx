@@ -103,7 +103,12 @@ export default function VotaIniziativaPopolare() {
 
             {/* Pulsante salvataggio */}
             <SaveButton
-              onSave={() => setShowConfirmDialog(true)}
+              onSave={() => {
+                console.log('🔍 DEBUG index.tsx - SaveButton clicked, aprendo dialog');
+                console.log('🔍 DEBUG index.tsx - selectedVoti:', selectedVoti);
+                console.log('🔍 DEBUG index.tsx - votiCambiati:', votiCambiati);
+                setShowConfirmDialog(true);
+              }}
               isPending={saveVotiMutation.isPending}
               votiCambiati={votiCambiati}
               isBlocked={data?.blocco?.isBlocked || false}
@@ -116,8 +121,14 @@ export default function VotaIniziativaPopolare() {
       {/* Dialog di conferma */}
       <ConfirmDialog
         open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        onConfirm={() => saveVotiMutation.mutate(selectedVoti)}
+        onOpenChange={(open) => {
+          console.log('🔍 DEBUG index.tsx - ConfirmDialog open changed:', open);
+          setShowConfirmDialog(open);
+        }}
+        onConfirm={() => {
+          console.log('🔍 DEBUG index.tsx - ConfirmDialog onConfirm, chiamando mutation con:', selectedVoti);
+          saveVotiMutation.mutate(selectedVoti);
+        }}
         isPending={saveVotiMutation.isPending}
       />
 

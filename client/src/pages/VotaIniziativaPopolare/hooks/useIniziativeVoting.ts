@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -21,12 +22,23 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => {
+    mutationFn: async (voti: string[]) => {
+      console.log('🔍 DEBUG Frontend - saveVotiMutation.mutate chiamata');
       console.log('🔍 DEBUG Frontend - Voti da inviare:', voti);
-      console.log('🔍 DEBUG Frontend - Dati iniziative disponibili:', data?.iniziative.map(i => ({ id: i.id, nome: i.nome })));
-      return apiRequest("POST", "/api/iniziative-popolari/vota", { voti });
+      console.log('🔍 DEBUG Frontend - Tipo voti:', typeof voti, Array.isArray(voti));
+      console.log('🔍 DEBUG Frontend - Dati iniziative disponibili:', data?.iniziative?.map(i => ({ id: i.id, nome: i.nome })));
+      
+      try {
+        const response = await apiRequest("POST", "/api/iniziative-popolari/vota", { voti });
+        console.log('🔍 DEBUG Frontend - Risposta API ricevuta:', response);
+        return response;
+      } catch (error) {
+        console.error('❌ DEBUG Frontend - Errore nella chiamata API:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log('✅ DEBUG Frontend - saveVotiMutation.onSuccess chiamato');
       const remainingVotes = getRemainingVotes('iniziative_popolari', selectedVoti.length);
       toast({ 
         title: "Preferenze salvate", 
@@ -35,6 +47,7 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       queryClient.invalidateQueries({ queryKey: ['iniziativePopolariData'] });
     },
     onError: (error: any) => {
+      console.error('❌ DEBUG Frontend - saveVotiMutation.onError:', error);
       toast({ 
         title: "Errore", 
         description: error.message || "Impossibile salvare le preferenze.", 
@@ -42,6 +55,7 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       });
     },
     onSettled: () => {
+      console.log('🔍 DEBUG Frontend - saveVotiMutation.onSettled chiamato');
       setShowConfirmDialog(false);
     }
   });
@@ -103,7 +117,17 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   };
 
   // Calcola se i voti sono cambiati
-  const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
+  const votiCambiati = React.useMemo(() => {
+    const selectedSorted = [...selectedVoti].sort();
+    const savedSorted = [...(data?.mieiVoti || [])].sort();
+    const changed = JSON.stringify(selectedSorted) !== JSON.stringify(savedSorted);
+    console.log('🔍 DEBUG useIniziativeVoting - votiCambiati calcolato:', {
+      selectedVoti: selectedSorted,
+      mieiVoti: savedSorted,
+      changed
+    });
+    return changed;
+  }, [selectedVoti, data?.mieiVoti]);
 
   // Calcola la classifica ottimistica (aggiornata immediatamente con i cambiamenti locali)
   const classificaOttimistica = useMemo(() => {
