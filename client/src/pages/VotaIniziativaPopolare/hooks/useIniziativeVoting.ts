@@ -50,20 +50,43 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   const toggleSelezione = (id: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
     
+    // Usa un callback per accedere allo stato corrente
     setSelectedVoti(prev => {
       // Se l'iniziativa è già selezionata, rimuovila
       if (prev.includes(id)) {
         return prev.filter(n => n !== id);
       }
       
-      // Se l'utente ha già votato e prova a votare un'altra iniziativa, sostituisci e apri conferma
+      // Se l'utente ha già votato e prova a votare un'altra iniziativa, mostra alert di conferma
       const currentVotes = prev.length;
       const limit = getVotingLimit('iniziative_popolari');
       
       if (hasReachedVotingLimit('iniziative_popolari', currentVotes)) {
-        // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
-        setShowConfirmDialog(true);
-        return [id]; // Sostituisci con il nuovo voto
+        // Trova il nome dell'iniziativa già votata
+        const currentVotedId = prev[0];
+        const currentVotedIniziativa = data?.iniziative.find(i => i.id === currentVotedId);
+        
+        const currentVotedName = currentVotedIniziativa?.nome || 'l\'iniziativa selezionata';
+        
+        // Mostra alert di conferma sincrono (blocca l'esecuzione finché l'utente non risponde)
+        // Salva i valori necessari prima dell'alert
+        const newId = id;
+        const shouldConfirm = () => {
+          const confirmed = window.confirm(
+            `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?`
+          );
+          return confirmed;
+        };
+        
+        // Esegui la conferma immediatamente (prima del return)
+        // Usiamo una funzione immediatamente invocata per gestire l'alert sincrono
+        if (shouldConfirm()) {
+          // L'utente ha confermato, sostituisci il voto
+          return [newId];
+        } else {
+          // L'utente ha annullato, mantieni il voto corrente
+          return prev;
+        }
       }
       
       // Aggiungi il voto
