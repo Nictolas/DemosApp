@@ -1,7 +1,7 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, X, Info } from "lucide-react";
+import { ThumbsUp, X, Info, CheckCircle2 } from "lucide-react";
 import { Referendum } from "../types";
 
 interface UserPreferencesProps {
@@ -24,44 +24,89 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
   hasReachedLimit
 }) => {
   return (
-    <Card className="bg-white">
-      <CardHeader>
+    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <ThumbsUp className="h-5 w-5" />
-            <span className="text-lg font-semibold">Il tuo voto</span>
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <ThumbsUp className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Il tuo voto</h2>
+              <CardDescription className="text-blue-100 mt-1">
+                Vota quali Referendum Abrogativi che hanno raggiunto il quorum dovrebbero avere la priorità ad essere portati alle urne.
+              </CardDescription>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant={hasReachedLimit ? "destructive" : "secondary"} className="flex items-center space-x-1">
-              <Info className="h-3 w-3" />
+            <Badge 
+              variant={hasReachedLimit ? "destructive" : "secondary"} 
+              className={`flex items-center space-x-1.5 px-3 py-1.5 text-sm font-semibold ${
+                hasReachedLimit 
+                  ? "bg-red-500 hover:bg-red-600 text-white" 
+                  : "bg-white/20 backdrop-blur-sm text-white border-white/30"
+              }`}
+            >
+              <Info className="h-4 w-4" />
               <span>{currentVotes}/{limit}</span>
             </Badge>
           </div>
         </div>
-        <CardDescription>
-          Vota quali Referendum Abrogativi che hanno raggiunto il quorum dovrebbero avere la priorità ad essere portati alle urne.
-          {hasReachedLimit && (
-            <span className="block mt-1 text-red-600 font-medium">
-              Hai raggiunto il limite di {limit} voti. Rimuovi un voto esistente per votarne uno nuovo.
-            </span>
-          )}
-        </CardDescription>
+        {hasReachedLimit && (
+          <div className="mt-3 p-3 bg-yellow-500/20 backdrop-blur-sm rounded-lg border border-yellow-300/30">
+            <p className="text-yellow-100 font-medium flex items-center">
+              <Info className="h-4 w-4 mr-2" />
+              Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
+            </p>
+          </div>
+        )}
       </CardHeader>
-      <CardContent>
-        {selectedVoti.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-sm font-semibold mb-2">I tuoi referendum selezionati:</h4>
-            <div className="flex flex-wrap gap-2">
+      <CardContent className="pt-6">
+        {selectedVoti.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span>I tuoi referendum selezionati:</span>
+            </div>
+            <div className="grid gap-3">
               {selectedVoti.map((id) => {
                 const referendumItem = referendum.find(r => r.id === id);
                 return referendumItem ? (
-                  <span key={id} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    <X className="h-3 w-3 mr-1 cursor-pointer" onClick={() => onToggleSelezione(id)} />
-                    {referendumItem.nome}
-                  </span>
+                  <div
+                    key={id}
+                    className="group relative p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 flex-1">
+                        <div className="flex-shrink-0 p-2 bg-green-500 rounded-full">
+                          <CheckCircle2 className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
+                            {referendumItem.nome}
+                          </h3>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onToggleSelezione(id)}
+                        className="ml-4 flex-shrink-0 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-300 transform hover:scale-110 shadow-md hover:shadow-xl group/btn"
+                        title="Rimuovi voto"
+                      >
+                        <X className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-300" />
+                      </button>
+                    </div>
+                  </div>
                 ) : null;
               })}
             </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ThumbsUp className="h-10 w-10 text-gray-400" />
+            </div>
+            <p className="text-gray-600 font-medium">Nessun referendum selezionato</p>
+            <p className="text-sm text-gray-500 mt-1">Scegli un referendum dalla classifica per votare</p>
           </div>
         )}
       </CardContent>
