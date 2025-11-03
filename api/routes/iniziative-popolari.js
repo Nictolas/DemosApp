@@ -493,6 +493,19 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     await client.query('BEGIN');
     
+    // Recupera firestore_uid dell'utente per firestore_uid_ref
+    const userQuery = await client.query(
+      'SELECT firestore_uid FROM users WHERE id = $1::uuid',
+      [userId]
+    );
+    
+    let firestoreUid = null;
+    if (userQuery.rows.length > 0 && userQuery.rows[0].firestore_uid) {
+      firestoreUid = userQuery.rows[0].firestore_uid;
+    }
+    
+    console.log(`🔍 DEBUG /api/iniziative-popolari/vota - firestore_uid recuperato:`, firestoreUid);
+    
     // Prima cancella TUTTI i voti esistenti dell'utente (sia come UUID che come text)
     const deleteQuery = `
       DELETE FROM voti_iniziative_popolari 
@@ -504,9 +517,13 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Poi inserisce i nuovi voti (massimo 1)
     if (votiDaSalvare.length > 0) {
       const iniziativaId = votiDaSalvare[0];
+      
+      // Se firestore_uid non è disponibile, usa una stringa vuota come fallback
+      const firestoreUidRef = firestoreUid || '';
+      
       await client.query(
-        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
-        [userId, iniziativaId]
+        'INSERT INTO voti_iniziative_popolari (userid, firestore_uid_ref, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, $3, NOW(), NOW(), NOW())',
+        [userId, firestoreUidRef, iniziativaId]
       );
       console.log(`🔍 DEBUG /api/iniziative-popolari/vota - Voto inserito: ${iniziativaId}`);
     }
