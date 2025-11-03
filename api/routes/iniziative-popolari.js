@@ -73,16 +73,48 @@ router.get('/', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId;
         
+        console.log(`🔍 DEBUG: UserId dal token: ${userId}`);
+        
+        // Prima verifica tutti i voti esistenti per debug
+        const debugQuery = `SELECT userid, iniziativa_id FROM voti_iniziative_popolari LIMIT 10`;
+        const debugResult = await pool.query(debugQuery);
+        console.log(`🔍 DEBUG: Voti totali nel DB (primi 10):`, debugResult.rows.map(r => ({ userid: r.userid, iniziativa_id: r.iniziativa_id })));
+        
+        // Query per recuperare i voti dell'utente
+        // Usa DISTINCT ON per ottenere solo l'ultimo voto per utente (se ci sono duplicati)
+        // e LIMIT 1 per rispettare il limite di 1 voto per utente
         const userVotiQuery = `
-          SELECT iniziativa_id FROM voti_iniziative_popolari 
-          WHERE userid = $1
+          SELECT DISTINCT ON (userid) iniziativa_id 
+          FROM voti_iniziative_popolari 
+          WHERE userid::text = $1 OR userid = $1::uuid
+          ORDER BY userid, timestamp DESC, created_at DESC
+          LIMIT 1
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
-        mieiVoti = userVotiResult.rows.map(v => v.iniziativa_id);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
+        console.log(`🔍 DEBUG: Query risultato per userId ${userId}:`, userVotiResult.rows);
+        
+        // Se non trova voti, prova solo come UUID
+        if (userVotiResult.rows.length === 0) {
+          const userVotiQueryUUID = `
+            SELECT iniziativa_id FROM voti_iniziative_popolari 
+            WHERE userid = $1::uuid
+            ORDER BY timestamp DESC, created_at DESC
+            LIMIT 1
+          `;
+          const userVotiResultUUID = await pool.query(userVotiQueryUUID, [userId]);
+          console.log(`🔍 DEBUG: Query solo UUID per userId ${userId}:`, userVotiResultUUID.rows);
+          mieiVoti = userVotiResultUUID.rows.map(v => v.iniziativa_id);
+        } else {
+          mieiVoti = userVotiResult.rows.map(v => v.iniziativa_id);
+        }
+        
+        // Limita a massimo 1 voto (per sicurezza)
+        mieiVoti = mieiVoti.slice(0, 1);
+        
+        console.log(`✅ Recuperati ${mieiVoti.length} voti utente:`, mieiVoti);
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
-        console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione');
+        console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione:', authError.message);
       }
     }
     
@@ -404,49 +436,61 @@ router.post('/vota', verifyToken, async (req, res) => {
   const client = await pool.connect();
   
   try {
-    const userId = req.user.id;
+    // Usa req.userId come negli altri endpoint, con fallback a req.user.id
+    const userId = req.userId || req.user?.id;
     const { voti } = req.body;
     
     console.log('🔍 DEBUG /api/iniziative-popolari/vota - Utente:', userId);
+    console.log('🔍 DEBUG /api/iniziative-popolari/vota - req.userId:', req.userId);
+    console.log('🔍 DEBUG /api/iniziative-popolari/vota - req.user:', req.user);
     console.log('🔍 DEBUG /api/iniziative-popolari/vota - Voti da salvare:', voti);
     
-    // Verifica che gli ID delle iniziative esistano
-    const iniziativeCheckQuery = 'SELECT id FROM iniziative_popolari WHERE id = ANY($1)';
-    const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [voti]);
-    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
-    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', voti);
-    
-    if (!Array.isArray(voti)) {
-      return res.status(400).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        error: 'Formato voti non valido'
+        error: 'Autenticazione richiesta'
       });
     }
     
-    // Verifica che tutti gli ID delle iniziative esistano
-    if (iniziativeCheckResult.rows.length !== voti.length) {
-      const missingIds = voti.filter(id => !iniziativeCheckResult.rows.some(row => row.id === id));
-      console.error('❌ DEBUG /api/iniziative-popolari/vota - ID iniziative non trovati:', missingIds);
-      return res.status(400).json({
-        success: false,
-        error: `Alcune iniziative non esistono: ${missingIds.join(', ')}`
-      });
+    // Limita a massimo 1 voto come da limite configurato
+    const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
+    
+    // Verifica che gli ID delle iniziative esistano
+    if (votiDaSalvare.length > 0) {
+      const iniziativeCheckQuery = 'SELECT id FROM iniziative_popolari WHERE id = ANY($1)';
+      const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
+      console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
+      console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);
+      
+      // Verifica che tutti gli ID delle iniziative esistano
+      if (iniziativeCheckResult.rows.length !== votiDaSalvare.length) {
+        const missingIds = votiDaSalvare.filter(id => !iniziativeCheckResult.rows.some(row => row.id === id));
+        console.error('❌ DEBUG /api/iniziative-popolari/vota - ID iniziative non trovati:', missingIds);
+        return res.status(400).json({
+          success: false,
+          error: `Alcune iniziative non esistono: ${missingIds.join(', ')}`
+        });
+      }
     }
     
     await client.query('BEGIN');
     
-    // Prima cancella tutti i voti esistenti dell'utente
-    await client.query(
-      'DELETE FROM voti_iniziative_popolari WHERE userid = $1',
-      [userId]
-    );
+    // Prima cancella TUTTI i voti esistenti dell'utente (sia come UUID che come text)
+    const deleteQuery = `
+      DELETE FROM voti_iniziative_popolari 
+      WHERE userid::text = $1 OR userid = $1::uuid
+    `;
+    const deleteResult = await client.query(deleteQuery, [userId]);
+    console.log(`🔍 DEBUG /api/iniziative-popolari/vota - Voti eliminati: ${deleteResult.rowCount}`);
     
-    // Poi inserisce i nuovi voti
-    for (const iniziativaId of voti) {
+    // Poi inserisce i nuovi voti (massimo 1)
+    if (votiDaSalvare.length > 0) {
+      const iniziativaId = votiDaSalvare[0];
       await client.query(
-        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1, $2, NOW(), NOW(), NOW())',
+        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
         [userId, iniziativaId]
       );
+      console.log(`🔍 DEBUG /api/iniziative-popolari/vota - Voto inserito: ${iniziativaId}`);
     }
     
     await client.query('COMMIT');
