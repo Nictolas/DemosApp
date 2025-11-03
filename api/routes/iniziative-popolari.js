@@ -148,13 +148,26 @@ router.get('/', async (req, res) => {
           ORDER BY voti DESC, ip.nome ASC
         `;
         
+        console.log('🔍 DEBUG - Esecuzione query classifica');
         const classificaResult = await pool.query(classificaQuery);
+        console.log('🔍 DEBUG - Risultati classifica raw:', classificaResult.rows);
+        
+        // Debug: verifica tutti i voti nel database
+        const debugVotiQuery = 'SELECT iniziativa_id, COUNT(*) as count FROM voti_iniziative_popolari GROUP BY iniziativa_id';
+        const debugVotiResult = await pool.query(debugVotiQuery);
+        console.log('🔍 DEBUG - Tutti i voti per iniziativa_id:', debugVotiResult.rows);
+        
+        // Debug: verifica gli ID delle iniziative
+        const debugIniziativeQuery = 'SELECT id, nome FROM iniziative_popolari WHERE quorum != \'proposta\' AND (esito = \'In Attesa\' OR esito IS NULL)';
+        const debugIniziativeResult = await pool.query(debugIniziativeQuery);
+        console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
+        
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
           sitoWeb: row.sitoweb || row.sito_web,
           voti: parseInt(row.voti) || 0
         }));
-        console.log(`✅ Generata classifica con ${classifica.length} iniziative`);
+        console.log(`✅ Generata classifica con ${classifica.length} iniziative:`, classifica);
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
         // Se la classifica fallisce, continua senza di essa
@@ -503,12 +516,25 @@ router.post('/vota', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('❌ Errore nel salvataggio voti iniziative popolari:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+    await client.query('ROLLBACK').catch(err => {
+      console.error('❌ Errore nel ROLLBACK:', err);
     });
+    console.error('❌ Errore nel salvataggio voti iniziative popolari:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        details: error.message
+      });
+    }
   } finally {
     client.release();
   }
