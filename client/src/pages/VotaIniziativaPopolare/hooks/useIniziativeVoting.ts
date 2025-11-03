@@ -107,8 +107,69 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
 
   // Calcola la classifica ottimistica (aggiornata immediatamente con i cambiamenti locali)
   const classificaOttimistica = useMemo(() => {
-    if (!data?.classifica || !data?.iniziative) {
-      return [];
+    // Se non ci sono dati, usa la classifica originale se disponibile
+    if (!data?.iniziative) {
+      return data?.classifica || [];
+    }
+
+    // Se non c'è classifica ma ci sono iniziative, crea una classifica vuota con tutte le iniziative ufficiali
+    if (!data?.classifica || data.classifica.length === 0) {
+      const iniziativeUfficiali = data.iniziative
+        .filter(i => i.quorum !== 'proposta')
+        .map(iniziativa => ({
+          nome: iniziativa.nome,
+          sitoWeb: iniziativa.sitoWeb,
+          voti: 0
+        }));
+      
+      // Applica i cambiamenti locali anche qui
+      const classificaMap = new Map<string, { voti: number; sitoWeb?: string }>();
+      iniziativeUfficiali.forEach(item => {
+        classificaMap.set(item.nome, { voti: item.voti, sitoWeb: item.sitoWeb });
+      });
+
+      // Trova le iniziative aggiunte (in selectedVoti ma non in mieiVoti)
+      const iniziativeAggiunte = selectedVoti.filter(id => !(data?.mieiVoti || []).includes(id));
+      
+      // Trova le iniziative rimosse (in mieiVoti ma non in selectedVoti)
+      const iniziativeRimosse = (data?.mieiVoti || []).filter(id => !selectedVoti.includes(id));
+
+      // Incrementa i voti per le iniziative aggiunte
+      iniziativeAggiunte.forEach(id => {
+        const iniziativa = data.iniziative.find(i => i.id === id);
+        if (iniziativa) {
+          const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+          classificaMap.set(iniziativa.nome, {
+            voti: current.voti + 1,
+            sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+          });
+        }
+      });
+
+      // Decrementa i voti per le iniziative rimosse
+      iniziativeRimosse.forEach(id => {
+        const iniziativa = data.iniziative.find(i => i.id === id);
+        if (iniziativa) {
+          const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+          classificaMap.set(iniziativa.nome, {
+            voti: Math.max(0, current.voti - 1),
+            sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+          });
+        }
+      });
+
+      return Array.from(classificaMap.entries())
+        .map(([nome, { voti, sitoWeb }]) => ({
+          nome,
+          sitoWeb,
+          voti
+        }))
+        .sort((a, b) => {
+          if (b.voti !== a.voti) {
+            return b.voti - a.voti;
+          }
+          return a.nome.localeCompare(b.nome);
+        });
     }
 
     // Crea una mappa della classifica originale (nome -> {voti, sitoWeb})
@@ -156,17 +217,13 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       }
     });
 
-    // Converti la mappa in array e ordina per voti decrescenti
+    // Converti la mappa in array - MOSTRA TUTTE le iniziative ufficiali, anche con 0 voti
     const classificaAggiornata: Classifica[] = Array.from(classificaMap.entries())
       .map(([nome, { voti, sitoWeb }]) => ({
         nome,
         sitoWeb,
         voti
       }))
-      .filter(item => item.voti > 0 || selectedVoti.some(id => {
-        const iniziativa = data.iniziative.find(i => i.id === id);
-        return iniziativa?.nome === item.nome;
-      })) // Mantieni le iniziative con voti > 0 o quelle selezionate
       .sort((a, b) => {
         // Ordina per voti decrescenti, poi per nome crescente
         if (b.voti !== a.voti) {
