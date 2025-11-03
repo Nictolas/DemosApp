@@ -30,9 +30,22 @@ router.post('/login',
   authLimiter,
   async (req, res) => {
     const startTime = Date.now();
-    console.log(`🚀 LOGIN START: ${req.body.email} - ${new Date().toISOString()}`);
+    console.log(`🚀 LOGIN START: ${req.body?.email || 'Nessuna email'} - ${new Date().toISOString()}`);
+    console.log(`🚀 LOGIN DEBUG: Method: ${req.method}, Path: ${req.path}, URL: ${req.url}`);
+    console.log(`🚀 LOGIN DEBUG: Headers:`, JSON.stringify(req.headers));
+    console.log(`🚀 LOGIN DEBUG: Body:`, JSON.stringify(req.body));
     
     try {
+      // Verifica che il body sia parsato correttamente
+      if (!req.body) {
+        console.error('❌ LOGIN ERROR: req.body è undefined o null');
+        return res.status(400).json({
+          success: false,
+          error: 'Body della richiesta non valido',
+          message: 'La richiesta deve contenere email e password in formato JSON'
+        });
+      }
+      
       const { email, password } = req.body;
       console.log(`📧 Email ricevuta: ${email}`);
 
@@ -110,7 +123,7 @@ router.post('/login',
       const totalTime = Date.now() - startTime;
       console.log(`🎉 LOGIN SUCCESS: ${user.email} - Tempo totale: ${totalTime}ms`);
 
-      res.json({
+      const responseData = {
         success: true,
         message: 'Login effettuato con successo',
         user: {
@@ -122,15 +135,31 @@ router.post('/login',
           created_at: user.created_at
         },
         ...tokens
-      });
+      };
+      
+      console.log(`📤 LOGIN: Invio risposta con accessToken: ${!!responseData.accessToken}`);
+      
+      // Assicurati che la risposta venga inviata correttamente
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200).json(responseData);
+      
+      console.log(`✅ LOGIN: Risposta inviata correttamente`);
 
     } catch (error) {
       console.error('❌ Errore durante il login:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Errore interno del server',
-        message: 'Impossibile completare il login'
-      });
+      console.error('❌ Stack trace:', error.stack);
+      
+      // Assicurati che la risposta di errore venga inviata
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: 'Errore interno del server',
+          message: 'Impossibile completare il login',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+      } else {
+        console.error('❌ LOGIN: Headers già inviati, impossibile inviare risposta di errore');
+      }
     }
   }
 );

@@ -52,12 +52,18 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true, // Non conta i login riusciti
   handler: (req, res) => {
     console.log(`🚨 AUTH RATE LIMIT: IP ${req.ip} ha superato il limite di autenticazione`);
-    res.status(429).json({
-      success: false,
-      error: 'Troppi tentativi di accesso',
-      message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
-      retryAfter: 15 * 60
-    });
+    console.log(`🚨 AUTH RATE LIMIT: Path: ${req.path}, Method: ${req.method}`);
+    
+    if (!res.headersSent) {
+      res.status(429).json({
+        success: false,
+        error: 'Troppi tentativi di accesso',
+        message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
+        retryAfter: 15 * 60
+      });
+    } else {
+      console.error('❌ RATE LIMIT: Headers già inviati, impossibile inviare risposta');
+    }
   }
 });
 

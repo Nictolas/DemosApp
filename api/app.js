@@ -242,6 +242,13 @@ app.use((req, res, next) => {
   // Debug per tutte le richieste POST a /api/auth/*
   if (req.path.startsWith('/api/auth/') && req.method === 'POST') {
     console.log('🔍 DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
+    console.log('🔍 DEBUG: Body presente:', !!req.body);
+    console.log('🔍 DEBUG: Content-Type:', req.headers['content-type']);
+  }
+  
+  // Debug specifico per login
+  if (req.path === '/api/auth/login' || req.path === '/auth/login') {
+    console.log('🔐 LOGIN REQUEST DETECTED:', req.method, req.path);
   }
   
   next();
