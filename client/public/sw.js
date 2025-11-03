@@ -1,5 +1,5 @@
 // Service Worker per DEMOS PWA
-const CACHE_NAME = 'demos-v4';
+const CACHE_NAME = 'demos-v5';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
