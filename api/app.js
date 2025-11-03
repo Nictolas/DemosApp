@@ -251,6 +251,13 @@ app.use((req, res, next) => {
     console.log('🔐 LOGIN REQUEST DETECTED:', req.method, req.path);
   }
   
+  // Debug per POST referendum-abrogativi
+  if (req.path === '/api/referendum-abrogativi' && req.method === 'POST') {
+    console.log('📋 REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
+    console.log('📋 REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
+    console.log('📋 REFERENDUM POST - Body:', JSON.stringify(req.body));
+  }
+  
   next();
 });
 
