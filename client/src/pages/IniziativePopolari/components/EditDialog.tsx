@@ -47,11 +47,20 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
 
   const [quorum, setQuorum] = React.useState(iniziativa?.quorum || 'pending');
 
-  // Aggiorna quorum quando cambia l'iniziativa
+  // Aggiorna il form quando cambia l'iniziativa
   React.useEffect(() => {
     if (iniziativa) {
+      const newValues = {
+        nome: iniziativa.nome || "",
+        descrizione: iniziativa.descrizione || "",
+        dataInizio: formatDateForInput(iniziativa.dataInizio || iniziativa.data_inizio || ""),
+        dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
+        sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
+      };
+      form.reset(newValues);
       setQuorum(iniziativa.quorum || 'pending');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iniziativa?.id]);
 
   const handleSubmit = (data: any, e?: React.BaseSyntheticEvent) => {
@@ -88,7 +97,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
           <DialogTitle>Modifica Iniziativa Popolare</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 bg-white">
-          <Form {...form} key={iniziativa?.id}>
+          <Form {...form}>
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <FormField
                 control={form.control}
