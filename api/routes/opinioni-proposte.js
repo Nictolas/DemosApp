@@ -311,10 +311,19 @@ router.post('/', async (req, res) => {
     
     // Usa un advisory lock basato sull'hash del testo per prevenire race conditions
     // PostgreSQL advisory locks sono ideali per questo caso
+    // Usa un hash più lungo per evitare collisioni
     const crypto = require('crypto');
-    const lockId = crypto.createHash('md5').update(testoNormalizzato.toLowerCase()).digest('hex');
-    // Converti i primi 8 caratteri hex in un numero per pg_advisory_lock
-    const lockKey = parseInt(lockId.substring(0, 8), 16);
+    const testoPerHash = testoNormalizzato.toLowerCase().trim();
+    const lockId = crypto.createHash('sha256').update(testoPerHash).digest('hex');
+    // Converti i primi 15 caratteri hex in un numero per pg_advisory_lock
+    // PostgreSQL advisory locks usano bigint, quindi possiamo usare più caratteri
+    const lockKey = parseInt(lockId.substring(0, 15), 16) % Number.MAX_SAFE_INTEGER;
+    
+    console.log('🔒 Lock generato:', {
+      testo: testoPerHash,
+      lockHash: lockId.substring(0, 15),
+      lockKey: lockKey
+    });
     
     const client = await pool.connect();
     
@@ -334,13 +343,23 @@ router.post('/', async (req, res) => {
         await client.query('BEGIN');
         
         // Verifica se esiste già un'opinione con lo stesso testo in stato "da approvare"
+        // Usa SELECT FOR UPDATE per bloccare le righe durante la transazione e prevenire race conditions
         const checkDuplicateQuery = `
+          SELECT id FROM opinioni_domande 
+          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
+          AND 'da approvare' = ANY(gradi_opinione)
+          FOR UPDATE
+        `;
+        
+        // Query per controllo finale (senza FOR UPDATE, fuori dalla transazione)
+        const checkDuplicateQueryFinal = `
           SELECT id FROM opinioni_domande 
           WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
           AND 'da approvare' = ANY(gradi_opinione)
         `;
         
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
+        console.log('🔍 Lock key utilizzato:', lockKey);
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Risultato controllo duplicati:', {
           righeTrovate: duplicateCheck.rows.length,
@@ -391,8 +410,16 @@ router.post('/', async (req, res) => {
         await client.query('COMMIT');
         console.log('✅ Transazione committata con successo');
         
+        // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
+        const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
+        if (finalCheck.rows.length > 1) {
+          console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
+          // Non blocchiamo, ma loggiamo l'errore
+        }
+        
         // Rilascia il lock
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+        console.log('🔓 Lock rilasciato');
         
         // Se l'utente è autenticato, aggiungi automaticamente il suo voto (fuori dalla transazione principale)
         if (userId) {

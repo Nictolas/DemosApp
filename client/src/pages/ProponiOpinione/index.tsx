@@ -47,6 +47,7 @@ export default function ProponiOpinione() {
     
     // Previeni doppi invii con ref per evitare race conditions
     if (isSubmittingRef.current || proponiOpinioneState.submitting) {
+      console.log('⚠️ Submit bloccato - già in corso');
       return;
     }
     
@@ -54,13 +55,20 @@ export default function ProponiOpinione() {
     setSubmitting(true);
     
     try {
+      console.log('📝 Avvio submit opinione:', proponiOpinioneState.testoInput);
       const success = await handleProponi(proponiOpinioneState.testoInput);
       if (success) {
         updateField('testoInput', '');
+        console.log('✅ Submit completato con successo');
+      } else {
+        console.log('❌ Submit fallito');
       }
+    } catch (error) {
+      console.error('❌ Errore durante submit:', error);
     } finally {
       isSubmittingRef.current = false;
       setSubmitting(false);
+      console.log('🔄 Stato submit resettato');
     }
   };
 
