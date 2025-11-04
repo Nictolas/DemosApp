@@ -67,6 +67,19 @@ export const useProponiOpinioneData = (user: any) => {
   const handleProponi = async (testoInput: string) => {
     if (!testoInput.trim()) return false;
     
+    // Verifica se l'opinione esiste già localmente prima di inviare
+    const testoNormalizzato = testoInput.trim().toLowerCase();
+    const esisteGià = opinioni.some(op => op.testo.toLowerCase() === testoNormalizzato);
+    
+    if (esisteGià) {
+      toast({ 
+        title: "Opinione già esistente", 
+        description: "Questa opinione è già stata proposta.", 
+        variant: "destructive" 
+      });
+      return false;
+    }
+    
     try {
       console.log('📝 Invio nuova opinione proposta...');
       const data = await apiRequest('POST', '/api/opinioni-proposte', {
@@ -225,7 +238,7 @@ export const useProponiOpinioneData = (user: any) => {
 
   // Cancella opinione proposta (solo admin)
   const handleCancella = async (id: string) => {
-    if (!user || user.role !== 'AD') {
+    if (!user || user.ruolo !== 'AD') {
       toast({ 
         title: "Non autorizzato", 
         description: "Solo gli amministratori possono cancellare opinioni.", 
