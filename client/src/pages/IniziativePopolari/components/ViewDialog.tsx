@@ -50,7 +50,7 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onE
           <div>
             <h4 className="font-semibold text-gray-900 mb-1">Firme Raccolte</h4>
             <p className="text-gray-700 text-lg font-semibold">
-              {iniziativa.firme || 0}
+              {iniziativa.firme ? iniziativa.firme.toLocaleString('it-IT') : (iniziativa.votiices ? iniziativa.votiices.toLocaleString('it-IT') : '0')}
             </p>
           </div>
           

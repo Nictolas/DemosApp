@@ -62,7 +62,8 @@ export const IniziativeProposte: React.FC<IniziativeProposteProps> = ({
           {iniziativeProposte.map((iniziativa) => (
             <div 
               key={iniziativa.id} 
-              className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-sm"
+              className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => onView && onView(iniziativa)}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">

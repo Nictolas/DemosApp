@@ -38,11 +38,12 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
       {listaIniziative.map((iniziativa) => (
         <div 
           key={iniziativa.id} 
-          className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${
+          className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
             iniziativa.quorum === 'proposta'
               ? 'border-blue-200 bg-blue-50'
               : 'border-gray-200'
           }`}
+          onClick={() => onView && onView(iniziativa)}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -61,18 +62,9 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                   }
                   aria-hidden="true"
                 />
-                {onView ? (
-                  <button
-                    className="text-blue-700 underline hover:text-blue-900 cursor-pointer text-lg font-semibold"
-                    onClick={() => onView(iniziativa)}
-                  >
-                    {iniziativa.nome}
-                  </button>
-                ) : (
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {iniziativa.nome}
-                  </h3>
-                )}
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {iniziativa.nome}
+                </h3>
                 {iniziativa.quorum === 'proposta' && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Proposta
