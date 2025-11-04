@@ -6,23 +6,36 @@ const { securityHeaders, securityMiddleware, securityLogger } = require('./middl
 const { requestLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/loggingMiddleware');
 const logger = require('./services/centralizedLogger');
 
-// Import moduli
-const healthRoutes = require('./routes/health');
-const emailRoutes = require('./routes/email');
-const databaseRoutes = require('./routes/database');
-const compatibilityRoutes = require('./routes/compatibility');
-const testOpinioniRoutes = require('./routes/test-opinioni-endpoints');
-const testAddOpinioneRoutes = require('./routes/test-add-opinione');
-const servicesRoutes = require('./routes/services');
-const authRoutes = require('./routes/auth/index');
-const clearTokenRoutes = require('./routes/auth/clear-token');
-const userRoutes = require('./routes/users/index');
-const opinioniRoutes = require('./routes/opinioni/index');
-const opinioniProposteRoutes = require('./routes/opinioni-proposte');
-const governoRoutes = require('./routes/governo');
-const governoMinistroRoutes = require('./routes/governo-ministro');
-const rappresentantiRoutes = require('./routes/rappresentanti');
-const notificheRoutes = require('./routes/notifiche');
+// Import moduli con gestione errori
+let healthRoutes, emailRoutes, databaseRoutes, compatibilityRoutes, testOpinioniRoutes;
+let testAddOpinioneRoutes, servicesRoutes, authRoutes, clearTokenRoutes, userRoutes;
+let opinioniRoutes, opinioniProposteRoutes, governoRoutes, governoMinistroRoutes;
+let rappresentantiRoutes, notificheRoutes;
+
+try {
+  console.log('📦 Caricamento moduli routes...');
+  healthRoutes = require('./routes/health');
+  emailRoutes = require('./routes/email');
+  databaseRoutes = require('./routes/database');
+  compatibilityRoutes = require('./routes/compatibility');
+  testOpinioniRoutes = require('./routes/test-opinioni-endpoints');
+  testAddOpinioneRoutes = require('./routes/test-add-opinione');
+  servicesRoutes = require('./routes/services');
+  authRoutes = require('./routes/auth/index');
+  clearTokenRoutes = require('./routes/auth/clear-token');
+  userRoutes = require('./routes/users/index');
+  opinioniRoutes = require('./routes/opinioni/index');
+  opinioniProposteRoutes = require('./routes/opinioni-proposte');
+  governoRoutes = require('./routes/governo');
+  governoMinistroRoutes = require('./routes/governo-ministro');
+  rappresentantiRoutes = require('./routes/rappresentanti');
+  notificheRoutes = require('./routes/notifiche');
+  console.log('✅ Moduli routes base caricati correttamente');
+} catch (error) {
+  console.error('❌ Errore nel caricamento dei moduli routes base:', error);
+  console.error('❌ Stack trace:', error.stack);
+  throw error;
+}
 const testDbRoutes = require('./routes/test-db');
 const eventiRoutes = require('./routes/eventi');
 const graziaRoutes = require('./routes/grazia');
