@@ -11,9 +11,10 @@ export const useIniziativeData = (user: any) => {
   }>({
     queryKey: ['iniziativePopolari'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/iniziative-popolari");
-      if (!response.ok) throw new Error("Errore nel caricamento delle iniziative popolari");
-      const result = await response.json();
+      const result = await apiRequest("GET", "/api/iniziative-popolari");
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Errore nel caricamento delle iniziative popolari");
+      }
       return result;
     },
     enabled: !!user,
