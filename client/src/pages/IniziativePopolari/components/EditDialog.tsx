@@ -63,29 +63,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iniziativa?.id]);
 
-  const handleSubmit = (data: any, e?: React.BaseSyntheticEvent) => {
-    console.log('🔍 EditDialog - handleSubmit chiamato:', { data, quorum, id: iniziativa?.id });
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    try {
-      onSubmit({ ...data, quorum, id: iniziativa?.id });
-    } catch (error) {
-      console.error('❌ EditDialog - Errore in handleSubmit:', error);
-    }
-  };
-
-  const handleError = (errors: any) => {
-    console.error('❌ EditDialog - Errori di validazione:', errors);
-    console.error('❌ EditDialog - Valori del form:', form.getValues());
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('🔍 EditDialog - handleFormSubmit chiamato');
-    form.handleSubmit(handleSubmit, handleError)();
+  const handleSubmit = (data: any) => {
+    onSubmit({ ...data, quorum, id: iniziativa?.id });
   };
 
   if (!iniziativa) return null;
@@ -98,7 +77,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         </DialogHeader>
         <div className="space-y-4 bg-white">
           <Form {...form}>
-            <form onSubmit={handleFormSubmit} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="nome"
