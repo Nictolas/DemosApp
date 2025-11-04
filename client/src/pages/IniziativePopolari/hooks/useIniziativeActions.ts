@@ -32,14 +32,27 @@ export const useIniziativeActions = () => {
   });
 
   const editMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: IniziativaFormData & { quorum?: string } }) => 
-      apiRequest("PUT", API_ENDPOINTS.INIZIATIVE_UPDATE(id), data),
+    mutationFn: async ({ id, data }: { id: string; data: IniziativaFormData & { quorum?: string } }) => {
+      console.log('🔍 editMutation - Inizio chiamata API:', { id, url: API_ENDPOINTS.INIZIATIVE_UPDATE(id), data });
+      try {
+        const result = await apiRequest("PUT", API_ENDPOINTS.INIZIATIVE_UPDATE(id), data);
+        console.log('✅ editMutation - Risposta ricevuta:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ editMutation - Errore nella chiamata API:', error);
+        throw error;
+      }
+    },
     onSuccess: () => {
+      console.log('✅ editMutation - onSuccess chiamato');
       toast({ title: "Successo", description: MESSAGES.SUCCESS.UPDATED });
       setState(prev => ({ ...prev, editIniziativa: null }));
       invalidateAndRefetch();
     },
-    onError: (e: any) => toast({ title: "Errore", description: e.message || MESSAGES.ERROR.UPDATE, variant: "destructive" }),
+    onError: (e: any) => {
+      console.error('❌ editMutation - onError chiamato:', e);
+      toast({ title: "Errore", description: e.message || MESSAGES.ERROR.UPDATE, variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -98,17 +111,30 @@ export const useIniziativeActions = () => {
     addMutation.mutate(data);
   };
   const handleUpdate = (data: IniziativaFormData & { quorum?: string; id?: string }) => {
+    console.log('🔍 handleUpdate chiamato:', { data, editMutationPending: editMutation.isPending, stateEditId: state.editIniziativa?.id });
+    
     if (editMutation.isPending) {
+      console.warn('⚠️ handleUpdate - Mutation già in corso, ignoro');
       return; // Evita chiamate multiple
     }
+    
     const id = data.id || state.editIniziativa?.id;
     if (!id) {
+      console.error('❌ handleUpdate - ID non trovato');
       toast({ title: "Errore", description: "ID iniziativa non trovato", variant: "destructive" });
       return;
     }
+    
     // Rimuove l'id dai dati prima di inviare
     const { id: idField, ...dataWithoutId } = data;
-    editMutation.mutate({ id, data: dataWithoutId });
+    console.log('🔍 handleUpdate - Chiamando mutation con:', { id, data: dataWithoutId });
+    
+    try {
+      editMutation.mutate({ id, data: dataWithoutId });
+    } catch (error) {
+      console.error('❌ handleUpdate - Errore nella mutation:', error);
+      toast({ title: "Errore", description: "Errore durante il salvataggio", variant: "destructive" });
+    }
   };
   const handleDelete = (id: string) => deleteMutation.mutate(id);
   const handleApprove = (id: string) => approveMutation.mutate(id);
