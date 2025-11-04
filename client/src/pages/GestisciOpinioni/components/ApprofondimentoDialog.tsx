@@ -160,15 +160,29 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     }
   };
 
-  const handleSave = async () => {
-    if (readOnly) return;
+  const handleSave = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log('🔍 DEBUG handleSave - Inizio');
+    
+    if (readOnly) {
+      console.log('⚠️ DEBUG handleSave - ReadOnly, esco');
+      return;
+    }
     
     try {
       setIsSaving(true);
+      console.log('🔍 DEBUG handleSave - setIsSaving(true)');
       
       // Valida ID personalizzato per opinioni "da approvare"
       const isDaApprovare = opinione?.gradi_opinione?.includes('da approvare');
+      console.log('🔍 DEBUG handleSave - isDaApprovare:', isDaApprovare, 'customId:', customId);
+      
       if (isDaApprovare && !customId.trim()) {
+        console.log('⚠️ DEBUG handleSave - ID personalizzato mancante');
         toast({
           title: "Errore",
           description: "Inserisci un ID personalizzato per l'opinione.",
@@ -189,7 +203,11 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         .filter(([_, isSelected]) => isSelected)
         .map(([grado, _]) => gradoCodeMap[grado as keyof typeof gradoCodeMap]);
       
+      console.log('🔍 DEBUG handleSave - gradiProposta:', gradiProposta);
+      console.log('🔍 DEBUG handleSave - gradiSelezionati:', gradiSelezionati);
+      
       if (gradiSelezionati.length === 0) {
+        console.log('⚠️ DEBUG handleSave - Nessun grado selezionato');
         toast({
           title: "Errore",
           description: "Seleziona almeno un grado per l'opinione.",
@@ -213,7 +231,13 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         ...(isDaApprovare && customId.trim() && { customId: customId.trim() })
       };
       
+      console.log('🔍 DEBUG handleSave - URL ID:', urlOpinionId);
+      console.log('🔍 DEBUG handleSave - Body:', body);
+      console.log('🔍 DEBUG handleSave - Invio richiesta API...');
+      
       const data = await apiRequest("PUT", `/api/opinioni/${urlOpinionId}/approfondimento`, body);
+      
+      console.log('🔍 DEBUG handleSave - Risposta ricevuta:', data);
       
       // apiRequest ritorna già i dati parsati, quindi controlliamo se la risposta è valida
       if (data && (data.success !== false)) {
@@ -415,6 +439,7 @@ Puoi aggiungere:
               Annulla
             </Button>
             <Button 
+              type="button"
               onClick={handleSave} 
               disabled={isSaving || isLoading}
               className="min-w-[120px]"
