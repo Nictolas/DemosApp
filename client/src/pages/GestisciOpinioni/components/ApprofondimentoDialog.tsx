@@ -72,11 +72,9 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     try {
       setIsLoading(true);
       const currentOpinionId = opinionId || opinione?.id;
-      const response = await apiRequest("GET", `/api/opinioni/${currentOpinionId}/approfondimento`);
+      const data = await apiRequest("GET", `/api/opinioni/${currentOpinionId}/approfondimento`);
       
-      if (response.ok) {
-        const data = await response.json();
-        
+      if (data && data.data) {
         // Carica i gradi della proposta
         if (data.data.gradi_opinione && Array.isArray(data.data.gradi_opinione)) {
           const gradi = {
@@ -215,9 +213,10 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         ...(isDaApprovare && customId.trim() && { customId: customId.trim() })
       };
       
-      const response = await apiRequest("PUT", `/api/opinioni/${urlOpinionId}/approfondimento`, body);
+      const data = await apiRequest("PUT", `/api/opinioni/${urlOpinionId}/approfondimento`, body);
       
-      if (response.ok) {
+      // apiRequest ritorna già i dati parsati, quindi controlliamo se la risposta è valida
+      if (data && (data.success !== false)) {
         toast({
           title: "Successo",
           description: "Approfondimento salvato con successo!",
@@ -229,14 +228,14 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         
         onOpenChange(false);
       } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Errore nel salvataggio');
+        throw new Error(data.message || data.error || 'Errore nel salvataggio');
       }
     } catch (error) {
       console.error('Errore nel salvataggio dell\'approfondimento:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Impossibile salvare l\'approfondimento. Riprova più tardi.';
       toast({
         title: "Errore",
-        description: "Impossibile salvare l'approfondimento. Riprova più tardi.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
