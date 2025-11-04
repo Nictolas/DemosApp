@@ -32,7 +32,7 @@ export interface HeaderProps {
 export interface ProponiFormProps {
   testoInput: string;
   submitting: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent) => void | Promise<void>;
   onInputChange: (value: string) => void;
   opinioniEsistenti?: string[];
 }

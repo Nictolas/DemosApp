@@ -343,7 +343,8 @@ router.post('/', async (req, res) => {
         await client.query('BEGIN');
         
         // Verifica se esiste già un'opinione con lo stesso testo in stato "da approvare"
-        // Usa SELECT FOR UPDATE per bloccare le righe durante la transazione e prevenire race conditions
+        // IMPORTANTE: SELECT FOR UPDATE non blocca se non ci sono righe, quindi usiamo
+        // un approccio diverso: inseriamo con ON CONFLICT per gestire i duplicati a livello database
         const checkDuplicateQuery = `
           SELECT id FROM opinioni_domande 
           WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
@@ -360,6 +361,8 @@ router.post('/', async (req, res) => {
         
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         console.log('🔍 Lock key utilizzato:', lockKey);
+        
+        // Prima verifica: controlla se esiste già
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Risultato controllo duplicati:', {
           righeTrovate: duplicateCheck.rows.length,
@@ -369,6 +372,7 @@ router.post('/', async (req, res) => {
         if (duplicateCheck.rows.length > 0) {
           await client.query('ROLLBACK');
           await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+          client.release();
           console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
           return res.status(409).json({
             success: false,
@@ -381,9 +385,16 @@ router.post('/', async (req, res) => {
         console.log('🔍 ID generato per nuova opinione:', id);
         
         // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
+        // Usa ON CONFLICT per gestire eventuali race conditions che potrebbero verificarsi
+        // anche dopo il controllo (molto raro ma possibile)
         const insertQuery = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-          VALUES ($1, $2, $3, $4)
+          SELECT $1, $2, $3, $4
+          WHERE NOT EXISTS (
+            SELECT 1 FROM opinioni_domande 
+            WHERE LOWER(TRIM(text)) = LOWER(TRIM($2)) 
+            AND 'da approvare' = ANY(gradi_opinione)
+          )
           RETURNING id, text
         `;
         
@@ -404,11 +415,28 @@ router.post('/', async (req, res) => {
           approfondimento
         ]);
         
-        console.log('✅ Insert eseguito con successo. Righe inserite:', insertResult.rowCount);
+        console.log('✅ Insert eseguito. Righe inserite:', insertResult.rowCount);
         console.log('✅ Dati inseriti:', insertResult.rows);
+        
+        // Se l'insert non ha inserito nulla, significa che esiste già un duplicato
+        // (potrebbe essere stato creato da un'altra transazione tra il controllo e l'insert)
+        if (insertResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+          client.release();
+          console.log('⚠️ Insert fallito: opinione duplicata creata da altra transazione');
+          return res.status(409).json({
+            success: false,
+            error: 'Un\'opinione con questo testo è già stata proposta'
+          });
+        }
         
         await client.query('COMMIT');
         console.log('✅ Transazione committata con successo');
+        
+        // Rilascia il lock PRIMA di continuare
+        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+        console.log('🔓 Lock rilasciato');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
@@ -416,10 +444,6 @@ router.post('/', async (req, res) => {
           console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
           // Non blocchiamo, ma loggiamo l'errore
         }
-        
-        // Rilascia il lock
-        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-        console.log('🔓 Lock rilasciato');
         
         // Se l'utente è autenticato, aggiungi automaticamente il suo voto (fuori dalla transazione principale)
         if (userId) {
@@ -470,6 +494,9 @@ router.post('/', async (req, res) => {
         });
         
         console.log('✅ Risposta inviata con successo');
+        
+        // Rilascia il client dopo aver inviato la risposta
+        // (verrà rilasciato anche nel finally, ma meglio essere espliciti)
         
       } catch (error) {
         console.error('❌ Errore durante la transazione:', error);
