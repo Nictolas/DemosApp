@@ -16,13 +16,7 @@ export const useProponiOpinioneData = (user: any) => {
     setLoadingData(true);
     try {
       console.log('🔍 Caricamento opinioni proposte...');
-      const response = await apiRequest('GET', '/api/opinioni-proposte');
-      
-      if (!response.ok) {
-        throw new Error('Errore nel caricamento delle opinioni proposte');
-      }
-      
-      const data = await response.json();
+      const data = await apiRequest('GET', '/api/opinioni-proposte');
       console.log('📊 Dati ricevuti:', data);
       
       if (data.success && data.data) {
@@ -44,13 +38,12 @@ export const useProponiOpinioneData = (user: any) => {
         
         // Carica i voti dell'utente
         console.log('🔍 Caricamento voti utente...');
-        const votiResponse = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
-        if (votiResponse.ok) {
-          const votiData = await votiResponse.json();
+        try {
+          const votiData = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
           setUserVoti(votiData.data || []);
           console.log('✅ Voti utente caricati:', votiData.data);
-        } else {
-          console.log('⚠️ Errore nel caricare voti utente');
+        } catch (error) {
+          console.log('⚠️ Errore nel caricare voti utente:', error);
           setUserVoti([]);
         }
         
@@ -76,16 +69,10 @@ export const useProponiOpinioneData = (user: any) => {
     
     try {
       console.log('📝 Invio nuova opinione proposta...');
-      const response = await apiRequest('POST', '/api/opinioni-proposte', {
+      const data = await apiRequest('POST', '/api/opinioni-proposte', {
         testo: testoInput.trim()
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore nell\'invio della proposta');
-      }
-      
-      const data = await response.json();
       console.log('✅ Opinione proposta inviata:', data);
       
       toast({ 
@@ -129,12 +116,7 @@ export const useProponiOpinioneData = (user: any) => {
     
     try {
       console.log('👍 Invio voto per opinione:', id);
-      const response = await apiRequest('POST', `/api/opinioni-proposte/${id}/vota`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore nel voto');
-      }
+      await apiRequest('POST', `/api/opinioni-proposte/${id}/vota`);
       
       console.log('✅ Voto registrato con successo');
       
@@ -214,12 +196,7 @@ export const useProponiOpinioneData = (user: any) => {
     
     try {
       console.log('👎 Rimozione voto per opinione:', id);
-      const response = await apiRequest('DELETE', `/api/opinioni-proposte/${id}/vota`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore nella rimozione del voto');
-      }
+      await apiRequest('DELETE', `/api/opinioni-proposte/${id}/vota`);
       
       console.log('✅ Voto rimosso con successo');
       
