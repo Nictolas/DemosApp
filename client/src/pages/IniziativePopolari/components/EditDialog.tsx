@@ -21,13 +21,24 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
     }
   };
 
-  const defaultValues = React.useMemo(() => ({
-    nome: iniziativa?.nome || "",
-    descrizione: iniziativa?.descrizione || "",
-    dataInizio: formatDateForInput(iniziativa?.dataInizio || iniziativa?.data_inizio || ""),
-    dataFine: formatDateForInput(iniziativa?.dataFine || iniziativa?.data_fine || ""),
-    sitoWeb: iniziativa?.sitoWeb || iniziativa?.sito_web || ""
-  }), [iniziativa]);
+  const defaultValues = React.useMemo(() => {
+    if (!iniziativa) {
+      return {
+        nome: "",
+        descrizione: "",
+        dataInizio: "",
+        dataFine: "",
+        sitoWeb: ""
+      };
+    }
+    return {
+      nome: iniziativa.nome || "",
+      descrizione: iniziativa.descrizione || "",
+      dataInizio: formatDateForInput(iniziativa.dataInizio || iniziativa.data_inizio || ""),
+      dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
+      sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
+    };
+  }, [iniziativa?.id]); // Usa solo l'ID come dipendenza
 
   const form = useForm({
     resolver: zodResolver(iniziativaSchema),
@@ -36,24 +47,19 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
 
   const [quorum, setQuorum] = React.useState(iniziativa?.quorum || 'pending');
 
-  // Aggiorna il form quando cambia l'iniziativa
+  // Aggiorna quorum quando cambia l'iniziativa
   React.useEffect(() => {
     if (iniziativa) {
-      const newDefaultValues = {
-        nome: iniziativa.nome || "",
-        descrizione: iniziativa.descrizione || "",
-        dataInizio: formatDateForInput(iniziativa.dataInizio || iniziativa.data_inizio || ""),
-        dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
-        sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
-      };
-      form.reset(newDefaultValues);
       setQuorum(iniziativa.quorum || 'pending');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iniziativa?.id]);
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: any, e?: React.BaseSyntheticEvent) => {
     console.log('🔍 EditDialog - handleSubmit chiamato:', { data, quorum, id: iniziativa?.id });
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     try {
       onSubmit({ ...data, quorum, id: iniziativa?.id });
     } catch (error) {
@@ -66,6 +72,13 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
     console.error('❌ EditDialog - Valori del form:', form.getValues());
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔍 EditDialog - handleFormSubmit chiamato');
+    form.handleSubmit(handleSubmit, handleError)();
+  };
+
   if (!iniziativa) return null;
 
   return (
@@ -75,8 +88,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
           <DialogTitle>Modifica Iniziativa Popolare</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 bg-white">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit, handleError)} className="space-y-4">
+          <Form {...form} key={iniziativa?.id}>
+            <form onSubmit={handleFormSubmit} className="space-y-4">
               <FormField
                 control={form.control}
                 name="nome"
