@@ -11,8 +11,6 @@ import { EditDialogProps } from "../types";
 import { referendumSchema } from "../types";
 
 export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onSubmit, isLoading }) => {
-  const [quorum, setQuorum] = React.useState(referendum?.quorum || 'pending');
-
   const formatDateForInput = (dateString: string) => {
     if (!dateString) return "";
     try {
@@ -23,18 +21,36 @@ export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onS
     }
   };
 
-  const defaultValues = {
+  const defaultValues = React.useMemo(() => ({
     nome: referendum?.nome || "",
     descrizione: referendum?.descrizione || "",
     dataInizio: formatDateForInput(referendum?.dataInizio || referendum?.data_inizio || ""),
     dataFine: formatDateForInput(referendum?.dataFine || referendum?.data_fine || ""),
     sitoWeb: referendum?.sitoWeb || referendum?.sitoweb || ""
-  };
+  }), [referendum]);
 
   const form = useForm({
     resolver: zodResolver(referendumSchema),
     defaultValues
   });
+
+  const [quorum, setQuorum] = React.useState(referendum?.quorum || 'pending');
+
+  // Aggiorna il form quando cambia il referendum
+  React.useEffect(() => {
+    if (referendum) {
+      const newDefaultValues = {
+        nome: referendum.nome || "",
+        descrizione: referendum.descrizione || "",
+        dataInizio: formatDateForInput(referendum.dataInizio || referendum.data_inizio || ""),
+        dataFine: formatDateForInput(referendum.dataFine || referendum.data_fine || ""),
+        sitoWeb: referendum.sitoWeb || referendum.sitoweb || ""
+      };
+      form.reset(newDefaultValues);
+      setQuorum(referendum.quorum || 'pending');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referendum?.id]);
 
   const handleSubmit = (data: any) => {
     onSubmit({ ...data, quorum });

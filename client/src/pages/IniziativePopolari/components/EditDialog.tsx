@@ -11,8 +11,6 @@ import { EditDialogProps } from "../types";
 import { iniziativaSchema } from "../constants/schema";
 
 export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onSubmit, isLoading }) => {
-  const [quorum, setQuorum] = React.useState(iniziativa?.quorum || 'pending');
-
   const formatDateForInput = (dateString: string) => {
     if (!dateString) return "";
     try {
@@ -23,18 +21,36 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
     }
   };
 
-  const defaultValues = {
+  const defaultValues = React.useMemo(() => ({
     nome: iniziativa?.nome || "",
     descrizione: iniziativa?.descrizione || "",
     dataInizio: formatDateForInput(iniziativa?.dataInizio || iniziativa?.data_inizio || ""),
     dataFine: formatDateForInput(iniziativa?.dataFine || iniziativa?.data_fine || ""),
     sitoWeb: iniziativa?.sitoWeb || iniziativa?.sito_web || ""
-  };
+  }), [iniziativa]);
 
   const form = useForm({
     resolver: zodResolver(iniziativaSchema),
     defaultValues
   });
+
+  const [quorum, setQuorum] = React.useState(iniziativa?.quorum || 'pending');
+
+  // Aggiorna il form quando cambia l'iniziativa
+  React.useEffect(() => {
+    if (iniziativa) {
+      const newDefaultValues = {
+        nome: iniziativa.nome || "",
+        descrizione: iniziativa.descrizione || "",
+        dataInizio: formatDateForInput(iniziativa.dataInizio || iniziativa.data_inizio || ""),
+        dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
+        sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
+      };
+      form.reset(newDefaultValues);
+      setQuorum(iniziativa.quorum || 'pending');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iniziativa?.id]);
 
   const handleSubmit = (data: any) => {
     onSubmit({ ...data, quorum });
