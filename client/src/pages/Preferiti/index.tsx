@@ -161,23 +161,22 @@ export default function Preferiti() {
       const gradi = ['N', 'E', 'R', 'CO'];
       
       for (const grado of gradi) {
-        const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+        console.log(`🔍 DEBUG Preferiti - Controllo grado: ${grado}`);
+        const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
         
-        if (response.ok) {
-          const result = await response.json();
-          
-          if (result.success && result.data && !result.data.isComplete) {
-            console.log('🔍 DEBUG Preferiti - Opinion incomplete trovate nel grado', grado);
-            return false; // Trovate opinioni incomplete
-          }
+        console.log(`🔍 DEBUG Preferiti - Risposta per grado ${grado}:`, result);
+        
+        if (result && result.success && result.data && !result.data.isComplete) {
+          console.log(`⚠️ DEBUG Preferiti - Opinion incomplete trovate nel grado ${grado}:`, result.data);
+          return false; // Trovate opinioni incomplete
         }
       }
       
-      console.log('🔍 DEBUG Preferiti - Tutte le opinioni sono complete');
+      console.log('✅ DEBUG Preferiti - Tutte le opinioni sono complete');
       return true; // Tutte complete
       
     } catch (error) {
-      console.error("Errore nel controllo opinioni:", error);
+      console.error("❌ Errore nel controllo opinioni:", error);
       return true; // In caso di errore, permetti l'accesso
     }
   };
@@ -186,29 +185,72 @@ export default function Preferiti() {
   const handleNavigate = async (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     
+    console.log('🔍 DEBUG handleNavigate - Path:', path);
+    
     // Controlla se è una categoria che richiede opinioni complete
     const categoria = path.startsWith('/rappresentanti') ? 'politici' : 
                       path.startsWith('/candidati') ? 'candidati' : null;
     
     if (categoria) {
+      console.log(`🔍 DEBUG handleNavigate - Categoria richiede controllo: ${categoria}`);
       const tutteComplete = await checkOpinioniComplete();
+      console.log(`🔍 DEBUG handleNavigate - Tutte complete? ${tutteComplete}`);
+      
       if (!tutteComplete) {
-        // Crea dati semplici per l'alert
-        setOpinioniAlertData({
-          grado: 'Tutti',
-          totaleOpinioni: 0,
-          opinioniRisposte: 0,
-          opinioniMancanti: 0,
-          percentualeCompletamento: 0,
-          isComplete: false,
-          missingOpinions: []
-        });
+        console.log('⚠️ DEBUG handleNavigate - Opinion incomplete, mostro alert');
+        // Calcola dati aggregati per l'alert
+        try {
+          const gradi = ['N', 'E', 'R', 'CO'];
+          let totaleOpinioni = 0;
+          let opinioniRisposte = 0;
+          let totaliMancanti = 0;
+          const allMissingOpinions: any[] = [];
+          
+          for (const grado of gradi) {
+            const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+            if (result && result.success && result.data) {
+              totaleOpinioni += result.data.totaleOpinioni || 0;
+              opinioniRisposte += result.data.opinioniRisposte || 0;
+              totaliMancanti += result.data.opinioniMancanti || 0;
+              if (result.data.missingOpinions) {
+                allMissingOpinions.push(...result.data.missingOpinions);
+              }
+            }
+          }
+          
+          const percentualeCompletamento = totaleOpinioni > 0 
+            ? Math.round((opinioniRisposte / totaleOpinioni) * 100)
+            : 0;
+          
+          setOpinioniAlertData({
+            grado: 'Tutti',
+            totaleOpinioni,
+            opinioniRisposte,
+            opinioniMancanti: totaliMancanti,
+            percentualeCompletamento,
+            isComplete: false,
+            missingOpinions: allMissingOpinions
+          });
+        } catch (error) {
+          console.error('❌ Errore nel calcolo dati alert:', error);
+          // Fallback con dati minimi
+          setOpinioniAlertData({
+            grado: 'Tutti',
+            totaleOpinioni: 0,
+            opinioniRisposte: 0,
+            opinioniMancanti: 0,
+            percentualeCompletamento: 0,
+            isComplete: false,
+            missingOpinions: []
+          });
+        }
         setShowOpinioniAlert(true);
         return;
       }
     }
     
     // Se le opinioni sono complete o non è una categoria che le richiede, naviga normalmente
+    console.log('✅ DEBUG handleNavigate - Navigazione permessa');
     setLocation(path);
   };
 
