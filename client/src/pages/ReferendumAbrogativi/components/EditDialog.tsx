@@ -144,6 +144,15 @@ export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onS
               />
               
               <div>
+                <FormLabel className="text-sm font-medium text-gray-700 mb-2">
+                  Firme Raccolte
+                </FormLabel>
+                <div className="text-gray-700 text-lg font-semibold py-2">
+                  {referendum.firme ? referendum.firme.toLocaleString('it-IT') : (referendum.votiices ? referendum.votiices.toLocaleString('it-IT') : '0')}
+                </div>
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Stato
                 </label>

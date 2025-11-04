@@ -38,7 +38,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
       dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
       sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
     };
-  }, [iniziativa?.id]); // Usa solo l'ID come dipendenza
+  }, [iniziativa]); // Usa l'intero oggetto come nei referendum
 
   const form = useForm({
     resolver: zodResolver(iniziativaSchema),
@@ -57,14 +57,31 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
         sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
       };
-      form.reset(newValues);
+      // Reset solo se i valori sono effettivamente cambiati
+      const currentValues = form.getValues();
+      const valuesChanged = 
+        currentValues.nome !== newValues.nome ||
+        currentValues.descrizione !== newValues.descrizione ||
+        currentValues.dataInizio !== newValues.dataInizio ||
+        currentValues.dataFine !== newValues.dataFine ||
+        currentValues.sitoWeb !== newValues.sitoWeb;
+      
+      if (valuesChanged) {
+        form.reset(newValues);
+      }
       setQuorum(iniziativa.quorum || 'pending');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iniziativa?.id]);
 
   const handleSubmit = (data: any) => {
+    console.log('🔍 EditDialog - handleSubmit chiamato:', { data, quorum, id: iniziativa?.id });
     onSubmit({ ...data, quorum, id: iniziativa?.id });
+  };
+
+  const handleError = (errors: any) => {
+    console.error('❌ EditDialog - Errori di validazione:', errors);
+    console.error('❌ EditDialog - Valori del form:', form.getValues());
   };
 
   if (!iniziativa) return null;
@@ -77,7 +94,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         </DialogHeader>
         <div className="space-y-4 bg-white">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleSubmit, handleError)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="nome"
@@ -153,6 +170,15 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
                   </FormItem>
                 )}
               />
+              
+              <div>
+                <FormLabel className="text-sm font-medium text-gray-700 mb-2">
+                  Firme Raccolte
+                </FormLabel>
+                <div className="text-gray-700 text-lg font-semibold py-2">
+                  {iniziativa.firme ? iniziativa.firme.toLocaleString('it-IT') : (iniziativa.votiices ? iniziativa.votiices.toLocaleString('it-IT') : '0')}
+                </div>
+              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
