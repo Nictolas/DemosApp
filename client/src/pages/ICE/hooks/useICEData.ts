@@ -8,9 +8,11 @@ export const useICEData = (user: any) => {
   const { data: iceData, isLoading, isError } = useQuery<ICEData>({
     queryKey: QUERY_KEYS.ICE_LIST,
     queryFn: async () => {
-      const response = await apiRequest("GET", API_ENDPOINTS.ICE_LIST);
-      if (!response.ok) throw new Error(MESSAGES.ERROR.LOAD);
-      return response.json();
+      const result = await apiRequest("GET", API_ENDPOINTS.ICE_LIST);
+      if (!result || !result.success) {
+        throw new Error(result?.error || MESSAGES.ERROR.LOAD);
+      }
+      return result;
     },
     enabled: !!user,
   });
