@@ -187,7 +187,12 @@ router.get('/voti-utente', verifyToken, async (req, res) => {
     `;
     
     const result = await pool.query(query, [userId]);
-    const votiUtente = result.rows.map(row => row.opinione_id);
+    const votiUtente = result.rows.map(row => String(row.opinione_id)); // Assicura che siano stringhe
+    
+    // Debug: mostra i primi 3 ID voti per verificare il formato
+    if (votiUtente.length > 0) {
+      console.log('🔍 DEBUG - Prime 3 ID voti utente:', votiUtente.slice(0, 3).map(id => ({ id, idType: typeof id, idLength: id?.length })));
+    }
     
     console.log(`✅ Trovati ${votiUtente.length} voti per utente ${userId}`);
     
@@ -212,6 +217,7 @@ router.get('/', async (req, res) => {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
     
     // Query per ottenere le opinioni "da approvare" con conteggio voti
+    // Usa CAST per assicurarsi che gli ID siano dello stesso tipo per il JOIN
     const query = `
       SELECT 
         o.id, 
@@ -224,7 +230,7 @@ router.get('/', async (req, res) => {
         SELECT opinione_id, COUNT(*) as voti_count
         FROM voti_opinioni_proposte
         GROUP BY opinione_id
-      ) v ON o.id = v.opinione_id
+      ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
       WHERE 'da approvare' = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
@@ -232,9 +238,14 @@ router.get('/', async (req, res) => {
     const result = await pool.query(query);
     console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
+    // Debug: mostra i primi 3 ID per verificare il formato
+    if (result.rows.length > 0) {
+      console.log('🔍 DEBUG - Prime 3 ID opinioni:', result.rows.slice(0, 3).map(r => ({ id: r.id, idType: typeof r.id, idLength: r.id?.length })));
+    }
+    
     // Mappa i dati per compatibilità con il frontend
     const mappedData = result.rows.map(row => ({
-      id: row.id,
+      id: String(row.id), // Assicura che sia sempre una stringa
       testo: row.testo,
       utente_id: null,
       titolo: null,
@@ -329,7 +340,12 @@ router.post('/', async (req, res) => {
           AND 'da approvare' = ANY(gradi_opinione)
         `;
         
+        console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
+        console.log('🔍 Risultato controllo duplicati:', {
+          righeTrovate: duplicateCheck.rows.length,
+          duplicati: duplicateCheck.rows
+        });
         
         if (duplicateCheck.rows.length > 0) {
           await client.query('ROLLBACK');
@@ -343,24 +359,37 @@ router.post('/', async (req, res) => {
         
         // Genera ID univoco
         const id = require('crypto').randomUUID();
+        console.log('🔍 ID generato per nuova opinione:', id);
         
         // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
         const insertQuery = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
           VALUES ($1, $2, $3, $4)
+          RETURNING id, text
         `;
         
         const gradiOpinione = ['da approvare'];
         const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
-        await client.query(insertQuery, [
+        console.log('🔍 Tentativo inserimento con parametri:', {
+          id,
+          testo: testoNormalizzato,
+          gradiOpinione,
+          approfondimento: approfondimento.substring(0, 50) + '...'
+        });
+        
+        const insertResult = await client.query(insertQuery, [
           id,
           testoNormalizzato,
           gradiOpinione,
           approfondimento
         ]);
         
+        console.log('✅ Insert eseguito con successo. Righe inserite:', insertResult.rowCount);
+        console.log('✅ Dati inseriti:', insertResult.rows);
+        
         await client.query('COMMIT');
+        console.log('✅ Transazione committata con successo');
         
         // Rilascia il lock
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
@@ -368,20 +397,44 @@ router.post('/', async (req, res) => {
         // Se l'utente è autenticato, aggiungi automaticamente il suo voto (fuori dalla transazione principale)
         if (userId) {
           try {
+            // Assicurati che la tabella esista
+            await ensureVotiTableExists();
+            
             const insertVoteQuery = `
               INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
               VALUES ($1, $2)
               ON CONFLICT (utente_id, opinione_id) DO NOTHING
+              RETURNING *
             `;
-            await pool.query(insertVoteQuery, [userId, id]);
-            console.log(`✅ Voto automatico aggiunto per utente ${userId} su opinione ${id}`);
+            const voteResult = await pool.query(insertVoteQuery, [userId, id]);
+            console.log(`✅ Voto automatico - Query eseguita per utente ${userId} su opinione ${id}`);
+            console.log(`✅ Voto automatico - Righe inserite: ${voteResult.rowCount}`);
+            console.log(`✅ Voto automatico - Dati inseriti:`, voteResult.rows);
+            
+            if (voteResult.rowCount === 0) {
+              // Verifica se il voto esiste già
+              const checkExisting = await pool.query(
+                'SELECT * FROM voti_opinioni_proposte WHERE utente_id = $1 AND opinione_id = $2',
+                [userId, id]
+              );
+              console.log(`⚠️ Voto automatico - Voto già esistente? Righe trovate: ${checkExisting.rows.length}`);
+              if (checkExisting.rows.length > 0) {
+                console.log(`✅ Voto automatico già presente per utente ${userId} su opinione ${id}`);
+              } else {
+                console.error(`❌ Voto automatico - Impossibile inserire voto per utente ${userId} su opinione ${id}`);
+              }
+            } else {
+              console.log(`✅ Voto automatico aggiunto con successo per utente ${userId} su opinione ${id}`);
+            }
           } catch (error) {
-            console.error('⚠️ Errore nell\'aggiungere voto automatico:', error);
+            console.error('❌ Errore nell\'aggiungere voto automatico:', error);
+            console.error('❌ Stack trace:', error.stack);
             // Non bloccare l'operazione se il voto non può essere aggiunto
           }
         }
         
         console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
+        console.log('📤 Invio risposta al client...');
         
         res.json({
           success: true,
@@ -389,21 +442,41 @@ router.post('/', async (req, res) => {
           data: { id, testo: testoNormalizzato }
         });
         
+        console.log('✅ Risposta inviata con successo');
+        
       } catch (error) {
-        await client.query('ROLLBACK');
-        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+        console.error('❌ Errore durante la transazione:', error);
+        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error detail:', error.detail);
+        try {
+          await client.query('ROLLBACK');
+          console.log('✅ Rollback eseguito');
+        } catch (rollbackError) {
+          console.error('❌ Errore durante rollback:', rollbackError);
+        }
+        try {
+          await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+          console.log('✅ Lock rilasciato');
+        } catch (unlockError) {
+          console.error('❌ Errore durante unlock:', unlockError);
+        }
         throw error;
       }
     } catch (error) {
+      console.error('❌ Errore nel blocco try esterno (lock acquisition):', error);
       // Rilascia il lock anche in caso di errore
       try {
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+        console.log('✅ Lock rilasciato nel catch esterno');
       } catch (unlockError) {
+        console.error('❌ Errore durante unlock nel catch esterno:', unlockError);
         // Ignora errori di unlock
       }
       throw error;
     } finally {
       client.release();
+      console.log('✅ Client rilasciato nel finally');
     }
     
     
@@ -511,21 +584,59 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     
     console.log('✅ Opinione trovata, procedo con la rimozione del voto...');
     
+    // Assicurati che la tabella esista
+    await ensureVotiTableExists();
+    
+    // Normalizza l'ID per assicurarsi che sia una stringa
+    const opinioneIdNormalizzato = String(id).trim();
+    
+    // Debug: verifica se il voto esiste prima di eliminarlo
+    const checkVotoQuery = `
+      SELECT * FROM voti_opinioni_proposte 
+      WHERE utente_id = $1 AND opinione_id = $2
+    `;
+    const checkVoto = await pool.query(checkVotoQuery, [userId, opinioneIdNormalizzato]);
+    console.log('🔍 Voti trovati per questa opinione:', checkVoto.rows.length);
+    console.log('🔍 Dettagli voto:', checkVoto.rows);
+    console.log('🔍 Parametri ricerca:', { userId, opinioneId: opinioneIdNormalizzato, userIdType: typeof userId, idType: typeof opinioneIdNormalizzato });
+    
+    // Debug aggiuntivo: verifica tutti i voti dell'utente per vedere se l'ID esiste con un formato diverso
+    const allUserVotes = await pool.query(
+      'SELECT opinione_id, utente_id FROM voti_opinioni_proposte WHERE utente_id = $1',
+      [userId]
+    );
+    console.log('🔍 Tutti i voti dell\'utente (per confronto):', allUserVotes.rows.map(r => ({ 
+      opinione_id: r.opinione_id, 
+      opinione_id_type: typeof r.opinione_id,
+      opinione_id_length: r.opinione_id?.length,
+      matches: String(r.opinione_id) === String(opinioneIdNormalizzato)
+    })));
+    
     // Rimuovi il voto dalla tabella voti_opinioni_proposte
+    // Prova prima con l'ID normalizzato, poi con l'ID originale se non funziona
     const deleteVotoQuery = `
       DELETE FROM voti_opinioni_proposte 
       WHERE utente_id = $1 AND opinione_id = $2
     `;
     
-    console.log('🔍 Rimozione voto...');
-    const result = await pool.query(deleteVotoQuery, [userId, id]);
-    console.log('📊 Righe rimosse:', result.rowCount);
+    console.log('🔍 Rimozione voto con query:', deleteVotoQuery);
+    console.log('🔍 Parametri:', [userId, opinioneIdNormalizzato]);
+    let result = await pool.query(deleteVotoQuery, [userId, opinioneIdNormalizzato]);
+    console.log('📊 Righe rimosse (con ID normalizzato):', result.rowCount);
+    
+    // Se non trova nulla, prova con l'ID originale (senza normalizzazione)
+    if (result.rowCount === 0 && id !== opinioneIdNormalizzato) {
+      console.log('🔍 Tentativo con ID originale (non normalizzato):', id);
+      result = await pool.query(deleteVotoQuery, [userId, id]);
+      console.log('📊 Righe rimosse (con ID originale):', result.rowCount);
+    }
     
     if (result.rowCount === 0) {
-      console.log('❌ Voto non trovato');
+      console.log('❌ Voto non trovato con nessun formato di ID');
+      console.log('🔍 ID tentati:', { normalizzato: opinioneIdNormalizzato, originale: id });
       return res.status(404).json({
         success: false,
-        error: 'Voto non trovato'
+        error: 'Voto non trovato. Potrebbe essere che il voto non sia stato salvato correttamente quando hai proposto l\'opinione. Riprova dopo aver ricaricato la pagina.'
       });
     }
     
