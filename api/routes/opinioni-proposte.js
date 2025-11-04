@@ -326,6 +326,7 @@ router.post('/', async (req, res) => {
     });
     
     const client = await pool.connect();
+    let lockHeld = false;
     
     try {
       // Prova ad acquisire il lock (timeout di 5 secondi)
@@ -333,11 +334,15 @@ router.post('/', async (req, res) => {
       
       if (!lockAcquired.rows[0].acquired) {
         client.release();
+        console.log('⚠️ Lock non acquisito - un\'altra richiesta sta già processando questo testo');
         return res.status(409).json({
           success: false,
           error: 'Un\'opinione con questo testo è già in fase di creazione. Riprova tra qualche istante.'
         });
       }
+      
+      lockHeld = true;
+      console.log('🔒 Lock acquisito con successo');
       
       try {
         await client.query('BEGIN');
@@ -371,8 +376,7 @@ router.post('/', async (req, res) => {
         
         if (duplicateCheck.rows.length > 0) {
           await client.query('ROLLBACK');
-          await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-          client.release();
+          // Non rilasciare il lock qui - verrà rilasciato nel finally
           console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
           return res.status(409).json({
             success: false,
@@ -423,8 +427,7 @@ router.post('/', async (req, res) => {
         // (potrebbe essere stato creato da un'altra transazione tra il controllo e l'insert)
         if (insertResult.rows.length === 0) {
           await client.query('ROLLBACK');
-          await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-          client.release();
+          // Non rilasciare il lock qui - verrà rilasciato nel finally
           console.log('⚠️ Insert fallito: opinione duplicata creata da altra transazione');
           return res.status(409).json({
             success: false,
@@ -435,9 +438,10 @@ router.post('/', async (req, res) => {
         await client.query('COMMIT');
         console.log('✅ Transazione committata con successo');
         
-        // Rilascia il lock PRIMA di continuare
+        // Rilascia il lock subito dopo il commit (prima di altre operazioni)
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-        console.log('🔓 Lock rilasciato');
+        lockHeld = false; // Marca il lock come rilasciato
+        console.log('🔓 Lock rilasciato dopo commit');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
@@ -510,29 +514,27 @@ router.post('/', async (req, res) => {
         } catch (rollbackError) {
           console.error('❌ Errore durante rollback:', rollbackError);
         }
-        try {
-          await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-          console.log('✅ Lock rilasciato');
-        } catch (unlockError) {
-          console.error('❌ Errore durante unlock:', unlockError);
-        }
+        // Non rilasciare il lock qui - verrà rilasciato nel finally
         throw error;
       }
     } catch (error) {
       console.error('❌ Errore nel blocco try esterno (lock acquisition):', error);
-      // Rilascia il lock anche in caso di errore
-      try {
-        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-        console.log('✅ Lock rilasciato nel catch esterno');
-      } catch (unlockError) {
-        console.error('❌ Errore durante unlock nel catch esterno:', unlockError);
-        // Ignora errori di unlock
-      }
       throw error;
     } finally {
-      client.release();
-      console.log('✅ Client rilasciato nel finally');
-    }
+        // Rilascia SEMPRE il lock se è stato acquisito, prima di rilasciare il client
+        if (lockHeld) {
+          try {
+            await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+            console.log('🔓 Lock rilasciato nel finally');
+            lockHeld = false;
+          } catch (unlockError) {
+            console.error('❌ Errore durante unlock nel finally:', unlockError);
+            // Prova a rilasciare comunque il client
+          }
+        }
+        client.release();
+        console.log('✅ Client rilasciato nel finally');
+      }
     
     
   } catch (error) {
