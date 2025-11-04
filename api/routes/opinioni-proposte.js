@@ -385,13 +385,11 @@ router.post('/', async (req, res) => {
         console.log('🔍 ID generato per nuova opinione:', id);
         
         // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
-        // Usa una subquery per verificare che non esista già un duplicato
-        // Questo previene race conditions anche se due richieste arrivano simultaneamente
-        // Usa VALUES con FROM per PostgreSQL (sintassi corretta)
+        // Usa INSERT diretto con WHERE NOT EXISTS per prevenire duplicati
+        // Il driver pg converte automaticamente array JavaScript in array PostgreSQL
         const insertQuery = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-          SELECT v.id, v.text, v.gradi_opinione, v.approfondimento
-          FROM (VALUES ($1, $2, $3, $4)) AS v(id, text, gradi_opinione, approfondimento)
+          SELECT $1, $2, $3::text[], $4
           WHERE NOT EXISTS (
             SELECT 1 FROM opinioni_domande 
             WHERE LOWER(TRIM(text)) = LOWER(TRIM($2)) 
@@ -407,13 +405,14 @@ router.post('/', async (req, res) => {
           id,
           testo: testoNormalizzato,
           gradiOpinione,
+          tipoGradiOpinione: Array.isArray(gradiOpinione) ? 'array' : typeof gradiOpinione,
           approfondimento: approfondimento.substring(0, 50) + '...'
         });
         
         const insertResult = await client.query(insertQuery, [
           id,
           testoNormalizzato,
-          gradiOpinione,
+          gradiOpinione, // Il driver pg dovrebbe convertire automaticamente array JS in array PostgreSQL
           approfondimento
         ]);
         

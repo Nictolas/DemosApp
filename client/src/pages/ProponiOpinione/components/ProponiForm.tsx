@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageSquare, Plus } from "lucide-react";
-import type { ProponiFormProps } from "../types";
+import { ProponiFormProps } from "../types";
 
 export const ProponiForm: React.FC<ProponiFormProps> = ({
   testoInput,
@@ -100,24 +100,20 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
             e.preventDefault();
             // Previeni doppi submit
             if (formSubmittedRef.current || submitting) {
-              console.log('⚠️ Form submit bloccato - già in corso');
               return;
             }
             formSubmittedRef.current = true;
             
-            // Gestisci sia Promise che void
+            // Chiama onSubmit direttamente - il componente padre gestisce async
             const result = onSubmit(e);
-            if (result instanceof Promise) {
-              result
-                .catch((error) => {
-                  console.error('❌ Errore durante submit:', error);
-                })
-                .finally(() => {
-                  // Reset solo dopo che l'operazione è completata
-                  setTimeout(() => {
-                    formSubmittedRef.current = false;
-                  }, 1000);
-                });
+            
+            // Se restituisce una Promise, reset dopo che completa
+            if (result && typeof result === 'object' && 'then' in result) {
+              Promise.resolve(result).finally(() => {
+                setTimeout(() => {
+                  formSubmittedRef.current = false;
+                }, 1000);
+              });
             } else {
               // Se è sincrono, reset dopo un breve delay
               setTimeout(() => {
