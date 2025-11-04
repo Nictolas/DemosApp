@@ -9,16 +9,16 @@ export const usePendingUserActions = () => {
   // Mutation per approvare un utente
   const approveMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await apiRequest("POST", "/api/users/approve", {
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("POST", "/api/users/approve", {
         userId
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore nell\'approvazione');
+      if (!data.success) {
+        throw new Error(data.error || 'Errore nell\'approvazione');
       }
       
-      return response.json();
+      return data;
     },
     onSuccess: (data) => {
       toast({
@@ -42,17 +42,17 @@ export const usePendingUserActions = () => {
   // Mutation per rifiutare un utente
   const rejectMutation = useMutation({
     mutationFn: async ({ userId, reason }: { userId: string; reason?: string }) => {
-      const response = await apiRequest("POST", "/api/users/reject", {
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("POST", "/api/users/reject", {
         userId,
         reason
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore nel rifiuto');
+      if (!data.success) {
+        throw new Error(data.error || 'Errore nel rifiuto');
       }
       
-      return response.json();
+      return data;
     },
     onSuccess: (data) => {
       toast({
