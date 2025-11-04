@@ -53,7 +53,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
   }, [iniziativa?.id]);
 
   const handleSubmit = (data: any) => {
-    onSubmit({ ...data, quorum });
+    onSubmit({ ...data, quorum, id: iniziativa?.id });
   };
 
   if (!iniziativa) return null;
