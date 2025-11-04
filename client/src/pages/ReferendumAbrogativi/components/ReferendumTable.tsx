@@ -38,11 +38,12 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
       {listaReferendum.map((referendum) => (
         <div 
           key={referendum.id} 
-          className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${
+          className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
             referendum.quorum === 'proposta'
               ? 'border-blue-200 bg-blue-50'
               : 'border-gray-200'
           }`}
+          onClick={() => onView && onView(referendum)}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -61,18 +62,9 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                   }
                   aria-hidden="true"
                 />
-                {onView ? (
-                  <button
-                    className="text-blue-700 underline hover:text-blue-900 cursor-pointer text-lg font-semibold"
-                    onClick={() => onView(referendum)}
-                  >
-                    {referendum.nome}
-                  </button>
-                ) : (
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {referendum.nome}
-                  </h3>
-                )}
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {referendum.nome}
+                </h3>
                 {referendum.quorum === 'proposta' && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Proposta
