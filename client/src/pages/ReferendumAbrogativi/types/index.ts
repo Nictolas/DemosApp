@@ -7,6 +7,7 @@ export const referendumSchema = z.object({
   dataInizio: z.string().min(1, "La data di inizio è obbligatoria"),
   dataFine: z.string().min(1, "La data di fine è obbligatoria"),
   sitoWeb: z.string().url("Inserisci un URL valido").or(z.literal("")).optional(),
+  firme: z.number().min(0, "Le firme devono essere un numero positivo").optional(),
 });
 
 // Tipo inferito dal schema

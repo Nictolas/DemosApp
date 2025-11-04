@@ -26,7 +26,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onS
     descrizione: referendum?.descrizione || "",
     dataInizio: formatDateForInput(referendum?.dataInizio || referendum?.data_inizio || ""),
     dataFine: formatDateForInput(referendum?.dataFine || referendum?.data_fine || ""),
-    sitoWeb: referendum?.sitoWeb || referendum?.sitoweb || ""
+    sitoWeb: referendum?.sitoWeb || referendum?.sitoweb || "",
+    firme: referendum?.firme || referendum?.votiices || 0
   }), [referendum]);
 
   const form = useForm({
@@ -44,7 +45,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onS
         descrizione: referendum.descrizione || "",
         dataInizio: formatDateForInput(referendum.dataInizio || referendum.data_inizio || ""),
         dataFine: formatDateForInput(referendum.dataFine || referendum.data_fine || ""),
-        sitoWeb: referendum.sitoWeb || referendum.sitoweb || ""
+        sitoWeb: referendum.sitoWeb || referendum.sitoweb || "",
+        firme: referendum.firme || referendum.votiices || 0
       };
       form.reset(newDefaultValues);
       setQuorum(referendum.quorum || 'pending');
@@ -143,14 +145,25 @@ export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onS
                 )}
               />
               
-              <div>
-                <FormLabel className="text-sm font-medium text-gray-700 mb-2">
-                  Firme Raccolte
-                </FormLabel>
-                <div className="text-gray-700 text-lg font-semibold py-2">
-                  {referendum.firme ? referendum.firme.toLocaleString('it-IT') : (referendum.votiices ? referendum.votiices.toLocaleString('it-IT') : '0')}
-                </div>
-              </div>
+              <FormField
+                control={form.control}
+                name="firme"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Firme Raccolte</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="0" 
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value || 0}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

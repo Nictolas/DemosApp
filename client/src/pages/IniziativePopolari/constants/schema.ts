@@ -10,6 +10,7 @@ export const iniziativaSchema = z.object({
     const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
     return urlPattern.test(val);
   }, "Inserisci un URL valido"),
+  firme: z.number().min(0, "Le firme devono essere un numero positivo").optional(),
 });
 
 export const DEFAULT_FORM_VALUES = {

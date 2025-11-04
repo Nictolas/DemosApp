@@ -28,7 +28,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         descrizione: "",
         dataInizio: "",
         dataFine: "",
-        sitoWeb: ""
+        sitoWeb: "",
+        firme: 0
       };
     }
     return {
@@ -36,7 +37,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
       descrizione: iniziativa.descrizione || "",
       dataInizio: formatDateForInput(iniziativa.dataInizio || iniziativa.data_inizio || ""),
       dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
-      sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
+      sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || "",
+      firme: iniziativa.firme || iniziativa.votiices || 0
     };
   }, [iniziativa]); // Usa l'intero oggetto come nei referendum
 
@@ -55,20 +57,11 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         descrizione: iniziativa.descrizione || "",
         dataInizio: formatDateForInput(iniziativa.dataInizio || iniziativa.data_inizio || ""),
         dataFine: formatDateForInput(iniziativa.dataFine || iniziativa.data_fine || ""),
-        sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || ""
+        sitoWeb: iniziativa.sitoWeb || iniziativa.sito_web || "",
+        firme: iniziativa.firme || iniziativa.votiices || 0
       };
-      // Reset solo se i valori sono effettivamente cambiati
-      const currentValues = form.getValues();
-      const valuesChanged = 
-        currentValues.nome !== newValues.nome ||
-        currentValues.descrizione !== newValues.descrizione ||
-        currentValues.dataInizio !== newValues.dataInizio ||
-        currentValues.dataFine !== newValues.dataFine ||
-        currentValues.sitoWeb !== newValues.sitoWeb;
-      
-      if (valuesChanged) {
-        form.reset(newValues);
-      }
+      // Reset sempre quando cambia l'iniziativa per assicurare che i valori siano aggiornati
+      form.reset(newValues);
       setQuorum(iniziativa.quorum || 'pending');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,14 +164,25 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
                 )}
               />
               
-              <div>
-                <FormLabel className="text-sm font-medium text-gray-700 mb-2">
-                  Firme Raccolte
-                </FormLabel>
-                <div className="text-gray-700 text-lg font-semibold py-2">
-                  {iniziativa.firme ? iniziativa.firme.toLocaleString('it-IT') : (iniziativa.votiices ? iniziativa.votiices.toLocaleString('it-IT') : '0')}
-                </div>
-              </div>
+              <FormField
+                control={form.control}
+                name="firme"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Firme Raccolte</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="0" 
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value || 0}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

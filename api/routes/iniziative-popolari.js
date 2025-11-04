@@ -333,7 +333,7 @@ router.post('/', verifyToken, async (req, res) => {
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, descrizione, dataInizio, dataFine, sitoWeb, quorum } = req.body;
+    const { nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, firme } = req.body;
     
     // Verifica che l'utente sia admin o moderatore
     const userId = req.userId;
@@ -347,14 +347,29 @@ router.put('/:id', verifyToken, async (req, res) => {
       });
     }
     
-    const updateQuery = `
-      UPDATE iniziative_popolari
-      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
-      WHERE id = $7
-      RETURNING *
-    `;
+    // Costruisci la query di update dinamicamente per includere firme solo se presente
+    let updateQuery;
+    let updateParams;
     
-    const result = await pool.query(updateQuery, [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, id]);
+    if (firme !== undefined) {
+      updateQuery = `
+        UPDATE iniziative_popolari
+        SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6, firme = $7
+        WHERE id = $8
+        RETURNING *
+      `;
+      updateParams = [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, firme, id];
+    } else {
+      updateQuery = `
+        UPDATE iniziative_popolari
+        SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
+        WHERE id = $7
+        RETURNING *
+      `;
+      updateParams = [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, id];
+    }
+    
+    const result = await pool.query(updateQuery, updateParams);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
