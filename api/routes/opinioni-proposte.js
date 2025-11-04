@@ -296,6 +296,25 @@ router.post('/', async (req, res) => {
       });
     }
     
+    const testoNormalizzato = testo.trim();
+    
+    // Verifica se esiste già un'opinione con lo stesso testo in stato "da approvare"
+    const checkDuplicateQuery = `
+      SELECT id FROM opinioni_domande 
+      WHERE LOWER(text) = LOWER($1) 
+      AND 'da approvare' = ANY(gradi_opinione)
+    `;
+    
+    const duplicateCheck = await pool.query(checkDuplicateQuery, [testoNormalizzato]);
+    
+    if (duplicateCheck.rows.length > 0) {
+      console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
+      return res.status(409).json({
+        success: false,
+        error: 'Un\'opinione con questo testo è già stata proposta'
+      });
+    }
+    
     // Genera ID univoco
     const id = require('crypto').randomUUID();
     
@@ -310,7 +329,7 @@ router.post('/', async (req, res) => {
     
     await pool.query(insertQuery, [
       id,
-      testo.trim(),
+      testoNormalizzato,
       gradiOpinione,
       approfondimento
     ]);
@@ -336,7 +355,7 @@ router.post('/', async (req, res) => {
     res.json({
       success: true,
       message: 'Opinione proposta creata con successo',
-      data: { id, testo: testo.trim() }
+      data: { id, testo: testoNormalizzato }
     });
     
   } catch (error) {

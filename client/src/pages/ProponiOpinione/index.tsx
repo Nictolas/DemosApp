@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
@@ -12,6 +12,7 @@ import { LoadingState } from "./components/LoadingState";
 
 export default function ProponiOpinione() {
   const { user, isLoading } = useAuth();
+  const isSubmittingRef = useRef(false);
 
   const {
     opinioni,
@@ -43,12 +44,24 @@ export default function ProponiOpinione() {
 
   const handleProponiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    const success = await handleProponi(proponiOpinioneState.testoInput);
-    if (success) {
-      updateField('testoInput', '');
+    
+    // Previeni doppi invii con ref per evitare race conditions
+    if (isSubmittingRef.current || proponiOpinioneState.submitting) {
+      return;
     }
-    setSubmitting(false);
+    
+    isSubmittingRef.current = true;
+    setSubmitting(true);
+    
+    try {
+      const success = await handleProponi(proponiOpinioneState.testoInput);
+      if (success) {
+        updateField('testoInput', '');
+      }
+    } finally {
+      isSubmittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   const handleVotaOpinione = async (id: string) => {
@@ -113,7 +126,7 @@ export default function ProponiOpinione() {
                   onVota={handleVotaOpinione}
                   onRimuoviVoto={handleRimuoviVotoOpinione}
                   onCancella={handleCancellaOpinione}
-                  isAdmin={user?.role === 'AD'}
+                  isAdmin={user?.ruolo === 'AD'}
                 />
               </div>
             )}
