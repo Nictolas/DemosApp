@@ -1,14 +1,30 @@
-const app = require('./app');
+let app;
+try {
+  console.log('📦 Caricamento app.js...');
+  app = require('./app');
+  console.log('✅ app.js caricato correttamente');
+} catch (error) {
+  console.error('❌ Errore critico nel caricamento di app.js:', error);
+  console.error('❌ Stack trace:', error.stack);
+  process.exit(1);
+}
 
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server avviato sulla porta ${PORT}`);
-  console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL: http://localhost:${PORT}`);
-  console.log(`📊 Moduli caricati: health, email, database, compatibility, services, auth, users, opinioni, governo, governo-ministro, rappresentanti, notifiche`);
-});
+let server;
+try {
+  server = app.listen(PORT, () => {
+    console.log(`🚀 Server avviato sulla porta ${PORT}`);
+    console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 URL: http://localhost:${PORT}`);
+    console.log(`📊 Moduli caricati: health, email, database, compatibility, services, auth, users, opinioni, governo, governo-ministro, rappresentanti, notifiche`);
+  });
+} catch (error) {
+  console.error('❌ Errore critico nell\'avvio del server:', error);
+  console.error('❌ Stack trace:', error.stack);
+  process.exit(1);
+}
 
 // Gestione errori semplificata
 server.on('error', (err) => {
@@ -31,19 +47,48 @@ server.on('error', (err) => {
   }
 });
 
+// Gestione errori non catturati
+process.on('uncaughtException', (error) => {
+  console.error('❌ Errore non catturato (uncaughtException):', error);
+  console.error('❌ Stack trace:', error.stack);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promise rifiutata non gestita (unhandledRejection):', reason);
+  console.error('❌ Promise:', promise);
+  if (reason && reason.stack) {
+    console.error('❌ Stack trace:', reason.stack);
+  }
+});
+
 // Gestione chiusura graceful
 process.on('SIGTERM', () => {
   console.log('🛑 Ricevuto SIGTERM, chiusura graceful...');
-  server.close(() => {
-    console.log('✅ Server chiuso correttamente');
+  if (server) {
+    server.close(() => {
+      console.log('✅ Server chiuso correttamente');
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 Ricevuto SIGINT, chiusura graceful...');
-  server.close(() => {
-    console.log('✅ Server chiuso correttamente');
+  if (server) {
+    server.close(() => {
+      console.log('✅ Server chiuso correttamente');
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
 });

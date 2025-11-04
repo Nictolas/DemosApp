@@ -27,21 +27,32 @@ let poolInstance = null;
 
 const getPool = () => {
   if (!poolInstance) {
+    // Verifica che DATABASE_URL sia disponibile
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL non definita! Il database non può essere inizializzato.');
+      throw new Error('DATABASE_URL environment variable is required');
+    }
+    
     console.log('🔧 Inizializzazione pool database ottimizzato...');
-    poolInstance = new Pool(poolConfig);
-    
-    // Event listeners per monitoraggio
-    poolInstance.on('connect', (client) => {
-      console.log('🔗 Nuova connessione database stabilita');
-    });
-    
-    poolInstance.on('error', (err) => {
-      console.error('❌ Errore pool database:', err);
-    });
-    
-    poolInstance.on('remove', (client) => {
-      console.log('🔌 Connessione database rimossa');
-    });
+    try {
+      poolInstance = new Pool(poolConfig);
+      
+      // Event listeners per monitoraggio
+      poolInstance.on('connect', (client) => {
+        console.log('🔗 Nuova connessione database stabilita');
+      });
+      
+      poolInstance.on('error', (err) => {
+        console.error('❌ Errore pool database:', err);
+      });
+      
+      poolInstance.on('remove', (client) => {
+        console.log('🔌 Connessione database rimossa');
+      });
+    } catch (error) {
+      console.error('❌ Errore nella creazione del pool database:', error);
+      throw error;
+    }
   }
   return poolInstance;
 };

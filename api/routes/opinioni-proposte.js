@@ -1,18 +1,21 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
+const { getPool } = require('../config/database');
 
 const router = express.Router();
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // Funzione per creare la tabella voti se non esiste
 async function ensureVotiTableExists() {
   try {
+    // Verifica che DATABASE_URL sia disponibile
+    if (!process.env.DATABASE_URL) {
+      console.warn('⚠️ DATABASE_URL non disponibile, salto la creazione della tabella voti');
+      return;
+    }
+
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS voti_opinioni_proposte (
         id SERIAL PRIMARY KEY,
@@ -39,11 +42,16 @@ async function ensureVotiTableExists() {
     console.log('✅ Tabella voti_opinioni_proposte verificata/creata');
   } catch (error) {
     console.error('❌ Errore nella creazione tabella voti:', error);
+    // Non bloccare l'avvio del server se c'è un errore nella creazione della tabella
   }
 }
 
-// Inizializza la tabella all'avvio
-ensureVotiTableExists();
+// Inizializza la tabella all'avvio (ritardata per assicurarsi che il pool sia pronto)
+setTimeout(() => {
+  ensureVotiTableExists().catch(err => {
+    console.error('❌ Errore nell\'inizializzazione tabella voti:', err);
+  });
+}, 1000); // Attendi 1 secondo per assicurarsi che il pool sia inizializzato
 
 // GET /api/opinioni-proposte/test-voto - Test endpoint per verificare inserimento voto
 router.get('/test-voto', async (req, res) => {
