@@ -232,15 +232,37 @@ router.post('/salva', async (req, res) => {
     
     const unmappedOpinions = [];
     
+    // Prima verifica quali opinioni esistono nel database
+    const opinionIdsToCheck = Object.keys(opinioni);
+    const checkOpinionsQuery = `
+      SELECT id FROM opinioni_domande 
+      WHERE id = ANY($1::text[])
+    `;
+    const checkOpinionsResult = await pool.query(checkOpinionsQuery, [opinionIdsToCheck]);
+    const existingOpinionIds = new Set(checkOpinionsResult.rows.map(row => row.id));
+    
+    console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
+    console.log(`🔍 DEBUG - Opinion esistenti nel DB: ${existingOpinionIds.size}`);
+    console.log(`🔍 DEBUG - Opinion esistenti:`, Array.from(existingOpinionIds));
+    
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
       
-      const dbField = opinionMapping[opinionId];
-      if (!dbField) {
-        console.warn(`⚠️ Campo non mappato: ${opinionId}`);
-        unmappedOpinions.push(opinionId);
-        errorCount++;
-        continue;
+      // Prima verifica se l'ID esiste nel database (per nuove opinioni)
+      let dbField = opinionId;
+      
+      if (!existingOpinionIds.has(opinionId)) {
+        // Se non esiste nel database, prova il mapping (per compatibilità con vecchie opinioni)
+        dbField = opinionMapping[opinionId];
+        if (!dbField) {
+          console.warn(`⚠️ Campo non mappato e non trovato nel DB: ${opinionId}`);
+          unmappedOpinions.push(opinionId);
+          errorCount++;
+          continue;
+        }
+        console.log(`ℹ️ Usato mapping per opinione: ${opinionId} -> ${dbField}`);
+      } else {
+        console.log(`✅ Opinione trovata nel DB: ${opinionId}`);
       }
       
       // Converti i valori al formato corretto
