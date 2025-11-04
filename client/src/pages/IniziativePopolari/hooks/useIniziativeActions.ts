@@ -32,7 +32,8 @@ export const useIniziativeActions = () => {
   });
 
   const editMutation = useMutation({
-    mutationFn: (data: IniziativaFormData & { quorum?: string }) => apiRequest("PUT", API_ENDPOINTS.INIZIATIVE_UPDATE(state.editIniziativa?.id || ""), data),
+    mutationFn: ({ id, data }: { id: string; data: IniziativaFormData & { quorum?: string } }) => 
+      apiRequest("PUT", API_ENDPOINTS.INIZIATIVE_UPDATE(id), data),
     onSuccess: () => {
       toast({ title: "Successo", description: MESSAGES.SUCCESS.UPDATED });
       setState(prev => ({ ...prev, editIniziativa: null }));
@@ -96,7 +97,19 @@ export const useIniziativeActions = () => {
     }
     addMutation.mutate(data);
   };
-  const handleUpdate = (data: IniziativaFormData) => editMutation.mutate(data);
+  const handleUpdate = (data: IniziativaFormData & { quorum?: string; id?: string }) => {
+    if (editMutation.isPending) {
+      return; // Evita chiamate multiple
+    }
+    const id = data.id || state.editIniziativa?.id;
+    if (!id) {
+      toast({ title: "Errore", description: "ID iniziativa non trovato", variant: "destructive" });
+      return;
+    }
+    // Rimuove l'id dai dati prima di inviare
+    const { id: idField, ...dataWithoutId } = data;
+    editMutation.mutate({ id, data: dataWithoutId });
+  };
   const handleDelete = (id: string) => deleteMutation.mutate(id);
   const handleApprove = (id: string) => approveMutation.mutate(id);
   const handleReject = (id: string) => rejectMutation.mutate(id);
