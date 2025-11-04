@@ -72,9 +72,20 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     try {
       setIsLoading(true);
       const currentOpinionId = opinionId || opinione?.id;
-      const data = await apiRequest("GET", `/api/opinioni/${currentOpinionId}/approfondimento`);
       
-      if (data && data.data) {
+      // Se non c'è ID, non carico nulla
+      if (!currentOpinionId) {
+        console.log('⚠️ DEBUG loadApprofondimento - Nessun ID disponibile');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('🔍 DEBUG loadApprofondimento - Caricamento per ID:', currentOpinionId);
+      
+      try {
+        const data = await apiRequest("GET", `/api/opinioni/${currentOpinionId}/approfondimento`);
+        
+        if (data && data.data) {
         // Carica i gradi della proposta
         if (data.data.gradi_opinione && Array.isArray(data.data.gradi_opinione)) {
           const gradi = {
@@ -134,20 +145,53 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         
         setApprofondimentiPerGrado(approfondimentiSeparati);
         
-        // Mantieni anche l'approfondimento generale per compatibilità
-        setApprofondimento(approfondimentoGenerale);
-      } else {
-        console.error('Errore nel caricamento dell\'approfondimento');
-        setApprofondimento("");
-        setApprofondimentiPerGrado({
-          Europeo: '',
-          Nazionale: '',
-          Regionale: '',
-          Comunale: ''
-        });
+          // Mantieni anche l'approfondimento generale per compatibilità
+          setApprofondimento(approfondimentoGenerale);
+        } else {
+          console.log('⚠️ DEBUG loadApprofondimento - Nessun dato nella risposta, inizializzo vuoto');
+          setApprofondimento("");
+          setApprofondimentiPerGrado({
+            Europeo: '',
+            Nazionale: '',
+            Regionale: '',
+            Comunale: ''
+          });
+        }
+      } catch (error: any) {
+        // Se l'opinione non è stata trovata (404), è normale per opinioni "da approvare" nuove
+        // Inizializza i dati vuoti e permette comunque il salvataggio
+        if (error.message && error.message.includes('Opinione non trovata')) {
+          console.log('⚠️ DEBUG loadApprofondimento - Opinione non trovata (404), inizializzo vuoto per nuova opinione');
+          setApprofondimento("");
+          setApprofondimentiPerGrado({
+            Europeo: '',
+            Nazionale: '',
+            Regionale: '',
+            Comunale: ''
+          });
+          // Per opinioni "da approvare", inizializza i gradi dall'opinione se disponibile
+          if (opinione?.gradi_opinione && Array.isArray(opinione.gradi_opinione)) {
+            const gradi = {
+              Europeo: opinione.gradi_opinione.includes('E'),
+              Nazionale: opinione.gradi_opinione.includes('N'),
+              Regionale: opinione.gradi_opinione.includes('R'),
+              Comunale: opinione.gradi_opinione.includes('CO')
+            };
+            setGradiProposta(gradi);
+          }
+        } else {
+          console.error('❌ Errore nel caricamento dell\'approfondimento:', error);
+          setApprofondimento("");
+          setApprofondimentiPerGrado({
+            Europeo: '',
+            Nazionale: '',
+            Regionale: '',
+            Comunale: ''
+          });
+        }
       }
     } catch (error) {
-      console.error('Errore nel caricamento dell\'approfondimento:', error);
+      console.error('❌ Errore generale nel caricamento:', error);
       setApprofondimento("");
       setApprofondimentiPerGrado({
         Europeo: '',

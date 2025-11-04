@@ -371,43 +371,30 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     const { id } = req.params;
     console.log('🔍 GET /api/opinioni/:id/approfondimento - Richiesta approfondimento per opinione:', id);
     
-    // Cerca per ID se è numerico, altrimenti cerca per text
-    let query, params;
-    if (/^\d+$/.test(id)) {
-      // ID numerico
-      query = `
-        SELECT id, text, approfondimento, gradi_opinione
-        FROM opinioni_domande 
-        WHERE id = $1
-      `;
-      params = [id];
-    } else {
-      // ID testuale (es. energia_nucleare)
-      const textToSearch = id.replace(/_/g, ' ');
-      console.log('🔍 DEBUG - Cercando opinione con testo:', textToSearch);
-      
-      query = `
-        SELECT id, text, approfondimento, gradi_opinione
-        FROM opinioni_domande 
-        WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))
-      `;
-      params = [textToSearch];
-    }
+    // Cerca prima per ID diretto (funziona per UUID, ID numerici e ID testuali)
+    // Poi fallback per testo se non trovato
+    let query = `
+      SELECT id, text, approfondimento, gradi_opinione
+      FROM opinioni_domande 
+      WHERE id = $1
+    `;
+    let params = [id];
     
     let result = await pool.query(query, params);
     
     if (result.rows.length === 0) {
-      console.log('⚠️ Opinione non trovata con testo, provo con ID diretto:', id);
-      // Fallback: prova a cercare per ID diretto
+      console.log('⚠️ Opinione non trovata per ID, provo con testo:', id);
+      // Fallback: prova a cercare per testo (es. energia_nucleare -> "energia nucleare")
+      const textToSearch = id.replace(/_/g, ' ');
       const fallbackQuery = `
         SELECT id, text, approfondimento, gradi_opinione
         FROM opinioni_domande 
-        WHERE id = $1
+        WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))
       `;
-      result = await pool.query(fallbackQuery, [id]);
+      result = await pool.query(fallbackQuery, [textToSearch]);
       
       if (result.rows.length === 0) {
-        console.log('⚠️ Opinione non trovata nemmeno per ID:', id);
+        console.log('⚠️ Opinione non trovata nemmeno per testo:', textToSearch);
         return res.status(404).json({
           success: false,
           error: 'Opinione non trovata'
