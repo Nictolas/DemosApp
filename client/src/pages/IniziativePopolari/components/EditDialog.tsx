@@ -61,6 +61,11 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
     }
   };
 
+  const handleError = (errors: any) => {
+    console.error('❌ EditDialog - Errori di validazione:', errors);
+    console.error('❌ EditDialog - Valori del form:', form.getValues());
+  };
+
   if (!iniziativa) return null;
 
   return (
@@ -71,7 +76,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         </DialogHeader>
         <div className="space-y-4 bg-white">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleSubmit, handleError)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="nome"
