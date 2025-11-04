@@ -21,7 +21,7 @@ const options = [
   },
   { 
     value: "i", 
-    color: "bg-white border-yellow-500 hover:bg-yellow-50",
+    color: "bg-yellow-200 border-yellow-500 hover:bg-yellow-300",
     selectedColor: "bg-yellow-400 border-yellow-600 text-black",
     label: "Indeciso"
   },
