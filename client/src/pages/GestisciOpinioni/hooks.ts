@@ -9,14 +9,8 @@ export const useOpinioniData = () => {
     queryKey: ['opinioni'],
     queryFn: async () => {
       console.log('🔍 DEBUG - Chiamata API /api/opinioni/proposte');
-      const response = await apiRequest('GET', '/api/opinioni/proposte');
-      console.log('🔍 DEBUG - Risposta API:', response.status, response.ok);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ DEBUG - Errore API:', errorText);
-        throw new Error('Failed to fetch opinioni');
-      }
-      const data = await response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest('GET', '/api/opinioni/proposte');
       console.log('🔍 DEBUG - Dati ricevuti:', data);
       return data;
     }
@@ -26,9 +20,8 @@ export const useOpinioniData = () => {
   const { data: proposteResponse, isLoading: isLoadingProposte, isError: isProposteError } = useQuery<{success: boolean, data: OpinioneProposta[]}>({
     queryKey: ['opinioniProposte'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/opinioni-proposte');
-      if (!response.ok) throw new Error('Failed to fetch proposte');
-      return response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      return await apiRequest('GET', '/api/opinioni-proposte');
     }
   });
 

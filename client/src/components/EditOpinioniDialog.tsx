@@ -68,18 +68,12 @@ export function EditOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const response = await apiRequest("GET", "/api/opinioni/profile");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data && data.data.questions) {
-            setQuestions(data.data.questions);
-          } else {
-            console.warn('Nessuna domanda trovata nella risposta API:', data);
-            setQuestions([]);
-          }
+        // apiRequest restituisce già il JSON parsato, non un Response
+        const data = await apiRequest("GET", "/api/opinioni/profile");
+        if (data.success && data.data && data.data.questions) {
+          setQuestions(data.data.questions);
         } else {
-          console.error('Errore nel caricamento delle domande:', response.status, response.statusText);
-          toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
+          console.warn('Nessuna domanda trovata nella risposta API:', data);
           setQuestions([]);
         }
       } catch (error) {
@@ -110,31 +104,26 @@ export function EditOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      console.log('🔍 DEBUG - Dati opinioni utente ricevuti:', data);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 DEBUG - Dati opinioni utente ricevuti:', data);
-        
-        if (data.success && data.data && data.data.opinioni) {
-          // Converte le opinioni nel formato atteso
-          const opinioniMap: Record<string, string> = {};
-          data.data.opinioni.forEach((opinion: any) => {
-            console.log('🔍 DEBUG - Processando opinione:', opinion);
-            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-              // Usa l'ID dell'opinione direttamente (senza prefisso del grado)
-              const questionId = opinion.text.replace(/\s+/g, '_');
-              opinioniMap[questionId] = opinion.userAnswer;
-              console.log('🔍 DEBUG - Mappatura creata:', { questionId, userAnswer: opinion.userAnswer });
-            }
-          });
-          console.log('🔍 DEBUG - Mappa opinioni creata:', opinioniMap);
-          setOpinions(opinioniMap);
-        } else {
-          console.log('⚠️ Nessuna opinione trovata nei dati ricevuti');
-        }
+      if (data.success && data.data && data.data.opinioni) {
+        // Converte le opinioni nel formato atteso
+        const opinioniMap: Record<string, string> = {};
+        data.data.opinioni.forEach((opinion: any) => {
+          console.log('🔍 DEBUG - Processando opinione:', opinion);
+          if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+            // Usa l'ID dell'opinione direttamente (senza prefisso del grado)
+            const questionId = opinion.text.replace(/\s+/g, '_');
+            opinioniMap[questionId] = opinion.userAnswer;
+            console.log('🔍 DEBUG - Mappatura creata:', { questionId, userAnswer: opinion.userAnswer });
+          }
+        });
+        console.log('🔍 DEBUG - Mappa opinioni creata:', opinioniMap);
+        setOpinions(opinioniMap);
       } else {
-        throw new Error('Errore nel caricamento delle opinioni');
+        console.log('⚠️ Nessuna opinione trovata nei dati ricevuti');
       }
     } catch (error) {
       console.error('Errore nel caricamento delle opinioni:', error);
@@ -150,44 +139,38 @@ export function EditOpinioniDialog({
 
   const loadFonti = async () => {
     try {
-      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      console.log('🔍 DEBUG - Dati fonti ricevuti:', data);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 DEBUG - Dati fonti ricevuti:', data);
+      if (data.success && data.data && data.data.fonti) {
+        console.log('🔍 DEBUG - Fonti caricate:', data.data.fonti);
+        console.log('🔍 DEBUG - Tipo fonti:', typeof data.data.fonti);
+        console.log('🔍 DEBUG - Chiavi fonti:', Object.keys(data.data.fonti));
         
-        if (data.success && data.data && data.data.fonti) {
-          console.log('🔍 DEBUG - Fonti caricate:', data.data.fonti);
-          console.log('🔍 DEBUG - Tipo fonti:', typeof data.data.fonti);
-          console.log('🔍 DEBUG - Chiavi fonti:', Object.keys(data.data.fonti));
-          
-          // Mappa le fonti nel formato delle domande
-          const fontiMap: Record<string, string> = {};
-          if (data.data.opinioni) {
-            data.data.opinioni.forEach((opinion: any) => {
-              const questionId = opinion.text.replace(/\s+/g, '_');
-              console.log('🔍 DEBUG - Cercando fonte per questionId:', questionId);
-              console.log('🔍 DEBUG - Opinion ID:', opinion.id);
-              console.log('🔍 DEBUG - Fonte disponibile per ID:', data.data.fonti[opinion.id]);
-              console.log('🔍 DEBUG - Fonte disponibile per questionId:', data.data.fonti[questionId]);
-              
-              // Prova prima con l'ID dell'opinione, poi con questionId
-              let fonte = data.data.fonti[opinion.id] || data.data.fonti[questionId];
-              if (fonte) {
-                fontiMap[questionId] = fonte;
-                console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
-              }
-            });
-          }
-          
-          console.log('🔍 DEBUG - Mappa fonti creata:', fontiMap);
-          setFonti(fontiMap);
-        } else {
-          console.log('⚠️ Nessuna fonte trovata nei dati ricevuti');
-          setFonti({});
+        // Mappa le fonti nel formato delle domande
+        const fontiMap: Record<string, string> = {};
+        if (data.data.opinioni) {
+          data.data.opinioni.forEach((opinion: any) => {
+            const questionId = opinion.text.replace(/\s+/g, '_');
+            console.log('🔍 DEBUG - Cercando fonte per questionId:', questionId);
+            console.log('🔍 DEBUG - Opinion ID:', opinion.id);
+            console.log('🔍 DEBUG - Fonte disponibile per ID:', data.data.fonti[opinion.id]);
+            console.log('🔍 DEBUG - Fonte disponibile per questionId:', data.data.fonti[questionId]);
+            
+            // Prova prima con l'ID dell'opinione, poi con questionId
+            let fonte = data.data.fonti[opinion.id] || data.data.fonti[questionId];
+            if (fonte) {
+              fontiMap[questionId] = fonte;
+              console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
+            }
+          });
         }
+        
+        console.log('🔍 DEBUG - Mappa fonti creata:', fontiMap);
+        setFonti(fontiMap);
       } else {
-        console.log('⚠️ Errore nel caricamento delle fonti');
+        console.log('⚠️ Nessuna fonte trovata nei dati ricevuti');
         setFonti({});
       }
     } catch (error) {

@@ -35,9 +35,8 @@ export default function OpinioniComunali() {
     queryKey: ['opinioniQuestions', 'Comunale'],
     queryFn: async () => {
       console.log('🔍 DEBUG - Caricamento opinioni comunali...');
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=CO");
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      const data = await response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("GET", "/api/opinioni-list?grado=CO");
       console.log('🔍 DEBUG - Risposta API:', data);
       return data;
     },
