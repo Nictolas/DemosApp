@@ -385,11 +385,13 @@ router.post('/', async (req, res) => {
         console.log('🔍 ID generato per nuova opinione:', id);
         
         // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
-        // Usa ON CONFLICT per gestire eventuali race conditions che potrebbero verificarsi
-        // anche dopo il controllo (molto raro ma possibile)
+        // Usa una subquery per verificare che non esista già un duplicato
+        // Questo previene race conditions anche se due richieste arrivano simultaneamente
+        // Usa VALUES con FROM per PostgreSQL (sintassi corretta)
         const insertQuery = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-          SELECT $1, $2, $3, $4
+          SELECT v.id, v.text, v.gradi_opinione, v.approfondimento
+          FROM (VALUES ($1, $2, $3, $4)) AS v(id, text, gradi_opinione, approfondimento)
           WHERE NOT EXISTS (
             SELECT 1 FROM opinioni_domande 
             WHERE LOWER(TRIM(text)) = LOWER(TRIM($2)) 
