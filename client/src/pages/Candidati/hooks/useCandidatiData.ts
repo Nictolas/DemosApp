@@ -9,11 +9,8 @@ export const useCandidatiData = (user: any) => {
       console.log('🔍 DEBUG useCandidatiData - Iniziando fetch dati candidati');
       
       // Endpoint protetto: usa JWT per risalire all'utente corrente
-      const response = await apiRequest("GET", `/api/candidati`);
-      console.log('🔍 DEBUG useCandidatiData - Response status:', response.status);
-      
-      if (!response.ok) throw new Error("Errore nel caricamento dei candidati");
-      const result = await response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const result = await apiRequest("GET", `/api/candidati`);
       console.log('🔍 DEBUG useCandidatiData - Result:', result);
       
       // Gestisce la nuova struttura dell'API

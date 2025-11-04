@@ -12,9 +12,8 @@ export const useRappresentantiData = (user: any) => {
       // Scegli l'endpoint corretto in base alla modalità
       const endpoint = isTestRoute ? `/api/elezioni/candidati` : `/api/rappresentanti`;
       console.log('🔍 DEBUG Frontend - Endpoint chiamato:', endpoint, 'isTestRoute:', isTestRoute);
-      const response = await apiRequest("GET", endpoint);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati");
-      const result = await response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const result = await apiRequest("GET", endpoint);
       console.log('🔍 DEBUG Frontend - Risposta API:', result);
       
       // Gestisce la struttura dell'API in base alla modalità
