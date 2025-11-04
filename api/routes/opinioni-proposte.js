@@ -405,8 +405,8 @@ router.post('/', async (req, res) => {
         }
         
         // Inserisce nella tabella opinioni_domande
-        // Usa INSERT diretto - il controllo duplicati è già stato fatto sopra con lock
-        // Il lock advisory + SELECT FOR UPDATE dovrebbero prevenire duplicati
+        // Il controllo duplicati è già stato fatto sopra con lock + SELECT FOR UPDATE
+        // Se l'indice UNIQUE esiste, anche quello previene duplicati a livello database
         const insertQuery = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
           VALUES ($1, $2, $3::text[], $4)
@@ -430,15 +430,19 @@ router.post('/', async (req, res) => {
             approfondimento
           ]);
         } catch (error) {
-          // Se c'è un errore di constraint unique (se esiste), trattalo come duplicato
+          // Se c'è un errore di constraint unique, trattalo come duplicato
+          // Questo è il backup finale se il lock advisory e SELECT FOR UPDATE non hanno funzionato
           if (error.code === '23505') { // unique_violation
             await client.query('ROLLBACK');
             console.log('⚠️ Insert fallito: violazione constraint UNIQUE (duplicato)');
+            console.log('⚠️ Error detail:', error.detail);
             return res.status(409).json({
               success: false,
               error: 'Un\'opinione con questo testo è già stata proposta'
             });
           }
+          // Se c'è un altro errore, rilancia
+          console.error('❌ Errore durante INSERT:', error);
           throw error;
         }
         
