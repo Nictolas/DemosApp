@@ -480,4 +480,81 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
   }
 });
 
+// DELETE /api/opinioni-proposte/:id - Cancella un'opinione proposta (solo admin)
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    
+    console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
+    console.log('🔍 ID opinione:', id);
+    console.log('🔍 User ID:', userId);
+    
+    // Verifica che l'utente sia admin
+    const userQuery = await pool.query(
+      'SELECT role FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userRole = userQuery.rows[0].role;
+    if (userRole !== 'AD') {
+      return res.status(403).json({
+        success: false,
+        error: 'Solo gli amministratori possono cancellare opinioni'
+      });
+    }
+    
+    // Verifica se l'opinione esiste
+    const checkQuery = `
+      SELECT id FROM opinioni_domande 
+      WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
+    `;
+    
+    const checkResult = await pool.query(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata o non in stato da approvare'
+      });
+    }
+    
+    // Cancella i voti associati
+    await pool.query(
+      'DELETE FROM voti_opinioni_proposte WHERE opinione_id = $1',
+      [id]
+    );
+    
+    // Cancella l'opinione
+    const deleteResult = await pool.query(
+      'DELETE FROM opinioni_domande WHERE id = $1',
+      [id]
+    );
+    
+    console.log('✅ Opinione cancellata con successo:', id);
+    
+    res.json({
+      success: true,
+      message: 'Opinione cancellata con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella cancellazione opinione:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella cancellazione opinione',
+      message: error.message,
+      details: error.stack
+    });
+  }
+});
+
 module.exports = router;

@@ -223,6 +223,42 @@ export const useProponiOpinioneData = (user: any) => {
     }
   };
 
+  // Cancella opinione proposta (solo admin)
+  const handleCancella = async (id: string) => {
+    if (!user || user.role !== 'AD') {
+      toast({ 
+        title: "Non autorizzato", 
+        description: "Solo gli amministratori possono cancellare opinioni.", 
+        variant: "destructive" 
+      });
+      return false;
+    }
+    
+    try {
+      console.log('🗑️ Cancellazione opinione proposta:', id);
+      await apiRequest('DELETE', `/api/opinioni-proposte/${id}`);
+      
+      console.log('✅ Opinione cancellata con successo');
+      
+      toast({ 
+        title: "Successo", 
+        description: "Opinione cancellata con successo" 
+      });
+      
+      // Ricarica i dati per rimuovere l'opinione dalla lista
+      await loadData();
+      return true;
+    } catch (error) {
+      console.error('❌ Errore nella cancellazione opinione:', error);
+      toast({ 
+        title: "Errore", 
+        description: error instanceof Error ? error.message : "Errore nella cancellazione dell'opinione", 
+        variant: "destructive" 
+      });
+      return false;
+    }
+  };
+
   return {
     opinioni,
     loadingData,
@@ -231,6 +267,7 @@ export const useProponiOpinioneData = (user: any) => {
     handleProponi,
     handleVota,
     handleRimuoviVoto,
-    handleSalvaVoti
+    handleSalvaVoti,
+    handleCancella
   };
 };
