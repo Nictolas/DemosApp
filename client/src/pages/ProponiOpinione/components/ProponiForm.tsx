@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageSquare, Plus } from "lucide-react";
-import { ProponiFormProps } from "../types";
+import type { ProponiFormProps } from "../types";
 
 export const ProponiForm: React.FC<ProponiFormProps> = ({
   testoInput,
@@ -96,7 +96,7 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
       </CardHeader>
       <CardContent>
         <form 
-          onSubmit={async (e) => {
+          onSubmit={(e) => {
             e.preventDefault();
             // Previeni doppi submit
             if (formSubmittedRef.current || submitting) {
@@ -105,12 +105,21 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
             }
             formSubmittedRef.current = true;
             
-            try {
-              // Chiama onSubmit e aspetta che completi
-              await onSubmit(e);
-            } finally {
-              // Reset solo dopo che l'operazione è completata
-              // Usa un timeout minimo per sicurezza, ma non troppo lungo
+            // Gestisci sia Promise che void
+            const result = onSubmit(e);
+            if (result instanceof Promise) {
+              result
+                .catch((error) => {
+                  console.error('❌ Errore durante submit:', error);
+                })
+                .finally(() => {
+                  // Reset solo dopo che l'operazione è completata
+                  setTimeout(() => {
+                    formSubmittedRef.current = false;
+                  }, 1000);
+                });
+            } else {
+              // Se è sincrono, reset dopo un breve delay
               setTimeout(() => {
                 formSubmittedRef.current = false;
               }, 1000);
