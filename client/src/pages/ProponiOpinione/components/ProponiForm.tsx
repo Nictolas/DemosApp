@@ -96,18 +96,25 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
       </CardHeader>
       <CardContent>
         <form 
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             // Previeni doppi submit
             if (formSubmittedRef.current || submitting) {
+              console.log('⚠️ Form submit bloccato - già in corso');
               return;
             }
             formSubmittedRef.current = true;
-            // Reset dopo un breve delay per permettere l'elaborazione
-            setTimeout(() => {
-              formSubmittedRef.current = false;
-            }, 2000);
-            onSubmit(e);
+            
+            try {
+              // Chiama onSubmit e aspetta che completi
+              await onSubmit(e);
+            } finally {
+              // Reset solo dopo che l'operazione è completata
+              // Usa un timeout minimo per sicurezza, ma non troppo lungo
+              setTimeout(() => {
+                formSubmittedRef.current = false;
+              }, 1000);
+            }
           }} 
           className="space-y-4"
         >
