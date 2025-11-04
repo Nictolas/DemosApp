@@ -20,7 +20,8 @@ export default function ProponiOpinione() {
     handleProponi,
     handleVota,
     handleRimuoviVoto,
-    handleSalvaVoti
+    handleSalvaVoti,
+    handleCancella
   } = useProponiOpinioneData(user);
 
   const {
@@ -62,6 +63,12 @@ export default function ProponiOpinione() {
     setIsVoting(false);
   };
 
+  const handleCancellaOpinione = async (id: string) => {
+    setIsVoting(true);
+    await handleCancella(id);
+    setIsVoting(false);
+  };
+
   const handleConfermaSalva = async () => {
     setIsVoting(true);
     await handleSalvaVoti(proponiOpinioneState.selectedVoti);
@@ -96,6 +103,7 @@ export default function ProponiOpinione() {
                   submitting={proponiOpinioneState.submitting}
                   onSubmit={handleProponiSubmit}
                   onInputChange={(value) => updateField('testoInput', value)}
+                  opinioniEsistenti={opinioni.map(op => op.testo)}
                 />
 
                 <OpinioniList
@@ -104,6 +112,8 @@ export default function ProponiOpinione() {
                   isVoting={proponiOpinioneState.isVoting}
                   onVota={handleVotaOpinione}
                   onRimuoviVoto={handleRimuoviVotoOpinione}
+                  onCancella={handleCancellaOpinione}
+                  isAdmin={user?.role === 'AD'}
                 />
               </div>
             )}

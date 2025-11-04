@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, Info, ThumbsDown } from "lucide-react";
+import { ThumbsUp, Info, ThumbsDown, Trash2 } from "lucide-react";
 import { OpinioniListProps } from "../types";
 import { getVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
@@ -11,7 +11,9 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
   userVoti,
   isVoting,
   onVota,
-  onRimuoviVoto
+  onRimuoviVoto,
+  onCancella,
+  isAdmin = false
 }) => {
   const currentVotes = userVoti.length;
   const limit = getVotingLimit('opinioni_proposte');
@@ -86,6 +88,21 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
                   >
                     <ThumbsUp className="h-4 w-4 mr-1" /> 
                     Vota
+                  </Button>
+                )}
+                {isAdmin && onCancella && (
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    disabled={isVoting} 
+                    onClick={() => {
+                      if (confirm('Sei sicuro di voler cancellare questa opinione?')) {
+                        onCancella(op.id);
+                      }
+                    }}
+                    title="Cancella opinione (solo admin)"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
               </div>

@@ -34,6 +34,7 @@ export interface ProponiFormProps {
   submitting: boolean;
   onSubmit: (e: React.FormEvent) => void;
   onInputChange: (value: string) => void;
+  opinioniEsistenti?: string[];
 }
 
 export interface OpinioniListProps {
@@ -42,6 +43,8 @@ export interface OpinioniListProps {
   isVoting: boolean;
   onVota: (id: string) => void;
   onRimuoviVoto: (id: string) => void;
+  onCancella?: (id: string) => void;
+  isAdmin?: boolean;
 }
 
 export interface ConfirmDialogProps {
