@@ -16,6 +16,7 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const formSubmittedRef = useRef(false);
 
   // Filtra le opinioni esistenti in base al testo inserito
   const suggestions = useMemo(() => {
@@ -94,7 +95,22 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            // Previeni doppi submit
+            if (formSubmittedRef.current || submitting) {
+              return;
+            }
+            formSubmittedRef.current = true;
+            // Reset dopo un breve delay per permettere l'elaborazione
+            setTimeout(() => {
+              formSubmittedRef.current = false;
+            }, 2000);
+            onSubmit(e);
+          }} 
+          className="space-y-4"
+        >
           <div className="relative flex space-x-2">
             <div className="flex-1 relative">
               <Input
