@@ -11,9 +11,10 @@ export const useReferendumData = (user: any) => {
   }>({
     queryKey: ['referendumAbrogativi'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/referendum-abrogativi");
-      if (!response.ok) throw new Error("Errore nel caricamento dei referendum abrogativi");
-      const result = await response.json();
+      const result = await apiRequest("GET", "/api/referendum-abrogativi");
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Errore nel caricamento dei referendum abrogativi");
+      }
       return result;
     },
     enabled: !!user,

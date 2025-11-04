@@ -5,6 +5,7 @@ export interface Referendum {
   data_fine?: string;
   status?: string;
   quorum?: string;
+  esito?: string;
   firestore_id_backup?: string;
 }
 
