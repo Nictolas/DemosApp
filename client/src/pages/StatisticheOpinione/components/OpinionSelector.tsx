@@ -25,9 +25,8 @@ export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
     queryKey: ['opinioniQuestions', grado],
     queryFn: async () => {
       console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
-      const response = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      const data = await response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
       console.log('🔍 DEBUG - Risposta API selettore:', data);
       return data;
     },

@@ -42,9 +42,8 @@ export default function OpinioniRegionali() {
     queryKey: ['opinioniQuestions', 'Regionale'],
     queryFn: async () => {
       console.log('🔍 DEBUG - Caricamento opinioni regionali...');
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=R");
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      const data = await response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const data = await apiRequest("GET", "/api/opinioni-list?grado=R");
       console.log('🔍 DEBUG - Risposta API:', data);
       return data;
     },
