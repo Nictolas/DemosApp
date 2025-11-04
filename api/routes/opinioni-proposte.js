@@ -298,65 +298,114 @@ router.post('/', async (req, res) => {
     
     const testoNormalizzato = testo.trim();
     
-    // Verifica se esiste già un'opinione con lo stesso testo in stato "da approvare"
-    const checkDuplicateQuery = `
-      SELECT id FROM opinioni_domande 
-      WHERE LOWER(text) = LOWER($1) 
-      AND 'da approvare' = ANY(gradi_opinione)
-    `;
+    // Usa un advisory lock basato sull'hash del testo per prevenire race conditions
+    // PostgreSQL advisory locks sono ideali per questo caso
+    const crypto = require('crypto');
+    const lockId = crypto.createHash('md5').update(testoNormalizzato.toLowerCase()).digest('hex');
+    // Converti i primi 8 caratteri hex in un numero per pg_advisory_lock
+    const lockKey = parseInt(lockId.substring(0, 8), 16);
     
-    const duplicateCheck = await pool.query(checkDuplicateQuery, [testoNormalizzato]);
+    const client = await pool.connect();
     
-    if (duplicateCheck.rows.length > 0) {
-      console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
-      return res.status(409).json({
-        success: false,
-        error: 'Un\'opinione con questo testo è già stata proposta'
-      });
-    }
-    
-    // Genera ID univoco
-    const id = require('crypto').randomUUID();
-    
-    // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
-    const insertQuery = `
-      INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-      VALUES ($1, $2, $3, $4)
-    `;
-    
-    const gradiOpinione = ['da approvare'];
-    const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
-    
-    await pool.query(insertQuery, [
-      id,
-      testoNormalizzato,
-      gradiOpinione,
-      approfondimento
-    ]);
-    
-    console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
-    
-    // Se l'utente è autenticato, aggiungi automaticamente il suo voto
-    if (userId) {
-      try {
-        const insertVoteQuery = `
-          INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
-          VALUES ($1, $2)
-          ON CONFLICT (utente_id, opinione_id) DO NOTHING
-        `;
-        await pool.query(insertVoteQuery, [userId, id]);
-        console.log(`✅ Voto automatico aggiunto per utente ${userId} su opinione ${id}`);
-      } catch (error) {
-        console.error('⚠️ Errore nell\'aggiungere voto automatico:', error);
-        // Non bloccare l'operazione se il voto non può essere aggiunto
+    try {
+      // Prova ad acquisire il lock (timeout di 5 secondi)
+      const lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
+      
+      if (!lockAcquired.rows[0].acquired) {
+        client.release();
+        return res.status(409).json({
+          success: false,
+          error: 'Un\'opinione con questo testo è già in fase di creazione. Riprova tra qualche istante.'
+        });
       }
+      
+      try {
+        await client.query('BEGIN');
+        
+        // Verifica se esiste già un'opinione con lo stesso testo in stato "da approvare"
+        const checkDuplicateQuery = `
+          SELECT id FROM opinioni_domande 
+          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
+          AND 'da approvare' = ANY(gradi_opinione)
+        `;
+        
+        const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
+        
+        if (duplicateCheck.rows.length > 0) {
+          await client.query('ROLLBACK');
+          await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+          console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
+          return res.status(409).json({
+            success: false,
+            error: 'Un\'opinione con questo testo è già stata proposta'
+          });
+        }
+        
+        // Genera ID univoco
+        const id = require('crypto').randomUUID();
+        
+        // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
+        const insertQuery = `
+          INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
+          VALUES ($1, $2, $3, $4)
+        `;
+        
+        const gradiOpinione = ['da approvare'];
+        const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
+        
+        await client.query(insertQuery, [
+          id,
+          testoNormalizzato,
+          gradiOpinione,
+          approfondimento
+        ]);
+        
+        await client.query('COMMIT');
+        
+        // Rilascia il lock
+        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+        
+        // Se l'utente è autenticato, aggiungi automaticamente il suo voto (fuori dalla transazione principale)
+        if (userId) {
+          try {
+            const insertVoteQuery = `
+              INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
+              VALUES ($1, $2)
+              ON CONFLICT (utente_id, opinione_id) DO NOTHING
+            `;
+            await pool.query(insertVoteQuery, [userId, id]);
+            console.log(`✅ Voto automatico aggiunto per utente ${userId} su opinione ${id}`);
+          } catch (error) {
+            console.error('⚠️ Errore nell\'aggiungere voto automatico:', error);
+            // Non bloccare l'operazione se il voto non può essere aggiunto
+          }
+        }
+        
+        console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
+        
+        res.json({
+          success: true,
+          message: 'Opinione proposta creata con successo',
+          data: { id, testo: testoNormalizzato }
+        });
+        
+      } catch (error) {
+        await client.query('ROLLBACK');
+        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+        throw error;
+      }
+    } catch (error) {
+      // Rilascia il lock anche in caso di errore
+      try {
+        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+      } catch (unlockError) {
+        // Ignora errori di unlock
+      }
+      throw error;
+    } finally {
+      client.release();
     }
     
-    res.json({
-      success: true,
-      message: 'Opinione proposta creata con successo',
-      data: { id, testo: testoNormalizzato }
-    });
     
   } catch (error) {
     console.error('❌ Errore nella creazione opinione proposta:', error);
