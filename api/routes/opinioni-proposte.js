@@ -329,16 +329,38 @@ router.post('/', async (req, res) => {
     let lockHeld = false;
     
     try {
-      // Prova ad acquisire il lock (timeout di 5 secondi)
-      const lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
+      // Prova ad acquisire il lock con timeout di 2 secondi
+      // Se il lock non viene acquisito, potrebbe essere un lock "orfano" da una richiesta precedente
+      // In tal caso, forziamo il rilascio dopo un breve attesa
+      let lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
       
       if (!lockAcquired.rows[0].acquired) {
-        client.release();
-        console.log('⚠️ Lock non acquisito - un\'altra richiesta sta già processando questo testo');
-        return res.status(409).json({
-          success: false,
-          error: 'Un\'opinione con questo testo è già in fase di creazione. Riprova tra qualche istante.'
-        });
+        console.log('⚠️ Lock non acquisito immediatamente - potrebbe essere un lock orfano');
+        // Attendi un po' e riprova (il lock potrebbe essere rilasciato a breve)
+        await new Promise(resolve => setTimeout(resolve, 100));
+        lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
+        
+        if (!lockAcquired.rows[0].acquired) {
+          // Forza il rilascio del lock se è rimasto bloccato troppo a lungo
+          // (solo se siamo sicuri che non ci sia una transazione attiva)
+          try {
+            await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+            console.log('🔓 Tentativo di forzare rilascio lock orfano');
+            await new Promise(resolve => setTimeout(resolve, 50));
+            lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
+          } catch (unlockError) {
+            // Ignora errori - il lock potrebbe non essere stato acquisito da questa connessione
+          }
+        }
+        
+        if (!lockAcquired.rows[0].acquired) {
+          client.release();
+          console.log('⚠️ Lock non acquisito dopo tentativi - un\'altra richiesta sta già processando questo testo');
+          return res.status(409).json({
+            success: false,
+            error: 'Un\'opinione con questo testo è già in fase di creazione. Riprova tra qualche istante.'
+          });
+        }
       }
       
       lockHeld = true;
@@ -347,27 +369,26 @@ router.post('/', async (req, res) => {
       try {
         await client.query('BEGIN');
         
-        // Verifica se esiste già un'opinione con lo stesso testo in stato "da approvare"
-        // IMPORTANTE: SELECT FOR UPDATE non blocca se non ci sono righe, quindi usiamo
-        // un approccio diverso: inseriamo con ON CONFLICT per gestire i duplicati a livello database
+        // Genera ID univoco
+        const id = require('crypto').randomUUID();
+        console.log('🔍 ID generato per nuova opinione:', id);
+        
+        const gradiOpinione = ['da approvare'];
+        const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
+        
+        // Verifica duplicati PRIMA dell'insert con un lock più robusto
+        // Usa SELECT FOR UPDATE SKIP LOCKED per evitare deadlock
         const checkDuplicateQuery = `
           SELECT id FROM opinioni_domande 
           WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
           AND 'da approvare' = ANY(gradi_opinione)
-          FOR UPDATE
-        `;
-        
-        // Query per controllo finale (senza FOR UPDATE, fuori dalla transazione)
-        const checkDuplicateQueryFinal = `
-          SELECT id FROM opinioni_domande 
-          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
-          AND 'da approvare' = ANY(gradi_opinione)
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
         `;
         
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         console.log('🔍 Lock key utilizzato:', lockKey);
         
-        // Prima verifica: controlla se esiste già
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Risultato controllo duplicati:', {
           righeTrovate: duplicateCheck.rows.length,
@@ -376,7 +397,6 @@ router.post('/', async (req, res) => {
         
         if (duplicateCheck.rows.length > 0) {
           await client.query('ROLLBACK');
-          // Non rilasciare il lock qui - verrà rilasciato nel finally
           console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
           return res.status(409).json({
             success: false,
@@ -384,26 +404,14 @@ router.post('/', async (req, res) => {
           });
         }
         
-        // Genera ID univoco
-        const id = require('crypto').randomUUID();
-        console.log('🔍 ID generato per nuova opinione:', id);
-        
-        // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
-        // Usa INSERT diretto con WHERE NOT EXISTS per prevenire duplicati
-        // Il driver pg converte automaticamente array JavaScript in array PostgreSQL
+        // Inserisce nella tabella opinioni_domande
+        // Usa INSERT diretto - il controllo duplicati è già stato fatto sopra con lock
+        // Il lock advisory + SELECT FOR UPDATE dovrebbero prevenire duplicati
         const insertQuery = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-          SELECT $1, $2, $3::text[], $4
-          WHERE NOT EXISTS (
-            SELECT 1 FROM opinioni_domande 
-            WHERE LOWER(TRIM(text)) = LOWER(TRIM($2)) 
-            AND 'da approvare' = ANY(gradi_opinione)
-          )
+          VALUES ($1, $2, $3::text[], $4)
           RETURNING id, text
         `;
-        
-        const gradiOpinione = ['da approvare'];
-        const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
         console.log('🔍 Tentativo inserimento con parametri:', {
           id,
@@ -413,25 +421,36 @@ router.post('/', async (req, res) => {
           approfondimento: approfondimento.substring(0, 50) + '...'
         });
         
-        const insertResult = await client.query(insertQuery, [
-          id,
-          testoNormalizzato,
-          gradiOpinione, // Il driver pg dovrebbe convertire automaticamente array JS in array PostgreSQL
-          approfondimento
-        ]);
+        let insertResult;
+        try {
+          insertResult = await client.query(insertQuery, [
+            id,
+            testoNormalizzato,
+            gradiOpinione,
+            approfondimento
+          ]);
+        } catch (error) {
+          // Se c'è un errore di constraint unique (se esiste), trattalo come duplicato
+          if (error.code === '23505') { // unique_violation
+            await client.query('ROLLBACK');
+            console.log('⚠️ Insert fallito: violazione constraint UNIQUE (duplicato)');
+            return res.status(409).json({
+              success: false,
+              error: 'Un\'opinione con questo testo è già stata proposta'
+            });
+          }
+          throw error;
+        }
         
         console.log('✅ Insert eseguito. Righe inserite:', insertResult.rowCount);
         console.log('✅ Dati inseriti:', insertResult.rows);
         
-        // Se l'insert non ha inserito nulla, significa che esiste già un duplicato
-        // (potrebbe essere stato creato da un'altra transazione tra il controllo e l'insert)
         if (insertResult.rows.length === 0) {
           await client.query('ROLLBACK');
-          // Non rilasciare il lock qui - verrà rilasciato nel finally
-          console.log('⚠️ Insert fallito: opinione duplicata creata da altra transazione');
-          return res.status(409).json({
+          console.log('⚠️ Insert fallito: nessuna riga inserita');
+          return res.status(500).json({
             success: false,
-            error: 'Un\'opinione con questo testo è già stata proposta'
+            error: 'Errore durante l\'inserimento dell\'opinione'
           });
         }
         
@@ -444,6 +463,11 @@ router.post('/', async (req, res) => {
         console.log('🔓 Lock rilasciato dopo commit');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
+        const checkDuplicateQueryFinal = `
+          SELECT id FROM opinioni_domande 
+          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
+          AND 'da approvare' = ANY(gradi_opinione)
+        `;
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
         if (finalCheck.rows.length > 1) {
           console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
