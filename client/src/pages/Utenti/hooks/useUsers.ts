@@ -8,13 +8,11 @@ export const useUsers = (user: any) => {
   const { data: responseData, isLoading: isLoadingUsers, isError } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
-      const [allUsersResponse, pendingUsersResponse] = await Promise.all([
+      // apiRequest restituisce già il JSON parsato, non un Response
+      const [allUsersData, pendingUsersData] = await Promise.all([
         apiRequest("GET", "/api/users"),
         apiRequest("GET", "/api/users/pending")
       ]);
-      if (!allUsersResponse.ok || !pendingUsersResponse.ok) throw new Error("Errore nel caricamento degli utenti");
-      const allUsersData = await allUsersResponse.json();
-      const pendingUsersData = await pendingUsersResponse.json();
       // Aggiungi campo nome_completo agli utenti
       const addFullName = (users: any[]) => {
         return users.map(user => ({
@@ -42,9 +40,8 @@ export const useUsers = (user: any) => {
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await apiRequest("DELETE", `/api/users/${userId}`);
-      if (!response.ok) throw new Error("Errore nell'eliminazione dell'utente");
-      return response.json();
+      // apiRequest restituisce già il JSON parsato, non un Response
+      return await apiRequest("DELETE", `/api/users/${userId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
