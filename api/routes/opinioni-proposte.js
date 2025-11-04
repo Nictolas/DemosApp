@@ -511,7 +511,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     
     // Verifica che l'utente sia admin
     const userQuery = await pool.query(
-      'SELECT role FROM users WHERE id = $1',
+      'SELECT ruolo FROM users WHERE id = $1',
       [userId]
     );
     
@@ -522,7 +522,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
     
-    const userRole = userQuery.rows[0].role;
+    const userRole = userQuery.rows[0].ruolo;
     if (userRole !== 'AD') {
       return res.status(403).json({
         success: false,
