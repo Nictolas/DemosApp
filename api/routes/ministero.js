@@ -250,14 +250,15 @@ router.get('/database', async (req, res) => {
     if (stato) {
       query += ` AND stato = $${paramIndex++}`;
       params.push(stato);
-    } else if (include_concluse !== 'true') {
-      // Di default mostra solo quelle in corso
-      query += ` AND stato != 'conclusa'`;
     }
+    // Rimuoviamo il filtro di default che escludeva le iniziative concluse
+    // Ora mostra TUTTE le iniziative di default, a meno che non venga specificato un filtro stato
     
-    query += ' ORDER BY data_ultimo_aggiornamento DESC';
+    query += ' ORDER BY data_ultimo_aggiornamento DESC, created_at DESC';
     
     const result = await pool.query(query, params);
+    
+    console.log(`📊 Query database: ${result.rows.length} iniziative trovate`);
     
     res.json({
       success: true,
