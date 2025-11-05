@@ -10,16 +10,15 @@ export const useGraziaData = (user: any) => {
     queryKey: ['graziaData'],
     queryFn: async () => {
       console.log('🔍 DEBUG: Chiamata /api/grazia avviata');
-      const response = await apiRequest("GET", "/grazia");
-      console.log('🔍 DEBUG: Risposta ricevuta:', response.status);
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('❌ Errore API /grazia:', errorData);
-        throw new Error(`Errore ${response.status}: ${errorData}`);
+      const response = await apiRequest("GET", "/api/grazia");
+      console.log('🔍 DEBUG: Risposta ricevuta:', response);
+      if (!response || !response.success) {
+        const errorMsg = response?.error || "Errore nel caricamento dei dati grazia";
+        console.error('❌ Errore API /api/grazia:', errorMsg);
+        throw new Error(errorMsg);
       }
-      const result = await response.json();
-      console.log('✅ Dati grazia ricevuti:', result);
-      return result;
+      console.log('✅ Dati grazia ricevuti:', response);
+      return response;
     },
     enabled: !!user && !!localStorage.getItem('auth_token'),
     retry: 1,

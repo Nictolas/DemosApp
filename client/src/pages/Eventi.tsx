@@ -79,8 +79,10 @@ export default function Eventi() {
         ? "/api/eventi?view=global" 
         : "/api/eventi?view=personal";
       const response = await apiRequest("GET", url);
-      if (!response.ok) throw new Error("Errore nel caricamento degli eventi");
-      return response.json();
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento degli eventi");
+      }
+      return response;
     },
     enabled: !!user,
   });
@@ -99,17 +101,12 @@ export default function Eventi() {
       const response = await apiRequest("DELETE", `/api/eventi/${eventId}`);
       console.log('✅ Risposta eliminazione:', response);
       
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          // Refresh the eventi list
-          refetch();
-          alert('Evento eliminato con successo!');
-        } else {
-          throw new Error(result.error || 'Errore nell\'eliminazione dell\'evento');
-        }
+      if (response && response.success) {
+        // Refresh the eventi list
+        refetch();
+        alert('Evento eliminato con successo!');
       } else {
-        throw new Error('Errore nella richiesta di eliminazione');
+        throw new Error(response?.error || 'Errore nell\'eliminazione dell\'evento');
       }
     } catch (error) {
       console.error('❌ Errore eliminazione:', error);
