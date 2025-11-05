@@ -100,8 +100,8 @@ export default function TestMinistero() {
           </p>
         </div>
 
-        {/* Pulsante Refresh */}
-        <div className="mb-6">
+        {/* Pulsanti */}
+        <div className="mb-6 flex gap-4 flex-wrap">
           <button
             onClick={fetchData}
             disabled={isLoading}
@@ -118,6 +118,34 @@ export default function TestMinistero() {
                 <span>Aggiorna Dati</span>
               </>
             )}
+          </button>
+          
+          <button
+            onClick={async () => {
+              setIsLoading(true);
+              setError(null);
+              try {
+                const result = await apiRequest("POST", "/api/ministero/sync");
+                if (result && result.success) {
+                  alert(`✅ Sincronizzazione completata!\n\n• Nuove iniziative create: ${result.results?.created || 0}\n• Iniziative aggiornate: ${result.results?.updated || 0}\n• Errori: ${result.results?.errors || 0}\n\nClicca su "Aggiorna Dati" per vedere i dati sincronizzati.`);
+                  // Ricarica i dati dopo la sincronizzazione
+                  setTimeout(() => fetchData(), 1000);
+                } else {
+                  throw new Error(result?.error || 'Errore nella sincronizzazione');
+                }
+              } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto';
+                setError(errorMessage);
+                console.error('Errore sincronizzazione:', err);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Sincronizza con Ministero</span>
           </button>
         </div>
 
@@ -252,6 +280,44 @@ export default function TestMinistero() {
                   </ResponsiveContainer>
                 )}
               </div>
+            </div>
+
+            {/* Link per vedere dati dal database */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800 mb-2">
+                💡 <strong>Suggerimento:</strong> Dopo aver sincronizzato, puoi vedere i dati salvati nel database cliccando il pulsante qui sotto.
+              </p>
+              <button
+                onClick={async () => {
+                  setIsLoading(true);
+                  setError(null);
+                  try {
+                    const result = await apiRequest("GET", "/api/ministero/database");
+                    if (result && result.success) {
+                      // Mostra i dati dal database invece di quelli dall'API
+                      setData({
+                        ...data,
+                        iniziative: result.data || [],
+                        statistiche: {
+                          totaleIniziative: result.count || 0,
+                          totaleFirme: result.data?.reduce((sum: number, item: any) => sum + (item.firme_raccolte || 0), 0) || 0,
+                          iniziativePerStato: {},
+                          iniziativePerTipo: {}
+                        }
+                      });
+                    }
+                  } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto';
+                    setError(errorMessage);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+                className="text-sm px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
+              >
+                Vedi Dati dal Database
+              </button>
             </div>
 
             {/* Dati strutturati */}

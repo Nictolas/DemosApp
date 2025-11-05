@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../services/centralizedLogger');
+const ministeroSync = require('../services/ministeroSync');
 
 /**
  * Endpoint per recuperare i dati pubblici dal portale del Ministero della Giustizia
@@ -79,29 +80,55 @@ router.get('/iniziative', async (req, res) => {
       iniziativePerTipo: {}
     };
 
-    if (Array.isArray(data)) {
+    // L'API del Ministero restituisce {resultCode, resultDescription, infoPaginazione, content}
+    if (data && typeof data === 'object' && data.content && Array.isArray(data.content)) {
+      iniziative = data.content;
+      statistiche.totaleIniziative = data.content.length;
+      
+      // Calcola statistiche
+      data.content.forEach((item) => {
+        if (item && typeof item === 'object') {
+          // SOSTENITORI = FIRME (campo chiave dell'API!)
+          if (item.sostenitori !== undefined) {
+            statistiche.totaleFirme += parseInt(item.sostenitori) || 0;
+          } else if (item.firme !== undefined) {
+            statistiche.totaleFirme += parseInt(item.firme) || 0;
+          }
+          
+          // Conta per stato (usa idDecStatoIniziativa.nome)
+          const stato = item.idDecStatoIniziativa?.nome || item.stato;
+          if (stato) {
+            statistiche.iniziativePerStato[stato] = (statistiche.iniziativePerStato[stato] || 0) + 1;
+          }
+          
+          // Conta per tipo (usa idDecTipoIniziativa.nome)
+          const tipo = item.idDecTipoIniziativa?.nome || item.tipo;
+          if (tipo) {
+            statistiche.iniziativePerTipo[tipo] = (statistiche.iniziativePerTipo[tipo] || 0) + 1;
+          }
+        }
+      });
+    } else if (Array.isArray(data)) {
       iniziative = data;
       statistiche.totaleIniziative = data.length;
       
       // Calcola statistiche se i dati hanno struttura prevedibile
       data.forEach((item) => {
         if (item && typeof item === 'object') {
-          // Conta firme se presente
-          if (item.firme !== undefined) {
+          if (item.sostenitori !== undefined) {
+            statistiche.totaleFirme += parseInt(item.sostenitori) || 0;
+          } else if (item.firme !== undefined) {
             statistiche.totaleFirme += parseInt(item.firme) || 0;
           }
-          if (item.numeroFirme !== undefined) {
-            statistiche.totaleFirme += parseInt(item.numeroFirme) || 0;
+          
+          const stato = item.idDecStatoIniziativa?.nome || item.stato;
+          if (stato) {
+            statistiche.iniziativePerStato[stato] = (statistiche.iniziativePerStato[stato] || 0) + 1;
           }
           
-          // Conta per stato
-          if (item.stato) {
-            statistiche.iniziativePerStato[item.stato] = (statistiche.iniziativePerStato[item.stato] || 0) + 1;
-          }
-          
-          // Conta per tipo
-          if (item.tipo) {
-            statistiche.iniziativePerTipo[item.tipo] = (statistiche.iniziativePerTipo[item.tipo] || 0) + 1;
+          const tipo = item.idDecTipoIniziativa?.nome || item.tipo;
+          if (tipo) {
+            statistiche.iniziativePerTipo[tipo] = (statistiche.iniziativePerTipo[tipo] || 0) + 1;
           }
         }
       });
@@ -121,7 +148,7 @@ router.get('/iniziative', async (req, res) => {
     }
 
     // Log della richiesta riuscita
-    logger.logInfo('Chiamata API Ministero completata con successo', req, {
+    logger.info('Chiamata API Ministero completata con successo', {
       endpoint: '/api/ministero/iniziative',
       totaleIniziative: statistiche.totaleIniziative,
       totaleFirme: statistiche.totaleFirme
@@ -150,6 +177,90 @@ router.get('/iniziative', async (req, res) => {
       success: false,
       error: 'Errore interno del server',
       message: error.message || 'Errore durante la chiamata all\'API del Ministero'
+    });
+  }
+});
+
+/**
+ * Endpoint per sincronizzare manualmente le iniziative/referendum dal Ministero
+ * POST /api/ministero/sync
+ */
+router.post('/sync', async (req, res) => {
+  try {
+    console.log('🔄 Sincronizzazione manuale richiesta');
+    
+    const results = await ministeroSync.syncAll();
+    
+    res.json({
+      success: true,
+      message: 'Sincronizzazione completata',
+      results: results,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore nella sincronizzazione manuale:', error);
+    
+    await logger.error('Errore sincronizzazione manuale Ministero', {
+      error: error.message,
+      stack: error.stack
+    });
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella sincronizzazione',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Endpoint per ottenere le iniziative sincronizzate dal database
+ * GET /api/ministero/database
+ */
+router.get('/database', async (req, res) => {
+  try {
+    const { pool } = require('../middleware/auth');
+    
+    const { tipo, stato, include_concluse } = req.query;
+    
+    let query = 'SELECT * FROM iniziative_ministero WHERE 1=1';
+    const params = [];
+    let paramIndex = 1;
+    
+    if (tipo) {
+      query += ` AND tipo = $${paramIndex++}`;
+      params.push(tipo);
+    }
+    
+    if (stato) {
+      query += ` AND stato = $${paramIndex++}`;
+      params.push(stato);
+    } else if (include_concluse !== 'true') {
+      // Di default mostra solo quelle in corso
+      query += ` AND stato != 'conclusa'`;
+    }
+    
+    query += ' ORDER BY data_ultimo_aggiornamento DESC';
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero dati dal database:', error);
+    
+    await logger.error('Errore recupero iniziative Ministero dal database', {
+      error: error.message
+    });
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero dati',
+      message: error.message
     });
   }
 });

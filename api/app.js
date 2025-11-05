@@ -92,6 +92,7 @@ const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
 const violationMonitoringJob = require('./jobs/violationMonitoringJob');
 const backupJob = require('./jobs/backupJob');
+const ministeroSyncJob = require('./jobs/ministeroSyncJob');
 
 // Import rate limiting middleware
 const {
@@ -443,6 +444,11 @@ if (process.env.ENABLE_VIOLATION_MONITORING === 'true') {
 // Avvia job di backup automatico (solo se abilitato)
 if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
   backupJob.start();
+}
+
+// Avvia job di sincronizzazione Ministero (sempre attivo)
+if (process.env.ENABLE_MINISTERO_SYNC !== 'false') {
+  ministeroSyncJob.start();
 }
 
 module.exports = app;
