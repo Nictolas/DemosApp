@@ -30,6 +30,8 @@ export default function TestMinistero() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncLogs, setSyncLogs] = useState<any[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
   // Prepara i dati per i grafici
   const chartDataPerStato = useMemo(() => {
