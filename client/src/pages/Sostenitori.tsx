@@ -74,13 +74,14 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/rappresentanti/sostenitori?sostenuto_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori rappresentanti");
-      const data = await response.json();
-      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (data.success && data.supporters && data.stats) {
-        return { supporters: data.supporters, stats: data.stats };
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento dei dati dei sostenitori rappresentanti");
       }
-      return data;
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (response.supporters && response.stats) {
+        return { supporters: response.supporters, stats: response.stats };
+      }
+      return response;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -91,13 +92,14 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/candidati/sostenitori?sostenuto_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori candidati");
-      const data = await response.json();
-      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (data.success && data.supporters && data.stats) {
-        return { supporters: data.supporters, stats: data.stats };
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento dei dati dei sostenitori candidati");
       }
-      return data;
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (response.supporters && response.stats) {
+        return { supporters: response.supporters, stats: response.stats };
+      }
+      return response;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -108,13 +110,14 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/attivisti/sostenitori?sostenuto_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati degli attivisti");
-      const data = await response.json();
-      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (data.success && data.supporters && data.stats) {
-        return { supporters: data.supporters, stats: data.stats };
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento dei dati degli attivisti");
       }
-      return data;
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (response.supporters && response.stats) {
+        return { supporters: response.supporters, stats: response.stats };
+      }
+      return response;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -125,12 +128,13 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/sostenitori/organizzazione?sostenuto_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati organizzazioni");
-      const data = await response.json();
-      if (data.success && data.supporters && data.stats) {
-        return { supporters: data.supporters, stats: data.stats };
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento dei dati organizzazioni");
       }
-      return data;
+      if (response.supporters && response.stats) {
+        return { supporters: response.supporters, stats: response.stats };
+      }
+      return response;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "O"),
   });
@@ -141,9 +145,10 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati totali");
-      const data = await response.json();
-      return data.data as TotaleCounts;
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento dei dati totali");
+      }
+      return (response.data || response) as TotaleCounts;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
