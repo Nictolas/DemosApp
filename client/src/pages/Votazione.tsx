@@ -20,7 +20,7 @@ import { UserAutocomplete } from "@/components/UserAutocomplete";
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
   voto_dato: z.enum(["Favorevole", "Contrario", "Astenuto"]),
-  commento: z.string().max(20, "Il commento non può superare i 20 caratteri").optional(),
+  commento: z.string().optional(),
   vincitore: z.enum(["Approvata", "Parità", "Respinta"]),
 });
 
@@ -434,11 +434,6 @@ const Votazione = React.memo(function Votazione() {
         toast({ title: "Errore", description: "Il titolo è obbligatorio", variant: "destructive" });
         return;
       }
-      
-      if (commento && commento.length > 20) {
-        toast({ title: "Errore", description: "Il commento non può superare i 20 caratteri", variant: "destructive" });
-        return;
-      }
 
       const formData = {
         titolo: titolo.trim(),
@@ -535,14 +530,13 @@ const Votazione = React.memo(function Votazione() {
             
             {/* Commento */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Commento (opzionale, max 20 caratteri)</label>
-              <input
-                type="text"
-                maxLength={20}
+              <label className="text-sm font-medium">Commento (opzionale)</label>
+              <textarea
+                rows={5}
                 placeholder="Inserisci commento..."
                 value={commento}
                 onChange={(e) => setCommento(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px]"
               />
               {form.formState.errors.commento && (
                 <p className="text-sm text-red-600">{form.formState.errors.commento.message}</p>
@@ -626,10 +620,10 @@ const Votazione = React.memo(function Votazione() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Commento *</label>
-              <input
-                type="text"
+              <textarea
+                rows={5}
                 placeholder="Inserisci il messaggio per tutti gli utenti..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px]"
                 {...demosForm.register("commento")}
               />
             </div>
