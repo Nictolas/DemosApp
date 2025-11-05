@@ -88,7 +88,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                   <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
                     {index + 1}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">
                       {item.sitoWeb ? (
                         <a 
@@ -104,10 +104,28 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                         item.nome
                       )}
                     </h4>
-                    <p className="text-sm text-gray-600 flex items-center">
-                      <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
-                      {item.voti} voti
-                    </p>
+                    {(() => {
+                      const iniziativaItem = iniziative.find(i => i.nome === item.nome);
+                      return iniziativaItem?.descrizione ? (
+                        <p className="text-gray-600 mb-2 mt-1 line-clamp-2">
+                          {iniziativaItem.descrizione}
+                        </p>
+                      ) : null;
+                    })()}
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span>
+                        Firme raccolte: <strong>
+                          {(() => {
+                            const iniziativaItem = iniziative.find(i => i.nome === item.nome);
+                            return (iniziativaItem?.firme || 0).toLocaleString('it-IT');
+                          })()}
+                        </strong>
+                      </span>
+                      <p className="text-sm text-gray-600 flex items-center">
+                        <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                        {item.voti} voti
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <Button
@@ -179,7 +197,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                         <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
                           {index + 4}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">
                             {item.sitoWeb ? (
                               <a 
@@ -195,10 +213,28 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                               item.nome
                             )}
                           </h4>
-                          <p className="text-sm text-gray-600 flex items-center">
-                            <Trophy className="h-4 w-4 mr-2 text-blue-500" />
-                            {item.voti} voti
-                          </p>
+                          {(() => {
+                            const iniziativaItem = iniziative.find(i => i.nome === item.nome);
+                            return iniziativaItem?.descrizione ? (
+                              <p className="text-gray-600 mb-2 mt-1 line-clamp-2">
+                                {iniziativaItem.descrizione}
+                              </p>
+                            ) : null;
+                          })()}
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>
+                              Firme raccolte: <strong>
+                                {(() => {
+                                  const iniziativaItem = iniziative.find(i => i.nome === item.nome);
+                                  return (iniziativaItem?.firme || 0).toLocaleString('it-IT');
+                                })()}
+                              </strong>
+                            </span>
+                            <p className="text-sm text-gray-600 flex items-center">
+                              <Trophy className="h-4 w-4 mr-2 text-blue-500" />
+                              {item.voti} voti
+                            </p>
+                          </div>
                         </div>
                       </div>
                       <Button
