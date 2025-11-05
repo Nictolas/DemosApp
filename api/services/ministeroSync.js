@@ -6,13 +6,25 @@ const logger = require('./centralizedLogger');
  */
 class MinisteroSyncService {
   /**
-   * Estrae i dati dall'API del Ministero
+   * Estrae i dati dall'API del Ministero con gestione paginazione
    */
-  async fetchFromMinistero() {
+  async fetchFromMinistero(page = 0, size = 100) {
     try {
-      const ministeroUrl = 'https://firmereferendum.giustizia.it/referendum/api-portal/iniziativa/public';
+      // L'API del Ministero potrebbe supportare paginazione con parametri page e size
+      // Prova prima senza parametri, poi con paginazione se necessario
+      let ministeroUrl = 'https://firmereferendum.giustizia.it/referendum/api-portal/iniziativa/public';
       
-      console.log('📡 Chiamata API Ministero per sincronizzazione:', ministeroUrl);
+      // Aggiungi parametri di paginazione se specificati
+      if (page > 0 || size !== 100) {
+        const params = new URLSearchParams();
+        if (page > 0) params.append('page', page.toString());
+        if (size !== 100) params.append('size', size.toString());
+        if (params.toString()) {
+          ministeroUrl += '?' + params.toString();
+        }
+      }
+      
+      console.log(`📡 Chiamata API Ministero per sincronizzazione (page ${page}, size ${size}):`, ministeroUrl);
       
       const response = await fetch(ministeroUrl, {
         method: 'GET',
@@ -30,6 +42,96 @@ class MinisteroSyncService {
       return data;
     } catch (error) {
       console.error('❌ Errore nel fetch dall\'API Ministero:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recupera tutte le iniziative dall'API del Ministero gestendo la paginazione
+   */
+  async fetchAllFromMinistero() {
+    try {
+      console.log('📡 Recupero tutte le iniziative dal Ministero (con gestione paginazione)...');
+      
+      let allIniziative = [];
+      let currentPage = 0;
+      let hasMorePages = true;
+      const pageSize = 100; // Dimensione pagina standard
+      
+      while (hasMorePages) {
+        const data = await this.fetchFromMinistero(currentPage, pageSize);
+        
+        // Estrai le iniziative dalla risposta
+        let pageIniziative = [];
+        if (Array.isArray(data)) {
+          pageIniziative = data;
+        } else if (data && typeof data === 'object') {
+          // L'API del Ministero restituisce {resultCode, resultDescription, infoPaginazione, content}
+          if (data.content && Array.isArray(data.content)) {
+            pageIniziative = data.content;
+          } else if (data.iniziative && Array.isArray(data.iniziative)) {
+            pageIniziative = data.iniziative;
+          } else if (data.data && Array.isArray(data.data)) {
+            pageIniziative = data.data;
+          }
+        }
+        
+        console.log(`📄 Pagina ${currentPage}: trovate ${pageIniziative.length} iniziative`);
+        
+        // Aggiungi le iniziative di questa pagina
+        if (pageIniziative.length > 0) {
+          allIniziative = allIniziative.concat(pageIniziative);
+        }
+        
+        // Controlla se ci sono altre pagine
+        if (data && typeof data === 'object') {
+          const paginazione = data.infoPaginazione || data.pagination || data.pagina;
+          
+          if (paginazione) {
+            // Se c'è infoPaginazione, controlla se ci sono altre pagine
+            const totalElements = paginazione.totalElements || paginazione.total || paginazione.totale || 0;
+            const totalPages = paginazione.totalPages || paginazione.total_page || paginazione.pagine_totali || 0;
+            const currentPageNum = paginazione.number || paginazione.currentPage || paginazione.pagina || currentPage;
+            const isLast = paginazione.last !== undefined ? paginazione.last : (currentPageNum >= totalPages - 1);
+            
+            console.log(`📊 Paginazione: totale ${totalElements} elementi, ${totalPages} pagine, pagina corrente ${currentPageNum + 1}`);
+            
+            if (isLast || pageIniziative.length === 0 || (totalPages > 0 && currentPageNum >= totalPages - 1)) {
+              hasMorePages = false;
+            } else {
+              currentPage++;
+            }
+          } else {
+            // Se non c'è infoPaginazione, controlla se la pagina corrente è vuota o ha meno elementi della dimensione
+            if (pageIniziative.length === 0 || pageIniziative.length < pageSize) {
+              hasMorePages = false;
+            } else {
+              currentPage++;
+              // Limite di sicurezza: non più di 100 pagine
+              if (currentPage >= 100) {
+                console.log('⚠️ Raggiunto limite sicurezza di 100 pagine, interrompo recupero');
+                hasMorePages = false;
+              }
+            }
+          }
+        } else {
+          // Se la risposta non è un oggetto con paginazione, prendi solo questa pagina
+          hasMorePages = false;
+        }
+      }
+      
+      console.log(`✅ Recuperate tutte le iniziative: ${allIniziative.length} totali`);
+      
+      // Ritorna i dati nel formato atteso
+      return {
+        content: allIniziative,
+        infoPaginazione: {
+          totalElements: allIniziative.length,
+          totalPages: Math.ceil(allIniziative.length / pageSize)
+        }
+      };
+    } catch (error) {
+      console.error('❌ Errore nel recupero di tutte le iniziative dal Ministero:', error);
       throw error;
     }
   }
@@ -219,12 +321,14 @@ class MinisteroSyncService {
 
   /**
    * Sincronizza tutte le iniziative/referendum dal Ministero
+   * Include tutte le iniziative, anche quelle concluse
    */
   async syncAll() {
     try {
       console.log('🔄 Inizio sincronizzazione iniziative/referendum dal Ministero...');
       
-      const data = await this.fetchFromMinistero();
+      // Usa il nuovo metodo che gestisce la paginazione
+      const data = await this.fetchAllFromMinistero();
       
       // Estrai array di iniziative (l'API restituisce {resultCode, resultDescription, infoPaginazione, content})
       let iniziative = [];
@@ -243,27 +347,41 @@ class MinisteroSyncService {
         }
       }
 
-      console.log(`📊 Trovate ${iniziative.length} iniziative/referendum da sincronizzare`);
+      console.log(`📊 Trovate ${iniziative.length} iniziative/referendum da sincronizzare (incluse quelle concluse)`);
 
       const results = {
         created: 0,
         updated: 0,
-        errors: 0
+        errors: 0,
+        skipped: 0
       };
 
+      // Processa tutte le iniziative, incluse quelle concluse
       for (const iniziativa of iniziative) {
         try {
+          // Verifica che l'iniziativa abbia almeno un ID o un titolo
+          const fields = this.extractFields(iniziativa);
+          if (!fields.id_ministero && !fields.titolo) {
+            console.log(`⚠️ Iniziativa saltata: manca id_ministero e titolo`);
+            results.skipped++;
+            continue;
+          }
+
           const result = await this.saveIniziativa(iniziativa);
           if (result.action === 'created') {
             results.created++;
-            console.log(`✅ Creata nuova iniziativa: ${result.id}`);
+            console.log(`✅ Creata nuova iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
           } else {
             results.updated++;
-            console.log(`🔄 Aggiornata iniziativa: ${result.id}`);
+            console.log(`🔄 Aggiornata iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
           }
         } catch (error) {
           results.errors++;
           console.error(`❌ Errore sincronizzazione iniziativa:`, error.message);
+          // Log dettagli dell'errore per debug
+          if (iniziativa && iniziativa.id) {
+            console.error(`   ID iniziativa: ${iniziativa.id}`);
+          }
         }
       }
 
@@ -271,10 +389,12 @@ class MinisteroSyncService {
         total: iniziative.length,
         created: results.created,
         updated: results.updated,
-        errors: results.errors
+        errors: results.errors,
+        skipped: results.skipped
       });
 
-      console.log(`✅ Sincronizzazione completata: ${results.created} create, ${results.updated} aggiornate, ${results.errors} errori`);
+      console.log(`✅ Sincronizzazione completata: ${results.created} create, ${results.updated} aggiornate, ${results.errors} errori, ${results.skipped} saltate`);
+      console.log(`📊 Totale iniziative processate: ${iniziative.length}, sincronizzate: ${results.created + results.updated}`);
 
       return results;
     } catch (error) {
