@@ -4,16 +4,107 @@ const logger = require('../services/centralizedLogger');
 const ministeroSync = require('../services/ministeroSync');
 
 /**
- * Endpoint per recuperare i dati pubblici dal portale del Ministero della Giustizia
+ * Endpoint per recuperare i dati dal database (sincronizzati dal Ministero)
  * GET /api/ministero/iniziative
+ * Recupera i dati dal database invece che direttamente dall'API del Ministero
+ * così l'utente vede i dati aggiornati dalla sincronizzazione automatica ogni 6 ore
  */
 router.get('/iniziative', async (req, res) => {
   try {
+    const { pool } = require('../middleware/auth');
+    const { source } = req.query; // Permette di forzare la chiamata all'API con ?source=ministero
+    
+    // Se viene richiesto esplicitamente, chiama l'API del Ministero
+    if (source === 'ministero') {
+      return await fetchFromMinisteroAPI(req, res);
+    }
+
+    // Di default, recupera dal database (dati sincronizzati)
+    console.log('📊 Recupero dati iniziative dal database (sincronizzati)...');
+    
+    const result = await pool.query(`
+      SELECT * FROM iniziative_ministero 
+      ORDER BY data_ultimo_aggiornamento DESC, created_at DESC
+    `);
+
+    const iniziative = result.rows.map(row => ({
+      id: row.id,
+      id_ministero: row.id_ministero,
+      titolo: row.titolo,
+      descrizione: row.descrizione,
+      tipo: row.tipo,
+      stato: row.stato,
+      data_inizio: row.data_inizio,
+      data_fine: row.data_fine,
+      firme_raccolte: row.firme_raccolte,
+      sostenitori: row.firme_raccolte, // Per compatibilità con il frontend
+      quorum: row.quorum,
+      quorum_raggiunto: row.quorum_raggiunto,
+      sito_web: row.sito_web,
+      documento: row.documento,
+      promotore: row.promotore,
+      data_ultimo_aggiornamento: row.data_ultimo_aggiornamento,
+      // Dati raw per compatibilità
+      idDecTipoIniziativa: { nome: row.tipo },
+      idDecStatoIniziativa: { nome: row.stato },
+      ...(row.dati_raw && typeof row.dati_raw === 'object' ? row.dati_raw : {})
+    }));
+
+    // Calcola statistiche
+    const statistiche = {
+      totaleIniziative: iniziative.length,
+      totaleFirme: iniziative.reduce((sum, item) => sum + (item.firme_raccolte || 0), 0),
+      iniziativePerStato: {},
+      iniziativePerTipo: {}
+    };
+
+    iniziative.forEach((item) => {
+      if (item.stato) {
+        statistiche.iniziativePerStato[item.stato] = (statistiche.iniziativePerStato[item.stato] || 0) + 1;
+      }
+      if (item.tipo) {
+        statistiche.iniziativePerTipo[item.tipo] = (statistiche.iniziativePerTipo[item.tipo] || 0) + 1;
+      }
+    });
+
+    console.log(`✅ Dati recuperati dal database: ${iniziative.length} iniziative`);
+
+    res.json({
+      success: true,
+      data: { content: iniziative }, // Formato compatibile con il frontend
+      iniziative: iniziative,
+      statistiche: statistiche,
+      timestamp: new Date().toISOString(),
+      source: 'Database (sincronizzato dal Ministero)'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel recupero dati dal database:', error);
+    
+    // Log dell'errore
+    logger.logError(error, req, {
+      endpoint: '/api/ministero/iniziative',
+      errorMessage: error.message,
+      errorStack: error.stack
+    }).catch(err => console.error('Errore logging:', err));
+
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: error.message || 'Errore durante il recupero dei dati dal database'
+    });
+  }
+});
+
+/**
+ * Funzione helper per chiamare direttamente l'API del Ministero (usata solo se ?source=ministero)
+ */
+async function fetchFromMinisteroAPI(req, res) {
+  try {
     const ministeroUrl = 'https://firmereferendum.giustizia.it/referendum/api-portal/iniziativa/public';
     
-    console.log('📡 Chiamata API Ministero:', ministeroUrl);
+    console.log('📡 Chiamata diretta API Ministero:', ministeroUrl);
     
-    // Chiamata all'API del Ministero
     const response = await fetch(ministeroUrl, {
       method: 'GET',
       headers: {
@@ -26,7 +117,6 @@ router.get('/iniziative', async (req, res) => {
       const errorText = await response.text();
       console.error('❌ Errore risposta API Ministero:', response.status, errorText);
       
-      // Log dell'errore
       logger.logError(
         new Error(`API Ministero risposta non OK: ${response.status}`),
         req,
@@ -52,9 +142,6 @@ router.get('/iniziative', async (req, res) => {
       data = await response.json();
     } else {
       const text = await response.text();
-      console.log('⚠️ Risposta non JSON, tentativo di parsing:', text.substring(0, 200));
-      
-      // Prova a parsare come JSON anche se il content-type non è corretto
       try {
         data = JSON.parse(text);
       } catch (e) {
@@ -62,16 +149,7 @@ router.get('/iniziative', async (req, res) => {
         data = { raw: text };
       }
     }
-    
-    console.log('✅ Dati ricevuti dal Ministero:', {
-      tipo: typeof data,
-      isArray: Array.isArray(data),
-      keys: data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data) : 'N/A',
-      count: Array.isArray(data) ? data.length : 'N/A',
-      preview: JSON.stringify(data).substring(0, 500)
-    });
 
-    // Estrai informazioni utili dai dati
     let iniziative = [];
     let statistiche = {
       totaleIniziative: 0,
@@ -80,41 +158,12 @@ router.get('/iniziative', async (req, res) => {
       iniziativePerTipo: {}
     };
 
-    // L'API del Ministero restituisce {resultCode, resultDescription, infoPaginazione, content}
     if (data && typeof data === 'object' && data.content && Array.isArray(data.content)) {
       iniziative = data.content;
       statistiche.totaleIniziative = data.content.length;
       
-      // Calcola statistiche
       data.content.forEach((item) => {
         if (item && typeof item === 'object') {
-          // SOSTENITORI = FIRME (campo chiave dell'API!)
-          if (item.sostenitori !== undefined) {
-            statistiche.totaleFirme += parseInt(item.sostenitori) || 0;
-          } else if (item.firme !== undefined) {
-            statistiche.totaleFirme += parseInt(item.firme) || 0;
-          }
-          
-          // Conta per stato (usa idDecStatoIniziativa.nome)
-          const stato = item.idDecStatoIniziativa?.nome || item.stato;
-          if (stato) {
-            statistiche.iniziativePerStato[stato] = (statistiche.iniziativePerStato[stato] || 0) + 1;
-          }
-          
-          // Conta per tipo (usa idDecTipoIniziativa.nome)
-          const tipo = item.idDecTipoIniziativa?.nome || item.tipo;
-          if (tipo) {
-            statistiche.iniziativePerTipo[tipo] = (statistiche.iniziativePerTipo[tipo] || 0) + 1;
-          }
-        }
-      });
-    } else if (Array.isArray(data)) {
-      iniziative = data;
-      statistiche.totaleIniziative = data.length;
-      
-      // Calcola statistiche se i dati hanno struttura prevedibile
-      data.forEach((item) => {
-        if (item && typeof item === 'object') {
           if (item.sostenitori !== undefined) {
             statistiche.totaleFirme += parseInt(item.sostenitori) || 0;
           } else if (item.firme !== undefined) {
@@ -132,27 +181,7 @@ router.get('/iniziative', async (req, res) => {
           }
         }
       });
-    } else if (data && typeof data === 'object') {
-      // Se è un oggetto, cerca array annidati
-      if (data.iniziative && Array.isArray(data.iniziative)) {
-        iniziative = data.iniziative;
-        statistiche.totaleIniziative = data.iniziative.length;
-      } else if (data.data && Array.isArray(data.data)) {
-        iniziative = data.data;
-        statistiche.totaleIniziative = data.data.length;
-      } else {
-        // Se è un oggetto singolo, trattalo come array con un elemento
-        iniziative = [data];
-        statistiche.totaleIniziative = 1;
-      }
     }
-
-    // Log della richiesta riuscita
-    logger.info('Chiamata API Ministero completata con successo', {
-      endpoint: '/api/ministero/iniziative',
-      totaleIniziative: statistiche.totaleIniziative,
-      totaleFirme: statistiche.totaleFirme
-    }).catch(err => console.error('Errore logging:', err));
 
     res.json({
       success: true,
@@ -160,26 +189,12 @@ router.get('/iniziative', async (req, res) => {
       iniziative: iniziative,
       statistiche: statistiche,
       timestamp: new Date().toISOString(),
-      source: 'Ministero della Giustizia'
+      source: 'Ministero della Giustizia (diretto)'
     });
-
   } catch (error) {
-    console.error('❌ Errore nella chiamata API Ministero:', error);
-    
-    // Log dell'errore
-    logger.logError(error, req, {
-      endpoint: '/api/ministero/iniziative',
-      errorMessage: error.message,
-      errorStack: error.stack
-    }).catch(err => console.error('Errore logging:', err));
-
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      message: error.message || 'Errore durante la chiamata all\'API del Ministero'
-    });
+    throw error;
   }
-});
+}
 
 /**
  * Endpoint per sincronizzare manualmente le iniziative/referendum dal Ministero
