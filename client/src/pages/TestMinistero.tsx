@@ -47,6 +47,37 @@ export default function TestMinistero() {
     }));
   }, [data]);
 
+  // Calcola le colonne della tabella una volta sola
+  const tableColumns = useMemo(() => {
+    const items = data?.iniziative || (Array.isArray(data?.data) ? data.data : []);
+    if (items.length === 0) return [];
+    
+    const allKeys = new Set<string>();
+    items.forEach((item: any) => {
+      if (item && typeof item === 'object') {
+        Object.keys(item).forEach(key => {
+          if (item[key] !== null && typeof item[key] !== 'object') {
+            allKeys.add(key);
+          } else if (item[key] && typeof item[key] === 'object' && !Array.isArray(item[key])) {
+            Object.keys(item[key]).forEach(subKey => {
+              allKeys.add(`${key}.${subKey}`);
+            });
+          }
+        });
+      }
+    });
+    
+    const priority = ['id', 'id_ministero', 'titolo', 'descrizione', 'tipo', 'stato', 'firme_raccolte', 'sostenitori', 'quorum', 'quorum_raggiunto', 'data_inizio', 'data_fine', 'sito_web', 'promotore'];
+    return Array.from(allKeys).sort((a, b) => {
+      const aIndex = priority.indexOf(a);
+      const bIndex = priority.indexOf(b);
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [data]);
+
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
@@ -88,7 +119,7 @@ export default function TestMinistero() {
 
   return (
     <PageContainer className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+      <div className="container mx-auto px-4 py-6 w-full">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
@@ -320,70 +351,79 @@ export default function TestMinistero() {
               </button>
             </div>
 
-            {/* Dati strutturati */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Dati Ricevuti</h2>
-              
-              {data.iniziative && data.iniziative.length > 0 ? (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 mb-3">
-                    Numero di iniziative trovate: <strong>{data.iniziative.length}</strong>
-                  </p>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {data.iniziative.map((item: any, index: number) => (
-                      <div
-                        key={index}
-                        className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                      >
-                        <pre className="text-xs overflow-x-auto text-gray-800">
-                          {JSON.stringify(item, null, 2)}
-                        </pre>
-                      </div>
-                    ))}
-                  </div>
+            {/* Tabella con tutte le colonne */}
+            {(data.iniziative && data.iniziative.length > 0) || (data.data && Array.isArray(data.data) && data.data.length > 0) ? (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 overflow-x-auto">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  Tabella Iniziative ({data.iniziative?.length || (Array.isArray(data.data) ? data.data.length : 0)} elementi)
+                </h2>
+                <div className="overflow-x-auto w-full">
+                  <table className="min-w-full divide-y divide-gray-200 border-collapse">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {tableColumns.map((key) => (
+                          <th
+                            key={key}
+                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200 whitespace-nowrap"
+                          >
+                            {key.replace(/_/g, ' ').replace(/\./g, ' → ')}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(data.iniziative || (Array.isArray(data.data) ? data.data : [])).map((item: any, index: number) => {
+                        return (
+                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            {tableColumns.map((key) => {
+                              let value: any = null;
+                              
+                              // Gestisci chiavi nidificate
+                              if (key.includes('.')) {
+                                const [parentKey, childKey] = key.split('.');
+                                value = item[parentKey]?.[childKey];
+                              } else {
+                                value = item[key];
+                              }
+                              
+                              // Formatta il valore
+                              let displayValue = '';
+                              if (value === null || value === undefined) {
+                                displayValue = '-';
+                              } else if (typeof value === 'boolean') {
+                                displayValue = value ? 'Sì' : 'No';
+                              } else if (typeof value === 'number') {
+                                displayValue = value.toLocaleString('it-IT');
+                              } else if (typeof value === 'string' && value.length > 100) {
+                                displayValue = value.substring(0, 100) + '...';
+                              } else {
+                                displayValue = String(value);
+                              }
+                              
+                              return (
+                                <td
+                                  key={key}
+                                  className="px-4 py-3 text-sm text-gray-900 border border-gray-200 whitespace-nowrap"
+                                  title={typeof value === 'string' && value.length > 100 ? value : undefined}
+                                >
+                                  {displayValue}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ) : data.data ? (
-                <div className="space-y-4">
-                  {/* Se i dati sono un array */}
-                  {Array.isArray(data.data) ? (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Numero di elementi trovati: <strong>{data.data.length}</strong>
-                      </p>
-                      {data.data.length > 0 ? (
-                        <div className="space-y-3 max-h-96 overflow-y-auto">
-                          {data.data.map((item: any, index: number) => (
-                            <div
-                              key={index}
-                              className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                            >
-                              <pre className="text-xs overflow-x-auto text-gray-800">
-                                {JSON.stringify(item, null, 2)}
-                              </pre>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-center">
-                          <p className="text-gray-500">Nessun dato disponibile</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* Se i dati sono un oggetto */
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                      <pre className="text-xs overflow-x-auto text-gray-800">
-                        {JSON.stringify(data.data, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              ) : (
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-center">
-                  <p className="text-gray-500">Nessun dato disponibile</p>
+                  <p className="text-gray-500">Nessun dato disponibile per la tabella</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Dati raw completi (per debug) */}
             <details className="bg-gray-50 rounded-lg border border-gray-200 p-4">
