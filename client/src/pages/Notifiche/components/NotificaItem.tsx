@@ -31,8 +31,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         utente_id: user?.id,
         tipo
       });
-      if (!response.ok) throw new Error("Errore nella reazione");
-      return response.json();
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nella reazione");
+      }
+      return response;
     },
     onSuccess: (data) => {
       // Aggiorna lo stato locale

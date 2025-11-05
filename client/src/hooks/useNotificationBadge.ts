@@ -12,10 +12,9 @@ export const useNotificationBadge = () => {
       
       try {
         const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
-        if (!response.ok) return 0;
+        if (!response || !response.success) return 0;
         
-        const data = await response.json();
-        const notifiche = data.notifiche || [];
+        const notifiche = response.notifiche || [];
         
         // Conta solo le notifiche non lette (status !== 'letta')
         const unreadNotifications = notifiche.filter((notifica: any) => 

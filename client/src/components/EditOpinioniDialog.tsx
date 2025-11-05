@@ -280,7 +280,7 @@ export function EditOpinioniDialog({
         fonti: fontiPerDatabase
       });
       
-      if (response.ok) {
+      if (response && response.success) {
         toast({
           title: "Successo",
           description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
@@ -289,7 +289,7 @@ export function EditOpinioniDialog({
         onOpinioniUpdated();
         onOpenChange(false);
       } else {
-        throw new Error('Errore nel salvataggio');
+        throw new Error(response?.error || 'Errore nel salvataggio');
       }
     } catch (error) {
       console.error('Errore nell\'aggiornamento delle opinioni:', error);
