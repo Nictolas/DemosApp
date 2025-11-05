@@ -235,17 +235,79 @@ class MinisteroSyncService {
     try {
       const fields = this.extractFields(iniziativa);
       
+      // Debug: log dei campi estratti
+      console.log(`🔍 DEBUG saveIniziativa - Campi estratti:`, {
+        id_ministero: fields.id_ministero,
+        titolo: fields.titolo?.substring(0, 50) || 'N/A',
+        tipo: fields.tipo,
+        stato: fields.stato,
+        titolo_length: fields.titolo?.length || 0
+      });
+      
+      // Valida che titolo non sia vuoto (è NOT NULL nel database)
+      if (!fields.titolo || fields.titolo.trim() === '') {
+        throw new Error(`Titolo mancante o vuoto per iniziativa con id_ministero: ${fields.id_ministero || 'N/A'}`);
+      }
+      
       // Genera un ID univoco se non c'è
       const id = fields.id_ministero ? `ministero_${fields.id_ministero}` : `ministero_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Verifica se esiste già (per id_ministero o titolo+tipo)
-      const existing = await pool.query(
-        `SELECT id FROM iniziative_ministero WHERE id_ministero = $1 OR (titolo = $2 AND tipo = $3)`,
-        [fields.id_ministero, fields.titolo, fields.tipo]
-      );
+      // Gestisci correttamente il caso in cui id_ministero è null
+      let existingQuery;
+      let existingParams;
+      
+      if (fields.id_ministero) {
+        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero WHERE id_ministero = $1 OR (titolo = $2 AND tipo = $3) LIMIT 1`;
+        existingParams = [fields.id_ministero, fields.titolo, fields.tipo];
+      } else {
+        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero WHERE titolo = $1 AND tipo = $2 LIMIT 1`;
+        existingParams = [fields.titolo, fields.tipo];
+      }
+      
+      console.log(`🔍 DEBUG saveIniziativa - Query ricerca esistente:`, {
+        query: existingQuery,
+        params: existingParams
+      });
+      
+      const existing = await pool.query(existingQuery, existingParams);
+      
+      console.log(`🔍 DEBUG saveIniziativa - Risultato ricerca:`, {
+        found: existing.rows.length > 0,
+        existing_id: existing.rows[0]?.id || 'N/A',
+        existing_id_ministero: existing.rows[0]?.id_ministero || 'N/A'
+      });
 
       if (existing.rows.length > 0) {
         // Aggiorna esistente
+        console.log(`🔄 DEBUG saveIniziativa - Aggiornamento esistente ID: ${existing.rows[0].id}`);
+        
+        const updateParams = [
+          fields.titolo,
+          fields.descrizione,
+          fields.tipo,
+          fields.stato,
+          fields.data_inizio || null,
+          fields.data_fine || null,
+          fields.firme_raccolte || 0,
+          fields.quorum || 0,
+          fields.quorum_raggiunto || false,
+          fields.sito_web || null,
+          fields.documento || null,
+          fields.promotore || null,
+          fields.dati_raw ? JSON.stringify(fields.dati_raw) : '{}',
+          fields.data_ultimo_aggiornamento,
+          existing.rows[0].id
+        ];
+        
+        console.log(`🔍 DEBUG saveIniziativa - Parametri UPDATE:`, {
+          titolo: fields.titolo?.substring(0, 50),
+          tipo: fields.tipo,
+          stato: fields.stato,
+          id_ministero: fields.id_ministero,
+          where_id: existing.rows[0].id
+        });
+        
         await pool.query(
           `UPDATE iniziative_ministero SET
             titolo = $1,
@@ -264,27 +326,42 @@ class MinisteroSyncService {
             data_ultimo_aggiornamento = $14,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = $15`,
-          [
-            fields.titolo,
-            fields.descrizione,
-            fields.tipo,
-            fields.stato,
-            fields.data_inizio,
-            fields.data_fine,
-            fields.firme_raccolte,
-            fields.quorum,
-            fields.quorum_raggiunto,
-            fields.sito_web,
-            fields.documento,
-            fields.promotore,
-            fields.dati_raw ? JSON.stringify(fields.dati_raw) : '{}',
-            fields.data_ultimo_aggiornamento,
-            existing.rows[0].id
-          ]
+          updateParams
         );
+        
+        console.log(`✅ DEBUG saveIniziativa - Aggiornamento completato: ${existing.rows[0].id}`);
         return { action: 'updated', id: existing.rows[0].id };
       } else {
         // Inserisci nuova
+        console.log(`➕ DEBUG saveIniziativa - Inserimento nuovo record ID: ${id}`);
+        
+        const insertParams = [
+          id,
+          fields.id_ministero || null,
+          fields.titolo,
+          fields.descrizione || null,
+          fields.tipo,
+          fields.stato,
+          fields.data_inizio || null,
+          fields.data_fine || null,
+          fields.firme_raccolte || 0,
+          fields.quorum || 0,
+          fields.quorum_raggiunto || false,
+          fields.sito_web || null,
+          fields.documento || null,
+          fields.promotore || null,
+          fields.dati_raw ? JSON.stringify(fields.dati_raw) : '{}',
+          fields.data_ultimo_aggiornamento
+        ];
+        
+        console.log(`🔍 DEBUG saveIniziativa - Parametri INSERT:`, {
+          id: id,
+          id_ministero: fields.id_ministero || 'NULL',
+          titolo: fields.titolo?.substring(0, 50),
+          tipo: fields.tipo,
+          stato: fields.stato
+        });
+        
         const result = await pool.query(
           `INSERT INTO iniziative_ministero (
             id, id_ministero, titolo, descrizione, tipo, stato,
@@ -292,29 +369,34 @@ class MinisteroSyncService {
             sito_web, documento, promotore, dati_raw, data_ultimo_aggiornamento
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
           RETURNING id`,
-          [
-            id,
-            fields.id_ministero,
-            fields.titolo,
-            fields.descrizione,
-            fields.tipo,
-            fields.stato,
-            fields.data_inizio,
-            fields.data_fine,
-            fields.firme_raccolte,
-            fields.quorum,
-            fields.quorum_raggiunto,
-            fields.sito_web,
-            fields.documento,
-            fields.promotore,
-            fields.dati_raw ? JSON.stringify(fields.dati_raw) : '{}',
-            fields.data_ultimo_aggiornamento
-          ]
+          insertParams
         );
+        
+        console.log(`✅ DEBUG saveIniziativa - Inserimento completato: ${result.rows[0].id}`);
         return { action: 'created', id: result.rows[0].id };
       }
     } catch (error) {
       console.error('❌ Errore nel salvataggio iniziativa:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        constraint: error.constraint,
+        table: error.table,
+        column: error.column,
+        hint: error.hint
+      });
+      
+      // Log anche i dati dell'iniziativa che ha causato l'errore
+      if (iniziativa) {
+        console.error('❌ Dati iniziativa che ha causato errore:', {
+          id: iniziativa.id,
+          titolo: iniziativa.titolo?.substring(0, 100),
+          tipo: iniziativa.idDecTipoIniziativa?.nome || iniziativa.tipo,
+          stato: iniziativa.idDecStatoIniziativa?.nome || iniziativa.stato
+        });
+      }
+      
       throw error;
     }
   }
