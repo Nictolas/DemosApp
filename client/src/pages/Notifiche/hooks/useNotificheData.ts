@@ -21,8 +21,10 @@ export const useNotificheData = (user: any) => {
         throw new Error("ID utente non valido");
       }
       const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento delle notifiche.");
-      return response.json();
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nel caricamento delle notifiche.");
+      }
+      return response;
     },
     enabled: !!user && !!user?.id && isValidUUID(user.id),
     refetchInterval: 60000, // Ricarica i dati ogni minuto
@@ -35,8 +37,10 @@ export const useNotificheData = (user: any) => {
         throw new Error("ID utente non valido");
       }
       const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read?user_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nell'aggiornamento notifica.");
-      return response.json();
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nell'aggiornamento notifica.");
+      }
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifiche'] });
@@ -55,8 +59,10 @@ export const useNotificheData = (user: any) => {
         throw new Error("ID utente non valido");
       }
       const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}?user_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nella cancellazione segnalazione.");
-      return response.json();
+      if (!response || !response.success) {
+        throw new Error(response?.error || "Errore nella cancellazione segnalazione.");
+      }
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifiche'] });
