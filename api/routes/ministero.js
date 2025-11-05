@@ -309,6 +309,9 @@ router.get('/logs', async (req, res) => {
     
     // Recupera gli ultimi log dalla tabella centralized_logs
     // Cerca log relativi a ministero, sincronizzazione o iniziative
+    // Nota: timestamp è BIGINT (millisecondi Unix), quindi convertiamo il limite temporale
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000); // 24 ore fa in millisecondi
+    
     const result = await pool.query(`
       SELECT 
         id,
@@ -326,10 +329,10 @@ router.get('/logs', async (req, res) => {
          OR message ILIKE '%sincronizzazione%' 
          OR message ILIKE '%iniziativa%'
          OR endpoint ILIKE '%ministero%')
-        AND timestamp >= NOW() - INTERVAL '24 hours'
+        AND timestamp >= $1
       ORDER BY timestamp DESC 
       LIMIT 100
-    `);
+    `, [twentyFourHoursAgo]);
     
     // Formatta i log per la risposta
     const formattedLogs = result.rows.map(row => ({
