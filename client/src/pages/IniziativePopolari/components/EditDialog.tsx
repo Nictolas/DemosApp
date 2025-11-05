@@ -67,18 +67,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iniziativa?.id]);
 
-  const handleSubmit = React.useCallback((data: any) => {
-    console.log('🔍 EditDialog - handleSubmit chiamato:', { data, quorum, id: iniziativa?.id });
-    if (isLoading) {
-      console.warn('⚠️ EditDialog - Submit già in corso, ignoro');
-      return;
-    }
+  const handleSubmit = (data: any) => {
     onSubmit({ ...data, quorum, id: iniziativa?.id });
-  }, [isLoading, quorum, iniziativa?.id, onSubmit]);
-
-  const handleError = (errors: any) => {
-    console.error('❌ EditDialog - Errori di validazione:', errors);
-    console.error('❌ EditDialog - Valori del form:', form.getValues());
   };
 
   if (!iniziativa) return null;
@@ -91,14 +81,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({ iniziativa, onClose, onS
         </DialogHeader>
         <div className="space-y-4 bg-white">
           <Form {...form}>
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                form.handleSubmit(handleSubmit, handleError)(e);
-              }} 
-              className="space-y-4" 
-              noValidate
-            >
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="nome"
