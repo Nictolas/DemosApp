@@ -91,6 +91,7 @@ export default function TestMinistero() {
       }
 
       setData(result);
+      setLastUpdate(new Date());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto durante il recupero dei dati';
       setError(errorMessage);
@@ -100,11 +101,26 @@ export default function TestMinistero() {
     }
   };
 
+  // Carica i dati all'avvio
   useEffect(() => {
     if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);
+
+  // Aggiorna automaticamente i dati ogni 5 minuti (300000 ms)
+  // Questo permette di vedere gli aggiornamenti del quorum senza dover ricaricare manualmente
+  // Il backend si sincronizza automaticamente ogni 6 ore dal Ministero
+  useEffect(() => {
+    if (!user || authLoading || !autoRefreshEnabled) return;
+
+    const intervalId = setInterval(() => {
+      console.log('🔄 Aggiornamento automatico dati Ministero (ogni 5 minuti)...');
+      fetchData();
+    }, 5 * 60 * 1000); // 5 minuti
+
+    return () => clearInterval(intervalId);
+  }, [user, authLoading, autoRefreshEnabled]);
 
   if (authLoading) {
     return (
@@ -123,12 +139,34 @@ export default function TestMinistero() {
       <div className="container mx-auto px-4 py-6 w-full">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Building2 className="h-8 w-8 text-slate-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Test Ministero</h1>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <Building2 className="h-8 w-8 text-slate-600" />
+              <h1 className="text-3xl font-bold text-gray-900">Test Ministero</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              {lastUpdate && (
+                <span className="text-sm text-gray-500">
+                  Ultimo aggiornamento: {lastUpdate.toLocaleTimeString('it-IT')}
+                </span>
+              )}
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={autoRefreshEnabled}
+                  onChange={(e) => setAutoRefreshEnabled(e.target.checked)}
+                  className="rounded"
+                />
+                Auto-refresh (5 min)
+              </label>
+            </div>
           </div>
           <p className="text-gray-600">
             Test dell'integrazione con l'API del Ministero della Giustizia per iniziative e firme
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            📊 Il backend si sincronizza automaticamente ogni 6 ore dal Ministero. 
+            Il frontend si aggiorna automaticamente ogni 5 minuti per mostrare i dati più recenti dal database.
           </p>
         </div>
 
