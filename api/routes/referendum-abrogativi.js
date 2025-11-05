@@ -630,14 +630,14 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Verifica che gli ID dei referendum esistano
     if (votiDaSalvare.length > 0) {
-      const referendumCheckQuery = 'SELECT id FROM referendum_abrogativi WHERE id = ANY($1)';
+      const referendumCheckQuery = 'SELECT id FROM referendum_abrogativi WHERE id = ANY($1::uuid[])';
       const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
       
       // Verifica che tutti gli ID dei referendum esistano
       if (referendumCheckResult.rows.length !== votiDaSalvare.length) {
-        const missingIds = votiDaSalvare.filter(id => !referendumCheckResult.rows.some(row => row.id === id));
+        const missingIds = votiDaSalvare.filter(id => !referendumCheckResult.rows.some(row => row.id.toString() === id.toString()));
         console.error('❌ DEBUG /api/referendum-abrogativi/vota - ID referendum non trovati:', missingIds);
         return res.status(400).json({
           success: false,
@@ -679,28 +679,15 @@ router.post('/vota', verifyToken, async (req, res) => {
           console.log(`⚠️ DEBUG /api/referendum-abrogativi/vota - Referendum non trovato con ID:`, referendumId);
         }
 
-        // Converti referendumId a string per assicurarsi che sia nel formato corretto
-        const referendumIdString = String(referendumId);
-
+        // Inserisce il voto con cast esplicito a UUID per referendum_id
         await client.query(
-          'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
-          [userId, referendumIdString]
+          'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2::uuid, NOW(), NOW(), NOW())',
+          [userId, referendumId]
         );
         console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
-          referendumId: referendumIdString,
+          referendumId: referendumId,
           userId
         });
-        
-        // Verifica subito dopo l'inserimento che il voto sia stato salvato correttamente
-        const verifyQuery = 'SELECT referendum_id, userid FROM voti_referendum_abrogativi WHERE userid = $1 ORDER BY created_at DESC LIMIT 1';
-        const verifyResult = await client.query(verifyQuery, [userId]);
-        if (verifyResult.rows.length > 0) {
-          console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Verifica dopo inserimento:`, {
-            referendum_id_salvato: verifyResult.rows[0].referendum_id,
-            referendum_id_atteso: referendumIdString,
-            corrispondono: verifyResult.rows[0].referendum_id === referendumIdString || verifyResult.rows[0].referendum_id === referendumId
-          });
-        }
       }
     
     await client.query('COMMIT');
