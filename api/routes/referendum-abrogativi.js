@@ -666,7 +666,7 @@ router.post('/vota', verifyToken, async (req, res) => {
         });
 
         // Verifica quale referendum corrisponde a questo ID
-        const refInfoQuery = 'SELECT id, nome FROM referendum_abrogativi WHERE id = $1 OR id::text = $1';
+        const refInfoQuery = 'SELECT id, nome FROM referendum_abrogativi WHERE id::text = $1 OR id = $1::uuid';
         const refInfoResult = await client.query(refInfoQuery, [referendumId]);
         if (refInfoResult.rows.length > 0) {
           console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovato:`, {
@@ -679,10 +679,11 @@ router.post('/vota', verifyToken, async (req, res) => {
           console.log(`⚠️ DEBUG /api/referendum-abrogativi/vota - Referendum non trovato con ID:`, referendumId);
         }
 
-        // Inserisce il voto con cast esplicito a UUID per referendum_id
+        // Inserisce il voto - referendum_id è TEXT, quindi lo convertiamo a stringa
+        const referendumIdString = String(referendumId);
         await client.query(
-          'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2::uuid, NOW(), NOW(), NOW())',
-          [userId, referendumId]
+          'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
+          [userId, referendumIdString]
         );
         console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
           referendumId: referendumId,
