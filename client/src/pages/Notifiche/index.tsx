@@ -52,7 +52,7 @@ export default function Notifiche() {
               user_id: user?.id
             });
             
-            if (response.ok) {
+            if (response && response.success) {
               console.log('✅ Tutte le notifiche marcate come lette');
               // Invalida la query per aggiornare i dati
               queryClient.invalidateQueries({ queryKey: ['notifiche'] });
