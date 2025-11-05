@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { Building2, RefreshCw, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface MinisteroData {
   success: boolean;
@@ -24,20 +25,12 @@ export default function TestMinistero() {
     setError(null);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/ministero/iniziative`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Errore ${response.status}: ${response.statusText}`);
+      const result: MinisteroData = await apiRequest("GET", "/api/ministero/iniziative");
+      
+      if (!result || !result.success) {
+        throw new Error(result?.error || result?.message || 'Errore nel recupero dei dati');
       }
 
-      const result: MinisteroData = await response.json();
       setData(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto durante il recupero dei dati';
