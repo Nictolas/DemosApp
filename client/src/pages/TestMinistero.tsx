@@ -29,6 +29,7 @@ export default function TestMinistero() {
   const [data, setData] = useState<MinisteroData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncLogs, setSyncLogs] = useState<any[]>([]);
 
   // Prepara i dati per i grafici
   const chartDataPerStato = useMemo(() => {
@@ -313,43 +314,113 @@ export default function TestMinistero() {
               </div>
             </div>
 
-            {/* Link per vedere dati dal database */}
+            {/* Link per vedere dati dal database e log */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800 mb-2">
-                💡 <strong>Suggerimento:</strong> Dopo aver sincronizzato, puoi vedere i dati salvati nel database cliccando il pulsante qui sotto.
+                💡 <strong>Suggerimento:</strong> Dopo aver sincronizzato, puoi vedere i dati salvati nel database cliccando i pulsanti qui sotto.
               </p>
-              <button
-                onClick={async () => {
-                  setIsLoading(true);
-                  setError(null);
-                  try {
-                    const result = await apiRequest("GET", "/api/ministero/database");
-                    if (result && result.success) {
-                      // Mostra i dati dal database invece di quelli dall'API
-                      setData({
-                        ...data,
-                        iniziative: result.data || [],
-                        statistiche: {
-                          totaleIniziative: result.count || 0,
-                          totaleFirme: result.data?.reduce((sum: number, item: any) => sum + (item.firme_raccolte || 0), 0) || 0,
-                          iniziativePerStato: {},
-                          iniziativePerTipo: {}
-                        }
-                      });
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={async () => {
+                    setIsLoading(true);
+                    setError(null);
+                    try {
+                      const result = await apiRequest("GET", "/api/ministero/database");
+                      if (result && result.success) {
+                        // Mostra i dati dal database invece di quelli dall'API
+                        setData({
+                          ...data,
+                          iniziative: result.data || [],
+                          statistiche: {
+                            totaleIniziative: result.count || 0,
+                            totaleFirme: result.data?.reduce((sum: number, item: any) => sum + (item.firme_raccolte || 0), 0) || 0,
+                            iniziativePerStato: {},
+                            iniziativePerTipo: {}
+                          }
+                        });
+                      }
+                    } catch (err) {
+                      const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto';
+                      setError(errorMessage);
+                    } finally {
+                      setIsLoading(false);
                     }
-                  } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto';
-                    setError(errorMessage);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                disabled={isLoading}
-                className="text-sm px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
-              >
-                Vedi Dati dal Database
-              </button>
+                  }}
+                  disabled={isLoading}
+                  className="text-sm px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
+                >
+                  Vedi Dati dal Database
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const result = await apiRequest("GET", "/api/ministero/logs");
+                      if (result && result.success) {
+                        setSyncLogs(result.logs || []);
+                        console.log('📋 Log di sincronizzazione:', result.logs);
+                      } else {
+                        console.log('📋 Info log:', result);
+                        setSyncLogs([]);
+                        alert(result.message || 'I log sono disponibili nella console del server o su Render.com');
+                      }
+                    } catch (err) {
+                      console.error('Errore nel recupero log:', err);
+                      setSyncLogs([]);
+                      alert('Impossibile recuperare i log dal database. I log dettagliati sono disponibili nella console del server.');
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="text-sm px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors disabled:opacity-50"
+                >
+                  Vedi Log Sincronizzazione
+                </button>
+              </div>
             </div>
+
+            {/* Log di sincronizzazione */}
+            {syncLogs.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  Log Sincronizzazione ({syncLogs.length} log trovati)
+                </h2>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {syncLogs.map((log: any, index: number) => (
+                    <div
+                      key={index}
+                      className={`p-3 rounded border text-sm ${
+                        log.level === 'ERROR' || log.level === 'E'
+                          ? 'bg-red-50 border-red-200 text-red-800'
+                          : log.level === 'WARN' || log.level === 'W'
+                          ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                          : 'bg-gray-50 border-gray-200 text-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="font-semibold">
+                          {new Date(log.timestamp).toLocaleString('it-IT')}
+                        </span>
+                        <span className="text-xs px-2 py-1 rounded bg-gray-200">
+                          {log.level || 'INFO'}
+                        </span>
+                      </div>
+                      <div className="text-gray-700 whitespace-pre-wrap">
+                        {log.message || JSON.stringify(log.meta || log, null, 2)}
+                      </div>
+                      {log.meta && Object.keys(log.meta).length > 0 && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-gray-600 hover:text-gray-800">
+                            Dettagli aggiuntivi
+                          </summary>
+                          <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+                            {JSON.stringify(log.meta, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Tabella con tutte le colonne */}
             {(data.iniziative && data.iniziative.length > 0) || (data.data && Array.isArray(data.data) && data.data.length > 0) ? (

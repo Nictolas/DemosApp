@@ -265,5 +265,40 @@ router.get('/database', async (req, res) => {
   }
 });
 
+/**
+ * Endpoint per vedere gli ultimi log di sincronizzazione (solo per debug)
+ * GET /api/ministero/logs
+ */
+router.get('/logs', async (req, res) => {
+  try {
+    const { pool } = require('../middleware/auth');
+    
+    // Recupera gli ultimi log dalla tabella logs (se esiste)
+    const result = await pool.query(`
+      SELECT * FROM logs 
+      WHERE message LIKE '%ministero%' OR message LIKE '%sincronizzazione%' OR message LIKE '%iniziativa%'
+      ORDER BY timestamp DESC 
+      LIMIT 100
+    `);
+    
+    res.json({
+      success: true,
+      count: result.rows.length,
+      logs: result.rows,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero log:', error);
+    
+    // Se la tabella non esiste, ritorna un messaggio
+    res.json({
+      success: false,
+      error: 'Tabella logs non trovata o non disponibile',
+      message: 'I log sono disponibili solo nella console del server o nei log di Render',
+      hint: 'Controlla i log su Render.com o nella console del server'
+    });
+  }
+});
+
 module.exports = router;
 

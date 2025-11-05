@@ -150,7 +150,12 @@ class MinisteroSyncService {
       descrizione: item.descrizione || item.descrizioneBreve || item.testo || item.oggetto || '',
       
       // Tipo (dall'oggetto idDecTipoIniziativa)
-      tipo: item.idDecTipoIniziativa?.nome || item.tipo || item.tipologia || 'iniziativa',
+      // Normalizza il tipo rimuovendo parentesi e dettagli aggiuntivi per matching migliore
+      tipo: (() => {
+        const tipoRaw = item.idDecTipoIniziativa?.nome || item.tipo || item.tipologia || 'iniziativa';
+        // Rimuovi tutto dopo la prima parentesi (es. "Referendum abrogativo (art. 75)" -> "Referendum abrogativo")
+        return tipoRaw.split('(')[0].trim();
+      })(),
       
       // Stato (dall'oggetto idDecStatoIniziativa, mappa in valori standard)
       stato: this.mapStatoMinistero(item.idDecStatoIniziativa?.nome || item.stato || item.status || 'in_corso'),
@@ -254,15 +259,26 @@ class MinisteroSyncService {
       
       // Verifica se esiste già (per id_ministero o titolo+tipo)
       // Gestisci correttamente il caso in cui id_ministero è null
+      // Usa TRIM per rimuovere spazi e normalizza per il matching
       let existingQuery;
       let existingParams;
       
+      // Normalizza il titolo per il matching (trim e lowercase per confronto più flessibile)
+      const titoloNormalizzato = fields.titolo?.trim() || '';
+      
       if (fields.id_ministero) {
-        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero WHERE id_ministero = $1 OR (titolo = $2 AND tipo = $3) LIMIT 1`;
-        existingParams = [fields.id_ministero, fields.titolo, fields.tipo];
+        // Cerca per id_ministero esatto O per titolo+tipo (usando TRIM per normalizzare)
+        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero 
+                         WHERE id_ministero = $1 
+                         OR (TRIM(titolo) = $2 AND tipo = $3) 
+                         LIMIT 1`;
+        existingParams = [fields.id_ministero, titoloNormalizzato, fields.tipo];
       } else {
-        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero WHERE titolo = $1 AND tipo = $2 LIMIT 1`;
-        existingParams = [fields.titolo, fields.tipo];
+        // Se non c'è id_ministero, cerca solo per titolo+tipo
+        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero 
+                         WHERE TRIM(titolo) = $1 AND tipo = $2 
+                         LIMIT 1`;
+        existingParams = [titoloNormalizzato, fields.tipo];
       }
       
       console.log(`🔍 DEBUG saveIniziativa - Query ricerca esistente:`, {
@@ -362,12 +378,36 @@ class MinisteroSyncService {
           stato: fields.stato
         });
         
+        // Usa INSERT ... ON CONFLICT per gestire duplicati
+        // Gestisce sia conflitti su id (PRIMARY KEY) che su id_ministero (UNIQUE)
+        let conflictTarget = '(id)';
+        if (fields.id_ministero) {
+          // Se c'è id_ministero, prova prima con quello (più specifico)
+          conflictTarget = '(id_ministero)';
+        }
+        
         const result = await pool.query(
           `INSERT INTO iniziative_ministero (
             id, id_ministero, titolo, descrizione, tipo, stato,
             data_inizio, data_fine, firme_raccolte, quorum, quorum_raggiunto,
             sito_web, documento, promotore, dati_raw, data_ultimo_aggiornamento
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
+          ON CONFLICT ${conflictTarget} DO UPDATE SET
+            titolo = EXCLUDED.titolo,
+            descrizione = EXCLUDED.descrizione,
+            tipo = EXCLUDED.tipo,
+            stato = EXCLUDED.stato,
+            data_inizio = EXCLUDED.data_inizio,
+            data_fine = EXCLUDED.data_fine,
+            firme_raccolte = EXCLUDED.firme_raccolte,
+            quorum = EXCLUDED.quorum,
+            quorum_raggiunto = EXCLUDED.quorum_raggiunto,
+            sito_web = EXCLUDED.sito_web,
+            documento = EXCLUDED.documento,
+            promotore = EXCLUDED.promotore,
+            dati_raw = EXCLUDED.dati_raw,
+            data_ultimo_aggiornamento = EXCLUDED.data_ultimo_aggiornamento,
+            updated_at = CURRENT_TIMESTAMP
           RETURNING id`,
           insertParams
         );
@@ -459,11 +499,27 @@ class MinisteroSyncService {
           }
         } catch (error) {
           results.errors++;
-          console.error(`❌ Errore sincronizzazione iniziativa:`, error.message);
-          // Log dettagli dell'errore per debug
-          if (iniziativa && iniziativa.id) {
-            console.error(`   ID iniziativa: ${iniziativa.id}`);
-          }
+          const fields = this.extractFields(iniziativa);
+          console.error(`❌ Errore sincronizzazione iniziativa:`);
+          console.error(`   Messaggio: ${error.message}`);
+          console.error(`   Codice errore: ${error.code || 'N/A'}`);
+          console.error(`   Detail: ${error.detail || 'N/A'}`);
+          console.error(`   Constraint: ${error.constraint || 'N/A'}`);
+          console.error(`   Dati iniziativa:`, {
+            id_ministero: fields.id_ministero || 'NULL',
+            titolo: fields.titolo?.substring(0, 100) || 'NULL',
+            tipo: fields.tipo || 'NULL',
+            stato: fields.stato || 'NULL',
+            raw_id: iniziativa?.id || 'N/A'
+          });
+          
+          // Log anche l'oggetto iniziativa completo per debug
+          console.error(`   Iniziativa raw (primi campi):`, {
+            id: iniziativa?.id,
+            titolo: iniziativa?.titolo?.substring(0, 50),
+            idDecTipoIniziativa: iniziativa?.idDecTipoIniziativa?.nome,
+            idDecStatoIniziativa: iniziativa?.idDecStatoIniziativa?.nome
+          });
         }
       }
 
