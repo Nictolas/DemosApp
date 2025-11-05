@@ -289,29 +289,78 @@ router.get('/logs', async (req, res) => {
   try {
     const { pool } = require('../middleware/auth');
     
-    // Recupera gli ultimi log dalla tabella logs (se esiste)
+    // Prima verifica se la tabella centralized_logs esiste
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'centralized_logs'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      return res.json({
+        success: false,
+        error: 'Tabella centralized_logs non trovata',
+        message: 'La tabella dei log non è stata ancora creata. I log sono disponibili solo nella console del server o nei log di Render.',
+        hint: 'Esegui lo script create-centralized-logs-table.cjs per creare la tabella, oppure controlla i log su Render.com'
+      });
+    }
+    
+    // Recupera gli ultimi log dalla tabella centralized_logs
+    // Cerca log relativi a ministero, sincronizzazione o iniziative
     const result = await pool.query(`
-      SELECT * FROM logs 
-      WHERE message LIKE '%ministero%' OR message LIKE '%sincronizzazione%' OR message LIKE '%iniziativa%'
+      SELECT 
+        id,
+        timestamp,
+        level,
+        message,
+        meta_data,
+        endpoint,
+        user_id,
+        ip_address,
+        created_at
+      FROM centralized_logs 
+      WHERE 
+        (message ILIKE '%ministero%' 
+         OR message ILIKE '%sincronizzazione%' 
+         OR message ILIKE '%iniziativa%'
+         OR endpoint ILIKE '%ministero%')
+        AND timestamp >= NOW() - INTERVAL '24 hours'
       ORDER BY timestamp DESC 
       LIMIT 100
     `);
     
+    // Formatta i log per la risposta
+    const formattedLogs = result.rows.map(row => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      level: row.level,
+      message: row.message,
+      meta: row.meta_data || {},
+      endpoint: row.endpoint,
+      userId: row.user_id,
+      ipAddress: row.ip_address,
+      createdAt: row.created_at
+    }));
+    
     res.json({
       success: true,
-      count: result.rows.length,
-      logs: result.rows,
-      timestamp: new Date().toISOString()
+      count: formattedLogs.length,
+      logs: formattedLogs,
+      timestamp: new Date().toISOString(),
+      note: formattedLogs.length === 0 
+        ? 'Nessun log trovato negli ultimi 24 ore. I log potrebbero essere disabilitati (LOG_TO_DATABASE=false) o non ancora scritti.'
+        : null
     });
   } catch (error) {
     console.error('❌ Errore nel recupero log:', error);
     
-    // Se la tabella non esiste, ritorna un messaggio
     res.json({
       success: false,
-      error: 'Tabella logs non trovata o non disponibile',
-      message: 'I log sono disponibili solo nella console del server o nei log di Render',
-      hint: 'Controlla i log su Render.com o nella console del server'
+      error: 'Errore nel recupero log',
+      message: error.message,
+      hint: 'I log sono disponibili anche nella console del server o sui log di Render.com'
     });
   }
 });
