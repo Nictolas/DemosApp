@@ -1,24 +1,51 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { Building2, RefreshCw, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface MinisteroData {
   success: boolean;
   data: any;
+  iniziative?: any[];
+  statistiche?: {
+    totaleIniziative: number;
+    totaleFirme: number;
+    iniziativePerStato: Record<string, number>;
+    iniziativePerTipo: Record<string, number>;
+  };
   timestamp?: string;
   source?: string;
   error?: string;
   message?: string;
 }
 
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
+
 export default function TestMinistero() {
   const { user, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<MinisteroData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prepara i dati per i grafici
+  const chartDataPerStato = useMemo(() => {
+    if (!data?.statistiche?.iniziativePerStato) return [];
+    return Object.entries(data.statistiche.iniziativePerStato).map(([name, value]) => ({
+      name,
+      value
+    }));
+  }, [data]);
+
+  const chartDataPerTipo = useMemo(() => {
+    if (!data?.statistiche?.iniziativePerTipo) return [];
+    return Object.entries(data.statistiche.iniziativePerTipo).map(([name, value]) => ({
+      name,
+      value
+    }));
+  }, [data]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -138,30 +165,143 @@ export default function TestMinistero() {
               </div>
             </div>
 
+            {/* Statistiche - sempre mostrate */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Totale Iniziative</h3>
+                <p className="text-3xl font-bold text-gray-900">
+                  {data.statistiche?.totaleIniziative ?? 0}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Totale Firme</h3>
+                <p className="text-3xl font-bold text-gray-900">
+                  {(data.statistiche?.totaleFirme ?? 0).toLocaleString('it-IT')}
+                </p>
+              </div>
+            </div>
+
+            {/* Grafici - sempre mostrati, anche con dati vuoti */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Grafico per Stato */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Iniziative per Stato</h2>
+                {chartDataPerStato.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={chartDataPerStato}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="value" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={[]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="value" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Grafico per Tipo */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Iniziative per Tipo</h2>
+                {chartDataPerTipo.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={chartDataPerTipo}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        label
+                      >
+                        {chartDataPerTipo.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={[]}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        label
+                      />
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
             {/* Dati strutturati */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Dati Ricevuti</h2>
               
-              {data.data ? (
+              {data.iniziative && data.iniziative.length > 0 ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Numero di iniziative trovate: <strong>{data.iniziative.length}</strong>
+                  </p>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {data.iniziative.map((item: any, index: number) => (
+                      <div
+                        key={index}
+                        className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                      >
+                        <pre className="text-xs overflow-x-auto text-gray-800">
+                          {JSON.stringify(item, null, 2)}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : data.data ? (
                 <div className="space-y-4">
                   {/* Se i dati sono un array */}
                   {Array.isArray(data.data) ? (
                     <div>
                       <p className="text-sm text-gray-600 mb-3">
-                        Numero di iniziative trovate: <strong>{data.data.length}</strong>
+                        Numero di elementi trovati: <strong>{data.data.length}</strong>
                       </p>
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {data.data.map((item: any, index: number) => (
-                          <div
-                            key={index}
-                            className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                          >
-                            <pre className="text-xs overflow-x-auto text-gray-800">
-                              {JSON.stringify(item, null, 2)}
-                            </pre>
-                          </div>
-                        ))}
-                      </div>
+                      {data.data.length > 0 ? (
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {data.data.map((item: any, index: number) => (
+                            <div
+                              key={index}
+                              className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                            >
+                              <pre className="text-xs overflow-x-auto text-gray-800">
+                                {JSON.stringify(item, null, 2)}
+                              </pre>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-center">
+                          <p className="text-gray-500">Nessun dato disponibile</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* Se i dati sono un oggetto */
@@ -173,7 +313,9 @@ export default function TestMinistero() {
                   )}
                 </div>
               ) : (
-                <p className="text-gray-600">Nessun dato disponibile</p>
+                <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-center">
+                  <p className="text-gray-500">Nessun dato disponibile</p>
+                </div>
               )}
             </div>
 
