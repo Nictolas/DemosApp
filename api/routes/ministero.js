@@ -376,19 +376,35 @@ router.get('/logs', async (req, res) => {
       createdAt: row.created_at
     }));
     
+    // Aggiungi informazioni utili
+    const explanation = formattedLogs.length === 0 
+      ? totalLogs === 0
+        ? '⚠️ La tabella centralized_logs è vuota. Il logging su database è probabilmente disabilitato (vedi centralizedLogger.js, riga 99-101). I log vengono scritti solo nella console del server.'
+        : '⚠️ Nessun log trovato negli ultimi 24 ore che corrisponda ai filtri "ministero/sincronizzazione/iniziativa". Potrebbero esserci log con messaggi diversi. Mostriamo gli ultimi log generici.'
+      : result.rows.length === 0 && allLogs.length > 0
+        ? 'ℹ️ Nessun log trovato con i filtri specifici, ma ci sono altri log nella tabella. Mostriamo gli ultimi log generici.'
+        : null;
+    
     res.json({
       success: true,
       count: formattedLogs.length,
       totalLogsInTable: totalLogs,
       logs: formattedLogs,
       timestamp: new Date().toISOString(),
-      note: formattedLogs.length === 0 
-        ? totalLogs === 0
-          ? 'La tabella centralized_logs è vuota. Il logging su database è probabilmente disabilitato (vedi centralizedLogger.js, riga 99-101 ha un return che disabilita la scrittura).'
-          : 'Nessun log trovato negli ultimi 24 ore che corrisponda ai filtri di ricerca (ministero/sincronizzazione/iniziativa).'
-        : result.rows.length === 0 && allLogs.length > 0
-          ? 'Nessun log trovato con i filtri specifici, ma ci sono altri log nella tabella.'
+      explanation: explanation,
+      info: {
+        purpose: 'Questo endpoint mostra i log di debug relativi alla sincronizzazione delle iniziative dal Ministero della Giustizia.',
+        whatItShouldShow: [
+          'Log di ogni iniziativa durante il salvataggio (creata/aggiornata)',
+          'Errori se una sincronizzazione fallisce',
+          'Dettagli sul processo (quante iniziative recuperate, salvate, errori)'
+        ],
+        whyEmpty: formattedLogs.length === 0 && totalLogs > 0
+          ? 'I log di sincronizzazione potrebbero non essere scritti nel database (logging disabilitato) o usare messaggi diversi. Controlla i log della console del server su Render.com.'
+          : formattedLogs.length === 0 && totalLogs === 0
+          ? 'Il logging su database è disabilitato. I log vengono scritti solo nella console del server.'
           : null
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recupero log:', error);

@@ -3,6 +3,23 @@ const { pool } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
 
+// Axiom integration (opzionale)
+let Axiom;
+let axiom;
+try {
+  Axiom = require('@axiomhq/axiom-node');
+  if (process.env.AXIOM_ENABLED === 'true' && process.env.AXIOM_API_TOKEN && process.env.AXIOM_ORG_ID) {
+    axiom = new Axiom({
+      token: process.env.AXIOM_API_TOKEN,
+      orgId: process.env.AXIOM_ORG_ID,
+      region: process.env.AXIOM_REGION || 'eu'
+    });
+  }
+} catch (error) {
+  // Axiom SDK non installato, continua senza
+  axiom = null;
+}
+
 class CentralizedLogger {
   constructor() {
     this.logLevels = {
@@ -34,10 +51,14 @@ class CentralizedLogger {
     this.logToFile = process.env.LOG_TO_FILE === 'true';
     this.logToDatabase = process.env.LOG_TO_DATABASE !== 'false';
     this.logToConsole = process.env.LOG_TO_CONSOLE !== 'false';
+    this.logToAxiom = process.env.AXIOM_ENABLED === 'true' && axiom !== null;
     
     this.logDir = process.env.LOG_DIR || path.join(__dirname, '../../logs');
     this.maxFileSize = parseInt(process.env.LOG_MAX_FILE_SIZE || '10485760'); // 10MB
     this.maxFiles = parseInt(process.env.LOG_MAX_FILES || '5');
+    
+    this.axiomDataset = process.env.AXIOM_DATASET || 'demosapp-logs';
+    this.axiomClient = axiom;
     
     this.initializeLogDirectory();
   }
@@ -90,6 +111,59 @@ class CentralizedLogger {
       await this.rotateLogIfNeeded(logFile);
     } catch (error) {
       console.error('❌ Errore scrittura log su file:', error);
+    }
+  }
+
+  /**
+   * Invia log ad Axiom per analisi in tempo reale
+   */
+  async writeToAxiom(level, message, meta = {}) {
+    if (!this.logToAxiom || !this.axiomClient) return;
+
+    try {
+      const logEntry = {
+        _time: new Date().toISOString(),
+        level: level,
+        message: message,
+        pid: process.pid,
+        hostname: require('os').hostname(),
+        ...meta
+      };
+
+      // Anonimizza se richiesto (GDPR)
+      if (process.env.AXIOM_ANONYMIZE === 'true') {
+        // Anonimizza IP (solo rete)
+        if (logEntry.ipAddress) {
+          const parts = logEntry.ipAddress.split('.');
+          if (parts.length === 4) {
+            logEntry.ipAddress = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+          }
+        }
+        
+        // Hash user_id se richiesto
+        if (logEntry.userId && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
+          const crypto = require('crypto');
+          logEntry.userId = crypto
+            .createHash('sha256')
+            .update(logEntry.userId + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
+            .digest('hex')
+            .substring(0, 16);
+        }
+      }
+
+      // Invia ad Axiom (non blocca se fallisce)
+      this.axiomClient.datasets.ingest(this.axiomDataset, [logEntry])
+        .catch(err => {
+          // Log errore silenziosamente (non bloccare applicazione)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('❌ Errore invio log Axiom:', err.message);
+          }
+        });
+    } catch (error) {
+      // Non bloccare applicazione se Axiom fallisce
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Errore preparazione log Axiom:', error);
+      }
     }
   }
 
@@ -297,6 +371,9 @@ class CentralizedLogger {
       this.writeToFile(level, message, meta),
       this.writeToDatabase(level, message, meta)
     ];
+    
+    // Axiom (non blocca se fallisce)
+    this.writeToAxiom(level, message, meta);
     
     // Console sempre sincrona per debugging
     this.writeToConsole(level, message, meta);
