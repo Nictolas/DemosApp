@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2 } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -41,6 +41,16 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-amber-500 hover:bg-amber-600",
     route: "/gestisci-governo",
     buttonText: "Gestisci Governo"
+  },
+  {
+    id: "test-ministero",
+    title: "Test Ministero",
+    description: "Testa l'integrazione con l'API del Ministero della Giustizia per iniziative e firme",
+    icon: Building2,
+    color: "text-slate-600 group-hover:text-slate-800",
+    buttonColor: "bg-slate-500 hover:bg-slate-600",
+    route: "/test-ministero",
+    buttonText: "Test Ministero"
   },
   // Sezioni consolidate
   {

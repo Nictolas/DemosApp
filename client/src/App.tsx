@@ -65,6 +65,7 @@ import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciUtenti from "./pages/GestisciUtenti";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
 import GestisciGoverno from "./pages/GestisciGoverno";
+import TestMinistero from "./pages/TestMinistero";
 import ModificaImmagine from "./pages/ModificaImmagine";
 import StatisticheUtenti from "./pages/StatisticheUtenti";
 import Utenti from "./pages/Utenti";
@@ -798,6 +799,13 @@ export default function App() {
               <Route path="/gestisci-governo">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci-governo" component={GestisciGoverno} />
+                </PageTransition>
+              </Route>
+
+              {/* Route test ministero */}
+              <Route path="/test-ministero">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/test-ministero" component={TestMinistero} />
                 </PageTransition>
               </Route>
 
