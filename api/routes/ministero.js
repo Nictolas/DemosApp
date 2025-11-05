@@ -307,6 +307,12 @@ router.get('/logs', async (req, res) => {
       });
     }
     
+    // Prima controlla quanti log ci sono in totale nella tabella
+    const totalLogsResult = await pool.query(`
+      SELECT COUNT(*) as total FROM centralized_logs
+    `);
+    const totalLogs = parseInt(totalLogsResult.rows[0].total || 0);
+    
     // Recupera gli ultimi log dalla tabella centralized_logs
     // Cerca log relativi a ministero, sincronizzazione o iniziative
     // Nota: timestamp è BIGINT (millisecondi Unix), quindi convertiamo il limite temporale
@@ -334,8 +340,31 @@ router.get('/logs', async (req, res) => {
       LIMIT 100
     `, [twentyFourHoursAgo]);
     
+    // Se non trova log filtrati, mostriamo anche gli ultimi log generici (senza filtro)
+    let allLogs = [];
+    if (result.rows.length === 0 && totalLogs > 0) {
+      const allLogsResult = await pool.query(`
+        SELECT 
+          id,
+          timestamp,
+          level,
+          message,
+          meta_data,
+          endpoint,
+          user_id,
+          ip_address,
+          created_at
+        FROM centralized_logs 
+        WHERE timestamp >= $1
+        ORDER BY timestamp DESC 
+        LIMIT 20
+      `, [twentyFourHoursAgo]);
+      allLogs = allLogsResult.rows;
+    }
+    
     // Formatta i log per la risposta
-    const formattedLogs = result.rows.map(row => ({
+    const logsToFormat = result.rows.length > 0 ? result.rows : allLogs;
+    const formattedLogs = logsToFormat.map(row => ({
       id: row.id,
       timestamp: row.timestamp,
       level: row.level,
@@ -350,11 +379,16 @@ router.get('/logs', async (req, res) => {
     res.json({
       success: true,
       count: formattedLogs.length,
+      totalLogsInTable: totalLogs,
       logs: formattedLogs,
       timestamp: new Date().toISOString(),
       note: formattedLogs.length === 0 
-        ? 'Nessun log trovato negli ultimi 24 ore. I log potrebbero essere disabilitati (LOG_TO_DATABASE=false) o non ancora scritti.'
-        : null
+        ? totalLogs === 0
+          ? 'La tabella centralized_logs è vuota. Il logging su database è probabilmente disabilitato (vedi centralizedLogger.js, riga 99-101 ha un return che disabilita la scrittura).'
+          : 'Nessun log trovato negli ultimi 24 ore che corrisponda ai filtri di ricerca (ministero/sincronizzazione/iniziativa).'
+        : result.rows.length === 0 && allLogs.length > 0
+          ? 'Nessun log trovato con i filtri specifici, ma ci sono altri log nella tabella.'
+          : null
     });
   } catch (error) {
     console.error('❌ Errore nel recupero log:', error);
