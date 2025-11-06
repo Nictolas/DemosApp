@@ -62,6 +62,28 @@ export default function Opinioni() {
             <p className="text-gray-600">Scegli la categoria di opinioni che vuoi esprimere</p>
           </div>
 
+          {/* Pulsante Proponi Nuova Opinione */}
+          <div className="mb-6 flex-shrink-0">
+            <button
+              type="button"
+              className="relative w-full h-32 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation("/proponi-opinione")}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <MessageSquare className="h-8 w-8 text-fuchsia-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Proponi Nuova Opinione</div>
+              </div>
+            </button>
+          </div>
+
           {/* Griglia 2x2 con card trasformate in pulsanti - altezza ottimizzata */}
           <div className="grid grid-cols-2 gap-4 h-full flex-1">
             {categorie.map((categoria) => {
