@@ -117,7 +117,9 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     };
   } else {
     // Altri utenti vedono solo le iniziative/referendum ufficiali che:
-    // Se votaOnly = true (pagine di voto): solo quelle con quorum_raggiunto = TRUE E stato != 'in_corso'
+    // Se votaOnly = true (pagine di voto): 
+    // - quorum_raggiunto = TRUE
+    // - ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum)
     // Altrimenti:
     //   1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
     //   2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
