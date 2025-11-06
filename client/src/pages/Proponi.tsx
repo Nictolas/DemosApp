@@ -49,15 +49,16 @@ export default function Proponi() {
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#a5b4fc" />
+              <polygon points="100,0 0,0 0,35 100,20" fill="#22c55e" />
               <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
             </svg>
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="relative flex items-center justify-center w-16 h-16 mb-2">
                 <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <FileText className="h-8 w-8 text-indigo-600 relative z-10" />
+                <FileText className="h-8 w-8 text-green-600 relative z-10" />
               </span>
               <div className="text-gray-700 font-semibold text-lg select-none text-center">Iniziativa<br />Popolare</div>
+              <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per proporre una nuova legge.</div>
             </div>
           </button>
           {/* Referendum Abrogativi */}
@@ -68,15 +69,16 @@ export default function Proponi() {
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#fdba74" />
+              <polygon points="100,0 0,0 0,35 100,20" fill="#ef4444" />
               <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
             </svg>
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="relative flex items-center justify-center w-16 h-16 mb-2">
                 <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <Vote className="h-8 w-8 text-orange-600 relative z-10" />
+                <Vote className="h-8 w-8 text-red-600 relative z-10" />
               </span>
               <div className="text-gray-700 font-semibold text-lg select-none text-center">Referendum<br />Abrogativo</div>
+              <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per cancellare una legge ingiusta.</div>
             </div>
           </button>
           {/* ICE */}
@@ -87,15 +89,16 @@ export default function Proponi() {
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#99f6e4" />
+              <polygon points="100,0 0,0 0,35 100,20" fill="#3b82f6" />
               <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
             </svg>
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="relative flex items-center justify-center w-16 h-16 mb-2">
                 <Globe2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <Globe2 className="h-8 w-8 text-cyan-600 relative z-10" />
+                <Globe2 className="h-8 w-8 text-blue-600 relative z-10" />
               </span>
               <div className="text-gray-700 font-semibold text-lg select-none">ICE</div>
+              <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per proporre una nuova legge europea.</div>
             </div>
           </button>
         </div>

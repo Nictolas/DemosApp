@@ -1,6 +1,7 @@
 import React from "react";
 import { ReferendumTableProps } from "../types";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const ReferendumTable: React.FC<ReferendumTableProps> = ({ 
   listaReferendum, 
@@ -35,63 +36,72 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
 
   return (
     <div className="space-y-4">
-      {listaReferendum.map((referendum) => (
-        <div 
-          key={referendum.id} 
-          className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-            referendum.quorum === 'proposta'
-              ? 'border-blue-200 bg-blue-50'
-              : 'border-gray-200'
-          }`}
-          onClick={() => onView && onView(referendum)}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <span
-                  className={
-                    referendum.quorum === 'ok'
-                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-green-500 flex-shrink-0'
-                      : referendum.quorum === 'pending'
-                        ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0'
-                        : referendum.quorum === 'no'
-                          ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-red-500 flex-shrink-0'
-                          : referendum.quorum === 'proposta'
-                            ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-blue-500 flex-shrink-0'
-                            : 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-gray-400 flex-shrink-0'
-                  }
-                  aria-hidden="true"
-                />
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {referendum.nome}
-                </h3>
-                {referendum.quorum === 'proposta' && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Proposta
+      {listaReferendum.map((referendum) => {
+        // Determina lo sfondo in base a firme_raccolte
+        const getBackgroundClass = () => {
+          if (referendum.quorum === 'proposta') {
+            return 'border-blue-200 bg-blue-50';
+          }
+          
+          const firmeRaccolte = referendum.firme_raccolte || referendum.firme || 0;
+          
+          // Verde opaco se firme_raccolte > 50000
+          if (firmeRaccolte > 50000) {
+            return 'border-gray-200 bg-green-50';
+          }
+          // Giallo opaco se firme_raccolte <= 49999
+          if (firmeRaccolte <= 49999) {
+            return 'border-gray-200 bg-yellow-50';
+          }
+          // Default
+          return 'border-gray-200 bg-white';
+        };
+
+        return (
+          <div 
+            key={referendum.id} 
+            className={`${getBackgroundClass()} border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
+            onClick={() => onView && onView(referendum)}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 flex-1">
+                    {referendum.nome}
+                  </h3>
+                  {referendum.quorum === 'proposta' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Proposta
+                    </span>
+                  )}
+                  {referendum.sitoWeb && (
+                    <a
+                      href={referendum.sitoWeb.startsWith('http') ? referendum.sitoWeb : `https://${referendum.sitoWeb}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Firma
+                      </Button>
+                    </a>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-4 text-sm text-gray-500 mt-3">
+                  <span>
+                    Firme raccolte: <strong>{(referendum.firme || 0).toLocaleString('it-IT')}</strong>
                   </span>
-                )}
-              </div>
-              
-              <p className="text-gray-600 mb-3 line-clamp-2">
-                {referendum.descrizione}
-              </p>
-              
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span>
-                  Firme raccolte: <strong>{(referendum.firme || 0).toLocaleString('it-IT')}</strong>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0"
-                    aria-hidden="true"
-                  />
-                  <span>Esito: In Attesa</span>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

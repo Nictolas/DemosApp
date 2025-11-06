@@ -20,8 +20,12 @@ export interface Referendum extends ReferendumFormData {
   data_creazione: string;
   votiices?: number;
   firme?: number;
+  firme_raccolte?: number;
   esito?: string;
   status?: string;
+  sitoWeb?: string;
+  sito_web?: string;
+  sitoweb?: string;
 }
 
 // Interfaccia per lo stato del componente
