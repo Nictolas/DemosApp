@@ -116,6 +116,10 @@ router.get('/', async (req, res) => {
           )
           WHERE im.tipo LIKE '%Referendum abrogativo%'
             AND im.id_ministero IS NOT NULL
+            AND (
+              (im.quorum_raggiunto = false AND im.stato = 'in_corso')
+              OR im.quorum_raggiunto = true
+            )
           GROUP BY im.id, im.titolo, im.sito_web
           ORDER BY voti DESC, im.titolo ASC
         `;
@@ -130,7 +134,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per referendum_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID dei referendum
-        const debugReferendumQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND id_ministero IS NOT NULL`;
+        const debugReferendumQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND id_ministero IS NOT NULL AND ((quorum_raggiunto = false AND stato = 'in_corso') OR quorum_raggiunto = true)`;
         const debugReferendumResult = await pool.query(debugReferendumQuery);
         console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
@@ -589,7 +593,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Verifica che gli ID dei referendum esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND id_ministero IS NOT NULL AND id = ANY($1)`;
+      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND id_ministero IS NOT NULL AND ((quorum_raggiunto = false AND stato = 'in_corso') OR quorum_raggiunto = true) AND id = ANY($1)`;
       const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
