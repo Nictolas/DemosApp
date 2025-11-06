@@ -122,7 +122,7 @@ router.get('/', async (req, res) => {
             im.id::text = REPLACE(vip.iniziativa_id, '-', '') OR
             REPLACE(im.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
           )
-          WHERE im.tipo = 'iniziativa' 
+          WHERE im.tipo LIKE '%Legge di iniziativa popolare%'
             AND (im.quorum > 0 OR im.quorum_raggiunto = false)
             AND (im.esito = 'In Attesa' OR im.esito IS NULL OR im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
           GROUP BY im.id, im.titolo, im.sito_web
@@ -139,7 +139,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per iniziativa_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID delle iniziative
-        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo = 'iniziativa' AND (quorum > 0 OR quorum_raggiunto = false) AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
+        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND (quorum > 0 OR quorum_raggiunto = false) AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
         console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
@@ -466,7 +466,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Verifica che gli ID delle iniziative esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo = 'iniziativa' AND id = ANY($1)`;
+      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id = ANY($1)`;
       const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);

@@ -110,18 +110,35 @@ function mapQuorumToString(quorum, isProposta = false) {
 
 /**
  * Costruisce una query per iniziative_ministero con filtri compatibili
+ * 
+ * @param {string} tipoFilter - Il tipo da filtrare: 'iniziativa' per iniziative popolari, 'referendum' per referendum abrogativi
+ * @param {string} userRole - Ruolo utente
+ * @param {string} userId - ID utente (opzionale)
  */
-function buildQueryForTipo(tipo, userRole, userId = null) {
+function buildQueryForTipo(tipoFilter, userRole, userId = null) {
+  // Mappa i tipi generici ai valori effettivi nella colonna tipo
+  let tipoValue;
+  if (tipoFilter === 'iniziativa') {
+    // Per iniziative popolari, cerca "Legge di iniziativa popolare" o varianti
+    tipoValue = "Legge di iniziativa popolare";
+  } else if (tipoFilter === 'referendum') {
+    // Per referendum, cerca "Referendum abrogativo" o varianti
+    tipoValue = "Referendum abrogativo";
+  } else {
+    // Se viene passato direttamente un valore, usalo
+    tipoValue = tipoFilter;
+  }
+  
   if (userRole === "AD") {
-    // Admin vedono tutto
+    // Admin vedono tutto (con LIKE per gestire varianti del nome)
     return {
       query: `
         SELECT *
         FROM iniziative_ministero
-        WHERE tipo = $1
+        WHERE tipo LIKE $1
         ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `,
-      params: [tipo]
+      params: [`%${tipoValue}%`]
     };
   } else {
     // Altri utenti vedono solo le iniziative/referendum ufficiali
@@ -131,12 +148,12 @@ function buildQueryForTipo(tipo, userRole, userId = null) {
       query: `
         SELECT *
         FROM iniziative_ministero
-        WHERE tipo = $1
+        WHERE tipo LIKE $1
           AND (quorum > 0 OR quorum_raggiunto = false)
           AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')
         ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `,
-      params: [tipo]
+      params: [`%${tipoValue}%`]
     };
   }
 }
