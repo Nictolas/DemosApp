@@ -124,7 +124,7 @@ router.get('/', async (req, res) => {
           )
           WHERE im.tipo = 'iniziativa' 
             AND (im.quorum > 0 OR im.quorum_raggiunto = false)
-            AND (im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
+            AND (im.esito = 'In Attesa' OR im.esito IS NULL OR im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
           GROUP BY im.id, im.titolo, im.sito_web
           ORDER BY voti DESC, im.titolo ASC
         `;
@@ -139,7 +139,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per iniziativa_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID delle iniziative
-        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo = 'iniziativa' AND (quorum > 0 OR quorum_raggiunto = false) AND (stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
+        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo = 'iniziativa' AND (quorum > 0 OR quorum_raggiunto = false) AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
         console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
