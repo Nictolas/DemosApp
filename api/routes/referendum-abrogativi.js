@@ -3,6 +3,7 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
+const { mapToLegacyFormat, buildQueryForTipo } = require('../utils/iniziativeMinisteroMapper');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -44,48 +45,11 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Query con filtro basato sul ruolo
-    let query;
-    if (userRole === "AD") {
-      // Admin vedono tutti i referendum
-      query = `
-        SELECT *
-        FROM referendum_abrogativi
-        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-      `;
-    } else {
-      // Altri utenti vedono:
-      // 1. I referendum ufficiali (quorum != 'proposta') e con esito 'In Attesa'
-      // 2. Le proposte proprie (quorum = 'proposta' e userid corrispondente)
-      if (userId) {
-        query = `
-          SELECT *
-          FROM referendum_abrogativi
-          WHERE (
-            (quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL))
-            OR (quorum = 'proposta' AND userid = $1)
-          )
-          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-        `;
-      } else {
-        // Utente non autenticato: solo referendum ufficiali
-        query = `
-          SELECT *
-          FROM referendum_abrogativi
-          WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
-          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-        `;
-      }
-    }
+    // Query dalla nuova tabella iniziative_ministero con tipo = 'referendum'
+    const { query, params } = buildQueryForTipo('referendum', userRole, userId);
     
-    // Esegui la query con parametri se necessario
-    let result;
-    if (userRole !== "AD" && userId) {
-      result = await pool.query(query, [userId]);
-    } else {
-      result = await pool.query(query);
-    }
-    console.log(`✅ Recuperati ${result.rows.length} record da referendum_abrogativi`);
+    const result = await pool.query(query, params);
+    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=referendum)`);
     
     // Se l'utente è autenticato, ottieni i suoi voti
     let mieiVoti = [];
@@ -131,14 +95,8 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Normalizza i dati per il frontend
-    const normalizedData = result.rows.map(row => ({
-      ...row,
-      dataInizio: row.data_inizio,
-      dataFine: row.data_fine,
-      sitoWeb: row.sito_web || row.sitoweb,
-      data_creazione: row.created_at
-    }));
+    // Normalizza i dati per il frontend usando il mapper
+    const normalizedData = result.rows.map(row => mapToLegacyFormat(row, 'referendum'));
 
     // Genera la classifica basata sui voti
     let classifica = [];
@@ -146,19 +104,21 @@ router.get('/', async (req, res) => {
       try {
         const classificaQuery = `
           SELECT 
-            ra.nome,
-            ra.sitoweb as sitoWeb,
+            im.titolo as nome,
+            im.sito_web as sitoWeb,
             COUNT(CASE WHEN vra.referendum_id IS NOT NULL THEN 1 END) as voti
-          FROM referendum_abrogativi ra
+          FROM iniziative_ministero im
           LEFT JOIN voti_referendum_abrogativi vra ON (
-            ra.id::text = vra.referendum_id::text OR 
-            REPLACE(ra.id::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '') OR
-            ra.id::uuid::text = vra.referendum_id::text OR
-            REPLACE(ra.id::uuid::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
+            im.id::text = vra.referendum_id::text OR 
+            REPLACE(im.id::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '') OR
+            im.id::uuid::text = vra.referendum_id::text OR
+            REPLACE(im.id::uuid::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
           )
-          WHERE ra.quorum != 'proposta' AND (ra.esito = 'In Attesa' OR ra.esito IS NULL)
-          GROUP BY ra.id, ra.nome, ra.sitoweb
-          ORDER BY voti DESC, ra.nome ASC
+          WHERE im.tipo = 'referendum' 
+            AND (im.quorum > 0 OR im.quorum_raggiunto = false)
+            AND (im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
+          GROUP BY im.id, im.titolo, im.sito_web
+          ORDER BY voti DESC, im.titolo ASC
         `;
         
         console.log('🔍 DEBUG - Esecuzione query classifica referendum');
@@ -171,7 +131,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per referendum_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID dei referendum
-        const debugReferendumQuery = 'SELECT id, nome FROM referendum_abrogativi WHERE quorum != \'proposta\' AND (esito = \'In Attesa\' OR esito IS NULL)';
+        const debugReferendumQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo = 'referendum' AND (quorum > 0 OR quorum_raggiunto = false) AND (stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
         const debugReferendumResult = await pool.query(debugReferendumQuery);
         console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
@@ -628,9 +588,9 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Limita a massimo 1 voto come da limite configurato
     const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
     
-    // Verifica che gli ID dei referendum esistano
+    // Verifica che gli ID dei referendum esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      const referendumCheckQuery = 'SELECT id FROM referendum_abrogativi WHERE id = ANY($1::uuid[])';
+      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo = 'referendum' AND id = ANY($1)`;
       const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
@@ -666,7 +626,7 @@ router.post('/vota', verifyToken, async (req, res) => {
         });
 
         // Verifica quale referendum corrisponde a questo ID
-        const refInfoQuery = 'SELECT id, nome FROM referendum_abrogativi WHERE id::text = $1 OR id = $1::uuid';
+        const refInfoQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo = 'referendum' AND (id::text = $1 OR id = $1)`;
         const refInfoResult = await client.query(refInfoQuery, [referendumId]);
         if (refInfoResult.rows.length > 0) {
           console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovato:`, {
