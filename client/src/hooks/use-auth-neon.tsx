@@ -147,6 +147,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔐 LOGIN CLIENT: Tentativo di login per', credentials.email);
       console.log('🔐 LOGIN CLIENT: URL API:', apiUrl);
       
+      // Aggiungi timeout alla richiesta di login (30 secondi per dare più tempo al server)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('⏱️ LOGIN CLIENT: Timeout della richiesta dopo 30 secondi');
+        controller.abort();
+      }, 30000); // 30 secondi timeout
+      
       try {
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -154,7 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(credentials),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
 
         console.log('🔐 LOGIN CLIENT: Risposta ricevuta, status:', response.status);
         
@@ -211,6 +221,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return result.user;
       } catch (error: any) {
+        clearTimeout(timeoutId);
+        
+        // Gestisci il caso di timeout
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.error('❌ LOGIN CLIENT: Timeout della richiesta di login');
+          throw new Error('Il server sta impiegando troppo tempo a rispondere. Riprova tra qualche istante.');
+        }
+        
         // Se è già un Error, rilancialo
         if (error instanceof Error) {
           console.error('❌ LOGIN CLIENT: Errore durante login:', error.message);

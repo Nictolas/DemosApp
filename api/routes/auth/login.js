@@ -15,9 +15,9 @@ const pool = new Pool({
   },
   max: 20, // Massimo 20 connessioni
   idleTimeoutMillis: 30000, // 30 secondi
-  connectionTimeoutMillis: 5000, // 5 secondi timeout connessione
-  query_timeout: 10000, // 10 secondi timeout query
-  statement_timeout: 10000, // 10 secondi timeout statement
+  connectionTimeoutMillis: 10000, // 10 secondi timeout connessione (aumentato da 5)
+  query_timeout: 30000, // 30 secondi timeout query (aumentato da 10 per login)
+  statement_timeout: 30000, // 30 secondi timeout statement (aumentato da 10 per login)
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000
 });
@@ -32,8 +32,9 @@ router.post('/login',
     const startTime = Date.now();
     console.log(`🚀 LOGIN START: ${req.body?.email || 'Nessuna email'} - ${new Date().toISOString()}`);
     console.log(`🚀 LOGIN DEBUG: Method: ${req.method}, Path: ${req.path}, URL: ${req.url}`);
-    console.log(`🚀 LOGIN DEBUG: Headers:`, JSON.stringify(req.headers));
+    console.log(`🚀 LOGIN DEBUG: IP: ${req.ip}, Headers:`, JSON.stringify(req.headers));
     console.log(`🚀 LOGIN DEBUG: Body:`, JSON.stringify(req.body));
+    console.log(`🚀 LOGIN DEBUG: Rate limiter superato, procedendo con la richiesta...`);
     
     try {
       // Verifica che il body sia parsato correttamente
@@ -59,7 +60,21 @@ router.post('/login',
       `;
       
       const queryStart = Date.now();
-      const userResult = await pool.query(userQuery, [email.toLowerCase()]);
+      let userResult;
+      try {
+        // Imposta un timeout specifico per questa query (25 secondi)
+        userResult = await Promise.race([
+          pool.query(userQuery, [email.toLowerCase()]),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Query timeout dopo 25 secondi')), 25000)
+          )
+        ]);
+      } catch (queryError) {
+        const queryTime = Date.now() - queryStart;
+        console.error(`❌ Errore query database dopo ${queryTime}ms:`, queryError.message);
+        throw new Error('Errore di connessione al database. Riprova tra qualche istante.');
+      }
+      
       const queryTime = Date.now() - queryStart;
       console.log(`⏱️ Query database completata in ${queryTime}ms`);
       console.log(`📊 Risultato query: ${userResult.rows.length} righe trovate`);
