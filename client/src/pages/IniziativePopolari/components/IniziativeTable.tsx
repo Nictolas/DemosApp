@@ -35,16 +35,30 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
 
   return (
     <div className="space-y-4">
-      {listaIniziative.map((iniziativa) => (
-        <div 
-          key={iniziativa.id} 
-          className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-            iniziativa.quorum === 'proposta'
-              ? 'border-blue-200 bg-blue-50'
-              : 'border-gray-200'
-          }`}
-          onClick={() => onView && onView(iniziativa)}
-        >
+      {listaIniziative.map((iniziativa) => {
+        // Determina lo sfondo in base a quorum_raggiunto
+        const getBackgroundClass = () => {
+          if (iniziativa.quorum === 'proposta') {
+            return 'border-blue-200 bg-blue-50';
+          }
+          // Verde opaco se quorum_raggiunto = true
+          if (iniziativa.quorum_raggiunto === true) {
+            return 'border-gray-200 bg-green-50';
+          }
+          // Giallo opaco se quorum_raggiunto = false
+          if (iniziativa.quorum_raggiunto === false) {
+            return 'border-gray-200 bg-yellow-50';
+          }
+          // Default se quorum_raggiunto non è definito
+          return 'border-gray-200 bg-white';
+        };
+
+        return (
+          <div 
+            key={iniziativa.id} 
+            className={`${getBackgroundClass()} border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
+            onClick={() => onView && onView(iniziativa)}
+          >
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
@@ -85,7 +99,8 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

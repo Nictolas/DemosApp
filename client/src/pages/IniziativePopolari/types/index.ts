@@ -13,6 +13,7 @@ export interface IniziativaPopolare {
   firme_raccolte?: number;
   esito?: string;
   status?: string;
+  quorum_raggiunto?: boolean;
 }
 
 export interface IniziativaFormData {
