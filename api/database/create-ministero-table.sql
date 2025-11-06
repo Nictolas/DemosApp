@@ -12,17 +12,12 @@ CREATE TABLE IF NOT EXISTS iniziative_ministero (
     data_inizio DATE,
     data_fine DATE,
     
-    -- Sostenitori e quorum
+    -- Sostenitori
     firme_raccolte INTEGER DEFAULT 0,
-    quorum INTEGER DEFAULT 0,
     quorum_raggiunto BOOLEAN DEFAULT false,
     
     -- URL e link
     sito_web TEXT,
-    documento TEXT,
-    
-    -- Metadati
-    promotore TEXT,
     dati_raw JSONB,
     
     -- Timestamps

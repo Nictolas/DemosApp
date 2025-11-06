@@ -22,7 +22,7 @@ function mapToLegacyFormat(row, tipo) {
     sito_web: row.sito_web,
     sitoweb: row.sito_web, // alias per compatibilità
     sitoWeb: row.sito_web, // formato camelCase per frontend
-    quorum: row.quorum, // INTEGER nella nuova tabella, ma il frontend potrebbe aspettarsi VARCHAR
+    quorum: 0, // Campo legacy per compatibilità, sempre 0 (non più usato)
     esito: esito, // usa la colonna esito se presente, altrimenti mappa da stato
     firme: row.firme_raccolte || 0, // firme_raccolte -> firme
     votiices: 0, // campo legacy, può essere calcolato dai voti
@@ -34,8 +34,6 @@ function mapToLegacyFormat(row, tipo) {
     firme_raccolte: row.firme_raccolte,
     quorum_raggiunto: row.quorum_raggiunto,
     id_ministero: row.id_ministero,
-    promotore: row.promotore,
-    documento: row.documento,
     dati_raw: row.dati_raw,
     data_ultimo_aggiornamento: row.data_ultimo_aggiornamento,
     updated_at: row.updated_at
@@ -82,31 +80,6 @@ function mapEsitoToStato(esito) {
   return mapping[esitoLower] || 'in_corso';
 }
 
-/**
- * Mappa un quorum VARCHAR (vecchia tabella) a INTEGER (nuova tabella)
- * Se è una stringa numerica, la converte. Se è 'proposta', restituisce 0.
- */
-function mapQuorumToInteger(quorum) {
-  if (quorum === null || quorum === undefined) return 0;
-  if (quorum === 'proposta') return 0;
-  if (typeof quorum === 'number') return quorum;
-  if (typeof quorum === 'string') {
-    const parsed = parseInt(quorum, 10);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-}
-
-/**
- * Mappa un quorum INTEGER (nuova tabella) a VARCHAR (vecchia tabella)
- * Per compatibilità con il frontend che potrebbe aspettarsi 'proposta' per le proposte utente
- */
-function mapQuorumToString(quorum, isProposta = false) {
-  if (isProposta) return 'proposta';
-  if (quorum === null || quorum === undefined) return 'ok';
-  if (typeof quorum === 'string') return quorum;
-  return quorum.toString();
-}
 
 /**
  * Costruisce una query per iniziative_ministero con filtri compatibili
@@ -142,14 +115,14 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null) {
     };
   } else {
     // Altri utenti vedono tutte le iniziative/referendum ufficiali
-    // (quorum > 0 indica che sono ufficiali, non proposte utente)
+    // (id_ministero IS NOT NULL indica che sono ufficiali dal Ministero, non proposte utente)
     // Non filtriamo per stato/esito perché vogliamo mostrare tutte le iniziative/referendum ufficiali
     return {
       query: `
         SELECT *
         FROM iniziative_ministero
         WHERE tipo LIKE $1
-          AND quorum > 0
+          AND id_ministero IS NOT NULL
         ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `,
       params: [`%${tipoValue}%`]
@@ -161,8 +134,6 @@ module.exports = {
   mapToLegacyFormat,
   mapStatoToEsito,
   mapEsitoToStato,
-  mapQuorumToInteger,
-  mapQuorumToString,
   buildQueryForTipo
 };
 
