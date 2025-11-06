@@ -8,7 +8,7 @@ export const useReferendumData = (user: any) => {
     queryKey: ['referendumAbrogativiData'],
     queryFn: async () => {
       console.log('🔍 DEBUG: Chiamata /api/referendum-abrogativi avviata');
-      const result = await apiRequest("GET", "/api/referendum-abrogativi");
+      const result = await apiRequest("GET", "/api/referendum-abrogativi?vota=true");
       console.log('✅ Dati referendum abrogativi ricevuti:', result);
       return result;
     },
@@ -17,28 +17,6 @@ export const useReferendumData = (user: any) => {
     refetchOnWindowFocus: false
   });
 
-  // Filtra i referendum per mostrare solo quelli con esito = 'In Attesa'
-  const filteredData = useMemo(() => {
-    if (!query.data) return query.data;
-    
-    const filteredReferendum = (query.data.referendum || []).filter(
-      (ref: any) => ref.esito === 'In Attesa'
-    );
-    
-    // Filtra anche la classifica per includere solo i referendum con esito = 'In Attesa'
-    const filteredClassifica = (query.data.classifica || []).filter((item: any) => {
-      return filteredReferendum.some((ref: any) => ref.nome === item.nome);
-    });
-    
-    return {
-      ...query.data,
-      referendum: filteredReferendum,
-      classifica: filteredClassifica
-    };
-  }, [query.data]);
-
-  return {
-    ...query,
-    data: filteredData
-  };
+  // Il filtro per quorum_raggiunto = TRUE viene applicato lato API tramite il parametro ?vota=true
+  return query;
 };

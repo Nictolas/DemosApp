@@ -7,7 +7,7 @@ export const useIniziativeData = (user: any) => {
     queryKey: ['iniziativePopolariData'],
     queryFn: async () => {
       console.log('🔍 DEBUG: Chiamata /api/iniziative-popolari avviata');
-      const result = await apiRequest("GET", "/api/iniziative-popolari");
+      const result = await apiRequest("GET", "/api/iniziative-popolari?vota=true");
       console.log('✅ Dati iniziative popolari ricevuti:', result);
       return result;
     },
