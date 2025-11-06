@@ -55,9 +55,19 @@ router.get('/', async (req, res) => {
     console.log(`🔍 DEBUG: Query generata: ${query.substring(0, 200)}...`);
     
     const result = await pool.query(query, params);
-    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=referendum, votaOnly=${votaOnly})`);
+    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=referendum, votaOnly=${votaOnly}, soloInCorso=${soloInCorso}, userRole=${userRole})`);
     console.log(`🔍 DEBUG: Query completa:`, query);
     console.log(`🔍 DEBUG: Parametri query:`, params);
+    if (result.rows.length > 0) {
+      console.log(`🔍 DEBUG REFERENDUM: Prime 3 righe restituite dalla query SQL:`, result.rows.slice(0, 3).map(r => ({
+        id: r.id,
+        titolo: r.titolo?.substring(0, 50),
+        tipo: r.tipo,
+        stato: r.stato,
+        id_ministero: r.id_ministero,
+        quorum_raggiunto: r.quorum_raggiunto
+      })));
+    }
     
     // Debug: verifica cosa restituisce la query
     if (votaOnly) {
