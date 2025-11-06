@@ -125,8 +125,9 @@ router.get('/', async (req, res) => {
       try {
         // Costruisci la query di classifica con il filtro appropriato
         // Per la pagina iniziative-popolari, mostra solo quelle con stato = 'in_corso'
+        // Per la pagina vota, mostra solo quelle con quorum_raggiunto = TRUE E stato != 'in_corso'
         const quorumFilter = votaOnly 
-          ? 'AND im.quorum_raggiunto IS TRUE'
+          ? 'AND im.quorum_raggiunto IS TRUE AND im.stato IS DISTINCT FROM \'in_corso\''
           : 'AND im.stato = \'in_corso\'';
         
         const classificaQuery = `
@@ -159,7 +160,7 @@ router.get('/', async (req, res) => {
         
         // Debug: verifica gli ID delle iniziative
         const debugQuorumFilter = votaOnly 
-          ? 'AND quorum_raggiunto IS TRUE'
+          ? 'AND quorum_raggiunto IS TRUE AND stato IS DISTINCT FROM \'in_corso\''
           : 'AND stato = \'in_corso\'';
         const debugIniziativeQuery = `SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL ${debugQuorumFilter} ORDER BY firme_raccolte DESC NULLS LAST`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
@@ -488,8 +489,8 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Verifica che gli ID delle iniziative esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      // Per votare, l'iniziativa deve avere quorum_raggiunto = TRUE
-      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto IS TRUE AND id = ANY($1)`;
+      // Per votare, l'iniziativa deve avere quorum_raggiunto = TRUE E stato != 'in_corso'
+      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto IS TRUE AND stato IS DISTINCT FROM 'in_corso' AND id = ANY($1)`;
       const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);

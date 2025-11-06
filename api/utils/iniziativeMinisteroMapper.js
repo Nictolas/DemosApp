@@ -117,7 +117,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     };
   } else {
     // Altri utenti vedono solo le iniziative/referendum ufficiali che:
-    // Se votaOnly = true (pagine di voto): solo quelle con quorum_raggiunto = TRUE
+    // Se votaOnly = true (pagine di voto): solo quelle con quorum_raggiunto = TRUE E stato != 'in_corso'
     // Altrimenti:
     //   1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
     //   2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
@@ -130,6 +130,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           WHERE tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto IS TRUE
+            AND stato IS DISTINCT FROM 'in_corso'
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: [`%${tipoValue}%`]

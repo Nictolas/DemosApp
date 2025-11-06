@@ -687,10 +687,10 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route proponi */}
-              <Route path="/proponi">
+              {/* Route firma */}
+              <Route path="/firma">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/proponi" component={Proponi} />
+                  <ProtectedRoute path="/firma" component={Proponi} />
                 </PageTransition>
               </Route>
 
