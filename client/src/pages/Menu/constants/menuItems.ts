@@ -23,9 +23,9 @@ export const menuItems = [
   },
   {
     id: "proponi",
-    path: "/proponi",
+    path: "/firma",
     icon: FileText,
-    label: "Proponi",
+    label: "Firma",
     color: {
       bg: "#fef3c7",
       icon: "#d97706"
