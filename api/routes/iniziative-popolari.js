@@ -56,21 +56,56 @@ router.get('/', async (req, res) => {
     
     const result = await pool.query(query, params);
     console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=iniziativa, votaOnly=${votaOnly})`);
+    console.log(`🔍 DEBUG: Query completa:`, query);
+    console.log(`🔍 DEBUG: Parametri query:`, params);
     
-    // Debug: verifica quorum_raggiunto e stato dei risultati
-    if (votaOnly && result.rows.length > 0) {
-      const quorumStatus = result.rows.map(r => ({ 
-        id: r.id, 
-        titolo: r.titolo?.substring(0, 50), 
-        quorum_raggiunto: r.quorum_raggiunto,
-        stato: r.stato
-      }));
-      console.log(`🔍 DEBUG: Stato quorum_raggiunto e stato dei risultati:`, quorumStatus);
+    // Filtro aggiuntivo di sicurezza per votaOnly: esclude quelle con stato = 'in_corso' o quorum_raggiunto = false
+    let filteredRows = result.rows;
+    if (votaOnly) {
+      const beforeFilter = filteredRows.length;
+      filteredRows = filteredRows.filter(row => {
+        const hasQuorum = row.quorum_raggiunto === true;
+        const notInCorso = row.stato !== 'in_corso';
+        return hasQuorum && notInCorso;
+      });
+      const afterFilter = filteredRows.length;
       
-      // Verifica che non ci siano iniziative con stato = 'in_corso'
-      const inCorso = result.rows.filter(r => r.stato === 'in_corso');
-      if (inCorso.length > 0) {
-        console.error(`❌ ERRORE: Trovate ${inCorso.length} iniziative con stato='in_corso' che non dovrebbero essere presenti:`, inCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50) })));
+      if (beforeFilter !== afterFilter) {
+        console.warn(`⚠️ FILTRO SICUREZZA: Rimosse ${beforeFilter - afterFilter} iniziative che non rispettano i criteri (prima: ${beforeFilter}, dopo: ${afterFilter})`);
+        const removed = result.rows.filter(row => {
+          const hasQuorum = row.quorum_raggiunto === true;
+          const notInCorso = row.stato !== 'in_corso';
+          return !(hasQuorum && notInCorso);
+        });
+        console.warn(`⚠️ Iniziative rimosse:`, removed.map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          quorum_raggiunto: r.quorum_raggiunto,
+          stato: r.stato 
+        })));
+      }
+      
+      // Debug: verifica quorum_raggiunto e stato dei risultati finali
+      if (filteredRows.length > 0) {
+        const quorumStatus = filteredRows.map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          quorum_raggiunto: r.quorum_raggiunto,
+          stato: r.stato
+        }));
+        console.log(`🔍 DEBUG: Stato quorum_raggiunto e stato dei risultati FINALI (dopo filtro sicurezza):`, quorumStatus);
+        
+        // Verifica che non ci siano iniziative con stato = 'in_corso'
+        const inCorso = filteredRows.filter(r => r.stato === 'in_corso');
+        if (inCorso.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovate ${inCorso.length} iniziative con stato='in_corso' dopo il filtro sicurezza:`, inCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50) })));
+        }
+        
+        // Verifica che tutte abbiano quorum_raggiunto = true
+        const noQuorum = filteredRows.filter(r => r.quorum_raggiunto !== true);
+        if (noQuorum.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovate ${noQuorum.length} iniziative con quorum_raggiunto != true dopo il filtro sicurezza:`, noQuorum.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto })));
+        }
       }
     }
     
@@ -127,12 +162,12 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Normalizza i dati per il frontend usando il mapper
-    const normalizedData = result.rows.map(row => mapToLegacyFormat(row, 'iniziativa'));
+    // Normalizza i dati per il frontend usando il mapper (usa filteredRows invece di result.rows)
+    const normalizedData = filteredRows.map(row => mapToLegacyFormat(row, 'iniziativa'));
 
-    // Genera la classifica basata sui voti
+    // Genera la classifica basata sui voti (usa filteredRows invece di result.rows)
     let classifica = [];
-    if (result.rows.length > 0) {
+    if (filteredRows.length > 0) {
       try {
         // Costruisci la query di classifica con il filtro appropriato
         // Per la pagina iniziative-popolari, mostra solo quelle con stato = 'in_corso'
