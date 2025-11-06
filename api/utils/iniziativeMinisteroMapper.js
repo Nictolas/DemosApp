@@ -88,8 +88,9 @@ function mapEsitoToStato(esito) {
  * @param {string} userRole - Ruolo utente
  * @param {string} userId - ID utente (opzionale)
  * @param {boolean} votaOnly - Se true, mostra solo quelle con quorum_raggiunto = TRUE (per pagine di voto)
+ * @param {boolean} soloInCorso - Se true, mostra solo quelle con stato = 'in_corso' e ordina per firme_raccolte DESC
  */
-function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false) {
+function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false, soloInCorso = false) {
   // Mappa i tipi generici ai valori effettivi nella colonna tipo
   let tipoValue;
   if (tipoFilter === 'iniziativa') {
@@ -134,17 +135,33 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         params: [`%${tipoValue}%`]
       };
     } else {
-      return {
-        query: `
-          SELECT *
-          FROM iniziative_ministero
-          WHERE tipo LIKE $1
+      // Se soloInCorso è true, mostra solo quelle con stato = 'in_corso'
+      // Altrimenti mostra quelle in corso o con quorum raggiunto
+      let whereClause;
+      let orderClause;
+      
+      if (soloInCorso) {
+        whereClause = `tipo LIKE $1
+            AND id_ministero IS NOT NULL
+            AND stato = 'in_corso'`;
+        // Ordina per firme_raccolte in ordine decrescente (più firme in alto)
+        orderClause = `firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
+      } else {
+        whereClause = `tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND (
               (quorum_raggiunto = false AND stato = 'in_corso')
               OR quorum_raggiunto = true
-            )
-          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+            )`;
+        orderClause = `data_inizio DESC NULLS LAST, created_at DESC`;
+      }
+      
+      return {
+        query: `
+          SELECT *
+          FROM iniziative_ministero
+          WHERE ${whereClause}
+          ORDER BY ${orderClause}
         `,
         params: [`%${tipoValue}%`]
       };
