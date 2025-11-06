@@ -40,16 +40,16 @@ export default function Proponi() {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-2xl">
               <FileText className="h-6 w-6 text-purple-600" />
-              Proponi
+              Firma
             </CardTitle>
             <CardDescription>
-              Proponi nuove iniziative democratiche. Scegli il tipo di proposta che vuoi presentare.
+              Utilizza gli strumenti di Democrazia Diretta per modificare la Legge!
             </CardDescription>
           </CardHeader>
         </Card>
 
-        {/* Pulsanti Proposta - Nuova estetica */}
-        <div className="grid grid-cols-2 gap-6">
+        {/* Pulsanti Proposta - Uno sopra l'altro */}
+        <div className="flex flex-col gap-6">
           {/* Iniziative Popolari */}
           <button
             type="button"
