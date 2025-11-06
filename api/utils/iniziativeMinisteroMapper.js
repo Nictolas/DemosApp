@@ -87,8 +87,9 @@ function mapEsitoToStato(esito) {
  * @param {string} tipoFilter - Il tipo da filtrare: 'iniziativa' per iniziative popolari, 'referendum' per referendum abrogativi
  * @param {string} userRole - Ruolo utente
  * @param {string} userId - ID utente (opzionale)
+ * @param {boolean} votaOnly - Se true, mostra solo quelle con quorum_raggiunto = TRUE (per pagine di voto)
  */
-function buildQueryForTipo(tipoFilter, userRole, userId = null) {
+function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false) {
   // Mappa i tipi generici ai valori effettivi nella colonna tipo
   let tipoValue;
   if (tipoFilter === 'iniziativa') {
@@ -115,23 +116,39 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null) {
     };
   } else {
     // Altri utenti vedono solo le iniziative/referendum ufficiali che:
-    // 1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
-    // 2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
+    // Se votaOnly = true (pagine di voto): solo quelle con quorum_raggiunto = TRUE
+    // Altrimenti:
+    //   1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
+    //   2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
     // ESCLUSE: quelle con quorum_raggiunto = FALSE E stato = 'conclusa'
-    return {
-      query: `
-        SELECT *
-        FROM iniziative_ministero
-        WHERE tipo LIKE $1
-          AND id_ministero IS NOT NULL
-          AND (
-            (quorum_raggiunto = false AND stato = 'in_corso')
-            OR quorum_raggiunto = true
-          )
-        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-      `,
-      params: [`%${tipoValue}%`]
-    };
+    if (votaOnly) {
+      return {
+        query: `
+          SELECT *
+          FROM iniziative_ministero
+          WHERE tipo LIKE $1
+            AND id_ministero IS NOT NULL
+            AND quorum_raggiunto = true
+          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+        `,
+        params: [`%${tipoValue}%`]
+      };
+    } else {
+      return {
+        query: `
+          SELECT *
+          FROM iniziative_ministero
+          WHERE tipo LIKE $1
+            AND id_ministero IS NOT NULL
+            AND (
+              (quorum_raggiunto = false AND stato = 'in_corso')
+              OR quorum_raggiunto = true
+            )
+          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+        `,
+        params: [`%${tipoValue}%`]
+      };
+    }
   }
 }
 
