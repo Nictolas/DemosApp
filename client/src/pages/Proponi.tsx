@@ -1,12 +1,15 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect, Link } from "wouter";
-import { Button } from "@/components/ui/button";
+import { Redirect } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Vote, Globe2, ArrowLeft } from "lucide-react";
+import { FileText, Vote, Globe2 } from "lucide-react";
+import { useNoScroll } from "@/hooks/useNoScroll";
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
+  
+  // Blocca lo scroll della pagina
+  useNoScroll(true);
 
   if (isLoading) {
     return (
@@ -21,20 +24,8 @@ export default function Proponi() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = "/menu"}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Torna al Menu
-          </Button>
-        </div>
-
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+      <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
         {/* Titolo */}
         <Card>
           <CardHeader className="text-center">
@@ -49,7 +40,7 @@ export default function Proponi() {
         </Card>
 
         {/* Pulsanti Proposta - Uno sopra l'altro */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 flex-1 justify-center">
           {/* Iniziative Popolari */}
           <button
             type="button"
