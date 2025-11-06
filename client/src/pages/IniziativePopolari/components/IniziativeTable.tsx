@@ -36,20 +36,23 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
   return (
     <div className="space-y-4">
       {listaIniziative.map((iniziativa) => {
-        // Determina lo sfondo in base a quorum_raggiunto
+        // Determina lo sfondo in base a firme_raccolte
         const getBackgroundClass = () => {
           if (iniziativa.quorum === 'proposta') {
             return 'border-blue-200 bg-blue-50';
           }
-          // Verde opaco se quorum_raggiunto = true
-          if (iniziativa.quorum_raggiunto === true) {
+          
+          const firmeRaccolte = iniziativa.firme_raccolte || iniziativa.firme || 0;
+          
+          // Verde opaco se firme_raccolte > 50000
+          if (firmeRaccolte > 50000) {
             return 'border-gray-200 bg-green-50';
           }
-          // Giallo opaco se quorum_raggiunto = false
-          if (iniziativa.quorum_raggiunto === false) {
+          // Giallo opaco se firme_raccolte <= 49999
+          if (firmeRaccolte <= 49999) {
             return 'border-gray-200 bg-yellow-50';
           }
-          // Default se quorum_raggiunto non è definito
+          // Default
           return 'border-gray-200 bg-white';
         };
 
