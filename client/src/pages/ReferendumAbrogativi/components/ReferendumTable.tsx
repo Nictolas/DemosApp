@@ -96,6 +96,13 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                   <span>
                     Firme raccolte: <strong>{(referendum.firme || 0).toLocaleString('it-IT')}</strong>
                   </span>
+                  {(referendum.dataFine || referendum.data_fine) && (
+                    <span>
+                      Scadenza: <strong>
+                        {new Date(referendum.dataFine || referendum.data_fine).toLocaleDateString('it-IT')}
+                      </strong>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
