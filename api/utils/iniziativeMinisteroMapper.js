@@ -132,7 +132,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           WHERE tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
-            AND (stato IS NULL OR stato != 'in_corso')
+            AND stato != 'in_corso'
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: [`%${tipoValue}%`]
