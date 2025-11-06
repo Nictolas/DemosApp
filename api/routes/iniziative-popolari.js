@@ -60,20 +60,30 @@ router.get('/', async (req, res) => {
     console.log(`🔍 DEBUG: Parametri query:`, params);
     
     // Debug: verifica cosa restituisce la query
-    if (votaOnly && result.rows.length === 0) {
-      console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
-      // Query di debug per vedere cosa c'è nel database
-      const debugQuery = `
-        SELECT 
-          COUNT(*) as totale,
-          COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
-          COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
-          COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide
-        FROM iniziative_ministero
-        WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
-      `;
-      const debugResult = await pool.query(debugQuery, params);
-      console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
+    if (votaOnly) {
+      console.log(`🔍 DEBUG VOTA: result.rows.length = ${result.rows.length}`);
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
+        // Query di debug per vedere cosa c'è nel database
+        const debugQuery = `
+          SELECT 
+            COUNT(*) as totale,
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
+            COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide
+          FROM iniziative_ministero
+          WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
+        `;
+        const debugResult = await pool.query(debugQuery, params);
+        console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
+      } else {
+        console.log(`🔍 DEBUG VOTA: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          quorum_raggiunto: r.quorum_raggiunto,
+          stato: r.stato 
+        })));
+      }
     }
     
     // Filtro aggiuntivo di sicurezza:
@@ -107,6 +117,19 @@ router.get('/', async (req, res) => {
       }
       
       // Debug: verifica quorum_raggiunto e stato dei risultati finali
+      console.log(`🔍 DEBUG VOTA: Dopo filtro sicurezza - filteredRows.length = ${filteredRows.length}`);
+      if (filteredRows.length === 0 && beforeFilter > 0) {
+        console.error(`❌ ERRORE: Tutte le iniziative sono state rimosse dal filtro sicurezza!`);
+        console.error(`❌ Prima del filtro: ${beforeFilter}, dopo: ${afterFilter}`);
+        console.error(`❌ Analisi delle righe rimosse:`, result.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 50),
+          quorum_raggiunto: r.quorum_raggiunto,
+          quorum_raggiunto_type: typeof r.quorum_raggiunto,
+          stato: r.stato,
+          stato_type: typeof r.stato
+        })));
+      }
       if (filteredRows.length > 0) {
         const quorumStatus = filteredRows.map(r => ({ 
           id: r.id, 
@@ -271,14 +294,23 @@ router.get('/', async (req, res) => {
       }
     }
 
-    res.json({
+    const responseData = {
       success: true,
       richieste: normalizedData,
       iniziative: normalizedData,
       classifica: classifica,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
-    });
+    };
+    
+    console.log(`🔍 DEBUG: Risposta finale - iniziative.length = ${normalizedData.length}, classifica.length = ${classifica.length}, mieiVoti.length = ${mieiVoti.length}`);
+    if (normalizedData.length > 0) {
+      console.log(`🔍 DEBUG: Prime 3 iniziative:`, normalizedData.slice(0, 3).map(i => ({ id: i.id, nome: i.nome?.substring(0, 50), quorum_raggiunto: i.quorum_raggiunto, stato: i.stato })));
+    } else {
+      console.warn(`⚠️ ATTENZIONE: normalizedData è vuoto! filteredRows.length = ${filteredRows.length}`);
+    }
+    
+    res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recuperare iniziative popolari:', error);
     res.status(500).json({
