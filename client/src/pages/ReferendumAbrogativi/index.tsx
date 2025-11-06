@@ -3,12 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "./components/Header";
-import { CreateButton } from "./components/CreateButton";
-import { ReferendumForm } from "./components/ReferendumForm";
 import { ReferendumTable } from "./components/ReferendumTable";
-import { ReferendumProposte } from "./components/ReferendumProposte";
-import { MioReferendumProposto } from "./components/MioReferendumProposto";
-import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
 import { useReferendumActions } from "./hooks/useReferendumActions";
@@ -20,32 +15,14 @@ export default function ReferendumAbrogativi() {
   const { 
     listaReferendum,
     referendumUfficiali,
-    referendumProposte,
-    mioReferendumProposto,
     mieiVoti, 
     isLoading, 
-    isError,
-    currentProposals,
-    limit,
-    remainingProposals,
-    hasReachedLimit
+    isError
   } = useReferendumData(user);
   const {
     state,
-    addMutation,
-    editMutation,
-    deleteMutation,
-    showCreateForm,
-    hideCreateForm,
-    startEdit,
-    cancelEdit,
     startEditView,
-    closeView,
-    handleCreate,
-    handleUpdate,
-    handleDelete,
-    handleApprove,
-    handleReject
+    closeView
   } = useReferendumActions();
 
 
@@ -68,50 +45,7 @@ export default function ReferendumAbrogativi() {
         <CardContent className="p-6">
           <Header />
           
-          
-          <div className="flex justify-start items-center mb-4">
-            <CreateButton 
-              onClick={showCreateForm} 
-              disabled={hasReachedLimit || !!mioReferendumProposto}
-              currentProposals={currentProposals}
-              limit={limit}
-            />
-          </div>
-          
-          {state.showForm && (
-            <ReferendumForm
-              onSubmit={(data) => handleCreate(data, currentProposals)}
-              onCancel={hideCreateForm}
-              isLoading={addMutation.isPending}
-            />
-          )}
-          
-          {/* Sezione: Il mio referendum proposto */}
-          {mioReferendumProposto && (
-            <div className="mb-8">
-              <MioReferendumProposto
-                referendum={mioReferendumProposto}
-                onDelete={handleDelete}
-                isDeleting={deleteMutation.isPending}
-              />
-            </div>
-          )}
-          
           <ReferendumStatsChart listaReferendum={listaReferendum} />
-          
-          {/* Sezione per Admin: Referendum Proposti */}
-          {user?.ruolo === 'AD' && referendumProposte.length > 0 && (
-            <div className="mb-8">
-              <ReferendumProposte
-                referendumProposte={referendumProposte}
-                isLoading={isLoading}
-                isError={isError}
-                onView={startEditView}
-                onApprove={handleApprove}
-                onReject={handleReject}
-              />
-            </div>
-          )}
           
           {/* Referendum Ufficiali */}
           <ReferendumTable
@@ -123,20 +57,10 @@ export default function ReferendumAbrogativi() {
           />
         </CardContent>
       </Card>
-      
-      <EditDialog
-        referendum={state.editReferendum}
-        onClose={cancelEdit}
-        onSubmit={handleUpdate}
-        isLoading={editMutation.isPending}
-      />
 
       <ViewDialog
         referendum={state.viewReferendum}
         onClose={closeView}
-        onEdit={startEdit}
-        onDelete={handleDelete}
-        deleteMutation={deleteMutation}
       />
     </div>
   );
