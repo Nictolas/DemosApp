@@ -7,7 +7,6 @@ import { ReferendumTable } from "./components/ReferendumTable";
 import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
 import { useReferendumActions } from "./hooks/useReferendumActions";
-import { ReferendumStatsChart } from "./components/ReferendumStatsChart";
 
 export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -44,8 +43,6 @@ export default function ReferendumAbrogativi() {
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
-          
-          <ReferendumStatsChart listaReferendum={listaReferendum} />
           
           {/* Referendum Ufficiali */}
           <ReferendumTable

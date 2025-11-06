@@ -9,6 +9,7 @@ import { Header } from "./components/Header";
 import { UserPreferences } from "./components/UserPreferences";
 import { IniziativeRanking } from "./components/IniziativeRanking";
 import { IniziativaViewDialog } from "./components/IniziativaViewDialog";
+import { IniziativeStatsChart } from "@/pages/IniziativePopolari/components/IniziativeStatsChart";
 
 export default function VotaIniziativaPopolare() {
   const authReady = useAuthReady();
@@ -73,6 +74,9 @@ export default function VotaIniziativaPopolare() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Grafico statistiche */}
+            <IniziativeStatsChart listaIniziative={data?.iniziative || []} />
+            
             {/* Il tuo voto */}
             <UserPreferences
               selectedVoti={selectedVoti}
