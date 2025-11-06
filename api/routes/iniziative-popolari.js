@@ -3,6 +3,7 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
+const { mapToLegacyFormat, buildQueryForTipo } = require('../utils/iniziativeMinisteroMapper');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -43,27 +44,11 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Query con filtro basato sul ruolo
-    let query;
-    if (userRole === "AD") {
-      // Admin vedono tutte le iniziative
-      query = `
-        SELECT *
-        FROM iniziative_popolari
-        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-      `;
-    } else {
-      // Altri utenti vedono solo le iniziative ufficiali (quorum != 'proposta') e con esito 'In Attesa'
-      query = `
-        SELECT *
-        FROM iniziative_popolari
-        WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
-        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-      `;
-    }
+    // Query dalla nuova tabella iniziative_ministero con tipo = 'iniziativa'
+    const { query, params } = buildQueryForTipo('iniziativa', userRole, userId);
     
-    const result = await pool.query(query);
-    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_popolari`);
+    const result = await pool.query(query, params);
+    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=iniziativa)`);
     
     // Se l'utente è autenticato, ottieni i suoi voti
     let mieiVoti = [];
@@ -118,19 +103,8 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Normalizza i dati per il frontend
-    const normalizedData = result.rows.map(row => ({
-      ...row,
-      dataInizio: row.data_inizio,
-      dataFine: row.data_fine,
-      sitoWeb: row.sito_web || row.sitoweb,
-      data_creazione: row.created_at,
-      // Assicurati che i campi obbligatori esistano
-      descrizione: row.descrizione || '',
-      firme: row.firme || 0,
-      votiices: row.votiices || 0,
-      esito: row.esito || null
-    }));
+    // Normalizza i dati per il frontend usando il mapper
+    const normalizedData = result.rows.map(row => mapToLegacyFormat(row, 'iniziativa'));
 
     // Genera la classifica basata sui voti
     let classifica = [];
@@ -138,19 +112,21 @@ router.get('/', async (req, res) => {
       try {
         const classificaQuery = `
           SELECT 
-            ip.nome,
-            ip.sito_web as sitoWeb,
+            im.titolo as nome,
+            im.sito_web as sitoWeb,
             COUNT(vip.iniziativa_id) as voti
-          FROM iniziative_popolari ip
+          FROM iniziative_ministero im
           LEFT JOIN voti_iniziative_popolari vip ON (
-            ip.id::text = vip.iniziativa_id OR 
-            REPLACE(ip.id::text, '-', '') = vip.iniziativa_id OR
-            ip.id::text = REPLACE(vip.iniziativa_id, '-', '') OR
-            REPLACE(ip.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
+            im.id::text = vip.iniziativa_id OR 
+            REPLACE(im.id::text, '-', '') = vip.iniziativa_id OR
+            im.id::text = REPLACE(vip.iniziativa_id, '-', '') OR
+            REPLACE(im.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
           )
-          WHERE ip.quorum != 'proposta' AND (ip.esito = 'In Attesa' OR ip.esito IS NULL)
-          GROUP BY ip.id, ip.nome, ip.sito_web
-          ORDER BY voti DESC, ip.nome ASC
+          WHERE im.tipo = 'iniziativa' 
+            AND (im.quorum > 0 OR im.quorum_raggiunto = false)
+            AND (im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
+          GROUP BY im.id, im.titolo, im.sito_web
+          ORDER BY voti DESC, im.titolo ASC
         `;
         
         console.log('🔍 DEBUG - Esecuzione query classifica');
@@ -163,7 +139,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per iniziativa_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID delle iniziative
-        const debugIniziativeQuery = 'SELECT id, nome FROM iniziative_popolari WHERE quorum != \'proposta\' AND (esito = \'In Attesa\' OR esito IS NULL)';
+        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo = 'iniziativa' AND (quorum > 0 OR quorum_raggiunto = false) AND (stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
         console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
@@ -488,9 +464,9 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Limita a massimo 1 voto come da limite configurato
     const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
     
-    // Verifica che gli ID delle iniziative esistano
+    // Verifica che gli ID delle iniziative esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      const iniziativeCheckQuery = 'SELECT id FROM iniziative_popolari WHERE id = ANY($1)';
+      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo = 'iniziativa' AND id = ANY($1)`;
       const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);
