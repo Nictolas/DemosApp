@@ -160,6 +160,9 @@ class MinisteroSyncService {
       // Stato (dall'oggetto idDecStatoIniziativa, mappa in valori standard)
       stato: this.mapStatoMinistero(item.idDecStatoIniziativa?.nome || item.stato || item.status || 'in_corso'),
       
+      // Esito (mappa da stato per compatibilità con tabelle legacy)
+      esito: this.mapStatoToEsito(item.idDecStatoIniziativa?.nome || item.stato || item.status || 'in_corso'),
+      
       // Date (usa i campi corretti dell'API)
       data_inizio: item.dataInizioRaccolta || item.dataInizio || item.data_inizio || item.dataApertura || null,
       data_fine: item.dataFineRaccolta || item.dataFine || item.data_fine || null,
@@ -194,6 +197,7 @@ class MinisteroSyncService {
       const oggi = new Date();
       if (dataFine < oggi) {
         extracted.stato = 'conclusa';
+        extracted.esito = 'Conclusa';
       }
     }
 
@@ -231,6 +235,39 @@ class MinisteroSyncService {
     
     // Normalizza il nome per database
     return statoLower.replace(/\s+/g, '_').toLowerCase();
+  }
+
+  /**
+   * Mappa lo stato del Ministero all'esito (compatibilità con tabelle legacy)
+   */
+  mapStatoToEsito(stato) {
+    if (!stato) return 'In Attesa';
+    
+    const statoLower = String(stato).toLowerCase();
+    
+    // Mapping degli stati comuni del Ministero
+    const mapping = {
+      'in corso': 'In Attesa',
+      'in_corso': 'In Attesa',
+      'in attesa': 'In Attesa',
+      'attiva': 'In Attesa',
+      'aperta': 'In Attesa',
+      'conclusa': 'Conclusa',
+      'chiusa': 'Conclusa',
+      'approvata': 'Approvata',
+      'rifiutata': 'Rifiutata',
+      'respinta': 'Rifiutata'
+    };
+    
+    // Cerca match esatto o parziale
+    for (const [key, value] of Object.entries(mapping)) {
+      if (statoLower.includes(key)) {
+        return value;
+      }
+    }
+    
+    // Default
+    return 'In Attesa';
   }
 
   /**
@@ -303,6 +340,7 @@ class MinisteroSyncService {
           fields.descrizione,
           fields.tipo,
           fields.stato,
+          fields.esito,
           fields.data_inizio || null,
           fields.data_fine || null,
           fields.firme_raccolte || 0,
@@ -320,6 +358,7 @@ class MinisteroSyncService {
           titolo: fields.titolo?.substring(0, 50),
           tipo: fields.tipo,
           stato: fields.stato,
+          esito: fields.esito,
           id_ministero: fields.id_ministero,
           where_id: existing.rows[0].id
         });
@@ -330,18 +369,19 @@ class MinisteroSyncService {
             descrizione = $2,
             tipo = $3,
             stato = $4,
-            data_inizio = $5,
-            data_fine = $6,
-            firme_raccolte = $7,
-            quorum = $8,
-            quorum_raggiunto = $9,
-            sito_web = $10,
-            documento = $11,
-            promotore = $12,
-            dati_raw = $13::jsonb,
-            data_ultimo_aggiornamento = $14,
+            esito = $5,
+            data_inizio = $6,
+            data_fine = $7,
+            firme_raccolte = $8,
+            quorum = $9,
+            quorum_raggiunto = $10,
+            sito_web = $11,
+            documento = $12,
+            promotore = $13,
+            dati_raw = $14::jsonb,
+            data_ultimo_aggiornamento = $15,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $15`,
+          WHERE id = $16`,
           updateParams
         );
         
@@ -358,6 +398,7 @@ class MinisteroSyncService {
           fields.descrizione || null,
           fields.tipo,
           fields.stato,
+          fields.esito,
           fields.data_inizio || null,
           fields.data_fine || null,
           fields.firme_raccolte || 0,
@@ -388,15 +429,16 @@ class MinisteroSyncService {
         
         const result = await pool.query(
           `INSERT INTO iniziative_ministero (
-            id, id_ministero, titolo, descrizione, tipo, stato,
+            id, id_ministero, titolo, descrizione, tipo, stato, esito,
             data_inizio, data_fine, firme_raccolte, quorum, quorum_raggiunto,
             sito_web, documento, promotore, dati_raw, data_ultimo_aggiornamento
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17)
           ON CONFLICT ${conflictTarget} DO UPDATE SET
             titolo = EXCLUDED.titolo,
             descrizione = EXCLUDED.descrizione,
             tipo = EXCLUDED.tipo,
             stato = EXCLUDED.stato,
+            esito = EXCLUDED.esito,
             data_inizio = EXCLUDED.data_inizio,
             data_fine = EXCLUDED.data_fine,
             firme_raccolte = EXCLUDED.firme_raccolte,

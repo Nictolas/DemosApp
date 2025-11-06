@@ -8,6 +8,9 @@
  * (compatibile con iniziative_popolari e referendum_abrogativi)
  */
 function mapToLegacyFormat(row, tipo) {
+  // Usa esito se presente, altrimenti mappa da stato
+  const esito = row.esito || mapStatoToEsito(row.stato);
+  
   return {
     id: row.id,
     nome: row.titolo, // titolo -> nome per compatibilità
@@ -20,7 +23,7 @@ function mapToLegacyFormat(row, tipo) {
     sitoweb: row.sito_web, // alias per compatibilità
     sitoWeb: row.sito_web, // formato camelCase per frontend
     quorum: row.quorum, // INTEGER nella nuova tabella, ma il frontend potrebbe aspettarsi VARCHAR
-    esito: mapStatoToEsito(row.stato), // stato -> esito per compatibilità
+    esito: esito, // usa la colonna esito se presente, altrimenti mappa da stato
     firme: row.firme_raccolte || 0, // firme_raccolte -> firme
     votiices: 0, // campo legacy, può essere calcolato dai voti
     created_at: row.created_at,
@@ -130,7 +133,7 @@ function buildQueryForTipo(tipo, userRole, userId = null) {
         FROM iniziative_ministero
         WHERE tipo = $1
           AND (quorum > 0 OR quorum_raggiunto = false)
-          AND (stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')
+          AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')
         ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `,
       params: [tipo]
