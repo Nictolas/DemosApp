@@ -76,9 +76,9 @@ router.get('/', async (req, res) => {
       console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
     }
     
-    // Filtro aggiuntivo di sicurezza per votaOnly: 
-    // - ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum)
-    // - Solo quelle con quorum_raggiunto = true
+    // Filtro aggiuntivo di sicurezza:
+    // - Per votaOnly: ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum) e solo quelle con quorum_raggiunto = true
+    // - Per listing (soloInCorso): ESCLUDE TUTTE quelle con stato != 'in_corso'
     let filteredRows = result.rows;
     if (votaOnly) {
       const beforeFilter = filteredRows.length;
@@ -126,6 +126,31 @@ router.get('/', async (req, res) => {
         const noQuorum = filteredRows.filter(r => r.quorum_raggiunto !== true);
         if (noQuorum.length > 0) {
           console.error(`❌ ERRORE CRITICO: Trovate ${noQuorum.length} iniziative con quorum_raggiunto != true dopo il filtro sicurezza:`, noQuorum.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto })));
+        }
+      }
+    } else if (soloInCorso) {
+      // Filtro di sicurezza per la pagina listing: ESCLUDE TUTTE quelle con stato != 'in_corso'
+      const beforeFilter = filteredRows.length;
+      filteredRows = filteredRows.filter(row => {
+        return row.stato === 'in_corso';
+      });
+      const afterFilter = filteredRows.length;
+      
+      if (beforeFilter !== afterFilter) {
+        console.warn(`⚠️ FILTRO SICUREZZA LISTING: Rimosse ${beforeFilter - afterFilter} iniziative che non hanno stato='in_corso' (prima: ${beforeFilter}, dopo: ${afterFilter})`);
+        const removed = result.rows.filter(row => row.stato !== 'in_corso');
+        console.warn(`⚠️ Iniziative rimosse (stato != 'in_corso'):`, removed.map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          stato: r.stato 
+        })));
+      }
+      
+      // Debug: verifica che tutte le iniziative abbiano stato = 'in_corso'
+      if (filteredRows.length > 0) {
+        const notInCorso = filteredRows.filter(r => r.stato !== 'in_corso');
+        if (notInCorso.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovate ${notInCorso.length} iniziative con stato != 'in_corso' dopo il filtro sicurezza:`, notInCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), stato: r.stato })));
         }
       }
     }
