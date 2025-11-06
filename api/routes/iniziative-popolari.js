@@ -26,11 +26,12 @@ router.get('/', async (req, res) => {
     
     // Ottieni il ruolo dell'utente se autenticato
     let userRole = null;
+    let userId = null;
     if (req.headers.authorization) {
       try {
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
+        userId = decoded.userId;
         
         // Ottieni il ruolo dell'utente
         const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
@@ -123,8 +124,7 @@ router.get('/', async (req, res) => {
             REPLACE(im.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
           )
           WHERE im.tipo LIKE '%Legge di iniziativa popolare%'
-            AND (im.quorum > 0 OR im.quorum_raggiunto = false)
-            AND (im.esito = 'In Attesa' OR im.esito IS NULL OR im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
+            AND im.quorum > 0
           GROUP BY im.id, im.titolo, im.sito_web
           ORDER BY voti DESC, im.titolo ASC
         `;
@@ -139,7 +139,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per iniziativa_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID delle iniziative
-        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND (quorum > 0 OR quorum_raggiunto = false) AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
+        const debugIniziativeQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND quorum > 0`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
         console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         

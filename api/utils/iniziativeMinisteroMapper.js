@@ -141,16 +141,15 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null) {
       params: [`%${tipoValue}%`]
     };
   } else {
-    // Altri utenti vedono solo le iniziative/referendum ufficiali
-    // (non proposte utente, quindi quorum > 0 o quorum_raggiunto = false)
-    // e con stato 'in_corso' o equivalente a 'In Attesa'
+    // Altri utenti vedono tutte le iniziative/referendum ufficiali
+    // (quorum > 0 indica che sono ufficiali, non proposte utente)
+    // Non filtriamo per stato/esito perché vogliamo mostrare tutte le iniziative/referendum ufficiali
     return {
       query: `
         SELECT *
         FROM iniziative_ministero
         WHERE tipo LIKE $1
-          AND (quorum > 0 OR quorum_raggiunto = false)
-          AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')
+          AND quorum > 0
         ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `,
       params: [`%${tipoValue}%`]

@@ -115,8 +115,7 @@ router.get('/', async (req, res) => {
             REPLACE(im.id::uuid::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
           )
           WHERE im.tipo LIKE '%Referendum abrogativo%'
-            AND (im.quorum > 0 OR im.quorum_raggiunto = false)
-            AND (im.esito = 'In Attesa' OR im.esito IS NULL OR im.stato = 'in_corso' OR im.stato IS NULL OR im.stato = 'in attesa')
+            AND im.quorum > 0
           GROUP BY im.id, im.titolo, im.sito_web
           ORDER BY voti DESC, im.titolo ASC
         `;
@@ -131,7 +130,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Tutti i voti per referendum_id:', debugVotiResult.rows);
         
         // Debug: verifica gli ID dei referendum
-        const debugReferendumQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND (quorum > 0 OR quorum_raggiunto = false) AND (esito = 'In Attesa' OR esito IS NULL OR stato = 'in_corso' OR stato IS NULL OR stato = 'in attesa')`;
+        const debugReferendumQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND quorum > 0`;
         const debugReferendumResult = await pool.query(debugReferendumQuery);
         console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
