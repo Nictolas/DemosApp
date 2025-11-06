@@ -59,6 +59,23 @@ router.get('/', async (req, res) => {
     console.log(`🔍 DEBUG: Query completa:`, query);
     console.log(`🔍 DEBUG: Parametri query:`, params);
     
+    // Debug: verifica cosa restituisce la query
+    if (votaOnly && result.rows.length === 0) {
+      console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
+      // Query di debug per vedere cosa c'è nel database
+      const debugQuery = `
+        SELECT 
+          COUNT(*) as totale,
+          COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
+          COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
+          COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide
+        FROM iniziative_ministero
+        WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
+      `;
+      const debugResult = await pool.query(debugQuery, params);
+      console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
+    }
+    
     // Filtro aggiuntivo di sicurezza per votaOnly: 
     // - ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum)
     // - Solo quelle con quorum_raggiunto = true
@@ -177,7 +194,7 @@ router.get('/', async (req, res) => {
         // Per la pagina iniziative-popolari, mostra solo quelle con stato = 'in_corso'
         // Per la pagina vota: quorum_raggiunto = TRUE E ESCLUDE TUTTE quelle con stato = 'in_corso'
         const quorumFilter = votaOnly 
-          ? 'AND im.quorum_raggiunto = true AND (im.stato IS NULL OR im.stato != \'in_corso\')'
+          ? 'AND im.quorum_raggiunto = true AND im.stato != \'in_corso\''
           : 'AND im.stato = \'in_corso\'';
         
         const classificaQuery = `
@@ -210,7 +227,7 @@ router.get('/', async (req, res) => {
         
         // Debug: verifica gli ID delle iniziative
         const debugQuorumFilter = votaOnly 
-          ? 'AND quorum_raggiunto = true AND (stato IS NULL OR stato != \'in_corso\')'
+          ? 'AND quorum_raggiunto = true AND stato != \'in_corso\''
           : 'AND stato = \'in_corso\'';
         const debugIniziativeQuery = `SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL ${debugQuorumFilter} ORDER BY firme_raccolte DESC NULLS LAST`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
@@ -540,7 +557,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Verifica che gli ID delle iniziative esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
       // Per votare, l'iniziativa deve avere quorum_raggiunto = TRUE E NON deve avere stato = 'in_corso'
-      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND (stato IS NULL OR stato != 'in_corso') AND id = ANY($1)`;
+      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato != 'in_corso' AND id = ANY($1)`;
       const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);
