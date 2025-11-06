@@ -1,6 +1,6 @@
 import React from "react";
 import { IniziativeTableProps } from "../types";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const IniziativeTable: React.FC<IniziativeTableProps> = ({ 
@@ -66,20 +66,6 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <span
-                  className={
-                    iniziativa.quorum === 'ok'
-                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-green-500 flex-shrink-0'
-                      : iniziativa.quorum === 'pending'
-                        ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0'
-                        : iniziativa.quorum === 'no'
-                          ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-red-500 flex-shrink-0'
-                          : iniziativa.quorum === 'proposta'
-                            ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-blue-500 flex-shrink-0'
-                            : 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-gray-400 flex-shrink-0'
-                  }
-                  aria-hidden="true"
-                />
                 <h3 className="text-lg font-semibold text-gray-900 flex-1">
                   {iniziativa.nome}
                 </h3>

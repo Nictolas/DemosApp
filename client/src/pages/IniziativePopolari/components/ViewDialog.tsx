@@ -9,7 +9,7 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onE
 
   return (
     <Dialog open={!!iniziativa} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-white">
+      <DialogContent className="max-w-2xl bg-white max-h-[90vh] overflow-y-auto">
         <DialogHeader className="bg-white">
           <DialogTitle className="text-2xl font-bold text-gray-900">
             {iniziativa.nome}
@@ -19,7 +19,7 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onE
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 bg-white">
+        <div className="space-y-4 bg-white overflow-y-auto">
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">Descrizione</h4>
             <p className="text-gray-700 whitespace-pre-wrap">
