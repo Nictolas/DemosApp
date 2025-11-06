@@ -10,6 +10,7 @@ import { UserPreferences } from "./components/UserPreferences";
 import { ReferendumTable } from "./components/ReferendumTable";
 import { ReferendumRanking } from "./components/ReferendumRanking";
 import { ReferendumViewDialog } from "./components/ReferendumViewDialog";
+import { ReferendumStatsChart } from "@/pages/ReferendumAbrogativi/components/ReferendumStatsChart";
 
 export default function VotaReferendumAbrogativo() {
   const authReady = useAuthReady();
@@ -74,6 +75,9 @@ export default function VotaReferendumAbrogativo() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Grafico statistiche */}
+            <ReferendumStatsChart listaReferendum={data?.referendum || []} />
+            
             {/* Il tuo voto */}
             <UserPreferences
               selectedVoti={selectedVoti}

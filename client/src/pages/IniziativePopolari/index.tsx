@@ -7,7 +7,6 @@ import { IniziativeTable } from "./components/IniziativeTable";
 import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
-import { IniziativeStatsChart } from "./components/IniziativeStatsChart";
 import { SearchAndFilters } from "./components/SearchAndFilters";
 import { IniziativaPopolare } from "./types";
 
@@ -89,8 +88,6 @@ export default function IniziativePopolari() {
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
-          
-          <IniziativeStatsChart listaIniziative={listaIniziative} />
           
           {/* Barra di ricerca e filtri */}
           <SearchAndFilters
