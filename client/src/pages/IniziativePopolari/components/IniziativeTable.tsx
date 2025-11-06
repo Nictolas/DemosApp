@@ -101,6 +101,13 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                     }
                   </strong>
                 </span>
+                {(iniziativa.dataFine || iniziativa.data_fine) && (
+                  <span>
+                    Scadenza: <strong>
+                      {new Date(iniziativa.dataFine || iniziativa.data_fine).toLocaleDateString('it-IT')}
+                    </strong>
+                  </span>
+                )}
               </div>
             </div>
           </div>
