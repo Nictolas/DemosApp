@@ -47,9 +47,11 @@ router.get('/', async (req, res) => {
     
     // Query dalla nuova tabella iniziative_ministero con tipo = 'iniziativa'
     // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE
+    // Per la pagina iniziative-popolari (non vota), mostra solo quelle con stato = 'in_corso'
     const votaOnly = req.query.vota === 'true';
-    console.log(`🔍 DEBUG: votaOnly = ${votaOnly}, req.query.vota = ${req.query.vota}`);
-    const { query, params } = buildQueryForTipo('iniziativa', userRole, userId, votaOnly);
+    const soloInCorso = !votaOnly; // Per la pagina listing, mostra solo quelle in corso
+    console.log(`🔍 DEBUG: votaOnly = ${votaOnly}, soloInCorso = ${soloInCorso}, req.query.vota = ${req.query.vota}`);
+    const { query, params } = buildQueryForTipo('iniziativa', userRole, userId, votaOnly, soloInCorso);
     console.log(`🔍 DEBUG: Query generata: ${query.substring(0, 200)}...`);
     
     const result = await pool.query(query, params);
@@ -122,12 +124,10 @@ router.get('/', async (req, res) => {
     if (result.rows.length > 0) {
       try {
         // Costruisci la query di classifica con il filtro appropriato
+        // Per la pagina iniziative-popolari, mostra solo quelle con stato = 'in_corso'
         const quorumFilter = votaOnly 
           ? 'AND im.quorum_raggiunto IS TRUE'
-          : `AND (
-              (im.quorum_raggiunto IS FALSE AND im.stato = 'in_corso')
-              OR im.quorum_raggiunto IS TRUE
-            )`;
+          : 'AND im.stato = \'in_corso\'';
         
         const classificaQuery = `
           SELECT 
@@ -144,8 +144,8 @@ router.get('/', async (req, res) => {
           WHERE im.tipo LIKE '%Legge di iniziativa popolare%'
             AND im.id_ministero IS NOT NULL
             ${quorumFilter}
-          GROUP BY im.id, im.titolo, im.sito_web
-          ORDER BY voti DESC, im.titolo ASC
+          GROUP BY im.id, im.titolo, im.sito_web, im.firme_raccolte
+          ORDER BY im.firme_raccolte DESC NULLS LAST, voti DESC, im.titolo ASC
         `;
         
         console.log('🔍 DEBUG - Esecuzione query classifica');
@@ -160,8 +160,8 @@ router.get('/', async (req, res) => {
         // Debug: verifica gli ID delle iniziative
         const debugQuorumFilter = votaOnly 
           ? 'AND quorum_raggiunto IS TRUE'
-          : 'AND ((quorum_raggiunto IS FALSE AND stato = \'in_corso\') OR quorum_raggiunto IS TRUE)';
-        const debugIniziativeQuery = `SELECT id, titolo as nome, quorum_raggiunto FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL ${debugQuorumFilter}`;
+          : 'AND stato = \'in_corso\'';
+        const debugIniziativeQuery = `SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte FROM iniziative_ministero WHERE tipo LIKE '%Legge di iniziativa popolare%' AND id_ministero IS NOT NULL ${debugQuorumFilter} ORDER BY firme_raccolte DESC NULLS LAST`;
         const debugIniziativeResult = await pool.query(debugIniziativeQuery);
         console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
