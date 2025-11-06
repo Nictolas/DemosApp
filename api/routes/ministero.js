@@ -38,11 +38,8 @@ router.get('/iniziative', async (req, res) => {
       data_fine: row.data_fine,
       firme_raccolte: row.firme_raccolte,
       sostenitori: row.firme_raccolte, // Per compatibilità con il frontend
-      quorum: row.quorum,
       quorum_raggiunto: row.quorum_raggiunto,
       sito_web: row.sito_web,
-      documento: row.documento,
-      promotore: row.promotore,
       data_ultimo_aggiornamento: row.data_ultimo_aggiornamento,
       // Dati raw per compatibilità
       idDecTipoIniziativa: { nome: row.tipo },

@@ -170,15 +170,8 @@ class MinisteroSyncService {
       // SOSTENITORI = FIRME RACCOLTE (campo chiave!)
       firme_raccolte: parseInt(item.sostenitori || item.firme || item.firmeRaccolte || item.numeroFirme || 0),
       
-      // Quorum
-      quorum: parseInt(item.quorum || item.quorumRichiesto || item.sogliaMinima || 0),
-      
       // URL e link
       sito_web: item.sito || item.sitoWeb || item.sito_web || item.link || null,
-      documento: item.documento || item.allegato || item.logo || null,
-      
-      // Metadati
-      promotore: item.promotore || (item.idComitato && item.idComitato.length > 0 ? 'Comitato' : null) || item.comitato || item.organizzazione || null,
       
       // Altri campi utili
       estremi: item.estremi || null,
@@ -201,12 +194,8 @@ class MinisteroSyncService {
       }
     }
 
-    // Determina se ha raggiunto il quorum
-    if (extracted.quorum > 0 && extracted.firme_raccolte >= extracted.quorum) {
-      extracted.quorum_raggiunto = true;
-    } else {
-      extracted.quorum_raggiunto = false;
-    }
+    // quorum_raggiunto non più calcolato (colonna quorum rimossa)
+    extracted.quorum_raggiunto = false;
 
     return extracted;
   }
@@ -344,11 +333,8 @@ class MinisteroSyncService {
           fields.data_inizio || null,
           fields.data_fine || null,
           fields.firme_raccolte || 0,
-          fields.quorum || 0,
           fields.quorum_raggiunto || false,
           fields.sito_web || null,
-          fields.documento || null,
-          fields.promotore || null,
           fields.dati_raw ? JSON.stringify(fields.dati_raw) : '{}',
           fields.data_ultimo_aggiornamento,
           existing.rows[0].id
@@ -373,15 +359,12 @@ class MinisteroSyncService {
             data_inizio = $6,
             data_fine = $7,
             firme_raccolte = $8,
-            quorum = $9,
-            quorum_raggiunto = $10,
-            sito_web = $11,
-            documento = $12,
-            promotore = $13,
-            dati_raw = $14::jsonb,
-            data_ultimo_aggiornamento = $15,
+            quorum_raggiunto = $9,
+            sito_web = $10,
+            dati_raw = $11::jsonb,
+            data_ultimo_aggiornamento = $12,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $16`,
+          WHERE id = $13`,
           updateParams
         );
         
@@ -402,11 +385,8 @@ class MinisteroSyncService {
           fields.data_inizio || null,
           fields.data_fine || null,
           fields.firme_raccolte || 0,
-          fields.quorum || 0,
           fields.quorum_raggiunto || false,
           fields.sito_web || null,
-          fields.documento || null,
-          fields.promotore || null,
           fields.dati_raw ? JSON.stringify(fields.dati_raw) : '{}',
           fields.data_ultimo_aggiornamento
         ];
@@ -430,9 +410,9 @@ class MinisteroSyncService {
         const result = await pool.query(
           `INSERT INTO iniziative_ministero (
             id, id_ministero, titolo, descrizione, tipo, stato, esito,
-            data_inizio, data_fine, firme_raccolte, quorum, quorum_raggiunto,
-            sito_web, documento, promotore, dati_raw, data_ultimo_aggiornamento
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17)
+            data_inizio, data_fine, firme_raccolte, quorum_raggiunto,
+            sito_web, dati_raw, data_ultimo_aggiornamento
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
           ON CONFLICT ${conflictTarget} DO UPDATE SET
             titolo = EXCLUDED.titolo,
             descrizione = EXCLUDED.descrizione,
@@ -442,11 +422,8 @@ class MinisteroSyncService {
             data_inizio = EXCLUDED.data_inizio,
             data_fine = EXCLUDED.data_fine,
             firme_raccolte = EXCLUDED.firme_raccolte,
-            quorum = EXCLUDED.quorum,
             quorum_raggiunto = EXCLUDED.quorum_raggiunto,
             sito_web = EXCLUDED.sito_web,
-            documento = EXCLUDED.documento,
-            promotore = EXCLUDED.promotore,
             dati_raw = EXCLUDED.dati_raw,
             data_ultimo_aggiornamento = EXCLUDED.data_ultimo_aggiornamento,
             updated_at = CURRENT_TIMESTAMP
