@@ -1,6 +1,7 @@
 import React from "react";
 import { IniziativeTableProps } from "../types";
 import { Loader2, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const IniziativeTable: React.FC<IniziativeTableProps> = ({ 
   listaIniziative, 
@@ -79,13 +80,29 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                   }
                   aria-hidden="true"
                 />
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 flex-1">
                   {iniziativa.nome}
                 </h3>
                 {iniziativa.quorum === 'proposta' && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Proposta
                   </span>
+                )}
+                {iniziativa.sitoWeb && (
+                  <a
+                    href={iniziativa.sitoWeb.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Firma
+                    </Button>
+                  </a>
                 )}
               </div>
               
