@@ -60,20 +60,53 @@ router.get('/', async (req, res) => {
     console.log(`🔍 DEBUG: Parametri query:`, params);
     
     // Debug: verifica cosa restituisce la query
-    if (votaOnly && result.rows.length === 0) {
-      console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
-      // Query di debug per vedere cosa c'è nel database
-      const debugQuery = `
-        SELECT 
-          COUNT(*) as totale,
-          COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
-          COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
-          COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide
-        FROM iniziative_ministero
-        WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
-      `;
-      const debugResult = await pool.query(debugQuery, params);
-      console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
+    if (votaOnly) {
+      console.log(`🔍 DEBUG VOTA REFERENDUM: result.rows.length = ${result.rows.length}`);
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
+        // Query di debug per vedere cosa c'è nel database
+        const debugQuery = `
+          SELECT 
+            COUNT(*) as totale,
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
+            COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide
+          FROM iniziative_ministero
+          WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
+        `;
+        const debugResult = await pool.query(debugQuery, params);
+        console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
+      } else {
+        console.log(`🔍 DEBUG VOTA REFERENDUM: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          quorum_raggiunto: r.quorum_raggiunto,
+          stato: r.stato 
+        })));
+      }
+    } else if (soloInCorso) {
+      console.log(`🔍 DEBUG LISTING REFERENDUM: result.rows.length = ${result.rows.length}`);
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ ATTENZIONE: La query per soloInCorso non ha restituito risultati. Verificando nel database...`);
+        // Query di debug per vedere cosa c'è nel database
+        const debugQuery = `
+          SELECT 
+            COUNT(*) as totale,
+            COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
+            COUNT(*) FILTER (WHERE stato = 'conclusa') as conclusa,
+            COUNT(*) FILTER (WHERE stato IS NULL) as stato_null
+          FROM iniziative_ministero
+          WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
+        `;
+        const debugResult = await pool.query(debugQuery, params);
+        console.log(`🔍 DEBUG LISTING: Statistiche database:`, debugResult.rows[0]);
+      } else {
+        console.log(`🔍 DEBUG LISTING REFERENDUM: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          stato: r.stato 
+        })));
+      }
     }
     
     // Filtro aggiuntivo di sicurezza per votaOnly: 
@@ -107,6 +140,19 @@ router.get('/', async (req, res) => {
       }
       
       // Debug: verifica quorum_raggiunto e stato dei risultati finali
+      console.log(`🔍 DEBUG VOTA REFERENDUM: Dopo filtro sicurezza - filteredRows.length = ${filteredRows.length}`);
+      if (filteredRows.length === 0 && beforeFilter > 0) {
+        console.error(`❌ ERRORE: Tutti i referendum sono stati rimossi dal filtro sicurezza!`);
+        console.error(`❌ Prima del filtro: ${beforeFilter}, dopo: ${afterFilter}`);
+        console.error(`❌ Analisi delle righe rimosse:`, result.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 50),
+          quorum_raggiunto: r.quorum_raggiunto,
+          quorum_raggiunto_type: typeof r.quorum_raggiunto,
+          stato: r.stato,
+          stato_type: typeof r.stato
+        })));
+      }
       if (filteredRows.length > 0) {
         const quorumStatus = filteredRows.map(r => ({ 
           id: r.id, 
@@ -126,6 +172,42 @@ router.get('/', async (req, res) => {
         const noQuorum = filteredRows.filter(r => r.quorum_raggiunto !== true);
         if (noQuorum.length > 0) {
           console.error(`❌ ERRORE CRITICO: Trovati ${noQuorum.length} referendum con quorum_raggiunto != true dopo il filtro sicurezza:`, noQuorum.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto })));
+        }
+      }
+    } else if (soloInCorso) {
+      // Filtro di sicurezza per la pagina listing: ESCLUDE TUTTE quelle con stato != 'in_corso'
+      const beforeFilter = filteredRows.length;
+      filteredRows = filteredRows.filter(row => {
+        return row.stato === 'in_corso';
+      });
+      const afterFilter = filteredRows.length;
+      
+      if (beforeFilter !== afterFilter) {
+        console.warn(`⚠️ FILTRO SICUREZZA LISTING REFERENDUM: Rimosse ${beforeFilter - afterFilter} referendum che non hanno stato='in_corso' (prima: ${beforeFilter}, dopo: ${afterFilter})`);
+        const removed = result.rows.filter(row => row.stato !== 'in_corso');
+        console.warn(`⚠️ Referendum rimossi (stato != 'in_corso'):`, removed.map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          stato: r.stato 
+        })));
+      }
+      
+      // Debug: verifica che tutti i referendum abbiano stato = 'in_corso'
+      console.log(`🔍 DEBUG LISTING REFERENDUM: Dopo filtro sicurezza - filteredRows.length = ${filteredRows.length}`);
+      if (filteredRows.length === 0 && beforeFilter > 0) {
+        console.error(`❌ ERRORE: Tutti i referendum sono stati rimossi dal filtro sicurezza!`);
+        console.error(`❌ Prima del filtro: ${beforeFilter}, dopo: ${afterFilter}`);
+        console.error(`❌ Analisi delle righe rimosse:`, result.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 50),
+          stato: r.stato,
+          stato_type: typeof r.stato
+        })));
+      }
+      if (filteredRows.length > 0) {
+        const notInCorso = filteredRows.filter(r => r.stato !== 'in_corso');
+        if (notInCorso.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovati ${notInCorso.length} referendum con stato != 'in_corso' dopo il filtro sicurezza:`, notInCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), stato: r.stato })));
         }
       }
     }
@@ -266,14 +348,23 @@ router.get('/', async (req, res) => {
       }
     }
 
-    res.json({
+    const responseData = {
       success: true,
       richieste: normalizedData,
       referendum: normalizedData,
       classifica: classifica,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
-    });
+    };
+    
+    console.log(`🔍 DEBUG REFERENDUM: Risposta finale - referendum.length = ${normalizedData.length}, classifica.length = ${classifica.length}, mieiVoti.length = ${mieiVoti.length}`);
+    if (normalizedData.length > 0) {
+      console.log(`🔍 DEBUG REFERENDUM: Prime 3 referendum:`, normalizedData.slice(0, 3).map(r => ({ id: r.id, nome: r.nome?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto, stato: r.stato })));
+    } else {
+      console.warn(`⚠️ ATTENZIONE: normalizedData è vuoto! filteredRows.length = ${filteredRows.length}`);
+    }
+    
+    res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recuperare referendum abrogativi:', error);
     console.error('❌ Stack trace:', error.stack);

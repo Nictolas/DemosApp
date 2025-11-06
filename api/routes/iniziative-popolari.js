@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
         `;
         const debugResult = await pool.query(debugQuery, params);
         console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
-      } else {
+    } else {
         console.log(`🔍 DEBUG VOTA: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
           id: r.id, 
           titolo: r.titolo?.substring(0, 50), 
@@ -143,8 +143,8 @@ router.get('/', async (req, res) => {
         const inCorso = filteredRows.filter(r => r.stato === 'in_corso');
         if (inCorso.length > 0) {
           console.error(`❌ ERRORE CRITICO: Trovate ${inCorso.length} iniziative con stato='in_corso' dopo il filtro sicurezza:`, inCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50) })));
-        }
-        
+    }
+    
         // Verifica che tutte abbiano quorum_raggiunto = true
         const noQuorum = filteredRows.filter(r => r.quorum_raggiunto !== true);
         if (noQuorum.length > 0) {
