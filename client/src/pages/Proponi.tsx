@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Vote, MessageSquare, Globe2, ArrowLeft } from "lucide-react";
+import { FileText, Vote, Globe2, ArrowLeft } from "lucide-react";
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
@@ -86,25 +86,6 @@ export default function Proponi() {
                 <Vote className="h-8 w-8 text-orange-600 relative z-10" />
               </span>
               <div className="text-gray-700 font-semibold text-lg select-none text-center">Referendum<br />Abrogativo</div>
-            </div>
-          </button>
-          {/* Opinioni */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => window.location.href = "/proponi-opinione"}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <MessageSquare className="h-8 w-8 text-fuchsia-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Opinioni</div>
             </div>
           </button>
           {/* ICE */}
