@@ -114,13 +114,20 @@ export function EditOpinioniDialog({
         data.data.opinioni.forEach((opinion: any) => {
           console.log('🔍 DEBUG - Processando opinione:', opinion);
           if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-            // Usa l'ID dell'opinione direttamente (senza prefisso del grado)
-            const questionId = opinion.text.replace(/\s+/g, '_');
+            // Usa sempre l'ID dell'opinione (dovrebbe essere presente)
+            // Se non c'è, genera dal testo normalizzato in minuscolo
+            const questionId = opinion.id || opinion.text.replace(/\s+/g, '_').toLowerCase();
             opinioniMap[questionId] = opinion.userAnswer;
-            console.log('🔍 DEBUG - Mappatura creata:', { questionId, userAnswer: opinion.userAnswer });
+            console.log('🔍 DEBUG - Mappatura creata:', { 
+              questionId, 
+              userAnswer: opinion.userAnswer, 
+              opinionId: opinion.id,
+              text: opinion.text 
+            });
           }
         });
         console.log('🔍 DEBUG - Mappa opinioni creata:', opinioniMap);
+        console.log('🔍 DEBUG - Chiavi nella mappa opinioni:', Object.keys(opinioniMap));
         setOpinions(opinioniMap);
       } else {
         console.log('⚠️ Nessuna opinione trovata nei dati ricevuti');
@@ -152,14 +159,15 @@ export function EditOpinioniDialog({
         const fontiMap: Record<string, string> = {};
         if (data.data.opinioni) {
           data.data.opinioni.forEach((opinion: any) => {
-            const questionId = opinion.text.replace(/\s+/g, '_');
+            // Usa l'ID dell'opinione se disponibile, altrimenti genera dal testo normalizzato in minuscolo
+            const questionId = opinion.id || opinion.text.replace(/\s+/g, '_').toLowerCase();
             console.log('🔍 DEBUG - Cercando fonte per questionId:', questionId);
             console.log('🔍 DEBUG - Opinion ID:', opinion.id);
             console.log('🔍 DEBUG - Fonte disponibile per ID:', data.data.fonti[opinion.id]);
             console.log('🔍 DEBUG - Fonte disponibile per questionId:', data.data.fonti[questionId]);
             
-            // Prova prima con l'ID dell'opinione, poi con questionId
-            let fonte = data.data.fonti[opinion.id] || data.data.fonti[questionId];
+            // Prova prima con l'ID dell'opinione, poi con questionId, poi con il nome del campo
+            let fonte = data.data.fonti[opinion.id] || data.data.fonti[questionId] || data.data.fonti[questionId.toLowerCase()];
             if (fonte) {
               fontiMap[questionId] = fonte;
               console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
@@ -251,8 +259,9 @@ export function EditOpinioniDialog({
       
       // Converti le opinioni
       Object.entries(opinions).forEach(([questionId, answer]) => {
-        // L'ID della domanda è già nel formato corretto (senza prefisso del grado)
-        const dbField = opinionMapping[questionId];
+        // Normalizza il questionId in minuscolo per il mapping
+        const normalizedId = questionId.toLowerCase();
+        const dbField = opinionMapping[normalizedId] || opinionMapping[questionId];
         if (dbField) {
           // Converti le risposte al formato database
           let dbAnswer = answer;
@@ -261,14 +270,20 @@ export function EditOpinioniDialog({
           else if (answer === 'Indeciso') dbAnswer = 'i';
           
           opinioniPerDatabase[dbField] = dbAnswer;
+          console.log(`✅ Mappata opinione: ${questionId} (${normalizedId}) -> ${dbField} = ${dbAnswer}`);
+        } else {
+          console.warn(`⚠️ Opinione non trovata nel mapping: ${questionId} (normalizzato: ${normalizedId})`);
         }
       });
       
       // Converti le fonti
       Object.entries(fonti).forEach(([questionId, fonte]) => {
-        const dbField = opinionMapping[questionId];
+        // Normalizza il questionId in minuscolo per il mapping
+        const normalizedId = questionId.toLowerCase();
+        const dbField = opinionMapping[normalizedId] || opinionMapping[questionId];
         if (dbField && fonte) {
           fontiPerDatabase[dbField] = fonte;
+          console.log(`✅ Mappata fonte: ${questionId} (${normalizedId}) -> ${dbField}`);
         }
       });
       
