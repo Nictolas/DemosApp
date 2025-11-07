@@ -11,10 +11,13 @@ router.get('/profile', verifyToken, async (req, res) => {
     
     // Query per ottenere le domande delle opinioni dalla tabella opinioni_domande
     // IMPORTANTE: usa l'ID reale dalla tabella, non generarlo dal testo
+    // Escludi le opinioni con "da approvare" in gradi_opinione
     const opinionQuery = `
       SELECT id, text, gradi_opinione
       FROM opinioni_domande
-      WHERE text IS NOT NULL AND text != ''
+      WHERE text IS NOT NULL 
+        AND text != ''
+        AND NOT ('da approvare' = ANY(gradi_opinione))
       ORDER BY text
     `;
     
