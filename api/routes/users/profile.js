@@ -475,78 +475,55 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Mappa delle opinioni ai campi del database
-    const opinionMapping = {
-      // Opinion nazionali/europee
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
-      
-      // Opinion regionali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
-    };
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
     
     const updateFields = [];
     const updateValues = [];
     let paramIndex = 1;
     
-    // Processa le opinioni
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
-      const dbField = opinionMapping[opinionId];
-      
-      if (dbField) {
-        let dbValue = null;
-        // Accetta sia il formato leggibile che quello del database
-        if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
-        else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
-        else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
-        else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
-        else {
-          // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
-          dbValue = risposta;
-        }
-        
-        updateFields.push(`${dbField} = $${paramIndex}`);
-        updateValues.push(dbValue);
-        paramIndex++;
-        console.log(`✅ Processata opinione: ${opinionId} (${dbField}) = ${dbValue}`);
-      } else {
-        console.warn(`⚠️ Opinione non mappata ignorata: ${opinionId}`);
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
       }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log(`✅ Processata opinione: ${opinionId} (${dbField}) = ${dbValue}`);
     }
     
     // Processa le fonti se fornite
@@ -562,15 +539,19 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
         fontiFinali = existingResult.rows[0].fonti_opinioni;
       }
       
-      // Aggiorna con le nuove fonti
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
       Object.entries(fonti).forEach(([opinionId, fonte]) => {
-        const dbField = opinionMapping[opinionId];
-        if (dbField && fonte) {
-          fontiFinali[dbField] = fonte;
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
         }
       });
       
-      updateFields.push(`fonti_opinioni = $${paramIndex}`);
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
       updateValues.push(JSON.stringify(fontiFinali));
       paramIndex++;
     }

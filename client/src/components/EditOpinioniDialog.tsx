@@ -113,14 +113,25 @@ export function EditOpinioniDialog({
         const opinioniMap: Record<string, string> = {};
         data.data.opinioni.forEach((opinion: any) => {
           console.log('🔍 DEBUG - Processando opinione:', opinion);
-          if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-            // Usa sempre l'ID dell'opinione (dovrebbe essere presente)
-            // Se non c'è, genera dal testo normalizzato in minuscolo
-            const questionId = opinion.id || opinion.text.replace(/\s+/g, '_').toLowerCase();
-            opinioniMap[questionId] = opinion.userAnswer;
+          // Usa sempre l'ID dell'opinione (dovrebbe essere presente)
+          // Se non c'è, genera dal testo normalizzato in minuscolo
+          const questionId = opinion.id || opinion.text.replace(/\s+/g, '_').toLowerCase();
+          
+          // Includi tutte le opinioni con risposta
+          if (opinion.userAnswer) {
+            // Mantieni i valori compressi ('f', 'c', 'i') come si aspetta normalizeAnswer
+            // Converti solo i valori legacy se presenti
+            let answer = opinion.userAnswer;
+            if (answer === 'Favorevole' || answer === 'Sì') answer = 'f';
+            else if (answer === 'Contrario' || answer === 'No') answer = 'c';
+            else if (answer === 'Indeciso') answer = 'i';
+            // Se è già 'f', 'c', 'i' o null, mantienilo così
+            
+            opinioniMap[questionId] = answer;
             console.log('🔍 DEBUG - Mappatura creata:', { 
               questionId, 
-              userAnswer: opinion.userAnswer, 
+              userAnswer: answer, 
+              originalAnswer: opinion.userAnswer,
               opinionId: opinion.id,
               text: opinion.text 
             });
