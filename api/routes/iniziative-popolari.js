@@ -64,19 +64,42 @@ router.get('/', async (req, res) => {
       console.log(`🔍 DEBUG VOTA: result.rows.length = ${result.rows.length}`);
       if (result.rows.length === 0) {
         console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
+        console.warn(`⚠️ Query eseguita:`, query);
+        console.warn(`⚠️ Parametri:`, params);
         // Query di debug per vedere cosa c'è nel database
         const debugQuery = `
           SELECT 
             COUNT(*) as totale,
             COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
             COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
-            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide,
+            COUNT(*) FILTER (WHERE tipo LIKE '%Legge di iniziativa popolare%' AND quorum_raggiunto = true AND stato != 'in_corso' AND id_ministero IS NOT NULL) as valide_complete
           FROM iniziative_ministero
           WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
         `;
         const debugResult = await pool.query(debugQuery, params);
-        console.log(`🔍 DEBUG: Statistiche database:`, debugResult.rows[0]);
-    } else {
+        console.log(`🔍 DEBUG VOTA: Statistiche database:`, debugResult.rows[0]);
+        
+        // Query di test diretta per vedere se ci sono risultati
+        const testQuery = `
+          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
+          FROM iniziative_ministero
+          WHERE tipo LIKE '%Legge di iniziativa popolare%' 
+            AND quorum_raggiunto = true 
+            AND stato != 'in_corso' 
+            AND id_ministero IS NOT NULL
+          LIMIT 5
+        `;
+        const testResult = await pool.query(testQuery);
+        console.log(`🔍 DEBUG VOTA: Test query diretta restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 50),
+          tipo: r.tipo,
+          stato: r.stato,
+          id_ministero: r.id_ministero,
+          quorum_raggiunto: r.quorum_raggiunto
+        })));
+      } else {
         console.log(`🔍 DEBUG VOTA: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
           id: r.id, 
           titolo: r.titolo?.substring(0, 50), 

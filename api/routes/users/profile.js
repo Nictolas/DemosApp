@@ -520,14 +520,22 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       
       if (dbField) {
         let dbValue = null;
-        if (risposta === 'Favorevole') dbValue = 'f';
-        else if (risposta === 'Contrario') dbValue = 'c';
-        else if (risposta === 'Indeciso') dbValue = 'i';
-        else if (risposta === 'Astenuto') dbValue = null;
+        // Accetta sia il formato leggibile che quello del database
+        if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+        else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+        else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+        else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+        else {
+          // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+          dbValue = risposta;
+        }
         
         updateFields.push(`${dbField} = $${paramIndex}`);
         updateValues.push(dbValue);
         paramIndex++;
+        console.log(`✅ Processata opinione: ${opinionId} (${dbField}) = ${dbValue}`);
+      } else {
+        console.warn(`⚠️ Opinione non mappata ignorata: ${opinionId}`);
       }
     }
     
@@ -560,6 +568,9 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     
     updateValues.push(userId);
     
+    console.log('📝 Query SQL:', updateQuery);
+    console.log('📝 Valori:', updateValues);
+    
     const result = await pool.query(updateQuery, updateValues);
     
     if (result.rowCount === 0) {
@@ -581,10 +592,18 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile salvare le opinioni'
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
