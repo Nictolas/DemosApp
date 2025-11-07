@@ -10,17 +10,12 @@ router.get('/profile', verifyToken, async (req, res) => {
     console.log('🔍 GET /api/opinioni/profile - Richiesta domande opinioni');
     
     // Query per ottenere le domande delle opinioni dalla tabella opinioni_domande
+    // IMPORTANTE: usa l'ID reale dalla tabella, non generarlo dal testo
     const opinionQuery = `
-      SELECT DISTINCT 
-        CASE 
-          WHEN o.gradi_opinione IS NOT NULL AND array_length(o.gradi_opinione, 1) > 0 
-          THEN o.gradi_opinione[1] 
-          ELSE 'Nazionale' 
-        END as grado_primario, 
-        o.text
-      FROM opinioni_domande o
-      WHERE o.text IS NOT NULL AND o.text != ''
-      ORDER BY grado_primario, o.text
+      SELECT id, text, gradi_opinione
+      FROM opinioni_domande
+      WHERE text IS NOT NULL AND text != ''
+      ORDER BY text
     `;
     
     const opinionResult = await pool.query(opinionQuery);
@@ -38,13 +33,14 @@ router.get('/profile', verifyToken, async (req, res) => {
       });
     }
     
-    // Formatta le domande per il frontend - SENZA prefisso del grado
+    // Formatta le domande per il frontend - USA L'ID REALE dalla tabella
     const questions = opinionResult.rows.map(row => ({
-      id: row.text.replace(/\s+/g, '_'),
+      id: row.id, // Usa l'ID reale dalla tabella opinioni_domande
       text: row.text
     }));
     
     console.log(`✅ Trovate ${questions.length} domande opinioni`);
+    console.log(`🔍 DEBUG - Prime 3 domande:`, questions.slice(0, 3));
 
     res.json({
       success: true,
