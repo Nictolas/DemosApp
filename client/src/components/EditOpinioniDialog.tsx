@@ -113,9 +113,13 @@ export function EditOpinioniDialog({
         const opinioniMap: Record<string, string> = {};
         data.data.opinioni.forEach((opinion: any) => {
           console.log('🔍 DEBUG - Processando opinione:', opinion);
-          // Usa sempre l'ID dell'opinione (dovrebbe essere presente)
-          // Se non c'è, genera dal testo normalizzato in minuscolo
-          const questionId = opinion.id || opinion.text.replace(/\s+/g, '_').toLowerCase();
+          // Usa sempre l'ID reale dell'opinione (ora sempre presente)
+          if (!opinion.id) {
+            console.warn('⚠️ Opinione senza ID:', opinion);
+            return;
+          }
+          
+          const questionId = opinion.id;
           
           // Includi tutte le opinioni con risposta
           if (opinion.userAnswer) {
@@ -132,7 +136,6 @@ export function EditOpinioniDialog({
               questionId, 
               userAnswer: answer, 
               originalAnswer: opinion.userAnswer,
-              opinionId: opinion.id,
               text: opinion.text 
             });
           }
@@ -166,20 +169,20 @@ export function EditOpinioniDialog({
         console.log('🔍 DEBUG - Tipo fonti:', typeof data.data.fonti);
         console.log('🔍 DEBUG - Chiavi fonti:', Object.keys(data.data.fonti));
         
-        // Mappa le fonti nel formato delle domande
+        // Mappa le fonti usando gli ID reali delle opinioni
         const fontiMap: Record<string, string> = {};
         if (data.data.opinioni) {
           data.data.opinioni.forEach((opinion: any) => {
-            // Usa l'ID dell'opinione se disponibile, altrimenti genera dal testo normalizzato in minuscolo
-            const questionId = opinion.id || opinion.text.replace(/\s+/g, '_').toLowerCase();
-            console.log('🔍 DEBUG - Cercando fonte per questionId:', questionId);
-            console.log('🔍 DEBUG - Opinion ID:', opinion.id);
-            console.log('🔍 DEBUG - Fonte disponibile per ID:', data.data.fonti[opinion.id]);
-            console.log('🔍 DEBUG - Fonte disponibile per questionId:', data.data.fonti[questionId]);
+            // Usa sempre l'ID reale dell'opinione
+            if (!opinion.id) {
+              console.warn('⚠️ Opinione senza ID per fonte:', opinion);
+              return;
+            }
             
-            // Prova prima con l'ID dell'opinione, poi con questionId, poi con il nome del campo
-            let fonte = data.data.fonti[opinion.id] || data.data.fonti[questionId] || data.data.fonti[questionId.toLowerCase()];
-            if (fonte) {
+            const questionId = opinion.id;
+            // Le fonti sono già mappate per ID nell'oggetto fonti
+            const fonte = data.data.fonti[questionId];
+            if (fonte && fonte !== 'unknown') {
               fontiMap[questionId] = fonte;
               console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
             }
@@ -226,75 +229,28 @@ export function EditOpinioniDialog({
     try {
       setIsSubmitting(true);
       
-      // Converti le opinioni dal formato domande al formato database
+      // Converti le opinioni - usa direttamente gli ID reali (non serve più mapping)
       const opinioniPerDatabase: Record<string, string> = {};
       const fontiPerDatabase: Record<string, string> = {};
       
-      // Mappa delle opinioni per convertire gli ID
-      const opinionMapping: Record<string, string> = {
-        'energia_nucleare': 'energia_nucleare',
-        'sperimentazione_animale': 'sperimentazione_animale',
-        'legalizzazione_canapa': 'legalizzazione_canapa',
-        'caccia': 'caccia',
-        'eutanasia': 'eutanasia',
-        'carne_coltivata': 'carne_coltivata',
-        'nato': 'nato',
-        'matrimonio_gay': 'matrimonio_gay',
-        'salario_minimo': 'salario_minimo',
-        'case_chiuse': 'case_chiuse',
-        'omobitransfobia': 'omobitransfobia',
-        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-        'nuove_case_popolari': 'nuove_case_popolari',
-        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-        'sostegno_commercio_locale': 'sostegno_commercio_locale',
-        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
-        'nuovi_inceneritori': 'nuovi_inceneritori',
-        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
-      };
-      
-      // Converti le opinioni
+      // Converti le opinioni - gli ID sono già quelli reali dalla tabella opinioni_domande
       Object.entries(opinions).forEach(([questionId, answer]) => {
-        // Normalizza il questionId in minuscolo per il mapping
-        const normalizedId = questionId.toLowerCase();
-        const dbField = opinionMapping[normalizedId] || opinionMapping[questionId];
-        if (dbField) {
-          // Converti le risposte al formato database
-          let dbAnswer = answer;
-          if (answer === 'Favorevole') dbAnswer = 'f';
-          else if (answer === 'Contrario') dbAnswer = 'c';
-          else if (answer === 'Indeciso') dbAnswer = 'i';
-          
-          opinioniPerDatabase[dbField] = dbAnswer;
-          console.log(`✅ Mappata opinione: ${questionId} (${normalizedId}) -> ${dbField} = ${dbAnswer}`);
-        } else {
-          console.warn(`⚠️ Opinione non trovata nel mapping: ${questionId} (normalizzato: ${normalizedId})`);
-        }
+        // Converti le risposte al formato database se necessario
+        let dbAnswer = answer;
+        if (answer === 'Favorevole') dbAnswer = 'f';
+        else if (answer === 'Contrario') dbAnswer = 'c';
+        else if (answer === 'Indeciso') dbAnswer = 'i';
+        // Se è già 'f', 'c', 'i' o null, mantienilo così
+        
+        opinioniPerDatabase[questionId] = dbAnswer;
+        console.log(`✅ Mappata opinione: ${questionId} = ${dbAnswer}`);
       });
       
-      // Converti le fonti
+      // Converti le fonti - usa direttamente gli ID reali
       Object.entries(fonti).forEach(([questionId, fonte]) => {
-        // Normalizza il questionId in minuscolo per il mapping
-        const normalizedId = questionId.toLowerCase();
-        const dbField = opinionMapping[normalizedId] || opinionMapping[questionId];
-        if (dbField && fonte) {
-          fontiPerDatabase[dbField] = fonte;
-          console.log(`✅ Mappata fonte: ${questionId} (${normalizedId}) -> ${dbField}`);
+        if (fonte && fonte.trim() !== '') {
+          fontiPerDatabase[questionId] = fonte;
+          console.log(`✅ Mappata fonte: ${questionId} = ${fonte}`);
         }
       });
       
