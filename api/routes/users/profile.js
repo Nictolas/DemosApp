@@ -465,6 +465,16 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
     // Mappa delle opinioni ai campi del database
     const opinionMapping = {
       // Opinion nazionali/europee
@@ -540,16 +550,30 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     }
     
     // Processa le fonti se fornite
+    let fontiFinali = {};
     if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        const dbField = opinionMapping[opinionId];
+        if (dbField && fonte) {
+          fontiFinali[dbField] = fonte;
+        }
+      });
+      
       updateFields.push(`fonti_opinioni = $${paramIndex}`);
-      updateValues.push(JSON.stringify(fonti));
+      updateValues.push(JSON.stringify(fontiFinali));
       paramIndex++;
     }
-    
-    // Aggiungi updated_at
-    updateFields.push(`updated_at = $${paramIndex}`);
-    updateValues.push(new Date());
-    paramIndex++;
     
     if (updateFields.length === 0) {
       return res.status(400).json({
@@ -559,24 +583,46 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Esegui l'UPDATE
-    const updateQuery = `
-      UPDATE users 
-      SET ${updateFields.join(', ')}
-      WHERE id = $${paramIndex}
-    `;
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
     
-    updateValues.push(userId);
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
     
-    console.log('📝 Query SQL:', updateQuery);
-    console.log('📝 Valori:', updateValues);
-    
-    const result = await pool.query(updateQuery, updateValues);
-    
-    if (result.rowCount === 0) {
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
       return res.status(404).json({
         success: false,
-        error: 'Utente non trovato',
+        error: 'Record non trovato',
         message: 'Impossibile aggiornare le opinioni'
       });
     }
@@ -586,7 +632,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     res.json({
       success: true,
       message: 'Opinioni salvate con successo',
-      updatedFields: updateFields.length - 1, // -1 per escludere updated_at
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
       timestamp: new Date().toISOString()
     });
     
