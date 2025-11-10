@@ -15,9 +15,8 @@ const useOpinioniCheck = (grado: string) => {
     
     setIsChecking(true);
     try {
-      const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-      if (response.ok) {
-        const result = await response.json();
+      const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+      if (result && result.success) {
         setCheckResult(result.data);
         return result.data;
       }
@@ -80,29 +79,25 @@ export const useCandidatiData = (user: any, categoria: string) => {
         console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI:', url);
         console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
         
-        const response = await apiRequest("GET", url);
-
-        if (!response.ok) {
-          throw new Error("Errore nel caricamento dei dati dal server.");
-        }
-
-        const result = await response.json();
+        const result = await apiRequest("GET", url);
         console.log('🔍 DEBUG Frontend - Risposta API candidati:', result);
         
-        // Debug dettagliato per ogni candidato ricevuto
-        if (result.success && result.data) {
-          console.log('🔍 DEBUG Frontend - Dettagli candidati ricevuti:');
-          result.data.forEach((candidato, index) => {
-            console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}:`, {
-              opinioniComuni: candidato.opinioniComuni,
-              ruolo: candidato.ruolo,
-              status: candidato.status
-            });
-          });
+        if (!result || !result.success) {
+          throw new Error(result?.error || "Errore nel caricamento dei dati dal server.");
         }
-
-        if (!result.success) {
-          throw new Error(result.error || "Errore nel caricamento dei dati");
+        
+        // Debug dettagliato per ogni candidato ricevuto
+        if (result.data) {
+          console.log('🔍 DEBUG Frontend - Dettagli candidati ricevuti:');
+          if (Array.isArray(result.data)) {
+            result.data.forEach((candidato, index) => {
+              console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}:`, {
+                opinioniComuni: candidato.opinioniComuni,
+                ruolo: candidato.ruolo,
+                status: candidato.status
+              });
+            });
+          }
         }
 
         // I dati sono direttamente nell'array data
@@ -111,15 +106,12 @@ export const useCandidatiData = (user: any, categoria: string) => {
         
         // Recuperiamo le selezioni esistenti dall'API
         try {
-          const selezioniResponse = await apiRequest("GET", `/api/candidati/selezioni`);
-          if (selezioniResponse.ok) {
-            const selezioniData = await selezioniResponse.json();
-            if (selezioniData.success) {
-              const { candidati: candidatiSelezionati } = selezioniData.data;
-              const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
-              setCandidatoSelezionato(candidatoSelezionato?.id || null);
-              console.log('🔍 DEBUG Frontend - Candidato selezionato:', candidatoSelezionato);
-            }
+          const selezioniData = await apiRequest("GET", `/api/candidati/selezioni`);
+          if (selezioniData && selezioniData.success) {
+            const { candidati: candidatiSelezionati } = selezioniData.data;
+            const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
+            setCandidatoSelezionato(candidatoSelezionato?.id || null);
+            console.log('🔍 DEBUG Frontend - Candidato selezionato:', candidatoSelezionato);
           }
         } catch (error) {
           console.log('⚠️ Errore nel recuperare selezioni:', error);

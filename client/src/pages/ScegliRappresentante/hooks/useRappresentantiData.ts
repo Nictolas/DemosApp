@@ -16,9 +16,8 @@ const useOpinioniCheck = (grado: string) => {
     
     setIsChecking(true);
     try {
-      const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-      if (response.ok) {
-        const result = await response.json();
+      const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+      if (result && result.success) {
         setCheckResult(result.data);
         return result.data;
       }
@@ -103,18 +102,12 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         console.log('🔍 DEBUG Frontend - IsTestRoute:', isTestRoute);
         console.log('🔍 DEBUG Frontend - URL finale:', url);
         
-        const response = await apiRequest("GET", url);
-
-        if (!response.ok) {
-          throw new Error("Errore nel caricamento dei dati dal server.");
-        }
-        
-        const result = await response.json();
+        const result = await apiRequest("GET", url);
         
         console.log('🔍 DEBUG Frontend - Risposta API:', result);
         
-        if (!result.success) {
-          throw new Error(result.error || "Errore nel caricamento dei dati");
+        if (!result || !result.success) {
+          throw new Error(result?.error || "Errore nel caricamento dei dati dal server.");
         }
         
         if (isTestRoute) {
@@ -124,15 +117,12 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           
           // Per le route test, recuperiamo le selezioni esistenti dall'API
           try {
-            const selezioniResponse = await apiRequest("GET", `/api/elezioni/candidati`);
-            if (selezioniResponse.ok) {
-              const selezioniData = await selezioniResponse.json();
-              if (selezioniData.success) {
-                const { candidati: candidatiSelezionati } = selezioniData.data;
-                const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
-                setRappresentanteSelezionato(candidatoSelezionato?.id || null);
-                console.log('🔍 DEBUG Frontend - Candidato selezionato per test (da API):', candidatoSelezionato);
-              }
+            const selezioniData = await apiRequest("GET", `/api/elezioni/candidati`);
+            if (selezioniData && selezioniData.success) {
+              const { candidati: candidatiSelezionati } = selezioniData.data;
+              const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
+              setRappresentanteSelezionato(candidatoSelezionato?.id || null);
+              console.log('🔍 DEBUG Frontend - Candidato selezionato per test (da API):', candidatoSelezionato);
             }
           } catch (error) {
             console.log('⚠️ Errore nel recuperare selezioni test:', error);
@@ -142,6 +132,10 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           setRappresentanti(candidati);
         } else {
           // Per le route normali, i dati sono in { candidati, utente }
+          if (!result.data) {
+            throw new Error("Struttura dati non valida dalla risposta API");
+          }
+          
           const { candidati, utente } = result.data;
           console.log('🔍 DEBUG Frontend - Candidati ricevuti (NORMAL):', candidati?.length || 0);
           console.log('🔍 DEBUG Frontend - Utente:', utente);
