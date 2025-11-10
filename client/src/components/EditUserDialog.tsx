@@ -45,13 +45,9 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
 
     try {
       // Carica i dati tramite API usando l'uid
+      // apiRequest restituisce già i dati JSON parsati, non un oggetto Response
       console.log('🔍 DEBUG loadUserData - Chiamando API:', `/api/users/${encodeURIComponent(userUid)}`);
-      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(userUid)}`);
-      console.log('🔍 DEBUG loadUserData - Response status:', response.status);
-      if (!response.ok) {
-        throw new Error("Errore nel caricamento dei dati dell'utente");
-      }
-      const data = await response.json();
+      const data = await apiRequest("GET", `/api/users/${encodeURIComponent(userUid)}`);
       console.log('🔍 DEBUG - Dati utente ricevuti:', data);
       
       if (data.success && data.user) {
@@ -84,7 +80,7 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
         
         setUserData({ ...data.user, email: userEmail, uid: userUid });
       } else {
-        throw new Error("Formato dati non valido");
+        throw new Error(data.message || data.error || "Formato dati non valido");
       }
     } catch (err) {
       console.error("Errore:", err);
@@ -92,7 +88,7 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
       
       toast({
         title: "Errore",
-        description: "Impossibile caricare i dati dell'utente",
+        description: err instanceof Error ? err.message : "Impossibile caricare i dati dell'utente",
         variant: "destructive",
       });
     } finally {
