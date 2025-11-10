@@ -24,12 +24,8 @@ interface GeographicSectionProps {
     regione_candidatura?: string;
     provincia_candidatura?: string;
     comune_candidatura?: string;
-    aula?: string;
-    aula_elezione?: string;
-    aula_candidatura?: string;
   };
   onFieldChange: (field: string, value: string) => void;
-  showAula?: boolean;
   gradoValue?: string;
   onGradoChange?: (value: string) => void;
 }
@@ -39,7 +35,6 @@ export function GeographicSection({
   prefix,
   initialData,
   onFieldChange,
-  showAula = false,
   gradoValue = "",
   onGradoChange
 }: GeographicSectionProps) {
@@ -59,30 +54,34 @@ export function GeographicSection({
 
   const handlePaeseChange = (paese: string) => {
     updatePaese(paese);
-    onFieldChange(`${prefix}_paese`, paese);
+    // Usa la nomenclatura corretta: paese_${prefix} invece di ${prefix}_paese
+    onFieldChange(`paese_${prefix}`, paese);
   };
 
   const handleRegioneChange = (regione: string) => {
     updateRegione(regione);
-    onFieldChange(`${prefix}_regione`, regione);
+    // Usa la nomenclatura corretta: regione_${prefix} invece di ${prefix}_regione
+    onFieldChange(`regione_${prefix}`, regione);
   };
 
   const handleProvinciaChange = (provincia: string) => {
     updateProvincia(provincia);
-    onFieldChange(`${prefix}_provincia`, provincia);
+    // Usa la nomenclatura corretta: provincia_${prefix} invece di ${prefix}_provincia
+    onFieldChange(`provincia_${prefix}`, provincia);
   };
 
   const handleComuneChange = (comune: string) => {
     updateComune(comune);
-    onFieldChange(`${prefix}_comune`, comune);
+    // Usa la nomenclatura corretta: comune_${prefix} invece di ${prefix}_comune
+    onFieldChange(`comune_${prefix}`, comune);
   };
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900 border-b pb-2">{title}</h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {showAula && (
+      {gradoValue && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor={`${prefix}_grado`}>Grado *</Label>
             <Select
@@ -103,26 +102,8 @@ export function GeographicSection({
               </SelectContent>
             </Select>
           </div>
-        )}
-
-        {showAula && (gradoValue === "Nazionale" || gradoValue === "Camera" || gradoValue === "Senato") && (
-          <div>
-            <Label htmlFor={`${prefix}_aula`}>Aula *</Label>
-            <Select
-              value={getAulaValue(gradoValue, initialData.aula)}
-              onValueChange={(value) => onFieldChange(`${prefix}_aula`, value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona l'aula" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Camera">Camera dei Deputati</SelectItem>
-                <SelectItem value="Senato">Senato della Repubblica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -207,15 +188,3 @@ export function GeographicSection({
   );
 }
 
-// Funzione per mappare i valori del grado e dell'aula
-function getAulaValue(gradoValue: string, aulaValue: string): string {
-  if (!gradoValue) return aulaValue || "";
-  
-  // Se il grado è già "Camera" o "Senato", usalo direttamente
-  if (gradoValue === "Camera" || gradoValue === "Senato") {
-    return gradoValue;
-  }
-  
-  // Altrimenti usa il valore dell'aula
-  return aulaValue || "";
-}
