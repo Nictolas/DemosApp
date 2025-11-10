@@ -86,23 +86,53 @@ export function EditUserAvatarDialog({
   // Mutation per salvare l'avatar
   const saveAvatarMutation = useMutation({
     mutationFn: async (config: AvatarConfig) => {
-      const response = await apiRequest("PUT", `/api/users/${userId}`, {
+      // apiRequest restituisce direttamente i dati JSON e lancia un'eccezione in caso di errore
+      await apiRequest("PUT", `/api/users/${userId}`, {
         avatar_config: JSON.stringify(config)
       });
       
-      if (!response.ok) {
-        throw new Error("Errore nel salvataggio dell'avatar");
-      }
-      
-      return response.json();
+      return config;
     },
-    onSuccess: () => {
+    onSuccess: (config) => {
+      // Aggiorna immediatamente la cache per un feedback istantaneo
+      queryClient.setQueryData(['allUsers'], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        const avatarConfigString = JSON.stringify(config);
+        
+        // Funzione helper per aggiungere nome_completo
+        const addFullName = (user: any) => ({
+          ...user,
+          nome_completo: `${user.nome || ''} ${user.cognome || ''}`.trim() || user.name || 'N/A'
+        });
+        
+        // Aggiorna l'utente nella lista degli utenti attivi
+        const updatedUtenti = oldData.utenti?.map((user: any) => 
+          user.id === userId 
+            ? addFullName({ ...user, avatar_config: avatarConfigString })
+            : user
+        ) || [];
+        
+        // Aggiorna l'utente nella lista degli utenti pending se presente
+        const updatedPendingUsers = oldData.pendingUsers?.map((user: any) => 
+          user.id === userId 
+            ? addFullName({ ...user, avatar_config: avatarConfigString })
+            : user
+        ) || [];
+        
+        return {
+          ...oldData,
+          utenti: updatedUtenti,
+          pendingUsers: updatedPendingUsers
+        };
+      });
+      
       toast({
         title: "Successo",
         description: `Avatar di ${userName} aggiornato con successo!`,
       });
       
-      // Invalida le query per aggiornare i dati
+      // Invalida anche le query per sincronizzare con il server (in background)
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       
       // Chiudi il dialog
