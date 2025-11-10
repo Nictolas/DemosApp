@@ -4,8 +4,8 @@
   "description": "DEMOS - App per la democrazia partecipativa",
   "main": "api/server.js",
   "scripts": {
-    "start": "node api/server.js",
-    "dev": "nodemon api/server.js",
+    "start": "node --expose-gc api/server.js",
+    "dev": "nodemon --exec \"node --expose-gc\" api/server.js",
     "build": "cd client && npm install && npm run build",
     "install-client": "cd client && npm install",
     "install-server": "npm install",
