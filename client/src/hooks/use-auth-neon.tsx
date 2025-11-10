@@ -241,10 +241,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data);
+      // Ottieni il token appena salvato
+      const userToken = localStorage.getItem('auth_token');
+      
+      // Salva i dati utente con la queryKey corretta che include il token
+      if (userToken) {
+        queryClient.setQueryData(['user', userToken], data);
+      }
+      
       // Invalida e refetch la query per forzare il refresh dei dati utente
-      queryClient.invalidateQueries(['user']);
-      queryClient.refetchQueries(['user']);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.refetchQueries({ queryKey: ['user'] });
       
       // Controlla lo status dell'utente
       if (data.status === 'pending') {
@@ -271,7 +278,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       // Reindirizza al menu dopo il login di successo
-      window.location.href = '/menu';
+      // Usa un piccolo delay per assicurarsi che i dati siano salvati
+      setTimeout(() => {
+        window.location.href = '/menu';
+      }, 100);
     },
     onError: (error) => {
       toast({ 
