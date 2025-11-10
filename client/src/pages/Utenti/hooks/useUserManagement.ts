@@ -4,6 +4,8 @@ import { USERS_PER_PAGE } from "../constants";
 
 export const useUserManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRuolo, setSelectedRuolo] = useState<string>("all");
+  const [selectedGradoElezione, setSelectedGradoElezione] = useState<string>("all");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
@@ -24,6 +26,16 @@ export const useUserManagement = () => {
     setCurrentPage(1);
   };
 
+  const handleRuoloChange = (value: string) => {
+    setSelectedRuolo(value);
+    resetPagination();
+  };
+
+  const handleGradoElezioneChange = (value: string) => {
+    setSelectedGradoElezione(value);
+    resetPagination();
+  };
+
   const updateSort = (field: keyof User) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -42,6 +54,8 @@ export const useUserManagement = () => {
     // State
     searchTerm,
     setSearchTerm,
+    selectedRuolo,
+    selectedGradoElezione,
     userToDelete,
     setUserToDelete,
     showEditDialog,
@@ -58,6 +72,8 @@ export const useUserManagement = () => {
     updateSort,
     resetPagination,
     updateLastUpdateTime,
-    setCurrentPage
+    setCurrentPage,
+    handleRuoloChange,
+    handleGradoElezioneChange
   };
 };

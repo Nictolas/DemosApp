@@ -14,6 +14,7 @@ import { useUserManagement } from "./hooks/useUserManagement";
 import { getDisplayColumns } from "./utils/columnUtils";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
+import { FiltersBar } from "./components/FiltersBar";
 import { UsersTable } from "./components/UsersTable";
 import { MobileUsersTable } from "./components/MobileUsersTable";
 import { MobilePendingUsersTable } from "./components/MobilePendingUsersTable";
@@ -72,6 +73,8 @@ export default function Utenti() {
   const {
     searchTerm,
     setSearchTerm,
+    selectedRuolo,
+    selectedGradoElezione,
     userToDelete,
     setUserToDelete,
     showEditDialog,
@@ -86,7 +89,9 @@ export default function Utenti() {
     updateSort,
     resetPagination,
     updateLastUpdateTime,
-    setCurrentPage
+    setCurrentPage,
+    handleRuoloChange,
+    handleGradoElezioneChange
   } = useUserManagement();
 
   // Stato per il dialog di modifica avatar
@@ -333,11 +338,33 @@ export default function Utenti() {
   const pendingUsers = responseData?.pendingUsers || [];
   const displayColumns = getDisplayColumns(allUsers);
 
+  // Calcola i valori disponibili per i filtri
+  const availableRuoli = useMemo(() => {
+    const ruoli = new Set<string>();
+    allUsers.forEach((u: any) => {
+      if (u.ruolo) {
+        ruoli.add(u.ruolo);
+      }
+    });
+    return Array.from(ruoli).sort();
+  }, [allUsers]);
+
+  const availableGradiElezione = useMemo(() => {
+    const gradi = new Set<string>();
+    allUsers.forEach((u: any) => {
+      if (u.grado_elezione) {
+        gradi.add(u.grado_elezione);
+      }
+    });
+    return Array.from(gradi).sort();
+  }, [allUsers]);
+
   // Filtraggio e ordinamento
   const filteredUsers = useMemo(() => {
     let filtered = allUsers.filter((u: any) => {
+      // Filtro per ricerca testuale
       const searchLower = searchTerm.toLowerCase();
-      return (
+      const matchesSearch = !searchTerm || (
         u.nome?.toLowerCase().includes(searchLower) ||
         u.cognome?.toLowerCase().includes(searchLower) ||
         u.name?.toLowerCase().includes(searchLower) ||
@@ -346,6 +373,14 @@ export default function Utenti() {
         `${u.nome} ${u.cognome}`.toLowerCase().includes(searchLower) ||
         u.nome_completo?.toLowerCase().includes(searchLower)
       );
+
+      // Filtro per ruolo
+      const matchesRuolo = selectedRuolo === "all" || u.ruolo === selectedRuolo;
+
+      // Filtro per grado elezione
+      const matchesGradoElezione = selectedGradoElezione === "all" || u.grado_elezione === selectedGradoElezione;
+
+      return matchesSearch && matchesRuolo && matchesGradoElezione;
     });
 
     // Ordinamento
@@ -361,7 +396,7 @@ export default function Utenti() {
     });
 
     return filtered;
-  }, [allUsers, searchTerm, sortState]);
+  }, [allUsers, searchTerm, selectedRuolo, selectedGradoElezione, sortState]);
 
   // Paginazione
   const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
@@ -499,6 +534,16 @@ export default function Utenti() {
                 setSearchTerm(value);
                 resetPagination();
               }}
+            />
+
+            {/* Filtri */}
+            <FiltersBar
+              selectedRuolo={selectedRuolo}
+              selectedGradoElezione={selectedGradoElezione}
+              onRuoloChange={handleRuoloChange}
+              onGradoElezioneChange={handleGradoElezioneChange}
+              availableRuoli={availableRuoli}
+              availableGradiElezione={availableGradiElezione}
             />
 
             {/* Contenuto principale */}
