@@ -17,6 +17,14 @@ export function useGeographicData(
     regione_residenza?: string;
     provincia_residenza?: string;
     comune_residenza?: string;
+    paese_elezione?: string;
+    regione_elezione?: string;
+    provincia_elezione?: string;
+    comune_elezione?: string;
+    paese_candidatura?: string;
+    regione_candidatura?: string;
+    provincia_candidatura?: string;
+    comune_candidatura?: string;
     // Supporto per i nomi legacy
     paese?: string;
     regione?: string;
@@ -35,14 +43,37 @@ export function useGeographicData(
     return mapping[code] || code;
   };
 
-  const rawPaese = initialData.paese_residenza || initialData.paese || "";
+  // Estrai i dati: prima prova i campi specifici (elezione/candidatura/residenza), poi i legacy
+  const rawPaese = initialData.paese_elezione || 
+                   initialData.paese_candidatura || 
+                   initialData.paese_residenza || 
+                   initialData.paese || 
+                   "";
   const mappedPaese = mapPaeseCode(rawPaese);
+
+  const rawRegione = initialData.regione_elezione || 
+                     initialData.regione_candidatura || 
+                     initialData.regione_residenza || 
+                     initialData.regione || 
+                     "";
+  
+  const rawProvincia = initialData.provincia_elezione || 
+                       initialData.provincia_candidatura || 
+                       initialData.provincia_residenza || 
+                       initialData.provincia || 
+                       "";
+  
+  const rawComune = initialData.comune_elezione || 
+                    initialData.comune_candidatura || 
+                    initialData.comune_residenza || 
+                    initialData.comune || 
+                    "";
 
   const [data, setData] = useState<GeographicData>({
     selectedPaese: mappedPaese,
-    selectedRegione: initialData.regione_residenza || initialData.regione || "",
-    selectedProvincia: initialData.provincia_residenza || initialData.provincia || "",
-    selectedComune: initialData.comune_residenza || initialData.comune || "",
+    selectedRegione: rawRegione,
+    selectedProvincia: rawProvincia,
+    selectedComune: rawComune,
     regioni: [],
     province: [],
     comuni: [],
@@ -124,13 +155,85 @@ export function useGeographicData(
     }));
   };
 
-  // Inizializza i dati geografici
+  // Aggiorna i dati quando initialData cambia
   useEffect(() => {
-    if (data.selectedPaese) {
-      const regioni = getRegioni(data.selectedPaese);
-      setData(prev => ({ ...prev, regioni }));
-    }
-  }, []);
+    const rawPaese = initialData.paese_elezione || 
+                     initialData.paese_candidatura || 
+                     initialData.paese_residenza || 
+                     initialData.paese || 
+                     "";
+    const mappedPaese = mapPaeseCode(rawPaese);
+
+    const rawRegione = initialData.regione_elezione || 
+                       initialData.regione_candidatura || 
+                       initialData.regione_residenza || 
+                       initialData.regione || 
+                       "";
+    
+    const rawProvincia = initialData.provincia_elezione || 
+                         initialData.provincia_candidatura || 
+                         initialData.provincia_residenza || 
+                         initialData.provincia || 
+                         "";
+    
+    const rawComune = initialData.comune_elezione || 
+                      initialData.comune_candidatura || 
+                      initialData.comune_residenza || 
+                      initialData.comune || 
+                      "";
+
+    // Calcola le liste geografiche
+    const regioni = getRegioni(mappedPaese);
+    const province = rawRegione ? getProvince(mappedPaese, rawRegione) : [];
+    const comuni = (rawRegione && rawProvincia) ? getComuni(mappedPaese, rawRegione, rawProvincia) : [];
+    
+    // Aggiorna sempre i dati quando initialData cambia
+    setData(prev => {
+      // Aggiorna solo se i valori sono effettivamente cambiati
+      if (prev.selectedPaese !== mappedPaese || 
+          prev.selectedRegione !== rawRegione || 
+          prev.selectedProvincia !== rawProvincia || 
+          prev.selectedComune !== rawComune) {
+        return {
+          selectedPaese: mappedPaese,
+          selectedRegione: rawRegione,
+          selectedProvincia: rawProvincia,
+          selectedComune: rawComune,
+          regioni,
+          province,
+          comuni,
+        };
+      }
+      // Se i valori non sono cambiati ma le liste potrebbero essere vuote, aggiornale
+      if (mappedPaese && prev.regioni.length === 0) {
+        return { ...prev, regioni };
+      }
+      if (rawRegione && prev.province.length === 0) {
+        return { ...prev, province };
+      }
+      if (rawProvincia && prev.comuni.length === 0) {
+        return { ...prev, comuni };
+      }
+      return prev;
+    });
+  }, [
+    initialData.paese_elezione,
+    initialData.regione_elezione,
+    initialData.provincia_elezione,
+    initialData.comune_elezione,
+    initialData.paese_candidatura,
+    initialData.regione_candidatura,
+    initialData.provincia_candidatura,
+    initialData.comune_candidatura,
+    initialData.paese_residenza,
+    initialData.regione_residenza,
+    initialData.provincia_residenza,
+    initialData.comune_residenza,
+    initialData.paese,
+    initialData.regione,
+    initialData.provincia,
+    initialData.comune,
+  ]);
 
   // Aggiorna le province quando cambia la regione
   useEffect(() => {
