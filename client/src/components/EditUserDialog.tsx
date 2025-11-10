@@ -97,14 +97,14 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
   };
 
   const handleProfileUpdated = (updatedData: UserInfo) => {
-    toast({
-      title: "Profilo aggiornato",
-      description: "Il profilo è stato aggiornato con successo",
-      variant: "default",
-    });
+    // Aggiorna i dati locali con i dati restituiti dal server
+    setUserData({ ...updatedData, email: userEmail, uid: userUid });
     
-    onOpenChange(false);
+    // Notifica il componente padre che i dati sono stati aggiornati
     onUserUpdated();
+    
+    // Chiudi il dialog
+    onOpenChange(false);
   };
 
   return (

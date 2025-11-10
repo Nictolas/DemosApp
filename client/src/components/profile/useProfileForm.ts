@@ -24,18 +24,20 @@ export function useProfileForm(
   isAdmin: boolean = false
 ) {
   const { toast } = useToast();
-  const [formData, setFormData] = useState<UserInfo & { uid: string }>({
+  const initialData = {
     ...userData,
     data_nascita: normalizeDate(userData?.data_nascita),
-  });
+  };
+  const [formData, setFormData] = useState<UserInfo & { uid: string }>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Aggiorna formData quando userData cambia
   useEffect(() => {
-    setFormData({
+    const newInitialData = {
       ...userData,
       data_nascita: normalizeDate(userData?.data_nascita),
-    });
+    };
+    setFormData(newInitialData);
   }, [userData]);
 
   // Funzione generica per aggiornare il formData
@@ -51,34 +53,77 @@ export function useProfileForm(
     setIsSubmitting(true);
 
     try {
-      // Prima aggiorna il profilo normale
-      const endpoint = isAdmin ? `/api/users/${userData.uid}` : "/api/users/me";
-      const response = await apiRequest("PUT", endpoint, formData);
+      // Prepara i dati da inviare: invia solo i campi che sono stati modificati
+      // rispetto ai dati originali, oppure tutti i campi se non abbiamo i dati originali
+      const dataToSend: Record<string, any> = {};
+      const currentInitialData = {
+        ...userData,
+        data_nascita: normalizeDate(userData?.data_nascita),
+      };
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore durante l'aggiornamento del profilo");
+      Object.keys(formData).forEach(key => {
+        if (key === 'uid') return;
+        
+        const currentValue = formData[key as keyof typeof formData];
+        const originalValue = currentInitialData[key as keyof typeof currentInitialData];
+        
+        // Invia il campo se:
+        // 1. Il valore è diverso da quello originale
+        // 2. O se il valore originale era null/undefined e il nuovo valore non è undefined
+        // 3. O se il valore originale non era null/undefined e il nuovo valore è null/stringa vuota (cancellazione)
+        const hasChanged = currentValue !== originalValue;
+        const wasEmptyAndNowHasValue = (originalValue === null || originalValue === undefined || originalValue === '') && 
+                                       currentValue !== undefined && currentValue !== null && currentValue !== '';
+        const hadValueAndNowEmpty = (originalValue !== null && originalValue !== undefined && originalValue !== '') && 
+                                    (currentValue === null || currentValue === '');
+        
+        if (hasChanged || wasEmptyAndNowHasValue || hadValueAndNowEmpty) {
+          if (currentValue !== undefined) {
+            dataToSend[key] = currentValue;
+          }
+        }
+      });
+      
+      // Se non ci sono modifiche, non inviare nulla
+      if (Object.keys(dataToSend).length === 0) {
+        toast({
+          title: "Nessuna modifica",
+          description: "Non ci sono modifiche da salvare",
+        });
+        setIsSubmitting(false);
+        return;
       }
+
+      // Prima aggiorna il profilo normale
+      // apiRequest restituisce già i dati JSON parsati, non un oggetto Response
+      const endpoint = isAdmin ? `/api/users/${userData.uid}` : "/api/users/me";
+      const data = await apiRequest("PUT", endpoint, dataToSend);
       
-      const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || "Errore durante l'aggiornamento del profilo");
+        throw new Error(data.error || data.message || "Errore durante l'aggiornamento del profilo");
       }
 
       // Se l'utente ha tipologie di attivismo, aggiornale separatamente
       if (formData.tipologie_attivismo && formData.tipologie_attivismo.length > 0) {
         const activismEndpoint = `/api/attivismo-tipologie/${userData.uid}`;
-        const activismResponse = await apiRequest("PUT", activismEndpoint, {
-          tipologie: formData.tipologie_attivismo
-        });
-        
-        if (!activismResponse.ok) {
-          console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", await activismResponse.text());
+        try {
+          const activismData = await apiRequest("PUT", activismEndpoint, {
+            tipologie: formData.tipologie_attivismo
+          });
+          
+          if (!activismData.success) {
+            console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismData.error || activismData.message);
+            // Non bloccare il salvataggio del profilo per questo errore
+          }
+        } catch (activismError) {
+          console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismError);
           // Non bloccare il salvataggio del profilo per questo errore
         }
       }
       
-      onProfileUpdated(data.user || formData);
+      // Aggiorna i dati locali con la risposta del server
+      const updatedUser = data.user || formData;
+      onProfileUpdated(updatedUser);
       
       toast({
         title: "Successo",
