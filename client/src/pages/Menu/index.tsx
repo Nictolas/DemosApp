@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Redirect } from "wouter";
 import { Card } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { useMenuData } from "./hooks/useMenuData";
 import { useMenuActions } from "./hooks/useMenuActions";
 import { MenuHeader } from "./components/MenuHeader";
@@ -69,6 +70,19 @@ export default function Menu() {
   const hasToken = localStorage.getItem('auth_token');
   if (!user && !isLoading && !hasToken) {
     return <Redirect to="/auth" />;
+  }
+
+  // Mostra loader se l'utente non è ancora caricato ma c'è un token
+  if ((isLoading || !user) && hasToken) {
+    return (
+      <PageContainer className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+          <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-border" />
+          </div>
+        </div>
+      </PageContainer>
+    );
   }
 
   return (
