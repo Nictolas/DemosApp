@@ -266,14 +266,17 @@ class MinisteroSyncService {
     try {
       const fields = this.extractFields(iniziativa);
       
-      // Debug: log dei campi estratti
-      console.log(`🔍 DEBUG saveIniziativa - Campi estratti:`, {
-        id_ministero: fields.id_ministero,
-        titolo: fields.titolo?.substring(0, 50) || 'N/A',
-        tipo: fields.tipo,
-        stato: fields.stato,
-        titolo_length: fields.titolo?.length || 0
-      });
+      // Debug: log dei campi estratti (solo se DEBUG_MODE è abilitato)
+      const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || process.env.NODE_ENV === 'development';
+      if (DEBUG_MODE) {
+        console.log(`🔍 DEBUG saveIniziativa - Campi estratti:`, {
+          id_ministero: fields.id_ministero,
+          titolo: fields.titolo?.substring(0, 50) || 'N/A',
+          tipo: fields.tipo,
+          stato: fields.stato,
+          titolo_length: fields.titolo?.length || 0
+        });
+      }
       
       // Valida che titolo non sia vuoto (è NOT NULL nel database)
       if (!fields.titolo || fields.titolo.trim() === '') {
@@ -307,22 +310,28 @@ class MinisteroSyncService {
         existingParams = [titoloNormalizzato, fields.tipo];
       }
       
-      console.log(`🔍 DEBUG saveIniziativa - Query ricerca esistente:`, {
-        query: existingQuery,
-        params: existingParams
-      });
+      if (DEBUG_MODE) {
+        console.log(`🔍 DEBUG saveIniziativa - Query ricerca esistente:`, {
+          query: existingQuery,
+          params: existingParams
+        });
+      }
       
       const existing = await pool.query(existingQuery, existingParams);
       
-      console.log(`🔍 DEBUG saveIniziativa - Risultato ricerca:`, {
-        found: existing.rows.length > 0,
-        existing_id: existing.rows[0]?.id || 'N/A',
-        existing_id_ministero: existing.rows[0]?.id_ministero || 'N/A'
-      });
+      if (DEBUG_MODE) {
+        console.log(`🔍 DEBUG saveIniziativa - Risultato ricerca:`, {
+          found: existing.rows.length > 0,
+          existing_id: existing.rows[0]?.id || 'N/A',
+          existing_id_ministero: existing.rows[0]?.id_ministero || 'N/A'
+        });
+      }
 
       if (existing.rows.length > 0) {
         // Aggiorna esistente
-        console.log(`🔄 DEBUG saveIniziativa - Aggiornamento esistente ID: ${existing.rows[0].id}`);
+        if (DEBUG_MODE) {
+          console.log(`🔄 DEBUG saveIniziativa - Aggiornamento esistente ID: ${existing.rows[0].id}`);
+        }
         
         const updateParams = [
           fields.titolo,
@@ -340,14 +349,16 @@ class MinisteroSyncService {
           existing.rows[0].id
         ];
         
-        console.log(`🔍 DEBUG saveIniziativa - Parametri UPDATE:`, {
-          titolo: fields.titolo?.substring(0, 50),
-          tipo: fields.tipo,
-          stato: fields.stato,
-          esito: fields.esito,
-          id_ministero: fields.id_ministero,
-          where_id: existing.rows[0].id
-        });
+        if (DEBUG_MODE) {
+          console.log(`🔍 DEBUG saveIniziativa - Parametri UPDATE:`, {
+            titolo: fields.titolo?.substring(0, 50),
+            tipo: fields.tipo,
+            stato: fields.stato,
+            esito: fields.esito,
+            id_ministero: fields.id_ministero,
+            where_id: existing.rows[0].id
+          });
+        }
         
         await pool.query(
           `UPDATE iniziative_ministero SET
@@ -368,11 +379,15 @@ class MinisteroSyncService {
           updateParams
         );
         
-        console.log(`✅ DEBUG saveIniziativa - Aggiornamento completato: ${existing.rows[0].id}`);
+        if (DEBUG_MODE) {
+          console.log(`✅ DEBUG saveIniziativa - Aggiornamento completato: ${existing.rows[0].id}`);
+        }
         return { action: 'updated', id: existing.rows[0].id };
       } else {
         // Inserisci nuova
-        console.log(`➕ DEBUG saveIniziativa - Inserimento nuovo record ID: ${id}`);
+        if (DEBUG_MODE) {
+          console.log(`➕ DEBUG saveIniziativa - Inserimento nuovo record ID: ${id}`);
+        }
         
         const insertParams = [
           id,
@@ -391,13 +406,15 @@ class MinisteroSyncService {
           fields.data_ultimo_aggiornamento
         ];
         
-        console.log(`🔍 DEBUG saveIniziativa - Parametri INSERT:`, {
-          id: id,
-          id_ministero: fields.id_ministero || 'NULL',
-          titolo: fields.titolo?.substring(0, 50),
-          tipo: fields.tipo,
-          stato: fields.stato
-        });
+        if (DEBUG_MODE) {
+          console.log(`🔍 DEBUG saveIniziativa - Parametri INSERT:`, {
+            id: id,
+            id_ministero: fields.id_ministero || 'NULL',
+            titolo: fields.titolo?.substring(0, 50),
+            tipo: fields.tipo,
+            stato: fields.stato
+          });
+        }
         
         // Usa INSERT ... ON CONFLICT per gestire duplicati
         // Gestisce sia conflitti su id (PRIMARY KEY) che su id_ministero (UNIQUE)
@@ -431,7 +448,9 @@ class MinisteroSyncService {
           insertParams
         );
         
-        console.log(`✅ DEBUG saveIniziativa - Inserimento completato: ${result.rows[0].id}`);
+        if (DEBUG_MODE) {
+          console.log(`✅ DEBUG saveIniziativa - Inserimento completato: ${result.rows[0].id}`);
+        }
         return { action: 'created', id: result.rows[0].id };
       }
     } catch (error) {
@@ -497,53 +516,84 @@ class MinisteroSyncService {
         skipped: 0
       };
 
-      // Processa tutte le iniziative, incluse quelle concluse
-      for (const iniziativa of iniziative) {
-        try {
-          // Verifica che l'iniziativa abbia almeno un ID o un titolo
-          const fields = this.extractFields(iniziativa);
-          if (!fields.id_ministero && !fields.titolo) {
-            console.log(`⚠️ Iniziativa saltata: manca id_ministero e titolo`);
-            results.skipped++;
-            continue;
-          }
+      // Processa tutte le iniziative in batch per ottimizzare la memoria
+      const BATCH_SIZE = 10; // Processa 10 iniziative alla volta
+      const totalBatches = Math.ceil(iniziative.length / BATCH_SIZE);
+      
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const startIndex = batchIndex * BATCH_SIZE;
+        const endIndex = Math.min(startIndex + BATCH_SIZE, iniziative.length);
+        const batch = iniziative.slice(startIndex, endIndex);
+        
+        console.log(`📦 Processando batch ${batchIndex + 1}/${totalBatches} (${batch.length} iniziative)`);
+        
+        // Processa il batch
+        for (const iniziativa of batch) {
+          try {
+            // Verifica che l'iniziativa abbia almeno un ID o un titolo
+            const fields = this.extractFields(iniziativa);
+            if (!fields.id_ministero && !fields.titolo) {
+              console.log(`⚠️ Iniziativa saltata: manca id_ministero e titolo`);
+              results.skipped++;
+              continue;
+            }
 
-          const result = await this.saveIniziativa(iniziativa);
-          if (result.action === 'created') {
-            results.created++;
-            console.log(`✅ Creata nuova iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
-          } else {
-            results.updated++;
-            console.log(`🔄 Aggiornata iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
+            const result = await this.saveIniziativa(iniziativa);
+            if (result.action === 'created') {
+              results.created++;
+              console.log(`✅ Creata nuova iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
+            } else {
+              results.updated++;
+              console.log(`🔄 Aggiornata iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
+            }
+          } catch (error) {
+            results.errors++;
+            const fields = this.extractFields(iniziativa);
+            console.error(`❌ Errore sincronizzazione iniziativa:`);
+            console.error(`   Messaggio: ${error.message}`);
+            console.error(`   Codice errore: ${error.code || 'N/A'}`);
+            console.error(`   Detail: ${error.detail || 'N/A'}`);
+            console.error(`   Constraint: ${error.constraint || 'N/A'}`);
+            console.error(`   Dati iniziativa:`, {
+              id_ministero: fields.id_ministero || 'NULL',
+              titolo: fields.titolo?.substring(0, 100) || 'NULL',
+              tipo: fields.tipo || 'NULL',
+              stato: fields.stato || 'NULL',
+              raw_id: iniziativa?.id || 'N/A'
+            });
+            
+            // Log anche l'oggetto iniziativa completo per debug
+            console.error(`   Iniziativa raw (primi campi):`, {
+              id: iniziativa?.id,
+              titolo: iniziativa?.titolo?.substring(0, 50),
+              idDecTipoIniziativa: iniziativa?.idDecTipoIniziativa?.nome,
+              idDecStatoIniziativa: iniziativa?.idDecStatoIniziativa?.nome
+            });
           }
-        } catch (error) {
-          results.errors++;
-          const fields = this.extractFields(iniziativa);
-          console.error(`❌ Errore sincronizzazione iniziativa:`);
-          console.error(`   Messaggio: ${error.message}`);
-          console.error(`   Codice errore: ${error.code || 'N/A'}`);
-          console.error(`   Detail: ${error.detail || 'N/A'}`);
-          console.error(`   Constraint: ${error.constraint || 'N/A'}`);
-          console.error(`   Dati iniziativa:`, {
-            id_ministero: fields.id_ministero || 'NULL',
-            titolo: fields.titolo?.substring(0, 100) || 'NULL',
-            tipo: fields.tipo || 'NULL',
-            stato: fields.stato || 'NULL',
-            raw_id: iniziativa?.id || 'N/A'
-          });
-          
-          // Log anche l'oggetto iniziativa completo per debug
-          console.error(`   Iniziativa raw (primi campi):`, {
-            id: iniziativa?.id,
-            titolo: iniziativa?.titolo?.substring(0, 50),
-            idDecTipoIniziativa: iniziativa?.idDecTipoIniziativa?.nome,
-            idDecStatoIniziativa: iniziativa?.idDecStatoIniziativa?.nome
-          });
+        }
+        
+        // Libera memoria dopo ogni batch
+        // Rimuovi riferimenti espliciti
+        batch.length = 0;
+        
+        // Forza garbage collection se disponibile (dopo ogni batch)
+        if (global.gc && (batchIndex + 1) % 5 === 0) {
+          // GC ogni 5 batch per non rallentare troppo
+          const beforeGC = process.memoryUsage();
+          global.gc();
+          const afterGC = process.memoryUsage();
+          const freed = Math.round((beforeGC.heapUsed - afterGC.heapUsed) / 1024 / 1024);
+          if (freed > 0) {
+            console.log(`🧹 GC dopo batch ${batchIndex + 1}: liberati ${freed}MB`);
+          }
         }
       }
 
+      // Salva il totale prima di liberare la memoria
+      const totalIniziative = iniziative.length;
+
       await logger.info('Sincronizzazione Ministero completata', {
-        total: iniziative.length,
+        total: totalIniziative,
         created: results.created,
         updated: results.updated,
         errors: results.errors,
@@ -551,7 +601,22 @@ class MinisteroSyncService {
       });
 
       console.log(`✅ Sincronizzazione completata: ${results.created} create, ${results.updated} aggiornate, ${results.errors} errori, ${results.skipped} saltate`);
-      console.log(`📊 Totale iniziative processate: ${iniziative.length}, sincronizzate: ${results.created + results.updated}`);
+      console.log(`📊 Totale iniziative processate: ${totalIniziative}, sincronizzate: ${results.created + results.updated}`);
+
+      // Libera memoria dopo la sincronizzazione
+      iniziative.length = 0; // Libera l'array
+      iniziative = null; // Rimuovi riferimento
+      
+      // Forza garbage collection finale se disponibile
+      if (global.gc) {
+        const beforeGC = process.memoryUsage();
+        global.gc();
+        const afterGC = process.memoryUsage();
+        const freed = Math.round((beforeGC.heapUsed - afterGC.heapUsed) / 1024 / 1024);
+        if (freed > 0) {
+          console.log(`🧹 GC finale: liberati ${freed}MB dopo sincronizzazione`);
+        }
+      }
 
       return results;
     } catch (error) {
