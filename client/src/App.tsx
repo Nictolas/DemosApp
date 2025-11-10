@@ -773,7 +773,7 @@ export default function App() {
 
               {/* Route utenti unificata */}
               <Route path="/utenti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/utenti" component={Utenti} />
                 </PageTransition>
               </Route>
