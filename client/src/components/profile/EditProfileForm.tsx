@@ -81,10 +81,8 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                 regione_elezione: formData.regione_elezione || "",
                 provincia_elezione: formData.provincia_elezione || "",
                 comune_elezione: formData.comune_elezione || "",
-                aula_elezione: formData.aula_elezione || "",
               }}
               onFieldChange={(field, value) => handleChange(field as keyof (UserInfo & { uid: string }), value)}
-              showAula={true}
               gradoValue={formData.grado_elezione || ""}
               onGradoChange={(value) => handleChange("grado_elezione", value)}
             />
@@ -103,10 +101,8 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                 regione_candidatura: formData.regione_candidatura || "",
                 provincia_candidatura: formData.provincia_candidatura || "",
                 comune_candidatura: formData.comune_candidatura || "",
-                aula_candidatura: formData.aula_candidatura || "",
               }}
               onFieldChange={(field, value) => handleChange(field as keyof (UserInfo & { uid: string }), value)}
-              showAula={true}
               gradoValue={formData.grado_candidatura || ""}
               onGradoChange={(value) => handleChange("grado_candidatura", value)}
             />

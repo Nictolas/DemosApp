@@ -64,25 +64,30 @@ export function useProfileForm(
       Object.keys(formData).forEach(key => {
         if (key === 'uid') return;
         
+        // Normalizza i valori per il confronto: null, undefined e stringa vuota sono considerati equivalenti
+        const normalizeValue = (val: any) => {
+          if (val === null || val === undefined || val === '') return '';
+          return val;
+        };
+        
         const currentValue = formData[key as keyof typeof formData];
         const originalValue = currentInitialData[key as keyof typeof currentInitialData];
         
-        // Invia il campo se:
-        // 1. Il valore è diverso da quello originale
-        // 2. O se il valore originale era null/undefined e il nuovo valore non è undefined
-        // 3. O se il valore originale non era null/undefined e il nuovo valore è null/stringa vuota (cancellazione)
-        const hasChanged = currentValue !== originalValue;
-        const wasEmptyAndNowHasValue = (originalValue === null || originalValue === undefined || originalValue === '') && 
-                                       currentValue !== undefined && currentValue !== null && currentValue !== '';
-        const hadValueAndNowEmpty = (originalValue !== null && originalValue !== undefined && originalValue !== '') && 
-                                    (currentValue === null || currentValue === '');
+        const normalizedCurrent = normalizeValue(currentValue);
+        const normalizedOriginal = normalizeValue(originalValue);
         
-        if (hasChanged || wasEmptyAndNowHasValue || hadValueAndNowEmpty) {
+        // Invia il campo se il valore normalizzato è diverso
+        if (normalizedCurrent !== normalizedOriginal) {
+          // Invia il valore corrente (anche se è stringa vuota, per permettere la cancellazione)
           if (currentValue !== undefined) {
-            dataToSend[key] = currentValue;
+            dataToSend[key] = currentValue === '' ? null : currentValue;
           }
         }
       });
+      
+      console.log('🔍 DEBUG useProfileForm - Dati da inviare:', dataToSend);
+      console.log('🔍 DEBUG useProfileForm - formData completo:', formData);
+      console.log('🔍 DEBUG useProfileForm - currentInitialData completo:', currentInitialData);
       
       // Se non ci sono modifiche, non inviare nulla
       if (Object.keys(dataToSend).length === 0) {
