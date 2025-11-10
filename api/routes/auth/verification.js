@@ -50,16 +50,53 @@ router.post('/verify-email', async (req, res) => {
       });
     }
     
+    // Verifica prima se l'utente esiste e il suo stato
+    const userCheck = await pool.query(
+      'SELECT id, email, status FROM users WHERE email = $1',
+      [decoded.email.toLowerCase()]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Nessun utente trovato con questa email'
+      });
+    }
+    
+    const user = userCheck.rows[0];
+    
+    // Se l'email è già verificata, restituisci successo invece di errore
+    if (user.status !== 'p') {
+      console.log('✅ Email già verificata per:', decoded.email);
+      return res.json({
+        success: true,
+        message: 'La tua email è già stata verificata! Il tuo account è già attivo.',
+        alreadyVerified: true
+      });
+    }
+    
     // Aggiorna lo status dell'utente e rimuovi il token
     const result = await pool.query(
       'UPDATE users SET status = $1, email_verification_token = NULL, updated_at = NOW() WHERE email = $2 AND email_verification_token = $3',
-      ['a', decoded.email, token]
+      ['a', decoded.email.toLowerCase(), token]
     );
     
     if (result.rowCount === 0) {
+      // Se l'update non ha funzionato, potrebbe essere perché il token non corrisponde
+      // ma l'email potrebbe essere già verificata (caso raro ma possibile)
+      if (user.status === 'a') {
+        return res.json({
+          success: true,
+          message: 'La tua email è già stata verificata! Il tuo account è già attivo.',
+          alreadyVerified: true
+        });
+      }
+      
       return res.status(400).json({
         success: false,
-        error: 'Token di verifica non valido o utente non trovato'
+        error: 'Token di verifica non valido o utente non trovato',
+        message: 'Il token di verifica non è valido o è scaduto. Richiedi un nuovo link di verifica.'
       });
     }
     
