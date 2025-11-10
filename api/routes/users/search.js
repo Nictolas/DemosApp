@@ -1,8 +1,8 @@
 const express = require('express');
 const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
-const { decompressGender } = require('../../utils/genderUtils');
-const { decompressUserLocation } = require('../../utils/locationUtils');
+const { decompressGender, compressGender } = require('../../utils/genderUtils');
+const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
 
 const router = express.Router();
 
@@ -366,7 +366,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       return grado.charAt(0).toUpperCase() + grado.slice(1).toLowerCase();
     };
     
-    // Filtra solo i campi consentiti e normalizza i gradi
+    // Filtra solo i campi consentiti e applica compressione/trasformazioni necessarie
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
@@ -376,6 +376,25 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         } else {
           filteredData[key] = updateData[key];
         }
+      }
+    });
+    
+    // Applica compressione per genere e dati geografici prima di salvare
+    if (filteredData.genere) {
+      const compressedGenere = compressGender(filteredData.genere);
+      if (compressedGenere) {
+        filteredData.genere = compressedGenere;
+        console.log(`🔧 Genere compresso:`, updateData.genere, '→', compressedGenere);
+      } else {
+        console.warn(`⚠️ Genere non riconosciuto, non compresso:`, filteredData.genere);
+      }
+    }
+    
+    // Applica compressione per i dati geografici
+    const compressedLocation = compressUserLocation(filteredData);
+    Object.keys(compressedLocation).forEach(key => {
+      if (allowedFields.includes(key)) {
+        filteredData[key] = compressedLocation[key];
       }
     });
     
@@ -410,14 +429,44 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
     
-    res.json({
+    // Mappa il ruolo dal database al frontend
+    const ruoloMapping = {
+      'E': 'Elettore',
+      'P': 'Politico', 
+      'C': 'Candidato',
+      'CP': 'Candidato Politico',
+      'A': 'Attivista',
+      'AD': 'Admin'
+    };
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
       success: true,
       message: 'Utente aggiornato con successo',
       user: {
-        ...updatedUser,
-        data_nascita: dataNascitaFormattata
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloMapping[updatedUser.ruolo] || updatedUser.ruolo
       }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
     });
+    
+    res.json(responseData);
     
   } catch (error) {
     console.error('❌ Errore nell\'aggiornamento utente:', error);
