@@ -47,9 +47,9 @@ router.get('/', async (req, res) => {
     
     // Query dalla nuova tabella iniziative_ministero con tipo = 'referendum'
     // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE
-    // Per la pagina referendum-abrogativi (non vota), mostra solo quelle con stato = 'in_corso'
+    // Per la pagina referendum-abrogativi (non vota), mostra TUTTI i referendum (in corso e conclusi)
     const votaOnly = req.query.vota === 'true';
-    const soloInCorso = !votaOnly; // Per la pagina listing, mostra solo quelle in corso
+    const soloInCorso = false; // Per la pagina listing, mostra TUTTI i referendum (in corso e conclusi)
     console.log(`🔍 DEBUG: votaOnly = ${votaOnly}, soloInCorso = ${soloInCorso}, req.query.vota = ${req.query.vota}`);
     const { query, params } = buildQueryForTipo('referendum', userRole, userId, votaOnly, soloInCorso);
     console.log(`🔍 DEBUG: Query generata: ${query.substring(0, 200)}...`);
@@ -88,12 +88,11 @@ router.get('/', async (req, res) => {
       
       // Query di test diretta per vedere se ci sono risultati
       const testQuery = `
-        SELECT id, titolo, tipo, stato, id_ministero
+        SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
         FROM iniziative_ministero
-        WHERE tipo LIKE '%Referendum abrogativo%' 
-          AND stato = 'in_corso' 
-          AND id_ministero IS NOT NULL
-        LIMIT 5
+        WHERE tipo LIKE '%Referendum abrogativo%'
+        ORDER BY stato, data_inizio DESC
+        LIMIT 10
       `;
       const testResult = await pool.query(testQuery);
       console.log(`🔍 DEBUG REFERENDUM: Test query diretta restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
@@ -101,8 +100,20 @@ router.get('/', async (req, res) => {
         titolo: r.titolo?.substring(0, 50),
         tipo: r.tipo,
         stato: r.stato,
-        id_ministero: r.id_ministero
+        id_ministero: r.id_ministero,
+        quorum_raggiunto: r.quorum_raggiunto
       })));
+      
+      // Query per vedere tutti i tipi unici nel database
+      const tipiQuery = `
+        SELECT DISTINCT tipo, COUNT(*) as count
+        FROM iniziative_ministero
+        WHERE tipo ILIKE '%referendum%'
+        GROUP BY tipo
+        ORDER BY count DESC
+      `;
+      const tipiResult = await pool.query(tipiQuery);
+      console.log(`🔍 DEBUG REFERENDUM: Tipi trovati nel database:`, tipiResult.rows);
     }
     
     // Debug: verifica cosa restituisce la query
@@ -245,6 +256,8 @@ router.get('/', async (req, res) => {
       }
     } else if (soloInCorso) {
       // Filtro di sicurezza per la pagina listing: ESCLUDE TUTTE quelle con stato != 'in_corso'
+      // NOTA: Questo blocco viene eseguito solo se soloInCorso = true
+      // Ma ora abbiamo impostato soloInCorso = false per mostrare tutti i referendum
       const beforeFilter = filteredRows.length;
       filteredRows = filteredRows.filter(row => {
         return row.stato === 'in_corso';
@@ -279,6 +292,10 @@ router.get('/', async (req, res) => {
           console.error(`❌ ERRORE CRITICO: Trovati ${notInCorso.length} referendum con stato != 'in_corso' dopo il filtro sicurezza:`, notInCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), stato: r.stato })));
         }
       }
+    } else {
+      // Per la pagina listing (soloInCorso = false), mostriamo TUTTI i referendum
+      // Non applichiamo filtri aggiuntivi, la query SQL già filtra correttamente
+      console.log(`🔍 DEBUG LISTING REFERENDUM: Mostrando tutti i referendum (in corso e conclusi) - filteredRows.length = ${filteredRows.length}`);
     }
     
     // Se l'utente è autenticato, ottieni i suoi voti
@@ -332,11 +349,11 @@ router.get('/', async (req, res) => {
     let classifica = [];
     if (filteredRows.length > 0) {
       try {
-        // Per la pagina listing: solo quelle con stato = 'in_corso'
+        // Per la pagina listing: mostra TUTTI i referendum (in corso e conclusi)
         // Per la pagina vota: quorum_raggiunto = TRUE E ESCLUDE TUTTE quelle con stato = 'in_corso'
         const quorumFilter = votaOnly 
           ? 'AND im.quorum_raggiunto = true AND im.stato != \'in_corso\''
-          : 'AND im.stato = \'in_corso\'';
+          : ''; // Nessun filtro aggiuntivo per la pagina listing, mostra tutti
         
         const classificaQuery = `
           SELECT 
