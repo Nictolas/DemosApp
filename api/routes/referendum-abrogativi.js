@@ -473,13 +473,47 @@ router.get('/', async (req, res) => {
       }
     }
 
+    // Aggiungi informazioni di debug nella risposta (sempre, per capire il problema)
+    let debugStats = null;
+    if (result.rows.length === 0) {
+      // Esegui query di debug per vedere cosa c'è nel database
+      try {
+        const debugStatsQuery = `
+          SELECT 
+            COUNT(*) as totale,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%referendum%') as tipo_referendum,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%referendum%' AND stato = 'in_corso') as in_corso,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%referendum%' AND id_ministero IS NOT NULL) as con_id_ministero,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%referendum%' AND stato = 'in_corso' AND id_ministero IS NOT NULL) as valide
+          FROM iniziative_ministero
+        `;
+        const debugStatsResult = await pool.query(debugStatsQuery);
+        debugStats = debugStatsResult.rows[0];
+      } catch (e) {
+        console.error('Errore query debug stats:', e);
+      }
+    }
+    
+    const debugInfo = {
+      query: query.substring(0, 500), // Primi 500 caratteri della query
+      params: params,
+      resultRowsCount: result.rows.length,
+      filteredRowsCount: filteredRows.length,
+      normalizedDataCount: normalizedData.length,
+      votaOnly: votaOnly,
+      soloInCorso: soloInCorso,
+      userRole: userRole || 'null',
+      debugStats: debugStats
+    };
+    
     const responseData = {
       success: true,
       richieste: normalizedData,
       referendum: normalizedData, // Alias per compatibilità
       classifica: classifica,
       mieiVoti: mieiVoti,
-      blocco: { isBlocked: false, unlockDate: null }
+      blocco: { isBlocked: false, unlockDate: null },
+      ...(debugInfo ? { debug: debugInfo } : {})
     };
     
     console.log(`🔍 ========== RISPOSTA FINALE ==========`);
