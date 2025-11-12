@@ -16,7 +16,10 @@ const pool = new Pool({
 // GET /api/referendum-abrogativi - Lista referendum abrogativi (come ICE)
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 DEBUG: Chiamata endpoint /api/referendum-abrogativi');
+    console.log('🔍 ========== DEBUG REFERENDUM: Chiamata endpoint /api/referendum-abrogativi ==========');
+    console.log('🔍 DEBUG: Query params:', req.query);
+    console.log('🔍 DEBUG: Headers authorization:', req.headers.authorization ? 'presente' : 'assente');
+    
     // Disabilita caching per evitare dati stantii lato client/proxy
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -56,10 +59,24 @@ router.get('/', async (req, res) => {
     console.log(`🔍 DEBUG: Parametri query:`, params);
     console.log(`🔍 DEBUG: Query generata: ${query.substring(0, 200)}...`);
     
+    console.log('🔍 DEBUG: Esecuzione query SQL...');
+    console.log('🔍 DEBUG: Query SQL completa:', query);
+    console.log('🔍 DEBUG: Parametri query:', params);
+    
     const result = await pool.query(query, params);
-    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=referendum, votaOnly=${votaOnly}, soloInCorso=${soloInCorso}, userRole=${userRole})`);
-    console.log(`🔍 DEBUG: Query completa:`, query);
-    console.log(`🔍 DEBUG: Parametri query:`, params);
+    
+    console.log(`✅ ========== RECUPERATI ${result.rows.length} RECORD ==========`);
+    console.log(`✅ Tipo: referendum, votaOnly: ${votaOnly}, soloInCorso: ${soloInCorso}, userRole: ${userRole || 'null'}`);
+    
+    if (result.rows.length > 0) {
+      console.log('✅ Prime 3 righe recuperate:');
+      result.rows.slice(0, 3).forEach((r, i) => {
+        console.log(`   ${i + 1}. ID: ${r.id}, Titolo: ${r.titolo?.substring(0, 60)}..., Tipo: ${r.tipo}, Stato: ${r.stato}, ID Ministero: ${r.id_ministero}`);
+      });
+    } else {
+      console.warn('⚠️ ========== NESSUN RECORD RECUPERATO ==========');
+      console.warn('⚠️ La query non ha restituito risultati!');
+    }
     if (result.rows.length > 0) {
       console.log(`🔍 DEBUG REFERENDUM: Prime 3 righe restituite dalla query SQL:`, result.rows.slice(0, 3).map(r => ({
         id: r.id,
@@ -465,34 +482,34 @@ router.get('/', async (req, res) => {
       blocco: { isBlocked: false, unlockDate: null }
     };
     
-    console.log(`🔍 DEBUG REFERENDUM: Risposta finale - richieste.length = ${normalizedData.length}, referendum.length = ${normalizedData.length}, classifica.length = ${classifica.length}, mieiVoti.length = ${mieiVoti.length}`);
-    console.log(`🔍 DEBUG REFERENDUM: filteredRows.length = ${filteredRows.length}, result.rows.length = ${result.rows.length}`);
+    console.log(`🔍 ========== RISPOSTA FINALE ==========`);
+    console.log(`🔍 richieste.length = ${normalizedData.length}`);
+    console.log(`🔍 referendum.length = ${normalizedData.length}`);
+    console.log(`🔍 classifica.length = ${classifica.length}`);
+    console.log(`🔍 mieiVoti.length = ${mieiVoti.length}`);
+    console.log(`🔍 filteredRows.length = ${filteredRows.length}`);
+    console.log(`🔍 result.rows.length = ${result.rows.length}`);
     
     if (normalizedData.length > 0) {
-      console.log(`✅ DEBUG REFERENDUM: Prime 3 referendum normalizzati:`, normalizedData.slice(0, 3).map(r => ({ 
-        id: r.id, 
-        nome: r.nome?.substring(0, 50), 
-        quorum_raggiunto: r.quorum_raggiunto, 
-        stato: r.stato,
-        tipo: r.tipo,
-        id_ministero: r.id_ministero
-      })));
+      console.log(`✅ ========== REFERENDUM NORMALIZZATI ==========`);
+      normalizedData.slice(0, 3).forEach((r, i) => {
+        console.log(`   ${i + 1}. ID: ${r.id}, Nome: ${r.nome?.substring(0, 60)}..., Stato: ${r.stato}, Tipo: ${r.tipo}`);
+      });
     } else {
-      console.warn(`⚠️ ATTENZIONE: normalizedData è vuoto!`);
-      console.warn(`⚠️ filteredRows.length = ${filteredRows.length}`);
-      console.warn(`⚠️ result.rows.length = ${result.rows.length}`);
+      console.error(`❌ ========== ERRORE: NORMALIZED DATA VUOTO ==========`);
+      console.error(`❌ filteredRows.length = ${filteredRows.length}`);
+      console.error(`❌ result.rows.length = ${result.rows.length}`);
       if (result.rows.length > 0) {
-        console.warn(`⚠️ Prime 3 righe da result.rows (prima della normalizzazione):`, result.rows.slice(0, 3).map(r => ({ 
-          id: r.id, 
-          titolo: r.titolo?.substring(0, 50), 
-          tipo: r.tipo,
-          stato: r.stato,
-          id_ministero: r.id_ministero,
-          quorum_raggiunto: r.quorum_raggiunto
-        })));
+        console.error(`❌ Prime 3 righe da result.rows (prima della normalizzazione):`);
+        result.rows.slice(0, 3).forEach((r, i) => {
+          console.error(`   ${i + 1}. ID: ${r.id}, Titolo: ${r.titolo?.substring(0, 60)}..., Tipo: ${r.tipo}, Stato: ${r.stato}, ID Ministero: ${r.id_ministero}`);
+        });
+      } else {
+        console.error(`❌ La query SQL non ha restituito risultati!`);
       }
     }
     
+    console.log(`🔍 ========== INVIO RISPOSTA AL CLIENT ==========`);
     res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recuperare referendum abrogativi:', error);
