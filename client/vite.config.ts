@@ -4,7 +4,10 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({
+    // Disabilita Fast Refresh in produzione per evitare eval()
+    fastRefresh: process.env.NODE_ENV === 'development'
+  })],
   base: '/', // Base path per il deploy
   resolve: {
     alias: {
