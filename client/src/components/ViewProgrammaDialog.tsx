@@ -72,8 +72,14 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
         }
       } catch (e: any) {
         // Gestisci errori 404 come "programma non trovato" invece di errore generico
-        if (e?.message?.includes('non trovato') || e?.message?.includes('404')) {
-          console.log('🔍 ViewProgrammaDialog: Programma non trovato (404)');
+        const errorMessage = e?.message || String(e);
+        const isNotFound = errorMessage.includes('non trovato') || 
+                          errorMessage.includes('404') || 
+                          errorMessage.includes('Programma non trovato') ||
+                          errorMessage.includes('HTTP 404');
+        
+        if (isNotFound) {
+          console.log('🔍 ViewProgrammaDialog: Programma non trovato (404) -', errorMessage);
           setProposte([
             {proposta: "", url: ""},
             {proposta: "", url: ""},
