@@ -42,37 +42,49 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
     const fetchProgramma = async () => {
       try {
         console.log('🔍 ViewProgrammaDialog: Caricamento programma per utenteId:', utenteId);
-        const response = await apiRequest("GET", `/api/programma/${utenteId}`);
-        console.log('🔍 ViewProgrammaDialog: Response status:', response.status);
-        console.log('🔍 ViewProgrammaDialog: Response ok:', response.ok);
+        // apiRequest restituisce già il JSON parsato, non un Response
+        const data = await apiRequest("GET", `/api/programma/${utenteId}`);
+        console.log('🔍 ViewProgrammaDialog: Response data:', data);
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('🔍 ViewProgrammaDialog: Response data:', data);
-          
-          if (data.success && data.data) {
-            console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', data.data);
-            const newProposte = [
-              {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
-              {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
-              {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
-              {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
-              {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
-            ];
-            console.log('🔍 ViewProgrammaDialog: Nuove proposte da impostare:', newProposte);
-            setProposte(newProposte);
-          } else {
-            console.log('🔍 ViewProgrammaDialog: Nessun programma trovato o success=false');
-            setProposte([
-              {proposta: "", url: ""},
-              {proposta: "", url: ""},
-              {proposta: "", url: ""},
-              {proposta: "", url: ""},
-              {proposta: "", url: ""}
-            ]);
-          }
+        if (data && data.success && data.data) {
+          console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', data.data);
+          const newProposte = [
+            {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
+            {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
+            {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
+            {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
+            {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
+          ];
+          console.log('🔍 ViewProgrammaDialog: Nuove proposte da impostare:', newProposte);
+          setProposte(newProposte);
+          setError(null);
         } else {
-          console.log('🔍 ViewProgrammaDialog: Response non ok, status:', response.status);
+          // Programma non trovato o success=false - non è un errore, semplicemente non c'è programma
+          console.log('🔍 ViewProgrammaDialog: Nessun programma trovato');
+          setProposte([
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""}
+          ]);
+          setError(null);
+        }
+      } catch (e: any) {
+        // Gestisci errori 404 come "programma non trovato" invece di errore generico
+        if (e?.message?.includes('non trovato') || e?.message?.includes('404')) {
+          console.log('🔍 ViewProgrammaDialog: Programma non trovato (404)');
+          setProposte([
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""}
+          ]);
+          setError(null);
+        } else {
+          console.error('🔍 ViewProgrammaDialog: Errore nel caricamento:', e);
+          setError("Errore nel caricamento del programma elettorale.");
           setProposte([
             {proposta: "", url: ""},
             {proposta: "", url: ""},
@@ -81,15 +93,6 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
             {proposta: "", url: ""}
           ]);
         }
-      } catch (e) {
-        setError("Errore nel caricamento del programma elettorale.");
-        setProposte([
-          {proposta: "", url: ""},
-          {proposta: "", url: ""},
-          {proposta: "", url: ""},
-          {proposta: "", url: ""},
-          {proposta: "", url: ""}
-        ]);
       } finally {
         setIsLoading(false);
       }
