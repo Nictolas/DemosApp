@@ -85,7 +85,7 @@ export default function ScegliRappresentante() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
+      <div className="min-h-screen flex flex-col page-with-navbar">
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
@@ -102,22 +102,31 @@ export default function ScegliRappresentante() {
           )}
           
           {rappresentanti.length === 0 ? (
-            <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
+            <>
+              {console.log('🔍 DEBUG ScegliRappresentante - Mostrando EmptyState')}
+              <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
+            </>
           ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="grid grid-cols-2 gap-4 w-full max-w-2xl" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                {rappresentanti.map((rappresentante) => (
-                  <RappresentanteCard
-                    key={rappresentante.id}
-                    rappresentante={rappresentante}
-                    isSelected={rappresentante.id === rappresentanteSelezionato}
-                    isSelezionando={selezionando}
-                    onSeleziona={handleSelezionaRappresentante}
-                    onViewOpinioni={openOpinioniDialog}
-                  />
-                ))}
+            <>
+              {console.log('🔍 DEBUG ScegliRappresentante - Renderizzando rappresentanti:', rappresentanti.length)}
+              <div className="flex-1 flex items-center justify-center py-4">
+                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
+                  {rappresentanti.map((rappresentante, index) => {
+                    console.log(`🔍 DEBUG ScegliRappresentante - Rendering card ${index}:`, rappresentante.id, rappresentante.nome, rappresentante.cognome);
+                    return (
+                      <RappresentanteCard
+                        key={rappresentante.id}
+                        rappresentante={rappresentante}
+                        isSelected={rappresentante.id === rappresentanteSelezionato}
+                        isSelezionando={selezionando}
+                        onSeleziona={handleSelezionaRappresentante}
+                        onViewOpinioni={openOpinioniDialog}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>
