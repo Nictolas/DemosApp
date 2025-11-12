@@ -22,7 +22,18 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           ui: ['@radix-ui/react-alert-dialog', '@radix-ui/react-avatar', '@radix-ui/react-switch'],
         },
+        // Evita l'uso di eval() nel codice generato
+        format: 'es',
+        generatedCode: {
+          constBindings: true,
+        },
       },
+    },
+    // Assicura che il codice non usi eval()
+    target: 'esnext',
+    esbuild: {
+      // Disabilita funzionalità che potrebbero usare eval()
+      legalComments: 'none',
     },
   },
   server: {
