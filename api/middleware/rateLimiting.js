@@ -210,10 +210,20 @@ const uploadLimiter = rateLimit({
 });
 
 // Rate limiting per API pubbliche (meno restrittivo)
+// Esclude le richieste autenticate che usano userLimiter
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 30, // 30 richieste per IP per finestra
+  max: 200, // Aumentato a 200 richieste per IP per finestra (era 30)
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
+  // Escludi richieste autenticate (hanno token valido)
+  skip: (req) => {
+    const authHeader = req.headers.authorization;
+    // Se c'è un token Bearer, salta questo limiter (userà userLimiter)
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return true;
+    }
+    return false;
+  },
   message: {
     success: false,
     error: 'Limite API pubblica superato',
