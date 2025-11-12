@@ -461,75 +461,84 @@ export default function Organizzazioni() {
   
   return (
     <PageContainer className="overflow-x-hidden">
-      <div className="min-h-screen bg-gray-50 py-8 overflow-x-hidden" style={{ touchAction: 'pan-y' }}>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center mb-4">
-                <Users className="h-12 w-12 text-blue-600 mr-3" />
-                <h1 className="text-3xl font-bold text-gray-900">Organizzazioni</h1>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 overflow-x-hidden page-with-navbar" style={{ touchAction: 'pan-y' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
+            {/* Header con design migliorato */}
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center justify-center mb-6 p-4 bg-white rounded-2xl shadow-lg">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl mr-4">
+                  <Users className="h-10 w-10 text-white" />
+                </div>
+                <div className="text-left">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    Organizzazioni
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-1">Scegli la tua organizzazione preferita</p>
+                </div>
               </div>
-              <p className="text-lg text-gray-600">
-                Scegli la tua organizzazione preferita.
+              <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+                Esplora le organizzazioni disponibili e sostieni quella che più ti rappresenta.
                 <br />
-                <span className="text-sm text-gray-500">(In futuro sarà possibile scegliere più organizzazioni.)</span>
+                <span className="text-sm text-gray-500 italic">Puoi votare una sola organizzazione alla volta</span>
               </p>
             </div>
 
-            {/* Barra di Ricerca e Filtri */}
+            {/* Barra di Ricerca e Filtri con design migliorato */}
             {!isLoading && !isError && organizzazioni.length > 0 && (
-              <div className="mb-6">
-                <div className="max-w-4xl mx-auto w-full max-w-full">
-                  {/* Ricerca Testuale */}
-                  <div className="relative mb-4 w-full max-w-full">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      type="text"
-                      placeholder="Cerca per nome o cognome..."
-                      value={searchTerm}
-                      onChange={handleSearchChange}
-                      className="pl-10 pr-10 py-2 w-full max-w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    {searchTerm && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearSearch}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
-                      >
-                        <X className="h-4 w-4 text-gray-400" />
-                      </Button>
-                    )}
+              <div className="mb-8">
+                <div className="max-w-5xl mx-auto w-full max-w-full">
+                  {/* Ricerca Testuale con design migliorato */}
+                  <div className="relative mb-6 w-full max-w-full">
+                    <div className="bg-white rounded-xl shadow-md p-2 flex items-center">
+                      <Search className="absolute left-5 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="text"
+                        placeholder="Cerca organizzazione per nome..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        className="pl-12 pr-12 py-3 w-full border-0 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 text-base"
+                      />
+                      {searchTerm && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearSearch}
+                          className="absolute right-3 h-8 w-8 p-0 hover:bg-gray-200 rounded-full"
+                        >
+                          <X className="h-4 w-4 text-gray-500" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Filtri Avanzati */}
-                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                  {/* Filtri Avanzati con design migliorato */}
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-4">
                     <Button
                       variant="outline"
                       onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 bg-white shadow-sm hover:shadow-md transition-shadow border-gray-200"
                     >
                       <Filter className="h-4 w-4" />
                       Filtri Avanzati
-                      <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showAdvancedFilters ? 'rotate-180' : ''}`} />
                     </Button>
 
                     {(searchTerm || (selectedRegione && selectedRegione !== 'all') || (selectedTipologia && selectedTipologia !== 'all')) && (
                       <Button
                         variant="ghost"
                         onClick={clearAllFilters}
-                        className="text-gray-600 hover:text-gray-800"
+                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-100"
                       >
                         <X className="h-4 w-4 mr-1" />
-                        Cancella tutti i filtri
+                        Cancella filtri
                       </Button>
                     )}
                   </div>
 
-                  {/* Pannello Filtri Avanzati */}
+                  {/* Pannello Filtri Avanzati con design migliorato */}
                   {showAdvancedFilters && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border overflow-x-hidden">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                    <div className="mt-4 p-6 bg-white rounded-xl shadow-md border border-gray-100 overflow-x-hidden animate-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                         {/* Filtro Regione */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -598,170 +607,224 @@ export default function Organizzazioni() {
               </div>
             )}
 
-            {/* Loading State */}
+            {/* Loading State migliorato */}
             {isLoading && (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                <span className="ml-3 text-gray-600">Caricamento organizzazioni...</span>
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative">
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center shadow-lg">
+                    <Loader2 className="h-10 w-10 animate-spin text-white" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 h-6 w-6 bg-blue-500 rounded-full animate-ping"></div>
+                </div>
+                <span className="mt-6 text-lg font-medium text-gray-700">Caricamento organizzazioni...</span>
+                <p className="mt-2 text-sm text-gray-500">Attendere prego</p>
               </div>
             )}
 
-            {/* Error State */}
+            {/* Error State migliorato */}
             {isError && (
-              <div className="text-center py-16">
-                <div className="text-red-500 text-lg mb-4">
-                  Errore nel caricamento degli organizzazioni
+              <div className="text-center py-20">
+                <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-red-100 mb-6">
+                  <X className="h-10 w-10 text-red-600" />
                 </div>
-                <div className="text-gray-600">
-                  {errorMessage}
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Errore nel caricamento
+                </h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  {errorMessage || "Si è verificato un errore durante il caricamento delle organizzazioni."}
+                </p>
+                <Button
+                  onClick={() => window.location.reload()}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+                >
+                  Ricarica pagina
+                </Button>
               </div>
             )}
 
-            {/* Empty State */}
+            {/* Empty State migliorato */}
             {!isLoading && !isError && organizzazioni.length === 0 && (
-              <div className="text-center py-16">
-                <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Al momento non ci sono organizzazioni
+              <div className="text-center py-20">
+                <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 mb-6">
+                  <Users className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Nessuna organizzazione disponibile
                 </h3>
-                <p className="text-gray-600">
-                  La lista degli organizzazioni è vuota. Torna più tardi per vedere i nuovi iscritti.
+                <p className="text-gray-600 max-w-md mx-auto">
+                  Al momento non ci sono organizzazioni registrate. Torna più tardi per vedere le nuove iscrizioni.
                 </p>
               </div>
             )}
 
-            {/* No Search Results */}
+            {/* No Search Results migliorato */}
             {!isLoading && !isError && organizzazioni.length > 0 && filteredOrganizzazioni.length === 0 && searchTerm && (
-              <div className="text-center py-16">
-                <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              <div className="text-center py-20">
+                <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 mb-6">
+                  <Search className="h-12 w-12 text-blue-500" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Nessun risultato trovato
                 </h3>
-                <p className="text-gray-600 mb-4">
-                  Non ci sono organizzazioni che corrispondono alla ricerca "{searchTerm}".
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  Non ci sono organizzazioni che corrispondono alla ricerca <span className="font-semibold">"{searchTerm}"</span>.
                 </p>
                 <Button
                   variant="outline"
                   onClick={clearSearch}
-                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                  className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold"
                 >
+                  <X className="h-4 w-4 mr-2" />
                   Cancella ricerca
                 </Button>
               </div>
             )}
 
-            {/* Organizzazioni List */}
+            {/* Organizzazioni List con design migliorato */}
             {!isLoading && !isError && organizzazioni.length > 0 && filteredOrganizzazioni.length > 0 && (
               <div className="space-y-6">
-                {/* Desktop Table View */}
-                <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
-                  <div className="overflow-x-auto max-w-full">
-                    <table className="w-full divide-y divide-gray-200 min-w-0">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Nome
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Codice 5x1000
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Sostenitori
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Azione
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredOrganizzazioni.map((organizzazione) => (
-                          <tr key={organizzazione.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap min-w-0">
-                              <button
-                                onClick={() => handleorganizzazioneClick(organizzazione)}
-                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors truncate max-w-xs"
-                                title={`${organizzazione.nome}`}
-                              >
-                                {organizzazione.nome}
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {organizzazione.cognome || '-'}
+                {/* Desktop Grid View - più moderna */}
+                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredOrganizzazioni.map((organizzazione, index) => (
+                    <Card 
+                      key={organizzazione.id} 
+                      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-0 overflow-hidden group cursor-pointer"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                          {/* Avatar */}
+                          <div className="relative">
+                            {parseAvatarConfig(organizzazione.avatar_config) ? (
+                              <div className="p-1 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full">
+                                <CustomAvatar 
+                                  config={parseAvatarConfig(organizzazione.avatar_config) as any}
+                                  size={80}
+                                  className="h-20 w-20 border-4 border-white"
+                                />
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {(organizzazione as any).supporters_count ?? 0}
+                            ) : (
+                              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center border-4 border-white shadow-lg">
+                                <span className="text-2xl font-bold text-white">
+                                  {getInitials(organizzazione.nome, organizzazione.cognome)}
+                                </span>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <Button 
-                                size="sm" 
-                                variant={followingUsers.has(organizzazione.id) ? "default" : "outline"}
-                                className={followingUsers.has(organizzazione.id) 
-                                  ? "bg-blue-600 text-white hover:bg-blue-700" 
-                                  : "text-blue-600 border-blue-600 hover:bg-blue-50"}
-                                onClick={() => handleVoteorganizzazione(organizzazione.id)}
-                                disabled={!user?.id}
-                              >
-                                {followingUsers.has(organizzazione.id) ? 'Votato' : 'Vota'}
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-4" style={{ touchAction: 'pan-y' }}>
-                  {filteredOrganizzazioni.map((organizzazione) => (
-                    <div key={organizzazione.id} className="bg-white rounded-lg shadow p-4" style={{ touchAction: 'pan-y' }}>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          {parseAvatarConfig(organizzazione.avatar_config) ? (
-                            <CustomAvatar 
-                              config={parseAvatarConfig(organizzazione.avatar_config) as any}
-                              size={48}
-                              className="h-12 w-12"
-                            />
-                          ) : (
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="bg-blue-100 text-blue-600 text-lg">
-                                {getInitials(organizzazione.nome, organizzazione.cognome)}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <button
-                            onClick={() => handleorganizzazioneClick(organizzazione)}
-                            className="text-base font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors text-left"
-                          >
-                            {organizzazione.nome} {organizzazione.cognome}
-                          </button>
-                          <div className="mt-1 text-sm text-gray-500">
-                            {(organizzazione as any).supporters_count ?? 0} sostenitori
+                            )}
+                            {followingUsers.has(organizzazione.id) && (
+                              <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1.5 shadow-lg">
+                                <Users className="h-4 w-4 text-white" />
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div className="flex-shrink-0">
+
+                          {/* Nome e Cognome */}
+                          <div className="w-full">
+                            <button
+                              onClick={() => handleorganizzazioneClick(organizzazione)}
+                              className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors mb-1"
+                            >
+                              {organizzazione.nome}
+                            </button>
+                            {organizzazione.cognome && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                {organizzazione.cognome}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Sostenitori */}
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Users className="h-4 w-4 text-blue-500" />
+                            <span className="font-semibold text-gray-900">
+                              {(organizzazione as any).supporters_count ?? 0}
+                            </span>
+                            <span>sostenitori</span>
+                          </div>
+
+                          {/* Bottone Vota */}
                           <Button 
                             size="sm" 
                             variant={followingUsers.has(organizzazione.id) ? "default" : "outline"}
-                            className={followingUsers.has(organizzazione.id) 
-                              ? "bg-blue-600 text-white hover:bg-blue-700" 
-                              : "text-blue-600 border-blue-600 hover:bg-blue-50"}
+                            className={`w-full ${
+                              followingUsers.has(organizzazione.id) 
+                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md" 
+                                : "text-blue-600 border-2 border-blue-600 hover:bg-blue-50 font-semibold"
+                            } transition-all duration-200`}
                             onClick={() => handleVoteorganizzazione(organizzazione.id)}
                             disabled={!user?.id}
                           >
-                            {followingUsers.has(organizzazione.id) ? 'Votato' : 'Vota'}
+                            {followingUsers.has(organizzazione.id) ? '✓ Votato' : 'Vota'}
                           </Button>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Mobile Card View migliorata */}
+                <div className="md:hidden space-y-4" style={{ touchAction: 'pan-y' }}>
+                  {filteredOrganizzazioni.map((organizzazione) => (
+                    <Card 
+                      key={organizzazione.id} 
+                      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow border-0 overflow-hidden"
+                      style={{ touchAction: 'pan-y' }}
+                    >
+                      <CardContent className="p-5">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-shrink-0">
+                            {parseAvatarConfig(organizzazione.avatar_config) ? (
+                              <div className="p-1 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full">
+                                <CustomAvatar 
+                                  config={parseAvatarConfig(organizzazione.avatar_config) as any}
+                                  size={64}
+                                  className="h-16 w-16 border-2 border-white"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center border-2 border-white shadow-md">
+                                <span className="text-xl font-bold text-white">
+                                  {getInitials(organizzazione.nome, organizzazione.cognome)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <button
+                              onClick={() => handleorganizzazioneClick(organizzazione)}
+                              className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors text-left block mb-1"
+                            >
+                              {organizzazione.nome}
+                            </button>
+                            {organizzazione.cognome && (
+                              <p className="text-sm text-gray-600 mb-2">
+                                {organizzazione.cognome}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Users className="h-4 w-4 text-blue-500" />
+                              <span className="font-semibold">
+                                {(organizzazione as any).supporters_count ?? 0} sostenitori
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <Button 
+                              size="sm" 
+                              variant={followingUsers.has(organizzazione.id) ? "default" : "outline"}
+                              className={
+                                followingUsers.has(organizzazione.id) 
+                                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700" 
+                                  : "text-blue-600 border-2 border-blue-600 hover:bg-blue-50 font-semibold"
+                              }
+                              onClick={() => handleVoteorganizzazione(organizzazione.id)}
+                              disabled={!user?.id}
+                            >
+                              {followingUsers.has(organizzazione.id) ? 'Votato' : 'Vota'}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
