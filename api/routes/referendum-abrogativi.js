@@ -494,8 +494,32 @@ router.get('/', async (req, res) => {
       }
     }
     
+    // Esegui anche una query di test diretta per vedere cosa c'è nel database
+    let testQueryResult = null;
+    if (result.rows.length === 0) {
+      try {
+        const testQuery = `
+          SELECT id, titolo, tipo, stato, id_ministero
+          FROM iniziative_ministero
+          WHERE tipo ILIKE '%referendum%'
+          ORDER BY stato, data_inizio DESC
+          LIMIT 5
+        `;
+        const testResult = await pool.query(testQuery);
+        testQueryResult = testResult.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 60),
+          tipo: r.tipo,
+          stato: r.stato,
+          id_ministero: r.id_ministero
+        }));
+      } catch (e) {
+        console.error('Errore query test:', e);
+      }
+    }
+    
     const debugInfo = {
-      query: query.substring(0, 500), // Primi 500 caratteri della query
+      query: query, // Query completa
       params: params,
       resultRowsCount: result.rows.length,
       filteredRowsCount: filteredRows.length,
@@ -503,7 +527,8 @@ router.get('/', async (req, res) => {
       votaOnly: votaOnly,
       soloInCorso: soloInCorso,
       userRole: userRole || 'null',
-      debugStats: debugStats
+      debugStats: debugStats,
+      testQueryResult: testQueryResult // Risultati query di test
     };
     
     const responseData = {
