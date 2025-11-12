@@ -13,7 +13,6 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   onSeleziona,
   onViewOpinioni
 }) => {
-  console.log('🔍 DEBUG RappresentanteCard - Render card:', rappresentante.id, rappresentante.nome, rappresentante.cognome);
   const buttonContent = getButtonContent(isSelected, isSelezionando);
   const avatarConfig = getAvatarContent(rappresentante.avatar_config);
 

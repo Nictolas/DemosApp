@@ -63,14 +63,15 @@ export function PageTransition({
     </div>
   );
   
-  // Quando cambia la location o i contenuti, facciamo la transizione
+  // Quando cambia la location, facciamo la transizione
+  // NON facciamo transizione quando cambiano solo i children (contenuto dinamico)
   useEffect(() => {
     if (isPending.current) return;
     
     // Memorizza il nuovo contenuto mentre manteniamo quello vecchio visibile
     const newContent = children;
     
-    // Inizia la transizione di uscita
+    // Inizia la transizione di uscita solo se cambia la location
     isPending.current = true;
     setIsVisible(false);
     
@@ -101,7 +102,15 @@ export function PageTransition({
     }, delay);
     
     return () => clearTimeout(hideTimer);
-  }, [actualLocation, children, delay, showLoader, loaderDuration]);
+  }, [actualLocation, delay, showLoader, loaderDuration]);
+
+  // Aggiorna il contenuto quando cambia senza fare transizione
+  useEffect(() => {
+    if (!isPending.current) {
+      setContent(children);
+      setIsVisible(true);
+    }
+  }, [children]);
 
   // Fallback per assicurarsi che il contenuto sia sempre visibile
   useEffect(() => {
