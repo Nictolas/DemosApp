@@ -119,12 +119,13 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         params: [`%${tipoValue}%`]
       };
     }
+    // Admin vedono TUTTI i referendum (in corso e conclusi), anche senza id_ministero
     return {
       query: `
         SELECT *
         FROM iniziative_ministero
         WHERE tipo LIKE $1
-        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+        ORDER BY CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
       `,
       params: [`%${tipoValue}%`]
     };
@@ -150,27 +151,26 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         `,
         params: [`%${tipoValue}%`]
       };
-    } else {
-      // Se soloInCorso è true, mostra solo quelle con stato = 'in_corso'
-      // Altrimenti mostra quelle in corso o con quorum raggiunto
-      let whereClause;
-      let orderClause;
-      
-      if (soloInCorso) {
-        whereClause = `tipo LIKE $1
+      } else {
+        // Se soloInCorso è true, mostra solo quelle con stato = 'in_corso'
+        // Altrimenti mostra TUTTE (in corso, concluse, con o senza quorum) - solo quelle ufficiali (con id_ministero)
+        let whereClause;
+        let orderClause;
+        
+        if (soloInCorso) {
+          whereClause = `tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND stato = 'in_corso'`;
-        // Ordina per firme_raccolte in ordine decrescente (più firme in alto)
-        orderClause = `firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
-      } else {
-        whereClause = `tipo LIKE $1
-            AND id_ministero IS NOT NULL
-            AND (
-              (quorum_raggiunto = false AND stato = 'in_corso')
-              OR quorum_raggiunto = true
-            )`;
-        orderClause = `data_inizio DESC NULLS LAST, created_at DESC`;
-      }
+          // Ordina per firme_raccolte in ordine decrescente (più firme in alto)
+          orderClause = `firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
+        } else {
+          // Mostra TUTTI i referendum ufficiali (con id_ministero), indipendentemente dallo stato
+          // Questo include: in corso, concluse, con o senza quorum
+          whereClause = `tipo LIKE $1
+            AND id_ministero IS NOT NULL`;
+          // Ordina: prima quelli in corso (per stato), poi per data_inizio decrescente
+          orderClause = `CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
+        }
       
       return {
         query: `
