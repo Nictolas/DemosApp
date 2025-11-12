@@ -95,7 +95,8 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
   let tipoValue;
   if (tipoFilter === 'iniziativa') {
     // Per iniziative popolari, cerca "Legge di iniziativa popolare" o varianti
-    tipoValue = "Legge di iniziativa popolare";
+    // NOTA: Potrebbe avere spazi multipli come i referendum, usiamo pattern flessibile
+    tipoValue = "Legge%di%iniziativa%popolare"; // Il % gestisce spazi multipli
   } else if (tipoFilter === 'referendum') {
     // Per referendum, cerca "Referendum abrogativo" o varianti
     // NOTA: Nel database può essere "Referendum abrogativo" (1 spazio) o "Referendum  abrogativo" (2 spazi)

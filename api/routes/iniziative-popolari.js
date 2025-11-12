@@ -317,20 +317,95 @@ router.get('/', async (req, res) => {
       }
     }
 
+    // Aggiungi informazioni di debug nella risposta (sempre, per capire il problema)
+    let debugStats = null;
+    if (result.rows.length === 0) {
+      // Esegui query di debug per vedere cosa c'è nel database
+      try {
+        const debugStatsQuery = `
+          SELECT 
+            COUNT(*) as totale,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%') as tipo_iniziativa,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND quorum_raggiunto = true AND stato != 'in_corso') as concluse_con_quorum,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND id_ministero IS NOT NULL) as con_id_ministero,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND quorum_raggiunto = true AND stato != 'in_corso' AND id_ministero IS NOT NULL) as valide
+          FROM iniziative_ministero
+        `;
+        const debugStatsResult = await pool.query(debugStatsQuery);
+        debugStats = debugStatsResult.rows[0];
+      } catch (e) {
+        console.error('Errore query debug stats:', e);
+      }
+    }
+    
+    // Esegui anche una query di test diretta per vedere cosa c'è nel database
+    let testQueryResult = null;
+    if (result.rows.length === 0) {
+      try {
+        const testQuery = `
+          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
+          FROM iniziative_ministero
+          WHERE tipo ILIKE '%iniziativa%popolare%'
+          ORDER BY stato, data_inizio DESC
+          LIMIT 5
+        `;
+        const testResult = await pool.query(testQuery);
+        testQueryResult = testResult.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 60),
+          tipo: r.tipo,
+          stato: r.stato,
+          id_ministero: r.id_ministero,
+          quorum_raggiunto: r.quorum_raggiunto
+        }));
+      } catch (e) {
+        console.error('Errore query test:', e);
+      }
+    }
+    
+    const debugInfo = {
+      query: query, // Query completa
+      params: params,
+      resultRowsCount: result.rows.length,
+      filteredRowsCount: filteredRows.length,
+      normalizedDataCount: normalizedData.length,
+      votaOnly: votaOnly,
+      soloInCorso: soloInCorso,
+      userRole: userRole || 'null',
+      debugStats: debugStats,
+      testQueryResult: testQueryResult // Risultati query di test
+    };
+    
     const responseData = {
       success: true,
       richieste: normalizedData,
       iniziative: normalizedData,
       classifica: classifica,
       mieiVoti: mieiVoti,
-      blocco: { isBlocked: false, unlockDate: null }
+      blocco: { isBlocked: false, unlockDate: null },
+      debug: debugInfo // Sempre incluso per debug
     };
     
-    console.log(`🔍 DEBUG: Risposta finale - iniziative.length = ${normalizedData.length}, classifica.length = ${classifica.length}, mieiVoti.length = ${mieiVoti.length}`);
+    // Log esplicito del debug per vedere nella console del server
+    console.log('🔍 ========== DEBUG INFO INIZIATIVE PER CLIENT ==========');
+    console.log(JSON.stringify(debugInfo, null, 2));
+    
+    console.log(`🔍 ========== RISPOSTA FINALE INIZIATIVE ==========`);
+    console.log(`🔍 richieste.length = ${normalizedData.length}`);
+    console.log(`🔍 iniziative.length = ${normalizedData.length}`);
+    console.log(`🔍 classifica.length = ${classifica.length}`);
+    console.log(`🔍 filteredRows.length = ${filteredRows.length}`);
+    console.log(`🔍 result.rows.length = ${result.rows.length}`);
+    
     if (normalizedData.length > 0) {
-      console.log(`🔍 DEBUG: Prime 3 iniziative:`, normalizedData.slice(0, 3).map(i => ({ id: i.id, nome: i.nome?.substring(0, 50), quorum_raggiunto: i.quorum_raggiunto, stato: i.stato })));
+      console.log(`✅ ========== INIZIATIVE NORMALIZZATE ==========`);
+      normalizedData.slice(0, 3).forEach((i, idx) => {
+        console.log(`   ${idx + 1}. ID: ${i.id}, Nome: ${i.nome?.substring(0, 60)}..., Stato: ${i.stato}, Tipo: ${i.tipo}`);
+      });
     } else {
-      console.warn(`⚠️ ATTENZIONE: normalizedData è vuoto! filteredRows.length = ${filteredRows.length}`);
+      console.error(`❌ ========== ERRORE: NORMALIZED DATA VUOTO ==========`);
+      console.error(`❌ filteredRows.length = ${filteredRows.length}`);
+      console.error(`❌ result.rows.length = ${result.rows.length}`);
     }
     
     res.json(responseData);
