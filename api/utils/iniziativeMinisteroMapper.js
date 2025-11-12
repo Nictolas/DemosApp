@@ -98,7 +98,10 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     tipoValue = "Legge di iniziativa popolare";
   } else if (tipoFilter === 'referendum') {
     // Per referendum, cerca "Referendum abrogativo" o varianti
-    tipoValue = "Referendum abrogativo";
+    // NOTA: Nel database può essere "Referendum abrogativo" (1 spazio) o "Referendum  abrogativo" (2 spazi)
+    // Usiamo un pattern che gestisce uno o più spazi tra "Referendum" e "abrogativo"
+    // Il pattern '%Referendum%abrogativo%' matcha qualsiasi numero di caratteri (inclusi spazi) tra le due parole
+    tipoValue = "Referendum%abrogativo"; // Il % gestisce 0, 1 o più caratteri (spazi inclusi)
   } else {
     // Se viene passato direttamente un valore, usalo
     tipoValue = tipoFilter;
@@ -158,6 +161,8 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         let orderClause;
         
         if (soloInCorso) {
+          // Per la pagina listing, mostra solo quelli in corso
+          // Filtriamo per id_ministero IS NOT NULL per mostrare solo quelli ufficiali
           whereClause = `tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND stato = 'in_corso'`;
