@@ -82,11 +82,52 @@ export default function ScegliRappresentante() {
   }
 
   console.log('🔍 DEBUG ScegliRappresentante - Render principale, rappresentanti:', rappresentanti.length);
+  console.log('🔍 DEBUG ScegliRappresentante - selezionando:', selezionando);
+  console.log('🔍 DEBUG ScegliRappresentante - rappresentanteSelezionato:', rappresentanteSelezionato);
+  console.log('🔍 DEBUG ScegliRappresentante - categoria:', categoria);
+
+  // Test diretto per vedere se il problema è nel rendering
+  const renderContent = () => {
+    console.log('🔍 DEBUG ScegliRappresentante - renderContent chiamato, rappresentanti.length:', rappresentanti.length);
+    
+    if (rappresentanti.length === 0) {
+      console.log('🔍 DEBUG ScegliRappresentante - Renderizzando EmptyState');
+      return <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />;
+    }
+    
+    console.log('🔍 DEBUG ScegliRappresentante - Renderizzando grid con', rappresentanti.length, 'rappresentanti');
+    return (
+      <div className="flex-1 flex items-center justify-center py-4" style={{ minHeight: '400px', backgroundColor: '#f0f0f0' }}>
+        <div className="grid grid-cols-2 gap-4 w-full max-w-2xl" style={{ backgroundColor: '#e0e0e0', padding: '20px' }}>
+          {console.log('🔍 DEBUG ScegliRappresentante - Dentro la grid, iniziando map')}
+          {rappresentanti.map((rappresentante, index) => {
+            console.log(`🔍 DEBUG ScegliRappresentante - Map iterazione ${index}:`, {
+              id: rappresentante.id,
+              nome: rappresentante.nome,
+              cognome: rappresentante.cognome,
+              isSelected: rappresentante.id === rappresentanteSelezionato
+            });
+            return (
+              <div key={rappresentante.id} style={{ backgroundColor: 'white', padding: '10px', border: '2px solid red' }}>
+                <RappresentanteCard
+                  rappresentante={rappresentante}
+                  isSelected={rappresentante.id === rappresentanteSelezionato}
+                  isSelezionando={selezionando}
+                  onSeleziona={handleSelezionaRappresentante}
+                  onViewOpinioni={openOpinioniDialog}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col page-with-navbar">
-        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+      <div className="min-h-screen flex flex-col page-with-navbar" style={{ backgroundColor: '#ffcccc' }}>
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col" style={{ backgroundColor: '#ccffcc' }}>
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
           {opinioniDialogData && (
@@ -101,33 +142,7 @@ export default function ScegliRappresentante() {
             />
           )}
           
-          {rappresentanti.length === 0 ? (
-            <>
-              {console.log('🔍 DEBUG ScegliRappresentante - Mostrando EmptyState')}
-              <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
-            </>
-          ) : (
-            <>
-              {console.log('🔍 DEBUG ScegliRappresentante - Renderizzando rappresentanti:', rappresentanti.length)}
-              <div className="flex-1 flex items-center justify-center py-4">
-                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-                  {rappresentanti.map((rappresentante, index) => {
-                    console.log(`🔍 DEBUG ScegliRappresentante - Rendering card ${index}:`, rappresentante.id, rappresentante.nome, rappresentante.cognome);
-                    return (
-                      <RappresentanteCard
-                        key={rappresentante.id}
-                        rappresentante={rappresentante}
-                        isSelected={rappresentante.id === rappresentanteSelezionato}
-                        isSelezionando={selezionando}
-                        onSeleziona={handleSelezionaRappresentante}
-                        onViewOpinioni={openOpinioniDialog}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
+          {renderContent()}
         </div>
       </div>
       
