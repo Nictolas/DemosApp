@@ -60,16 +60,25 @@ export default function ScegliRappresentante() {
     return <Redirect to="/auth" />;
   }
 
-  return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
-        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+  // Mostra il loader se auth non è pronto o se sta caricando
+  if (!authReady || isLoading || loading) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen flex items-center justify-center">
           <LoadingStates 
             authReady={authReady} 
             isLoading={isLoading} 
             loading={loading} 
           />
-          
+        </div>
+      </PageTransition>
+    );
+  }
+
+  return (
+    <PageTransition>
+      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
           {opinioniDialogData && (
@@ -83,9 +92,6 @@ export default function ScegliRappresentante() {
               categoria={categoria || ''}
             />
           )}
-          {/* Debug info */}
-          {console.log('🔍 DEBUG ScegliRappresentante - opinioniDialogData:', opinioniDialogData)}
-          {console.log('🔍 DEBUG ScegliRappresentante - open:', !!opinioniDialogData)}
           
           {rappresentanti.length === 0 ? (
             <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
