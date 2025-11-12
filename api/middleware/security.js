@@ -4,20 +4,8 @@ const rateLimit = require('express-rate-limit');
 // Middleware per headers di sicurezza (sostituisce Helmet)
 const securityHeaders = (req, res, next) => {
   // Non applicare CSP alle richieste API
-  if (!req.path.startsWith('/api/')) {
-    // Content Security Policy
-    res.setHeader('Content-Security-Policy', 
-      "default-src 'self'; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data: https:; " +
-      "script-src 'self'; " +
-      "connect-src 'self' https://api.demos.community https://demos-c7k0.onrender.com; " +
-      "frame-src 'none'; " +
-      "object-src 'none'; " +
-      "upgrade-insecure-requests"
-    );
-  }
+  // Il CSP per il frontend è gestito da render.yaml
+  // Non impostiamo CSP qui per evitare conflitti con il frontend statico
   
   // X-Frame-Options
   res.setHeader('X-Frame-Options', 'DENY');

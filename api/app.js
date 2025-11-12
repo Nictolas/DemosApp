@@ -301,10 +301,12 @@ app.use('/api/auth', clearTokenRoutes);
 app.use('/api/users', userLimiter, userRoutes);
 app.use('/api/opinioni', userLimiter, opinioniRoutes);
 app.use('/api/opinioni-proposte', publicLimiter, opinioniProposteRoutes);
-app.use('/api/governo', publicLimiter, governoRoutes);
-app.use('/api/governo/ministro', publicLimiter, governoMinistroRoutes);
-app.use('/api/rappresentanti', publicLimiter, rappresentantiRoutes);
-app.use('/api/notifiche', publicLimiter, notificheRoutes);
+// Applica userLimiter per richieste autenticate, publicLimiter per quelle non autenticate
+// Il publicLimiter salta automaticamente le richieste con token Bearer
+app.use('/api/governo', publicLimiter, userLimiter, governoRoutes);
+app.use('/api/governo/ministro', publicLimiter, userLimiter, governoMinistroRoutes);
+app.use('/api/rappresentanti', publicLimiter, userLimiter, rappresentantiRoutes);
+app.use('/api/notifiche', publicLimiter, userLimiter, notificheRoutes);
 app.use('/api/test-db', publicLimiter, testDbRoutes);
 app.use('/api/eventi', publicLimiter, eventiRoutes);
 app.use('/api/grazia', publicLimiter, graziaRoutes);
