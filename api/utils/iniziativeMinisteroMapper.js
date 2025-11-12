@@ -166,10 +166,12 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         } else {
           // Mostra TUTTI i referendum ufficiali (con id_ministero), indipendentemente dallo stato
           // Questo include: in corso, concluse, con o senza quorum
-          whereClause = `tipo LIKE $1
-            AND id_ministero IS NOT NULL`;
+          // NOTA: Rimuoviamo il filtro id_ministero per mostrare anche quelli senza id_ministero
+          // (potrebbero essere referendum proposti dagli utenti o in fase di sincronizzazione)
+          whereClause = `tipo LIKE $1`;
           // Ordina: prima quelli in corso (per stato), poi per data_inizio decrescente
-          orderClause = `CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
+          // Priorità: quelli con id_ministero prima, poi quelli senza
+          orderClause = `CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, CASE WHEN id_ministero IS NOT NULL THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
         }
       
       return {
