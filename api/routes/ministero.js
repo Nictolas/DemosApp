@@ -2,12 +2,15 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../services/centralizedLogger');
 const ministeroSync = require('../services/ministeroSync');
+const ministeroSyncJob = require('../jobs/ministeroSyncJob');
 
 /**
  * Endpoint per recuperare i dati dal database (sincronizzati dal Ministero)
  * GET /api/ministero/iniziative
  * Recupera i dati dal database invece che direttamente dall'API del Ministero
- * così l'utente vede i dati aggiornati dalla sincronizzazione automatica ogni 6 ore
+ * così l'utente vede i dati aggiornati dalla sincronizzazione automatica:
+ * - Sincronizzazione completa: ogni 1 ora (configurabile)
+ * - Sincronizzazione referendum in corso: ogni 30 minuti (configurabile)
  */
 router.get('/iniziative', async (req, res) => {
   try {
@@ -220,6 +223,72 @@ router.post('/sync', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nella sincronizzazione',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Endpoint per verificare lo stato della sincronizzazione automatica
+ * GET /api/ministero/sync/status
+ */
+router.get('/sync/status', async (req, res) => {
+  try {
+    const { pool } = require('../middleware/auth');
+    
+    // Ottieni lo stato dal job
+    const jobStatus = ministeroSyncJob.getStatus();
+    
+    // Ottieni statistiche dal database
+    const statsQuery = await pool.query(`
+      SELECT 
+        COUNT(*) as totale,
+        COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
+        COUNT(*) FILTER (WHERE tipo LIKE '%Referendum abrogativo%') as referendum,
+        COUNT(*) FILTER (WHERE tipo LIKE '%Referendum abrogativo%' AND stato = 'in_corso') as referendum_in_corso,
+        MAX(data_ultimo_aggiornamento) as ultimo_aggiornamento
+      FROM iniziative_ministero
+    `);
+    
+    const stats = statsQuery.rows[0];
+    
+    // Calcola quando sarà la prossima sincronizzazione
+    let prossimaSync = null;
+    if (jobStatus.lastSyncTime) {
+      const lastSync = new Date(jobStatus.lastSyncTime);
+      const nextSync = new Date(lastSync.getTime() + jobStatus.intervalMs);
+      prossimaSync = nextSync.toISOString();
+    }
+    
+    res.json({
+      success: true,
+      job: {
+        isRunning: jobStatus.isRunning,
+        lastSyncTime: jobStatus.lastSyncTime,
+        lastSyncStatus: jobStatus.lastSyncStatus,
+        lastSyncError: jobStatus.lastSyncError,
+        intervalMs: jobStatus.intervalMs,
+        intervalMinutes: jobStatus.intervalMs / 1000 / 60,
+        intervalInCorsoMs: jobStatus.intervalInCorsoMs,
+        intervalInCorsoMinutes: jobStatus.intervalInCorsoMs / 1000 / 60,
+        maxRetries: jobStatus.maxRetries,
+        prossimaSync: prossimaSync
+      },
+      database: {
+        totaleIniziative: parseInt(stats.totale) || 0,
+        inCorso: parseInt(stats.in_corso) || 0,
+        referendum: parseInt(stats.referendum) || 0,
+        referendumInCorso: parseInt(stats.referendum_in_corso) || 0,
+        ultimoAggiornamento: stats.ultimo_aggiornamento
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero stato sincronizzazione:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero stato',
       message: error.message
     });
   }
