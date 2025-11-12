@@ -538,8 +538,12 @@ router.get('/', async (req, res) => {
       classifica: classifica,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null },
-      ...(debugInfo ? { debug: debugInfo } : {})
+      debug: debugInfo // Sempre incluso per debug
     };
+    
+    // Log esplicito del debug per vedere nella console del server
+    console.log('🔍 ========== DEBUG INFO PER CLIENT ==========');
+    console.log(JSON.stringify(debugInfo, null, 2));
     
     console.log(`🔍 ========== RISPOSTA FINALE ==========`);
     console.log(`🔍 richieste.length = ${normalizedData.length}`);
