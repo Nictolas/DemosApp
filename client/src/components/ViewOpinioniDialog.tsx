@@ -95,12 +95,14 @@ export function ViewOpinioniDialog({
         const grado = gradoMapping[categoria] || 'E';
         
         console.log(`🔍 DEBUG ViewOpinioniDialog - Categoria: ${categoria}, Grado: ${grado}`);
+        console.log(`🔍 DEBUG ViewOpinioniDialog - utenteId: ${utenteId}`);
         
         // Chiama l'endpoint con il grado corretto basato sulla categoria
-        const res = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=${grado}`);
-        if (!res.ok) throw new Error();
-        const result = await res.json();
-        if (result.success && result.data) {
+        // apiRequest restituisce già il JSON parsato, non un Response
+        const result = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=${grado}`);
+        console.log(`🔍 DEBUG ViewOpinioniDialog - Risposta API:`, result);
+        
+        if (result && result.success && result.data) {
           // Estrae le domande dalle opinioni ricevute
           const questionsArray = result.data.opinioni.map((opinion: any) => ({
             id: opinion.id,
@@ -163,20 +165,20 @@ export function ViewOpinioniDialog({
         
         console.log(`🔍 DEBUG fetchMyOpinions - Categoria: ${categoria}, Grado: ${grado}`);
         
-        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=${grado}`);
+        // apiRequest restituisce già il JSON parsato, non un Response
+        const data = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=${grado}`);
+        console.log(`🔍 DEBUG fetchMyOpinions - Risposta API:`, data);
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            // Converte le opinioni nel formato atteso
-            const opinioniMap: Record<string, string> = {};
-            data.data.opinioni.forEach((opinion: any) => {
-              if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-                opinioniMap[opinion.id] = opinion.userAnswer;
-              }
-            });
-            setMyOpinions(opinioniMap);
-          }
+        if (data && data.success && data.data) {
+          // Converte le opinioni nel formato atteso
+          const opinioniMap: Record<string, string> = {};
+          data.data.opinioni.forEach((opinion: any) => {
+            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+              opinioniMap[opinion.id] = opinion.userAnswer;
+            }
+          });
+          console.log(`🔍 DEBUG fetchMyOpinions - OpinionMap creata:`, opinioniMap);
+          setMyOpinions(opinioniMap);
         }
       } catch (error) {
         console.error('Errore nel caricamento delle opinioni da API:', error);
