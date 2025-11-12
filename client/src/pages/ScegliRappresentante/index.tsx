@@ -31,7 +31,12 @@ export default function ScegliRappresentante() {
     opinioniAlertData
   } = useRappresentantiData(user, categoria || '');
 
-  // Debug per l'alert
+  // Debug completo
+  console.log('🔍 DEBUG ScegliRappresentante - authReady:', authReady);
+  console.log('🔍 DEBUG ScegliRappresentante - isLoading:', isLoading);
+  console.log('🔍 DEBUG ScegliRappresentante - loading:', loading);
+  console.log('🔍 DEBUG ScegliRappresentante - rappresentanti:', rappresentanti);
+  console.log('🔍 DEBUG ScegliRappresentante - rappresentanti.length:', rappresentanti.length);
   console.log('🔍 DEBUG ScegliRappresentante - showOpinioniAlert:', showOpinioniAlert);
   console.log('🔍 DEBUG ScegliRappresentante - opinioniAlertData:', opinioniAlertData);
 
@@ -62,6 +67,7 @@ export default function ScegliRappresentante() {
 
   // Mostra il loader se auth non è pronto o se sta caricando
   if (!authReady || isLoading || loading) {
+    console.log('🔍 DEBUG ScegliRappresentante - Mostrando loader:', { authReady, isLoading, loading });
     return (
       <PageTransition>
         <div className="min-h-screen flex items-center justify-center">
@@ -74,6 +80,8 @@ export default function ScegliRappresentante() {
       </PageTransition>
     );
   }
+
+  console.log('🔍 DEBUG ScegliRappresentante - Render principale, rappresentanti:', rappresentanti.length);
 
   return (
     <PageTransition>

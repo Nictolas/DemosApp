@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Rappresentante, OpinioniDialogData } from "../types";
@@ -11,7 +11,7 @@ const useOpinioniCheck = (grado: string) => {
   const [isChecking, setIsChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<any>(null);
 
-  const checkOpinioni = async () => {
+  const checkOpinioni = useCallback(async () => {
     if (!grado) return null;
     
     setIsChecking(true);
@@ -27,13 +27,16 @@ const useOpinioniCheck = (grado: string) => {
       setIsChecking(false);
     }
     return null;
-  };
+  }, [grado]);
 
   return { checkOpinioni, isChecking, checkResult };
 };
 
 export const useRappresentantiData = (user: any, categoria: string) => {
   const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  
   const [rappresentanti, setRappresentanti] = useState<Rappresentante[]>([]);
   const [loading, setLoading] = useState(true);
   const [rappresentanteSelezionato, setRappresentanteSelezionato] = useState<string | null>(null);
@@ -55,22 +58,33 @@ export const useRappresentantiData = (user: any, categoria: string) => {
   const grado = gradoMapping[categoria] || 'N';
   const { checkOpinioni } = useOpinioniCheck(grado);
 
+  // Controlla le opinioni incomplete in un useEffect separato
   useEffect(() => {
+    if (!user || !grado) return;
+    
+    checkOpinioni().then((opinioniCheck) => {
+      if (opinioniCheck && !opinioniCheck.isComplete) {
+        console.log('🔍 DEBUG - Opinion incomplete trovate, mostrando alert');
+        setOpinioniAlertData(opinioniCheck);
+        setShowOpinioniAlert(true);
+      }
+    }).catch((error) => {
+      console.error("Errore nel controllo opinioni:", error);
+    });
+  }, [user, grado, checkOpinioni]);
+
+  useEffect(() => {
+    console.log('🔍 DEBUG Frontend - useEffect eseguito', { user: !!user, categoria, isTestRoute });
+    
     const fetchData = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('🔍 DEBUG Frontend - User non disponibile, impostando loading a false');
+        setLoading(false);
+        return;
+      }
       
+      console.log('🔍 DEBUG Frontend - Inizio fetchData, impostando loading a true');
       setLoading(true);
-      
-      // Controlla le opinioni incomplete in parallelo (non blocca il caricamento)
-      checkOpinioni().then((opinioniCheck) => {
-        if (opinioniCheck && !opinioniCheck.isComplete) {
-          console.log('🔍 DEBUG - Opinion incomplete trovate, mostrando alert');
-          setOpinioniAlertData(opinioniCheck);
-          setShowOpinioniAlert(true);
-        }
-      }).catch((error) => {
-        console.error("Errore nel controllo opinioni:", error);
-      });
       
       try {
         
@@ -129,25 +143,31 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           
           const { candidati, utente } = result.data;
           console.log('🔍 DEBUG Frontend - Candidati ricevuti (NORMAL):', candidati?.length || 0);
+          console.log('🔍 DEBUG Frontend - Candidati array completo:', candidati);
           console.log('🔍 DEBUG Frontend - Utente:', utente);
-          setRappresentanteSelezionato(utente?.[getFieldName(categoria, isTestRoute)] || null);
+          const fieldName = getFieldName(categoria, isTestRoute);
+          console.log('🔍 DEBUG Frontend - Field name:', fieldName);
+          console.log('🔍 DEBUG Frontend - Rappresentante selezionato:', utente?.[fieldName]);
+          setRappresentanteSelezionato(utente?.[fieldName] || null);
           setRappresentanti(candidati || []);
+          console.log('🔍 DEBUG Frontend - Stato aggiornato, rappresentanti impostati:', candidati?.length || 0);
         }
 
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
-        toast({
+        toastRef.current({
           title: "Errore",
           description: "Impossibile caricare i rappresentanti.",
           variant: "destructive",
         });
       } finally {
+        console.log('🔍 DEBUG Frontend - Impostando loading a false');
         setLoading(false);
       }
     };
     
     fetchData();
-  }, [user, categoria, toast]);
+  }, [user, categoria, isTestRoute]);
 
   return {
     rappresentanti,
