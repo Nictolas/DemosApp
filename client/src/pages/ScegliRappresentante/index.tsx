@@ -69,15 +69,13 @@ export default function ScegliRappresentante() {
   if (!authReady || isLoading || loading) {
     console.log('🔍 DEBUG ScegliRappresentante - Mostrando loader:', { authReady, isLoading, loading });
     return (
-      <PageTransition>
-        <div className="min-h-screen flex items-center justify-center">
-          <LoadingStates 
-            authReady={authReady} 
-            isLoading={isLoading} 
-            loading={loading} 
-          />
-        </div>
-      </PageTransition>
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingStates 
+          authReady={authReady} 
+          isLoading={isLoading} 
+          loading={loading} 
+        />
+      </div>
     );
   }
 
@@ -124,8 +122,9 @@ export default function ScegliRappresentante() {
     );
   };
 
+  // TEMPORANEO: Rimuoviamo PageTransition per testare
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen flex flex-col page-with-navbar" style={{ backgroundColor: '#ffcccc' }}>
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col" style={{ backgroundColor: '#ccffcc' }}>
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
@@ -156,7 +155,6 @@ export default function ScegliRappresentante() {
           onContinueAnyway={handleContinueAnyway}
         />
       )}
-      
-    </PageTransition>
+    </>
   );
 }
