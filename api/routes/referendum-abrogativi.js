@@ -48,10 +48,13 @@ router.get('/', async (req, res) => {
     // Query dalla nuova tabella iniziative_ministero con tipo = 'referendum'
     // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE
     // Per la pagina referendum-abrogativi (non vota), mostra TUTTI i referendum (in corso e conclusi)
+    // NOTA: Usiamo soloInCorso = false per mostrare tutti, ma la query SQL gestirà il filtro
     const votaOnly = req.query.vota === 'true';
     const soloInCorso = false; // Per la pagina listing, mostra TUTTI i referendum (in corso e conclusi)
     console.log(`🔍 DEBUG: votaOnly = ${votaOnly}, soloInCorso = ${soloInCorso}, req.query.vota = ${req.query.vota}`);
     const { query, params } = buildQueryForTipo('referendum', userRole, userId, votaOnly, soloInCorso);
+    console.log(`🔍 DEBUG: Query completa generata:`, query);
+    console.log(`🔍 DEBUG: Parametri query:`, params);
     console.log(`🔍 DEBUG: Query generata: ${query.substring(0, 200)}...`);
     
     const result = await pool.query(query, params);
@@ -296,6 +299,26 @@ router.get('/', async (req, res) => {
       // Per la pagina listing (soloInCorso = false), mostriamo TUTTI i referendum
       // Non applichiamo filtri aggiuntivi, la query SQL già filtra correttamente
       console.log(`🔍 DEBUG LISTING REFERENDUM: Mostrando tutti i referendum (in corso e conclusi) - filteredRows.length = ${filteredRows.length}`);
+      if (filteredRows.length > 0) {
+        console.log(`🔍 DEBUG LISTING REFERENDUM: Prime 3 righe:`, filteredRows.slice(0, 3).map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          stato: r.stato,
+          id_ministero: r.id_ministero,
+          tipo: r.tipo
+        })));
+      } else {
+        console.warn(`⚠️ ATTENZIONE: filteredRows è vuoto! result.rows.length = ${result.rows.length}`);
+        if (result.rows.length > 0) {
+          console.warn(`⚠️ Prime 3 righe da result.rows:`, result.rows.slice(0, 3).map(r => ({ 
+            id: r.id, 
+            titolo: r.titolo?.substring(0, 50), 
+            stato: r.stato,
+            id_ministero: r.id_ministero,
+            tipo: r.tipo
+          })));
+        }
+      }
     }
     
     // Se l'utente è autenticato, ottieni i suoi voti
@@ -437,17 +460,38 @@ router.get('/', async (req, res) => {
     const responseData = {
       success: true,
       richieste: normalizedData,
-      referendum: normalizedData,
+      referendum: normalizedData, // Alias per compatibilità
       classifica: classifica,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     };
     
-    console.log(`🔍 DEBUG REFERENDUM: Risposta finale - referendum.length = ${normalizedData.length}, classifica.length = ${classifica.length}, mieiVoti.length = ${mieiVoti.length}`);
+    console.log(`🔍 DEBUG REFERENDUM: Risposta finale - richieste.length = ${normalizedData.length}, referendum.length = ${normalizedData.length}, classifica.length = ${classifica.length}, mieiVoti.length = ${mieiVoti.length}`);
+    console.log(`🔍 DEBUG REFERENDUM: filteredRows.length = ${filteredRows.length}, result.rows.length = ${result.rows.length}`);
+    
     if (normalizedData.length > 0) {
-      console.log(`🔍 DEBUG REFERENDUM: Prime 3 referendum:`, normalizedData.slice(0, 3).map(r => ({ id: r.id, nome: r.nome?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto, stato: r.stato })));
+      console.log(`✅ DEBUG REFERENDUM: Prime 3 referendum normalizzati:`, normalizedData.slice(0, 3).map(r => ({ 
+        id: r.id, 
+        nome: r.nome?.substring(0, 50), 
+        quorum_raggiunto: r.quorum_raggiunto, 
+        stato: r.stato,
+        tipo: r.tipo,
+        id_ministero: r.id_ministero
+      })));
     } else {
-      console.warn(`⚠️ ATTENZIONE: normalizedData è vuoto! filteredRows.length = ${filteredRows.length}`);
+      console.warn(`⚠️ ATTENZIONE: normalizedData è vuoto!`);
+      console.warn(`⚠️ filteredRows.length = ${filteredRows.length}`);
+      console.warn(`⚠️ result.rows.length = ${result.rows.length}`);
+      if (result.rows.length > 0) {
+        console.warn(`⚠️ Prime 3 righe da result.rows (prima della normalizzazione):`, result.rows.slice(0, 3).map(r => ({ 
+          id: r.id, 
+          titolo: r.titolo?.substring(0, 50), 
+          tipo: r.tipo,
+          stato: r.stato,
+          id_ministero: r.id_ministero,
+          quorum_raggiunto: r.quorum_raggiunto
+        })));
+      }
     }
     
     res.json(responseData);
