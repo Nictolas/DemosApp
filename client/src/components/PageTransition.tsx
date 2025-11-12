@@ -63,15 +63,39 @@ export function PageTransition({
     </div>
   );
   
-  // Quando cambia la location, facciamo la transizione
-  // NON facciamo transizione quando cambiano solo i children (contenuto dinamico)
+  // Usa un ref per tracciare l'ultima location e i children per evitare loop infiniti
+  const lastLocationRef = useRef(actualLocation);
+  const isInitializedRef = useRef(false);
+  const childrenRef = useRef(children);
+  
+  // Aggiorna sempre il ref dei children (senza triggerare effetti)
+  childrenRef.current = children;
+  
+  // Inizializza il contenuto al primo render
   useEffect(() => {
+    if (!isInitializedRef.current) {
+      setContent(childrenRef.current);
+      setIsVisible(true);
+      isInitializedRef.current = true;
+    }
+  }, []); // Solo al mount
+  
+  // Quando cambia la location, facciamo la transizione
+  useEffect(() => {
+    // Se la location non è cambiata, non fare nulla (il contenuto viene aggiornato tramite il ref)
+    if (actualLocation === lastLocationRef.current) {
+      return;
+    }
+    
+    // Location cambiata - inizia transizione
     if (isPending.current) return;
     
-    // Memorizza il nuovo contenuto mentre manteniamo quello vecchio visibile
-    const newContent = children;
+    lastLocationRef.current = actualLocation;
     
-    // Inizia la transizione di uscita solo se cambia la location
+    // Memorizza il nuovo contenuto dal ref
+    const newContent = childrenRef.current;
+    
+    // Inizia la transizione di uscita
     isPending.current = true;
     setIsVisible(false);
     
@@ -102,30 +126,8 @@ export function PageTransition({
     }, delay);
     
     return () => clearTimeout(hideTimer);
-  }, [actualLocation, delay, showLoader, loaderDuration]);
-
-  // Aggiorna il contenuto quando cambia senza fare transizione
-  useEffect(() => {
-    if (!isPending.current) {
-      setContent(children);
-      setIsVisible(true);
-    }
-  }, [children]);
-
-  // Fallback per assicurarsi che il contenuto sia sempre visibile
-  useEffect(() => {
-    const fallbackTimer = setTimeout(() => {
-      if (!isVisible && !isPending.current) {
-        console.log('🔄 Fallback: forcing content visibility');
-        setContent(children);
-        setIsVisible(true);
-        setShowLoaderState(false);
-      }
-    }, 2000); // 2 secondi di timeout
-
-    return () => clearTimeout(fallbackTimer);
-  }, [isVisible, children]);
-
+  }, [actualLocation, delay, showLoader, loaderDuration]); // Rimosso children dalle dipendenze
+  
   // Gestione eventi di navigazione del browser - solo per reset di emergenza
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -137,7 +139,7 @@ export function PageTransition({
     const handleForceRerender = () => {
       console.log('🔄 Force rerender event received in PageTransition');
       // Forza un aggiornamento del contenuto
-      setContent(children);
+      setContent(childrenRef.current);
       setIsVisible(true);
       isPending.current = false;
       setShowLoaderState(false);
@@ -150,7 +152,7 @@ export function PageTransition({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('force-rerender', handleForceRerender);
     };
-  }, [children]);
+  }, []); // Nessuna dipendenza per evitare loop
 
   // Debug logging solo quando necessario (rimosso per evitare loop infiniti)
   // useEffect(() => {
@@ -163,6 +165,9 @@ export function PageTransition({
   //   });
   // }, [isVisible, showLoaderState, content, actualLocation]);
 
+  // Renderizza sempre i children aggiornati, ma usa content per le transizioni
+  const displayContent = isPending.current ? content : childrenRef.current;
+
   return (
     <>
       {showLoaderState && <LoaderComponent />}
@@ -170,8 +175,9 @@ export function PageTransition({
         className={`${classes.base} ${isVisible ? classes.visible : classes.hidden} navigation-safe`}
         aria-live="polite"
       >
-        {content}
+        {displayContent}
       </div>
     </>
   );
 }
+
