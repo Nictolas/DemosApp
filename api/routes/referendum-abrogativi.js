@@ -3,7 +3,7 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
-const { mapToLegacyFormat, buildQueryForTipo } = require('../utils/iniziativeMinisteroMapper');
+const { mapToLegacyFormat, buildQueryForTipo, mapReferendumAbrogativiToLegacyFormat } = require('../utils/iniziativeMinisteroMapper');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -48,12 +48,14 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Query dalla nuova tabella iniziative_ministero con tipo = 'referendum'
+    // Query da ENTRAMBE le tabelle: iniziative_ministero e referendum_abrogativi
     // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE
     // Per la pagina referendum-abrogativi (non vota), mostra solo quelle con stato = 'in_corso'
     const votaOnly = req.query.vota === 'true';
     const soloInCorso = !votaOnly; // Per la pagina listing, mostra solo quelle in corso (come iniziative-popolari)
     console.log(`🔍 DEBUG: votaOnly = ${votaOnly}, soloInCorso = ${soloInCorso}, req.query.vota = ${req.query.vota}`);
+    
+    // 1. Query da iniziative_ministero
     const { query, params } = buildQueryForTipo('referendum', userRole, userId, votaOnly, soloInCorso);
     console.log(`🔍 DEBUG: Query completa generata:`, query);
     console.log(`🔍 DEBUG: Parametri query:`, params);
@@ -64,6 +66,45 @@ router.get('/', async (req, res) => {
     console.log('🔍 DEBUG: Parametri query:', params);
     
     const result = await pool.query(query, params);
+    
+    // 2. Query da referendum_abrogativi
+    let referendumAbrogativiResult = { rows: [] };
+    try {
+      let referendumAbrogativiQuery;
+      let referendumAbrogativiParams = [];
+      
+      if (votaOnly) {
+        // Per votaOnly: solo quelle con status = 'A' o 'a' (approvate, quorum raggiunto)
+        referendumAbrogativiQuery = `
+          SELECT *
+          FROM referendum_abrogativi
+          WHERE (status = 'A' OR status = 'a')
+          ORDER BY created_at DESC
+        `;
+      } else if (soloInCorso) {
+        // Per listing: solo quelle con status = 'P' o 'p' (pending, in corso)
+        referendumAbrogativiQuery = `
+          SELECT *
+          FROM referendum_abrogativi
+          WHERE (status = 'P' OR status = 'p')
+          ORDER BY created_at DESC
+        `;
+      } else {
+        // Per admin o altre viste: tutte tranne le proposte (status != NULL)
+        referendumAbrogativiQuery = `
+          SELECT *
+          FROM referendum_abrogativi
+          WHERE status IS NOT NULL
+          ORDER BY created_at DESC
+        `;
+      }
+      
+      referendumAbrogativiResult = await pool.query(referendumAbrogativiQuery, referendumAbrogativiParams);
+      console.log(`✅ Recuperati ${referendumAbrogativiResult.rows.length} record da referendum_abrogativi (votaOnly=${votaOnly})`);
+    } catch (error) {
+      console.warn(`⚠️ Errore nel recupero referendum_abrogativi:`, error.message);
+      // Continua senza referendum_abrogativi se c'è un errore
+    }
     
     console.log(`✅ ========== RECUPERATI ${result.rows.length} RECORD ==========`);
     console.log(`✅ Tipo: referendum, votaOnly: ${votaOnly}, soloInCorso: ${soloInCorso}, userRole: ${userRole || 'null'}`);
@@ -382,38 +423,107 @@ router.get('/', async (req, res) => {
     }
     
     // Normalizza i dati per il frontend usando il mapper
-    const normalizedData = filteredRows.map(row => mapToLegacyFormat(row, 'referendum'));
+    // 1. Normalizza dati da iniziative_ministero
+    const normalizedMinistero = filteredRows.map(row => mapToLegacyFormat(row, 'referendum'));
+    
+    // 2. Normalizza dati da referendum_abrogativi
+    let normalizedReferendum = [];
+    if (referendumAbrogativiResult.rows.length > 0) {
+      // Applica gli stessi filtri di sicurezza anche a referendum_abrogativi
+      let filteredReferendum = referendumAbrogativiResult.rows;
+      
+      if (votaOnly) {
+        // Filtro sicurezza: solo quelle con status = 'A' o 'a' (approvate)
+        filteredReferendum = filteredReferendum.filter(row => {
+          return row.status === 'A' || row.status === 'a';
+        });
+      } else if (soloInCorso) {
+        // Filtro sicurezza: solo quelle in corso (status = 'P' o 'p')
+        filteredReferendum = filteredReferendum.filter(row => {
+          return row.status === 'P' || row.status === 'p';
+        });
+      }
+      
+      normalizedReferendum = filteredReferendum.map(row => mapReferendumAbrogativiToLegacyFormat(row));
+      console.log(`✅ Normalizzate ${normalizedReferendum.length} referendum da referendum_abrogativi`);
+    }
+    
+    // 3. Unisci i risultati (rimuovi duplicati per ID)
+    const allNormalized = [...normalizedMinistero, ...normalizedReferendum];
+    const uniqueNormalized = allNormalized.reduce((acc, current) => {
+      const existing = acc.find(item => item.id === current.id);
+      if (!existing) {
+        acc.push(current);
+      } else {
+        // Se esiste già, preferisci quella da iniziative_ministero (più aggiornata)
+        const index = acc.indexOf(existing);
+        if (normalizedMinistero.some(m => m.id === current.id)) {
+          acc[index] = current;
+        }
+      }
+      return acc;
+    }, []);
+    
+    const normalizedData = uniqueNormalized;
+    console.log(`✅ Totale referendum normalizzati: ${normalizedData.length} (${normalizedMinistero.length} da ministero, ${normalizedReferendum.length} da referendum_abrogativi)`);
 
-    // Genera la classifica basata sui voti
+    // Genera la classifica basata sui voti da ENTRAMBE le tabelle
     let classifica = [];
-    if (filteredRows.length > 0) {
+    if (normalizedData.length > 0) {
       try {
+        // Costruisci la query di classifica con UNION per includere entrambe le tabelle
         // Per la pagina listing: mostra solo quelle con stato = 'in_corso'
         // Per la pagina vota: quorum_raggiunto = TRUE E ESCLUDE TUTTE quelle con stato = 'in_corso'
-        const quorumFilter = votaOnly 
+        const quorumFilterMinistero = votaOnly 
           ? 'AND im.quorum_raggiunto = true AND im.stato != \'in_corso\''
-          : 'AND im.stato = \'in_corso\''; // Per la pagina listing, mostra solo quelle in corso
+          : 'AND im.stato = \'in_corso\'';
+        
+        const quorumFilterReferendum = votaOnly
+          ? `AND (ra.status = 'A' OR ra.status = 'a')`
+          : `AND (ra.status = 'P' OR ra.status = 'p')`;
         
         const classificaQuery = `
-          SELECT 
-            im.titolo as nome,
-            im.sito_web as sitoWeb,
-            COUNT(vra.referendum_id) as voti
-          FROM iniziative_ministero im
-          LEFT JOIN voti_referendum_abrogativi vra ON (
-            im.id::text = vra.referendum_id::text OR 
-            REPLACE(im.id::text, '-', '') = vra.referendum_id::text OR
-            im.id::text = REPLACE(vra.referendum_id::text, '-', '') OR
-            REPLACE(im.id::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
+          (
+            SELECT 
+              im.titolo as nome,
+              im.sito_web as sitoWeb,
+              COALESCE(im.firme_raccolte, 0) as firme,
+              COUNT(vra.referendum_id) as voti
+            FROM iniziative_ministero im
+            LEFT JOIN voti_referendum_abrogativi vra ON (
+              im.id::text = vra.referendum_id::text OR 
+              REPLACE(im.id::text, '-', '') = vra.referendum_id::text OR
+              im.id::text = REPLACE(vra.referendum_id::text, '-', '') OR
+              REPLACE(im.id::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
+            )
+            WHERE im.tipo LIKE '%Referendum abrogativo%'
+              AND im.id_ministero IS NOT NULL
+              ${quorumFilterMinistero}
+            GROUP BY im.id, im.titolo, im.sito_web, im.firme_raccolte
           )
-          WHERE im.tipo LIKE '%Referendum abrogativo%'
-            AND im.id_ministero IS NOT NULL
-            ${quorumFilter}
-          GROUP BY im.id, im.titolo, im.sito_web, im.firme_raccolte
-          ORDER BY im.firme_raccolte DESC NULLS LAST, voti DESC, im.titolo ASC
+          UNION ALL
+          (
+            SELECT 
+              ra.nome,
+              COALESCE(ra.sito_web, ra.sitoweb) as sitoWeb,
+              COALESCE(ra.firme, 0) as firme,
+              COUNT(vra2.referendum_id) as voti
+            FROM referendum_abrogativi ra
+            LEFT JOIN voti_referendum_abrogativi vra2 ON (
+              ra.id::text = vra2.referendum_id::text OR 
+              REPLACE(ra.id::text, '-', '') = vra2.referendum_id::text OR
+              ra.id::text = REPLACE(vra2.referendum_id::text, '-', '') OR
+              REPLACE(ra.id::text, '-', '') = REPLACE(vra2.referendum_id::text, '-', '') OR
+              (ra.firestore_id_backup IS NOT NULL AND (ra.firestore_id_backup::text = vra2.referendum_id::text OR REPLACE(ra.firestore_id_backup::text, '-', '') = REPLACE(vra2.referendum_id::text, '-', '')))
+            )
+            WHERE 1=1
+              ${quorumFilterReferendum}
+            GROUP BY ra.id, ra.nome, ra.sito_web, ra.sitoweb, ra.firme
+          )
+          ORDER BY firme DESC NULLS LAST, voti DESC, nome ASC
         `;
         
-        console.log('🔍 DEBUG - Esecuzione query classifica referendum');
+        console.log('🔍 DEBUG - Esecuzione query classifica referendum (con UNION)');
         const classificaResult = await pool.query(classificaQuery);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         
@@ -462,10 +572,10 @@ router.get('/', async (req, res) => {
         
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
-          sitoWeb: row.sitoweb || row.sito_web,
+          sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
           voti: parseInt(row.voti) || 0
         }));
-        console.log(`✅ Generata classifica con ${classifica.length} referendum:`, classifica);
+        console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica);
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
         // Se la classifica fallisce, continua senza di essa
