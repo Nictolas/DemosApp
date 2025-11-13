@@ -6,6 +6,26 @@ const { decompressUserLocation, compressUserLocation } = require('../../utils/lo
 
 const router = express.Router();
 
+// Mapping per la compressione del ruolo (da frontend a database)
+const ruoloCompressionMapping = {
+  'Elettore': 'E',
+  'Politico': 'P',
+  'Candidato': 'C',
+  'Candidato Politico': 'CP',
+  'Attivista': 'A',
+  'Admin': 'AD'
+};
+
+// Mapping per la decompressione del ruolo (da database a frontend)
+const ruoloDecompressionMapping = {
+  'E': 'Elettore',
+  'P': 'Politico', 
+  'C': 'Candidato',
+  'CP': 'Candidato Politico',
+  'A': 'Attivista',
+  'AD': 'Admin'
+};
+
 // GET /api/users/search - Cerca utenti per autocompletamento
 router.get('/search', verifyToken, async (req, res) => {
   try {
@@ -259,16 +279,6 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
     
-    // Mappa il ruolo dal database al frontend
-    const ruoloMapping = {
-      'E': 'Elettore',
-      'P': 'Politico', 
-      'C': 'Candidato',
-      'CP': 'Candidato Politico',
-      'A': 'Attivista',
-      'AD': 'Admin'
-    };
-    
     // Applica decompressione per i dati geografici
     const decompressedUser = decompressUserLocation(user);
     
@@ -278,7 +288,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
         genere: decompressGender(user.genere),
-        ruolo: ruoloMapping[user.ruolo] || user.ruolo
+        ruolo: ruoloDecompressionMapping[user.ruolo] || user.ruolo
       }
     };
     
@@ -366,16 +376,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       return grado.charAt(0).toUpperCase() + grado.slice(1).toLowerCase();
     };
     
-    // Compressione ruolo
-    const ruoloMapping = {
-      'Elettore': 'E',
-      'Politico': 'P',
-      'Candidato': 'C',
-      'Candidato Politico': 'CP',
-      'Attivista': 'A',
-      'Admin': 'AD'
-    };
-    
     // Filtra solo i campi consentiti e applica compressione/trasformazioni necessarie
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
@@ -386,7 +386,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         } 
         // Applica compressione per il ruolo
         else if (key === 'ruolo') {
-          filteredData[key] = ruoloMapping[updateData[key]] || updateData[key];
+          filteredData[key] = ruoloCompressionMapping[updateData[key]] || updateData[key];
           console.log(`🔧 Ruolo compresso:`, updateData[key], '→', filteredData[key]);
         } else {
           filteredData[key] = updateData[key];
@@ -444,16 +444,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
     
-    // Mappa il ruolo dal database al frontend
-    const ruoloMapping = {
-      'E': 'Elettore',
-      'P': 'Politico', 
-      'C': 'Candidato',
-      'CP': 'Candidato Politico',
-      'A': 'Attivista',
-      'AD': 'Admin'
-    };
-    
     // Applica decompressione per i dati geografici e genere
     const decompressedUser = decompressUserLocation(updatedUser);
     
@@ -464,7 +454,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
         genere: decompressGender(updatedUser.genere),
-        ruolo: ruoloMapping[updatedUser.ruolo] || updatedUser.ruolo
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
       }
     };
     
