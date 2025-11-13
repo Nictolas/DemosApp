@@ -80,6 +80,109 @@ function mapEsitoToStato(esito) {
   return mapping[esitoLower] || 'in_corso';
 }
 
+/**
+ * Mappa un record da iniziative_popolari al formato atteso dal frontend
+ * (compatibile con il formato legacy)
+ */
+function mapIniziativePopolariToLegacyFormat(row) {
+  // Normalizza le date (gestisce sia camelCase che snake_case)
+  const dataInizio = row.dataInizio || row.data_inizio;
+  const dataFine = row.dataFine || row.data_fine;
+  const sitoWeb = row.sitoWeb || row.sito_web;
+  
+  // Mappa status a stato
+  const stato = mapStatusToStato(row.status);
+  
+  // Determina quorum_raggiunto basandosi su quorum
+  // Se quorum è 'ok' o un numero > 0, consideralo raggiunto
+  let quorum_raggiunto = false;
+  if (row.quorum === 'ok' || row.quorum === 'OK') {
+    quorum_raggiunto = true;
+  } else if (typeof row.quorum === 'number' && row.quorum > 0) {
+    quorum_raggiunto = true;
+  } else if (typeof row.quorum === 'string' && /^\d+$/.test(row.quorum) && parseInt(row.quorum) > 0) {
+    quorum_raggiunto = true;
+  }
+  
+  // Mappa esito da status o quorum
+  let esito = 'In Attesa';
+  if (row.status) {
+    esito = mapStatusToEsito(row.status);
+  } else if (row.quorum === 'ok' || row.quorum === 'OK') {
+    esito = 'Approvata';
+  } else if (row.quorum === 'proposta') {
+    esito = 'In Attesa';
+  }
+  
+  return {
+    id: row.id,
+    nome: row.nome,
+    descrizione: row.descrizione || '',
+    data_inizio: dataInizio,
+    data_fine: dataFine,
+    dataInizio: dataInizio, // formato camelCase per frontend
+    dataFine: dataFine, // formato camelCase per frontend
+    sito_web: sitoWeb,
+    sitoweb: sitoWeb, // alias per compatibilità
+    sitoWeb: sitoWeb, // formato camelCase per frontend
+    quorum: row.quorum || 0,
+    esito: esito,
+    firme: row.firme || 0,
+    firme_raccolte: row.firme || 0, // alias per compatibilità
+    votiices: 0, // campo legacy, può essere calcolato dai voti
+    created_at: row.created_at || row.createdAt,
+    data_creazione: row.created_at || row.createdAt || row.data_creazione, // alias per compatibilità
+    // Campi aggiuntivi per compatibilità
+    tipo: 'iniziativa',
+    stato: stato,
+    quorum_raggiunto: quorum_raggiunto,
+    userId: row.userId || row.userid,
+    status: row.status
+  };
+}
+
+/**
+ * Mappa status (da iniziative_popolari) a stato (formato iniziative_ministero)
+ */
+function mapStatusToStato(status) {
+  if (!status) return 'in_corso';
+  
+  const statusLower = status.toLowerCase();
+  
+  const mapping = {
+    'pending': 'in_corso',
+    'in attesa': 'in_corso',
+    'in_corso': 'in_corso',
+    'conclusa': 'conclusa',
+    'approvata': 'conclusa',
+    'rifiutata': 'conclusa',
+    'attiva': 'in_corso'
+  };
+  
+  return mapping[statusLower] || 'in_corso';
+}
+
+/**
+ * Mappa status (da iniziative_popolari) a esito (formato legacy)
+ */
+function mapStatusToEsito(status) {
+  if (!status) return 'In Attesa';
+  
+  const statusLower = status.toLowerCase();
+  
+  const mapping = {
+    'pending': 'In Attesa',
+    'in attesa': 'In Attesa',
+    'in_corso': 'In Attesa',
+    'conclusa': 'Conclusa',
+    'approvata': 'Approvata',
+    'rifiutata': 'Rifiutata',
+    'attiva': 'In Attesa'
+  };
+  
+  return mapping[statusLower] || 'In Attesa';
+}
+
 
 /**
  * Costruisce una query per iniziative_ministero con filtri compatibili
@@ -197,6 +300,9 @@ module.exports = {
   mapToLegacyFormat,
   mapStatoToEsito,
   mapEsitoToStato,
-  buildQueryForTipo
+  buildQueryForTipo,
+  mapIniziativePopolariToLegacyFormat,
+  mapStatusToStato,
+  mapStatusToEsito
 };
 
