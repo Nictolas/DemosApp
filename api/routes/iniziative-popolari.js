@@ -3,7 +3,7 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
-const { mapToLegacyFormat, buildQueryForTipo } = require('../utils/iniziativeMinisteroMapper');
+const { mapToLegacyFormat, buildQueryForTipo, mapIniziativePopolariToLegacyFormat } = require('../utils/iniziativeMinisteroMapper');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -45,17 +45,60 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Query dalla nuova tabella iniziative_ministero con tipo = 'iniziativa'
+    // Query da ENTRAMBE le tabelle: iniziative_ministero e iniziative_popolari
     // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE
     // Per la pagina iniziative-popolari (non vota), mostra solo quelle con stato = 'in_corso'
     const votaOnly = req.query.vota === 'true';
     const soloInCorso = !votaOnly; // Per la pagina listing, mostra solo quelle in corso
     console.log(`🔍 DEBUG: votaOnly = ${votaOnly}, soloInCorso = ${soloInCorso}, req.query.vota = ${req.query.vota}`);
+    
+    // 1. Query da iniziative_ministero
     const { query, params } = buildQueryForTipo('iniziativa', userRole, userId, votaOnly, soloInCorso);
     console.log(`🔍 DEBUG: Query generata: ${query.substring(0, 200)}...`);
     
     const result = await pool.query(query, params);
     console.log(`✅ Recuperati ${result.rows.length} record da iniziative_ministero (tipo=iniziativa, votaOnly=${votaOnly})`);
+    
+    // 2. Query da iniziative_popolari
+    let iniziativePopolariResult = { rows: [] };
+    try {
+      let iniziativePopolariQuery;
+      let iniziativePopolariParams = [];
+      
+      if (votaOnly) {
+        // Per votaOnly: solo quelle con quorum = 'ok' (approvate) e status != 'pending'
+        iniziativePopolariQuery = `
+          SELECT *
+          FROM iniziative_popolari
+          WHERE (quorum = 'ok' OR quorum = 'OK')
+            AND (status IS NULL OR status != 'pending')
+          ORDER BY created_at DESC
+        `;
+      } else if (soloInCorso) {
+        // Per listing: solo quelle con status = 'pending' o 'in attesa' o NULL (in corso)
+        iniziativePopolariQuery = `
+          SELECT *
+          FROM iniziative_popolari
+          WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
+            AND quorum != 'proposta'
+          ORDER BY created_at DESC
+        `;
+      } else {
+        // Per admin o altre viste: tutte tranne le proposte (quorum != 'proposta')
+        iniziativePopolariQuery = `
+          SELECT *
+          FROM iniziative_popolari
+          WHERE quorum != 'proposta'
+          ORDER BY created_at DESC
+        `;
+      }
+      
+      iniziativePopolariResult = await pool.query(iniziativePopolariQuery, iniziativePopolariParams);
+      console.log(`✅ Recuperati ${iniziativePopolariResult.rows.length} record da iniziative_popolari (votaOnly=${votaOnly})`);
+    } catch (error) {
+      console.warn(`⚠️ Errore nel recupero iniziative_popolari:`, error.message);
+      // Continua senza iniziative_popolari se c'è un errore
+    }
     console.log(`🔍 DEBUG: Query completa:`, query);
     console.log(`🔍 DEBUG: Parametri query:`, params);
     
@@ -254,71 +297,121 @@ router.get('/', async (req, res) => {
       }
     }
     
-    // Normalizza i dati per il frontend usando il mapper (usa filteredRows invece di result.rows)
-    const normalizedData = filteredRows.map(row => mapToLegacyFormat(row, 'iniziativa'));
+    // Normalizza i dati per il frontend usando il mapper
+    // 1. Normalizza dati da iniziative_ministero
+    const normalizedMinistero = filteredRows.map(row => mapToLegacyFormat(row, 'iniziativa'));
+    
+    // 2. Normalizza dati da iniziative_popolari
+    let normalizedPopolari = [];
+    if (iniziativePopolariResult.rows.length > 0) {
+      // Applica gli stessi filtri di sicurezza anche a iniziative_popolari
+      let filteredPopolari = iniziativePopolariResult.rows;
+      
+      if (votaOnly) {
+        // Filtro sicurezza: solo quelle con quorum = 'ok' e status != 'pending'
+        filteredPopolari = filteredPopolari.filter(row => {
+          const quorumOk = row.quorum === 'ok' || row.quorum === 'OK';
+          const notPending = !row.status || (row.status !== 'pending' && row.status !== 'In Attesa');
+          return quorumOk && notPending;
+        });
+      } else if (soloInCorso) {
+        // Filtro sicurezza: solo quelle in corso
+        filteredPopolari = filteredPopolari.filter(row => {
+          const status = row.status ? row.status.toLowerCase() : '';
+          return !status || status === 'pending' || status === 'in attesa' || status === 'in_corso';
+        });
+      }
+      
+      normalizedPopolari = filteredPopolari.map(row => mapIniziativePopolariToLegacyFormat(row));
+      console.log(`✅ Normalizzate ${normalizedPopolari.length} iniziative da iniziative_popolari`);
+    }
+    
+    // 3. Unisci i risultati (rimuovi duplicati per ID)
+    const allNormalized = [...normalizedMinistero, ...normalizedPopolari];
+    const uniqueNormalized = allNormalized.reduce((acc, current) => {
+      const existing = acc.find(item => item.id === current.id);
+      if (!existing) {
+        acc.push(current);
+      } else {
+        // Se esiste già, preferisci quella da iniziative_ministero (più aggiornata)
+        const index = acc.indexOf(existing);
+        if (normalizedMinistero.some(m => m.id === current.id)) {
+          acc[index] = current;
+        }
+      }
+      return acc;
+    }, []);
+    
+    const normalizedData = uniqueNormalized;
+    console.log(`✅ Totale iniziative normalizzate: ${normalizedData.length} (${normalizedMinistero.length} da ministero, ${normalizedPopolari.length} da popolari)`);
 
-    // Genera la classifica basata sui voti (usa filteredRows invece di result.rows)
+    // Genera la classifica basata sui voti da ENTRAMBE le tabelle
     let classifica = [];
-    if (filteredRows.length > 0) {
+    if (normalizedData.length > 0) {
       try {
-        // Costruisci la query di classifica con il filtro appropriato
+        // Costruisci la query di classifica con UNION per includere entrambe le tabelle
         // Per la pagina iniziative-popolari, mostra solo quelle con stato = 'in_corso'
         // Per la pagina vota: quorum_raggiunto = TRUE E ESCLUDE TUTTE quelle con stato = 'in_corso'
-        const quorumFilter = votaOnly 
+        const quorumFilterMinistero = votaOnly 
           ? 'AND im.quorum_raggiunto = true AND im.stato != \'in_corso\''
           : 'AND im.stato = \'in_corso\'';
         
+        const quorumFilterPopolari = votaOnly
+          ? `(ip.quorum = 'ok' OR ip.quorum = 'OK') AND (ip.status IS NULL OR ip.status != 'pending')`
+          : `(ip.status IS NULL OR ip.status = 'pending' OR ip.status = 'in attesa' OR ip.status = 'in_corso') AND ip.quorum != 'proposta'`;
+        
         const classificaQuery = `
-          SELECT 
-            im.titolo as nome,
-            im.sito_web as sitoWeb,
-            COUNT(vip.iniziativa_id) as voti
-          FROM iniziative_ministero im
-          LEFT JOIN voti_iniziative_popolari vip ON (
-            im.id::text = vip.iniziativa_id OR 
-            REPLACE(im.id::text, '-', '') = vip.iniziativa_id OR
-            im.id::text = REPLACE(vip.iniziativa_id, '-', '') OR
-            REPLACE(im.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
+          (
+            SELECT 
+              im.titolo as nome,
+              im.sito_web as sitoWeb,
+              COALESCE(im.firme_raccolte, 0) as firme,
+              COUNT(vip.iniziativa_id) as voti
+            FROM iniziative_ministero im
+            LEFT JOIN voti_iniziative_popolari vip ON (
+              im.id::text = vip.iniziativa_id OR 
+              REPLACE(im.id::text, '-', '') = vip.iniziativa_id OR
+              im.id::text = REPLACE(vip.iniziativa_id, '-', '') OR
+              REPLACE(im.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
+            )
+            WHERE im.tipo LIKE $1
+              AND im.id_ministero IS NOT NULL
+              ${quorumFilterMinistero}
+            GROUP BY im.id, im.titolo, im.sito_web, im.firme_raccolte
           )
-          WHERE im.tipo LIKE $1
-            AND im.id_ministero IS NOT NULL
-            ${quorumFilter}
-          GROUP BY im.id, im.titolo, im.sito_web, im.firme_raccolte
-          ORDER BY im.firme_raccolte DESC NULLS LAST, voti DESC, im.titolo ASC
+          UNION ALL
+          (
+            SELECT 
+              ip.nome,
+              COALESCE(ip.sito_web, ip.sitoweb) as sitoWeb,
+              COALESCE(ip.firme, 0) as firme,
+              COUNT(vip2.iniziativa_id) as voti
+            FROM iniziative_popolari ip
+            LEFT JOIN voti_iniziative_popolari vip2 ON (
+              ip.id::text = vip2.iniziativa_id OR 
+              REPLACE(ip.id::text, '-', '') = vip2.iniziativa_id OR
+              ip.id::text = REPLACE(vip2.iniziativa_id, '-', '') OR
+              REPLACE(ip.id::text, '-', '') = REPLACE(vip2.iniziativa_id, '-', '')
+            )
+            WHERE ${quorumFilterPopolari}
+            GROUP BY ip.id, ip.nome, ip.sito_web, ip.sitoweb, ip.firme
+          )
+          ORDER BY firme DESC NULLS LAST, voti DESC, nome ASC
         `;
         
-        console.log('🔍 DEBUG - Esecuzione query classifica');
+        console.log('🔍 DEBUG - Esecuzione query classifica (con UNION)');
         const classificaResult = await pool.query(classificaQuery, params);
         console.log('🔍 DEBUG - Risultati classifica raw:', classificaResult.rows);
         
-        // Debug: verifica tutti i voti nel database
-        const debugVotiQuery = 'SELECT iniziativa_id, COUNT(*) as count FROM voti_iniziative_popolari GROUP BY iniziativa_id';
-        const debugVotiResult = await pool.query(debugVotiQuery);
-        console.log('🔍 DEBUG - Tutti i voti per iniziativa_id:', debugVotiResult.rows);
-        
-        // Debug: verifica gli ID delle iniziative
-        const debugQuorumFilter = votaOnly 
-          ? 'AND quorum_raggiunto = true AND stato != \'in_corso\''
-          : 'AND stato = \'in_corso\'';
-        const debugIniziativeQuery = `
-          SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte 
-          FROM iniziative_ministero 
-          WHERE tipo LIKE $1 
-            AND id_ministero IS NOT NULL 
-            ${debugQuorumFilter} 
-          ORDER BY firme_raccolte DESC NULLS LAST
-        `;
-        const debugIniziativeResult = await pool.query(debugIniziativeQuery, params);
-        console.log('🔍 DEBUG - ID iniziative:', debugIniziativeResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
-        
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
-          sitoWeb: row.sitoweb || row.sito_web,
+          sitoWeb: row.sitoweb || row.sito_web || row.sitoweb,
           voti: parseInt(row.voti) || 0
         }));
-        console.log(`✅ Generata classifica con ${classifica.length} iniziative:`, classifica);
+        console.log(`✅ Generata classifica con ${classifica.length} iniziative (da entrambe le tabelle):`, classifica);
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
+        console.log('⚠️ Stack trace:', classificaError.stack);
         // Se la classifica fallisce, continua senza di essa
         classifica = [];
       }
