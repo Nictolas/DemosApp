@@ -183,6 +183,93 @@ function mapStatusToEsito(status) {
   return mapping[statusLower] || 'In Attesa';
 }
 
+/**
+ * Mappa un record da referendum_abrogativi al formato atteso dal frontend
+ * (compatibile con il formato legacy)
+ */
+function mapReferendumAbrogativiToLegacyFormat(row) {
+  // Normalizza le date (gestisce sia camelCase che snake_case)
+  const dataInizio = row.dataInizio || row.data_inizio;
+  const dataFine = row.dataFine || row.data_fine;
+  const sitoWeb = row.sitoWeb || row.sito_web || row.sitoweb;
+  
+  // Mappa status a stato
+  // La tabella referendum_abrogativi usa 'A'/'a' per approvato, 'P'/'p' per pending
+  const stato = mapReferendumStatusToStato(row.status);
+  
+  // Determina quorum_raggiunto basandosi su quorum o status
+  // Se status è 'A' o 'a' (approvato), consideralo raggiunto
+  let quorum_raggiunto = false;
+  if (row.status === 'A' || row.status === 'a') {
+    quorum_raggiunto = true;
+  } else if (row.quorum === 'ok' || row.quorum === 'OK') {
+    quorum_raggiunto = true;
+  } else if (typeof row.quorum === 'number' && row.quorum > 0) {
+    quorum_raggiunto = true;
+  } else if (typeof row.quorum === 'string' && /^\d+$/.test(row.quorum) && parseInt(row.quorum) > 0) {
+    quorum_raggiunto = true;
+  }
+  
+  // Mappa esito da status
+  let esito = 'In Attesa';
+  if (row.status === 'A' || row.status === 'a') {
+    esito = 'Approvata';
+  } else if (row.status === 'P' || row.status === 'p') {
+    esito = 'In Attesa';
+  } else if (row.quorum === 'ok' || row.quorum === 'OK') {
+    esito = 'Approvata';
+  } else if (row.quorum === 'proposta') {
+    esito = 'In Attesa';
+  }
+  
+  return {
+    id: row.id,
+    nome: row.nome,
+    descrizione: row.descrizione || '',
+    data_inizio: dataInizio,
+    data_fine: dataFine,
+    dataInizio: dataInizio, // formato camelCase per frontend
+    dataFine: dataFine, // formato camelCase per frontend
+    sito_web: sitoWeb,
+    sitoweb: sitoWeb, // alias per compatibilità
+    sitoWeb: sitoWeb, // formato camelCase per frontend
+    quorum: row.quorum || 0,
+    esito: esito,
+    firme: row.firme || 0,
+    firme_raccolte: row.firme || 0, // alias per compatibilità
+    votiices: 0, // campo legacy, può essere calcolato dai voti
+    created_at: row.created_at || row.createdAt,
+    data_creazione: row.created_at || row.createdAt || row.data_creazione, // alias per compatibilità
+    // Campi aggiuntivi per compatibilità
+    tipo: 'referendum',
+    stato: stato,
+    quorum_raggiunto: quorum_raggiunto,
+    userId: row.userId || row.userid,
+    status: row.status,
+    firestore_id_backup: row.firestore_id_backup // per compatibilità con voti
+  };
+}
+
+/**
+ * Mappa status (da referendum_abrogativi) a stato (formato iniziative_ministero)
+ * Status può essere 'A'/'a' (approvato) o 'P'/'p' (pending)
+ */
+function mapReferendumStatusToStato(status) {
+  if (!status) return 'in_corso';
+  
+  const statusUpper = status.toUpperCase();
+  
+  // 'A' o 'a' = approvato = conclusa (perché può essere votato)
+  // 'P' o 'p' = pending = in_corso
+  if (statusUpper === 'A') {
+    return 'conclusa'; // Approvato significa che può essere votato (quorum raggiunto)
+  } else if (statusUpper === 'P') {
+    return 'in_corso'; // Pending significa ancora in raccolta firme
+  }
+  
+  return 'in_corso';
+}
+
 
 /**
  * Costruisce una query per iniziative_ministero con filtri compatibili
@@ -303,6 +390,8 @@ module.exports = {
   buildQueryForTipo,
   mapIniziativePopolariToLegacyFormat,
   mapStatusToStato,
-  mapStatusToEsito
+  mapStatusToEsito,
+  mapReferendumAbrogativiToLegacyFormat,
+  mapReferendumStatusToStato
 };
 
