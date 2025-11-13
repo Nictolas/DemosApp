@@ -79,7 +79,7 @@ router.get('/', async (req, res) => {
           SELECT *
           FROM referendum_abrogativi
           WHERE (status = 'A' OR status = 'a')
-          ORDER BY created_at DESC
+          ORDER BY data_inizio DESC NULLS LAST, nome ASC
         `;
       } else if (soloInCorso) {
         // Per listing: solo quelle con status = 'P' o 'p' (pending, in corso)
@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
           SELECT *
           FROM referendum_abrogativi
           WHERE (status = 'P' OR status = 'p')
-          ORDER BY created_at DESC
+          ORDER BY data_inizio DESC NULLS LAST, nome ASC
         `;
       } else {
         // Per admin o altre viste: tutte tranne le proposte (status != NULL)
@@ -95,14 +95,24 @@ router.get('/', async (req, res) => {
           SELECT *
           FROM referendum_abrogativi
           WHERE status IS NOT NULL
-          ORDER BY created_at DESC
+          ORDER BY data_inizio DESC NULLS LAST, nome ASC
         `;
       }
       
+      console.log(`🔍 DEBUG: Query referendum_abrogativi:`, referendumAbrogativiQuery);
       referendumAbrogativiResult = await pool.query(referendumAbrogativiQuery, referendumAbrogativiParams);
       console.log(`✅ Recuperati ${referendumAbrogativiResult.rows.length} record da referendum_abrogativi (votaOnly=${votaOnly})`);
+      if (referendumAbrogativiResult.rows.length > 0) {
+        console.log(`🔍 DEBUG: Prime 3 righe da referendum_abrogativi:`, referendumAbrogativiResult.rows.slice(0, 3).map(r => ({
+          id: r.id,
+          nome: r.nome?.substring(0, 50),
+          status: r.status,
+          quorum: r.quorum
+        })));
+      }
     } catch (error) {
-      console.warn(`⚠️ Errore nel recupero referendum_abrogativi:`, error.message);
+      console.error(`❌ Errore nel recupero referendum_abrogativi:`, error.message);
+      console.error(`❌ Stack trace:`, error.stack);
       // Continua senza referendum_abrogativi se c'è un errore
     }
     

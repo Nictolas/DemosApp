@@ -238,8 +238,8 @@ function mapReferendumAbrogativiToLegacyFormat(row) {
     firme: row.firme || 0,
     firme_raccolte: row.firme || 0, // alias per compatibilità
     votiices: 0, // campo legacy, può essere calcolato dai voti
-    created_at: row.created_at || row.createdAt,
-    data_creazione: row.created_at || row.createdAt || row.data_creazione, // alias per compatibilità
+    created_at: row.created_at || row.createdAt || row.data_creazione || new Date().toISOString(),
+    data_creazione: row.created_at || row.createdAt || row.data_creazione || new Date().toISOString(), // alias per compatibilità
     // Campi aggiuntivi per compatibilità
     tipo: 'referendum',
     stato: stato,

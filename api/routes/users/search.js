@@ -366,6 +366,16 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       return grado.charAt(0).toUpperCase() + grado.slice(1).toLowerCase();
     };
     
+    // Compressione ruolo
+    const ruoloMapping = {
+      'Elettore': 'E',
+      'Politico': 'P',
+      'Candidato': 'C',
+      'Candidato Politico': 'CP',
+      'Attivista': 'A',
+      'Admin': 'AD'
+    };
+    
     // Filtra solo i campi consentiti e applica compressione/trasformazioni necessarie
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
@@ -373,6 +383,11 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
           console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+        } 
+        // Applica compressione per il ruolo
+        else if (key === 'ruolo') {
+          filteredData[key] = ruoloMapping[updateData[key]] || updateData[key];
+          console.log(`🔧 Ruolo compresso:`, updateData[key], '→', filteredData[key]);
         } else {
           filteredData[key] = updateData[key];
         }
