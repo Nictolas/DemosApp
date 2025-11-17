@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings } from "lucide-react";
+import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings, FileText } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -124,6 +124,22 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
               <div className="text-left">
                 <div className="font-semibold text-gray-900">Copyright</div>
                 <div className="text-xs text-gray-600">Diritti e proprietà</div>
+              </div>
+            </Button>
+          </Link>
+
+          {/* Policy Registrazione */}
+          <Link href="/terms-of-service">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-20 rounded-xl border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 hover:from-teal-100 hover:to-cyan-100 hover:border-teal-300 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900">Policy Registrazione</div>
+                <div className="text-xs text-gray-600">Termini e condizioni</div>
               </div>
             </Button>
           </Link>
