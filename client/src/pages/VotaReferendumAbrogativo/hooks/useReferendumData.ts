@@ -8,8 +8,16 @@ export const useReferendumData = (user: any) => {
     queryKey: ['referendumAbrogativiData'],
     queryFn: async () => {
       console.log('🔍 DEBUG: Chiamata /api/referendum-abrogativi avviata');
-      const result = await apiRequest("GET", "/api/referendum-abrogativi?vota=true");
-      console.log('✅ Dati referendum abrogativi ricevuti:', result);
+      const response = await apiRequest("GET", "/api/referendum-abrogativi?vota=true");
+      console.log('✅ Dati referendum abrogativi ricevuti:', response);
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei referendum abrogativi";
+        throw new Error(errorMsg);
+      }
+      const result = response.data;
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Errore nel caricamento dei referendum abrogativi");
+      }
       return result;
     },
     enabled: !!user && !!localStorage.getItem('auth_token'),
