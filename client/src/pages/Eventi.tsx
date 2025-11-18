@@ -79,16 +79,21 @@ export default function Eventi() {
         ? "/api/eventi?view=global" 
         : "/api/eventi?view=personal";
       const response = await apiRequest("GET", url);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento degli eventi");
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento degli eventi";
+        throw new Error(errorMsg);
       }
-      return response;
+      const result = response.data;
+      if (!result.success) {
+        throw new Error(result.error || "Errore nel caricamento degli eventi");
+      }
+      return result;
     },
     enabled: !!user,
   });
 
   // Extract eventi array from API response (filtering is now done server-side)
-  const eventi = eventiResponse?.data || [];
+  const eventi = (eventiResponse?.data && Array.isArray(eventiResponse.data)) ? eventiResponse.data : [];
 
   // Function to delete event
   const deleteEvent = async (eventId: string) => {
@@ -101,12 +106,13 @@ export default function Eventi() {
       const response = await apiRequest("DELETE", `/api/eventi/${eventId}`);
       console.log('✅ Risposta eliminazione:', response);
       
-      if (response && response.success) {
+      if (response?.ok && response?.data?.success) {
         // Refresh the eventi list
         refetch();
         alert('Evento eliminato con successo!');
       } else {
-        throw new Error(response?.error || 'Errore nell\'eliminazione dell\'evento');
+        const errorMsg = response?.data?.error || response?.data?.message || 'Errore nell\'eliminazione dell\'evento';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('❌ Errore eliminazione:', error);
@@ -191,14 +197,15 @@ export default function Eventi() {
       };
       
       console.log('📤 Invio dati evento aggiornati (compressi):', compressedData);
-      const response = await apiRequest.put(`/eventi/${editingEvent.id}`, compressedData);
+      const response = await apiRequest.put(`/api/eventi/${editingEvent.id}`, compressedData);
       console.log('📥 Risposta server:', response);
       
-      if (!response.success) {
-        console.error('❌ Errore server:', response);
-        throw new Error(response.error || "Errore nell'aggiornamento dell'evento");
+      if (!response?.ok || !response?.data?.success) {
+        const errorMsg = response?.data?.error || response?.data?.message || "Errore nell'aggiornamento dell'evento";
+        console.error('❌ Errore server:', errorMsg);
+        throw new Error(errorMsg);
       }
-      return response;
+      return response.data;
     },
     onSuccess: (data) => {
       console.log('✅ onSuccess chiamato con dati:', data);
