@@ -7,8 +7,16 @@ export const useIniziativeData = (user: any) => {
     queryKey: ['iniziativePopolariData'],
     queryFn: async () => {
       console.log('🔍 DEBUG: Chiamata /api/iniziative-popolari avviata');
-      const result = await apiRequest("GET", "/api/iniziative-popolari?vota=true");
-      console.log('✅ Dati iniziative popolari ricevuti:', result);
+      const response = await apiRequest("GET", "/api/iniziative-popolari?vota=true");
+      console.log('✅ Dati iniziative popolari ricevuti:', response);
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento delle iniziative popolari";
+        throw new Error(errorMsg);
+      }
+      const result = response.data;
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Errore nel caricamento delle iniziative popolari");
+      }
       return result;
     },
     enabled: !!user && !!localStorage.getItem('auth_token'),
