@@ -11,15 +11,29 @@ export const useIniziativeData = (user: any) => {
   }>({
     queryKey: ['iniziativePopolari'],
     queryFn: async () => {
+      console.log('🔍 DEBUG useIniziativeData - Inizio fetch');
       const response = await apiRequest("GET", "/api/iniziative-popolari");
+      console.log('🔍 DEBUG useIniziativeData - Response:', response);
+      console.log('🔍 DEBUG useIniziativeData - response.ok:', response?.ok);
+      console.log('🔍 DEBUG useIniziativeData - response.data:', response?.data);
+      
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento delle iniziative popolari";
+        console.error('🔍 DEBUG useIniziativeData - Errore response:', errorMsg);
         throw new Error(errorMsg);
       }
       const result = response.data;
+      console.log('🔍 DEBUG useIniziativeData - result:', result);
+      console.log('🔍 DEBUG useIniziativeData - result.success:', result?.success);
+      console.log('🔍 DEBUG useIniziativeData - result.richieste:', result?.richieste);
+      console.log('🔍 DEBUG useIniziativeData - result.richieste length:', result?.richieste?.length);
+      
       if (!result || !result.success) {
-        throw new Error(result?.error || "Errore nel caricamento delle iniziative popolari");
+        const errorMsg = result?.error || "Errore nel caricamento delle iniziative popolari";
+        console.error('🔍 DEBUG useIniziativeData - Errore result:', errorMsg);
+        throw new Error(errorMsg);
       }
+      console.log('🔍 DEBUG useIniziativeData - Restituendo result:', result);
       return result;
     },
     enabled: !!user,

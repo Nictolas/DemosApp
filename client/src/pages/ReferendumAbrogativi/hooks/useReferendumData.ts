@@ -11,15 +11,29 @@ export const useReferendumData = (user: any) => {
   }>({
     queryKey: ['referendumAbrogativi'],
     queryFn: async () => {
+      console.log('🔍 DEBUG useReferendumData - Inizio fetch');
       const response = await apiRequest("GET", "/api/referendum-abrogativi");
+      console.log('🔍 DEBUG useReferendumData - Response:', response);
+      console.log('🔍 DEBUG useReferendumData - response.ok:', response?.ok);
+      console.log('🔍 DEBUG useReferendumData - response.data:', response?.data);
+      
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei referendum abrogativi";
+        console.error('🔍 DEBUG useReferendumData - Errore response:', errorMsg);
         throw new Error(errorMsg);
       }
       const result = response.data;
+      console.log('🔍 DEBUG useReferendumData - result:', result);
+      console.log('🔍 DEBUG useReferendumData - result.success:', result?.success);
+      console.log('🔍 DEBUG useReferendumData - result.richieste:', result?.richieste);
+      console.log('🔍 DEBUG useReferendumData - result.richieste length:', result?.richieste?.length);
+      
       if (!result || !result.success) {
-        throw new Error(result?.error || "Errore nel caricamento dei referendum abrogativi");
+        const errorMsg = result?.error || "Errore nel caricamento dei referendum abrogativi";
+        console.error('🔍 DEBUG useReferendumData - Errore result:', errorMsg);
+        throw new Error(errorMsg);
       }
+      console.log('🔍 DEBUG useReferendumData - Restituendo result:', result);
       return result;
     },
     enabled: !!user,
