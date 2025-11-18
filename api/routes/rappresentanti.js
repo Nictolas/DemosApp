@@ -384,6 +384,14 @@ router.get('/', verifyToken, async (req, res) => {
     const userResult = await pool.query(userQuery, [userId]);
     const user = userResult.rows[0] || {};
     
+    console.log('🔍 DEBUG Backend - User data:', {
+      userId,
+      rappresentante_europeo: user.rappresentante_europeo,
+      rappresentante_camera: user.rappresentante_camera,
+      rappresentante_senato: user.rappresentante_senato,
+      rappresentante_regionale: user.rappresentante_regionale,
+      rappresentante_comune: user.rappresentante_comune
+    });
     
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
@@ -402,6 +410,7 @@ router.get('/', verifyToken, async (req, res) => {
       const rappresentanteId = user[campo];
       
       if (rappresentanteId) {
+        console.log(`🔍 DEBUG Backend - Trovato rappresentante per ${categoria}: ${rappresentanteId}`);
         // Ottieni i dettagli del rappresentante
         const rappresentanteQuery = `
           SELECT 
@@ -422,18 +431,29 @@ router.get('/', verifyToken, async (req, res) => {
           const rappresentante = rappresentanteResult.rows[0];
           rappresentantiSelezionati[categoria] = [rappresentante];
           idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
-          
+          console.log(`🔍 DEBUG Backend - Rappresentante ${categoria} caricato:`, rappresentante.nome, rappresentante.cognome);
+        } else {
+          console.log(`⚠️ DEBUG Backend - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato nel database`);
         }
+      } else {
+        console.log(`🔍 DEBUG Backend - Nessun rappresentante per ${categoria}`);
       }
     }
     
-    res.json({
+    console.log('🔍 DEBUG Backend - Rappresentanti selezionati finali:', rappresentantiSelezionati);
+    console.log('🔍 DEBUG Backend - idMap finale:', idMap);
+    
+    const responseData = {
       success: true,
       data: {
         rappresentanti: rappresentantiSelezionati,
         idMap
       }
-    });
+    };
+    
+    console.log('🔍 DEBUG Backend - Response data:', JSON.stringify(responseData, null, 2));
+    
+    res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recuperare rappresentanti:', error);
     res.status(500).json({
