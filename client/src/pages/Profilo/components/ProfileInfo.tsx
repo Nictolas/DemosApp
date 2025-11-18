@@ -97,6 +97,13 @@ export const ProfileInfo = ({
                 <label className="text-sm font-semibold text-orange-700 uppercase tracking-wider">Genere</label>
                 <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.genere || 'Non specificato'}</p>
               </div>
+              
+              {userInfo.cittadinanza && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200">
+                  <label className="text-sm font-semibold text-yellow-700 uppercase tracking-wider">Cittadinanza</label>
+                  <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.cittadinanza}</p>
+                </div>
+              )}
             </div>
             
             <div className="space-y-6">

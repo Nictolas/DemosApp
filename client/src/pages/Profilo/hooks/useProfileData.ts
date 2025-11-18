@@ -132,14 +132,19 @@ export const useProfileData = (userId?: string) => {
         setAvatarConfig(null);
       }
       
-      // 6. Carica dettagli rappresentanti (solo se abbiamo un targetUserId)
+        // 6. Carica dettagli rappresentanti (solo se abbiamo un targetUserId)
       if (targetUserId) {
         console.log('🔍 DEBUG Profilo - Caricando dettagli rappresentanti per userId:', targetUserId);
         try {
           const rappresentantiResponse = await apiRequest("GET", "/api/rappresentanti");
+          console.log('🔍 DEBUG Profilo - rappresentantiResponse:', rappresentantiResponse);
           if (rappresentantiResponse?.ok && rappresentantiResponse?.data?.success && rappresentantiResponse.data.data) {
             const rappresentantiResult = rappresentantiResponse.data;
+            console.log('🔍 DEBUG Profilo - rappresentantiResult.data:', rappresentantiResult.data);
+            console.log('🔍 DEBUG Profilo - rappresentantiResult.data.rappresentanti:', rappresentantiResult.data.rappresentanti);
             setRappresentantiDetails(rappresentantiResult.data.rappresentanti || {});
+          } else {
+            console.warn('⚠️ DEBUG Profilo - Risposta rappresentanti non valida:', rappresentantiResponse);
           }
         } catch (rappresentantiError) {
           console.warn('⚠️ DEBUG Profilo - Errore nel caricamento rappresentanti:', rappresentantiError);
@@ -149,9 +154,14 @@ export const useProfileData = (userId?: string) => {
         console.log('🔍 DEBUG Profilo - Caricando dettagli candidati per userId:', targetUserId);
         try {
           const candidatiResponse = await apiRequest("GET", "/api/candidati/selezioni");
+          console.log('🔍 DEBUG Profilo - candidatiResponse:', candidatiResponse);
           if (candidatiResponse?.ok && candidatiResponse?.data?.success && candidatiResponse.data.data) {
             const candidatiResult = candidatiResponse.data;
+            console.log('🔍 DEBUG Profilo - candidatiResult.data:', candidatiResult.data);
+            console.log('🔍 DEBUG Profilo - candidatiResult.data.candidati:', candidatiResult.data.candidati);
             setCandidatiDetails(candidatiResult.data.candidati || {});
+          } else {
+            console.warn('⚠️ DEBUG Profilo - Risposta candidati non valida:', candidatiResponse);
           }
         } catch (candidatiError) {
           console.warn('⚠️ DEBUG Profilo - Errore nel caricamento candidati:', candidatiError);
