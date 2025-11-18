@@ -19,6 +19,8 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
              paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
              ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+             rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune,
+             candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune,
              status, avatar_config, created_at, updated_at,
              facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url
       FROM users 
@@ -80,10 +82,28 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         regione_candidatura: user.regione_candidatura,
         provincia_candidatura: user.provincia_candidatura,
         comune_candidatura: user.comune_candidatura,
+        rappresentante_europeo: user.rappresentante_europeo,
+        rappresentante_camera: user.rappresentante_camera,
+        rappresentante_senato: user.rappresentante_senato,
+        rappresentante_regionale: user.rappresentante_regionale,
+        rappresentante_comune: user.rappresentante_comune,
+        candidato_europeo: user.candidato_europeo,
+        candidato_camera: user.candidato_camera,
+        candidato_senato: user.candidato_senato,
+        candidato_regionale: user.candidato_regionale,
+        candidato_comune: user.candidato_comune,
         status: user.status,
         avatar_config: avatarConfig,
         created_at: user.created_at,
-        updated_at: user.updated_at
+        updated_at: user.updated_at,
+        facebook_url: user.facebook_url,
+        twitter_url: user.twitter_url,
+        instagram_url: user.instagram_url,
+        linkedin_url: user.linkedin_url,
+        telegram_url: user.telegram_url,
+        website_url: user.website_url,
+        twitch_url: user.twitch_url,
+        youtube_url: user.youtube_url
       }
     });
     

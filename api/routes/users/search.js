@@ -243,6 +243,8 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
              provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura,
              paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+             rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune,
+             candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune,
              facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url
       FROM users 
       WHERE id = $1
