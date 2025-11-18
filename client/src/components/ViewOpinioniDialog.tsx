@@ -98,9 +98,18 @@ export function ViewOpinioniDialog({
         console.log(`🔍 DEBUG ViewOpinioniDialog - utenteId: ${utenteId}`);
         
         // Chiama l'endpoint con il grado corretto basato sulla categoria
-        // apiRequest restituisce già il JSON parsato, non un Response
-        const result = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=${grado}`);
-        console.log(`🔍 DEBUG ViewOpinioniDialog - Risposta API:`, result);
+        const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=${grado}`);
+        console.log(`🔍 DEBUG ViewOpinioniDialog - Risposta API:`, response);
+        
+        if (!response?.ok || !response?.data) {
+          console.log('🔍 DEBUG fetchQuestions - Risposta non ok o dati mancanti:', response);
+          setQuestions([]);
+          setOpinions({});
+          return;
+        }
+        
+        const result = response.data;
+        console.log(`🔍 DEBUG ViewOpinioniDialog - result:`, result);
         
         if (result && result.success && result.data) {
           // Estrae le domande dalle opinioni ricevute
@@ -165,14 +174,21 @@ export function ViewOpinioniDialog({
         
         console.log(`🔍 DEBUG fetchMyOpinions - Categoria: ${categoria}, Grado: ${grado}`);
         
-        // apiRequest restituisce già il JSON parsato, non un Response
-        const data = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=${grado}`);
-        console.log(`🔍 DEBUG fetchMyOpinions - Risposta API:`, data);
+        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=${grado}`);
+        console.log(`🔍 DEBUG fetchMyOpinions - Risposta API:`, response);
         
-        if (data && data.success && data.data) {
+        if (!response?.ok || !response?.data) {
+          console.log('🔍 DEBUG fetchMyOpinions - Risposta non ok o dati mancanti:', response);
+          setMyOpinions({});
+          return;
+        }
+        
+        const result = response.data;
+        
+        if (result && result.success && result.data) {
           // Converte le opinioni nel formato atteso
           const opinioniMap: Record<string, string> = {};
-          data.data.opinioni.forEach((opinion: any) => {
+          result.data.opinioni.forEach((opinion: any) => {
             if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
               opinioniMap[opinion.id] = opinion.userAnswer;
             }
