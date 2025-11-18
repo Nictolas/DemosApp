@@ -12,9 +12,17 @@ export const useRappresentantiData = (user: any) => {
       // Scegli l'endpoint corretto in base alla modalità
       const endpoint = isTestRoute ? `/api/elezioni/candidati` : `/api/rappresentanti`;
       console.log('🔍 DEBUG Frontend - Endpoint chiamato:', endpoint, 'isTestRoute:', isTestRoute);
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const result = await apiRequest("GET", endpoint);
-      console.log('🔍 DEBUG Frontend - Risposta API:', result);
+      
+      const response = await apiRequest("GET", endpoint);
+      console.log('🔍 DEBUG Frontend - Risposta API:', response);
+      
+      // Verifica che la risposta sia ok e contenga dati
+      if (!response?.ok || !response?.data) {
+        console.log('🔍 DEBUG Frontend - Risposta non ok o dati mancanti');
+        return { rappresentanti: {}, idMap: {} };
+      }
+      
+      const result = response.data;
       
       // Gestisce la struttura dell'API in base alla modalità
       if (result.success && result.data) {
@@ -28,13 +36,14 @@ export const useRappresentantiData = (user: any) => {
           console.log('🔍 DEBUG Frontend - Dati finali per test:', finalData);
           return finalData;
         } else {
-          // Per le route normali, i dati sono in { rappresentanti, idMap }
+          // Per le route normali, i dati sono in result.data { rappresentanti, idMap }
           console.log('🔍 DEBUG Frontend - Dati normali ricevuti:', result.data);
           return result.data;
         }
       }
       
       // Fallback per struttura vuota
+      console.log('🔍 DEBUG Frontend - Fallback vuoto');
       return { rappresentanti: {}, idMap: {} };
     },
     enabled: !!user,
