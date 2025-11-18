@@ -261,7 +261,7 @@ router.get('/', async (req, res) => {
     
     // Filtro aggiuntivo di sicurezza per votaOnly: 
     // - ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum)
-    // - Solo quelle con quorum_raggiunto = true
+    // - Solo quelle con quorum_raggiunto = true (gestisce sia booleani che stringhe)
     let filteredRows = result.rows;
     if (votaOnly) {
       const beforeFilter = filteredRows.length;
@@ -270,8 +270,13 @@ router.get('/', async (req, res) => {
         if (row.stato === 'in_corso') {
           return false;
         }
-        // Solo quelle con quorum_raggiunto = true
-        return row.quorum_raggiunto === true;
+        // Solo quelle con quorum_raggiunto = true (gestisce sia booleani che stringhe)
+        // PostgreSQL può restituire booleani come 't'/'f' o true/false
+        const quorumRaggiunto = row.quorum_raggiunto;
+        if (quorumRaggiunto === true || quorumRaggiunto === 't' || quorumRaggiunto === 'true' || quorumRaggiunto === 1) {
+          return true;
+        }
+        return false;
       });
       const afterFilter = filteredRows.length;
       
@@ -279,7 +284,9 @@ router.get('/', async (req, res) => {
         console.warn(`⚠️ FILTRO SICUREZZA: Rimosse ${beforeFilter - afterFilter} referendum che non rispettano i criteri (prima: ${beforeFilter}, dopo: ${afterFilter})`);
         const removed = result.rows.filter(row => {
           // Rimuove quelle con stato = 'in_corso' O quorum_raggiunto != true
-          return row.stato === 'in_corso' || row.quorum_raggiunto !== true;
+          const quorumRaggiunto = row.quorum_raggiunto;
+          const hasQuorum = quorumRaggiunto === true || quorumRaggiunto === 't' || quorumRaggiunto === 'true' || quorumRaggiunto === 1;
+          return row.stato === 'in_corso' || !hasQuorum;
         });
         console.warn(`⚠️ Referendum rimossi:`, removed.map(r => ({ 
           id: r.id, 
@@ -319,7 +326,10 @@ router.get('/', async (req, res) => {
         }
         
         // Verifica che tutti abbiano quorum_raggiunto = true
-        const noQuorum = filteredRows.filter(r => r.quorum_raggiunto !== true);
+        const noQuorum = filteredRows.filter(r => {
+          const quorumRaggiunto = r.quorum_raggiunto;
+          return !(quorumRaggiunto === true || quorumRaggiunto === 't' || quorumRaggiunto === 'true' || quorumRaggiunto === 1);
+        });
         if (noQuorum.length > 0) {
           console.error(`❌ ERRORE CRITICO: Trovati ${noQuorum.length} referendum con quorum_raggiunto != true dopo il filtro sicurezza:`, noQuorum.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto })));
         }
