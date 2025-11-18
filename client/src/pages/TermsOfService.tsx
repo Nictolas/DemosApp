@@ -10,7 +10,7 @@ export default function TermsOfService() {
             Termini e Condizioni d'Uso
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
+            <strong>Demos</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -19,12 +19,12 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">1. Introduzione</h2>
             <p className="text-gray-700 leading-relaxed">
-              Benvenuto su DemosApp, la piattaforma di democrazia partecipativa che connette cittadini 
+              Benvenuto su Demos, la piattaforma di democrazia partecipativa che connette cittadini 
               e rappresentanti politici. Questi Termini e Condizioni regolano l'uso della nostra 
               piattaforma e dei servizi offerti.
             </p>
             <p className="text-gray-700 leading-relaxed mt-3">
-              Utilizzando DemosApp, accetti di essere vincolato da questi termini. Se non accetti 
+              Utilizzando Demos, accetti di essere vincolato da questi termini. Se non accetti 
               questi termini, non utilizzare la nostra piattaforma.
             </p>
           </section>
@@ -33,7 +33,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">2. Definizioni</h2>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li><strong>"Piattaforma"</strong> - Il sito web e i servizi di DemosApp</li>
+              <li><strong>"Piattaforma"</strong> - Il sito web e i servizi di Demos</li>
               <li><strong>"Utente"</strong> - Chiunque utilizzi la piattaforma</li>
               <li><strong>"Contenuto"</strong> - Opinionii, voti, comunicazioni pubblicate</li>
               <li><strong>"Servizi"</strong> - Funzionalità di voto, opinioni, rappresentanza</li>
@@ -45,7 +45,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">3. Accettazione dei Termini</h2>
             <p className="text-gray-700 leading-relaxed mb-3">
-              Accedendo e utilizzando DemosApp, dichiari di:
+              Accedendo e utilizzando Demos, dichiari di:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Avere almeno 18 anni di età</li>
@@ -59,7 +59,7 @@ export default function TermsOfService() {
           {/* Servizi offerti */}
           <section>
             <h2 className="text-2xl font-semibold mb-3">4. Servizi Offerti</h2>
-            <p className="text-gray-700 mb-3">DemosApp fornisce i seguenti servizi:</p>
+            <p className="text-gray-700 mb-3">Demos fornisce i seguenti servizi:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li><strong>Democrazia Partecipativa:</strong> Espressione di opinioni su temi politici</li>
               <li><strong>Sistema di Voto:</strong> Votazione per capo di stato, referendum, iniziative</li>
@@ -92,20 +92,105 @@ export default function TermsOfService() {
               <li>Rispettino la dignità umana</li>
               <li>Siano pertinenti al contesto democratico</li>
             </ul>
+
+            <h3 className="text-xl font-medium mb-2 mt-4">5.3 Contenuti Generati dagli Utenti</h3>
+            <p className="text-gray-700 mb-3">
+              L'utente è l'unico responsabile dei contenuti che pubblica sulla piattaforma, 
+              inclusi ma non limitati a opinioni, commenti, comunicazioni e proposte. 
+              Demos non assume alcuna responsabilità per:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>L'accuratezza, completezza o veridicità dei contenuti pubblicati dagli utenti</li>
+              <li>Le opinioni espresse dagli utenti</li>
+              <li>Le conseguenze derivanti dall'uso o dalla diffusione di tali contenuti</li>
+              <li>Violazioni di diritti di terze parti causate da contenuti pubblicati dagli utenti</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              Demos si riserva il diritto, ma non l'obbligo, di:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Moderare, modificare o rimuovere qualsiasi contenuto che violi questi termini</li>
+              <li>Rimuovere contenuti offensivi, diffamatori, illegali o inappropriati</li>
+              <li>Sospendere o chiudere account che pubblicano contenuti inappropriati</li>
+              <li>Collaborare con le autorità competenti in caso di contenuti illegali</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              L'utente garantisce che i contenuti pubblicati:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Non violano diritti di proprietà intellettuale di terzi</li>
+              <li>Non contengono materiale diffamatorio, offensivo o discriminatorio</li>
+              <li>Non promuovono attività illegali</li>
+              <li>Rispettano la dignità umana e i principi democratici</li>
+              <li>Non contengono informazioni false o fuorvianti</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              L'utente concede a Demos una licenza non esclusiva, gratuita e perpetua 
+              per utilizzare, riprodurre, modificare e distribuire i contenuti pubblicati 
+              sulla piattaforma, sempre nel rispetto della Privacy Policy e della normativa 
+              sulla protezione dei dati personali.
+            </p>
+
+            <h3 className="text-xl font-medium mb-2 mt-4">5.4 Account e Identità</h3>
+            <h4 className="text-lg font-medium mb-2 mt-3">5.4.1 Creazione e Gestione Account</h4>
+            <p className="text-gray-700 mb-3">
+              L'utente può creare un solo account sulla piattaforma. È vietato:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Creare account multipli utilizzando identità diverse o false</li>
+              <li>Condividere le credenziali di accesso con terzi</li>
+              <li>Utilizzare account di altri utenti</li>
+              <li>Trasferire il proprio account a terzi</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              L'utente è responsabile di:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Mantenere la riservatezza delle proprie credenziali di accesso</li>
+              <li>Notificare immediatamente Demos in caso di uso non autorizzato dell'account</li>
+              <li>Fornire informazioni veritiere e accurate durante la registrazione</li>
+              <li>Aggiornare le proprie informazioni personali quando necessario</li>
+            </ul>
+
+            <h4 className="text-lg font-medium mb-2 mt-3">5.4.2 Verifica dell'Identità</h4>
+            <p className="text-gray-700 mb-3">
+              Demos può richiedere la verifica dell'identità dell'utente in qualsiasi momento, 
+              specialmente per:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Utenti che si registrano come rappresentanti politici</li>
+              <li>Utenti che propongono iniziative o referendum</li>
+              <li>Utenti che mostrano comportamenti sospetti o inappropriati</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              La mancata verifica dell'identità quando richiesta può comportare la sospensione 
+              o la chiusura dell'account.
+            </p>
+
+            <h4 className="text-lg font-medium mb-2 mt-3">5.4.3 Sicurezza dell'Account</h4>
+            <p className="text-gray-700 mb-3">
+              L'utente è responsabile di tutte le attività che avvengono tramite il proprio account. 
+              Demos non è responsabile per perdite o danni derivanti da:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Uso non autorizzato dell'account dovuto a negligenza dell'utente</li>
+              <li>Condivisione delle credenziali con terzi</li>
+              <li>Attacchi informatici che compromettono la sicurezza dell'account dell'utente</li>
+            </ul>
           </section>
 
           {/* Accuratezza contenuti politici */}
           <section>
             <h2 className="text-2xl font-semibold mb-3">6. Accuratezza delle Opinioni dei Rappresentanti Politici</h2>
             <p className="text-gray-700 mb-3">
-              DemosApp si impegna a fornire informazioni accurate e aggiornate sui rappresentanti 
+              Demos si impegna a fornire informazioni accurate e aggiornate sui rappresentanti 
               politici e le loro opinioni. Tuttavia, l'utente riconosce e accetta che:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Le opinioni e le posizioni dei rappresentanti politici pubblicate sulla piattaforma 
                   potrebbero contenere errori o imprecisioni</li>
               <li>Le informazioni potrebbero non essere sempre aggiornate o complete</li>
-              <li>DemosApp non garantisce l'accuratezza assoluta di tali contenuti</li>
+              <li>Demos non garantisce l'accuratezza assoluta di tali contenuti</li>
               <li>L'utente è invitato a verificare le informazioni attraverso fonti ufficiali</li>
             </ul>
             <p className="text-gray-700 mb-3">
@@ -137,7 +222,7 @@ export default function TermsOfService() {
 
             <h3 className="text-xl font-medium mb-2">7.2 Validità dei Voti</h3>
             <p className="text-gray-700 mb-3">
-              I voti espressi su DemosApp hanno valore consultivo e non sostituiscono 
+              I voti espressi su Demos hanno valore consultivo e non sostituiscono 
               i processi elettorali ufficiali. La piattaforma è uno strumento di 
               democrazia partecipativa complementare alle istituzioni democratiche.
             </p>
@@ -184,16 +269,43 @@ export default function TermsOfService() {
           {/* Proprietà intellettuale */}
           <section>
             <h2 className="text-2xl font-semibold mb-3">9. Proprietà Intellettuale</h2>
-            <h3 className="text-xl font-medium mb-2">9.1 Contenuti DemosApp</h3>
+            <h3 className="text-xl font-medium mb-2">9.1 Contenuti Demos</h3>
             <p className="text-gray-700 mb-3">
               Tutti i contenuti della piattaforma (software, design, testi, immagini) 
-              sono di proprietà di DemosApp e protetti da copyright.
+              sono di proprietà di Demos e protetti da copyright.
             </p>
 
             <h3 className="text-xl font-medium mb-2">9.2 Contenuti Utente</h3>
             <p className="text-gray-700 mb-3">
-              L'utente mantiene la proprietà dei propri contenuti ma concede a DemosApp 
+              L'utente mantiene la proprietà dei propri contenuti ma concede a Demos 
               una licenza non esclusiva per utilizzarli nell'ambito della piattaforma.
+            </p>
+
+            <h3 className="text-xl font-medium mb-2 mt-4">9.3 Collegamenti a Siti Esterni</h3>
+            <p className="text-gray-700 mb-3">
+              La piattaforma può contenere collegamenti a siti web di terze parti che non sono 
+              sotto il controllo di Demos. L'inclusione di tali collegamenti non implica:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Approvazione o associazione di Demos con tali siti</li>
+              <li>Responsabilità di Demos per i contenuti, le politiche sulla privacy o le 
+                  pratiche di tali siti esterni</li>
+              <li>Garanzia sulla disponibilità, accuratezza o sicurezza dei siti collegati</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              L'utente riconosce e accetta che:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>L'accesso a siti esterni tramite collegamenti presenti sulla piattaforma 
+                  avviene a proprio rischio</li>
+              <li>Demos non è responsabile per eventuali danni o perdite derivanti dall'uso 
+                  di siti esterni</li>
+              <li>È responsabilità dell'utente leggere e comprendere i termini di servizio e 
+                  le politiche sulla privacy dei siti esterni prima di utilizzarli</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              Demos si riserva il diritto di rimuovere qualsiasi collegamento a siti esterni 
+              in qualsiasi momento senza preavviso.
             </p>
           </section>
 
@@ -201,7 +313,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">10. Limitazioni di Responsabilità</h2>
             <p className="text-gray-700 mb-3">
-              DemosApp non è responsabile per:
+              Demos non è responsabile per:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Interruzioni temporanee del servizio</li>
@@ -217,7 +329,7 @@ export default function TermsOfService() {
             <h2 className="text-2xl font-semibold mb-3">11. Sospensione e Chiusura Account</h2>
             <h3 className="text-xl font-medium mb-2">11.1 Sospensione</h3>
             <p className="text-gray-700 mb-3">
-              DemosApp può sospendere o chiudere account che:
+              Demos può sospendere o chiudere account che:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Violano questi termini</li>
@@ -238,7 +350,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">12. Modifiche ai Termini</h2>
             <p className="text-gray-700">
-              DemosApp si riserva il diritto di modificare questi termini. 
+              Demos si riserva il diritto di modificare questi termini. 
               Le modifiche significative saranno comunicate agli utenti. 
               L'uso continuato della piattaforma costituisce accettazione delle modifiche.
             </p>
