@@ -293,25 +293,56 @@ class DataRetentionService {
       const policies = this.getRetentionPolicies();
       const stats = {};
 
+      // Ottieni le colonne esistenti nella tabella users
+      const columnsQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND table_schema = 'public'
+      `;
+      const columnsResult = await pool.query(columnsQuery);
+      const existingColumns = new Set(columnsResult.rows.map(row => row.column_name));
+
       for (const [dataType, policy] of Object.entries(policies)) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - policy.retention_days);
 
-        const query = `
-          SELECT 
-            COUNT(*) as total_records,
-            COUNT(CASE WHEN created_at < $1 THEN 1 END) as expired_records,
-            COUNT(CASE WHEN created_at >= $1 THEN 1 END) as active_records
-          FROM users 
-          WHERE (${policy.fields.map(field => `${field} IS NOT NULL`).join(' OR ')})
-        `;
+        // Filtra solo i campi che esistono realmente nella tabella
+        const existingFields = policy.fields.filter(field => existingColumns.has(field));
 
-        const result = await pool.query(query, [cutoffDate]);
-        stats[dataType] = {
-          ...result.rows[0],
-          retention_days: policy.retention_days,
-          reason: policy.reason
-        };
+        // Se non ci sono campi esistenti per questa policy, salta o usa una query generica
+        if (existingFields.length === 0) {
+          // Per policy che non hanno campi nella tabella users, usa una query generica
+          const query = `
+            SELECT 
+              COUNT(*) as total_records,
+              COUNT(CASE WHEN created_at < $1 THEN 1 END) as expired_records,
+              COUNT(CASE WHEN created_at >= $1 THEN 1 END) as active_records
+            FROM users
+          `;
+          const result = await pool.query(query, [cutoffDate]);
+          stats[dataType] = {
+            ...result.rows[0],
+            retention_days: policy.retention_days,
+            reason: policy.reason,
+            note: 'Policy non applicabile alla tabella users'
+          };
+        } else {
+          const query = `
+            SELECT 
+              COUNT(*) as total_records,
+              COUNT(CASE WHEN created_at < $1 THEN 1 END) as expired_records,
+              COUNT(CASE WHEN created_at >= $1 THEN 1 END) as active_records
+            FROM users 
+            WHERE (${existingFields.map(field => `${field} IS NOT NULL`).join(' OR ')})
+          `;
+
+          const result = await pool.query(query, [cutoffDate]);
+          stats[dataType] = {
+            ...result.rows[0],
+            retention_days: policy.retention_days,
+            reason: policy.reason
+          };
+        }
       }
 
       return stats;
