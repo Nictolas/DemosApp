@@ -9,16 +9,37 @@ export const useGraziaData = (user: any) => {
   const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
     queryKey: ['graziaData'],
     queryFn: async () => {
-      console.log('🔍 DEBUG: Chiamata /api/grazia avviata');
-      const response = await apiRequest("GET", "/api/grazia");
-      console.log('🔍 DEBUG: Risposta ricevuta:', response);
-      if (!response || !response.success) {
-        const errorMsg = response?.error || "Errore nel caricamento dei dati grazia";
-        console.error('❌ Errore API /api/grazia:', errorMsg);
-        throw new Error(errorMsg);
+      try {
+        console.log('🔍 DEBUG useGraziaData - Inizio fetch');
+        const response = await apiRequest("GET", "/api/grazia");
+        console.log('🔍 DEBUG useGraziaData - Response completa:', response);
+        console.log('🔍 DEBUG useGraziaData - response.ok:', response?.ok);
+        console.log('🔍 DEBUG useGraziaData - response.status:', response?.status);
+        console.log('🔍 DEBUG useGraziaData - response.data:', response?.data);
+        
+        if (!response?.ok || !response?.data) {
+          const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati grazia";
+          console.error('❌ DEBUG useGraziaData - Errore response (non ok o dati mancanti):', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        const result = response.data;
+        console.log('🔍 DEBUG useGraziaData - result:', result);
+        console.log('🔍 DEBUG useGraziaData - result.success:', result?.success);
+        
+        if (!result || result.success === false) {
+          const errorMsg = result?.error || result?.message || "Errore nel caricamento dei dati grazia";
+          console.error('❌ DEBUG useGraziaData - Errore result (success false o result null):', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        console.log('✅ DEBUG useGraziaData - Restituendo result:', result);
+        return result;
+      } catch (err: any) {
+        console.error('❌ DEBUG useGraziaData - Errore catturato:', err);
+        console.error('❌ DEBUG useGraziaData - Errore message:', err?.message);
+        throw err;
       }
-      console.log('✅ Dati grazia ricevuti:', response);
-      return response;
     },
     enabled: !!user && !!localStorage.getItem('auth_token'),
     retry: 1,
