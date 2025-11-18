@@ -2,7 +2,8 @@ const express = require('express');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
-const { compressUserLocation } = require('../../utils/locationUtils');
+const { compressUserLocation, decompressUserLocation } = require('../../utils/locationUtils');
+const { decompressGender } = require('../../utils/genderUtils');
 
 const router = express.Router();
 
@@ -57,53 +58,56 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       }
     }
     
+    // Applica decompressione per i dati geografici
+    const decompressedUser = decompressUserLocation(user);
+    
     res.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        nome: user.nome,
-        cognome: user.cognome,
-        genere: user.genere,
+        id: decompressedUser.id,
+        email: decompressedUser.email,
+        nome: decompressedUser.nome,
+        cognome: decompressedUser.cognome,
+        genere: decompressGender(decompressedUser.genere),
         data_nascita: dataNascitaFormattata,
-        cittadinanza: user.cittadinanza,
-        paese_residenza: user.paese_residenza,
-        regione_residenza: user.regione_residenza,
-        provincia_residenza: user.provincia_residenza,
-        comune_residenza: user.comune_residenza,
-        ruolo: user.ruolo,
-        grado_elezione: user.grado_elezione,
-        paese_elezione: user.paese_elezione,
-        regione_elezione: user.regione_elezione,
-        provincia_elezione: user.provincia_elezione,
-        comune_elezione: user.comune_elezione,
-        grado_candidatura: user.grado_candidatura,
-        paese_candidatura: user.paese_candidatura,
-        regione_candidatura: user.regione_candidatura,
-        provincia_candidatura: user.provincia_candidatura,
-        comune_candidatura: user.comune_candidatura,
-        rappresentante_europeo: user.rappresentante_europeo,
-        rappresentante_camera: user.rappresentante_camera,
-        rappresentante_senato: user.rappresentante_senato,
-        rappresentante_regionale: user.rappresentante_regionale,
-        rappresentante_comune: user.rappresentante_comune,
-        candidato_europeo: user.candidato_europeo,
-        candidato_camera: user.candidato_camera,
-        candidato_senato: user.candidato_senato,
-        candidato_regionale: user.candidato_regionale,
-        candidato_comune: user.candidato_comune,
-        status: user.status,
+        cittadinanza: decompressedUser.cittadinanza,
+        paese_residenza: decompressedUser.paese_residenza,
+        regione_residenza: decompressedUser.regione_residenza,
+        provincia_residenza: decompressedUser.provincia_residenza,
+        comune_residenza: decompressedUser.comune_residenza,
+        ruolo: decompressedUser.ruolo,
+        grado_elezione: decompressedUser.grado_elezione,
+        paese_elezione: decompressedUser.paese_elezione,
+        regione_elezione: decompressedUser.regione_elezione,
+        provincia_elezione: decompressedUser.provincia_elezione,
+        comune_elezione: decompressedUser.comune_elezione,
+        grado_candidatura: decompressedUser.grado_candidatura,
+        paese_candidatura: decompressedUser.paese_candidatura,
+        regione_candidatura: decompressedUser.regione_candidatura,
+        provincia_candidatura: decompressedUser.provincia_candidatura,
+        comune_candidatura: decompressedUser.comune_candidatura,
+        rappresentante_europeo: decompressedUser.rappresentante_europeo,
+        rappresentante_camera: decompressedUser.rappresentante_camera,
+        rappresentante_senato: decompressedUser.rappresentante_senato,
+        rappresentante_regionale: decompressedUser.rappresentante_regionale,
+        rappresentante_comune: decompressedUser.rappresentante_comune,
+        candidato_europeo: decompressedUser.candidato_europeo,
+        candidato_camera: decompressedUser.candidato_camera,
+        candidato_senato: decompressedUser.candidato_senato,
+        candidato_regionale: decompressedUser.candidato_regionale,
+        candidato_comune: decompressedUser.candidato_comune,
+        status: decompressedUser.status,
         avatar_config: avatarConfig,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-        facebook_url: user.facebook_url,
-        twitter_url: user.twitter_url,
-        instagram_url: user.instagram_url,
-        linkedin_url: user.linkedin_url,
-        telegram_url: user.telegram_url,
-        website_url: user.website_url,
-        twitch_url: user.twitch_url,
-        youtube_url: user.youtube_url
+        created_at: decompressedUser.created_at,
+        updated_at: decompressedUser.updated_at,
+        facebook_url: decompressedUser.facebook_url,
+        twitter_url: decompressedUser.twitter_url,
+        instagram_url: decompressedUser.instagram_url,
+        linkedin_url: decompressedUser.linkedin_url,
+        telegram_url: decompressedUser.telegram_url,
+        website_url: decompressedUser.website_url,
+        twitch_url: decompressedUser.twitch_url,
+        youtube_url: decompressedUser.youtube_url
       }
     });
     
