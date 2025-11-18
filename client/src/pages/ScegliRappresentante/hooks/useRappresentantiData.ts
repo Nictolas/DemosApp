@@ -16,10 +16,13 @@ const useOpinioniCheck = (grado: string) => {
     
     setIsChecking(true);
     try {
-      const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-      if (result && result.success) {
-        setCheckResult(result.data);
-        return result.data;
+      const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+      if (response?.ok && response?.data) {
+        const result = response.data;
+        if (result && result.success) {
+          setCheckResult(result.data);
+          return result.data;
+        }
       }
     } catch (error) {
       console.error("Errore nel controllo opinioni:", error);
@@ -107,9 +110,16 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         console.log('🔍 DEBUG Frontend - IsTestRoute:', isTestRoute);
         console.log('🔍 DEBUG Frontend - URL finale:', url);
         
-        const result = await apiRequest("GET", url);
+        const response = await apiRequest("GET", url);
         
-        console.log('🔍 DEBUG Frontend - Risposta API:', result);
+        console.log('🔍 DEBUG Frontend - Risposta API:', response);
+        
+        if (!response?.ok || !response?.data) {
+          const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati dal server.";
+          throw new Error(errorMsg);
+        }
+        
+        const result = response.data;
         
         if (!result || !result.success) {
           throw new Error(result?.error || "Errore nel caricamento dei dati dal server.");
@@ -122,12 +132,15 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           
           // Per le route test, recuperiamo le selezioni esistenti dall'API
           try {
-            const selezioniData = await apiRequest("GET", `/api/elezioni/candidati`);
-            if (selezioniData && selezioniData.success) {
-              const { candidati: candidatiSelezionati } = selezioniData.data;
-              const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
-              setRappresentanteSelezionato(candidatoSelezionato?.id || null);
-              console.log('🔍 DEBUG Frontend - Candidato selezionato per test (da API):', candidatoSelezionato);
+            const selezioniResponse = await apiRequest("GET", `/api/elezioni/candidati`);
+            if (selezioniResponse?.ok && selezioniResponse?.data) {
+              const selezioniResult = selezioniResponse.data;
+              if (selezioniResult && selezioniResult.success) {
+                const { candidati: candidatiSelezionati } = selezioniResult.data;
+                const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
+                setRappresentanteSelezionato(candidatoSelezionato?.id || null);
+                console.log('🔍 DEBUG Frontend - Candidato selezionato per test (da API):', candidatoSelezionato);
+              }
             }
           } catch (error) {
             console.log('⚠️ Errore nel recuperare selezioni test:', error);
