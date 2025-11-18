@@ -11,6 +11,9 @@ export interface ICE {
   firme?: number;
   esito?: string;
   status?: string;
+  utente_id?: string;
+  userid?: string;
+  user_id?: string;
 }
 
 export interface ICEFormData {
