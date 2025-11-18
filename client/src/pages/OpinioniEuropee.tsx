@@ -34,18 +34,18 @@ export default function OpinioniEuropee() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', 'Europeo'],
     queryFn: async () => {
-      console.log('🔍 DEBUG - Caricamento opinioni europee...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", "/api/opinioni-list?grado=E");
-      console.log('🔍 DEBUG - Risposta API:', data);
-      return data;
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=E");
+      if (response.ok && response.data) {
+        return response.data;
+      }
+      return { success: false, data: [] };
     },
     enabled: !!user
   });
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = questionsData?.data || [];
+  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   
   // Debug
   useEffect(() => {

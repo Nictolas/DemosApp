@@ -34,25 +34,18 @@ export default function OpinioniComunali() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', 'Comunale'],
     queryFn: async () => {
-      console.log('🔍 DEBUG - Caricamento opinioni comunali...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", "/api/opinioni-list?grado=CO");
-      console.log('🔍 DEBUG - Risposta API:', data);
-      return data;
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=CO");
+      if (response.ok && response.data) {
+        return response.data;
+      }
+      return { success: false, data: [] };
     },
     enabled: !!user
   });
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = questionsData?.data || [];
-  
-  // Debug
-  useEffect(() => {
-    console.log('🔍 DEBUG - questionsData:', questionsData);
-    console.log('🔍 DEBUG - questions:', questions);
-    console.log('🔍 DEBUG - questions.length:', questions.length);
-  }, [questionsData, questions]);
+  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
     const opinioniEspresse = questions
@@ -72,26 +65,14 @@ export default function OpinioniComunali() {
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
-      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
       const mappedOpinions: Record<string, string> = {};
       
       questions.forEach(question => {
-        console.log(`🔍 DEBUG question:`, {
-          id: question.id,
-          text: question.text,
-          userAnswer: question.userAnswer
-        });
-        
         if (question.userAnswer && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
-          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
-        } else {
-          // Non impostare nulla per opinioni senza risposta - rimangono undefined
-          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> non impostata`);
         }
       });
       
-      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
   }, [questions]);
@@ -116,39 +97,20 @@ export default function OpinioniComunali() {
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
-    
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
-      console.log(`🔍 DEBUG question:`, {
-        id: question.id,
-        text: question.text,
-        userAnswer: question.userAnswer,
-        opinionValue: opinions[question.id]
-      });
-      
       if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
         // Usa l'ID dell'opinione direttamente dal database
         opinionsToSave[question.id] = opinions[question.id];
-        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
-      } else {
-        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
       }
     });
     
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    
     if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
       toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
       return;
     }
     
-    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
 

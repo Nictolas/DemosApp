@@ -41,18 +41,18 @@ export default function OpinioniRegionali() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', 'Regionale'],
     queryFn: async () => {
-      console.log('🔍 DEBUG - Caricamento opinioni regionali...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", "/api/opinioni-list?grado=R");
-      console.log('🔍 DEBUG - Risposta API:', data);
-      return data;
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=R");
+      if (response.ok && response.data) {
+        return response.data;
+      }
+      return { success: false, data: [] };
     },
     enabled: !!user
   });
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = questionsData?.data || [];
+  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   
   // Debug
   useEffect(() => {
