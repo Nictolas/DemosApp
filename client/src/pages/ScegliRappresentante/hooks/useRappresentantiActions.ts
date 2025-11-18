@@ -47,17 +47,19 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       // Invalida le query appropriate in base alla modalità
       if (isTestRoute) {
         console.log('🔄 DEBUG - Invalidando query per modalità test');
-        await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'test'] });
+        await queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
         await queryClient.invalidateQueries({ queryKey: ['user'] });
         // Forza il refetch immediato
-        await queryClient.refetchQueries({ queryKey: ['rappresentantiData', 'test'] });
+        await queryClient.refetchQueries({ queryKey: ['candidatiData'] });
       } else {
         console.log('🔄 DEBUG - Invalidando query per modalità rappresentanti');
+        // Invalida tutte le varianti della query key per essere sicuri
+        await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
         await queryClient.invalidateQueries({ queryKey: ['user'] });
-        // Forza il refetch immediato
-        await queryClient.refetchQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
+        // Forza il refetch immediato prima della navigazione
+        await queryClient.refetchQueries({ queryKey: ['rappresentantiData'] });
       }
 
       // Gestione FCM (solo per rappresentanti, non per test)
@@ -79,6 +81,9 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         title: "Successo",
         description: isTestRoute ? "Candidato selezionato con successo!" : "Rappresentante selezionato con successo!",
       });
+
+      // Piccolo delay per assicurarsi che il refetch sia completato prima della navigazione
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Reindirizza automaticamente dopo la selezione
       if (isTestRoute) {
