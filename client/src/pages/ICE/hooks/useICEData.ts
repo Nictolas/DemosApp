@@ -5,35 +5,70 @@ import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useICEData = (user: any) => {
-  const { data: iceData, isLoading, isError } = useQuery<ICEData>({
+  const { data: iceData, isLoading, isError, error } = useQuery<ICEData>({
     queryKey: QUERY_KEYS.ICE_LIST,
     queryFn: async () => {
-      console.log('🔍 DEBUG useICEData - Inizio fetch');
-      const response = await apiRequest("GET", API_ENDPOINTS.ICE_LIST);
-      console.log('🔍 DEBUG useICEData - Response:', response);
-      console.log('🔍 DEBUG useICEData - response.ok:', response?.ok);
-      console.log('🔍 DEBUG useICEData - response.data:', response?.data);
-      
-      if (!response?.ok || !response?.data) {
-        const errorMsg = response?.data?.error || response?.data?.message || MESSAGES.ERROR.LOAD;
-        console.error('🔍 DEBUG useICEData - Errore response:', errorMsg);
-        throw new Error(errorMsg);
+      try {
+        console.log('🔍 DEBUG useICEData - Inizio fetch');
+        const response = await apiRequest("GET", API_ENDPOINTS.ICE_LIST);
+        console.log('🔍 DEBUG useICEData - Response completa:', JSON.stringify(response, null, 2));
+        console.log('🔍 DEBUG useICEData - response.ok:', response?.ok);
+        console.log('🔍 DEBUG useICEData - response.status:', response?.status);
+        console.log('🔍 DEBUG useICEData - response.data:', response?.data);
+        console.log('🔍 DEBUG useICEData - response.data type:', typeof response?.data);
+        console.log('🔍 DEBUG useICEData - response.data keys:', response?.data ? Object.keys(response.data) : 'N/A');
+        
+        if (!response?.ok || !response?.data) {
+          const errorMsg = response?.data?.error || response?.data?.message || MESSAGES.ERROR.LOAD;
+          console.error('❌ DEBUG useICEData - Errore response (non ok o dati mancanti):', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        const result = response.data;
+        console.log('🔍 DEBUG useICEData - result completo:', JSON.stringify(result, null, 2));
+        console.log('🔍 DEBUG useICEData - result.success:', result?.success);
+        console.log('🔍 DEBUG useICEData - result.richieste:', result?.richieste);
+        console.log('🔍 DEBUG useICEData - result.richieste type:', typeof result?.richieste);
+        console.log('🔍 DEBUG useICEData - result.richieste isArray:', Array.isArray(result?.richieste));
+        console.log('🔍 DEBUG useICEData - result.richieste length:', result?.richieste?.length);
+        
+        // Se result ha direttamente richieste senza success, gestiscilo
+        if (result && Array.isArray(result.richieste)) {
+          console.log('✅ DEBUG useICEData - Trovato result.richieste come array');
+          // Se non c'è success, aggiungilo
+          if (result.success === undefined) {
+            console.log('⚠️ DEBUG useICEData - result.success è undefined, aggiungendo success: true');
+            return { ...result, success: true };
+          }
+        }
+        
+        if (!result || result.success === false) {
+          const errorMsg = result?.error || result?.message || MESSAGES.ERROR.LOAD;
+          console.error('❌ DEBUG useICEData - Errore result (success false o result null):', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        console.log('✅ DEBUG useICEData - Restituendo result:', result);
+        return result;
+      } catch (err: any) {
+        console.error('❌ DEBUG useICEData - Errore catturato:', err);
+        console.error('❌ DEBUG useICEData - Errore message:', err?.message);
+        console.error('❌ DEBUG useICEData - Errore stack:', err?.stack);
+        throw err;
       }
-      const result = response.data;
-      console.log('🔍 DEBUG useICEData - result:', result);
-      console.log('🔍 DEBUG useICEData - result.success:', result?.success);
-      console.log('🔍 DEBUG useICEData - result.richieste:', result?.richieste);
-      console.log('🔍 DEBUG useICEData - result.richieste length:', result?.richieste?.length);
-      
-      if (!result || !result.success) {
-        const errorMsg = result?.error || MESSAGES.ERROR.LOAD;
-        console.error('🔍 DEBUG useICEData - Errore result:', errorMsg);
-        throw new Error(errorMsg);
-      }
-      console.log('🔍 DEBUG useICEData - Restituendo result:', result);
-      return result;
     },
     enabled: !!user,
+    retry: 1,
+  });
+  
+  // Log dello stato della query
+  console.log('🔍 DEBUG useICEData - Stato query:', {
+    isLoading,
+    isError,
+    error: error?.message,
+    hasData: !!iceData,
+    dataKeys: iceData ? Object.keys(iceData) : [],
+    richiesteLength: iceData?.richieste?.length
   });
 
   const listaICE: ICE[] = (iceData?.richieste || []).map((item: any) => ({
