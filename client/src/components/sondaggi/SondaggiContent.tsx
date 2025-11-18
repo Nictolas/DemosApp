@@ -80,7 +80,7 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
         )}
 
         {/* Contenuto principale */}
-        {stats && (
+        {!isLoading && !isError && stats && (
           <div className="space-y-8">
             {/* Statistiche generali - solo se c'è un filtro */}
             {filterPath && (
@@ -113,6 +113,15 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
               colors={GENERE_COLORS}
             />
           </div>
+        )}
+        
+        {/* Messaggio se non ci sono dati e non sta caricando */}
+        {!isLoading && !isError && !stats && (
+          <Card className="bg-white shadow-lg">
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-600">Nessun dato disponibile al momento.</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

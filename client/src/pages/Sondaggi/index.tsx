@@ -39,7 +39,7 @@ export default function Sondaggi() {
         {isError && <ErrorState />}
 
         {/* Contenuto principale */}
-        {sondaggiData && (
+        {sondaggiData ? (
           <div className="space-y-8">
             <StatsCards 
               sondaggiData={sondaggiData}
@@ -52,9 +52,16 @@ export default function Sondaggi() {
             <SondaggiContent />
 
             {/* Grafico a torta del genere */}
-            <GenereChart generePieData={generePieData} />
+            {generePieData && generePieData.length > 0 && (
+              <GenereChart generePieData={generePieData} />
+            )}
           </div>
-        )}
+        ) : !isLoading && !isError ? (
+          <div className="space-y-8">
+            <RegioniGrid />
+            <SondaggiContent />
+          </div>
+        ) : null}
       </div>
     </div>
   );
