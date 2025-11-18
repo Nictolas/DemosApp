@@ -48,17 +48,22 @@ export default function Programma() {
     queryKey: ['programmaData', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      // Carica il programma specifico dell'utente
-      const response = await apiRequest("GET", `/api/programma/${user.id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Nessun programma trovato, restituisci valori vuoti
+      try {
+        // Carica il programma specifico dell'utente
+        const response = await apiRequest("GET", `/api/programma/${user.id}`);
+        if (response.ok && response.data) {
+          return { programma: response.data.data || defaultValues };
+        }
+        // Se non ok, restituisci valori vuoti (probabilmente 404)
+        return { programma: defaultValues };
+      } catch (error: any) {
+        // Se è un 404, non è un errore - semplicemente non c'è programma
+        if (error.status === 404 || error.message?.includes('404') || error.message?.includes('non trovato')) {
           return { programma: defaultValues };
         }
-        throw new Error('Failed to fetch data');
+        // Per altri errori, rilancia
+        throw error;
       }
-      const result = await response.json();
-      return { programma: result.data };
     },
     enabled: !!user,
   });
@@ -87,7 +92,7 @@ export default function Programma() {
         url_5: values.url5
       });
       if (!response.ok) throw new Error("Impossibile salvare il programma.");
-      return response.json();
+      return response.data || await response.json();
     },
     onSuccess: () => {
       toast({ title: "Salvato!", description: "Il tuo programma è stato aggiornato." });
