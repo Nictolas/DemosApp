@@ -37,6 +37,20 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
     
+    // Recupera userId se autenticato (opzionale)
+    let userId = null;
+    if (req.headers.authorization) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decoded.userId;
+        console.log(`🔍 DEBUG: Utente autenticato: ${userId}`);
+      } catch (authError) {
+        console.log('⚠️ Token non valido o assente, continuando senza autenticazione');
+      }
+    }
+    
     // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
     const query = `
       SELECT *
@@ -60,11 +74,30 @@ router.get('/', async (req, res) => {
     const classificaResult = await pool.query(classificaQuery);
     console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
     
+    // Recupera i voti dell'utente se autenticato
+    let mieiVoti = [];
+    if (userId) {
+      try {
+        const mieiVotiQuery = `
+          SELECT nome
+          FROM voti_grazia
+          WHERE user_id = $1
+          ORDER BY created_at DESC
+        `;
+        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
+        mieiVoti = mieiVotiResult.rows.map(row => row.nome);
+        console.log(`✅ Recuperati ${mieiVoti.length} voti per utente ${userId}`);
+      } catch (error) {
+        console.error('⚠️ Errore nel recuperare voti utente:', error);
+        // Continua senza voti utente
+      }
+    }
+    
     res.json({
       success: true,
       classifica: classificaResult.rows,
       richieste: result.rows,
-      mieiVoti: [], // Per ora vuoto
+      mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
