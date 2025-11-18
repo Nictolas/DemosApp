@@ -1,49 +1,45 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RappresentantiData } from "../types";
-import { useRoute } from "wouter";
 
 export const useRappresentantiData = (user: any) => {
-  const [isTestRoute] = useRoute("/candidati*");
-  
   return useQuery<RappresentantiData>({
-    queryKey: ['rappresentantiData', isTestRoute ? 'test' : 'rappresentanti'],
+    queryKey: ['rappresentantiData'],
     queryFn: async () => {
-      // Scegli l'endpoint corretto in base alla modalità
-      const endpoint = isTestRoute ? `/api/elezioni/candidati` : `/api/rappresentanti`;
-      console.log('🔍 DEBUG Frontend - Endpoint chiamato:', endpoint, 'isTestRoute:', isTestRoute);
+      console.log('🔍 DEBUG useRappresentantiData - Iniziando fetch dati rappresentanti');
       
-      const response = await apiRequest("GET", endpoint);
-      console.log('🔍 DEBUG Frontend - Risposta API:', response);
+      // Endpoint protetto: usa JWT per risalire all'utente corrente
+      const response = await apiRequest("GET", `/api/rappresentanti`);
+      console.log('🔍 DEBUG useRappresentantiData - Response:', response);
       
-      // Verifica che la risposta sia ok e contenga dati
       if (!response?.ok || !response?.data) {
-        console.log('🔍 DEBUG Frontend - Risposta non ok o dati mancanti');
+        console.log('🔍 DEBUG useRappresentantiData - Risposta non ok o dati mancanti');
         return { rappresentanti: {}, idMap: {} };
       }
       
       const result = response.data;
+      console.log('🔍 DEBUG useRappresentantiData - result:', result);
+      console.log('🔍 DEBUG useRappresentantiData - result.success:', result?.success);
+      console.log('🔍 DEBUG useRappresentantiData - result.data:', result?.data);
+      console.log('🔍 DEBUG useRappresentantiData - result.rappresentanti:', result?.rappresentanti);
       
-      // Gestisce la struttura dell'API in base alla modalità
-      if (result.success && result.data) {
-        if (isTestRoute) {
-          // Per le route test, i dati sono direttamente in result.data
-          console.log('🔍 DEBUG Frontend - Dati test ricevuti:', result.data);
-          const finalData = {
-            rappresentanti: result.data.candidati || {},
-            idMap: result.data.idMap || {}
-          };
-          console.log('🔍 DEBUG Frontend - Dati finali per test:', finalData);
-          return finalData;
-        } else {
-          // Per le route normali, i dati sono in result.data { rappresentanti, idMap }
-          console.log('🔍 DEBUG Frontend - Dati normali ricevuti:', result.data);
-          return result.data;
-        }
+      // Gestisce la nuova struttura dell'API
+      if (result?.success && result?.data) {
+        console.log('🔍 DEBUG useRappresentantiData - Dati restituiti (struttura success/data):', result.data);
+        return result.data;
+      }
+      
+      // Fallback per struttura legacy (se i dati sono direttamente nell'oggetto)
+      if (result?.rappresentanti && typeof result.rappresentanti === 'object') {
+        console.log('🔍 DEBUG useRappresentantiData - Dati con struttura rappresentanti/idMap');
+        return {
+          rappresentanti: result.rappresentanti || {},
+          idMap: result.idMap || {}
+        };
       }
       
       // Fallback per struttura vuota
-      console.log('🔍 DEBUG Frontend - Fallback vuoto');
+      console.log('🔍 DEBUG useRappresentantiData - Fallback vuoto, result:', JSON.stringify(result, null, 2));
       return { rappresentanti: {}, idMap: {} };
     },
     enabled: !!user,
