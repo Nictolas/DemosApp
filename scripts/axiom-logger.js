@@ -276,6 +276,103 @@ async function syncNewLogsToAxiom() {
 }
 
 /**
+ * Sincronizza audit logs dal database a Axiom
+ */
+async function syncAuditLogsToAxiom(days = 1) {
+  if (!axiom) {
+    console.error('❌ Axiom non configurato');
+    return;
+  }
+  
+  console.log(`🔄 Sincronizzazione audit logs a Axiom (ultimi ${days} giorni)...\n`);
+  
+  try {
+    // Recupera audit logs degli ultimi N giorni
+    const query = `
+      SELECT 
+        id,
+        user_id,
+        action,
+        resource,
+        resource_id,
+        details,
+        ip_address,
+        user_agent,
+        timestamp,
+        success,
+        error_message,
+        created_at
+      FROM audit_logs_decompressed
+      WHERE timestamp >= NOW() - INTERVAL '${days} days'
+      ORDER BY timestamp DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    if (result.rows.length === 0) {
+      console.log('✅ Nessun audit log da inviare');
+      return;
+    }
+    
+    console.log(`📊 Trovati ${result.rows.length} audit logs da sincronizzare`);
+    
+    // Converti in formato Axiom
+    const logs = result.rows.map(row => {
+      const log = {
+        _time: new Date(row.timestamp || row.created_at).toISOString(),
+        type: 'audit',
+        user_id: row.user_id,
+        action: row.action,
+        resource: row.resource,
+        resource_id: row.resource_id,
+        success: row.success,
+        ip_address: row.ip_address,
+        user_agent: row.user_agent,
+        error_message: row.error_message
+      };
+      
+      // Aggiungi details se presente
+      if (row.details) {
+        if (typeof row.details === 'string') {
+          try {
+            Object.assign(log, JSON.parse(row.details));
+          } catch (e) {
+            log.details = row.details;
+          }
+        } else {
+          Object.assign(log, row.details);
+        }
+      }
+      
+      return log;
+    });
+    
+    // Invia in batch da 1000
+    const batchSize = 1000;
+    let sent = 0;
+    
+    for (let i = 0; i < logs.length; i += batchSize) {
+      const batch = logs.slice(i, i + batchSize);
+      const success = await sendLogsToAxiom(batch);
+      
+      if (success) {
+        sent += batch.length;
+      }
+      
+      if (i + batchSize < logs.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    console.log(`\n✅ ${sent}/${logs.length} audit logs sincronizzati con Axiom`);
+    
+  } catch (error) {
+    console.error('❌ Errore sincronizzazione audit logs:', error);
+    throw error;
+  }
+}
+
+/**
  * Verifica configurazione Axiom
  */
 async function checkAxiomConfig() {
@@ -331,6 +428,11 @@ async function main() {
         await checkAxiomConfig();
         break;
         
+      case 'sync-audit':
+        const auditDays = parseInt(process.argv[3]) || 1;
+        await syncAuditLogsToAxiom(auditDays);
+        break;
+        
       case 'test':
         // Test invio log di esempio
         const testLogs = [{
@@ -343,11 +445,12 @@ async function main() {
         break;
         
       default:
-        console.log('Uso: node axiom-logger.js [sync|sync-new|check|test] [days]');
-        console.log('  sync [days]    - Sincronizza log ultimi N giorni (default: 1)');
-        console.log('  sync-new       - Sincronizza solo log nuovi (24 ore)');
-        console.log('  check          - Verifica configurazione');
-        console.log('  test           - Test invio log di esempio');
+        console.log('Uso: node axiom-logger.js [sync|sync-new|sync-audit|check|test] [days]');
+        console.log('  sync [days]      - Sincronizza centralized_logs ultimi N giorni (default: 1)');
+        console.log('  sync-new         - Sincronizza solo log nuovi (24 ore)');
+        console.log('  sync-audit [days] - Sincronizza audit_logs ultimi N giorni (default: 1)');
+        console.log('  check            - Verifica configurazione');
+        console.log('  test             - Test invio log di esempio');
     }
     
   } catch (error) {
@@ -367,6 +470,7 @@ module.exports = {
   sendLogsToAxiom,
   syncLogsToAxiom,
   syncNewLogsToAxiom,
+  syncAuditLogsToAxiom,
   checkAxiomConfig
 };
 
