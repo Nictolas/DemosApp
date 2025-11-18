@@ -8,10 +8,29 @@ export const useICEData = (user: any) => {
   const { data: iceData, isLoading, isError } = useQuery<ICEData>({
     queryKey: QUERY_KEYS.ICE_LIST,
     queryFn: async () => {
-      const result = await apiRequest("GET", API_ENDPOINTS.ICE_LIST);
-      if (!result || !result.success) {
-        throw new Error(result?.error || MESSAGES.ERROR.LOAD);
+      console.log('🔍 DEBUG useICEData - Inizio fetch');
+      const response = await apiRequest("GET", API_ENDPOINTS.ICE_LIST);
+      console.log('🔍 DEBUG useICEData - Response:', response);
+      console.log('🔍 DEBUG useICEData - response.ok:', response?.ok);
+      console.log('🔍 DEBUG useICEData - response.data:', response?.data);
+      
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || response?.data?.message || MESSAGES.ERROR.LOAD;
+        console.error('🔍 DEBUG useICEData - Errore response:', errorMsg);
+        throw new Error(errorMsg);
       }
+      const result = response.data;
+      console.log('🔍 DEBUG useICEData - result:', result);
+      console.log('🔍 DEBUG useICEData - result.success:', result?.success);
+      console.log('🔍 DEBUG useICEData - result.richieste:', result?.richieste);
+      console.log('🔍 DEBUG useICEData - result.richieste length:', result?.richieste?.length);
+      
+      if (!result || !result.success) {
+        const errorMsg = result?.error || MESSAGES.ERROR.LOAD;
+        console.error('🔍 DEBUG useICEData - Errore result:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      console.log('🔍 DEBUG useICEData - Restituendo result:', result);
       return result;
     },
     enabled: !!user,
