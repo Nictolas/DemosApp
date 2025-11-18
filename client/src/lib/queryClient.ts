@@ -9,15 +9,12 @@ async function throwIfResNotOk(res: Response) {
 }
 
 const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
-  console.log('🔍 DEBUG apiRequest - Inizio richiesta:', { method, url, body });
-  
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   
   // Usa token JWT dal localStorage invece di Firebase
   const token = localStorage.getItem('auth_token');
-  console.log('🔍 DEBUG apiRequest - Token presente:', !!token);
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -29,8 +26,6 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
   }
   
   const finalUrl = getApiUrl(url);
-  console.log('🔍 DEBUG apiRequest - URL finale:', finalUrl);
-  console.log('🔍 DEBUG apiRequest - Headers:', headers);
   
   try {
     // Disabilita la cache per evitare problemi con status 304
@@ -47,29 +42,14 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     
     const response = await fetch(finalUrl, fetchOptions);
     
-    console.log('🔍 DEBUG apiRequest - Risposta ricevuta:', { status: response.status, ok: response.ok, url: response.url });
-    
-    // Verifica se la risposta è ok prima di restituirla
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-        console.error('❌ DEBUG apiRequest - Errore nella risposta:', errorData);
-      } catch (e) {
-        const text = await response.text();
-        console.error('❌ DEBUG apiRequest - Errore (non JSON):', text);
-        errorMessage = text || errorMessage;
-      }
-      throw new Error(errorMessage);
-    }
-    
-    // Leggi il body come testo prima di parsarlo, per gestire meglio il caso 304
+    // Leggi il body come testo prima di parsarlo
     const text = await response.text();
     
     // Se il body è vuoto (può succedere con 304), gestiscilo
     if (!text || text.trim() === '') {
-      console.warn('⚠️ DEBUG apiRequest - Risposta con body vuoto, status:', response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Risposta vuota dal server`);
+      }
       throw new Error('Risposta vuota dal server');
     }
     
@@ -78,15 +58,35 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     try {
       data = JSON.parse(text);
     } catch (parseError) {
-      console.error('❌ DEBUG apiRequest - Errore nel parsing JSON:', parseError);
-      console.error('❌ DEBUG apiRequest - Testo ricevuto:', text);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+      }
       throw new Error('Errore nel parsing della risposta JSON');
     }
     
-    console.log('🔍 DEBUG apiRequest - Dati ricevuti:', data);
-    return data;
-  } catch (error) {
-    console.error('❌ DEBUG apiRequest - ERRORE:', error);
+    // Se la risposta non è ok, lancia un errore con il messaggio dall'API
+    if (!response.ok) {
+      const errorMessage = data.error || data.message || `HTTP ${response.status}`;
+      const error = new Error(errorMessage) as any;
+      error.status = response.status;
+      error.ok = false;
+      error.data = data;
+      throw error;
+    }
+    
+    // Restituisci un oggetto Response-like per compatibilità
+    return {
+      ok: true,
+      status: response.status,
+      json: async () => data,
+      data
+    } as any;
+  } catch (error: any) {
+    // Se l'errore ha già status, rilancialo così com'è
+    if (error.status !== undefined) {
+      throw error;
+    }
+    // Altrimenti, crea un nuovo errore
     throw error;
   }
 };

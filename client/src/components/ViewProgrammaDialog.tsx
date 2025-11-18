@@ -15,52 +15,34 @@ interface ViewProgrammaDialogProps {
 }
 
 export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognome, avatarConfig }: ViewProgrammaDialogProps) {
-  console.log('🚨🚨🚨 ViewProgrammaDialog RENDERED! 🚨🚨🚨');
-  console.log('🚨 Props:', { utenteId, open, nome, cognome });
-  console.log('🚨 utenteId type:', typeof utenteId);
-  console.log('🚨 utenteId length:', utenteId?.length);
-  console.log('🚨 utenteId === "":', utenteId === "");
-  
   const [proposte, setProposte] = useState<{proposta: string, url: string}[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🚨🚨🚨 ViewProgrammaDialog useEffect CALLED! 🚨🚨🚨');
-    console.log('🚨 open:', open, 'utenteId:', utenteId);
-    console.log('🚨 open && utenteId:', open && utenteId);
-    
     if (!open || !utenteId) {
-      console.log('🚨 ViewProgrammaDialog useEffect: EXIT - open:', open, 'utenteId:', utenteId);
       return;
     }
     
-    console.log('🚨🚨🚨 ViewProgrammaDialog useEffect TRIGGERED! 🚨🚨🚨');
     setIsLoading(true);
     setError(null);
     setProposte([]);
     const fetchProgramma = async () => {
       try {
-        console.log('🔍 ViewProgrammaDialog: Caricamento programma per utenteId:', utenteId);
-        // apiRequest restituisce già il JSON parsato, non un Response
-        const data = await apiRequest("GET", `/api/programma/${utenteId}`);
-        console.log('🔍 ViewProgrammaDialog: Response data:', data);
+        const response = await apiRequest("GET", `/api/programma/${utenteId}`);
         
-        if (data && data.success && data.data) {
-          console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', data.data);
+        if (response.ok && response.data?.success && response.data.data) {
           const newProposte = [
-            {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
-            {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
-            {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
-            {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
-            {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
+            {proposta: response.data.data.proposta1 || "", url: response.data.data.url1 || ""},
+            {proposta: response.data.data.proposta2 || "", url: response.data.data.url2 || ""},
+            {proposta: response.data.data.proposta3 || "", url: response.data.data.url3 || ""},
+            {proposta: response.data.data.proposta4 || "", url: response.data.data.url4 || ""},
+            {proposta: response.data.data.proposta5 || "", url: response.data.data.url5 || ""},
           ];
-          console.log('🔍 ViewProgrammaDialog: Nuove proposte da impostare:', newProposte);
           setProposte(newProposte);
           setError(null);
         } else {
-          // Programma non trovato o success=false - non è un errore, semplicemente non c'è programma
-          console.log('🔍 ViewProgrammaDialog: Nessun programma trovato');
+          // Programma non trovato - non è un errore, semplicemente non c'è programma
           setProposte([
             {proposta: "", url: ""},
             {proposta: "", url: ""},
@@ -76,10 +58,10 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
         const isNotFound = errorMessage.includes('non trovato') || 
                           errorMessage.includes('404') || 
                           errorMessage.includes('Programma non trovato') ||
-                          errorMessage.includes('HTTP 404');
+                          errorMessage.includes('HTTP 404') ||
+                          e?.status === 404;
         
         if (isNotFound) {
-          console.log('🔍 ViewProgrammaDialog: Programma non trovato (404) -', errorMessage);
           setProposte([
             {proposta: "", url: ""},
             {proposta: "", url: ""},
@@ -89,7 +71,6 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
           ]);
           setError(null);
         } else {
-          console.error('🔍 ViewProgrammaDialog: Errore nel caricamento:', e);
           setError("Errore nel caricamento del programma elettorale.");
           setProposte([
             {proposta: "", url: ""},
@@ -135,11 +116,7 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
             </div>
           ) : (
              <div className="space-y-3 mt-2">
-               {(() => {
-                 console.log('🔍 ViewProgrammaDialog: Rendering proposte:', proposte);
-                 console.log('🔍 ViewProgrammaDialog: Tutte vuote?', proposte.every(p => !p.proposta || p.proposta.trim() === ''));
-                 return proposte.every(p => !p.proposta || p.proposta.trim() === '');
-               })() ? (
+               {proposte.every(p => !p.proposta || p.proposta.trim() === '') ? (
                  <div className="text-center py-8">
                    <div className="text-gray-500 text-lg mb-2">📝</div>
                    <p className="text-gray-600 text-lg font-medium">L'utente non ha ancora inserito il suo programma personale.</p>
