@@ -8,7 +8,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export const apiRequest = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
   console.log('🔍 DEBUG apiRequest - Inizio richiesta:', { method, url, body });
   
   let headers: Record<string, string> = {
@@ -90,6 +90,30 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
     throw error;
   }
 };
+
+// Wrapper per compatibilità con codice che usa apiRequest.get(), apiRequest.post(), ecc.
+export const apiRequest = Object.assign(apiRequestFunction, {
+  get: (url: string, options?: { params?: Record<string, any> }) => {
+    let finalUrl = url;
+    if (options?.params) {
+      const params = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+      const queryString = params.toString();
+      if (queryString) {
+        finalUrl = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+      }
+    }
+    return apiRequestFunction('GET', finalUrl);
+  },
+  post: (url: string, body?: any) => apiRequestFunction('POST', url, body),
+  put: (url: string, body?: any) => apiRequestFunction('PUT', url, body),
+  delete: (url: string) => apiRequestFunction('DELETE', url),
+  patch: (url: string, body?: any) => apiRequestFunction('PATCH', url, body),
+});
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
