@@ -113,16 +113,27 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         const response = await apiRequest("GET", url);
         
         console.log('🔍 DEBUG Frontend - Risposta API:', response);
+        console.log('🔍 DEBUG Frontend - response.ok:', response?.ok);
+        console.log('🔍 DEBUG Frontend - response.data:', response?.data);
+        console.log('🔍 DEBUG Frontend - response.data type:', typeof response?.data);
+        console.log('🔍 DEBUG Frontend - response.data keys:', response?.data ? Object.keys(response.data) : 'N/A');
         
         if (!response?.ok || !response?.data) {
           const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati dal server.";
+          console.log('🔍 DEBUG Frontend - Risposta non ok o dati mancanti, errore:', errorMsg);
           throw new Error(errorMsg);
         }
         
         const result = response.data;
+        console.log('🔍 DEBUG Frontend - result:', result);
+        console.log('🔍 DEBUG Frontend - result.success:', result?.success);
+        console.log('🔍 DEBUG Frontend - result.data:', result?.data);
+        console.log('🔍 DEBUG Frontend - result.error:', result?.error);
         
         if (!result || !result.success) {
-          throw new Error(result?.error || "Errore nel caricamento dei dati dal server.");
+          const errorMsg = result?.error || result?.message || "Errore nel caricamento dei dati dal server.";
+          console.log('🔍 DEBUG Frontend - result.success è false o undefined, errore:', errorMsg);
+          throw new Error(errorMsg);
         }
         
         if (isTestRoute) {
