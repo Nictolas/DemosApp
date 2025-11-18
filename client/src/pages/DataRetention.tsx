@@ -56,9 +56,9 @@ const DataRetention: React.FC = () => {
       setError(null);
 
       const [policiesRes, statsRes, statusRes] = await Promise.all([
-        apiRequest.get('/admin/data-retention/policies'),
-        apiRequest.get('/admin/data-retention/stats'),
-        apiRequest.get('/admin/data-retention/job/status')
+        apiRequest('GET', '/admin/data-retention/policies'),
+        apiRequest('GET', '/admin/data-retention/stats'),
+        apiRequest('GET', '/admin/data-retention/job/status')
       ]);
 
       if (policiesRes.success) {
@@ -83,7 +83,7 @@ const DataRetention: React.FC = () => {
 
   const handleStartJob = async () => {
     try {
-      const response = await apiRequest.post('/admin/data-retention/job/start');
+      const response = await apiRequest('POST', '/admin/data-retention/job/start');
       if (response.success) {
         setSuccess('Job di data retention avviato');
         loadData();
@@ -95,7 +95,7 @@ const DataRetention: React.FC = () => {
 
   const handleStopJob = async () => {
     try {
-      const response = await apiRequest.post('/admin/data-retention/job/stop');
+      const response = await apiRequest('POST', '/admin/data-retention/job/stop');
       if (response.success) {
         setSuccess('Job di data retention fermato');
         loadData();
@@ -107,7 +107,7 @@ const DataRetention: React.FC = () => {
 
   const handleImmediateCleanup = async () => {
     try {
-      const response = await apiRequest.post('/admin/data-retention/cleanup/immediate');
+      const response = await apiRequest('POST', '/admin/data-retention/cleanup/immediate');
       if (response.success) {
         setSuccess(`Pulizia completata: ${response.data.total_deleted} record cancellati`);
         loadData();
