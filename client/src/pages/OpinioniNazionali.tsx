@@ -52,18 +52,18 @@ export default function OpinioniNazionali() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', 'Nazionale'],
     queryFn: async () => {
-      console.log('🔍 DEBUG - Caricamento opinioni nazionali...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", "/api/opinioni-list?grado=N");
-      console.log('🔍 DEBUG - Risposta API:', data);
-      return data;
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
+      if (response.ok && response.data) {
+        return response.data;
+      }
+      return { success: false, data: [] };
     },
     enabled: !!user
   });
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = questionsData?.data || [];
+  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   const userAnswers = questionsData?.userAnswers || {};
   
   // Debug
