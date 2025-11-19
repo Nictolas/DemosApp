@@ -66,6 +66,18 @@ router.get('/', async (req, res) => {
     console.log('🔍 DEBUG: Parametri query:', params);
     
     const result = await pool.query(query, params);
+    console.log(`🔍 DEBUG: Query eseguita, risultato: ${result.rows.length} righe`);
+    if (result.rows.length > 0) {
+      console.log('🔍 DEBUG: Prime 3 righe risultato query:', result.rows.slice(0, 3).map(r => ({
+        id: r.id,
+        titolo: r.titolo?.substring(0, 50),
+        tipo: r.tipo,
+        stato: r.stato,
+        quorum_raggiunto: r.quorum_raggiunto,
+        quorum_raggiunto_type: typeof r.quorum_raggiunto,
+        id_ministero: r.id_ministero
+      })));
+    }
     
     // 2. Query da referendum_abrogativi
     let referendumAbrogativiResult = { rows: [] };
@@ -218,13 +230,37 @@ router.get('/', async (req, res) => {
           LIMIT 5
         `;
         const testResult = await pool.query(testQuery);
-        console.log(`🔍 DEBUG VOTA REFERENDUM: Test query diretta restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
+        console.log(`🔍 DEBUG VOTA REFERENDUM: Test query diretta (con quorum_raggiunto = true) restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
           id: r.id,
           titolo: r.titolo?.substring(0, 50),
           tipo: r.tipo,
           stato: r.stato,
           id_ministero: r.id_ministero,
-          quorum_raggiunto: r.quorum_raggiunto
+          quorum_raggiunto: r.quorum_raggiunto,
+          quorum_raggiunto_type: typeof r.quorum_raggiunto
+        })));
+        
+        // Query aggiuntiva per vedere tutti i record con stato != 'in_corso' (senza filtro quorum_raggiunto)
+        const testQuery2 = `
+          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
+          FROM iniziative_ministero
+          WHERE tipo LIKE '%Referendum abrogativo%' 
+            AND stato != 'in_corso' 
+            AND id_ministero IS NOT NULL
+          ORDER BY stato, data_inizio DESC
+          LIMIT 10
+        `;
+        const testResult2 = await pool.query(testQuery2);
+        console.log(`🔍 DEBUG VOTA REFERENDUM: Test query 2 (senza filtro quorum_raggiunto) restituisce ${testResult2.rows.length} risultati:`, testResult2.rows.map(r => ({
+          id: r.id,
+          titolo: r.titolo?.substring(0, 50),
+          tipo: r.tipo,
+          stato: r.stato,
+          id_ministero: r.id_ministero,
+          quorum_raggiunto: r.quorum_raggiunto,
+          quorum_raggiunto_type: typeof r.quorum_raggiunto,
+          quorum_raggiunto_is_true: r.quorum_raggiunto === true,
+          quorum_raggiunto_is_t: r.quorum_raggiunto === 't'
         })));
       } else {
         console.log(`🔍 DEBUG VOTA REFERENDUM: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
@@ -629,9 +665,11 @@ router.get('/', async (req, res) => {
     if (result.rows.length === 0) {
       try {
         const testQuery = `
-          SELECT id, titolo, tipo, stato, id_ministero
+          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
           FROM iniziative_ministero
           WHERE tipo ILIKE '%referendum%'
+            AND id_ministero IS NOT NULL
+            AND stato != 'in_corso'
           ORDER BY stato, data_inizio DESC
           LIMIT 5
         `;
@@ -641,8 +679,10 @@ router.get('/', async (req, res) => {
           titolo: r.titolo?.substring(0, 60),
           tipo: r.tipo,
           stato: r.stato,
-          id_ministero: r.id_ministero
+          id_ministero: r.id_ministero,
+          quorum_raggiunto: r.quorum_raggiunto
         }));
+        console.log('🔍 DEBUG - testQueryResult con quorum_raggiunto:', testQueryResult);
       } catch (e) {
         console.error('Errore query test:', e);
       }

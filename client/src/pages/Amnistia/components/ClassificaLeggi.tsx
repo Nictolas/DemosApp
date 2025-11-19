@@ -17,6 +17,7 @@ interface ClassificaLeggiProps {
   onVote: (legge: string) => void;
   onShowClassifica: () => void;
   hasReachedLimit: boolean;
+  mieiVoti?: string[];
 }
 
 export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
@@ -25,7 +26,8 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
   isPending,
   onVote,
   onShowClassifica,
-  hasReachedLimit
+  hasReachedLimit,
+  mieiVoti = []
 }) => {
   if (!classifica || classifica.length === 0) {
     return (
@@ -79,6 +81,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
                 onVote={onVote}
                 isPending={isPending}
                 hasReachedLimit={hasReachedLimit}
+                isSelected={mieiVoti.includes(item.legge)}
               />
             ))}
           </div>

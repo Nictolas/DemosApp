@@ -48,12 +48,33 @@ export const useGraziaData = (user: any) => {
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => apiRequest("POST", "/api/grazia/vota", { voti }),
+    mutationFn: async (voti: string[]) => {
+      console.log('🔍 DEBUG saveVotiMutation - Inizio salvataggio voti:', voti);
+      const response = await apiRequest("POST", "/api/grazia/vota", { voti });
+      console.log('🔍 DEBUG saveVotiMutation - Response:', response);
+      
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || response?.data?.message || "Errore nel salvataggio dei voti";
+        console.error('❌ DEBUG saveVotiMutation - Errore response:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      const result = response.data;
+      if (result?.success === false) {
+        const errorMsg = result?.error || result?.message || "Errore nel salvataggio dei voti";
+        console.error('❌ DEBUG saveVotiMutation - Errore result:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      console.log('✅ DEBUG saveVotiMutation - Voti salvati con successo');
+      return result;
+    },
     onSuccess: () => {
+      console.log('✅ DEBUG saveVotiMutation - onSuccess chiamato, invalidando query');
       queryClient.invalidateQueries({ queryKey: ['graziaData'] });
     },
     onError: (error: any) => {
-      console.error('❌ Errore salvataggio voti:', error);
+      console.error('❌ DEBUG saveVotiMutation - onError:', error);
     }
   });
 
