@@ -79,7 +79,7 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
   };
 
   const handleRemoveVote = (legge: string, removeVoteMutation: any) => {
-    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per l'amnistia di "${legge}"?`)) return;
+    // Rimuovi direttamente senza conferma quando si clicca dalla classifica
     removeVoteMutation.mutate(legge);
   };
 

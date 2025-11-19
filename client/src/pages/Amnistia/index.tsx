@@ -43,7 +43,14 @@ export default function Amnistia() {
   };
 
   const onVote = (legge: string) => {
-    updateField('leggeInput', legge);
+    // Salva automaticamente il voto quando si clicca su "Vota" nella classifica
+    if (data?.mieiVoti.includes(legge)) {
+      // Se già votato, rimuovi il voto
+      handleRemoveVote(legge, removeVoteMutation);
+    } else {
+      // Se non votato, aggiungi il voto
+      handleAddVote({ preventDefault: () => {} } as React.FormEvent, legge, addVoteMutation);
+    }
   };
 
   if (!user) {
@@ -102,6 +109,7 @@ export default function Amnistia() {
             onVote={onVote}
             onShowClassifica={showClassifica}
             hasReachedLimit={hasReachedLimit}
+            mieiVoti={data?.mieiVoti || []}
           />
         </div>
       </div>

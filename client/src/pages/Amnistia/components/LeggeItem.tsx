@@ -16,7 +16,8 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
   isTopThree,
   onVote,
   isPending,
-  hasReachedLimit
+  hasReachedLimit,
+  isSelected = false
 }) => {
   const leggeStyle = getLeggeStyle(isTopThree);
   const numberStyle = getLeggeNumberStyle(isTopThree);
@@ -44,11 +45,24 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
         variant="outline"
         size="sm"
         onClick={() => onVote(item.legge)}
-        disabled={isPending || hasReachedLimit}
-        className={`transition-all duration-300 ${buttonStyle}`}
+        disabled={isPending || (hasReachedLimit && !isSelected)}
+        className={`transition-all duration-300 ${
+          isSelected 
+            ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+            : buttonStyle
+        }`}
       >
-        <ThumbsUp className="h-4 w-4 mr-2" />
-        Vota
+        {isSelected ? (
+          <>
+            <ThumbsUp className="h-4 w-4 mr-2" />
+            Votato
+          </>
+        ) : (
+          <>
+            <ThumbsUp className="h-4 w-4 mr-2" />
+            Vota
+          </>
+        )}
       </Button>
     </div>
   );

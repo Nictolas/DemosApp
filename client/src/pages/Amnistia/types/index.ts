@@ -30,6 +30,7 @@ export interface LeggeItemProps {
   onVote: (legge: string) => void;
   isPending: boolean;
   hasReachedLimit: boolean;
+  isSelected?: boolean;
 }
 
 export interface AmnistiaFormProps {
