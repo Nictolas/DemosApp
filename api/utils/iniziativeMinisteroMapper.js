@@ -300,7 +300,22 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
   
   if (userRole === "AD") {
     // Admin vedono tutto (con LIKE per gestire varianti del nome)
-    // Ma se soloInCorso è true, anche gli admin vedono solo quelle con stato = 'in_corso'
+    // Ma se votaOnly è true, anche gli admin devono vedere solo quelle con quorum_raggiunto = TRUE e stato != 'in_corso'
+    if (votaOnly) {
+      return {
+        query: `
+          SELECT *
+          FROM iniziative_ministero
+          WHERE tipo LIKE $1
+            AND id_ministero IS NOT NULL
+            AND quorum_raggiunto = true
+            AND stato != 'in_corso'
+          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+        `,
+        params: [`%${tipoValue}%`]
+      };
+    }
+    // Se soloInCorso è true, anche gli admin vedono solo quelle con stato = 'in_corso'
     if (soloInCorso) {
       return {
         query: `
