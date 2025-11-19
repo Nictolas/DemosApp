@@ -82,7 +82,7 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
                 isSelected={selectedVoti.includes(item.nome)}
                 isTopThree={isTopThree(index)}
                 onToggleSelezione={onToggleSelezione}
-                disabled={isPending || isBlocked || ((item.nome))}
+                disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
               />
             ))}
           </div>
@@ -117,7 +117,7 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
                       isSelected={selectedVoti.includes(item.nome)}
                       isTopThree={isTopThree(index + 3)}
                       onToggleSelezione={onToggleSelezione}
-                      disabled={isPending || isBlocked || ((item.nome))}
+                      disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
                     />
                   ))}
                 </div>

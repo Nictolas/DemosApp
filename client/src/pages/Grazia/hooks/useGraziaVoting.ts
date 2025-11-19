@@ -95,10 +95,10 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
       const limit = getVotingLimit('grazia');
       if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
         // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
-        setShowConfirmDialog(true);
         return {
           ...prev,
-          selectedVoti: [nome] // Sostituisci con il nuovo voto
+          selectedVoti: [nome], // Sostituisci con il nuovo voto
+          showConfirmDialog: true
         };
       }
       
