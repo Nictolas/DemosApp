@@ -52,11 +52,14 @@ export default function Notifiche() {
               user_id: user?.id
             });
             
-            if (response && response.success) {
-              console.log('✅ Tutte le notifiche marcate come lette');
-              // Invalida la query per aggiornare i dati
-              queryClient.invalidateQueries({ queryKey: ['notifiche'] });
-              queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+            if (response?.ok && response?.data) {
+              const result = response.data;
+              if (result && result.success) {
+                console.log('✅ Tutte le notifiche marcate come lette');
+                // Invalida la query per aggiornare i dati
+                queryClient.invalidateQueries({ queryKey: ['notifiche'] });
+                queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+              }
             }
           } catch (error) {
             console.error('Errore nel marcare notifiche come lette:', error);

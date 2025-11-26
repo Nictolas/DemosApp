@@ -21,10 +21,16 @@ export const useNotificheData = (user: any) => {
         throw new Error("ID utente non valido");
       }
       const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento delle notifiche.");
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || "Errore nel caricamento delle notifiche.";
+        throw new Error(errorMsg);
       }
-      return response;
+      const result = response.data;
+      if (!result || result.success === false) {
+        const errorMsg = result?.error || "Errore nel caricamento delle notifiche.";
+        throw new Error(errorMsg);
+      }
+      return result;
     },
     enabled: !!user && !!user?.id && isValidUUID(user.id),
     refetchInterval: 60000, // Ricarica i dati ogni minuto
@@ -37,10 +43,16 @@ export const useNotificheData = (user: any) => {
         throw new Error("ID utente non valido");
       }
       const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read?user_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nell'aggiornamento notifica.");
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || "Errore nell'aggiornamento notifica.";
+        throw new Error(errorMsg);
       }
-      return response;
+      const result = response.data;
+      if (!result || result.success === false) {
+        const errorMsg = result?.error || "Errore nell'aggiornamento notifica.";
+        throw new Error(errorMsg);
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifiche'] });
@@ -59,10 +71,16 @@ export const useNotificheData = (user: any) => {
         throw new Error("ID utente non valido");
       }
       const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}?user_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nella cancellazione segnalazione.");
+      if (!response?.ok || !response?.data) {
+        const errorMsg = response?.data?.error || "Errore nella cancellazione segnalazione.";
+        throw new Error(errorMsg);
       }
-      return response;
+      const result = response.data;
+      if (!result || result.success === false) {
+        const errorMsg = result?.error || "Errore nella cancellazione segnalazione.";
+        throw new Error(errorMsg);
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifiche'] });
