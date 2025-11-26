@@ -40,7 +40,7 @@ export const EmergencyDialog: React.FC<EmergencyDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <span className="text-3xl">{category.icon}</span>
