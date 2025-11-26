@@ -232,3 +232,5 @@ Se hai problemi durante la trasformazione:
 
 **🎯 IMPORTANTE: Quando clicchi "Transform account", cerca attentamente l'opzione per selezionare la regione EU. Se non la vedi, NON completare la trasformazione e contatta il supporto!**
 
+
+
