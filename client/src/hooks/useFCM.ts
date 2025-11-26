@@ -3,6 +3,7 @@ export function useFCM() {
   return {
     token: null,
     isLoading: false,
-    error: null
+    error: null,
+    permission: null as NotificationPermission | null
   };
 }

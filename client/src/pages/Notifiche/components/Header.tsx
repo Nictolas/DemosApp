@@ -6,7 +6,7 @@ interface HeaderProps {
   fcmToken: string | null;
   fcmError: Error | null;
   permission: NotificationPermission | null;
-  onSwitch: (type: 'inApp' | 'push') => void;
+  onSwitch: (key: string, value: boolean) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({

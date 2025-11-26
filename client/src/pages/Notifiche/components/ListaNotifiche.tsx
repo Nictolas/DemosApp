@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Loader2, Bell } from "lucide-react";
 import { NotificheData } from "../types";
 import { NotificaItem } from "./NotificaItem";
 
