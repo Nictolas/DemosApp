@@ -34,6 +34,7 @@ import GestionePrivacy from "./pages/Impostazioni/GestionePrivacy";
 import LimitazioneTrattamento from "./pages/Impostazioni/LimitazioneTrattamento";
 import OpposizioneTrattamento from "./pages/Impostazioni/OpposizioneTrattamento";
 import Copyright from "./pages/Impostazioni/Copyright";
+import InformazioniLegali from "./pages/Impostazioni/InformazioniLegali";
 import GDPR from "./pages/GDPR";
 import Opinioni from "./pages/Opinioni";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
@@ -649,6 +650,12 @@ export default function App() {
               <Route path="/impostazioni/copyright">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/copyright" component={Copyright} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/impostazioni/informazioni-legali">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/impostazioni/informazioni-legali" component={InformazioniLegali} />
                 </PageTransition>
               </Route>
 

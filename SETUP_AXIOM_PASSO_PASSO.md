@@ -400,3 +400,5 @@ Thank you!
 
 **🎉 Una volta completati tutti i passi, i log verranno inviati automaticamente ad Axiom con regione EU!**
 
+
+

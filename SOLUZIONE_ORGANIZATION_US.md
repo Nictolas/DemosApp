@@ -291,3 +291,5 @@ A: Potrebbero cambiare la regione dell'organization da US a EU, oppure creare un
 
 Poi, se vuoi, puoi contattare il supporto per spostare anche l'organization in EU (opzionale).
 
+
+

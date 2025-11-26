@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings, FileText } from "lucide-react";
+import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings, FileText, Scale } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -49,22 +49,21 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
       <CardContent className="relative space-y-6">
         {/* Layout responsive: 1 colonna su mobile, 2 colonne su desktop */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* GDPR */}
-          <Link href="/gdpr">
+          {/* Informazioni Legali */}
+          <Link href="/impostazioni/informazioni-legali">
             <Button 
               variant="outline" 
-              className="w-full justify-start h-20 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group"
+              className="w-full justify-start h-20 rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 group"
             >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <Scale className="h-5 w-5 text-white" />
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">GDPR</div>
-                <div className="text-xs text-gray-600">Diritti e gestione dati</div>
+                <div className="font-semibold text-gray-900">Informazioni Legali</div>
+                <div className="text-xs text-gray-600">GDPR, Policy e Copyright</div>
               </div>
             </Button>
           </Link>
-
 
           {/* Cambia Password */}
           <Button 
@@ -108,38 +107,6 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
               <div className="text-left">
                 <div className="font-semibold text-gray-900">Segnala Problema</div>
                 <div className="text-xs text-gray-600">Aiutaci a migliorare</div>
-              </div>
-            </Button>
-          </Link>
-
-          {/* Copyright */}
-          <Link href="/impostazioni/copyright">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start h-20 rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 group"
-            >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                <Copyright className="h-5 w-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-gray-900">Copyright</div>
-                <div className="text-xs text-gray-600">Diritti e proprietà</div>
-              </div>
-            </Button>
-          </Link>
-
-          {/* Policy Registrazione */}
-          <Link href="/terms-of-service">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start h-20 rounded-xl border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 hover:from-teal-100 hover:to-cyan-100 hover:border-teal-300 hover:shadow-lg transition-all duration-300 group"
-            >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-gray-900">Policy Registrazione</div>
-                <div className="text-xs text-gray-600">Termini e condizioni</div>
               </div>
             </Button>
           </Link>

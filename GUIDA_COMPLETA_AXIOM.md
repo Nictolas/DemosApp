@@ -639,3 +639,5 @@ npm install @axiomhq/axiom-node
 
 **🎉 Configurazione completata! I log vengono ora inviati ad Axiom con regione EU!**
 
+
+
