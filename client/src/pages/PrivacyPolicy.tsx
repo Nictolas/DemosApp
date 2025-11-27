@@ -74,11 +74,40 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">4. Base Giuridica del Trattamento</h2>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Consenso esplicito (Art. 6.1.a GDPR):</strong> Per dati politici e di voto</li>
+              <li><strong>Consenso esplicito (Art. 6.1.a GDPR):</strong> Per dati di voto e altre finalità</li>
               <li><strong>Esecuzione contratto (Art. 6.1.b GDPR):</strong> Per fornire i servizi richiesti</li>
               <li><strong>Interesse legittimo (Art. 6.1.f GDPR):</strong> Per migliorare la piattaforma</li>
               <li><strong>Obbligo legale (Art. 6.1.c GDPR):</strong> Per adempimenti normativi</li>
             </ul>
+            
+            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinionii Politiche (GDPR Art. 9)</h3>
+            <p className="text-gray-700 mb-3">
+              Le <strong>opinioni politiche</strong> sono considerate "dati particolari" secondo il GDPR Art. 9 
+              e richiedono un <strong>consenso esplicito separato</strong>.
+            </p>
+            <p className="text-gray-700 mb-3">
+              <strong>Base giuridica specifica:</strong> Consenso esplicito dell'interessato (GDPR Art. 9.2.a)
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Il consenso alle opinioni politiche è <strong>opzionale</strong> e può essere rifiutato</li>
+              <li>Se rifiuti il consenso, non potrai esprimere opinioni politiche ma potrai utilizzare tutte le altre funzionalità della piattaforma</li>
+              <li>Il consenso può essere <strong>revocato in qualsiasi momento</strong> dalle impostazioni del profilo</li>
+              <li>In caso di revoca, le opinioni politiche già espresse verranno <strong>anonimizzate</strong> (mantenute per statistiche aggregate ma non più associate al tuo account)</li>
+              <li>Il consenso viene registrato con data, ora, indirizzo IP e user agent per finalità di audit e conformità</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              <strong>Finalità del trattamento:</strong> Le opinioni politiche vengono utilizzate esclusivamente per:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Permettere l'espressione della tua opinione su temi politici</li>
+              <li>Generare statistiche aggregate e anonime sull'opinione pubblica</li>
+              <li>Confrontare le tue opinioni con quelle dei rappresentanti politici</li>
+              <li>Migliorare la piattaforma di democrazia partecipativa</li>
+            </ul>
+            <p className="text-gray-700">
+              <strong>Nessuna profilazione politica:</strong> Le tue opinioni politiche non vengono utilizzate 
+              per creare profili politici o per finalità di marketing politico.
+            </p>
           </section>
 
           {/* Conservazione */}
