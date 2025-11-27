@@ -8,7 +8,6 @@ import { useAuth } from '@/hooks/use-auth-neon';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
-import { PoliticalOpinionsConsentModal } from '@/components/PoliticalOpinionsConsentModal';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
 
 const options = [
@@ -33,19 +32,7 @@ export default function OpinioniComunali() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   
   // Controllo consenso opinioni politiche (GDPR Art. 9)
-  const { hasConsent, isLoading: isLoadingConsent } = usePoliticalOpinionsConsent();
-  const [showConsentModal, setShowConsentModal] = useState(false);
-  const [hasCheckedConsent, setHasCheckedConsent] = useState(false);
-  
-  // Mostra il modal di consenso se l'utente non ha dato il consenso
-  useEffect(() => {
-    if (!isAuthLoading && !isLoadingConsent && user && !hasCheckedConsent) {
-      if (!hasConsent) {
-        setShowConsentModal(true);
-      }
-      setHasCheckedConsent(true);
-    }
-  }, [isAuthLoading, isLoadingConsent, user, hasConsent, hasCheckedConsent]);
+  const { hasConsent } = usePoliticalOpinionsConsent();
 
   // 1. Query per caricare le domande
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
@@ -118,10 +105,9 @@ export default function OpinioniComunali() {
     if (!hasConsent) {
       toast({
         title: "Consenso richiesto",
-        description: "Devi accettare il consenso al trattamento delle opinioni politiche per salvare le tue opinioni.",
+        description: "Devi accettare il consenso al trattamento delle opinioni politiche durante la registrazione per salvare le tue opinioni. Puoi concederlo dalle impostazioni GDPR.",
         variant: "destructive",
       });
-      setShowConsentModal(true);
       return;
     }
     
@@ -248,15 +234,6 @@ export default function OpinioniComunali() {
           </CardContent>
         </Card>
       </div>
-      
-      {/* Modal consenso opinioni politiche (GDPR Art. 9) */}
-      <PoliticalOpinionsConsentModal
-        open={showConsentModal}
-        onOpenChange={setShowConsentModal}
-        onConsentGranted={() => {
-          queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
-        }}
-      />
     </div>
   );
 }

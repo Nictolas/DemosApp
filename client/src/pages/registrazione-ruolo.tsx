@@ -66,6 +66,7 @@ export default function RegistrazioneRuolo() {
       // Recupera i consensi dal localStorage
       const privacyPolicyConsent = localStorage.getItem("registrazione_privacy_consent") === "true";
       const termsOfServiceConsent = localStorage.getItem("registrazione_terms_consent") === "true";
+      const politicalOpinionsConsent = localStorage.getItem("registrazione_political_opinions_consent") === "true";
 
       // Salva i dati del ruolo
       localStorage.setItem("registrazione_ruolo", selectedRuolo);
@@ -105,7 +106,8 @@ export default function RegistrazioneRuolo() {
         provincia_candidatura: provinciaCandidatura,
         comune_candidatura: comuneCandidatura,
         privacy_policy_consent: privacyPolicyConsent,
-        terms_of_service_consent: termsOfServiceConsent
+        terms_of_service_consent: termsOfServiceConsent,
+        political_opinions_consent: politicalOpinionsConsent
       };
 
       // Debug: verifica i dati che verranno inviati

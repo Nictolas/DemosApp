@@ -29,6 +29,7 @@ const registerSchema = z.object({
   termsOfServiceConsent: z.boolean().refine((val) => val === true, {
     message: "Devi accettare i Termini di Servizio per continuare",
   }),
+  politicalOpinionsConsent: z.boolean().optional(), // Opzionale: l'utente può rifiutare
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Le password non corrispondono",
   path: ["confirmPassword"],
@@ -79,6 +80,7 @@ export default function AuthPage() {
       confirmPassword: "",
       privacyPolicyConsent: false,
       termsOfServiceConsent: false,
+      politicalOpinionsConsent: false,
     },
   });
 
@@ -202,6 +204,7 @@ export default function AuthPage() {
           localStorage.setItem("registrazione_password", data.password);
           localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
           localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
+          localStorage.setItem("registrazione_political_opinions_consent", (data.politicalOpinionsConsent || false).toString());
           localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
           
           // Vai alla fase successiva senza registrare l'utente
@@ -224,6 +227,7 @@ export default function AuthPage() {
       localStorage.setItem("registrazione_password", data.password);
       localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
       localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
+      localStorage.setItem("registrazione_political_opinions_consent", (data.politicalOpinionsConsent || false).toString());
       localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
       
       // Vai alla fase successiva senza registrare l'utente
@@ -564,6 +568,40 @@ export default function AuthPage() {
                               {" "}e le condizioni d'uso della piattaforma
                             </FormLabel>
                             <FormMessage />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="politicalOpinionsConsent"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="text-sm text-gray-700">
+                              <strong>Consento esplicitamente</strong> al trattamento delle mie opinioni politiche 
+                              (GDPR Art. 9). Questo consenso è <strong>opzionale</strong> e mi permetterà di esprimere 
+                              opinioni e votare sulla piattaforma. Posso revocarlo in qualsiasi momento.{" "}
+                              <Link 
+                                href="/privacy-policy#4.1" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                                target="_blank"
+                              >
+                                Maggiori informazioni
+                              </Link>
+                            </FormLabel>
+                            <FormMessage />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Se rifiuti, non potrai esprimere opinioni politiche o votare, ma potrai utilizzare 
+                              tutte le altre funzionalità della piattaforma.
+                            </p>
                           </div>
                         </FormItem>
                       )}
