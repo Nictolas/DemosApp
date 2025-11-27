@@ -11,7 +11,6 @@ const initialData: RegistrationData = {
   genere: '',
   cittadinanza: '',
   dataNascita: '',
-  codiceFiscale: undefined,
   indirizzo: '',
   cap: '',
   comune: '',
@@ -173,8 +172,7 @@ export const useRegistrationForm = () => {
         regione_residenza: formState.data.regione,
         provincia_residenza: formState.data.provincia,
         comune_residenza: formState.data.comune,
-        data_nascita: formState.data.dataNascita,
-        codice_fiscale: formState.data.codiceFiscale
+        data_nascita: formState.data.dataNascita
       };
       
       // Rimuovi i campi non necessari per l'API
@@ -182,7 +180,6 @@ export const useRegistrationForm = () => {
       delete apiData.provincia;
       delete apiData.comune;
       delete apiData.dataNascita;
-      delete apiData.codiceFiscale;
 
       const response = await fetch('/api/register', {
         method: 'POST',

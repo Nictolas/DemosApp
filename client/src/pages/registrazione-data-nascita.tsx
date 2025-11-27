@@ -11,6 +11,40 @@ const dataNascitaSchema = z.object({
   giorno: z.string().min(1, "Il giorno è obbligatorio"),
   mese: z.string().min(1, "Il mese è obbligatorio"),
   anno: z.string().min(1, "L'anno è obbligatorio"),
+}).refine((data) => {
+  // Calcola l'età precisa considerando giorno, mese e anno
+  const today = new Date();
+  const birthDate = new Date(
+    parseInt(data.anno),
+    parseInt(data.mese) - 1, // I mesi in JavaScript sono 0-indexed
+    parseInt(data.giorno)
+  );
+  
+  // Verifica che la data sia valida
+  if (isNaN(birthDate.getTime())) {
+    return false;
+  }
+  
+  // Verifica che la data non sia nel futuro
+  if (birthDate > today) {
+    return false;
+  }
+  
+  // Calcola l'età precisa
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  const dayDiff = today.getDate() - birthDate.getDate();
+  
+  // Se il compleanno non è ancora arrivato quest'anno, sottrai 1
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age--;
+  }
+  
+  // La piattaforma è riservata a utenti maggiorenni (18 anni)
+  return age >= 18 && age <= 120;
+}, {
+  message: "Devi avere almeno 18 anni per registrarti. La piattaforma è riservata a utenti maggiorenni.",
+  path: ["anno"] // Mostra l'errore sul campo anno
 });
 
 type DataNascitaValues = z.infer<typeof dataNascitaSchema>;
@@ -28,15 +62,42 @@ export default function RegistrazioneDataNascita() {
   });
 
   const onSubmit = (data: DataNascitaValues) => {
+    // Validazione aggiuntiva per sicurezza (la validazione dello schema dovrebbe già averla fatta)
+    const birthDate = new Date(
+      parseInt(data.anno),
+      parseInt(data.mese) - 1,
+      parseInt(data.giorno)
+    );
+    
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--;
+    }
+    
+    // Blocca se l'età è inferiore a 18 anni
+    if (age < 18) {
+      form.setError("anno", {
+        type: "manual",
+        message: "Devi avere almeno 18 anni per registrarti. La piattaforma è riservata a utenti maggiorenni."
+      });
+      return;
+    }
+    
+    // Se l'età è valida, procedi
     const dataCompleta = `${data.giorno}/${data.mese}/${data.anno}`;
     localStorage.setItem("registrazione_data_nascita", dataCompleta);
     navigate("/registrazione-3-residenza");
   };
 
-  // Calcola l'anno minimo (100 anni fa) e massimo (14 anni fa)
+  // Calcola l'anno minimo (100 anni fa) e massimo (18 anni fa)
+  // La piattaforma è riservata a utenti maggiorenni (18 anni)
   const today = new Date();
   const minYear = today.getFullYear() - 100;  // 100 anni fa per includere persone anziane
-  const maxYear = today.getFullYear() - 14;   // 14 anni fa per età minima legale
+  const maxYear = today.getFullYear() - 18;   // 18 anni fa - età minima per la registrazione
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

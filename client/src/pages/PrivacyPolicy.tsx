@@ -36,7 +36,6 @@ export default function PrivacyPolicy() {
               <li><strong>Dati di contatto:</strong> Indirizzo email</li>
               <li><strong>Dati di residenza:</strong> Paese, regione, provincia, comune di residenza</li>
               <li><strong>Dati di cittadinanza:</strong> Cittadinanza, paese di elezione</li>
-              <li><strong>Codice fiscale:</strong> Per la verifica dell'identità</li>
             </ul>
 
             <h3 className="text-xl font-medium mb-2">2.2 Dati Politici e di Voto</h3>
@@ -192,15 +191,21 @@ export default function PrivacyPolicy() {
           {/* Cookie */}
           <section>
             <h2 className="text-2xl font-semibold mb-3">10. Cookie e Tecnologie Simili</h2>
-            <p className="text-gray-700 mb-3">Utilizziamo cookie per:</p>
+            <p className="text-gray-700 mb-3">Utilizziamo esclusivamente cookie tecnici necessari per il funzionamento del sito:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Cookie necessari:</strong> Funzionamento del sito (sempre attivi)</li>
-              <li><strong>Cookie di marketing:</strong> Google AdSense (solo con consenso)</li>
-              <li><strong>Cookie di preferenze:</strong> Impostazioni utente</li>
+              <li><strong>Cookie necessari:</strong> Funzionamento del sito (sempre attivi, non richiedono consenso)</li>
+              <li><strong>Cookie di sessione:</strong> Per l'autenticazione e la gestione della sessione utente</li>
+              <li><strong>Cookie di preferenze:</strong> Per memorizzare le impostazioni dell'utente (es. stato sidebar)</li>
             </ul>
+            <p className="text-gray-700 mb-3">
+              <strong>Non utilizziamo cookie di marketing o di profilazione</strong> che richiederebbero il tuo consenso. 
+              I cookie tecnici utilizzati non richiedono consenso secondo la direttiva ePrivacy.
+            </p>
             <p className="text-gray-700">
-              Puoi gestire le tue preferenze sui cookie tramite il banner di consenso o 
-              le impostazioni del browser.
+              Per maggiori dettagli, consulta la nostra{" "}
+              <a href="/cookie-policy" className="text-blue-600 hover:text-blue-800 underline">
+                Cookie Policy
+              </a>.
             </p>
           </section>
 
