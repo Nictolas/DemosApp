@@ -87,7 +87,7 @@ export function PoliticalOpinionsConsentModal({
           <div className="flex items-center gap-3 mb-2">
             <Shield className="h-6 w-6 text-blue-600" />
             <DialogTitle className="text-2xl font-bold">
-              Consenso al Trattamento delle Opinionii Politiche
+              Consenso al Trattamento delle Opinioni Politiche
             </DialogTitle>
           </div>
           <DialogDescription className="text-base">
@@ -155,7 +155,7 @@ export function PoliticalOpinionsConsentModal({
               Privacy Policy
               <ExternalLink className="h-3 w-3" />
             </Link>
-            , in particolare la sezione 4.1 "Trattamento di Dati Particolari - Opinionii Politiche (GDPR Art. 9)".
+            , in particolare la sezione 4.1 "Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)".
           </div>
 
           {/* Checkbox consenso */}

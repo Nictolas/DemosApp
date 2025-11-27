@@ -197,7 +197,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
         WHERE user_id = $1
       `, [userId]);
       
-      console.log(`✅ Opinionii politiche anonimizzate per utente: ${userId}`);
+      console.log(`✅ Opinioni politiche anonimizzate per utente: ${userId}`);
     } catch (error) {
       console.error('⚠️ Errore nell\'anonimizzazione opinioni (tabella potrebbe non esistere):', error.message);
       // Non bloccare la revoca se l'anonimizzazione fallisce

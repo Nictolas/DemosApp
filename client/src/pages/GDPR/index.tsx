@@ -148,12 +148,12 @@ export default function GDPR() {
           </CardContent>
         </Card>
 
-        {/* Sezione Consenso Opinionii Politiche (GDPR Art. 9) */}
+        {/* Sezione Consenso Opinioni Politiche (GDPR Art. 9) */}
         <Card className="mb-6 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Vote className="h-5 w-5" />
-              Consenso Opinionii Politiche (GDPR Art. 9)
+              Consenso Opinioni Politiche (GDPR Art. 9)
             </CardTitle>
             <CardDescription>
               Gestisci il consenso al trattamento delle opinioni politiche
@@ -303,7 +303,7 @@ export default function GDPR() {
       <AlertDialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoca Consenso Opinionii Politiche</AlertDialogTitle>
+            <AlertDialogTitle>Revoca Consenso Opinioni Politiche</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
                 Sei sicuro di voler revocare il consenso al trattamento delle opinioni politiche?
