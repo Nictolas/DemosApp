@@ -8,7 +8,6 @@ import { Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
-import { PoliticalOpinionsConsentModal } from "@/components/PoliticalOpinionsConsentModal";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 
 interface Question {
@@ -45,24 +44,12 @@ const normalizeAnswer = (answer: string | undefined) => {
 
 export default function OpinioniNazionali() {
   // Controllo consenso opinioni politiche (GDPR Art. 9)
-  const { hasConsent, isLoading: isLoadingConsent } = usePoliticalOpinionsConsent();
-  const [showConsentModal, setShowConsentModal] = useState(false);
-  const [hasCheckedConsent, setHasCheckedConsent] = useState(false);
+  const { hasConsent } = usePoliticalOpinionsConsent();
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
-  
-  // Mostra il modal di consenso se l'utente non ha dato il consenso
-  useEffect(() => {
-    if (!isAuthLoading && !isLoadingConsent && user && !hasCheckedConsent) {
-      if (!hasConsent) {
-        setShowConsentModal(true);
-      }
-      setHasCheckedConsent(true);
-    }
-  }, [isAuthLoading, isLoadingConsent, user, hasConsent, hasCheckedConsent]);
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
@@ -152,10 +139,9 @@ export default function OpinioniNazionali() {
     if (!hasConsent) {
       toast({
         title: "Consenso richiesto",
-        description: "Devi accettare il consenso al trattamento delle opinioni politiche per salvare le tue opinioni.",
+        description: "Devi accettare il consenso al trattamento delle opinioni politiche durante la registrazione per salvare le tue opinioni. Puoi concederlo dalle impostazioni GDPR.",
         variant: "destructive",
       });
-      setShowConsentModal(true);
       return;
     }
     
@@ -291,15 +277,6 @@ export default function OpinioniNazionali() {
           </CardContent>
         </Card>
       </div>
-      
-      {/* Modal consenso opinioni politiche (GDPR Art. 9) */}
-      <PoliticalOpinionsConsentModal
-        open={showConsentModal}
-        onOpenChange={setShowConsentModal}
-        onConsentGranted={() => {
-          queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
-        }}
-      />
     </div>
   );
 }

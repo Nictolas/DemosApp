@@ -30,7 +30,7 @@ try {
 // POST /api/auth/register - Registrazione nuovo utente
 router.post('/register', 
   registrationLimiter, 
-  validateInput(['email', 'password', 'privacy_policy_consent', 'terms_of_service_consent']), 
+  validateInput(['email', 'password', 'privacy_policy_consent', 'terms_of_service_consent', 'political_opinions_consent']), 
   sanitizeInput(['nome', 'cognome', 'cittadinanza']),
   authAuditMiddleware, 
   async (req, res) => {
@@ -67,7 +67,7 @@ router.post('/register',
       });
     }
     
-    const { email, password, nome, cognome, privacy_policy_consent, terms_of_service_consent } = validation.sanitizedInput;
+    const { email, password, nome, cognome, privacy_policy_consent, terms_of_service_consent, political_opinions_consent } = validation.sanitizedInput;
     
     // Se nome e cognome non sono presenti, usa valori di default temporanei
     const finalNome = nome || 'Temporaneo';
@@ -234,7 +234,11 @@ router.post('/register',
       comune_candidatura || null,
       privacy_policy_consent || false,
       terms_of_service_consent || false,
-      new Date().toISOString()
+      new Date().toISOString(),
+      political_opinions_consent || false,
+      political_opinions_consent ? new Date().toISOString() : null,
+      political_opinions_consent ? (req.ip || req.connection.remoteAddress) : null,
+      political_opinions_consent ? req.get('User-Agent') : null
     ];
     
     console.log('🔍 Parametri query:', queryParams.length);
@@ -246,9 +250,11 @@ router.post('/register',
                         genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
                         grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
                         grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
-                        privacy_policy_consent, terms_of_service_consent, consent_timestamp, 
+                        privacy_policy_consent, terms_of_service_consent, consent_timestamp,
+                        political_opinions_consent, political_opinions_consent_timestamp, 
+                        political_opinions_consent_ip_address, political_opinions_consent_user_agent,
                         created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, NOW())
       RETURNING id, nome, cognome, email, ruolo, status
     `;
     
