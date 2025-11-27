@@ -58,7 +58,6 @@ export default function RegistrazioneRuolo() {
       const genere = localStorage.getItem("registrazione_genere");
       const cittadinanza = localStorage.getItem("registrazione_cittadinanza");
       const dataNascita = localStorage.getItem("registrazione_data_nascita");
-      const codiceFiscale = localStorage.getItem("registrazione_codice_fiscale");
       const paeseResidenza = localStorage.getItem("registrazione_paese_residenza");
       const regioneResidenza = localStorage.getItem("registrazione_regione_residenza");
       const provinciaResidenza = localStorage.getItem("registrazione_provincia_residenza");
@@ -67,7 +66,6 @@ export default function RegistrazioneRuolo() {
       // Recupera i consensi dal localStorage
       const privacyPolicyConsent = localStorage.getItem("registrazione_privacy_consent") === "true";
       const termsOfServiceConsent = localStorage.getItem("registrazione_terms_consent") === "true";
-      const cookiePolicyConsent = localStorage.getItem("registrazione_cookie_consent") === "true";
 
       // Salva i dati del ruolo
       localStorage.setItem("registrazione_ruolo", selectedRuolo);
@@ -91,7 +89,6 @@ export default function RegistrazioneRuolo() {
         genere,
         cittadinanza,
         data_nascita: dataNascita,
-        codice_fiscale: codiceFiscale,
         paese_residenza: paeseResidenza,
         regione_residenza: regioneResidenza,
         provincia_residenza: provinciaResidenza,
@@ -108,8 +105,7 @@ export default function RegistrazioneRuolo() {
         provincia_candidatura: provinciaCandidatura,
         comune_candidatura: comuneCandidatura,
         privacy_policy_consent: privacyPolicyConsent,
-        terms_of_service_consent: termsOfServiceConsent,
-        cookie_policy_consent: cookiePolicyConsent
+        terms_of_service_consent: termsOfServiceConsent
       };
 
       // Debug: verifica i dati che verranno inviati
@@ -120,8 +116,7 @@ export default function RegistrazioneRuolo() {
         nome: !!nome,
         cognome: !!cognome,
         privacy_policy_consent: privacyPolicyConsent,
-        terms_of_service_consent: termsOfServiceConsent,
-        cookie_policy_consent: cookiePolicyConsent
+        terms_of_service_consent: termsOfServiceConsent
       });
 
       // L'email è già stata verificata nella fase iniziale

@@ -29,9 +29,6 @@ const registerSchema = z.object({
   termsOfServiceConsent: z.boolean().refine((val) => val === true, {
     message: "Devi accettare i Termini di Servizio per continuare",
   }),
-  cookiePolicyConsent: z.boolean().refine((val) => val === true, {
-    message: "Devi accettare la Cookie Policy per continuare",
-  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Le password non corrispondono",
   path: ["confirmPassword"],
@@ -82,7 +79,6 @@ export default function AuthPage() {
       confirmPassword: "",
       privacyPolicyConsent: false,
       termsOfServiceConsent: false,
-      cookiePolicyConsent: false,
     },
   });
 
@@ -206,7 +202,6 @@ export default function AuthPage() {
           localStorage.setItem("registrazione_password", data.password);
           localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
           localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
-          localStorage.setItem("registrazione_cookie_consent", data.cookiePolicyConsent.toString());
           localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
           
           // Vai alla fase successiva senza registrare l'utente
@@ -229,7 +224,6 @@ export default function AuthPage() {
       localStorage.setItem("registrazione_password", data.password);
       localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
       localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
-      localStorage.setItem("registrazione_cookie_consent", data.cookiePolicyConsent.toString());
       localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
       
       // Vai alla fase successiva senza registrare l'utente
@@ -575,34 +569,6 @@ export default function AuthPage() {
                       )}
                     />
 
-                    <FormField
-                      control={registerForm.control}
-                      name="cookiePolicyConsent"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel className="text-sm text-gray-700">
-                              Accetto la{" "}
-                              <Link 
-                                href="/cookie-policy" 
-                                className="text-blue-600 hover:text-blue-800 underline"
-                                target="_blank"
-                              >
-                                Cookie Policy
-                              </Link>
-                              {" "}e l'utilizzo dei cookie necessari
-                            </FormLabel>
-                            <FormMessage />
-                          </div>
-                        </FormItem>
-                      )}
-                    />
                   </div>
                   
                   <Button type="submit" className="w-full" disabled={registerMutation.isPending}>

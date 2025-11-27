@@ -26,12 +26,6 @@ export const registrationSchema = z.object({
       return age >= 18 && age <= 120;
     }, "Devi avere almeno 18 anni e non più di 120"),
   
-  codiceFiscale: z.string()
-    .min(16, "Il codice fiscale deve essere di 16 caratteri")
-    .max(16, "Il codice fiscale deve essere di 16 caratteri")
-    .regex(/^[A-Z0-9]{16}$/, "Formato codice fiscale non valido")
-    .optional(),
-  
   indirizzo: z.string()
     .min(5, "L'indirizzo deve essere di almeno 5 caratteri")
     .max(100, "L'indirizzo non può superare i 100 caratteri"),
