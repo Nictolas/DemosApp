@@ -8,6 +8,8 @@ import { Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
+import { PoliticalOpinionsConsentModal } from "@/components/PoliticalOpinionsConsentModal";
+import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 
 interface Question {
   id: string;
@@ -42,11 +44,25 @@ const normalizeAnswer = (answer: string | undefined) => {
 
 
 export default function OpinioniNazionali() {
+  // Controllo consenso opinioni politiche (GDPR Art. 9)
+  const { hasConsent, isLoading: isLoadingConsent } = usePoliticalOpinionsConsent();
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [hasCheckedConsent, setHasCheckedConsent] = useState(false);
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
+  
+  // Mostra il modal di consenso se l'utente non ha dato il consenso
+  useEffect(() => {
+    if (!isAuthLoading && !isLoadingConsent && user && !hasCheckedConsent) {
+      if (!hasConsent) {
+        setShowConsentModal(true);
+      }
+      setHasCheckedConsent(true);
+    }
+  }, [isAuthLoading, isLoadingConsent, user, hasConsent, hasCheckedConsent]);
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
@@ -132,6 +148,17 @@ export default function OpinioniNazionali() {
   };
 
   const handleSave = () => {
+    // Verifica consenso opinioni politiche (GDPR Art. 9)
+    if (!hasConsent) {
+      toast({
+        title: "Consenso richiesto",
+        description: "Devi accettare il consenso al trattamento delle opinioni politiche per salvare le tue opinioni.",
+        variant: "destructive",
+      });
+      setShowConsentModal(true);
+      return;
+    }
+    
     console.log('🔍 DEBUG handleSave:');
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
@@ -264,6 +291,15 @@ export default function OpinioniNazionali() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Modal consenso opinioni politiche (GDPR Art. 9) */}
+      <PoliticalOpinionsConsentModal
+        open={showConsentModal}
+        onOpenChange={setShowConsentModal}
+        onConsentGranted={() => {
+          queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
+        }}
+      />
     </div>
   );
 }

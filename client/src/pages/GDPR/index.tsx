@@ -1,15 +1,56 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Shield, Download, Trash2, Settings, FileText, Database } from "lucide-react";
+import { Loader2, Shield, Download, Trash2, Settings, FileText, Database, Vote } from "lucide-react";
 import { useLocation } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
+import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function GDPR() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const { hasConsent, isLoading: isLoadingConsent, consent } = usePoliticalOpinionsConsent();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+  
+  const revokeConsentMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('PUT', '/api/user/political-opinions-consent/revoke');
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      toast({
+        title: "Consenso revocato",
+        description: "Il consenso alle opinioni politiche è stato revocato. Le tue opinioni sono state anonimizzate.",
+      });
+      setShowRevokeDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nella revoca del consenso. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
+  });
 
   if (isLoading) {
     return (
@@ -107,6 +148,68 @@ export default function GDPR() {
           </CardContent>
         </Card>
 
+        {/* Sezione Consenso Opinionii Politiche (GDPR Art. 9) */}
+        <Card className="mb-6 bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Vote className="h-5 w-5" />
+              Consenso Opinionii Politiche (GDPR Art. 9)
+            </CardTitle>
+            <CardDescription>
+              Gestisci il consenso al trattamento delle opinioni politiche
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoadingConsent ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="font-medium text-gray-900">Stato Consenso</div>
+                      <div className="text-sm text-gray-600">
+                        {hasConsent ? (
+                          <span className="text-green-600 font-semibold">✓ Consenso concesso</span>
+                        ) : (
+                          <span className="text-gray-500">Consenso non concesso</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {hasConsent && consent?.timestamp && (
+                    <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+                      Consenso concesso il: {new Date(consent.timestamp).toLocaleString('it-IT')}
+                    </div>
+                  )}
+                </div>
+                
+                {hasConsent ? (
+                  <Button 
+                    onClick={() => setShowRevokeDialog(true)}
+                    variant="outline"
+                    className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                  >
+                    <Vote className="h-4 w-4 mr-2" />
+                    Revoca Consenso
+                  </Button>
+                ) : (
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <Shield className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      Non hai ancora concesso il consenso alle opinioni politiche. 
+                      Puoi concederlo quando accedi alle pagine delle opinioni.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Sezione Diritti Specifici GDPR */}
         <Card className="mb-6 bg-white">
           <CardHeader>
@@ -195,6 +298,47 @@ export default function GDPR() {
         </Card>
 
       </div>
+      
+      {/* Dialog conferma revoca consenso */}
+      <AlertDialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoca Consenso Opinionii Politiche</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Sei sicuro di voler revocare il consenso al trattamento delle opinioni politiche?
+              </p>
+              <p className="font-semibold text-orange-600">
+                ⚠️ Attenzione: Le tue opinioni politiche già espresse verranno anonimizzate 
+                (mantenute per statistiche aggregate ma non più associate al tuo account).
+              </p>
+              <p>
+                Dopo la revoca, non potrai più esprimere opinioni politiche sulla piattaforma, 
+                ma potrai continuare a utilizzare tutte le altre funzionalità.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revokeConsentMutation.isPending}>
+              Annulla
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => revokeConsentMutation.mutate()}
+              disabled={revokeConsentMutation.isPending}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {revokeConsentMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Revocazione...
+                </>
+              ) : (
+                'Conferma Revoca'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageContainer>
   );
 }
