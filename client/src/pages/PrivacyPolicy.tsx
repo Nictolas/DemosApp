@@ -80,7 +80,7 @@ export default function PrivacyPolicy() {
               <li><strong>Obbligo legale (Art. 6.1.c GDPR):</strong> Per adempimenti normativi</li>
             </ul>
             
-            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinionii Politiche (GDPR Art. 9)</h3>
+            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)</h3>
             <p className="text-gray-700 mb-3">
               Le <strong>opinioni politiche</strong> sono considerate "dati particolari" secondo il GDPR Art. 9 
               e richiedono un <strong>consenso esplicito separato</strong>.
