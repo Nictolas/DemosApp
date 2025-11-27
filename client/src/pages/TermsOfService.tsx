@@ -257,12 +257,36 @@ export default function TermsOfService() {
                   scientifica e analisi politiche</li>
               <li>La condivisione di dati aggregati con istituzioni, ricercatori e organizzazioni 
                   per finalità di ricerca e analisi</li>
+              <li>La pubblicazione e condivisione di dati aggregati e statistiche sui social media 
+                  e altre piattaforme digitali per finalità di promozione, marketing e divulgazione 
+                  della piattaforma DemosApp, sempre in forma anonima e aggregata</li>
             </ul>
             <p className="text-gray-700 mb-3">
               I dati utilizzati per questi scopi saranno sempre anonimizzati e aggregati, in modo 
               tale che non sia possibile risalire all'identità dei singoli utenti. L'Istituto Demos 
               si riserva il diritto di utilizzare questi dati aggregati e anonimi come meglio crede, 
               nel rispetto della normativa sulla privacy applicabile.
+            </p>
+            
+            <h4 className="text-lg font-medium mb-2 mt-4">8.1.1 Pubblicazione sui Social Media</h4>
+            <p className="text-gray-700 mb-3">
+              L'utente accetta e consente espressamente che DemosApp possa pubblicare sui propri 
+              canali social media (inclusi ma non limitati a Facebook, Instagram, Twitter, LinkedIn, 
+              TikTok e altre piattaforme) dati aggregati e anonimi derivanti dai sondaggi e dalle 
+              votazioni della piattaforma, per finalità di:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Promozione e marketing della piattaforma DemosApp</li>
+              <li>Divulgazione dei risultati dei sondaggi e delle votazioni</li>
+              <li>Incremento della visibilità e della partecipazione democratica</li>
+              <li>Comunicazione pubblica dell'opinione aggregata degli utenti</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              Tali pubblicazioni conterranno esclusivamente dati statistici aggregati (ad esempio: 
+              percentuali, totali, medie) e non includeranno mai informazioni che permettano 
+              l'identificazione di singoli utenti. I dati pubblicati potranno includere statistiche 
+              per area geografica (nazionale, regionale, provinciale, comunale) purché il campione 
+              sia sufficientemente ampio da garantire l'anonimato.
             </p>
           </section>
 
