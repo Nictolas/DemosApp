@@ -65,6 +65,8 @@ export default function PrivacyPolicy() {
               <li><strong>Democrazia partecipativa:</strong> Raccolta e gestione di voti, opinioni, iniziative</li>
               <li><strong>Comunicazione:</strong> Invio di notifiche, aggiornamenti, comunicazioni importanti</li>
               <li><strong>Analisi e miglioramento:</strong> Analisi anonima per migliorare i servizi</li>
+              <li><strong>Promozione e marketing:</strong> Pubblicazione di dati aggregati e anonimi sui social media 
+                  e altre piattaforme digitali per promuovere la piattaforma e divulgare i risultati dei sondaggi</li>
               <li><strong>Conformità legale:</strong> Adempimento di obblighi di legge</li>
             </ul>
           </section>
@@ -116,9 +118,62 @@ export default function PrivacyPolicy() {
             </ul>
           </section>
 
+          {/* Utilizzo dati aggregati per marketing */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-3">8. Utilizzo di Dati Aggregati per Marketing e Pubblicazione</h2>
+            <p className="text-gray-700 mb-3">
+              Con il tuo consenso esplicito (fornito accettando i Termini e Condizioni d'Uso), 
+              utilizziamo i dati aggregati e anonimi derivanti dai sondaggi e dalle votazioni 
+              della piattaforma per finalità di promozione e marketing.
+            </p>
+            
+            <h3 className="text-xl font-medium mb-2">8.1 Pubblicazione sui Social Media</h3>
+            <p className="text-gray-700 mb-3">
+              Pubbliciamo sui nostri canali social media (inclusi ma non limitati a Facebook, 
+              Instagram, Twitter, LinkedIn, TikTok e altre piattaforme digitali) dati statistici 
+              aggregati e anonimi per:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700">
+              <li>Promuovere la piattaforma DemosApp e incrementare la partecipazione democratica</li>
+              <li>Divulgare i risultati dei sondaggi e delle votazioni in forma aggregata</li>
+              <li>Comunicare pubblicamente l'opinione aggregata degli utenti su temi di interesse</li>
+              <li>Incrementare la visibilità e la consapevolezza della piattaforma</li>
+            </ul>
+            
+            <h3 className="text-xl font-medium mb-2">8.2 Garanzie di Anonimato</h3>
+            <p className="text-gray-700 mb-3">
+              I dati pubblicati sui social media e altre piattaforme contengono <strong>esclusivamente</strong>:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700">
+              <li>Statistiche aggregate (percentuali, totali, medie, distribuzioni)</li>
+              <li>Dati anonimi che non permettono l'identificazione di singoli utenti</li>
+              <li>Statistiche geografiche (nazionali, regionali, provinciali, comunali) solo quando 
+                  il campione è sufficientemente ampio da garantire l'anonimato</li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              <strong>Non pubblichiamo mai:</strong> nomi, email, dati anagrafici, codici fiscali, 
+              o qualsiasi altra informazione che permetta l'identificazione di singoli utenti.
+            </p>
+            
+            <h3 className="text-xl font-medium mb-2">8.3 Base Giuridica</h3>
+            <p className="text-gray-700 mb-3">
+              L'utilizzo di dati aggregati per marketing e pubblicazione si basa sul tuo 
+              <strong> consenso esplicito</strong> (Art. 6.1.a GDPR), fornito accettando i 
+              Termini e Condizioni d'Uso della piattaforma. Puoi revocare il consenso in 
+              qualsiasi momento contattandoci all'indirizzo <strong>privacy@demos.community</strong>.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Per ulteriori dettagli sull'utilizzo dei dati aggregati, consulta la sezione 
+              8.1 dei{" "}
+              <a href="/terms-of-service" className="text-blue-600 hover:text-blue-800 underline">
+                Termini e Condizioni d'Uso
+              </a>.
+            </p>
+          </section>
+
           {/* Diritti */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">8. I Tuoi Diritti (GDPR)</h2>
+            <h2 className="text-2xl font-semibold mb-3">9. I Tuoi Diritti (GDPR)</h2>
             <p className="text-gray-700 mb-3">Hai il diritto di:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Accesso:</strong> Ottenere una copia dei tuoi dati</li>
@@ -136,7 +191,7 @@ export default function PrivacyPolicy() {
 
           {/* Cookie */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">9. Cookie e Tecnologie Simili</h2>
+            <h2 className="text-2xl font-semibold mb-3">10. Cookie e Tecnologie Simili</h2>
             <p className="text-gray-700 mb-3">Utilizziamo cookie per:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Cookie necessari:</strong> Funzionamento del sito (sempre attivi)</li>
@@ -151,7 +206,7 @@ export default function PrivacyPolicy() {
 
           {/* Trasferimenti */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">10. Trasferimenti Internazionali</h2>
+            <h2 className="text-2xl font-semibold mb-3">11. Trasferimenti Internazionali</h2>
             <p className="text-gray-700">
               I tuoi dati sono memorizzati su server situati nell'Unione Europea (Neon - Francoforte). 
               Eventuali trasferimenti verso paesi terzi avvengono solo con garanzie adeguate 
@@ -161,7 +216,7 @@ export default function PrivacyPolicy() {
 
           {/* Minori */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">11. Protezione dei Minori</h2>
+            <h2 className="text-2xl font-semibold mb-3">12. Protezione dei Minori</h2>
             <p className="text-gray-700">
               La nostra piattaforma è rivolta a utenti maggiorenni. Non raccogliamo 
               consapevolmente dati di minori di 18 anni. Se scopriamo di aver raccolto 
@@ -171,7 +226,7 @@ export default function PrivacyPolicy() {
 
           {/* Modifiche */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">12. Modifiche a Questa Informativa</h2>
+            <h2 className="text-2xl font-semibold mb-3">13. Modifiche a Questa Informativa</h2>
             <p className="text-gray-700">
               Potremmo aggiornare questa informativa periodicamente. Ti informeremo 
               di eventuali modifiche significative tramite email o notifica nella piattaforma. 
@@ -181,7 +236,7 @@ export default function PrivacyPolicy() {
 
           {/* Contatti */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">13. Contatti</h2>
+            <h2 className="text-2xl font-semibold mb-3">14. Contatti</h2>
             <p className="text-gray-700 mb-3">
               Per domande su questa informativa o per esercitare i tuoi diritti:
             </p>
