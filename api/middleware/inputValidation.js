@@ -107,9 +107,26 @@ const validators = {
       return { isValid: false, error: 'Data di nascita non può essere nel futuro' };
     }
     
-    const age = new Date().getFullYear() - yearNum;
-    if (age < 13) {
-      return { isValid: false, error: 'Devi avere almeno 13 anni per registrarti' };
+    // Calcolo preciso dell'età considerando mese e giorno
+    const today = new Date();
+    let age = today.getFullYear() - yearNum;
+    const monthDiff = today.getMonth() - (monthNum - 1);
+    const dayDiff = today.getDate() - dayNum;
+    
+    // Se il compleanno non è ancora arrivato quest'anno, sottrai 1
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--;
+    }
+    
+    // La piattaforma è riservata a utenti maggiorenni (18 anni)
+    // Conforme a Privacy Policy e Termini di Servizio
+    if (age < 18) {
+      return { isValid: false, error: 'Devi avere almeno 18 anni per registrarti. La piattaforma è riservata a utenti maggiorenni.' };
+    }
+    
+    // Limite superiore ragionevole (120 anni)
+    if (age > 120) {
+      return { isValid: false, error: 'Età non valida' };
     }
     
     return { isValid: true, value };
