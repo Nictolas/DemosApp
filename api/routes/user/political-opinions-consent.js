@@ -188,19 +188,32 @@ router.put('/revoke', verifyToken, async (req, res) => {
       });
     }
     
-    // Anonimizza le opinioni politiche esistenti
-    // (mantieni per statistiche aggregate ma rimuovi associazione con user_id)
+    // Elimina le opinioni politiche esistenti dell'utente
+    // (conforme GDPR: quando si revoca il consenso, i dati vengono eliminati)
     try {
-      await pool.query(`
-        UPDATE opinioni_domande 
-        SET user_id = 'ANONYMIZED_' || user_id::text
-        WHERE user_id = $1
-      `, [userId]);
+      // Verifica se la tabella opinioni_risposte esiste
+      const checkQuery = `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'opinioni_risposte')`;
+      const tableExists = await pool.query(checkQuery);
       
-      console.log(`✅ Opinioni politiche anonimizzate per utente: ${userId}`);
+      if (tableExists.rows[0].exists) {
+        // Elimina tutte le opinioni dell'utente
+        const deleteResult = await pool.query(
+          `DELETE FROM opinioni_risposte WHERE user_id = $1`,
+          [userId]
+        );
+        
+        if (deleteResult.rowCount > 0) {
+          console.log(`✅ ${deleteResult.rowCount} opinioni politiche eliminate per utente: ${userId}`);
+        } else {
+          console.log(`ℹ️ Nessuna opinione trovata per utente: ${userId}`);
+        }
+      } else {
+        console.log('ℹ️ Tabella opinioni_risposte non esiste, nessuna opinione da eliminare');
+      }
     } catch (error) {
-      console.error('⚠️ Errore nell\'anonimizzazione opinioni (tabella potrebbe non esistere):', error.message);
-      // Non bloccare la revoca se l'anonimizzazione fallisce
+      console.error('⚠️ Errore nell\'eliminazione opinioni:', error.message);
+      // Non bloccare la revoca se l'eliminazione fallisce
+      // Le opinioni verranno comunque disassociate dal consenso
     }
     
     // Log dell'azione
@@ -211,7 +224,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       details: {
         consent_type: 'political_opinions',
         gdpr_article: '9.2.a',
-        opinions_anonymized: true
+        opinions_deleted: true
       },
       ipAddress,
       userAgent,
@@ -222,7 +235,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Consenso alle opinioni politiche revocato con successo. Le tue opinioni sono state anonimizzate.',
+      message: 'Consenso alle opinioni politiche revocato con successo. Le tue opinioni sono state eliminate.',
       consent: {
         granted: false,
         timestamp: null

@@ -92,7 +92,7 @@ export default function PrivacyPolicy() {
               <li>Il consenso alle opinioni politiche è <strong>opzionale</strong> e può essere rifiutato</li>
               <li>Se rifiuti il consenso, non potrai esprimere opinioni politiche ma potrai utilizzare tutte le altre funzionalità della piattaforma</li>
               <li>Il consenso può essere <strong>revocato in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni politiche già espresse verranno <strong>anonimizzate</strong> (mantenute per statistiche aggregate ma non più associate al tuo account)</li>
+              <li>In caso di revoca, le opinioni politiche già espresse verranno <strong>eliminate completamente</strong> dal sistema (GDPR Art. 17 - Diritto alla cancellazione)</li>
               <li>Il consenso viene registrato con data, ora, indirizzo IP e user agent per finalità di audit e conformità</li>
             </ul>
             <p className="text-gray-700 mb-3">
@@ -103,10 +103,17 @@ export default function PrivacyPolicy() {
               <li>Generare statistiche aggregate e anonime sull'opinione pubblica</li>
               <li>Confrontare le tue opinioni con quelle dei rappresentanti politici</li>
               <li>Migliorare la piattaforma di democrazia partecipativa</li>
+              <li>Condividere statistiche aggregate e anonime con giornalisti, ricercatori e organizzazioni per ricerca, analisi e informazione pubblica (solo dati aggregati, non identificabili)</li>
             </ul>
+            <p className="text-gray-700 mb-3">
+              <strong>Condivisione dati aggregati:</strong> Le statistiche aggregate e anonime (non identificabili) 
+              possono essere condivise con giornalisti, ricercatori e organizzazioni per ricerca, analisi e 
+              informazione pubblica. I dati individuali non vengono mai condivisi.
+            </p>
             <p className="text-gray-700">
-              <strong>Nessuna profilazione politica:</strong> Le tue opinioni politiche non vengono utilizzate 
-              per creare profili politici o per finalità di marketing politico.
+              <strong>Nessuna profilazione o vendita dati individuali:</strong> Le tue opinioni politiche individuali 
+              non vengono utilizzate per creare profili utente per scopi commerciali, non vengono vendute o condivise 
+              con partiti politici, e non vengono utilizzate per targeting pubblicitario politico.
             </p>
           </section>
 
