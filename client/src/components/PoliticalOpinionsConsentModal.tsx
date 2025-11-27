@@ -138,8 +138,8 @@ export function PoliticalOpinionsConsentModal({
             </h4>
             <ul className="list-disc pl-6 space-y-1 text-sm text-gray-700">
               <li>Puoi <strong>revocare il consenso in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni già espresse verranno <strong>anonimizzate</strong></li>
-              <li>Le tue opinioni <strong>non vengono utilizzate</strong> per creare profili politici o marketing</li>
+              <li>In caso di revoca, le opinioni già espresse verranno <strong>eliminate completamente</strong> (GDPR Art. 17)</li>
+              <li>Le tue opinioni <strong>non vengono vendute o condivise</strong> con partiti politici, organizzazioni o terze parti, e <strong>non vengono utilizzate</strong> per targeting pubblicitario o scopi commerciali</li>
               <li>I dati sono protetti con <strong>crittografia</strong> e misure di sicurezza avanzate</li>
             </ul>
           </div>

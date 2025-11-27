@@ -39,7 +39,7 @@ export default function GDPR() {
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
         title: "Consenso revocato",
-        description: "Il consenso alle opinioni politiche è stato revocato. Le tue opinioni sono state anonimizzate.",
+        description: "Il consenso alle opinioni politiche è stato revocato. Le tue opinioni sono state eliminate.",
       });
       setShowRevokeDialog(false);
     },
@@ -309,8 +309,8 @@ export default function GDPR() {
                 Sei sicuro di voler revocare il consenso al trattamento delle opinioni politiche?
               </p>
               <p className="font-semibold text-orange-600">
-                ⚠️ Attenzione: Le tue opinioni politiche già espresse verranno anonimizzate 
-                (mantenute per statistiche aggregate ma non più associate al tuo account).
+                ⚠️ Attenzione: Le tue opinioni politiche già espresse verranno eliminate 
+                completamente dal sistema (conforme GDPR Art. 17 - Diritto alla cancellazione).
               </p>
               <p>
                 Dopo la revoca, non potrai più esprimere opinioni politiche sulla piattaforma, 
