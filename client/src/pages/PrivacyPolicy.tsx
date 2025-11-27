@@ -113,7 +113,8 @@ export default function PrivacyPolicy() {
             <p className="text-gray-700">
               <strong>Nessuna profilazione o vendita dati individuali:</strong> Le tue opinioni politiche individuali 
               non vengono utilizzate per creare profili utente per scopi commerciali, non vengono vendute o condivise 
-              con partiti politici, e non vengono utilizzate per targeting pubblicitario politico.
+              con partiti politici, e non vengono utilizzate per targeting pubblicitario politico. Solo statistiche 
+              aggregate e anonime (non identificabili) possono essere condivise con giornalisti, ricercatori e organizzazioni.
             </p>
           </section>
 
