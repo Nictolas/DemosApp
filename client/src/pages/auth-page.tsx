@@ -29,7 +29,9 @@ const registerSchema = z.object({
   termsOfServiceConsent: z.boolean().refine((val) => val === true, {
     message: "Devi accettare i Termini di Servizio per continuare",
   }),
-  politicalOpinionsConsent: z.boolean().optional(), // Opzionale: l'utente può rifiutare
+  politicalOpinionsConsent: z.boolean().refine((val) => val === true, {
+    message: "Devi accettare il consenso al trattamento delle opinioni politiche per continuare",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Le password non corrispondono",
   path: ["confirmPassword"],
@@ -538,7 +540,7 @@ export default function AuthPage() {
                               </Link>
                               {" "}e il trattamento dei miei dati personali
                             </FormLabel>
-                            <FormMessage />
+                            <FormMessage className="text-red-600 font-semibold" />
                           </div>
                         </FormItem>
                       )}
@@ -567,7 +569,7 @@ export default function AuthPage() {
                               </Link>
                               {" "}e le condizioni d'uso della piattaforma
                             </FormLabel>
-                            <FormMessage />
+                            <FormMessage className="text-red-600 font-semibold" />
                           </div>
                         </FormItem>
                       )}
@@ -587,8 +589,9 @@ export default function AuthPage() {
                           <div className="space-y-1 leading-none">
                             <FormLabel className="text-sm text-gray-700">
                               <strong>Consento esplicitamente</strong> al trattamento delle mie opinioni politiche 
-                              (GDPR Art. 9). Questo consenso è <strong>opzionale</strong> e mi permetterà di esprimere 
-                              opinioni e votare sulla piattaforma. Posso revocarlo in qualsiasi momento.{" "}
+                              (GDPR Art. 9). Questo consenso è <strong>necessario</strong> per utilizzare la piattaforma 
+                              e mi permetterà di esprimere opinioni e votare. Posso revocarlo in qualsiasi momento dalle 
+                              impostazioni GDPR, ma questo limiterà l'accesso ad alcune funzionalità.{" "}
                               <Link 
                                 href="/privacy-policy#4.1" 
                                 className="text-blue-600 hover:text-blue-800 underline"
@@ -597,11 +600,7 @@ export default function AuthPage() {
                                 Maggiori informazioni
                               </Link>
                             </FormLabel>
-                            <FormMessage />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Se rifiuti, non potrai esprimere opinioni politiche o votare, ma potrai utilizzare 
-                              tutte le altre funzionalità della piattaforma.
-                            </p>
+                            <FormMessage className="text-red-600 font-semibold" />
                           </div>
                         </FormItem>
                       )}

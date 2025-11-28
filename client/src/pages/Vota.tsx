@@ -1,22 +1,15 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect, Link, useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Crown, Building2, Scale, FileText, Archive, Users, CheckSquare, Shield, AlertCircle } from "lucide-react";
+import { Redirect } from "wouter";
 import { useNoScroll } from "@/hooks/useNoScroll";
-import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Vota() {
   const { user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
-  const { hasConsent, isLoading: isLoadingConsent } = usePoliticalOpinionsConsent();
   
   // Blocca lo scroll della pagina
   useNoScroll(true);
 
-  if (isLoading || isLoadingConsent) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -26,60 +19,6 @@ export default function Vota() {
 
   if (!user) {
     return <Redirect to="/auth" />;
-  }
-
-  // Se l'utente non ha dato il consenso, mostra un messaggio
-  if (!hasConsent) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="border-2 border-orange-200 bg-orange-50">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Shield className="h-6 w-6 text-orange-600" />
-                <CardTitle className="text-2xl text-orange-900">
-                  Consenso Richiesto
-                </CardTitle>
-              </div>
-              <CardDescription className="text-orange-800">
-                Per votare sulla piattaforma è necessario il consenso al trattamento delle opinioni politiche (GDPR Art. 9)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert className="bg-white border-orange-300">
-                <AlertCircle className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-gray-700">
-                  <p className="mb-3">
-                    Le funzionalità di voto (Capo di Stato, Governo, Grazia, Amnistia, Iniziative Popolari, 
-                    Referendum, ICE) richiedono il consenso esplicito al trattamento delle opinioni politiche 
-                    secondo il GDPR Art. 9.
-                  </p>
-                  <p className="mb-3">
-                    Puoi concedere il consenso dalle impostazioni GDPR. Il consenso è <strong>opzionale</strong> 
-                    e puoi revocarlo in qualsiasi momento.
-                  </p>
-                  <div className="flex gap-3 mt-4">
-                    <Button 
-                      onClick={() => setLocation('/gdpr')}
-                      className="bg-orange-600 hover:bg-orange-700"
-                    >
-                      <Shield className="mr-2 h-4 w-4" />
-                      Vai alle Impostazioni GDPR
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={() => setLocation('/')}
-                    >
-                      Torna alla Home
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
   }
 
   return (
