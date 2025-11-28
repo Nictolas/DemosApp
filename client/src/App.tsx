@@ -91,6 +91,8 @@ import ProponiICE from "./pages/ProponiICE";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
+import Accessibilita from "./pages/Accessibilita";
+import RegistroTrattamenti from "./pages/RegistroTrattamenti";
 import SecurityMeasures from "./pages/SecurityMeasures";
 import GDPRRights from "./pages/GDPRRights";
 import DataRetention from "./pages/DataRetention";
@@ -291,6 +293,18 @@ export default function App() {
                 <Route path="/cookie-policy">
                   <PageTransition location={location} type="fade-up">
                     <CookiePolicy />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/accessibilita">
+                  <PageTransition location={location} type="fade-up">
+                    <Accessibilita />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/registro-trattamenti">
+                  <PageTransition location={location} type="fade-up">
+                    <RegistroTrattamenti />
                   </PageTransition>
                 </Route>
 
