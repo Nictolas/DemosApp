@@ -361,8 +361,14 @@ export default function PrivacyPolicy() {
               <li><strong>Opposizione:</strong> Opporti al trattamento per motivi legittimi</li>
               <li><strong>Revoca consenso:</strong> Revocare il consenso in qualsiasi momento</li>
             </ul>
-            <p className="text-gray-700">
+            <p className="text-gray-700 mb-3">
               Per esercitare questi diritti, contattaci all'indirizzo: <strong>privacy@demos.community</strong>
+            </p>
+            <p className="text-gray-700">
+              Per informazioni dettagliate su tutte le attività di trattamento dei dati, consulta il{' '}
+              <a href="/registro-trattamenti" className="text-blue-600 hover:text-blue-800 underline">
+                Registro delle Attività di Trattamento
+              </a> (conforme GDPR Art. 30).
             </p>
           </section>
 

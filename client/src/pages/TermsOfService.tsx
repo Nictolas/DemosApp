@@ -389,15 +389,41 @@ export default function TermsOfService() {
             </p>
           </section>
 
+          {/* Accessibilità */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-3">14. Accessibilità</h2>
+            <p className="text-gray-700 mb-3">
+              DemosApp si impegna a garantire l'accessibilità del proprio sito web e delle proprie 
+              applicazioni per tutti gli utenti, inclusi quelli con disabilità, conformemente alla 
+              <strong> Legge Stanca (L. 4/2004)</strong> e alla <strong>Direttiva UE 2016/2102</strong>.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Stiamo lavorando per raggiungere la piena conformità con le linee guida 
+              <strong> WCAG 2.1 Livello AA</strong> (Web Content Accessibility Guidelines).
+            </p>
+            <p className="text-gray-700 mb-3">
+              Se riscontri problemi di accessibilità o hai suggerimenti per migliorare l'accessibilità 
+              della piattaforma, puoi contattarci all'indirizzo{' '}
+              <strong>accessibilita@demos.community</strong>.
+            </p>
+            <p className="text-gray-700">
+              Per maggiori informazioni, consulta la nostra{' '}
+              <a href="/accessibilita" className="text-blue-600 hover:text-blue-800 underline">
+                Dichiarazione di Accessibilità
+              </a>.
+            </p>
+          </section>
+
           {/* Contatti */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">14. Contatti</h2>
+            <h2 className="text-2xl font-semibold mb-3">15. Contatti</h2>
             <p className="text-gray-700 mb-3">
               Per domande sui termini di servizio:
             </p>
             <ul className="list-none text-gray-700">
               <li><strong>Email:</strong> legal@demos.community</li>
               <li><strong>Privacy:</strong> privacy@demos.community</li>
+              <li><strong>Accessibilità:</strong> accessibilita@demos.community</li>
             </ul>
           </section>
 
