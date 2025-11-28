@@ -3,13 +3,19 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Shield, Download, Trash2, Settings, FileText, Database, Vote } from "lucide-react";
+import { Loader2, Shield, Download, Trash2, Settings, FileText, Database, Vote, FileJson, FileSpreadsheet } from "lucide-react";
 import { useLocation } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +34,7 @@ export default function GDPR() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const revokeConsentMutation = useMutation({
     mutationFn: async () => {
@@ -51,6 +58,137 @@ export default function GDPR() {
       });
     }
   });
+
+  const handleDownloadData = async (format: 'json' | 'csv' = 'json') => {
+    try {
+      setIsDownloading(true);
+      
+      const response = await apiRequest('GET', `/api/user/data-export?format=${format}`);
+      
+      if (!response.success || !response.data) {
+        throw new Error('Errore nel recupero dei dati');
+      }
+
+      const data = response.data;
+      const timestamp = new Date().toISOString().split('T')[0];
+      
+      if (format === 'json') {
+        // Download JSON
+        const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(jsonBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dati-personali-${timestamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Download completato",
+          description: "I tuoi dati sono stati scaricati in formato JSON.",
+        });
+      } else if (format === 'csv') {
+        // Converti JSON in CSV
+        const csv = convertToCSV(data);
+        const csvBlob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(csvBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dati-personali-${timestamp}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Download completato",
+          description: "I tuoi dati sono stati scaricati in formato CSV.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Errore nel download dati:', error);
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante il download dei dati. Riprova più tardi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  // Funzione per convertire JSON in CSV
+  const convertToCSV = (data: any): string => {
+    const lines: string[] = [];
+    
+    // Header principale
+    lines.push('Sezione,Campo,Valore');
+    
+    // Profilo utente
+    if (data.user_profile) {
+      Object.entries(data.user_profile).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          lines.push(`Profilo Utente,${key},"${String(value).replace(/"/g, '""')}"`);
+        }
+      });
+    }
+    
+    // Opinioni
+    if (data.opinions && Array.isArray(data.opinions)) {
+      data.opinions.forEach((opinion: any, index: number) => {
+        Object.entries(opinion).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            lines.push(`Opinioni [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
+          }
+        });
+      });
+    }
+    
+    // Voti
+    if (data.votes && Array.isArray(data.votes)) {
+      data.votes.forEach((vote: any, index: number) => {
+        Object.entries(vote).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            lines.push(`Voti [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
+          }
+        });
+      });
+    }
+    
+    // Comunicazioni
+    if (data.communications && Array.isArray(data.communications)) {
+      data.communications.forEach((comm: any, index: number) => {
+        Object.entries(comm).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            lines.push(`Comunicazioni [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
+          }
+        });
+      });
+    }
+    
+    // Notifiche
+    if (data.notifications && Array.isArray(data.notifications)) {
+      data.notifications.forEach((notif: any, index: number) => {
+        Object.entries(notif).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            lines.push(`Notifiche [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
+          }
+        });
+      });
+    }
+    
+    // Consensi
+    if (data.consent_history) {
+      Object.entries(data.consent_history).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          lines.push(`Consensi,${key},"${String(value).replace(/"/g, '""')}"`);
+        }
+      });
+    }
+    
+    return lines.join('\n');
+  };
 
   if (isLoading) {
     return (
@@ -128,14 +266,55 @@ export default function GDPR() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
-              onClick={() => setLocation('/impostazioni/scarica-dati')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Scarica i Tuoi Dati
-            </Button>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600 mb-2">
+                <strong>Diritto di Portabilità (GDPR Art. 20):</strong> Scarica tutti i tuoi dati personali 
+                in formato strutturato e portabile.
+              </p>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline"
+                    className="w-full justify-start"
+                    disabled={isDownloading}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Download in corso...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Scarica i Tuoi Dati
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem 
+                    onClick={() => handleDownloadData('json')}
+                    disabled={isDownloading}
+                  >
+                    <FileJson className="h-4 w-4 mr-2" />
+                    Download JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => handleDownloadData('csv')}
+                    disabled={isDownloading}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Download CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <p className="text-xs text-gray-500 mt-2">
+                I dati includono: profilo, opinioni, voti, comunicazioni, notifiche e consensi. 
+                Il formato CSV è più portabile e può essere importato in altri servizi.
+              </p>
+            </div>
             
             <Button 
               onClick={() => setLocation('/impostazioni/gestione-privacy')}

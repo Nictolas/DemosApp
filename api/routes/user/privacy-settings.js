@@ -16,7 +16,7 @@ router.get('/', verifyToken, async (req, res) => {
     const query = `
       SELECT 
         profile_visibility, opinions_public, email_notifications, 
-        push_notifications, data_analytics, marketing_emails,
+        push_notifications, data_analytics,
         updated_at
       FROM users 
       WHERE id = $1
@@ -39,8 +39,7 @@ router.get('/', verifyToken, async (req, res) => {
       opinions_public: user.opinions_public ?? true,
       email_notifications: user.email_notifications ?? true,
       push_notifications: user.push_notifications ?? true,
-      data_analytics: user.data_analytics ?? true,
-      marketing_emails: user.marketing_emails ?? false
+      data_analytics: user.data_analytics ?? true
     };
 
     res.json({
@@ -71,7 +70,7 @@ router.put('/', verifyToken, async (req, res) => {
     // Valida le impostazioni
     const validSettings = [
       'profile_visibility', 'opinions_public', 'email_notifications',
-      'push_notifications', 'data_analytics', 'marketing_emails'
+      'push_notifications', 'data_analytics'
     ];
 
     const updateFields = [];
@@ -106,7 +105,7 @@ router.put('/', verifyToken, async (req, res) => {
       SET ${updateFields.join(', ')}
       WHERE id = $${paramCount}
       RETURNING id, profile_visibility, opinions_public, email_notifications, 
-                push_notifications, data_analytics, marketing_emails, updated_at
+                push_notifications, data_analytics, updated_at
     `;
 
     const result = await db.query(query, updateValues);
@@ -140,7 +139,6 @@ router.put('/', verifyToken, async (req, res) => {
         email_notifications: updatedUser.email_notifications,
         push_notifications: updatedUser.push_notifications,
         data_analytics: updatedUser.data_analytics,
-        marketing_emails: updatedUser.marketing_emails,
         updated_at: updatedUser.updated_at
       }
     });
