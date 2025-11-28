@@ -58,18 +58,10 @@ const privacySettings: PrivacySetting[] = [
     icon: <Database className="h-5 w-5" />,
     enabled: true,
     category: "Analisi"
-  },
-  {
-    id: "marketing_emails",
-    title: "Email Marketing",
-    description: "Ricevi email promozionali e aggiornamenti sui prodotti",
-    icon: <Mail className="h-5 w-5" />,
-    enabled: false,
-    category: "Marketing"
   }
 ];
 
-const categories = ["Visibilità", "Comunicazioni", "Analisi", "Marketing"];
+const categories = ["Visibilità", "Comunicazioni", "Analisi"];
 
 export default function GestionePrivacy() {
   const { user, isLoading } = useAuth();

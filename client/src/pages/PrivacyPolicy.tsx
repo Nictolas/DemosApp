@@ -120,13 +120,148 @@ export default function PrivacyPolicy() {
 
           {/* Conservazione */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">5. Conservazione dei Dati</h2>
-            <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Dati di account:</strong> Fino alla cancellazione dell'account</li>
-              <li><strong>Dati di voto:</strong> Conservati in forma anonima per 5 anni</li>
-              <li><strong>Dati di comunicazione:</strong> 3 anni dall'ultima interazione</li>
-              <li><strong>Dati tecnici:</strong> 12 mesi per sicurezza e debugging</li>
+            <h2 className="text-2xl font-semibold mb-3">5. Conservazione dei Dati (Data Retention)</h2>
+            <p className="text-gray-700 mb-3">
+              Rispettiamo il principio di limitazione della conservazione (GDPR Art. 5.1.e). 
+              I dati vengono conservati solo per il tempo necessario alle finalità per cui sono stati raccolti, 
+              salvo obblighi di legge che richiedono periodi più lunghi.
+            </p>
+            
+            <h3 className="text-xl font-medium mb-2 mt-4">5.1 Periodi di Conservazione per Tipo di Dato</h3>
+            <p className="text-gray-700 mb-3">
+              I seguenti periodi di conservazione si applicano ai tuoi dati personali:
+            </p>
+            
+            <div className="space-y-4 mb-4">
+              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                <h4 className="font-semibold text-gray-800 mb-2">📋 Dati del Profilo Utente</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 7 anni (2.555 giorni) dalla data di registrazione
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Nome, cognome, email, data di nascita, cittadinanza, 
+                  dati di residenza, dati di elezione e candidatura
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Obbligo di conservazione per finalità fiscali e contabili 
+                  (Art. 2220 Codice Civile italiano)
+                </p>
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                <h4 className="font-semibold text-gray-800 mb-2">🗳️ Voti e Opinioni Politiche</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 5 anni (1.825 giorni) dalla data di espressione
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Voti per capo di stato, referendum, iniziative popolari, 
+                  ICE, opinioni politiche su temi specifici
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Conservazione per finalità di democrazia partecipativa e 
+                  trasparenza politica (Art. 2220 Codice Civile)
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+                <h4 className="font-semibold text-gray-800 mb-2">🔐 Dati di Autenticazione</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 1 anno (365 giorni) dall'ultimo accesso
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Hash della password, ultimo accesso, tentativi di login
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Sicurezza e prevenzione frodi
+                </p>
+              </div>
+
+              <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                <h4 className="font-semibold text-gray-800 mb-2">📊 Log di Audit e Sicurezza</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 7 anni (2.555 giorni) dalla data di creazione
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Azioni di audit, eventi di sicurezza, accessi al sistema, 
+                  modifiche ai dati, indirizzi IP (anonimizzati)
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Sicurezza, conformità normativa e dimostrazione della conformità GDPR
+                </p>
+              </div>
+
+              <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500">
+                <h4 className="font-semibold text-gray-800 mb-2">💬 Dati di Supporto</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 3 anni (1.095 giorni) dall'ultima interazione
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Ticket di supporto, messaggi, note di risoluzione
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Supporto clienti e miglioramento della qualità del servizio
+                </p>
+              </div>
+
+              <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500">
+                <h4 className="font-semibold text-gray-800 mb-2">📈 Dati di Analytics</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 2 anni (730 giorni) dalla data di raccolta
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Visualizzazioni di pagina, eventi di click, comportamento utente (anonimizzato)
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Analytics e miglioramento del servizio
+                </p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-500">
+                <h4 className="font-semibold text-gray-800 mb-2">🔑 Dati di Sessione</h4>
+                <p className="text-gray-700 mb-2">
+                  <strong>Periodo:</strong> 30 giorni dall'ultima attività
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Dati inclusi:</strong> Token di sessione, refresh token, dati di sessione
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Motivo:</strong> Sicurezza e privacy
+                </p>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-medium mb-2 mt-6">5.2 Meccanismo di Cancellazione</h3>
+            <p className="text-gray-700 mb-3">
+              La cancellazione dei dati avviene <strong>automaticamente</strong> secondo le policy di retention configurate:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>I dati vengono cancellati automaticamente alla scadenza del periodo di conservazione</li>
+              <li>Riceverai una <strong>notifica via email 30 giorni prima</strong> della cancellazione dei tuoi dati principali</li>
+              <li>La cancellazione è <strong>irreversibile</strong> una volta completata</li>
+              <li>I dati vengono cancellati in modo sicuro e conforme al GDPR Art. 17 (Diritto alla cancellazione)</li>
             </ul>
+
+            <h3 className="text-xl font-medium mb-2 mt-6">5.3 Diritto di Estensione</h3>
+            <p className="text-gray-700 mb-3">
+              Puoi richiedere di estendere il periodo di conservazione dei tuoi dati per motivi legittimi 
+              (es. procedimenti legali in corso, obblighi contrattuali). Per richiedere un'estensione, 
+              contattaci all'indirizzo <strong>privacy@demos.community</strong>.
+            </p>
+
+            <h3 className="text-xl font-medium mb-2 mt-6">5.4 Cancellazione Anticipata</h3>
+            <p className="text-gray-700 mb-3">
+              Puoi richiedere la cancellazione anticipata dei tuoi dati in qualsiasi momento esercitando 
+              il tuo diritto alla cancellazione (GDPR Art. 17). Per maggiori informazioni, consulta la 
+              sezione <strong>"Diritti dell'Interessato"</strong> di questa Privacy Policy.
+            </p>
+
+            <div className="bg-blue-50 p-4 rounded-lg mt-4 border-l-4 border-blue-500">
+              <p className="text-sm text-gray-700">
+                <strong>📌 Nota Importante:</strong> Alcuni dati potrebbero essere conservati oltre i periodi 
+                indicati se richiesto da obblighi di legge, ordini giudiziari o per la risoluzione di controversie. 
+                In questi casi, ti informeremo tempestivamente.
+              </p>
+            </div>
           </section>
 
           {/* Sicurezza */}
@@ -148,7 +283,7 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold mb-3">7. Condivisione dei Dati</h2>
             <p className="text-gray-700 mb-3">Non vendiamo i tuoi dati. Li condividiamo solo con:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Fornitori di servizi:</strong> Neon (database), Resend (email), Vercel (hosting)</li>
+              <li><strong>Fornitori di servizi:</strong> Neon (database), Resend (email), Render (hosting)</li>
               <li><strong>Autorità competenti:</strong> Solo se richiesto per legge</li>
               <li><strong>Consenso esplicito:</strong> Per altre finalità con il tuo consenso</li>
             </ul>
@@ -216,7 +351,13 @@ export default function PrivacyPolicy() {
               <li><strong>Rettifica:</strong> Correggere dati inesatti</li>
               <li><strong>Cancellazione:</strong> Richiedere la cancellazione dei tuoi dati</li>
               <li><strong>Limitazione:</strong> Limitare il trattamento in determinate circostanze</li>
-              <li><strong>Portabilità:</strong> Ricevere i tuoi dati in formato strutturato</li>
+              <li>
+                <strong>Portabilità (Art. 20):</strong> Ricevere i tuoi dati in formato strutturato, 
+                di uso comune e leggibile da dispositivo automatico. Puoi scaricare i tuoi dati direttamente 
+                dalla pagina <a href="/gdpr" className="text-blue-600 hover:text-blue-800 underline">Diritti GDPR</a> 
+                in formato JSON o CSV. I dati includono: profilo utente, opinioni politiche, voti, comunicazioni, 
+                notifiche e consensi.
+              </li>
               <li><strong>Opposizione:</strong> Opporti al trattamento per motivi legittimi</li>
               <li><strong>Revoca consenso:</strong> Revocare il consenso in qualsiasi momento</li>
             </ul>
@@ -249,11 +390,97 @@ export default function PrivacyPolicy() {
           {/* Trasferimenti */}
           <section>
             <h2 className="text-2xl font-semibold mb-3">11. Trasferimenti Internazionali</h2>
-            <p className="text-gray-700">
-              I tuoi dati sono memorizzati su server situati nell'Unione Europea (Neon - Francoforte). 
-              Eventuali trasferimenti verso paesi terzi avvengono solo con garanzie adeguate 
-              e nel rispetto del GDPR.
+            <p className="text-gray-700 mb-4">
+              I tuoi dati personali sono trattati principalmente all'interno dell'Unione Europea. 
+              Quando utilizziamo fornitori di servizi situati in paesi terzi (fuori dall'UE), 
+              adottiamo garanzie adeguate per proteggere i tuoi dati secondo il GDPR (Art. 44-49).
             </p>
+
+            <h3 className="text-xl font-medium mb-2 mt-4">11.1 Fornitori di Servizi e Ubicazione Dati</h3>
+            <p className="text-gray-700 mb-3">
+              Utilizziamo i seguenti fornitori di servizi per il funzionamento della piattaforma:
+            </p>
+
+            <div className="space-y-4 mb-4">
+              <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                <h4 className="font-semibold text-gray-800 mb-2">💾 Neon (Database PostgreSQL)</h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li><strong>Servizio:</strong> Database principale per tutti i dati utente</li>
+                  <li><strong>Ubicazione:</strong> Unione Europea (Francoforte, Germania)</li>
+                  <li><strong>Dati trattati:</strong> Tutti i dati personali degli utenti (profilo, opinioni, voti, autenticazione)</li>
+                  <li><strong>Garanzie:</strong> Server situati in UE, conforme GDPR</li>
+                  <li><strong>Policy Privacy:</strong> <a href="https://neon.tech/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">https://neon.tech/privacy-policy</a></li>
+                </ul>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                <h4 className="font-semibold text-gray-800 mb-2">📧 Resend (Servizio Email)</h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li><strong>Servizio:</strong> Invio email di verifica, reset password e notifiche</li>
+                  <li><strong>Ubicazione:</strong> Stati Uniti d'America (con possibili server in UE)</li>
+                  <li><strong>Dati trattati:</strong> Indirizzi email, contenuti delle email inviate</li>
+                  <li><strong>Garanzie:</strong> Standard Contractual Clauses (SCC) approvate dalla Commissione Europea</li>
+                  <li><strong>Policy Privacy:</strong> <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">https://resend.com/legal/privacy-policy</a></li>
+                </ul>
+              </div>
+
+              <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                <h4 className="font-semibold text-gray-800 mb-2">☁️ Render (Hosting Frontend e Backend)</h4>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li><strong>Servizio:</strong> Hosting dell'applicazione web (frontend e backend API)</li>
+                  <li><strong>Ubicazione:</strong> Stati Uniti d'America (con possibili regioni in UE)</li>
+                  <li><strong>Dati trattati:</strong> Dati temporanei di elaborazione, log di sistema, indirizzi IP</li>
+                  <li><strong>Garanzie:</strong> Standard Contractual Clauses (SCC) approvate dalla Commissione Europea</li>
+                  <li><strong>Policy Privacy:</strong> <a href="https://render.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">https://render.com/privacy</a></li>
+                </ul>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-medium mb-2 mt-6">11.2 Garanzie Adeguate per Trasferimenti verso Paesi Terzi</h3>
+            <p className="text-gray-700 mb-3">
+              Per i trasferimenti di dati verso paesi terzi (fuori dall'UE), utilizziamo le seguenti garanzie adeguate:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>
+                <strong>Standard Contractual Clauses (SCC):</strong> Clausole contrattuali standard approvate 
+                dalla Commissione Europea (Decisione 2021/914/UE) che garantiscono un livello di protezione 
+                dei dati equivalente a quello dell'UE.
+              </li>
+              <li>
+                <strong>Valutazione del rischio:</strong> Prima di trasferire dati, valutiamo il livello di 
+                protezione offerto dal paese terzo e adottiamo misure supplementari se necessario.
+              </li>
+              <li>
+                <strong>Monitoraggio continuo:</strong> Monitoriamo regolarmente la conformità dei nostri 
+                fornitori alle garanzie adottate.
+              </li>
+            </ul>
+
+            <h3 className="text-xl font-medium mb-2 mt-6">11.3 I Tuoi Diritti</h3>
+            <p className="text-gray-700 mb-3">
+              Hai il diritto di:
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>Essere informato sui trasferimenti internazionali dei tuoi dati</li>
+              <li>Richiedere una copia delle garanzie adeguate adottate</li>
+              <li>Opporti a trasferimenti specifici (salvo obblighi di legge)</li>
+              <li>Esercitare i tuoi diritti GDPR anche in caso di trasferimenti internazionali</li>
+            </ul>
+
+            <h3 className="text-xl font-medium mb-2 mt-6">11.4 Contatti</h3>
+            <p className="text-gray-700 mb-3">
+              Per maggiori informazioni sui trasferimenti internazionali o per richiedere una copia delle 
+              garanzie adeguate, contattaci all'indirizzo <strong>privacy@demos.community</strong>.
+            </p>
+
+            <div className="bg-blue-50 p-4 rounded-lg mt-4 border-l-4 border-blue-500">
+              <p className="text-sm text-gray-700">
+                <strong>📌 Nota Importante:</strong> I trasferimenti internazionali sono limitati al minimo 
+                necessario per il funzionamento della piattaforma. La maggior parte dei tuoi dati (database) 
+                è memorizzata in UE (Neon - Francoforte). I trasferimenti verso paesi terzi riguardano 
+                principalmente servizi di hosting e email, e sono sempre protetti da garanzie adeguate.
+              </p>
+            </div>
           </section>
 
           {/* Minori */}
