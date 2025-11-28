@@ -130,7 +130,7 @@ router.post('/register',
     console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
     
     // Verifica consensi obbligatori
-    if (!privacy_policy_consent || !terms_of_service_consent) {
+    if (!privacy_policy_consent || !terms_of_service_consent || !political_opinions_consent) {
       return res.status(400).json({
         success: false,
         error: 'È necessario accettare tutti i consensi obbligatori per procedere con la registrazione'
