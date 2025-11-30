@@ -190,12 +190,6 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
               )}
 
               {/* Altre informazioni importanti */}
-              {user.codice_fiscale && (
-                <div className="text-xs text-gray-500">
-                  <span className="font-medium">CF:</span> {user.codice_fiscale}
-                </div>
-              )}
-
               {user.telefono && (
                 <div className="text-xs text-gray-500">
                   <span className="font-medium">Tel:</span> {user.telefono}

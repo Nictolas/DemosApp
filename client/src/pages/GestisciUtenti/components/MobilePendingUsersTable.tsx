@@ -71,12 +71,6 @@ export const MobilePendingUsersTable: React.FC<MobilePendingUsersTableProps> = (
                 </div>
               )}
 
-              {/* Codice fiscale */}
-              {user.codice_fiscale && (
-                <div className="text-xs text-gray-500">
-                  <span className="font-medium">CF:</span> {user.codice_fiscale}
-                </div>
-              )}
 
               {/* Telefono */}
               {user.telefono && (

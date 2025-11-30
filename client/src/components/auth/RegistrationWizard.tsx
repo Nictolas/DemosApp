@@ -7,7 +7,6 @@ import { Phase4Role } from "./Phase4Role";
 export interface CompleteRegistrationData {
   email: string;
   password: string;
-  codice_fiscale: string;
   nome: string;
   cognome: string;
   data_nascita: string;

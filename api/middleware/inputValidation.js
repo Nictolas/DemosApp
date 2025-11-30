@@ -50,24 +50,6 @@ const validators = {
     return { isValid: true, value: value.trim() };
   },
 
-  // Validazione codice fiscale
-  codiceFiscale: (value) => {
-    if (!value) {
-      return { isValid: true, value: null };
-    }
-    if (typeof value !== 'string') {
-      return { isValid: false, error: 'Codice fiscale deve essere una stringa' };
-    }
-    const cf = value.toUpperCase().trim();
-    if (cf.length !== 16) {
-      return { isValid: false, error: 'Codice fiscale deve essere di 16 caratteri' };
-    }
-    const cfRegex = /^[A-Z0-9]{16}$/;
-    if (!cfRegex.test(cf)) {
-      return { isValid: false, error: 'Codice fiscale contiene caratteri non validi' };
-    }
-    return { isValid: true, value: cf };
-  },
 
   // Validazione data di nascita
   dataNascita: (value) => {
