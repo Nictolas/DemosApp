@@ -42,8 +42,7 @@ export default function GDPRLegalManagement() {
   const dataRetentionRules = [
     { category: 'User Profiles', retentionDays: 365, autoDelete: true },
     { category: 'Audit Logs', retentionDays: 2555, autoDelete: true },
-    { category: 'Session Data', retentionDays: 30, autoDelete: true },
-    { category: 'Marketing Data', retentionDays: 90, autoDelete: false }
+    { category: 'Session Data', retentionDays: 30, autoDelete: true }
   ];
 
   const legalDocuments = [

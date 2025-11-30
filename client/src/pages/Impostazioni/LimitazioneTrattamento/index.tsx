@@ -40,11 +40,6 @@ const dataCategories: DataCategory[] = [
     id: 'communication', 
     label: 'Dati di Comunicazione', 
     description: 'Email, notifiche, messaggi, preferenze di comunicazione' 
-  },
-  { 
-    id: 'marketing', 
-    label: 'Dati di Marketing', 
-    description: 'Preferenze commerciali, interessi, comportamenti di acquisto' 
   }
 ];
 
