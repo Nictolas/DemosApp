@@ -6,10 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 
 const phase2Schema = z.object({
-  codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri"),
   nome: z.string().min(1, "Il nome è obbligatorio"),
   cognome: z.string().min(1, "Il cognome è obbligatorio"),
   data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
@@ -29,7 +27,6 @@ export function Phase2Personal({ onNext, onBack, defaultValues }: Phase2Personal
   const form = useForm<Phase2Values>({
     resolver: zodResolver(phase2Schema),
     defaultValues: {
-      codice_fiscale: defaultValues?.codice_fiscale || "",
       nome: defaultValues?.nome || "",
       cognome: defaultValues?.nome || "",
       data_nascita: defaultValues?.data_nascita || "",
@@ -48,24 +45,6 @@ export function Phase2Personal({ onNext, onBack, defaultValues }: Phase2Personal
         <div className="text-center mb-6">
           <h3 className="text-lg font-semibold">Dati Personali</h3>
         </div>
-
-        <FormField
-          control={form.control}
-          name="codice_fiscale"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Codice Fiscale *</FormLabel>
-              <FormControl>
-                <CodiceFiscaleInput
-                  {...field}
-                  placeholder="Codice Fiscale"
-                  className="w-full"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <div className="grid grid-cols-2 gap-4">
           <FormField

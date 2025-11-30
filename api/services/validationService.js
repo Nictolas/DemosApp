@@ -99,13 +99,6 @@ class ValidationService {
               }
               break;
               
-            case 'codiceFiscale':
-              const cfValidation = this.validateCodiceFiscaleFormat(value);
-              if (!cfValidation.isValid) {
-                validationErrors.push(cfValidation.error);
-              }
-              break;
-              
             case 'dataNascita':
               const dateValidation = this.validateDataNascita(value);
               if (!dateValidation.isValid) {
