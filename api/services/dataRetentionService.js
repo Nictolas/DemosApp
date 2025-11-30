@@ -47,13 +47,6 @@ class DataRetentionService {
         reason: 'Sicurezza e conformità normativa'
       },
       
-      // Dati di marketing
-      marketing_data: {
-        retention_days: 365, // 1 anno
-        fields: ['preferences', 'marketing_consent', 'newsletter_data'],
-        reason: 'Consenso marketing - Art. 7 GDPR'
-      },
-      
       // Dati di supporto
       support_data: {
         retention_days: 1095, // 3 anni

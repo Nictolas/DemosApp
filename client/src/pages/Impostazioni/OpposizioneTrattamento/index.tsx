@@ -41,16 +41,10 @@ const dataCategories: DataCategory[] = [
     id: 'communication', 
     label: 'Dati di Comunicazione', 
     description: 'Email, notifiche, messaggi, preferenze di comunicazione' 
-  },
-  { 
-    id: 'marketing', 
-    label: 'Dati di Marketing', 
-    description: 'Preferenze commerciali, interessi, comportamenti di acquisto' 
   }
 ];
 
 const objectionReasons = [
-  'Trattamento per finalità di marketing diretto',
   'Profilazione per decisioni automatizzate',
   'Trattamento per finalità di ricerca scientifica',
   'Trattamento per finalità storiche o statistiche',
@@ -180,8 +174,8 @@ export default function OpposizioneTrattamento() {
           <Info className="h-4 w-4" />
           <AlertDescription>
             <strong>Diritto di Opposizione (Art. 21 GDPR):</strong> Hai il diritto di opporti 
-            al trattamento dei tuoi dati personali per motivi legittimi, incluso il trattamento 
-            per finalità di marketing diretto.
+            al trattamento dei tuoi dati personali per motivi legittimi, quando il trattamento 
+            è basato su interesse legittimo o finalità di interesse pubblico.
           </AlertDescription>
         </Alert>
 
@@ -322,7 +316,6 @@ export default function OpposizioneTrattamento() {
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
                 <li>Il trattamento è basato su interesse legittimo o finalità di interesse pubblico</li>
-                <li>Il trattamento è per finalità di marketing diretto</li>
                 <li>Il trattamento è per finalità di ricerca scientifica o storica</li>
                 <li>Il trattamento è per finalità statistiche</li>
                 <li>Hai motivi legittimi per opporti al trattamento</li>

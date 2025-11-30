@@ -63,34 +63,21 @@ export default function GDPR() {
     try {
       setIsDownloading(true);
       
-      const response = await apiRequest('GET', `/api/user/data-export?format=${format}`);
-      
-      if (!response.success || !response.data) {
-        throw new Error('Errore nel recupero dei dati');
-      }
-
-      const data = response.data;
-      const timestamp = new Date().toISOString().split('T')[0];
-      
-      if (format === 'json') {
-        // Download JSON
-        const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(jsonBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `dati-personali-${timestamp}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Download completato",
-          description: "I tuoi dati sono stati scaricati in formato JSON.",
+      if (format === 'csv') {
+        // Per CSV, l'API restituisce direttamente il file CSV
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/user/data-export?format=csv`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         });
-      } else if (format === 'csv') {
-        // Converti JSON in CSV
-        const csv = convertToCSV(data);
+        
+        if (!response.ok) {
+          throw new Error('Errore nel recupero dei dati');
+        }
+        
+        const csv = await response.text();
+        const timestamp = new Date().toISOString().split('T')[0];
         const csvBlob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(csvBlob);
         const a = document.createElement('a');
@@ -104,6 +91,30 @@ export default function GDPR() {
         toast({
           title: "Download completato",
           description: "I tuoi dati sono stati scaricati in formato CSV.",
+        });
+      } else {
+        // Per JSON, l'API restituisce JSON
+        const response = await apiRequest('GET', `/api/user/data-export?format=json`);
+        
+        if (!response.success || !response.data) {
+          throw new Error('Errore nel recupero dei dati');
+        }
+
+        const data = response.data;
+        const timestamp = new Date().toISOString().split('T')[0];
+        const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(jsonBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dati-personali-${timestamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Download completato",
+          description: "I tuoi dati sono stati scaricati in formato JSON.",
         });
       }
     } catch (error: any) {

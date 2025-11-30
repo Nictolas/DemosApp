@@ -64,8 +64,8 @@ export default function PrivacyPolicy() {
               <li><strong>Democrazia partecipativa:</strong> Raccolta e gestione di voti, opinioni, iniziative</li>
               <li><strong>Comunicazione:</strong> Invio di notifiche, aggiornamenti, comunicazioni importanti</li>
               <li><strong>Analisi e miglioramento:</strong> Analisi anonima per migliorare i servizi</li>
-              <li><strong>Promozione e marketing:</strong> Pubblicazione di dati aggregati e anonimi sui social media 
-                  e altre piattaforme digitali per promuovere la piattaforma e divulgare i risultati dei sondaggi</li>
+              <li><strong>Pubblicazione dati aggregati:</strong> Pubblicazione di dati aggregati e anonimi sui social media 
+                  e altre piattaforme digitali per divulgare i risultati dei sondaggi e promuovere la partecipazione democratica</li>
               <li><strong>Conformità legale:</strong> Adempimento di obblighi di legge</li>
             </ul>
           </section>
@@ -289,13 +289,12 @@ export default function PrivacyPolicy() {
             </ul>
           </section>
 
-          {/* Utilizzo dati aggregati per marketing */}
+          {/* Utilizzo dati aggregati per pubblicazione */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">8. Utilizzo di Dati Aggregati per Marketing e Pubblicazione</h2>
+            <h2 className="text-2xl font-semibold mb-3">8. Utilizzo di Dati Aggregati per Pubblicazione</h2>
             <p className="text-gray-700 mb-3">
-              Con il tuo consenso esplicito (fornito accettando i Termini e Condizioni d'Uso), 
-              utilizziamo i dati aggregati e anonimi derivanti dai sondaggi e dalle votazioni 
-              della piattaforma per finalità di promozione e marketing.
+              Utilizziamo i dati aggregati e anonimi derivanti dai sondaggi e dalle votazioni 
+              della piattaforma per divulgare i risultati e promuovere la partecipazione democratica.
             </p>
             
             <h3 className="text-xl font-medium mb-2">8.1 Pubblicazione sui Social Media</h3>
@@ -305,10 +304,10 @@ export default function PrivacyPolicy() {
               aggregati e anonimi per:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li>Promuovere la piattaforma DemosApp e incrementare la partecipazione democratica</li>
               <li>Divulgare i risultati dei sondaggi e delle votazioni in forma aggregata</li>
               <li>Comunicare pubblicamente l'opinione aggregata degli utenti su temi di interesse</li>
-              <li>Incrementare la visibilità e la consapevolezza della piattaforma</li>
+              <li>Promuovere la partecipazione democratica e la trasparenza</li>
+              <li>Incrementare la consapevolezza sui temi trattati dalla piattaforma</li>
             </ul>
             
             <h3 className="text-xl font-medium mb-2">8.2 Garanzie di Anonimato</h3>
@@ -328,10 +327,10 @@ export default function PrivacyPolicy() {
             
             <h3 className="text-xl font-medium mb-2">8.3 Base Giuridica</h3>
             <p className="text-gray-700 mb-3">
-              L'utilizzo di dati aggregati per marketing e pubblicazione si basa sul tuo 
-              <strong> consenso esplicito</strong> (Art. 6.1.a GDPR), fornito accettando i 
-              Termini e Condizioni d'Uso della piattaforma. Puoi revocare il consenso in 
-              qualsiasi momento contattandoci all'indirizzo <strong>privacy@demos.community</strong>.
+              L'utilizzo di dati aggregati e anonimi per la pubblicazione si basa sull'
+              <strong>interesse legittimo</strong> (Art. 6.1.f GDPR) di promuovere la partecipazione 
+              democratica e divulgare informazioni di interesse pubblico. I dati sono sempre 
+              aggregati e anonimi, pertanto non richiedono consenso specifico.
             </p>
             <p className="text-gray-700 mb-3">
               Per ulteriori dettagli sull'utilizzo dei dati aggregati, consulta la sezione 
@@ -355,8 +354,13 @@ export default function PrivacyPolicy() {
                 <strong>Portabilità (Art. 20):</strong> Ricevere i tuoi dati in formato strutturato, 
                 di uso comune e leggibile da dispositivo automatico. Puoi scaricare i tuoi dati direttamente 
                 dalla pagina <a href="/gdpr" className="text-blue-600 hover:text-blue-800 underline">Diritti GDPR</a> 
-                in formato JSON o CSV. I dati includono: profilo utente, opinioni politiche, voti, comunicazioni, 
-                notifiche e consensi.
+                in formato <strong>JSON</strong> (formato standard, leggibile automaticamente) o <strong>CSV</strong> 
+                (formato tabellare, compatibile con Excel e altri software). I dati esportati includono: 
+                profilo utente, opinioni politiche, attività di voto (in forma aggregata per garantire l'anonimato), 
+                comunicazioni, notifiche, consensi e log di audit. I dati sono esportati conformemente al GDPR Art. 20.1, 
+                in formato strutturato e comunemente usato. <strong>Nota:</strong> Il trasferimento diretto dei dati 
+                a un altro fornitore di servizi richiede standard tecnici comuni tra i fornitori; attualmente non è 
+                tecnicamente possibile senza tali standard.
               </li>
               <li><strong>Opposizione:</strong> Opporti al trattamento per motivi legittimi</li>
               <li><strong>Revoca consenso:</strong> Revocare il consenso in qualsiasi momento</li>

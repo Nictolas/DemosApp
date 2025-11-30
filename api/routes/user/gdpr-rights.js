@@ -12,17 +12,72 @@ const router = express.Router();
 router.use(verifyToken);
 
 /**
+ * Funzione helper per convertire oggetto in CSV
+ */
+function convertToCSV(data) {
+  const lines = [];
+  
+  // Funzione ricorsiva per appiattire oggetti annidati
+  function flatten(obj, prefix = '') {
+    const result = [];
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const newKey = prefix ? `${prefix}.${key}` : key;
+        if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
+          result.push(...flatten(obj[key], newKey));
+        } else {
+          let value = obj[key];
+          if (value instanceof Date) {
+            value = value.toISOString();
+          } else if (Array.isArray(value)) {
+            value = JSON.stringify(value);
+          } else if (typeof value === 'object' && value !== null) {
+            value = JSON.stringify(value);
+          }
+          result.push({ key: newKey, value: String(value || '') });
+        }
+      }
+    }
+    return result;
+  }
+  
+  // Header
+  lines.push('Campo,Valore');
+  
+  // Dati appiattiti
+  const flattened = flatten(data);
+  flattened.forEach(item => {
+    const escapedValue = String(item.value).replace(/"/g, '""');
+    lines.push(`"${item.key}","${escapedValue}"`);
+  });
+  
+  return lines.join('\n');
+}
+
+/**
  * GET /api/user/data-export
- * Diritto di accesso ai dati (GDPR Art. 15)
- * Esporta tutti i dati personali dell'utente in formato JSON
+ * Diritto di portabilità dei dati (GDPR Art. 20)
+ * Esporta tutti i dati personali dell'utente in formato JSON o CSV
+ * 
+ * Query parameters:
+ * - format: 'json' (default) o 'csv'
  */
 router.get('/data-export', async (req, res) => {
   try {
     const userId = req.userId;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
+    const format = (req.query.format || 'json').toLowerCase(); // json o csv
+    
+    // Valida il formato
+    if (format !== 'json' && format !== 'csv') {
+      return res.status(400).json({
+        success: false,
+        error: 'Formato non valido. Utilizzare "json" o "csv"'
+      });
+    }
 
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}`);
+    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -118,7 +173,18 @@ router.get('/data-export', async (req, res) => {
         export_date: new Date().toISOString(),
         user_id: userId,
         format_version: '1.0',
-        gdpr_article: 'Art. 15 - Diritto di accesso'
+        format_schema: 'https://schema.org/Person',
+        gdpr_article: 'Art. 20 - Diritto di portabilità dei dati',
+        data_categories: [
+          'personal_data',
+          'political_opinions',
+          'voting_activity',
+          'communications',
+          'notifications',
+          'consent_history',
+          'audit_logs'
+        ],
+        note: 'I dati sono esportati in formato strutturato, comunemente usato e leggibile automaticamente, conforme al GDPR Art. 20.1'
       },
       personal_data: {
         basic_info: {
@@ -191,14 +257,22 @@ router.get('/data-export', async (req, res) => {
     await pool.query(requestQuery, [
       userId,
       'data_export',
-      JSON.stringify({ export_date: dataExport.export_info.export_date })
+      JSON.stringify({ export_date: dataExport.export_info.export_date, format })
     ]);
 
-    res.json({
-      success: true,
-      data: dataExport,
-      message: 'Esportazione dati completata con successo'
-    });
+    // 9. Restituisci i dati nel formato richiesto
+    if (format === 'csv') {
+      const csv = convertToCSV(dataExport);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${userId}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send('\ufeff' + csv); // BOM UTF-8 per Excel
+    } else {
+      res.json({
+        success: true,
+        data: dataExport,
+        message: 'Esportazione dati completata con successo'
+      });
+    }
 
   } catch (error) {
     console.error('❌ Errore nell\'esportazione dati:', error);
@@ -451,7 +525,7 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
     // Valida le categorie
     const validCategories = [
       'personal_data', 'political_opinions', 'voting_data', 
-      'communication_data', 'technical_data', 'marketing_data'
+      'communication_data', 'technical_data'
     ];
     
     const invalidCategories = categories.filter(cat => !validCategories.includes(cat));

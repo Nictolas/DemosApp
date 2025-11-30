@@ -258,8 +258,8 @@ export default function TermsOfService() {
               <li>La condivisione di dati aggregati con istituzioni, ricercatori e organizzazioni 
                   per finalità di ricerca e analisi</li>
               <li>La pubblicazione e condivisione di dati aggregati e statistiche sui social media 
-                  e altre piattaforme digitali per finalità di promozione, marketing e divulgazione 
-                  della piattaforma DemosApp, sempre in forma anonima e aggregata</li>
+                  e altre piattaforme digitali per finalità di divulgazione e promozione della 
+                  partecipazione democratica, sempre in forma anonima e aggregata</li>
             </ul>
             <p className="text-gray-700 mb-3">
               I dati utilizzati per questi scopi saranno sempre anonimizzati e aggregati, in modo 
@@ -276,9 +276,9 @@ export default function TermsOfService() {
               votazioni della piattaforma, per finalità di:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Promozione e marketing della piattaforma DemosApp</li>
               <li>Divulgazione dei risultati dei sondaggi e delle votazioni</li>
-              <li>Incremento della visibilità e della partecipazione democratica</li>
+              <li>Promozione della partecipazione democratica e della trasparenza</li>
+              <li>Incremento della consapevolezza sui temi trattati dalla piattaforma</li>
               <li>Comunicazione pubblica dell'opinione aggregata degli utenti</li>
             </ul>
             <p className="text-gray-700 mb-3">
