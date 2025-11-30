@@ -39,7 +39,7 @@ export const PRIORITY_COLUMNS = [
   'avatar', 'nome_completo', 'email', 'ruolo', 'status', 
   'data_nascita', 'genere', 'paese_residenza', 'provincia_residenza',
   'verified', 'auth_method', 'premium', 'is_premium', 'is_admin',
-  'privacy_policy_consent', 'terms_of_service_consent', 'cookie_policy_consent',
+  'privacy_policy_consent', 'terms_of_service_consent',
   'profile_visibility', 'opinions_public', 'email_notifications', 'push_notifications',
   'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url',
   'grado_candidatura', 'grado_elezione'

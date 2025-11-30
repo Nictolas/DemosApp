@@ -287,7 +287,7 @@ const DataRetention: React.FC = () => {
               <p className="text-sm text-blue-800">
                 Il sistema di data retention cancella automaticamente i dati scaduti secondo le policy configurate.
                 I dati vengono cancellati in base alla loro tipologia e al periodo di retention stabilito dal GDPR.
-                Le notifiche vengono inviate 30 giorni prima della cancellazione.
+                La cancellazione avviene automaticamente alla scadenza del periodo di conservazione.
               </p>
             </div>
           </div>

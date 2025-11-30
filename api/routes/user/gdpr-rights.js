@@ -42,7 +42,7 @@ router.get('/data-export', async (req, res) => {
              paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              grado_elezione, paese_candidatura, regione_candidatura, provincia_candidatura,
              comune_candidatura, grado_candidatura, status, premium, created_at, updated_at,
-             privacy_policy_consent, terms_of_service_consent, cookie_policy_consent,
+             privacy_policy_consent, terms_of_service_consent,
              consent_timestamp, consent_ip_address, consent_user_agent
       FROM users 
       WHERE id = $1
@@ -168,7 +168,6 @@ router.get('/data-export', async (req, res) => {
       consent_history: {
         privacy_policy_consent: userData.privacy_policy_consent,
         terms_of_service_consent: userData.terms_of_service_consent,
-        cookie_policy_consent: userData.cookie_policy_consent,
         consent_timestamp: userData.consent_timestamp,
         consent_ip_address: userData.consent_ip_address,
         consent_user_agent: userData.consent_user_agent

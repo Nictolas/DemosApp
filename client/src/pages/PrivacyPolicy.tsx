@@ -236,7 +236,7 @@ export default function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>I dati vengono cancellati automaticamente alla scadenza del periodo di conservazione</li>
-              <li>Riceverai una <strong>notifica via email 30 giorni prima</strong> della cancellazione dei tuoi dati principali</li>
+              <li>La cancellazione avviene senza preavviso, secondo i periodi indicati in questa sezione</li>
               <li>La cancellazione è <strong>irreversibile</strong> una volta completata</li>
               <li>I dati vengono cancellati in modo sicuro e conforme al GDPR Art. 17 (Diritto alla cancellazione)</li>
             </ul>
