@@ -41,7 +41,7 @@ async function findAllOpinions() {
         'candidato_attivo', 'candidato_camera', 'candidato_comune', 'candidato_europeo', 
         'candidato_regionale', 'candidato_senato', 'codice_attivista', 'comune_candidatura', 
         'comune_elezione', 'consent_ip_address', 'consent_timestamp', 'consent_user_agent', 
-        'cookie_policy_consent', 'data_analytics', 'data_candidatura', 'email_notifications', 
+        'data_analytics', 'data_candidatura', 'email_notifications', 
         'email_verification_token', 'facebook_url', 'firestore_uid', 'instagram_url', 'is_admin', 
         'is_premium', 'linkedin_url', 'luogo_nascita', 'marketing_emails', 'note_candidatura', 
         'notifiche_preferenze', 'opinions_public', 'paese_candidatura', 'paese_elezione', 
