@@ -75,6 +75,9 @@ export const useGraziaData = (user: any) => {
     },
     onError: (error: any) => {
       console.error('❌ DEBUG saveVotiMutation - onError:', error);
+    },
+    onSettled: () => {
+      // Dialog gestito automaticamente
     }
   });
 
