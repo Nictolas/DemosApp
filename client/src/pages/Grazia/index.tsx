@@ -7,7 +7,6 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useGraziaData } from "./hooks/useGraziaData";
 import { useGraziaVoting } from "./hooks/useGraziaVoting";
-import { hasVotiChanged } from "./utils/graziaUtils";
 import { Header } from "./components/Header";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
@@ -37,27 +36,8 @@ export default function Grazia() {
     limit,
     remainingVotes,
     hasReachedLimit
-  } = useGraziaVoting(data);
+  } = useGraziaVoting(data, saveVotiMutation);
 
-  // Gestione salvataggio voti
-  const handleSaveVoti = () => {
-    saveVotiMutation.mutate(votingState.selectedVoti, {
-      onSuccess: () => {
-        toast({ 
-          title: "Preferenze salvate", 
-          description: `Le tue richieste di grazia sono state aggiornate. Voti rimanenti: ${remainingVotes}` 
-        });
-        saveVoti();
-      },
-      onError: (error: any) => {
-        toast({ 
-          title: "Errore", 
-          description: error.message || "Impossibile salvare le richieste.", 
-          variant: "destructive" 
-        });
-      }
-    });
-  };
 
   if (!authReady || isLoading) {
     return (
@@ -71,7 +51,6 @@ export default function Grazia() {
     return <Redirect to="/auth" />;
   }
 
-  const votiCambiati = hasVotiChanged(votingState.selectedVoti, data?.mieiVoti || []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
@@ -126,16 +105,6 @@ export default function Grazia() {
               onShowClassifica={showClassifica}
               hasReachedLimit={hasReachedLimit}
             />
-
-            <div className="flex justify-end mt-4">
-              <Button 
-                onClick={() => updateField('showConfirmDialog', true)} 
-                disabled={saveVotiMutation.isPending || !votiCambiati || data?.blocco.isBlocked}
-              >
-                {saveVotiMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Salva le mie Richieste
-              </Button>
-            </div>
           </div>
         )}
       </div>
@@ -143,7 +112,9 @@ export default function Grazia() {
       <ConfirmDialog
         open={votingState.showConfirmDialog}
         onOpenChange={(open) => updateField('showConfirmDialog', open)}
-        onConfirm={handleSaveVoti}
+        onConfirm={() => {
+          updateField('showConfirmDialog', false);
+        }}
         isPending={saveVotiMutation.isPending}
       />
     </div>

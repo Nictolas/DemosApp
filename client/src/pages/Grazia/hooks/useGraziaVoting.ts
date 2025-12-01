@@ -2,8 +2,12 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { GraziaVotingState, GraziaData } from "../types";
 import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
+import { UseMutationResult } from "@tanstack/react-query";
 
-export const useGraziaVoting = (data: GraziaData | undefined) => {
+export const useGraziaVoting = (
+  data: GraziaData | undefined,
+  saveVotiMutation: UseMutationResult<any, any, string[], any>
+) => {
   const { toast } = useToast();
   
   const [votingState, setVotingState] = useState<GraziaVotingState>({
@@ -63,56 +67,90 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
     // Controlla il limite di voti
     const limit = getVotingLimit('grazia');
     if (hasReachedVotingLimit('grazia', votingState.selectedVoti.length)) {
-      toast({ 
-        title: "Limite voti raggiunto", 
-        description: `Puoi richiedere grazia per al massimo ${limit} carcerat${limit > 1 ? 'i' : 'o'}. Rimuovi una richiesta esistente per aggiungerne una nuova.`,
-        variant: "destructive"
-      });
+      // Se ha già raggiunto il limite, sostituisci il voto e salva automaticamente
+      const nuoviVoti = [nomePulito];
+      setVotingState(prev => ({
+        ...prev,
+        selectedVoti: nuoviVoti,
+        nomeInput: "",
+        showConfirmDialog: true
+      }));
+      // Salva automaticamente dopo aver aggiornato lo stato
+      setTimeout(() => {
+        saveVotiMutation.mutate(nuoviVoti);
+      }, 0);
       return;
     }
     
+    // Se non ha raggiunto il limite, aggiungi il voto e salva automaticamente
+    const nuoviVoti = [...votingState.selectedVoti, nomePulito];
     setVotingState(prev => ({
       ...prev,
-      selectedVoti: [...prev.selectedVoti, nomePulito],
-      nomeInput: ""
+      selectedVoti: nuoviVoti,
+      nomeInput: "",
+      showConfirmDialog: true
     }));
+    // Salva automaticamente dopo aver aggiornato lo stato
+    setTimeout(() => {
+      saveVotiMutation.mutate(nuoviVoti);
+    }, 0);
   };
 
   const removeLocal = (nome: string) => {
-    if (data?.blocco.isBlocked) return;
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    const nuoviVoti = votingState.selectedVoti.filter(n => n !== nome);
     setVotingState(prev => ({
       ...prev,
-      selectedVoti: prev.selectedVoti.filter(n => n !== nome)
+      selectedVoti: nuoviVoti
     }));
+    // Salva automaticamente dopo aver rimosso il voto
+    setTimeout(() => {
+      saveVotiMutation.mutate(nuoviVoti);
+    }, 0);
   };
   
   const toggleSelezioneClassifica = (nome: string) => {
-    if (data?.blocco.isBlocked) return;
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    
     setVotingState(prev => {
-      // Se il carcerato è già selezionato, rimuovilo
       if (prev.selectedVoti.includes(nome)) {
+        // Rimuovi il voto e salva automaticamente
+        const nuoviVoti = prev.selectedVoti.filter(n => n !== nome);
+        setTimeout(() => {
+          saveVotiMutation.mutate(nuoviVoti);
+        }, 0);
         return {
           ...prev,
-          selectedVoti: prev.selectedVoti.filter(n => n !== nome)
+          selectedVoti: nuoviVoti
         };
+      } else {
+        // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e salva
+        const limit = getVotingLimit('grazia');
+        
+        if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
+          // Sostituisci il voto esistente con il nuovo e salva automaticamente
+          const nuoviVoti = [nome];
+          setTimeout(() => {
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return {
+            ...prev,
+            selectedVoti: nuoviVoti,
+            showConfirmDialog: true
+          };
+        } else {
+          // Primo voto o aggiunta normale, salva automaticamente
+          const nuoviVoti = [...prev.selectedVoti, nome];
+          setTimeout(() => {
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return {
+            ...prev,
+            selectedVoti: nuoviVoti,
+            showConfirmDialog: true
+          };
+        }
       }
-      
-      // Se il carcerato non è selezionato, controlla il limite
-      const limit = getVotingLimit('grazia');
-      if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
-        // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
-        return {
-          ...prev,
-          selectedVoti: [nome], // Sostituisci con il nuovo voto
-          showConfirmDialog: true
-        };
-      }
-      
-      // Aggiungi il voto
-      return {
-        ...prev,
-        selectedVoti: [...prev.selectedVoti, nome]
-      };
     });
   };
 

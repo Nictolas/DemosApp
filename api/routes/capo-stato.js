@@ -279,26 +279,39 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Se necessario, possiamo rilevare dinamicamente, ma per ora usiamo userid
     const userIdColumn = 'userid';
     let idType = 'uuid'; // Default a UUID
+    let hasFirestoreUid = false;
+    let firestoreUidRequired = false;
     
-    // Prova a rilevare il tipo di ID, ma non fallire se non riesce
+    // Rileva la struttura della tabella per capire quali colonne sono necessarie
     try {
       const tableInfoQuery = `
-        SELECT column_name, data_type 
+        SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
-        WHERE LOWER(table_name) = 'voti_capo_stato' AND column_name = 'id'
-        LIMIT 1
+        WHERE LOWER(table_name) = 'voti_capo_stato'
+        ORDER BY ordinal_position
       `;
       const tableInfo = await pool.query(tableInfoQuery);
-      if (tableInfo.rows.length > 0) {
-        idType = tableInfo.rows[0].data_type;
+      console.log('🔍 DEBUG - Colonne tabella:', tableInfo.rows.map(r => `${r.column_name} (${r.data_type}, nullable: ${r.is_nullable})`));
+      
+      const idColumn = tableInfo.rows.find(r => r.column_name === 'id');
+      if (idColumn) {
+        idType = idColumn.data_type;
         console.log('🔍 DEBUG - Tipo id rilevato:', idType);
       }
+      
+      const firestoreUidColumn = tableInfo.rows.find(r => r.column_name === 'firestore_uid');
+      if (firestoreUidColumn) {
+        hasFirestoreUid = true;
+        firestoreUidRequired = firestoreUidColumn.is_nullable === 'NO';
+        console.log('🔍 DEBUG - Colonna firestore_uid trovata, required:', firestoreUidRequired);
+      }
     } catch (tableInfoError) {
-      console.log('⚠️ DEBUG - Impossibile rilevare tipo id, uso default UUID:', tableInfoError.message);
+      console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
     }
     
     console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
     console.log('🔍 DEBUG - Tipo id usato:', idType);
+    console.log('🔍 DEBUG - Has firestore_uid:', hasFirestoreUid, 'Required:', firestoreUidRequired);
 
     if (userRole !== 'Admin') {
       const bloccoQuery = `
@@ -355,12 +368,37 @@ router.post('/vota', verifyToken, async (req, res) => {
           console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
           
           // Costruisci la query in base alle colonne disponibili
-          const insertQuery = `
-            INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp) 
-            VALUES ($1, $2, $3, NOW())
-          `;
+          // Se firestore_uid è richiesto, usiamo userId come valore (compatibilità con vecchio schema)
+          let insertQuery;
+          let insertParams;
           
-          await client.query(insertQuery, [votoId, userId, nome]);
+          if (hasFirestoreUid && firestoreUidRequired) {
+            // Includi firestore_uid usando userId come valore
+            insertQuery = `
+              INSERT INTO voti_capo_stato (id, ${userIdColumn}, firestore_uid, nome, timestamp) 
+              VALUES ($1, $2, $3, $4, NOW())
+            `;
+            insertParams = [votoId, userId, userId, nome];
+            console.log('🔍 DEBUG - Inserimento con firestore_uid richiesto');
+          } else if (hasFirestoreUid && !firestoreUidRequired) {
+            // Includi firestore_uid come NULL
+            insertQuery = `
+              INSERT INTO voti_capo_stato (id, ${userIdColumn}, firestore_uid, nome, timestamp) 
+              VALUES ($1, $2, NULL, $3, NOW())
+            `;
+            insertParams = [votoId, userId, nome];
+            console.log('🔍 DEBUG - Inserimento con firestore_uid nullable');
+          } else {
+            // Nessuna colonna firestore_uid
+            insertQuery = `
+              INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp) 
+              VALUES ($1, $2, $3, NOW())
+            `;
+            insertParams = [votoId, userId, nome];
+            console.log('🔍 DEBUG - Inserimento senza firestore_uid');
+          }
+          
+          await client.query(insertQuery, insertParams);
           console.log('✅ DEBUG - Voto inserito con successo');
         }
         
