@@ -10,7 +10,6 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   const queryClient = useQueryClient();
   
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
@@ -42,7 +41,7 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
       toast({ title: "Errore", description: error.message || "Impossibile salvare i voti.", variant: "destructive" });
     },
     onSettled: () => {
-      setShowConfirmDialog(false);
+      // Dialog rimosso, salvataggio automatico
     }
   });
 
@@ -58,27 +57,33 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     const haGiaVotato = (data?.mieiVoti || []).length > 0;
     
     if (hasReachedVotingLimit('capo_stato', selectedVoti.length)) {
-      // Se ha già votato, sostituisci il voto e apri il dialog
-      if (haGiaVotato) {
-        setSelectedVoti([nome]);
-        setShowConfirmDialog(true);
-        return;
-      } else {
-        // Primo voto, apri il dialog
-        setSelectedVoti([nome]);
-        setShowConfirmDialog(true);
-        return;
-      }
+      // Se ha già votato, sostituisci il voto e salva automaticamente
+      const nuoviVoti = [nome];
+      setSelectedVoti(nuoviVoti);
+      // Salva automaticamente dopo aver aggiornato lo stato
+      setTimeout(() => {
+        saveVotiMutation.mutate(nuoviVoti);
+      }, 0);
+      return;
     }
     
-    // Se non ha raggiunto il limite, aggiungi il voto e apri il dialog
-    setSelectedVoti(prev => [...prev, nome]);
-    setShowConfirmDialog(true);
+    // Se non ha raggiunto il limite, aggiungi il voto e salva automaticamente
+    const nuoviVoti = [...selectedVoti, nome];
+    setSelectedVoti(nuoviVoti);
+    // Salva automaticamente dopo aver aggiornato lo stato
+    setTimeout(() => {
+      saveVotiMutation.mutate(nuoviVoti);
+    }, 0);
   };
 
   const handleRemoveLocal = (nome: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    setSelectedVoti(prev => prev.filter(n => n !== nome));
+    const nuoviVoti = selectedVoti.filter(n => n !== nome);
+    setSelectedVoti(nuoviVoti);
+    // Salva automaticamente dopo aver rimosso il voto
+    setTimeout(() => {
+      saveVotiMutation.mutate(nuoviVoti);
+    }, 0);
   };
   
   const toggleSelezione = (nome: string) => {
@@ -86,21 +91,30 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     
     setSelectedVoti(prev => {
       if (prev.includes(nome)) {
-        // Rimuovi il voto (non salva, solo rimuove localmente)
-        return prev.filter(n => n !== nome);
+        // Rimuovi il voto e salva automaticamente
+        const nuoviVoti = prev.filter(n => n !== nome);
+        setTimeout(() => {
+          saveVotiMutation.mutate(nuoviVoti);
+        }, 0);
+        return nuoviVoti;
       } else {
-        // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e apri conferma
+        // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e salva
         const limit = getVotingLimit('capo_stato');
-        const haGiaVotato = (data?.mieiVoti || []).length > 0;
         
         if (hasReachedVotingLimit('capo_stato', prev.length)) {
-          // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
-          setShowConfirmDialog(true);
-          return [nome]; // Sostituisci con il nuovo voto
+          // Sostituisci il voto esistente con il nuovo e salva automaticamente
+          const nuoviVoti = [nome];
+          setTimeout(() => {
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return nuoviVoti;
         } else {
-          // Primo voto o aggiunta normale, apri il dialog
-          setShowConfirmDialog(true);
-          return [...prev, nome];
+          // Primo voto o aggiunta normale, salva automaticamente
+          const nuoviVoti = [...prev, nome];
+          setTimeout(() => {
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return nuoviVoti;
         }
       }
     });
@@ -117,8 +131,6 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
 
   return {
     selectedVoti,
-    showConfirmDialog,
-    setShowConfirmDialog,
     saveVotiMutation,
     handleAddNomeLocal,
     handleRemoveLocal,
