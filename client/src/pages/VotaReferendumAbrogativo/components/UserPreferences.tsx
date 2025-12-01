@@ -71,7 +71,36 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
             <div className="grid gap-3">
               {selectedVoti.map((id) => {
                 const referendumItem = referendum.find(r => r.id === id);
-                return referendumItem ? (
+                // Se il referendum non viene trovato, mostra comunque l'ID (può succedere durante il caricamento)
+                if (!referendumItem) {
+                  return (
+                    <div
+                      key={id}
+                      className="group relative p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className="flex-shrink-0 p-2 bg-green-500 rounded-full">
+                            <CheckCircle2 className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
+                              Caricamento...
+                            </h3>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => onToggleSelezione(id)}
+                          className="ml-4 flex-shrink-0 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-300 transform hover:scale-110 shadow-md hover:shadow-xl group/btn"
+                          title="Rimuovi voto"
+                        >
+                          <X className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-300" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
                   <div
                     key={id}
                     className="group relative p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
@@ -96,7 +125,7 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
                       </button>
                     </div>
                   </div>
-                ) : null;
+                );
               })}
             </div>
           </div>
