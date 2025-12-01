@@ -275,18 +275,38 @@ router.post('/vota', verifyToken, async (req, res) => {
       // Poi inserisce i nuovi voti
       if (voti.length > 0) {
         console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
-        const insertPromises = voti.map(async (nome, index) => {
-          const votoId = `voto_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome);
-          return pool.query(
-            `INSERT INTO voti_capo_stato (
-              id, userid, nome, timestamp, created_at, updated_at
-            ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
-            [votoId, userId, nome]
-          );
-        });
         
-        await Promise.all(insertPromises);
+        for (const nome of voti) {
+          const votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
+          
+          // Usa solo le colonne base che esistono sicuramente in tutti gli schemi
+          // Prova prima con userid (minuscolo, come nelle query SELECT/DELETE)
+          try {
+            await pool.query(
+              `INSERT INTO voti_capo_stato (id, userid, nome, timestamp) 
+               VALUES ($1, $2, $3, NOW())`,
+              [votoId, userId, nome]
+            );
+            console.log('✅ DEBUG - Voto inserito con successo (userid)');
+          } catch (error) {
+            // Se fallisce, prova con userId (camelCase) - alcuni schemi usano camelCase
+            console.log('⚠️ DEBUG - Errore con userid, provo con userId:', error.message);
+            try {
+              await pool.query(
+                `INSERT INTO voti_capo_stato (id, "userId", nome, timestamp) 
+                 VALUES ($1, $2, $3, NOW())`,
+                [votoId, userId, nome]
+              );
+              console.log('✅ DEBUG - Voto inserito con successo (userId)');
+            } catch (error2) {
+              console.error('❌ DEBUG - Errore definitivo inserimento voto:', error2);
+              console.error('❌ DEBUG - Stack:', error2.stack);
+              throw error2;
+            }
+          }
+        }
+        
         console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
       }
       
@@ -302,16 +322,33 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     } catch (error) {
       // Rollback in caso di errore
-      console.log('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      await pool.query('ROLLBACK');
+      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
+      console.error('❌ DEBUG - Stack trace:', error.stack);
+      console.error('❌ DEBUG - Error code:', error.code);
+      console.error('❌ DEBUG - Error detail:', error.detail);
+      console.error('❌ DEBUG - Error hint:', error.hint);
+      try {
+        await pool.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
+      }
       throw error;
     }
   } catch (error) {
     console.error('❌ Errore nel salvataggio voti capo di stato:', error);
+    console.error('❌ Stack completo:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      name: error.name
+    });
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      details: error.message
+      details: error.message,
+      code: error.code
     });
   }
 });
