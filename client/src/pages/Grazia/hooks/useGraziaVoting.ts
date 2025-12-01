@@ -3,12 +3,14 @@ import { useToast } from "@/hooks/use-toast";
 import { GraziaVotingState, GraziaData } from "../types";
 import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 import { UseMutationResult } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useGraziaVoting = (
   data: GraziaData | undefined,
   saveVotiMutation: UseMutationResult<any, any, string[], any>
 ) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const [votingState, setVotingState] = useState<GraziaVotingState>({
     nomeInput: "",
@@ -74,8 +76,7 @@ export const useGraziaVoting = (
       setVotingState(prev => ({
         ...prev,
         selectedVoti: nuoviVoti,
-        nomeInput: "",
-        showConfirmDialog: true
+        nomeInput: ""
       }));
       // Salva automaticamente dopo aver aggiornato lo stato
       setTimeout(() => {
@@ -89,8 +90,7 @@ export const useGraziaVoting = (
     setVotingState(prev => ({
       ...prev,
       selectedVoti: nuoviVoti,
-      nomeInput: "",
-      showConfirmDialog: true
+      nomeInput: ""
     }));
     // Salva automaticamente dopo aver aggiornato lo stato
     setTimeout(() => {
@@ -162,8 +162,7 @@ export const useGraziaVoting = (
           }, 0);
           return {
             ...prev,
-            selectedVoti: nuoviVoti,
-            showConfirmDialog: true
+            selectedVoti: nuoviVoti
           };
         } else {
           // Primo voto o aggiunta normale, salva automaticamente
@@ -173,8 +172,7 @@ export const useGraziaVoting = (
           }, 0);
           return {
             ...prev,
-            selectedVoti: nuoviVoti,
-            showConfirmDialog: true
+            selectedVoti: nuoviVoti
           };
         }
       }
@@ -185,13 +183,6 @@ export const useGraziaVoting = (
     setVotingState(prev => ({
       ...prev,
       showAllClassifica: !prev.showAllClassifica
-    }));
-  };
-
-  const saveVoti = () => {
-    setVotingState(prev => ({
-      ...prev,
-      showConfirmDialog: false
     }));
   };
 
@@ -220,7 +211,6 @@ export const useGraziaVoting = (
     removeLocal,
     toggleSelezioneClassifica,
     showClassifica,
-    saveVoti,
     handleCreateCarcerato,
     // Informazioni sui limiti
     currentVotes,
