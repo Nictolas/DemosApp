@@ -10,6 +10,8 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   const queryClient = useQueryClient();
   
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [votoToRemove, setVotoToRemove] = useState<string | null>(null);
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
@@ -97,12 +99,26 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
 
   const handleRemoveLocal = (nome: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    const nuoviVoti = selectedVoti.filter(n => n !== nome);
+    // Apri il dialog di conferma invece di rimuovere immediatamente
+    setVotoToRemove(nome);
+    setShowRemoveDialog(true);
+  };
+
+  const confirmRemove = () => {
+    if (!votoToRemove) return;
+    const nuoviVoti = selectedVoti.filter(n => n !== votoToRemove);
     setSelectedVoti(nuoviVoti);
+    setShowRemoveDialog(false);
+    setVotoToRemove(null);
     // Salva automaticamente dopo aver rimosso il voto
     setTimeout(() => {
       saveVotiMutation.mutate(nuoviVoti);
     }, 0);
+  };
+
+  const cancelRemove = () => {
+    setShowRemoveDialog(false);
+    setVotoToRemove(null);
   };
   
   const toggleSelezione = (nome: string) => {
@@ -174,6 +190,11 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     currentVotes,
     limit,
     remainingVotes,
-    hasReachedLimit
+    hasReachedLimit,
+    // Dialog di rimozione
+    showRemoveDialog,
+    votoToRemove,
+    confirmRemove,
+    cancelRemove
   };
 };

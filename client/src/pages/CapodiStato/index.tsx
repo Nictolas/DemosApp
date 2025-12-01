@@ -11,6 +11,7 @@ import { BlockedWarning } from "./components/BlockedWarning";
 import { ConsensoSection } from "./components/ConsensoSection";
 import { VotingForm } from "./components/VotingForm";
 import { CandidatesRanking } from "./components/CandidatesRanking";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 
 export default function CapodiStato() {
   const authReady = useAuthReady();
@@ -38,7 +39,11 @@ export default function CapodiStato() {
     currentVotes,
     limit,
     remainingVotes,
-    hasReachedLimit
+    hasReachedLimit,
+    showRemoveDialog,
+    votoToRemove,
+    confirmRemove,
+    cancelRemove
   } = useCapoStatoVoting(data);
 
   // Loading states
@@ -106,6 +111,17 @@ export default function CapodiStato() {
         )}
       </div>
 
+      {/* Dialog di conferma rimozione voto */}
+      <ConfirmDialog
+        open={showRemoveDialog}
+        onOpenChange={(open) => {
+          if (!open) cancelRemove();
+        }}
+        onConfirm={confirmRemove}
+        isPending={saveVotiMutation.isPending}
+        title="Rimuovere il voto?"
+        description={`Vuoi rimuovere il voto per "${votoToRemove}"?`}
+      />
     </div>
   );
 }
