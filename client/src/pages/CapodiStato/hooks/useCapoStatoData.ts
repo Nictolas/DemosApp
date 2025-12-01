@@ -7,9 +7,13 @@ export const useCapoStatoData = (user: any) => {
     queryKey: ['capoStatoData'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/capo-stato");
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
-      return response.json();
+      if (!response?.ok || !response?.data) {
+        throw new Error(response?.data?.error || "Errore nel caricamento dei dati.");
+      }
+      return response.data;
     },
-    enabled: !!user
+    enabled: !!user && !!localStorage.getItem('auth_token'),
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 };

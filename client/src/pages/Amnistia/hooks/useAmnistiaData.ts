@@ -12,10 +12,14 @@ export const useAmnistiaData = (user: any) => {
     queryKey: ['amnistiaData'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/amnistia");
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
-      return response.json();
+      if (!response?.ok || !response?.data) {
+        throw new Error(response?.data?.error || "Errore nel caricamento dei dati.");
+      }
+      return response.data;
     },
-    enabled: !!user
+    enabled: !!user && !!localStorage.getItem('auth_token'),
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 
   // Mutazione per aggiungere voto

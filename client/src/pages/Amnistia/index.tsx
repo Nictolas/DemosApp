@@ -10,7 +10,6 @@ import { ClassificaLeggi } from "./components/ClassificaLeggi";
 import { LoadingStates } from "./components/LoadingStates";
 import { CreateButton } from "./components/CreateButton";
 import { CarceratoForm } from "./components/CarceratoForm";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 import { getSuggestions } from "./utils/amnistiaUtils";
 
 export default function Amnistia() {
@@ -80,12 +79,6 @@ export default function Amnistia() {
               isLoading={false}
             />
           )}
-
-          {/* Informazioni sui limiti di voto */}
-          <VotingLimitsInfo
-            category="amnistia"
-            currentVotes={currentVotes}
-          />
 
           <AmnistiaForm
             leggeInput={votingState.leggeInput}

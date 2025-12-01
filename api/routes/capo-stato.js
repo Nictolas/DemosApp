@@ -88,6 +88,7 @@ router.get('/', async (req, res) => {
     }
     
     const responseData = {
+      success: true,
       classifica,
       mieiVoti,
       blocco

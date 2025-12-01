@@ -13,11 +13,14 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
-    if (data?.mieiVoti !== undefined) {
+    if (data && Array.isArray(data.mieiVoti)) {
       // Aggiorna sempre selectedVoti quando mieiVoti è disponibile (anche se vuoto)
       setSelectedVoti(data.mieiVoti);
+    } else if (!data) {
+      // Se data non è ancora caricato, resetta selectedVoti
+      setSelectedVoti([]);
     }
-  }, [data?.mieiVoti]);
+  }, [data]);
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
