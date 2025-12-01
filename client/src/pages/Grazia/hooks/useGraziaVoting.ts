@@ -99,10 +99,21 @@ export const useGraziaVoting = (
   };
 
   const removeLocal = (nome: string) => {
-    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    console.log('🔍 DEBUG CLIENT - removeLocal chiamato con nome:', nome);
+    console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
+    console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
+    
+    // La rimozione è sempre permessa, anche se l'utente è bloccato
+    // Solo controlliamo se c'è una mutation in corso
+    if (saveVotiMutation.isPending) {
+      console.log('⚠️ DEBUG CLIENT - removeLocal bloccato (isPending)');
+      return;
+    }
     // Apri il dialog di conferma invece di rimuovere immediatamente
+    console.log('🔍 DEBUG CLIENT - Apertura dialog di rimozione per:', nome);
     setVotoToRemove(nome);
     setShowRemoveDialog(true);
+    console.log('🔍 DEBUG CLIENT - showRemoveDialog impostato a true');
   };
 
   const confirmRemove = () => {
