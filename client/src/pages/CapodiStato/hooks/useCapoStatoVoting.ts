@@ -102,8 +102,10 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
     console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
     
-    if (saveVotiMutation.isPending || data?.blocco.isBlocked) {
-      console.log('⚠️ DEBUG CLIENT - handleRemoveLocal bloccato (isPending o isBlocked)');
+    // La rimozione è sempre permessa, anche se l'utente è bloccato
+    // Solo controlliamo se c'è una mutation in corso
+    if (saveVotiMutation.isPending) {
+      console.log('⚠️ DEBUG CLIENT - handleRemoveLocal bloccato (isPending)');
       return;
     }
     // Apri il dialog di conferma invece di rimuovere immediatamente
