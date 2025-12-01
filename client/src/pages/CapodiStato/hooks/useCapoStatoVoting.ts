@@ -106,13 +106,24 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   };
   
   const toggleSelezione = (nome: string) => {
-    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    console.log('🔍 DEBUG CLIENT - toggleSelezione chiamato con nome:', nome);
+    console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
+    console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
+    
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) {
+      console.log('⚠️ DEBUG CLIENT - toggleSelezione bloccato (isPending o isBlocked)');
+      return;
+    }
     
     setSelectedVoti(prev => {
+      console.log('🔍 DEBUG CLIENT - selectedVoti precedente:', prev);
+      
       if (prev.includes(nome)) {
         // Rimuovi il voto e salva automaticamente
         const nuoviVoti = prev.filter(n => n !== nome);
+        console.log('🔍 DEBUG CLIENT - Rimozione voto, nuovi voti:', nuoviVoti);
         setTimeout(() => {
+          console.log('🔍 DEBUG CLIENT - Chiamata saveVotiMutation.mutate per rimozione');
           saveVotiMutation.mutate(nuoviVoti);
         }, 0);
         return nuoviVoti;
@@ -123,14 +134,18 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
         if (hasReachedVotingLimit('capo_stato', prev.length)) {
           // Sostituisci il voto esistente con il nuovo e salva automaticamente
           const nuoviVoti = [nome];
+          console.log('🔍 DEBUG CLIENT - Sostituzione voto (limite raggiunto), nuovi voti:', nuoviVoti);
           setTimeout(() => {
+            console.log('🔍 DEBUG CLIENT - Chiamata saveVotiMutation.mutate per sostituzione');
             saveVotiMutation.mutate(nuoviVoti);
           }, 0);
           return nuoviVoti;
         } else {
           // Primo voto o aggiunta normale, salva automaticamente
           const nuoviVoti = [...prev, nome];
+          console.log('🔍 DEBUG CLIENT - Aggiunta voto, nuovi voti:', nuoviVoti);
           setTimeout(() => {
+            console.log('🔍 DEBUG CLIENT - Chiamata saveVotiMutation.mutate per aggiunta');
             saveVotiMutation.mutate(nuoviVoti);
           }, 0);
           return nuoviVoti;

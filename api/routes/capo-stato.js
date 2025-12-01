@@ -55,6 +55,19 @@ router.get('/', async (req, res) => {
 
         // Solo per utenti non-Admin, controlla il limite settimanale
         if (userRole !== 'Admin') {
+          // Verifica la struttura della tabella per capire quale colonna usare
+          const tableInfoQuery = `
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'voti_capo_stato'
+            ORDER BY ordinal_position
+          `;
+          const tableInfo = await pool.query(tableInfoQuery);
+          const columns = tableInfo.rows.map(r => r.column_name);
+          const hasUserId = columns.includes('userId');
+          const hasUserid = columns.includes('userid');
+          const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : 'userid'); // Default a userid
+          
           const bloccoQuery = `
             SELECT 
               CASE 
@@ -63,7 +76,7 @@ router.get('/', async (req, res) => {
               END as is_blocked,
               MAX(timestamp) + INTERVAL '7 days' as unlock_date
             FROM voti_capo_stato
-            WHERE userid = $1
+            WHERE ${userIdColumn} = $1
           `;
           const bloccoResult = await pool.query(bloccoQuery, [userId]);
           const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
@@ -75,10 +88,23 @@ router.get('/', async (req, res) => {
           };
         }
 
+        // Verifica la struttura della tabella per capire quale colonna usare
+        const tableInfoQuery = `
+          SELECT column_name, data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'voti_capo_stato'
+          ORDER BY ordinal_position
+        `;
+        const tableInfo = await pool.query(tableInfoQuery);
+        const columns = tableInfo.rows.map(r => r.column_name);
+        const hasUserId = columns.includes('userId');
+        const hasUserid = columns.includes('userid');
+        const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : 'userid'); // Default a userid
+        
         const userVotiQuery = `
           SELECT nome
           FROM voti_capo_stato
-          WHERE userid = $1
+          WHERE ${userIdColumn} = $1
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.nome);

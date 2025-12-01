@@ -12,10 +12,13 @@ console.log('🔍 DEBUG - DATABASE_URL presente:', process.env.DATABASE_URL ? 'O
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {
   try {
-    console.log('🚀 ENTRATA in verifyToken middleware');
-    console.log('🔐 DEBUG verifyToken - Inizio verifica token');
-    console.log('🔐 DEBUG verifyToken - URL:', req.url);
-    console.log('🔐 DEBUG verifyToken - Headers authorization:', req.headers.authorization);
+    // Log solo per endpoint critici per evitare spam
+    if (req.url.includes('/vota') || req.url.includes('/capo-stato')) {
+      console.log('🚀🚀🚀 ENTRATA in verifyToken middleware per:', req.method, req.url);
+      console.log('🔐 DEBUG verifyToken - Inizio verifica token');
+      console.log('🔐 DEBUG verifyToken - URL:', req.url);
+      console.log('🔐 DEBUG verifyToken - Headers authorization:', req.headers.authorization ? 'PRESENTE' : 'MANCANTE');
+    }
     console.log('🔐 DEBUG verifyToken - Pool database:', pool ? 'OK' : 'ERRORE');
     console.log('🔐 DEBUG verifyToken - DATABASE_URL:', process.env.DATABASE_URL ? 'OK' : 'MANCANTE');
     
