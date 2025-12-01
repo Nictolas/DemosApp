@@ -24,10 +24,29 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => {
-      console.log('🔍 DEBUG - Tentativo di salvataggio voti:', voti);
-      // Usa l'endpoint originale ma con logging
-      return apiRequest("POST", "/api/capo-stato/vota", { voti });
+    mutationFn: async (voti: string[]) => {
+      console.log('🔍 DEBUG CLIENT - Tentativo di salvataggio voti:', voti);
+      console.log('🔍 DEBUG CLIENT - Tipo voti:', typeof voti, Array.isArray(voti));
+      console.log('🔍 DEBUG CLIENT - Token presente:', !!localStorage.getItem('auth_token'));
+      
+      try {
+        const response = await apiRequest("POST", "/api/capo-stato/vota", { voti });
+        console.log('✅ DEBUG CLIENT - Risposta ricevuta:', response);
+        console.log('✅ DEBUG CLIENT - Response ok:', response?.ok);
+        console.log('✅ DEBUG CLIENT - Response data:', response?.data);
+        
+        if (!response?.ok) {
+          throw new Error(response?.data?.error || 'Errore nel salvataggio');
+        }
+        
+        return response;
+      } catch (error: any) {
+        console.error('❌ DEBUG CLIENT - Errore nella richiesta:', error);
+        console.error('❌ DEBUG CLIENT - Error message:', error.message);
+        console.error('❌ DEBUG CLIENT - Error status:', error.status);
+        console.error('❌ DEBUG CLIENT - Error stack:', error.stack);
+        throw error;
+      }
     },
     onSuccess: () => {
       const remainingVotes = getRemainingVotes('capo_stato', selectedVoti.length);
