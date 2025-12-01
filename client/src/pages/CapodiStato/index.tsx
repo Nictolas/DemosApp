@@ -11,7 +11,6 @@ import { BlockedWarning } from "./components/BlockedWarning";
 import { ConsensoSection } from "./components/ConsensoSection";
 import { VotingForm } from "./components/VotingForm";
 import { CandidatesRanking } from "./components/CandidatesRanking";
-import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 
 export default function CapodiStato() {
@@ -106,13 +105,6 @@ export default function CapodiStato() {
               hasReachedLimit={hasReachedLimit}
             />
 
-            {/* Pulsante salvataggio */}
-            <SaveButton
-              onSave={() => setShowConfirmDialog(true)}
-              isPending={saveVotiMutation.isPending}
-              votiCambiati={votiCambiati}
-              isBlocked={data?.blocco.isBlocked || false}
-            />
           </div>
         )}
       </div>
