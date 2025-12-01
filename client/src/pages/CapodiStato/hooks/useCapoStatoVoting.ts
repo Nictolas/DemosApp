@@ -14,10 +14,11 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
-    if (data?.mieiVoti) {
+    if (data?.mieiVoti !== undefined) {
+      // Aggiorna sempre selectedVoti quando mieiVoti è disponibile (anche se vuoto)
       setSelectedVoti(data.mieiVoti);
     }
-  }, [data]);
+  }, [data?.mieiVoti]);
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
