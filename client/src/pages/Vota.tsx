@@ -2,6 +2,8 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useNoScroll } from "@/hooks/useNoScroll";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Crown, Building2, Scale, Archive, Users, CheckSquare } from "lucide-react";
 
 export default function Vota() {
   const { user, isLoading } = useAuth();
