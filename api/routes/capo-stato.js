@@ -188,6 +188,13 @@ router.post('/test-vota', async (req, res) => {
 
 // POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
 router.post('/vota', verifyToken, async (req, res) => {
+  console.log('🚨🚨🚨 POST /api/capo-stato/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
+  console.log('🚨🚨🚨 Timestamp:', new Date().toISOString());
+  console.log('🚨🚨🚨 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🚨🚨🚨 Body:', JSON.stringify(req.body, null, 2));
+  console.log('🚨🚨🚨 User:', JSON.stringify(req.user, null, 2));
+  console.log('🚨🚨🚨 UserId:', req.userId);
+  
   try {
     console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
     console.log('🔍 DEBUG - Headers:', req.headers);
