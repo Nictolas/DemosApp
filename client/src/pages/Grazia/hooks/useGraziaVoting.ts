@@ -17,6 +17,8 @@ export const useGraziaVoting = (
     showAllClassifica: false,
     showForm: false
   });
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [votoToRemove, setVotoToRemove] = useState<string | null>(null);
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
@@ -98,15 +100,29 @@ export const useGraziaVoting = (
 
   const removeLocal = (nome: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    const nuoviVoti = votingState.selectedVoti.filter(n => n !== nome);
+    // Apri il dialog di conferma invece di rimuovere immediatamente
+    setVotoToRemove(nome);
+    setShowRemoveDialog(true);
+  };
+
+  const confirmRemove = () => {
+    if (!votoToRemove) return;
+    const nuoviVoti = votingState.selectedVoti.filter(n => n !== votoToRemove);
     setVotingState(prev => ({
       ...prev,
       selectedVoti: nuoviVoti
     }));
+    setShowRemoveDialog(false);
+    setVotoToRemove(null);
     // Salva automaticamente dopo aver rimosso il voto
     setTimeout(() => {
       saveVotiMutation.mutate(nuoviVoti);
     }, 0);
+  };
+
+  const cancelRemove = () => {
+    setShowRemoveDialog(false);
+    setVotoToRemove(null);
   };
   
   const toggleSelezioneClassifica = (nome: string) => {
@@ -199,6 +215,11 @@ export const useGraziaVoting = (
     currentVotes,
     limit,
     remainingVotes,
-    hasReachedLimit
+    hasReachedLimit,
+    // Dialog di rimozione
+    showRemoveDialog,
+    votoToRemove,
+    confirmRemove,
+    cancelRemove
   };
 };

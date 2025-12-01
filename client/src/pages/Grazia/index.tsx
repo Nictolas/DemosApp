@@ -35,7 +35,11 @@ export default function Grazia() {
     currentVotes,
     limit,
     remainingVotes,
-    hasReachedLimit
+    hasReachedLimit,
+    showRemoveDialog,
+    votoToRemove,
+    confirmRemove,
+    cancelRemove
   } = useGraziaVoting(data, saveVotiMutation);
 
 
@@ -116,6 +120,18 @@ export default function Grazia() {
           updateField('showConfirmDialog', false);
         }}
         isPending={saveVotiMutation.isPending}
+      />
+
+      {/* Dialog di conferma rimozione voto */}
+      <ConfirmDialog
+        open={showRemoveDialog}
+        onOpenChange={(open) => {
+          if (!open) cancelRemove();
+        }}
+        onConfirm={confirmRemove}
+        isPending={saveVotiMutation.isPending}
+        title="Rimuovere la richiesta?"
+        description={`Vuoi rimuovere la richiesta di grazia per "${votoToRemove}"?`}
       />
     </div>
   );
