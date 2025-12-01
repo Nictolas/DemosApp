@@ -270,6 +270,31 @@ router.post('/vota', verifyToken, async (req, res) => {
     const userRole = userResult.rows[0]?.ruolo;
     console.log('🔍 DEBUG - Ruolo utente:', userRole);
 
+    // Usa 'userid' come default (standard nel database)
+    // Se necessario, possiamo rilevare dinamicamente, ma per ora usiamo userid
+    const userIdColumn = 'userid';
+    let idType = 'uuid'; // Default a UUID
+    
+    // Prova a rilevare il tipo di ID, ma non fallire se non riesce
+    try {
+      const tableInfoQuery = `
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE LOWER(table_name) = 'voti_capo_stato' AND column_name = 'id'
+        LIMIT 1
+      `;
+      const tableInfo = await pool.query(tableInfoQuery);
+      if (tableInfo.rows.length > 0) {
+        idType = tableInfo.rows[0].data_type;
+        console.log('🔍 DEBUG - Tipo id rilevato:', idType);
+      }
+    } catch (tableInfoError) {
+      console.log('⚠️ DEBUG - Impossibile rilevare tipo id, uso default UUID:', tableInfoError.message);
+    }
+    
+    console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
+    console.log('🔍 DEBUG - Tipo id usato:', idType);
+
     if (userRole !== 'Admin') {
       const bloccoQuery = `
         SELECT 
@@ -278,7 +303,7 @@ router.post('/vota', verifyToken, async (req, res) => {
             ELSE false
           END as is_blocked
         FROM voti_capo_stato
-        WHERE userid = $1
+        WHERE ${userIdColumn} = $1
       `;
 
       const bloccoResult = await pool.query(bloccoQuery, [userId]);
@@ -291,30 +316,6 @@ router.post('/vota', verifyToken, async (req, res) => {
           error: 'Non puoi modificare i voti più di una volta a settimana'
         });
       }
-    }
-    
-    // Verifica la struttura della tabella per capire quali colonne usare
-    console.log('🔍 DEBUG - Verifica struttura tabella voti_capo_stato');
-    const tableInfoQuery = `
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'voti_capo_stato'
-      ORDER BY ordinal_position
-    `;
-    const tableInfo = await pool.query(tableInfoQuery);
-    console.log('🔍 DEBUG - Colonne tabella:', tableInfo.rows.map(r => `${r.column_name} (${r.data_type})`));
-    
-    const columns = tableInfo.rows.map(r => r.column_name);
-    const idType = tableInfo.rows.find(r => r.column_name === 'id')?.data_type;
-    const hasUserId = columns.includes('userId');
-    const hasUserid = columns.includes('userid');
-    const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : null);
-    
-    console.log('🔍 DEBUG - Tipo id:', idType);
-    console.log('🔍 DEBUG - Colonna userId trovata:', userIdColumn);
-    
-    if (!userIdColumn) {
-      throw new Error('Nessuna colonna userId/userid trovata nella tabella voti_capo_stato');
     }
     
     // Inizia una transazione
