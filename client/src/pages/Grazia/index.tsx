@@ -123,16 +123,22 @@ export default function Grazia() {
       />
 
       {/* Dialog di conferma rimozione voto */}
-      <ConfirmDialog
-        open={showRemoveDialog}
-        onOpenChange={(open) => {
-          if (!open) cancelRemove();
-        }}
-        onConfirm={confirmRemove}
-        isPending={saveVotiMutation.isPending}
-        title="Rimuovere la richiesta?"
-        description={`Vuoi rimuovere la richiesta di grazia per "${votoToRemove}"?`}
-      />
+      {showRemoveDialog && (
+        <ConfirmDialog
+          open={showRemoveDialog}
+          onOpenChange={(open) => {
+            console.log('🔍 DEBUG CLIENT - Dialog onOpenChange chiamato con:', open);
+            if (!open) cancelRemove();
+          }}
+          onConfirm={() => {
+            console.log('🔍 DEBUG CLIENT - Dialog onConfirm chiamato');
+            confirmRemove();
+          }}
+          isPending={saveVotiMutation.isPending}
+          title="Rimuovere la richiesta?"
+          description={`Vuoi rimuovere la richiesta di grazia per "${votoToRemove}"?`}
+        />
+      )}
     </div>
   );
 }

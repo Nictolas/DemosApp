@@ -98,10 +98,19 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   };
 
   const handleRemoveLocal = (nome: string) => {
-    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    console.log('🔍 DEBUG CLIENT - handleRemoveLocal chiamato con nome:', nome);
+    console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
+    console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
+    
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) {
+      console.log('⚠️ DEBUG CLIENT - handleRemoveLocal bloccato (isPending o isBlocked)');
+      return;
+    }
     // Apri il dialog di conferma invece di rimuovere immediatamente
+    console.log('🔍 DEBUG CLIENT - Apertura dialog di rimozione per:', nome);
     setVotoToRemove(nome);
     setShowRemoveDialog(true);
+    console.log('🔍 DEBUG CLIENT - showRemoveDialog impostato a true');
   };
 
   const confirmRemove = () => {
