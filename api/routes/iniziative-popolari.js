@@ -926,7 +926,14 @@ router.get('/debug', verifyToken, async (req, res) => {
 // POST /api/iniziative-popolari/richiesta - Crea richiesta di nuova iniziativa popolare
 router.post('/richiesta', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId || req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
     const { nome, sito_web, descrizione, data_inizio, data_fine, userid, status, quorum } = req.body;
     
     console.log('🔍 DEBUG /api/iniziative-popolari/richiesta - Utente:', userId);
@@ -965,8 +972,15 @@ router.post('/richiesta', verifyToken, async (req, res) => {
 // GET /api/iniziative-popolari/richieste - Lista richieste di iniziative popolari (solo per Admin)
 router.get('/richieste', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
+    const userId = req.userId || req.user?.id;
+    const userRole = req.userRole || req.user?.role;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
     
     console.log('🔍 DEBUG /api/iniziative-popolari/richieste - Utente:', userId, 'Ruolo:', userRole);
     

@@ -48,7 +48,22 @@ router.get('/', async (req, res) => {
 router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => {
   try {
     const { legge } = req.body;
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    // Usa req.userId con fallback a req.user.id per sicurezza
+    const userId = req.userId || req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
+    
+    if (!legge) {
+      return res.status(400).json({
+        success: false,
+        error: 'Il campo legge è obbligatorio'
+      });
+    }
     
     // Prima trova l'ID di amnistia corrispondente alla legge
     const amnistiaResult = await pool.query(
@@ -65,9 +80,23 @@ router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => 
     
     const amnistiaId = amnistiaResult.rows[0].id;
     
+    // Verifica se l'utente ha già votato (limite 1 voto)
+    const existingVote = await pool.query(
+      'SELECT id FROM voti_amnistia WHERE userid = $1',
+      [userId]
+    );
+    
+    // Se ha già votato, elimina il voto precedente prima di inserire il nuovo
+    if (existingVote.rows.length > 0) {
+      await pool.query(
+        'DELETE FROM voti_amnistia WHERE userid = $1',
+        [userId]
+      );
+    }
+    
     // Inserisci il voto usando l'ID di amnistia
     await pool.query(
-      'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3) ON CONFLICT (userid, amnistia_id) DO NOTHING',
+      'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3)',
       [userId, amnistiaId, legge]
     );
     
@@ -76,7 +105,8 @@ router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => 
     console.error('❌ Errore nel salvare voto amnistia:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare voto amnistia'
+      error: 'Errore nel salvare voto amnistia',
+      details: error.message
     });
   }
 });

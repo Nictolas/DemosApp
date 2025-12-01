@@ -139,7 +139,30 @@ router.get('/richieste', verifyToken, async (req, res) => {
 router.post('/vota', verifyToken, validateInput(['voti']), async (req, res) => {
   try {
     const { voti } = req.body;
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    // Usa req.userId con fallback a req.user.id per sicurezza
+    const userId = req.userId || req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
+    
+    if (!Array.isArray(voti)) {
+      return res.status(400).json({
+        success: false,
+        error: 'I voti devono essere un array'
+      });
+    }
+    
+    // Limita a massimo 1 voto come da limite configurato
+    if (voti.length > 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Puoi selezionare al massimo 1 carcerato per Grazia'
+      });
+    }
     
     // Elimina i voti esistenti
     await pool.query('DELETE FROM voti_grazia WHERE user_id = $1', [userId]);
@@ -157,7 +180,8 @@ router.post('/vota', verifyToken, validateInput(['voti']), async (req, res) => {
     console.error('❌ Errore nel salvare voti grazia:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare voti grazia'
+      error: 'Errore nel salvare voti grazia',
+      details: error.message
     });
   }
 });
