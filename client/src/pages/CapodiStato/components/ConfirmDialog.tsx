@@ -7,21 +7,25 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   isPending: boolean;
+  title?: string;
+  description?: string;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   onOpenChange,
   onConfirm,
-  isPending
+  isPending,
+  title = "Conferma salvataggio voti",
+  description = "Dopo aver salvato, potrai modificare i voti solo tra una settimana. Confermi?"
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white">
         <DialogHeader>
-          <DialogTitle>Conferma salvataggio voti</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Dopo aver salvato, potrai modificare i voti solo tra una settimana. Confermi?
+            {description}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
