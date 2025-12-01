@@ -214,13 +214,18 @@ router.post('/test-vota', async (req, res) => {
 
 // POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
 router.post('/vota', verifyToken, async (req, res) => {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   console.log('🚨🚨🚨 POST /api/capo-stato/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
+  console.log('🚨🚨🚨 Request ID:', requestId);
   console.log('🚨🚨🚨 Timestamp:', new Date().toISOString());
-  console.log('🚨🚨🚨 Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('🚨🚨🚨 Body:', JSON.stringify(req.body, null, 2));
-  console.log('🚨🚨🚨 User:', JSON.stringify(req.user, null, 2));
-  console.log('🚨🚨🚨 UserId:', req.userId);
+  console.log('🚨🚨🚨 Method:', req.method);
+  console.log('🚨🚨🚨 URL:', req.url);
+  console.log('🚨🚨🚨 Headers authorization:', req.headers.authorization ? 'PRESENTE' : 'MANCANTE');
+  console.log('🚨🚨🚨 Body:', JSON.stringify(req.body));
+  console.log('🚨🚨🚨 User:', req.user ? JSON.stringify(req.user) : 'MANCANTE');
+  console.log('🚨🚨🚨 UserId:', req.userId || 'MANCANTE');
   
+  let client = null;
   try {
     console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
     console.log('🔍 DEBUG - Headers:', req.headers);
@@ -387,24 +392,42 @@ router.post('/vota', verifyToken, async (req, res) => {
       }
       throw error;
     } finally {
-      client.release();
+      if (client) {
+        client.release();
+        console.log('🔍 DEBUG - Client rilasciato');
+      }
     }
   } catch (error) {
-    console.error('❌ Errore nel salvataggio voti capo di stato:', error);
-    console.error('❌ Stack completo:', error.stack);
-    console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint,
-      name: error.name
-    });
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      details: error.message,
-      code: error.code
-    });
+    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti capo di stato ❌❌❌');
+    console.error('❌ Request ID:', requestId);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error detail:', error.detail);
+    console.error('❌ Error hint:', error.hint);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Rilascia il client se non è stato rilasciato
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseError) {
+        console.error('❌ Errore nel rilasciare client:', releaseError.message);
+      }
+    }
+    
+    // Assicurati che la risposta non sia già stata inviata
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        details: error.message,
+        code: error.code,
+        requestId: requestId
+      });
+    } else {
+      console.error('❌ Risposta già inviata, impossibile inviare errore');
+    }
   }
 });
 
