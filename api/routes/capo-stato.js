@@ -259,17 +259,41 @@ router.post('/vota', verifyToken, async (req, res) => {
       }
     }
     
+    // Verifica la struttura della tabella per capire quali colonne usare
+    console.log('🔍 DEBUG - Verifica struttura tabella voti_capo_stato');
+    const tableInfoQuery = `
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'voti_capo_stato'
+      ORDER BY ordinal_position
+    `;
+    const tableInfo = await pool.query(tableInfoQuery);
+    console.log('🔍 DEBUG - Colonne tabella:', tableInfo.rows.map(r => `${r.column_name} (${r.data_type})`));
+    
+    const columns = tableInfo.rows.map(r => r.column_name);
+    const idType = tableInfo.rows.find(r => r.column_name === 'id')?.data_type;
+    const hasUserId = columns.includes('userId');
+    const hasUserid = columns.includes('userid');
+    const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : null);
+    
+    console.log('🔍 DEBUG - Tipo id:', idType);
+    console.log('🔍 DEBUG - Colonna userId trovata:', userIdColumn);
+    
+    if (!userIdColumn) {
+      throw new Error('Nessuna colonna userId/userid trovata nella tabella voti_capo_stato');
+    }
+    
     // Inizia una transazione
     console.log('🔍 DEBUG - Inizio transazione');
-    await pool.query('BEGIN');
+    const client = await pool.connect();
     
     try {
+      await client.query('BEGIN');
+      
       // Prima elimina tutti i voti esistenti dell'utente
       console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
-      const deleteResult = await pool.query(
-        'DELETE FROM voti_capo_stato WHERE userid = $1',
-        [userId]
-      );
+      const deleteQuery = `DELETE FROM voti_capo_stato WHERE ${userIdColumn} = $1`;
+      const deleteResult = await client.query(deleteQuery, [userId]);
       console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
       
       // Poi inserisce i nuovi voti
@@ -277,34 +301,27 @@ router.post('/vota', verifyToken, async (req, res) => {
         console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
         
         for (const nome of voti) {
-          const votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          // Genera ID in base al tipo della colonna
+          let votoId;
+          if (idType === 'uuid') {
+            // Se la colonna è UUID, genera un UUID
+            const uuidResult = await client.query('SELECT gen_random_uuid() as id');
+            votoId = uuidResult.rows[0].id;
+          } else {
+            // Se è VARCHAR o TEXT, usa una stringa
+            votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          }
+          
           console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
           
-          // Usa solo le colonne base che esistono sicuramente in tutti gli schemi
-          // Prova prima con userid (minuscolo, come nelle query SELECT/DELETE)
-          try {
-            await pool.query(
-              `INSERT INTO voti_capo_stato (id, userid, nome, timestamp) 
-               VALUES ($1, $2, $3, NOW())`,
-              [votoId, userId, nome]
-            );
-            console.log('✅ DEBUG - Voto inserito con successo (userid)');
-          } catch (error) {
-            // Se fallisce, prova con userId (camelCase) - alcuni schemi usano camelCase
-            console.log('⚠️ DEBUG - Errore con userid, provo con userId:', error.message);
-            try {
-              await pool.query(
-                `INSERT INTO voti_capo_stato (id, "userId", nome, timestamp) 
-                 VALUES ($1, $2, $3, NOW())`,
-                [votoId, userId, nome]
-              );
-              console.log('✅ DEBUG - Voto inserito con successo (userId)');
-            } catch (error2) {
-              console.error('❌ DEBUG - Errore definitivo inserimento voto:', error2);
-              console.error('❌ DEBUG - Stack:', error2.stack);
-              throw error2;
-            }
-          }
+          // Costruisci la query in base alle colonne disponibili
+          const insertQuery = `
+            INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp) 
+            VALUES ($1, $2, $3, NOW())
+          `;
+          
+          await client.query(insertQuery, [votoId, userId, nome]);
+          console.log('✅ DEBUG - Voto inserito con successo');
         }
         
         console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
@@ -312,7 +329,7 @@ router.post('/vota', verifyToken, async (req, res) => {
       
       // Conferma la transazione
       console.log('🔍 DEBUG - Commit transazione');
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
       
       console.log('✅ DEBUG - Voti salvati con successo');
       res.json({
@@ -327,12 +344,15 @@ router.post('/vota', verifyToken, async (req, res) => {
       console.error('❌ DEBUG - Error code:', error.code);
       console.error('❌ DEBUG - Error detail:', error.detail);
       console.error('❌ DEBUG - Error hint:', error.hint);
+      console.error('❌ DEBUG - Error name:', error.name);
       try {
-        await pool.query('ROLLBACK');
+        await client.query('ROLLBACK');
       } catch (rollbackError) {
         console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
       }
       throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('❌ Errore nel salvataggio voti capo di stato:', error);
