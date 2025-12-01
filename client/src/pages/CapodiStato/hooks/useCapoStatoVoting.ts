@@ -14,11 +14,14 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
-    if (data?.mieiVoti !== undefined) {
+    if (data && Array.isArray(data.mieiVoti)) {
       // Aggiorna sempre selectedVoti quando mieiVoti è disponibile (anche se vuoto)
       setSelectedVoti(data.mieiVoti);
+    } else if (!data) {
+      // Se data non è ancora caricato, resetta selectedVoti
+      setSelectedVoti([]);
     }
-  }, [data?.mieiVoti]);
+  }, [data]);
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
@@ -52,15 +55,25 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     
     // Controlla il limite di voti massimi
     const limit = getVotingLimit('capo_stato');
+    const haGiaVotato = (data?.mieiVoti || []).length > 0;
+    
     if (hasReachedVotingLimit('capo_stato', selectedVoti.length)) {
-      toast({ 
-        title: "Limite voti raggiunto", 
-        description: `Puoi selezionare al massimo ${limit} candidato${limit > 1 ? 'i' : ''}` 
-      });
-      return;
+      // Se ha già votato, sostituisci il voto e apri il dialog
+      if (haGiaVotato) {
+        setSelectedVoti([nome]);
+        setShowConfirmDialog(true);
+        return;
+      } else {
+        // Primo voto, apri il dialog
+        setSelectedVoti([nome]);
+        setShowConfirmDialog(true);
+        return;
+      }
     }
     
+    // Se non ha raggiunto il limite, aggiungi il voto e apri il dialog
     setSelectedVoti(prev => [...prev, nome]);
+    setShowConfirmDialog(true);
   };
 
   const handleRemoveLocal = (nome: string) => {
@@ -73,17 +86,22 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     
     setSelectedVoti(prev => {
       if (prev.includes(nome)) {
-        // Rimuovi il voto
+        // Rimuovi il voto (non salva, solo rimuove localmente)
         return prev.filter(n => n !== nome);
       } else {
         // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e apri conferma
         const limit = getVotingLimit('capo_stato');
+        const haGiaVotato = (data?.mieiVoti || []).length > 0;
+        
         if (hasReachedVotingLimit('capo_stato', prev.length)) {
           // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
           setShowConfirmDialog(true);
           return [nome]; // Sostituisci con il nuovo voto
+        } else {
+          // Primo voto o aggiunta normale, apri il dialog
+          setShowConfirmDialog(true);
+          return [...prev, nome];
         }
-        return [...prev, nome];
       }
     });
   };
