@@ -136,13 +136,18 @@ router.get('/richieste', verifyToken, async (req, res) => {
 });
 
 // POST /api/grazia/vota - Salva voti grazia
-router.post('/vota', verifyToken, validateInput(['voti']), async (req, res) => {
+router.post('/vota', verifyToken, async (req, res) => {
+  console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
+  console.log('🚨🚨🚨 Body:', JSON.stringify(req.body));
+  console.log('🚨🚨🚨 UserId:', req.userId || req.user?.id);
+  
   try {
     const { voti } = req.body;
     // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
     
     if (!userId) {
+      console.log('❌ DEBUG - User ID non trovato');
       return res.status(401).json({
         success: false,
         error: 'Utente non autenticato'
@@ -150,6 +155,7 @@ router.post('/vota', verifyToken, validateInput(['voti']), async (req, res) => {
     }
     
     if (!Array.isArray(voti)) {
+      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
       return res.status(400).json({
         success: false,
         error: 'I voti devono essere un array'
@@ -158,30 +164,133 @@ router.post('/vota', verifyToken, validateInput(['voti']), async (req, res) => {
     
     // Limita a massimo 1 voto come da limite configurato
     if (voti.length > 1) {
+      console.log('❌ DEBUG - Troppi voti:', voti.length);
       return res.status(400).json({
         success: false,
         error: 'Puoi selezionare al massimo 1 carcerato per Grazia'
       });
     }
     
-    // Elimina i voti esistenti
-    await pool.query('DELETE FROM voti_grazia WHERE user_id = $1', [userId]);
+    // Rileva la struttura della tabella per capire quale colonna usare
+    let userIdColumn = 'user_id';
+    let hasFirestoreUid = false;
+    let firestoreUidRequired = false;
     
-    // Inserisci i nuovi voti
-    for (const nome of voti) {
-      await pool.query(
-        'INSERT INTO voti_grazia (user_id, nome, created_at) VALUES ($1, $2, NOW())',
-        [userId, nome]
-      );
+    try {
+      const tableInfoQuery = `
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns 
+        WHERE LOWER(table_name) = 'voti_grazia'
+        ORDER BY ordinal_position
+      `;
+      const tableInfo = await pool.query(tableInfoQuery);
+      console.log('🔍 DEBUG - Colonne tabella:', tableInfo.rows.map(r => `${r.column_name} (${r.data_type}, nullable: ${r.is_nullable})`));
+      
+      const columns = tableInfo.rows.map(r => r.column_name);
+      const hasUserId = columns.includes('user_id');
+      const hasUserid = columns.includes('userid');
+      userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
+      
+      const firestoreUidColumn = tableInfo.rows.find(r => r.column_name === 'firestore_uid');
+      if (firestoreUidColumn) {
+        hasFirestoreUid = true;
+        firestoreUidRequired = firestoreUidColumn.is_nullable === 'NO';
+        console.log('🔍 DEBUG - Colonna firestore_uid trovata, required:', firestoreUidRequired);
+      }
+    } catch (tableInfoError) {
+      console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
     }
     
-    res.json({ success: true, message: 'Voti grazia salvati' });
+    console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
+    
+    // Inizia una transazione
+    console.log('🔍 DEBUG - Inizio transazione');
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Elimina i voti esistenti
+      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
+      const deleteQuery = `DELETE FROM voti_grazia WHERE ${userIdColumn} = $1`;
+      const deleteResult = await client.query(deleteQuery, [userId]);
+      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
+      
+      // Inserisci i nuovi voti
+      if (voti.length > 0) {
+        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
+        
+        for (const nome of voti) {
+          console.log('🔍 DEBUG - Inserimento voto per:', nome, 'userId:', userId);
+          
+          let insertQuery;
+          let insertParams;
+          
+          if (hasFirestoreUid && firestoreUidRequired) {
+            // Includi firestore_uid usando userId come valore
+            insertQuery = `
+              INSERT INTO voti_grazia (${userIdColumn}, firestore_uid, nome, created_at) 
+              VALUES ($1, $2, $3, NOW())
+            `;
+            insertParams = [userId, userId, nome];
+            console.log('🔍 DEBUG - Inserimento con firestore_uid richiesto');
+          } else if (hasFirestoreUid && !firestoreUidRequired) {
+            // Includi firestore_uid come NULL
+            insertQuery = `
+              INSERT INTO voti_grazia (${userIdColumn}, firestore_uid, nome, created_at) 
+              VALUES ($1, NULL, $2, NOW())
+            `;
+            insertParams = [userId, nome];
+            console.log('🔍 DEBUG - Inserimento con firestore_uid nullable');
+          } else {
+            // Nessuna colonna firestore_uid
+            insertQuery = `
+              INSERT INTO voti_grazia (${userIdColumn}, nome, created_at) 
+              VALUES ($1, $2, NOW())
+            `;
+            insertParams = [userId, nome];
+            console.log('🔍 DEBUG - Inserimento senza firestore_uid');
+          }
+          
+          await client.query(insertQuery, insertParams);
+          console.log('✅ DEBUG - Voto inserito con successo');
+        }
+      }
+      
+      // Conferma la transazione
+      console.log('🔍 DEBUG - Commit transazione');
+      await client.query('COMMIT');
+      
+      console.log('✅ DEBUG - Voti salvati con successo');
+      res.json({ success: true, message: 'Voti grazia salvati' });
+    } catch (error) {
+      // Rollback in caso di errore
+      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
+      console.error('❌ DEBUG - Stack trace:', error.stack);
+      console.error('❌ DEBUG - Error code:', error.code);
+      console.error('❌ DEBUG - Error detail:', error.detail);
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
+      }
+      throw error;
+    } finally {
+      client.release();
+      console.log('🔍 DEBUG - Client rilasciato');
+    }
   } catch (error) {
-    console.error('❌ Errore nel salvare voti grazia:', error);
+    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti grazia ❌❌❌');
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error detail:', error.detail);
+    console.error('❌ Error stack:', error.stack);
+    
     res.status(500).json({
       success: false,
       error: 'Errore nel salvare voti grazia',
-      details: error.message
+      details: error.message,
+      code: error.code
     });
   }
 });

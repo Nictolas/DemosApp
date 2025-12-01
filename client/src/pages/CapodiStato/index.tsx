@@ -112,16 +112,22 @@ export default function CapodiStato() {
       </div>
 
       {/* Dialog di conferma rimozione voto */}
-      <ConfirmDialog
-        open={showRemoveDialog}
-        onOpenChange={(open) => {
-          if (!open) cancelRemove();
-        }}
-        onConfirm={confirmRemove}
-        isPending={saveVotiMutation.isPending}
-        title="Rimuovere il voto?"
-        description={`Vuoi rimuovere il voto per "${votoToRemove}"?`}
-      />
+      {showRemoveDialog && (
+        <ConfirmDialog
+          open={showRemoveDialog}
+          onOpenChange={(open) => {
+            console.log('🔍 DEBUG CLIENT - Dialog onOpenChange chiamato con:', open);
+            if (!open) cancelRemove();
+          }}
+          onConfirm={() => {
+            console.log('🔍 DEBUG CLIENT - Dialog onConfirm chiamato');
+            confirmRemove();
+          }}
+          isPending={saveVotiMutation.isPending}
+          title="Rimuovere il voto?"
+          description={`Vuoi rimuovere il voto per "${votoToRemove}"?`}
+        />
+      )}
     </div>
   );
 }
