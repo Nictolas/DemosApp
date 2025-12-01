@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Vote, Plus, X, Info } from "lucide-react";
+import { ThumbsUp, Plus, X, Info, CheckCircle2 } from "lucide-react";
 import { Classifica } from "../types";
 
 interface VotingFormProps {
@@ -52,31 +52,45 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   };
 
   return (
-    <Card className="bg-white">
-      <CardHeader>
+    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Vote className="h-5 w-5" />
-            <span className="text-lg font-semibold">Il tuo voto</span>
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <ThumbsUp className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Il tuo voto</h2>
+              <CardDescription className="text-blue-100 mt-1">
+                Puoi votare solo {limit} candidato{limit > 1 ? 'i' : ''} per Capo di Stato. Aggiungi un nome alla tua lista o selezionalo dalla classifica.
+              </CardDescription>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant={hasReachedLimit ? "destructive" : "secondary"} className="flex items-center space-x-1">
-              <Info className="h-3 w-3" />
+            <Badge 
+              variant={hasReachedLimit ? "destructive" : "secondary"} 
+              className={`flex items-center space-x-1.5 px-3 py-1.5 text-sm font-semibold ${
+                hasReachedLimit 
+                  ? "bg-red-500 hover:bg-red-600 text-white" 
+                  : "bg-white/20 backdrop-blur-sm text-white border-white/30"
+              }`}
+            >
+              <Info className="h-4 w-4" />
               <span>{currentVotes}/{limit}</span>
             </Badge>
           </div>
         </div>
-        <CardDescription>
-          Puoi votare solo {limit} candidato per Capo di Stato. Aggiungi un nome alla tua lista o selezionalo dalla classifica.
-          {hasReachedLimit && (
-            <span className="block mt-1 text-red-600 font-medium">
+        {hasReachedLimit && (
+          <div className="mt-3 p-3 bg-yellow-500/20 backdrop-blur-sm rounded-lg border border-yellow-300/30">
+            <p className="text-yellow-100 font-medium flex items-center">
+              <Info className="h-4 w-4 mr-2" />
               Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
-            </span>
-          )}
-        </CardDescription>
+            </p>
+          </div>
+        )}
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <CardContent className="pt-6">
+        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
           <div className="flex space-x-2">
             <div className="flex-1 relative">
               <Input
@@ -119,32 +133,48 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         </form>
 
-        {selectedVoti.length > 0 && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold">Voti selezionati:</h4>
-              <p className="text-xs text-gray-500">
-                {selectedVoti.length}/{limit} candidato{limit > 1 ? 'i' : ''}
-              </p>
+        {selectedVoti.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span>I tuoi candidati selezionati:</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-3">
               {selectedVoti.map((voto) => (
-                <Badge 
-                  key={voto} 
-                  variant="default" 
-                  className="cursor-pointer hover:bg-destructive/90 transition-colors flex items-center gap-2" 
-                  onClick={() => onRemoveNome(voto)}
+                <div
+                  key={voto}
+                  className="group relative p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
                 >
-                  <X className="h-3 w-3" />
-                  {voto}
-                </Badge>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="flex-shrink-0 p-2 bg-green-500 rounded-full">
+                        <CheckCircle2 className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
+                          {voto}
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onRemoveNome(voto)}
+                      className="ml-4 flex-shrink-0 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-300 transform hover:scale-110 shadow-md hover:shadow-xl group/btn"
+                      title="Rimuovi voto"
+                    >
+                      <X className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-300" />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
-            {selectedVoti.length >= limit && (
-              <p className="text-xs text-amber-600 mt-2">
-                ⚠️ Hai raggiunto il limite massimo di {limit} voto{limit > 1 ? 'i' : ''}
-              </p>
-            )}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ThumbsUp className="h-10 w-10 text-gray-400" />
+            </div>
+            <p className="text-gray-600 font-medium">Nessun candidato selezionato</p>
+            <p className="text-sm text-gray-500 mt-1">Scegli un candidato dalla classifica per votare</p>
           </div>
         )}
       </CardContent>

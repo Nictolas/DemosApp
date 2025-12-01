@@ -11,7 +11,6 @@ import { BlockedWarning } from "./components/BlockedWarning";
 import { ConsensoSection } from "./components/ConsensoSection";
 import { VotingForm } from "./components/VotingForm";
 import { CandidatesRanking } from "./components/CandidatesRanking";
-import { ConfirmDialog } from "./components/ConfirmDialog";
 
 export default function CapodiStato() {
   const authReady = useAuthReady();
@@ -31,8 +30,6 @@ export default function CapodiStato() {
   // Hook per la logica di voto
   const {
     selectedVoti,
-    showConfirmDialog,
-    setShowConfirmDialog,
     saveVotiMutation,
     handleAddNomeLocal,
     handleRemoveLocal,
@@ -109,13 +106,6 @@ export default function CapodiStato() {
         )}
       </div>
 
-      {/* Dialog di conferma */}
-      <ConfirmDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        onConfirm={() => saveVotiMutation.mutate(selectedVoti)}
-        isPending={saveVotiMutation.isPending}
-      />
     </div>
   );
 }
