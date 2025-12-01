@@ -314,25 +314,40 @@ router.post('/vota', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Has firestore_uid:', hasFirestoreUid, 'Required:', firestoreUidRequired);
 
     if (userRole !== 'Admin') {
-      const bloccoQuery = `
-        SELECT 
-          CASE 
-            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-            ELSE false
-          END as is_blocked
+      // Controlla se l'utente ha voti esistenti
+      const existingVotiQuery = `
+        SELECT COUNT(*) as count, MAX(timestamp) as last_vote
         FROM voti_capo_stato
         WHERE ${userIdColumn} = $1
       `;
-
-      const bloccoResult = await pool.query(bloccoQuery, [userId]);
-      const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
-
-      if (isBlocked) {
-        console.log('❌ DEBUG - Utente bloccato per limite settimanale');
-        return res.status(403).json({
-          success: false,
-          error: 'Non puoi modificare i voti più di una volta a settimana'
-        });
+      const existingVotiResult = await pool.query(existingVotiQuery, [userId]);
+      const existingCount = parseInt(existingVotiResult.rows[0]?.count || '0');
+      const lastVote = existingVotiResult.rows[0]?.last_vote;
+      
+      console.log('🔍 DEBUG - Voti esistenti:', existingCount, 'Ultimo voto:', lastVote);
+      
+      // Se l'utente ha già votato e sta cercando di aggiungere un nuovo voto (non sostituire)
+      // allora bloccalo se è passato meno di 7 giorni
+      if (existingCount > 0 && voti.length > 0) {
+        // Verifica se sta sostituendo il voto (stesso numero di voti) o aggiungendo
+        const isReplacing = existingCount === voti.length;
+        
+        if (!isReplacing) {
+          // Sta cercando di aggiungere voti, controlla il limite settimanale
+          if (lastVote && new Date(lastVote) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) {
+            console.log('❌ DEBUG - Utente bloccato per limite settimanale (aggiunta voti)');
+            return res.status(403).json({
+              success: false,
+              error: 'Non puoi aggiungere voti più di una volta a settimana'
+            });
+          }
+        } else {
+          // Sta sostituendo il voto, permetti sempre (è un cambio di preferenza)
+          console.log('✅ DEBUG - Utente sta sostituendo il voto, permesso');
+        }
+      } else if (existingCount > 0 && voti.length === 0) {
+        // Sta rimuovendo tutti i voti, permetti sempre
+        console.log('✅ DEBUG - Utente sta rimuovendo i voti, permesso');
       }
     }
     
