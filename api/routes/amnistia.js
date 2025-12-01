@@ -7,30 +7,60 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 // GET /api/amnistia - Ottieni leggi per amnistia
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/amnistia chiamato');
+    const userId = req.userId || req.user?.id;
     
-    // Query ancora più semplice
-    const simpleQuery = `SELECT * FROM amnistia LIMIT 5`;
+    // Query per tutte le amnistie
+    const amnistieQuery = `SELECT * FROM amnistia ORDER BY legge`;
+    const amnistieResult = await pool.query(amnistieQuery);
+    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
     
-    const result = await pool.query(simpleQuery);
-    console.log(`✅ Recuperate ${result.rows.length} amnistie`);
+    // Query per i voti dell'utente
+    let mieiVoti = [];
+    if (userId) {
+      try {
+        const votiQuery = `SELECT legge FROM voti_amnistia WHERE userid = $1`;
+        const votiResult = await pool.query(votiQuery, [userId]);
+        mieiVoti = votiResult.rows.map(row => row.legge);
+        console.log(`✅ Recuperati ${mieiVoti.length} voti per l'utente`);
+      } catch (votiError) {
+        console.log('⚠️ Errore nel recuperare voti (probabilmente tabella non esiste):', votiError.message);
+        mieiVoti = [];
+      }
+    }
     
-    // Crea classifica con voti a 0 per ora
-    const classificaResult = result.rows.map(amnistia => ({
+    // Query per contare i voti per ogni amnistia
+    const votiCountQuery = `
+      SELECT legge, COUNT(*) as voti 
+      FROM voti_amnistia 
+      GROUP BY legge
+    `;
+    let votiCountMap = {};
+    try {
+      const votiCountResult = await pool.query(votiCountQuery);
+      votiCountResult.rows.forEach(row => {
+        votiCountMap[row.legge] = parseInt(row.voti);
+      });
+    } catch (error) {
+      console.log('⚠️ Errore nel contare voti:', error.message);
+    }
+    
+    // Crea classifica con voti reali
+    const classificaResult = amnistieResult.rows.map(amnistia => ({
       id: amnistia.id,
       legge: amnistia.legge,
       articolo: amnistia.articolo || '',
       descrizione: amnistia.descrizione || '',
-      voti: 0
+      voti: votiCountMap[amnistia.legge] || 0
     }));
     
     res.json({
       success: true,
-      amnistie: result.rows,
+      amnistie: amnistieResult.rows,
       classifica: classificaResult,
-      mieiVoti: [],
+      mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {

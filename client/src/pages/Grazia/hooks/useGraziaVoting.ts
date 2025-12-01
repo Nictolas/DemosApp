@@ -16,10 +16,16 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
-    if (data?.mieiVoti) {
+    if (data && Array.isArray(data.mieiVoti)) {
       setVotingState(prev => ({
         ...prev,
         selectedVoti: data.mieiVoti
+      }));
+    } else if (!data) {
+      // Se data non è ancora caricato, resetta selectedVoti
+      setVotingState(prev => ({
+        ...prev,
+        selectedVoti: []
       }));
     }
   }, [data]);

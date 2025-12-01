@@ -15,7 +15,6 @@ import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { CreateButton } from "./components/CreateButton";
 import { CarceratoForm } from "./components/CarceratoForm";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function Grazia() {
   const authReady = useAuthReady();
@@ -105,12 +104,6 @@ export default function Grazia() {
                 isLoading={false}
               />
             )}
-
-            {/* Informazioni sui limiti di voto */}
-            <VotingLimitsInfo
-              category="grazia"
-              currentVotes={currentVotes}
-            />
 
             <GraziaForm
               nomeInput={votingState.nomeInput}
