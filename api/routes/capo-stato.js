@@ -103,83 +103,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/capo-stato/vota - Salva i voti multipli per capo di stato
-router.post('/vota', verifyToken, async (req, res) => {
-  try {
-    console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    console.log('🔍 DEBUG - Body:', req.body);
-    console.log('🔍 DEBUG - User:', req.user);
-    
-    const { voti } = req.body;
-    const userId = req.user.id;
-    
-    console.log('🔍 DEBUG - Voti ricevuti:', voti);
-    console.log('🔍 DEBUG - User ID:', userId);
-    
-    if (!Array.isArray(voti)) {
-      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
-      return res.status(400).json({
-        success: false,
-        error: 'I voti devono essere un array'
-      });
-    }
-    
-    // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
-    await pool.query('BEGIN');
-    
-    try {
-      // Prima elimina tutti i voti esistenti dell'utente
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
-      const deleteResult = await pool.query(
-        'DELETE FROM voti_capo_stato WHERE userid = $1',
-        [userId]
-      );
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
-      
-      // Poi inserisce i nuovi voti
-      if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
-        const insertPromises = voti.map(async (nome, index) => {
-          const votoId = `voto_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome);
-          return pool.query(
-            `INSERT INTO voti_capo_stato (
-              id, userid, nome, timestamp, created_at, updated_at
-            ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
-            [votoId, userId, nome]
-          );
-        });
-        
-        await Promise.all(insertPromises);
-        console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
-      }
-      
-      // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
-      await pool.query('COMMIT');
-      
-      console.log('✅ DEBUG - Voti salvati con successo');
-      res.json({
-        success: true,
-        message: 'Voti salvati con successo',
-        voti: voti
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      console.log('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    console.error('❌ Errore nel salvataggio voti capo di stato:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
+// Endpoint rimosso - duplicato, usa quello alla riga 265
 
 // POST /api/capo-stato/test-vota - Endpoint di test per voti (senza autenticazione)
 router.post('/test-vota', async (req, res) => {
@@ -270,7 +194,16 @@ router.post('/vota', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - User:', req.user);
     
     const { voti } = req.body;
-    const userId = req.user.id;
+    // Usa req.userId con fallback a req.user.id per sicurezza
+    const userId = req.userId || req.user?.id;
+    
+    if (!userId) {
+      console.log('❌ DEBUG - User ID non trovato');
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
     
     console.log('🔍 DEBUG - Voti ricevuti:', voti);
     console.log('🔍 DEBUG - User ID:', userId);
@@ -283,12 +216,12 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     }
 
-    // Controlla il limite di 3 voti massimi
-    if (voti.length > 3) {
+    // Controlla il limite di 1 voto massimo per Capo di Stato
+    if (voti.length > 1) {
       console.log('❌ DEBUG - Troppi voti:', voti.length);
       return res.status(400).json({
         success: false,
-        error: 'Puoi selezionare al massimo 3 candidati'
+        error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
       });
     }
 
