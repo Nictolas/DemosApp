@@ -1,9 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { GraziaData } from "../types";
+import { useToast } from "@/hooks/use-toast";
+import { getRemainingVotes } from "@/config/votingLimits";
 
 export const useGraziaData = (user: any) => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Query per caricare i dati
   const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
@@ -69,12 +72,22 @@ export const useGraziaData = (user: any) => {
       console.log('✅ DEBUG saveVotiMutation - Voti salvati con successo');
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       console.log('✅ DEBUG saveVotiMutation - onSuccess chiamato, invalidando query');
+      const remainingVotes = getRemainingVotes('grazia', variables.length);
+      toast({ 
+        title: "Preferenze salvate", 
+        description: `Le tue richieste di grazia sono state aggiornate. Voti rimanenti: ${remainingVotes}` 
+      });
       queryClient.invalidateQueries({ queryKey: ['graziaData'] });
     },
     onError: (error: any) => {
       console.error('❌ DEBUG saveVotiMutation - onError:', error);
+      toast({ 
+        title: "Errore", 
+        description: error.message || "Impossibile salvare le richieste di grazia.", 
+        variant: "destructive" 
+      });
     },
     onSettled: () => {
       // Dialog gestito automaticamente

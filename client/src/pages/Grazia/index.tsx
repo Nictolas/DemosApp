@@ -28,7 +28,6 @@ export default function Grazia() {
     removeLocal, 
     toggleSelezioneClassifica, 
     showClassifica, 
-    saveVoti,
     showForm,
     hideForm,
     handleCreateCarcerato,
@@ -113,14 +112,6 @@ export default function Grazia() {
         )}
       </div>
 
-      <ConfirmDialog
-        open={votingState.showConfirmDialog}
-        onOpenChange={(open) => updateField('showConfirmDialog', open)}
-        onConfirm={() => {
-          updateField('showConfirmDialog', false);
-        }}
-        isPending={saveVotiMutation.isPending}
-      />
 
       {/* Dialog di conferma rimozione voto */}
       {showRemoveDialog && (
