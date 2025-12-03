@@ -78,17 +78,50 @@ router.get('/', async (req, res) => {
     let mieiVoti = [];
     if (userId) {
       try {
+        // Rileva la struttura della tabella per capire quale colonna usare
+        let userIdColumn = 'user_id';
+        let timestampColumn = 'timestamp';
+        
+        try {
+          const tableInfoQuery = `
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns 
+            WHERE LOWER(table_name) = 'voti_grazia'
+            ORDER BY ordinal_position
+          `;
+          const tableInfo = await pool.query(tableInfoQuery);
+          
+          const columns = tableInfo.rows.map(r => r.column_name);
+          const hasUserId = columns.includes('user_id');
+          const hasUserid = columns.includes('userid');
+          userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
+          
+          // Rileva quale colonna timestamp usare
+          if (columns.includes('timestamp')) {
+            timestampColumn = 'timestamp';
+          } else if (columns.includes('data_voto')) {
+            timestampColumn = 'data_voto';
+          } else if (columns.includes('created_at')) {
+            timestampColumn = 'created_at';
+          }
+          
+          console.log(`🔍 DEBUG GET - Colonna userId usata: ${userIdColumn}, timestamp: ${timestampColumn}`);
+        } catch (tableInfoError) {
+          console.log('⚠️ DEBUG GET - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
+        }
+        
         const mieiVotiQuery = `
           SELECT nome
           FROM voti_grazia
-          WHERE user_id = $1
-          ORDER BY created_at DESC
+          WHERE ${userIdColumn} = $1
+          ORDER BY ${timestampColumn} DESC
         `;
         const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
         mieiVoti = mieiVotiResult.rows.map(row => row.nome);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti per utente ${userId}`);
+        console.log(`✅ Recuperati ${mieiVoti.length} voti per utente ${userId} usando colonna ${userIdColumn}`);
       } catch (error) {
         console.error('⚠️ Errore nel recuperare voti utente:', error);
+        console.error('⚠️ Stack trace:', error.stack);
         // Continua senza voti utente
       }
     }
