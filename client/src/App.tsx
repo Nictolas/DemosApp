@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 // Import dei componenti principali
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/auth-page";
+import CIECallback from "./pages/cie-callback";
 import ResetPasswordConfirmPage from "./pages/reset-password-confirm";
 import ResetPasswordPage from "./pages/reset-password";
 
@@ -275,6 +276,13 @@ export default function App() {
                 <Route path="/auth">
                   <PageTransition location={location} type="fade-up">
                     <AuthPage />
+                  </PageTransition>
+                </Route>
+
+                {/* Route callback CIE */}
+                <Route path="/auth/cie/callback">
+                  <PageTransition location={location} type="fade-up">
+                    <CIECallback />
                   </PageTransition>
                 </Route>
 
