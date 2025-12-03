@@ -90,12 +90,16 @@ export default function Grazia() {
             <GraziaForm
               nomeInput={votingState.nomeInput}
               selectedVoti={votingState.selectedVoti}
+              classifica={data?.classifica || []}
               isBlocked={data?.blocco.isBlocked || false}
               isPending={saveVotiMutation.isPending}
               onUpdateField={updateField}
               onSubmit={addNomeLocal}
               onRemoveLocal={removeLocal}
               hasReachedLimit={hasReachedLimit}
+              currentVotes={currentVotes}
+              limit={limit}
+              remainingVotes={remainingVotes}
             />
 
             <ClassificaCarcerati
