@@ -50,12 +50,20 @@ router.get('/authorize', checkMockEnabled, (req, res) => {
   const expiresAt = Date.now() + 60000; // 1 minuto
 
   // Salva il codice con i parametri della richiesta
-  authorizationCodes.set(authCode, {
+  const authData = {
     client_id,
     redirect_uri,
     state,
     scope: scope || 'openid profile',
     expiresAt
+  };
+  
+  authorizationCodes.set(authCode, authData);
+  
+  console.log('🔐 Mock CIE GET /authorize: Authorization code generato', {
+    code: authCode.substring(0, 8) + '...',
+    redirect_uri,
+    expiresAt: new Date(expiresAt).toISOString()
   });
 
   // Mostra pagina HTML con bottone
@@ -137,7 +145,7 @@ router.get('/authorize', checkMockEnabled, (req, res) => {
  * POST /mock-cie/authorize
  * Gestisce la conferma dell'autorizzazione
  */
-router.post('/authorize', checkMockEnabled, express.urlencoded({ extended: true }), express.json(), (req, res) => {
+router.post('/authorize', checkMockEnabled, (req, res) => {
   try {
     const { auth_code } = req.body;
     
@@ -175,7 +183,25 @@ router.post('/authorize', checkMockEnabled, express.urlencoded({ extended: true 
 
     // Redirect con authorization code
     try {
-      const redirectUrl = new URL(authData.redirect_uri);
+      console.log('🔐 Mock CIE POST /authorize: redirect_uri ricevuto', authData.redirect_uri);
+      
+      // Verifica che redirect_uri sia un URL valido
+      let redirectUrl;
+      try {
+        redirectUrl = new URL(authData.redirect_uri);
+      } catch (urlError) {
+        // Se non è un URL assoluto, prova a costruirlo
+        console.warn('⚠️ Mock CIE POST /authorize: redirect_uri non è un URL assoluto, provo a costruirlo');
+        // Se inizia con /, aggiungi il protocollo e host
+        if (authData.redirect_uri.startsWith('/')) {
+          const protocol = req.protocol || 'https';
+          const host = req.get('host') || 'demos-c7k0.onrender.com';
+          redirectUrl = new URL(authData.redirect_uri, `${protocol}://${host}`);
+        } else {
+          throw new Error('Redirect URI non valido: ' + authData.redirect_uri);
+        }
+      }
+      
       redirectUrl.searchParams.set('code', auth_code);
       if (authData.state) {
         redirectUrl.searchParams.set('state', authData.state);
@@ -185,9 +211,11 @@ router.post('/authorize', checkMockEnabled, express.urlencoded({ extended: true 
       res.redirect(redirectUrl.toString());
     } catch (urlError) {
       console.error('❌ Mock CIE POST /authorize: Errore costruzione URL', urlError);
+      console.error('❌ Mock CIE POST /authorize: redirect_uri originale', authData.redirect_uri);
       return res.status(400).json({
         error: 'invalid_redirect_uri',
-        error_description: 'Redirect URI non valido: ' + authData.redirect_uri
+        error_description: 'Redirect URI non valido: ' + (authData.redirect_uri || 'non specificato'),
+        details: urlError.message
       });
     }
   } catch (error) {
