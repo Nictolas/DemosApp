@@ -65,8 +65,17 @@ class PerformanceOptimizer {
       }
       
       // Ottimizzazione memoria
-      if (memoryUsage.heapUsed / memoryUsage.heapTotal > 0.8) {
-        console.log('⚠️ Memoria satura, forzando garbage collection...');
+      // Considera sia il rapporto che la memoria assoluta per evitare falsi positivi
+      const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
+      const heapTotalMB = memoryUsage.heapTotal / 1024 / 1024;
+      const memoryRatio = memoryUsage.heapUsed / memoryUsage.heapTotal;
+      
+      // Forza GC solo se:
+      // 1. La memoria utilizzata è > 100MB (evita falsi positivi con memoria molto bassa)
+      // 2. Il rapporto è > 0.85 (soglia più alta per evitare GC inutili)
+      // 3. La memoria totale è > 50MB (evita GC quando la memoria è troppo bassa)
+      if (heapUsedMB > 100 && memoryRatio > 0.85 && heapTotalMB > 50) {
+        console.log(`⚠️ Memoria satura (${heapUsedMB.toFixed(1)}MB/${heapTotalMB.toFixed(1)}MB, ${(memoryRatio * 100).toFixed(1)}%), forzando garbage collection...`);
         this.optimizeMemory();
       }
       
