@@ -137,45 +137,67 @@ router.get('/authorize', checkMockEnabled, (req, res) => {
  * POST /mock-cie/authorize
  * Gestisce la conferma dell'autorizzazione
  */
-router.post('/authorize', checkMockEnabled, (req, res) => {
-  const { auth_code } = req.body;
+router.post('/authorize', checkMockEnabled, express.urlencoded({ extended: true }), express.json(), (req, res) => {
+  try {
+    const { auth_code } = req.body;
+    
+    console.log('🔐 Mock CIE POST /authorize: Body ricevuto', req.body);
+    console.log('🔐 Mock CIE POST /authorize: auth_code', auth_code);
 
-  if (!auth_code) {
-    return res.status(400).json({
-      error: 'invalid_request',
-      error_description: 'Authorization code mancante'
-    });
-  }
+    if (!auth_code) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Authorization code mancante'
+      });
+    }
 
-  const authData = authorizationCodes.get(auth_code);
+    const authData = authorizationCodes.get(auth_code);
 
-  if (!authData) {
-    return res.status(400).json({
-      error: 'invalid_request',
-      error_description: 'Authorization code non valido'
-    });
-  }
+    if (!authData) {
+      console.error('❌ Mock CIE POST /authorize: Authorization code non trovato', auth_code);
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Authorization code non valido'
+      });
+    }
 
-  // Verifica scadenza
-  if (Date.now() > authData.expiresAt) {
+    // Verifica scadenza
+    if (Date.now() > authData.expiresAt) {
+      authorizationCodes.delete(auth_code);
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Authorization code scaduto'
+      });
+    }
+
+    // Rimuovi il codice (one-time use)
     authorizationCodes.delete(auth_code);
-    return res.status(400).json({
-      error: 'invalid_request',
-      error_description: 'Authorization code scaduto'
+
+    // Redirect con authorization code
+    try {
+      const redirectUrl = new URL(authData.redirect_uri);
+      redirectUrl.searchParams.set('code', auth_code);
+      if (authData.state) {
+        redirectUrl.searchParams.set('state', authData.state);
+      }
+
+      console.log('🔐 Mock CIE POST /authorize: Redirect a', redirectUrl.toString());
+      res.redirect(redirectUrl.toString());
+    } catch (urlError) {
+      console.error('❌ Mock CIE POST /authorize: Errore costruzione URL', urlError);
+      return res.status(400).json({
+        error: 'invalid_redirect_uri',
+        error_description: 'Redirect URI non valido: ' + authData.redirect_uri
+      });
+    }
+  } catch (error) {
+    console.error('❌ Mock CIE POST /authorize: Errore generico', error);
+    res.status(500).json({
+      error: 'server_error',
+      error_description: 'Errore interno del server',
+      message: error.message
     });
   }
-
-  // Rimuovi il codice (one-time use)
-  authorizationCodes.delete(auth_code);
-
-  // Redirect con authorization code
-  const redirectUrl = new URL(authData.redirect_uri);
-  redirectUrl.searchParams.set('code', auth_code);
-  if (authData.state) {
-    redirectUrl.searchParams.set('state', authData.state);
-  }
-
-  res.redirect(redirectUrl.toString());
 });
 
 /**
