@@ -9,7 +9,10 @@
  */
 
 const express = require('express');
-const fetch = require('node-fetch');
+// Usa fetch nativo di Node.js (disponibile da Node 18+)
+// Node.js su Render dovrebbe essere >= 18, quindi fetch è disponibile nativamente
+const fetch = globalThis.fetch || require('node-fetch');
+
 const { getPool } = require('../../config/database');
 const { generateTokenPair } = require('../../utils/jwt');
 const crypto = require('crypto');
