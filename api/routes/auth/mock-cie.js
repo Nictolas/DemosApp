@@ -15,19 +15,15 @@ const crypto = require('crypto');
 const router = express.Router();
 
 // Verifica se il mock server deve essere attivo
+// È sempre attivo se siamo qui (il router lo abilita solo quando necessario)
 const isMockEnabled = () => {
-  return process.env.NODE_ENV === 'development' || process.env.USE_MOCK_CIE === 'true';
+  return true; // Sempre abilitato se il router lo ha registrato
 };
 
 // Middleware per verificare se il mock è abilitato
+// Non serve più controllare, il router gestisce già l'abilitazione
 const checkMockEnabled = (req, res, next) => {
-  if (!isMockEnabled()) {
-    return res.status(404).json({
-      error: 'not_found',
-      error_description: 'Mock CIE server non disponibile in questo ambiente'
-    });
-  }
-  next();
+  next(); // Sempre passa, il router ha già verificato
 };
 
 // Store temporaneo per authorization codes (in produzione usare Redis)

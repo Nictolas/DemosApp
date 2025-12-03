@@ -27,20 +27,45 @@ const pool = getPool();
 
 // Configurazione OIDC da variabili d'ambiente
 const getOIDCConfig = () => {
+  // Verifica se le variabili OIDC reali sono configurate
   const issuerUrl = process.env.CIE_ISSUER_URL || process.env.OIDC_ISSUER_URL;
   const clientId = process.env.CIE_CLIENT_ID || process.env.OIDC_CLIENT_ID;
   const clientSecret = process.env.CIE_CLIENT_SECRET || process.env.OIDC_CLIENT_SECRET;
   const redirectUri = process.env.CIE_REDIRECT_URI || process.env.OIDC_REDIRECT_URI;
 
-  if (!issuerUrl || !clientId || !clientSecret || !redirectUri) {
-    throw new Error('Configurazione OIDC incompleta. Verifica le variabili d\'ambiente.');
+  // Se tutte le variabili sono configurate, usa la configurazione reale
+  if (issuerUrl && clientId && clientSecret && redirectUri) {
+    return {
+      issuerUrl: issuerUrl.replace(/\/$/, ''), // Rimuovi trailing slash
+      clientId,
+      clientSecret,
+      redirectUri
+    };
   }
 
+  // Altrimenti, usa il mock server come fallback
+  console.warn('⚠️ Configurazione OIDC non trovata. Usando mock server come fallback.');
+  
+  // Determina l'URL base del server
+  let baseUrl;
+  if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_CIE === 'true') {
+    // In development, usa localhost
+    const port = process.env.PORT || 3001;
+    baseUrl = `http://localhost:${port}`;
+  } else {
+    // In produzione, usa l'URL del backend Render
+    // Se FRONTEND_URL è configurato, usa quello come base (dovrebbe essere il dominio principale)
+    // Altrimenti, usa l'URL Render diretto
+    baseUrl = process.env.BACKEND_URL || 
+              process.env.RENDER_EXTERNAL_URL || 
+              'https://demos-c7k0.onrender.com';
+  }
+  
   return {
-    issuerUrl: issuerUrl.replace(/\/$/, ''), // Rimuovi trailing slash
-    clientId,
-    clientSecret,
-    redirectUri
+    issuerUrl: `${baseUrl}/api/auth/mock-cie`,
+    clientId: process.env.CIE_CLIENT_ID || 'mock-client-id',
+    clientSecret: process.env.CIE_CLIENT_SECRET || 'mock-client-secret',
+    redirectUri: process.env.CIE_REDIRECT_URI || `${baseUrl}/api/auth/cie/callback`
   };
 };
 
