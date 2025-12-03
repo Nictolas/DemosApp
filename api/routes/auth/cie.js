@@ -11,7 +11,12 @@
 const express = require('express');
 // Usa fetch nativo di Node.js (disponibile da Node 18+)
 // Node.js su Render dovrebbe essere >= 18, quindi fetch è disponibile nativamente
-const fetch = globalThis.fetch || require('node-fetch');
+// Verifica che fetch sia disponibile
+if (typeof globalThis.fetch === 'undefined' && typeof fetch === 'undefined') {
+  throw new Error('fetch non disponibile. Node.js 18+ richiesto per fetch nativo.');
+}
+// Usa fetch nativo (disponibile globalmente in Node.js 18+)
+const fetchFunction = globalThis.fetch || fetch;
 
 const { getPool } = require('../../config/database');
 const { generateTokenPair } = require('../../utils/jwt');
@@ -156,7 +161,7 @@ router.get('/callback', async (req, res) => {
         code_verifier: stateData.codeVerifier
       });
 
-      const response = await fetch(tokenUrl, {
+      const response = await fetchFunction(tokenUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -193,7 +198,7 @@ router.get('/callback', async (req, res) => {
     let userInfo;
     try {
       const userInfoUrl = `${config.issuerUrl}/userinfo`;
-      const userInfoResponse = await fetch(userInfoUrl, {
+      const userInfoResponse = await fetchFunction(userInfoUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${access_token}`
