@@ -173,8 +173,6 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Rileva la struttura della tabella per capire quale colonna usare
     let userIdColumn = 'user_id';
-    let hasFirestoreUid = false;
-    let firestoreUidRequired = false;
     
     try {
       const tableInfoQuery = `
@@ -190,13 +188,6 @@ router.post('/vota', verifyToken, async (req, res) => {
       const hasUserId = columns.includes('user_id');
       const hasUserid = columns.includes('userid');
       userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-      
-      const firestoreUidColumn = tableInfo.rows.find(r => r.column_name === 'firestore_uid');
-      if (firestoreUidColumn) {
-        hasFirestoreUid = true;
-        firestoreUidRequired = firestoreUidColumn.is_nullable === 'NO';
-        console.log('🔍 DEBUG - Colonna firestore_uid trovata, required:', firestoreUidRequired);
-      }
     } catch (tableInfoError) {
       console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
     }
@@ -223,34 +214,12 @@ router.post('/vota', verifyToken, async (req, res) => {
         for (const nome of voti) {
           console.log('🔍 DEBUG - Inserimento voto per:', nome, 'userId:', userId);
           
-          let insertQuery;
-          let insertParams;
-          
-          if (hasFirestoreUid && firestoreUidRequired) {
-            // Includi firestore_uid usando userId come valore
-            insertQuery = `
-              INSERT INTO voti_grazia (${userIdColumn}, firestore_uid, nome, created_at) 
-              VALUES ($1, $2, $3, NOW())
-            `;
-            insertParams = [userId, userId, nome];
-            console.log('🔍 DEBUG - Inserimento con firestore_uid richiesto');
-          } else if (hasFirestoreUid && !firestoreUidRequired) {
-            // Includi firestore_uid come NULL
-            insertQuery = `
-              INSERT INTO voti_grazia (${userIdColumn}, firestore_uid, nome, created_at) 
-              VALUES ($1, NULL, $2, NOW())
-            `;
-            insertParams = [userId, nome];
-            console.log('🔍 DEBUG - Inserimento con firestore_uid nullable');
-          } else {
-            // Nessuna colonna firestore_uid
-            insertQuery = `
-              INSERT INTO voti_grazia (${userIdColumn}, nome, created_at) 
-              VALUES ($1, $2, NOW())
-            `;
-            insertParams = [userId, nome];
-            console.log('🔍 DEBUG - Inserimento senza firestore_uid');
-          }
+          // Inserisci il voto
+          const insertQuery = `
+            INSERT INTO voti_grazia (${userIdColumn}, nome, created_at) 
+            VALUES ($1, $2, NOW())
+          `;
+          const insertParams = [userId, nome];
           
           await client.query(insertQuery, insertParams);
           console.log('✅ DEBUG - Voto inserito con successo');
