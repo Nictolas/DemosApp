@@ -125,6 +125,7 @@ const corsOptions = {
     const allowedOrigins = [
       'https://www.demos.community',
       'https://demos.community',
+      'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
       'http://localhost:3000',
       'http://localhost:5173',
       'http://127.0.0.1:3000',
@@ -157,6 +158,7 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     'https://www.demos.community',
     'https://demos.community',
+    'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:3000',
@@ -185,6 +187,7 @@ app.options('*', (req, res) => {
   const allowedOrigins = [
     'https://www.demos.community',
     'https://demos.community',
+    'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:3000',
