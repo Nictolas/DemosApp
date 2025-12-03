@@ -14,19 +14,18 @@ const resolveBaseUrl = (): string => {
   
   // Produzione - usa il server di produzione
   // Il frontend è statico, quindi dobbiamo usare l'URL completo del backend API
+  // NOTA: Usiamo il dominio Render per le richieste API (fetch)
+  // Il redirect finale va all'Identity Provider, non a Render, quindi non c'è problema con Safe Browsing
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // Se siamo su demos.community o www.demos.community, usa il backend tramite il dominio principale
-    // Questo evita problemi con Google Safe Browsing sul dominio Render
+    // Se siamo su demos.community o www.demos.community, usa il backend Render
+    // Le richieste fetch al backend Render funzionano (non sono bloccate)
+    // Solo i redirect diretti del browser sono bloccati da Safe Browsing
     if (hostname === 'demos.community' || hostname === 'www.demos.community') {
-      // Usa il dominio principale per le richieste API (richiede configurazione reverse proxy)
-      // Se non disponibile, usa il dominio Render come fallback
-      // NOTA: Configura un reverse proxy su www.demos.community/api -> demos-c7k0.onrender.com/api
-      return 'https://www.demos.community/api';
+      return 'https://demos-c7k0.onrender.com/api';
     }
   }
   
-  // Fallback al dominio Render (solo per sviluppo o se il dominio principale non è configurato)
   return 'https://demos-c7k0.onrender.com/api';
 };
 

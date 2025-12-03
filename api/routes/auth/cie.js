@@ -87,8 +87,18 @@ router.get('/login', async (req, res) => {
 
     // Se la richiesta accetta JSON (es. da frontend), restituisci l'URL invece di fare redirect
     const acceptHeader = req.headers.accept || '';
-    if (acceptHeader.includes('application/json') || req.query.format === 'json') {
+    const isJsonRequest = acceptHeader.includes('application/json') || req.query.format === 'json';
+    
+    console.log('🔐 CIE Login: Richiesta ricevuta', {
+      acceptHeader,
+      format: req.query.format,
+      isJsonRequest,
+      userAgent: req.headers['user-agent']?.substring(0, 50)
+    });
+    
+    if (isJsonRequest) {
       console.log('🔐 CIE Login: Restituzione URL per redirect dal frontend');
+      console.log('🔐 CIE Login: Redirect URL generato:', authUrl);
       return res.json({
         success: true,
         redirectUrl: authUrl,
@@ -102,6 +112,20 @@ router.get('/login', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Errore inizio flusso CIE:', error);
+    
+    // Assicurati di restituire sempre JSON se la richiesta lo richiede
+    const acceptHeader = req.headers.accept || '';
+    const isJsonRequest = acceptHeader.includes('application/json') || req.query.format === 'json';
+    
+    if (isJsonRequest) {
+      return res.status(500).json({
+        success: false,
+        error: 'Errore durante l\'avvio del login CIE',
+        message: error.message
+      });
+    }
+    
+    // Altrimenti, risposta standard (potrebbe essere HTML in caso di errori middleware)
     res.status(500).json({
       success: false,
       error: 'Errore durante l\'avvio del login CIE',

@@ -657,21 +657,38 @@ export default function AuthPage() {
                       // Richiedi l'URL di redirect al backend invece di reindirizzare direttamente
                       // Questo evita problemi con Google Safe Browsing sul dominio Render
                       const cieLoginUrl = getApiUrl('/auth/cie/login?format=json');
+                      console.log('🔐 CIE Login: Richiesta URL a', cieLoginUrl);
+                      
                       const response = await fetch(cieLoginUrl, {
                         method: 'GET',
                         headers: {
-                          'Accept': 'application/json'
+                          'Accept': 'application/json',
+                          'Content-Type': 'application/json'
                         }
                       });
                       
+                      console.log('🔐 CIE Login: Risposta ricevuta, status:', response.status);
+                      console.log('🔐 CIE Login: Content-Type:', response.headers.get('content-type'));
+                      
+                      // Verifica che la risposta sia JSON
+                      const contentType = response.headers.get('content-type');
+                      if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('❌ CIE Login: Risposta non JSON ricevuta:', text.substring(0, 200));
+                        throw new Error('Il server ha restituito una risposta non valida. Verifica la configurazione del backend.');
+                      }
+                      
                       if (!response.ok) {
-                        throw new Error('Errore durante la richiesta del login CIE');
+                        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
+                        throw new Error(errorData.message || `Errore HTTP ${response.status}`);
                       }
                       
                       const data = await response.json();
+                      console.log('🔐 CIE Login: Dati ricevuti:', data);
                       
                       if (data.success && data.redirectUrl) {
                         // Reindirizza all'URL fornito dal backend
+                        console.log('🔐 CIE Login: Redirect a', data.redirectUrl);
                         window.location.href = data.redirectUrl;
                       } else {
                         throw new Error(data.message || 'Errore durante il login CIE');
