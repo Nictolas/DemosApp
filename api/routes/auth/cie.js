@@ -394,7 +394,18 @@ router.get('/callback', async (req, res) => {
     const tokens = generateTokenPair(tokenPayload);
 
     // Redirect al frontend con token (o restituisci JSON)
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    // Determina l'URL del frontend in base all'ambiente
+    let frontendUrl = process.env.FRONTEND_URL;
+    
+    if (!frontendUrl) {
+      // Fallback intelligente basato sull'ambiente
+      if (process.env.NODE_ENV === 'production') {
+        frontendUrl = 'https://www.demos.community';
+      } else {
+        frontendUrl = 'http://localhost:3000';
+      }
+    }
+    
     const redirectUrl = new URL(`${frontendUrl}/auth/cie/callback`);
     redirectUrl.searchParams.set('accessToken', tokens.accessToken);
     redirectUrl.searchParams.set('refreshToken', tokens.refreshToken);
