@@ -173,6 +173,8 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Rileva la struttura della tabella per capire quale colonna usare
     let userIdColumn = 'user_id';
+    let idType = 'uuid'; // Default a UUID
+    let timestampColumn = 'timestamp'; // Default a timestamp
     
     try {
       const tableInfoQuery = `
@@ -188,11 +190,29 @@ router.post('/vota', verifyToken, async (req, res) => {
       const hasUserId = columns.includes('user_id');
       const hasUserid = columns.includes('userid');
       userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
+      
+      // Rileva il tipo della colonna id
+      const idColumn = tableInfo.rows.find(r => r.column_name === 'id');
+      if (idColumn) {
+        idType = idColumn.data_type;
+        console.log('🔍 DEBUG - Tipo id rilevato:', idType);
+      }
+      
+      // Rileva quale colonna timestamp usare
+      if (columns.includes('timestamp')) {
+        timestampColumn = 'timestamp';
+      } else if (columns.includes('data_voto')) {
+        timestampColumn = 'data_voto';
+      } else if (columns.includes('created_at')) {
+        timestampColumn = 'created_at';
+      }
     } catch (tableInfoError) {
       console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
     }
     
     console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
+    console.log('🔍 DEBUG - Tipo id usato:', idType);
+    console.log('🔍 DEBUG - Colonna timestamp usata:', timestampColumn);
     
     // Inizia una transazione
     console.log('🔍 DEBUG - Inizio transazione');
@@ -212,14 +232,25 @@ router.post('/vota', verifyToken, async (req, res) => {
         console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
         
         for (const nome of voti) {
-          console.log('🔍 DEBUG - Inserimento voto per:', nome, 'userId:', userId);
+          // Genera ID in base al tipo della colonna
+          let votoId;
+          if (idType === 'uuid') {
+            // Se la colonna è UUID, genera un UUID
+            const uuidResult = await client.query('SELECT gen_random_uuid() as id');
+            votoId = uuidResult.rows[0].id;
+          } else {
+            // Se è VARCHAR o TEXT, usa una stringa
+            votoId = `voto_grazia_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          }
+          
+          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
           
           // Inserisci il voto
           const insertQuery = `
-            INSERT INTO voti_grazia (${userIdColumn}, nome, created_at) 
-            VALUES ($1, $2, NOW())
+            INSERT INTO voti_grazia (id, ${userIdColumn}, nome, ${timestampColumn}) 
+            VALUES ($1, $2, $3, NOW())
           `;
-          const insertParams = [userId, nome];
+          const insertParams = [votoId, userId, nome];
           
           await client.query(insertQuery, insertParams);
           console.log('✅ DEBUG - Voto inserito con successo');
