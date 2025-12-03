@@ -50,6 +50,7 @@ const oidcStateStore = new Map();
 /**
  * GET /cie/login
  * Inizia il flusso OIDC reindirizzando all'Identity Provider
+ * Supporta sia redirect diretto che risposta JSON con URL (per evitare problemi con Safe Browsing)
  */
 router.get('/login', async (req, res) => {
   try {
@@ -84,6 +85,18 @@ router.get('/login', async (req, res) => {
 
     const authUrl = `${config.issuerUrl}/authorize?${authParams.toString()}`;
 
+    // Se la richiesta accetta JSON (es. da frontend), restituisci l'URL invece di fare redirect
+    const acceptHeader = req.headers.accept || '';
+    if (acceptHeader.includes('application/json') || req.query.format === 'json') {
+      console.log('🔐 CIE Login: Restituzione URL per redirect dal frontend');
+      return res.json({
+        success: true,
+        redirectUrl: authUrl,
+        message: 'Reindirizza al seguente URL per completare il login CIE'
+      });
+    }
+
+    // Altrimenti, redirect diretto (per compatibilità con link diretti)
     console.log('🔐 CIE Login: Redirect a Identity Provider');
     res.redirect(authUrl);
 

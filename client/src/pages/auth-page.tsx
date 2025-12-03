@@ -652,10 +652,38 @@ export default function AuthPage() {
                   type="button"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   size="lg"
-                  onClick={() => {
-                    // Reindirizza al backend che gestirà il flusso OIDC
-                    const cieLoginUrl = getApiUrl('/auth/cie/login');
-                    window.location.href = cieLoginUrl;
+                  onClick={async () => {
+                    try {
+                      // Richiedi l'URL di redirect al backend invece di reindirizzare direttamente
+                      // Questo evita problemi con Google Safe Browsing sul dominio Render
+                      const cieLoginUrl = getApiUrl('/auth/cie/login?format=json');
+                      const response = await fetch(cieLoginUrl, {
+                        method: 'GET',
+                        headers: {
+                          'Accept': 'application/json'
+                        }
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error('Errore durante la richiesta del login CIE');
+                      }
+                      
+                      const data = await response.json();
+                      
+                      if (data.success && data.redirectUrl) {
+                        // Reindirizza all'URL fornito dal backend
+                        window.location.href = data.redirectUrl;
+                      } else {
+                        throw new Error(data.message || 'Errore durante il login CIE');
+                      }
+                    } catch (error) {
+                      console.error('❌ Errore login CIE:', error);
+                      toast({
+                        title: "Errore",
+                        description: error instanceof Error ? error.message : 'Errore durante il login CIE',
+                        variant: "destructive"
+                      });
+                    }
                   }}
                 >
                   <CreditCard className="mr-2 h-5 w-5" />
