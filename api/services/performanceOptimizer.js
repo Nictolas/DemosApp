@@ -41,10 +41,12 @@ class PerformanceOptimizer {
     this.isOptimizing = true;
     console.log('🚀 Avvio ottimizzazioni performance automatiche...');
     
-    // Ottimizzazioni ogni 30 secondi
-    setInterval(() => {
-      this.performOptimizations();
-    }, 30000);
+    // Ottimizzazioni ogni 30 secondi (solo se abilitato)
+    if (process.env.ENABLE_PERFORMANCE_OPTIMIZER !== 'false') {
+      setInterval(() => {
+        this.performOptimizations();
+      }, 30000);
+    }
     
     // Monitoraggio real-time ogni 10 secondi
     setInterval(() => {
@@ -64,20 +66,20 @@ class PerformanceOptimizer {
         await this.optimizeDatabasePool();
       }
       
-      // Ottimizzazione memoria
-      // Considera sia il rapporto che la memoria assoluta per evitare falsi positivi
+      // Ottimizzazione memoria - DISABILITATA TEMPORANEAMENTE
+      // La memoria è molto bassa (19-20MB) e non necessita di GC forzato
+      // Il GC automatico di Node.js è sufficiente per questi livelli di memoria
+      // Riabilitare solo se la memoria supera 500MB con utilizzo > 90%
       const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
       const heapTotalMB = memoryUsage.heapTotal / 1024 / 1024;
       const memoryRatio = memoryUsage.heapUsed / memoryUsage.heapTotal;
       
-      // Forza GC solo se:
-      // 1. La memoria utilizzata è > 100MB (evita falsi positivi con memoria molto bassa)
-      // 2. Il rapporto è > 0.85 (soglia più alta per evitare GC inutili)
-      // 3. La memoria totale è > 50MB (evita GC quando la memoria è troppo bassa)
-      if (heapUsedMB > 100 && memoryRatio > 0.85 && heapTotalMB > 50) {
+      // Forza GC solo se memoria molto alta (evita spam con memoria bassa)
+      if (heapUsedMB > 500 && memoryRatio > 0.90 && heapTotalMB > 200) {
         console.log(`⚠️ Memoria satura (${heapUsedMB.toFixed(1)}MB/${heapTotalMB.toFixed(1)}MB, ${(memoryRatio * 100).toFixed(1)}%), forzando garbage collection...`);
         this.optimizeMemory();
       }
+      // Nessun log per memoria normale - evita spam nei log
       
       // Ottimizzazione rate limiting dinamico
       await this.optimizeRateLimiting();
