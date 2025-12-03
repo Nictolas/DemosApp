@@ -5,13 +5,14 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
 import { Redirect, Link } from "wouter";
+import { getApiUrl } from "@/lib/api-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, CreditCard } from "lucide-react";
 import './auth-page.css';
 
 const loginSchema = z.object({
@@ -46,7 +47,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot-password">("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register" | "cie" | "forgot-password">("login");
   const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail, forgotPasswordMutation } = useAuth();
   const { toast } = useToast();
 
@@ -284,10 +285,11 @@ export default function AuthPage() {
         </CardHeader>
 
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register" | "forgot-password")}>
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register" | "cie" | "forgot-password")}>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="login">Accedi</TabsTrigger>
               <TabsTrigger value="register">Registrati</TabsTrigger>
+              <TabsTrigger value="cie">CIE</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -620,6 +622,59 @@ export default function AuthPage() {
                   </Button>
                 </form>
               </Form>
+            </TabsContent>
+
+            <TabsContent value="cie">
+              <div className="space-y-6">
+                <div className="text-center mb-6">
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-blue-100 p-4 rounded-full">
+                      <CreditCard className="h-8 w-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800">Accedi con CIE</h3>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Usa la tua Carta d'Identità Elettronica per accedere in modo sicuro
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Cos'è la CIE?</strong>
+                  </p>
+                  <p className="text-sm text-blue-700 mt-2">
+                    La Carta d'Identità Elettronica è il documento di identità italiano che ti permette 
+                    di autenticarti in modo sicuro e veloce senza bisogno di password.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  size="lg"
+                  onClick={() => {
+                    // Reindirizza al backend che gestirà il flusso OIDC
+                    const cieLoginUrl = getApiUrl('/auth/cie/login');
+                    window.location.href = cieLoginUrl;
+                  }}
+                >
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Accedi con CIE
+                </Button>
+
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">
+                    Non hai una CIE?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("register")}
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Registrati con email
+                    </button>
+                  </p>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="forgot-password">
