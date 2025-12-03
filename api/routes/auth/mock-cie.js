@@ -47,7 +47,7 @@ router.get('/authorize', checkMockEnabled, (req, res) => {
 
   // Genera authorization code
   const authCode = crypto.randomBytes(32).toString('hex');
-  const expiresAt = Date.now() + 60000; // 1 minuto
+  const expiresAt = Date.now() + 300000; // 5 minuti (aumentato per gestire possibili ritardi)
 
   // Salva il codice con i parametri della richiesta
   const authData = {
@@ -62,9 +62,19 @@ router.get('/authorize', checkMockEnabled, (req, res) => {
   
   console.log('🔐 Mock CIE GET /authorize: Authorization code generato', {
     code: authCode.substring(0, 8) + '...',
+    fullCode: authCode, // Log completo per debug
     redirect_uri,
-    expiresAt: new Date(expiresAt).toISOString()
+    expiresAt: new Date(expiresAt).toISOString(),
+    mapSize: authorizationCodes.size
   });
+  
+  // Verifica che il codice sia stato salvato
+  const verifyCode = authorizationCodes.get(authCode);
+  if (!verifyCode) {
+    console.error('❌ Mock CIE GET /authorize: ERRORE - Codice non salvato correttamente!');
+  } else {
+    console.log('✅ Mock CIE GET /authorize: Codice verificato e salvato correttamente');
+  }
 
   // Mostra pagina HTML con bottone
   res.send(`
@@ -159,15 +169,66 @@ router.post('/authorize', checkMockEnabled, (req, res) => {
       });
     }
 
-    const authData = authorizationCodes.get(auth_code);
+    console.log('🔐 Mock CIE POST /authorize: Cercando codice nella Map...', {
+      code: auth_code,
+      mapSize: authorizationCodes.size,
+      mapKeys: Array.from(authorizationCodes.keys()).map(k => k.substring(0, 8) + '...')
+    });
+    
+    let authData = authorizationCodes.get(auth_code);
 
+    // Fallback: se il codice non è nella Map (possibile problema con più istanze su Render),
+    // prova a ricostruire i dati dal Referer header
     if (!authData) {
-      console.error('❌ Mock CIE POST /authorize: Authorization code non trovato', auth_code);
-      return res.status(400).json({
-        error: 'invalid_request',
-        error_description: 'Authorization code non valido'
-      });
+      console.warn('⚠️ Mock CIE POST /authorize: Codice non trovato nella Map, provo fallback dal Referer');
+      const referer = req.headers.referer;
+      
+      if (referer) {
+        try {
+          const refererUrl = new URL(referer);
+          const redirect_uri = refererUrl.searchParams.get('redirect_uri');
+          const state = refererUrl.searchParams.get('state');
+          const client_id = refererUrl.searchParams.get('client_id');
+          const scope = refererUrl.searchParams.get('scope') || 'openid profile';
+          
+          if (redirect_uri && client_id) {
+            console.log('✅ Mock CIE POST /authorize: Dati ricostruiti dal Referer', {
+              redirect_uri,
+              client_id,
+              state: state ? state.substring(0, 8) + '...' : null
+            });
+            
+            authData = {
+              client_id,
+              redirect_uri,
+              state,
+              scope,
+              expiresAt: Date.now() + 60000 // 1 minuto da ora
+            };
+          }
+        } catch (refererError) {
+          console.error('❌ Mock CIE POST /authorize: Errore parsing Referer', refererError);
+        }
+      }
+      
+      if (!authData) {
+        console.error('❌ Mock CIE POST /authorize: Authorization code non trovato e fallback fallito', {
+          code: auth_code,
+          mapSize: authorizationCodes.size,
+          availableCodes: Array.from(authorizationCodes.keys()).slice(0, 5).map(k => k.substring(0, 16)),
+          referer: req.headers.referer
+        });
+        return res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'Authorization code non valido o scaduto'
+        });
+      }
     }
+    
+    console.log('✅ Mock CIE POST /authorize: Codice trovato', {
+      code: auth_code.substring(0, 8) + '...',
+      redirect_uri: authData.redirect_uri
+    });
 
     // Verifica scadenza
     if (Date.now() > authData.expiresAt) {
