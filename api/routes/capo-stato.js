@@ -279,10 +279,8 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Se necessario, possiamo rilevare dinamicamente, ma per ora usiamo userid
     const userIdColumn = 'userid';
     let idType = 'uuid'; // Default a UUID
-    let hasFirestoreUid = false;
-    let firestoreUidRequired = false;
     
-    // Rileva la struttura della tabella per capire quali colonne sono necessarie
+    // Rileva la struttura della tabella per capire il tipo di id
     try {
       const tableInfoQuery = `
         SELECT column_name, data_type, is_nullable
@@ -298,20 +296,12 @@ router.post('/vota', verifyToken, async (req, res) => {
         idType = idColumn.data_type;
         console.log('🔍 DEBUG - Tipo id rilevato:', idType);
       }
-      
-      const firestoreUidColumn = tableInfo.rows.find(r => r.column_name === 'firestore_uid');
-      if (firestoreUidColumn) {
-        hasFirestoreUid = true;
-        firestoreUidRequired = firestoreUidColumn.is_nullable === 'NO';
-        console.log('🔍 DEBUG - Colonna firestore_uid trovata, required:', firestoreUidRequired);
-      }
     } catch (tableInfoError) {
       console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
     }
     
     console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
     console.log('🔍 DEBUG - Tipo id usato:', idType);
-    console.log('🔍 DEBUG - Has firestore_uid:', hasFirestoreUid, 'Required:', firestoreUidRequired);
 
     if (userRole !== 'Admin') {
       // Controlla se l'utente ha voti esistenti
@@ -382,36 +372,12 @@ router.post('/vota', verifyToken, async (req, res) => {
           
           console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
           
-          // Costruisci la query in base alle colonne disponibili
-          // Se firestore_uid è richiesto, usiamo userId come valore (compatibilità con vecchio schema)
-          let insertQuery;
-          let insertParams;
-          
-          if (hasFirestoreUid && firestoreUidRequired) {
-            // Includi firestore_uid usando userId come valore
-            insertQuery = `
-              INSERT INTO voti_capo_stato (id, ${userIdColumn}, firestore_uid, nome, timestamp) 
-              VALUES ($1, $2, $3, $4, NOW())
-            `;
-            insertParams = [votoId, userId, userId, nome];
-            console.log('🔍 DEBUG - Inserimento con firestore_uid richiesto');
-          } else if (hasFirestoreUid && !firestoreUidRequired) {
-            // Includi firestore_uid come NULL
-            insertQuery = `
-              INSERT INTO voti_capo_stato (id, ${userIdColumn}, firestore_uid, nome, timestamp) 
-              VALUES ($1, $2, NULL, $3, NOW())
-            `;
-            insertParams = [votoId, userId, nome];
-            console.log('🔍 DEBUG - Inserimento con firestore_uid nullable');
-          } else {
-            // Nessuna colonna firestore_uid
-            insertQuery = `
-              INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp) 
-              VALUES ($1, $2, $3, NOW())
-            `;
-            insertParams = [votoId, userId, nome];
-            console.log('🔍 DEBUG - Inserimento senza firestore_uid');
-          }
+          // Inserisci il voto
+          const insertQuery = `
+            INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp) 
+            VALUES ($1, $2, $3, NOW())
+          `;
+          const insertParams = [votoId, userId, nome];
           
           await client.query(insertQuery, insertParams);
           console.log('✅ DEBUG - Voto inserito con successo');
