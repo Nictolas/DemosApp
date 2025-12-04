@@ -39,7 +39,7 @@
 .app-navbar {
   grid-row: 3;
   background: white;
-  border-top: 1px solid #e5e7eb;
+  border-top: none !important; /* Rimosso border-top che creava riga bianca */
   z-index: 1000;
   position: relative;
   flex-shrink: 0;

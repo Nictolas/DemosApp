@@ -159,8 +159,7 @@
   .app-main {
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
-    /* Aggiungi spazio extra per Android */
-    margin-bottom: 1rem !important;
+    /* Rimosso margin-bottom che creava spazio bianco */
   }
   
   /* Padding dinamico per le pagine - altezza originale + spazio extra */

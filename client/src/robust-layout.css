@@ -34,6 +34,8 @@
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   min-height: 0; /* Importante per Flexbox */
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 /* Assicuriamo che la pagina menu non venga tagliata */
@@ -45,7 +47,7 @@
 .app-navbar {
   flex-shrink: 0;
   background: white;
-  border-top: 1px solid #e5e7eb;
+  border-top: none !important; /* Rimosso border-top che creava riga bianca */
   z-index: 9999;
   position: sticky !important;
   bottom: 0 !important;
@@ -54,6 +56,8 @@
   width: 100% !important;
   overflow: visible !important;
   order: 999 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /* ===== CORREZIONI FORZATE PER NAVBAR ===== */
