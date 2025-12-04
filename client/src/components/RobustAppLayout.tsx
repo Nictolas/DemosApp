@@ -126,9 +126,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
             bottom: 0,
             zIndex: 9999,
             flexShrink: 0,
-            width: '100%',
-            overflow: 'visible',
-            transition: 'transform 0.3s ease-in-out'
+            width: '100%'
           }}
         >
           <Navbar />

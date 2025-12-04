@@ -62,21 +62,26 @@
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   order: 999 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
-  transition: transform 0.3s ease-in-out;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  max-height: 200px; /* Altezza massima quando visibile */
+  opacity: 1;
 }
 
 /* Navbar visibile - mostra */
 .app-navbar.navbar-visible {
-  transform: translateY(0);
+  max-height: 200px;
+  opacity: 1;
 }
 
-/* Navbar nascosta - nascondi sotto lo schermo */
+/* Navbar nascosta - nascondi completamente senza occupare spazio */
 .app-navbar.navbar-hidden {
-  transform: translateY(100%);
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
 /* ===== CORREZIONI FORZATE PER NAVBAR ===== */
