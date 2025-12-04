@@ -88,15 +88,15 @@ export default function Menu() {
   return (
     <PageContainer className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
       <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
-        <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
-          <Card className="w-full">
+        <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col">
+          <Card className="w-full flex-shrink-0">
             <MenuHeader 
               key={`header-${user?.email || 'no-user'}`}
               isAdmin={isAdmin}
               onAdminClick={() => setLocation("/gestisci")}
             />
           </Card>
-          <div className="mt-4">
+          <div className="mt-4 flex-1 flex flex-col">
             <MenuGrid 
               key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
               hasAdvancedAccess={hasAdvancedAccess}
