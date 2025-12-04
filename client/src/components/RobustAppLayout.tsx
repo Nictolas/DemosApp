@@ -14,7 +14,6 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const lastScrollYRef = useRef(0);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Rileva dispositivi Android
   useAndroidDetection();
@@ -38,35 +37,38 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
       return;
     }
 
+    let ticking = false;
+
     const handleScroll = () => {
-      // Cancella il timeout precedente per debounce
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const mainContent = document.querySelector('.app-main');
+          if (!mainContent) {
+            ticking = false;
+            return;
+          }
+
+          const currentScrollY = mainContent.scrollTop;
+          const scrollThreshold = 10; // Soglia minima per evitare flickering
+
+          // In cima = mostra sempre la navbar
+          if (currentScrollY <= scrollThreshold) {
+            setIsNavbarVisible(true);
+          }
+          // Scorrere verso il basso = mostra navbar
+          else if (currentScrollY > lastScrollYRef.current) {
+            setIsNavbarVisible(true);
+          }
+          // Scorrere verso l'alto = nascondi navbar
+          else if (currentScrollY < lastScrollYRef.current) {
+            setIsNavbarVisible(false);
+          }
+
+          lastScrollYRef.current = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
       }
-
-      // Debounce per evitare troppi aggiornamenti
-      scrollTimeoutRef.current = setTimeout(() => {
-        const mainContent = document.querySelector('.app-main');
-        if (!mainContent) return;
-
-        const currentScrollY = mainContent.scrollTop;
-        const scrollThreshold = 10; // Soglia minima per evitare flickering
-
-        // In cima = mostra sempre la navbar
-        if (currentScrollY <= scrollThreshold) {
-          setIsNavbarVisible(true);
-        }
-        // Scorrere verso il basso = mostra navbar
-        else if (currentScrollY > lastScrollYRef.current) {
-          setIsNavbarVisible(true);
-        }
-        // Scorrere verso l'alto = nascondi navbar
-        else if (currentScrollY < lastScrollYRef.current) {
-          setIsNavbarVisible(false);
-        }
-
-        lastScrollYRef.current = currentScrollY;
-      }, 50); // Debounce di 50ms
     };
 
     const mainContent = document.querySelector('.app-main');
@@ -78,9 +80,6 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
       
       return () => {
         mainContent.removeEventListener('scroll', handleScroll);
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
       };
     }
   }, [shouldShowNavbar]);
