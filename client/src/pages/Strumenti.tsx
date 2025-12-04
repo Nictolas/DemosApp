@@ -293,7 +293,7 @@ export default function Strumenti() {
         </Card>
 
         {/* Pulsanti Navigazione - Nuova estetica */}
-        <div className="flex-1 grid grid-cols-2 gap-1.5 min-h-0 auto-rows-fr">
+        <div className="flex-1 grid grid-cols-2 gap-1.5 min-h-0">
           {/* Votazione (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
