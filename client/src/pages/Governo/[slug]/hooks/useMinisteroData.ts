@@ -40,10 +40,21 @@ export const useMinisteroData = (user: any, categoria?: string) => {
 
   // Mutazione per salvare i voti del ministero
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => apiRequest("POST", `/api/governo/ministro/${categoria}/vota`, { voti }),
-    onSuccess: () => {
+    mutationFn: async (voti: string[]) => {
+      const response = await apiRequest("POST", `/api/governo/ministro/${categoria}/vota`, { voti });
+      if (!response?.ok) {
+        throw new Error(response?.data?.error || 'Errore nel salvataggio');
+      }
+      return response;
+    },
+    onSuccess: async (data, variables) => {
+      console.log('✅ DEBUG - Voti salvati con successo:', variables);
       toast({ title: "Preferenze salvate", description: "Le tue scelte per questo ministero sono state aggiornate." });
-      queryClient.invalidateQueries({ queryKey: ['ministeroVoti', categoria] });
+      // Invalida e forza il refetch immediato per aggiornare i dati
+      await queryClient.invalidateQueries({ queryKey: ['ministeroVoti', categoria] });
+      // Forza il refetch immediato per vedere i dati aggiornati
+      const result = await queryClient.refetchQueries({ queryKey: ['ministeroVoti', categoria] });
+      console.log('✅ DEBUG - Dati ricaricati dopo salvataggio:', result);
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message || "Impossibile salvare le preferenze.", variant: "destructive" });
