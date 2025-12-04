@@ -81,6 +81,21 @@ const saveOIDCState = async (state, codeVerifier, expiresAt) => {
   try {
     const expiresAtDate = new Date(expiresAt);
     console.log('💾 saveOIDCState: Salvando state:', state.substring(0, 16) + '...', 'expires_at:', expiresAtDate.toISOString());
+    
+    // Verifica prima se la tabella esiste
+    const tableCheck = await pool.query(
+      `SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'oidc_states'
+      )`
+    );
+    
+    if (!tableCheck.rows[0].exists) {
+      console.error('❌ saveOIDCState: Tabella oidc_states non esiste!');
+      throw new Error('Tabella oidc_states non esiste. Esegui lo script create-oidc-state-table.sql');
+    }
+    
     const result = await pool.query(
       `INSERT INTO oidc_states (state, code_verifier, expires_at)
        VALUES ($1, $2, $3)
@@ -102,7 +117,8 @@ const saveOIDCState = async (state, codeVerifier, expiresAt) => {
       console.error('❌ saveOIDCState: ERRORE - state non trovato dopo il salvataggio!');
     }
   } catch (error) {
-    console.error('❌ Errore salvataggio OIDC state:', error);
+    console.error('❌ Errore salvataggio OIDC state:', error.message);
+    console.error('❌ Stack trace:', error.stack);
     throw error;
   }
 };
@@ -177,10 +193,13 @@ router.get('/login', async (req, res) => {
 
     // Salva state e code_verifier nel database
     const expiresAt = Date.now() + 600000; // 10 minuti
+    console.log('🔐 CIE Login: Creando state:', state.substring(0, 16) + '...');
     try {
       await saveOIDCState(state, codeVerifier, expiresAt);
+      console.log('✅ CIE Login: State salvato con successo');
     } catch (error) {
       // Fallback alla Map se il database fallisce (sviluppo locale)
+      console.error('❌ CIE Login: Errore salvataggio state nel database:', error.message);
       console.warn('⚠️ Fallback a Map in-memory per OIDC state');
       oidcStateStore.set(state, {
         codeVerifier,
