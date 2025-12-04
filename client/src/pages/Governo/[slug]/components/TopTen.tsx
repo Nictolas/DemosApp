@@ -1,7 +1,7 @@
-import React from "react";
-import { Trophy, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Trophy, ThumbsUp, Plus } from "lucide-react";
 import { TopTenProps } from "../types";
 
 export const TopTen: React.FC<TopTenProps> = ({
@@ -10,100 +10,173 @@ export const TopTen: React.FC<TopTenProps> = ({
   onToggleSelezione,
   showAllClassifica
 }) => {
-  const topTen = classifiche.slice(0, 10);
-  const remaining = classifiche.slice(10);
+  const [showAllClassificaLocal, setShowAllClassificaLocal] = useState(false);
+
+  const handleShowClassifica = () => setShowAllClassificaLocal(!showAllClassificaLocal);
+
+  if (!classifiche || classifiche.length === 0) {
+    return (
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            <span>Classifica Candidati</span>
+          </CardTitle>
+          <CardDescription>
+            I candidati che hanno ricevuto più voti (0 totali)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12 text-gray-500">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <Trophy className="h-10 w-10 text-gray-400" />
+            </div>
+            <p className="text-lg font-medium text-gray-600">
+              Nessuna classifica disponibile al momento
+            </p>
+            <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center space-x-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
-          Top 10 Candidati
-          <Badge variant="secondary" className="ml-auto">
-            <Users className="h-3 w-3 mr-1" />
-            {classifiche.length} totali
-          </Badge>
+          <span>Classifica Candidati</span>
         </CardTitle>
+        <CardDescription>
+          I candidati che hanno ricevuto più voti ({classifiche.length} totali)
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        {classifiche.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">
-            Nessun voto ancora registrato per questo ministero.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {/* Top 10 sempre visibili */}
-            {topTen.map((candidato, index) => (
-              <div
-                key={candidato.nome}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
-                  selectedVoti.includes(candidato.nome)
-                    ? 'bg-primary/10 border-primary/20 ring-2 ring-primary/20'
-                    : 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200'
-                }`}
-                onClick={() => onToggleSelezione(candidato.nome)}
+        <div className="space-y-4">
+          {/* Primi 3 candidati sempre visibili */}
+          <div className="space-y-3">
+            {classifiche.slice(0, 3).map((item, index) => (
+              <div 
+                key={item.nome} 
+                className="group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
               >
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                    index < 3 
-                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white'
-                      : 'bg-gradient-to-br from-blue-400 to-blue-600 text-white'
-                  }`}>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
                     {index + 1}
                   </div>
-                  <span className="font-medium">{candidato.nome}</span>
+                  <div>
+                    <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">
+                      {item.nome}
+                    </h4>
+                    <p className="text-sm text-gray-600 flex items-center">
+                      <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                      {item.voti} voti
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{candidato.voti} voti</Badge>
-                  {selectedVoti.includes(candidato.nome) && (
-                    <Badge variant="default" className="bg-primary">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onToggleSelezione(item.nome)}
+                  disabled={selectedVoti.includes(item.nome) && selectedVoti.length >= 1}
+                  className={`transition-all duration-300 ${
+                    selectedVoti.includes(item.nome) 
+                      ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+                      : selectedVoti.length >= 1
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                  }`}
+                >
+                  {selectedVoti.includes(item.nome) ? (
+                    <>
+                      <ThumbsUp className="h-4 w-4 mr-2" />
                       Selezionato
-                    </Badge>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Seleziona
+                    </>
                   )}
-                </div>
+                </Button>
               </div>
             ))}
-
-            {/* Candidati rimanenti (se ci sono) */}
-            {remaining.length > 0 && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Altri {remaining.length} candidati:
-                </p>
-                <div className="space-y-1">
-                  {remaining.map((candidato, index) => (
-                    <div
-                      key={candidato.nome}
-                      className={`flex items-center justify-between p-2 rounded-lg border transition-all duration-200 cursor-pointer ${
-                        selectedVoti.includes(candidato.nome)
-                          ? 'bg-primary/10 border-primary/20'
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      }`}
-                      onClick={() => onToggleSelezione(candidato.nome)}
+          </div>
+          
+          {/* Candidati rimanenti (espandibili) */}
+          {classifiche.length > 3 && (
+            <div className="space-y-3">
+              {/* Pulsante per espandere/comprimere */}
+              <div className="text-center">
+                <Button 
+                  onClick={handleShowClassifica} 
+                  variant="outline" 
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
+                >
+                  <Trophy className="h-5 w-5 mr-2 text-blue-600" />
+                  {showAllClassificaLocal 
+                    ? `Nascondi (${classifiche.length - 3} candidati)` 
+                    : `Mostra Altro (${classifiche.length - 3} candidati rimanenti)`
+                  }
+                </Button>
+              </div>
+              
+              {/* Candidati rimanenti (animati) */}
+              {showAllClassificaLocal && (
+                <div className="space-y-3 transition-all duration-500 ease-out">
+                  {classifiche.slice(3).map((item, index) => (
+                    <div 
+                      key={item.nome} 
+                      className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-600 w-6">
-                          {index + 11}.
-                        </span>
-                        <span className="text-sm">{candidato.nome}</span>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
+                          {index + 4}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">
+                            {item.nome}
+                          </h4>
+                          <p className="text-sm text-gray-600 flex items-center">
+                            <Trophy className="h-4 w-4 mr-2 text-blue-500" />
+                            {item.voti} voti
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {candidato.voti} voti
-                        </Badge>
-                        {selectedVoti.includes(candidato.nome) && (
-                          <Badge variant="default" className="bg-primary text-xs">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onToggleSelezione(item.nome)}
+                        disabled={selectedVoti.includes(item.nome) && selectedVoti.length >= 1}
+                        className={`transition-all duration-300 ${
+                          selectedVoti.includes(item.nome) 
+                            ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+                            : selectedVoti.length >= 1
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
+                        }`}
+                      >
+                        {selectedVoti.includes(item.nome) ? (
+                          <>
+                            <ThumbsUp className="h-4 w-4 mr-2" />
                             Selezionato
-                          </Badge>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Seleziona
+                          </>
                         )}
-                      </div>
+                      </Button>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
