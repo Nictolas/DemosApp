@@ -78,17 +78,19 @@ export default function Notifiche() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto h-full flex flex-col">
+      <div className="max-w-4xl mx-auto w-full flex flex-col" style={{ minHeight: 'calc(100vh - 6rem - env(safe-area-inset-bottom))' }}>
         <LoadingStates isAuthLoading={isAuthLoading} />
         
-        <Header
-          fcmToken={fcmToken}
-          fcmError={fcmError}
-          permission={permission}
-          onSwitch={handleSwitch}
-        />
+        <div className="flex-shrink-0">
+          <Header
+            fcmToken={fcmToken}
+            fcmError={fcmError}
+            permission={permission}
+            onSwitch={handleSwitch}
+          />
+        </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <ListaNotifiche
             data={data}
             isLoading={isLoading}
