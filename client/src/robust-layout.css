@@ -51,7 +51,7 @@
   max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }
 
-/* Navbar area - SEMPRE FISSA */
+/* Navbar area - Appare/Scompare con scroll */
 .app-navbar {
   flex-shrink: 0;
   background: white;
@@ -66,6 +66,17 @@
   order: 999 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
+  transition: transform 0.3s ease-in-out;
+}
+
+/* Navbar visibile - mostra */
+.app-navbar.navbar-visible {
+  transform: translateY(0);
+}
+
+/* Navbar nascosta - nascondi sotto lo schermo */
+.app-navbar.navbar-hidden {
+  transform: translateY(100%);
 }
 
 /* ===== CORREZIONI FORZATE PER NAVBAR ===== */
