@@ -6,9 +6,10 @@ import { UseMutationResult } from "@tanstack/react-query";
 interface UseMinisteroActionsProps {
   data: MinisteroData | undefined;
   saveVotiMutation: UseMutationResult<any, any, string[], unknown>;
+  isAdmin?: boolean;
 }
 
-export const useMinisteroActions = ({ data, saveVotiMutation }: UseMinisteroActionsProps) => {
+export const useMinisteroActions = ({ data, saveVotiMutation, isAdmin = false }: UseMinisteroActionsProps) => {
   const { toast } = useToast();
   
   const [votingState, setVotingState] = useState<MinisteroVotingState>({
@@ -22,9 +23,11 @@ export const useMinisteroActions = ({ data, saveVotiMutation }: UseMinisteroActi
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
     if (data?.mieiVoti) {
+      // Rimuovi duplicati dai voti
+      const votiUnici = Array.from(new Set(data.mieiVoti));
       setVotingState(prev => ({
         ...prev,
-        selectedVoti: data.mieiVoti
+        selectedVoti: votiUnici
       }));
     }
   }, [data]);
@@ -60,8 +63,8 @@ export const useMinisteroActions = ({ data, saveVotiMutation }: UseMinisteroActi
       return;
     }
     
-    // Se l'utente è bloccato, non permettere modifiche
-    if (data?.blocco.isBlocked) {
+    // Se l'utente è bloccato e non è admin, non permettere modifiche
+    if (data?.blocco.isBlocked && !isAdmin) {
       toast({ title: "Voti bloccati", description: "Non puoi modificare i voti più di una volta a settimana.", variant: "destructive" });
       return;
     }

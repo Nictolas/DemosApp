@@ -47,4 +47,5 @@ export interface VotingFormProps {
   onRemove: (nome: string) => void;
   onShowForm: () => void;
   onSaveVoti: () => void;
+  isAdmin?: boolean;
 }

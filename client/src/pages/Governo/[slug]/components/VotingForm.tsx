@@ -13,9 +13,10 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   onAddNome,
   onRemove,
   onShowForm,
-  onSaveVoti
+  onSaveVoti,
+  isAdmin = false
 }) => {
-  const isBlocked = data?.blocco.isBlocked || false;
+  const isBlocked = (data?.blocco.isBlocked || false) && !isAdmin;
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {

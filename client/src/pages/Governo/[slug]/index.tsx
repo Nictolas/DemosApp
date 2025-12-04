@@ -24,6 +24,10 @@ export default function MinisteroPage() {
   const ministero = ministeri.find(m => m.slug === slug);
   
   const { data, isLoading, isError, saveVotiMutation } = useMinisteroData(user, ministero?.categoria);
+  
+  // Verifica se l'utente è admin
+  const isAdmin = user?.ruolo === "AD" || user?.ruolo === "Admin" || user?.ruolo === "A";
+  
   const { 
     votingState, 
     setVotingState,
@@ -33,7 +37,7 @@ export default function MinisteroPage() {
     toggleSelezioneClassifica, 
     showClassifica, 
     saveVoti 
-  } = useMinisteroActions({ data, saveVotiMutation });
+  } = useMinisteroActions({ data, saveVotiMutation, isAdmin });
 
 
 
@@ -61,7 +65,7 @@ export default function MinisteroPage() {
         <div className="container mx-auto max-w-4xl">
           <Header ministero={ministero} unlockDate={data?.blocco.unlockDate} />
 
-          {data?.blocco.isBlocked && (
+          {data?.blocco.isBlocked && !isAdmin && (
             <BlockedWarning unlockDate={data.blocco.unlockDate} />
           )}
 
@@ -84,6 +88,7 @@ export default function MinisteroPage() {
                 onRemove={removeLocal}
                 onShowForm={showClassifica}
                 onSaveVoti={() => {}} // Non più necessario, ma mantenuto per compatibilità
+                isAdmin={isAdmin}
               />
 
               {/* Classifica candidati */}
