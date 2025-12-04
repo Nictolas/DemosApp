@@ -188,6 +188,11 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
       }
 
       await client.query('COMMIT');
+      
+      // Log per debug
+      console.log(`✅ DEBUG - Voti salvati per categoria ${categoria}, userId: ${userId}`);
+      console.log(`✅ DEBUG - Voti inseriti:`, voti);
+      
       res.json({ success: true, message: 'Voti salvati con successo' });
 
     } catch (error) {

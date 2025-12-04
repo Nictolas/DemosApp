@@ -41,6 +41,7 @@ export default function MinisteroPage() {
     saveVotiMutation.mutate(votingState.selectedVoti, {
       onSuccess: () => {
         saveVoti();
+        // I dati verranno aggiornati automaticamente tramite il refetch
       }
     });
   };
