@@ -33,18 +33,11 @@ export default function MinisteroPage() {
     toggleSelezioneClassifica, 
     showClassifica, 
     saveVoti 
-  } = useMinisteroActions(data);
+  } = useMinisteroActions({ data, saveVotiMutation });
 
 
 
-  const handleSaveVoti = () => {
-    saveVotiMutation.mutate(votingState.selectedVoti, {
-      onSuccess: () => {
-        saveVoti();
-        // I dati verranno aggiornati automaticamente tramite il refetch
-      }
-    });
-  };
+  // handleSaveVoti non è più necessario - il salvataggio è automatico
 
   if (isAuthLoading) {
     return (
@@ -90,7 +83,7 @@ export default function MinisteroPage() {
                 onAddNome={addNomeLocal}
                 onRemove={removeLocal}
                 onShowForm={showClassifica}
-                onSaveVoti={handleSaveVoti}
+                onSaveVoti={() => {}} // Non più necessario, ma mantenuto per compatibilità
               />
 
               {/* Classifica candidati */}
