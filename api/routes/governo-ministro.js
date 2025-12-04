@@ -61,9 +61,12 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     const userResult = await pool.query(userQuery, [userId]);
     const userRole = userResult.rows[0]?.ruolo;
 
+    // Verifica se l'utente è admin (A, AD, Admin)
+    const isAdmin = userRole === 'Admin' || userRole === 'AD' || userRole === 'A';
+
     let blocco = { is_blocked: false, unlock_date: null };
     
-    if (userRole !== 'Admin') {
+    if (!isAdmin) {
       const bloccoQuery = `
         SELECT 
           CASE 
@@ -137,8 +140,11 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     const userRole = userResult.rows[0]?.ruolo;
-
-    if (userRole !== 'Admin') {
+    
+    // Verifica se l'utente è admin (A, AD, Admin)
+    const isAdmin = userRole === 'Admin' || userRole === 'AD' || userRole === 'A';
+    
+    if (!isAdmin) {
       const bloccoQuery = `
         SELECT 
           CASE 
