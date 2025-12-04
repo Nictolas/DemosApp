@@ -281,16 +281,12 @@ export default function Strumenti() {
 
         {/* Titolo */}
         <Card className="flex-shrink-0">
-          <CardHeader className="text-center py-1.5">
-            <img 
-              src="/icona.png" 
-              alt="Logo Demos" 
-              className="w-16 h-16 mx-auto mb-1"
-            />
-            <CardTitle className="flex items-center justify-center gap-2 text-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+              <Megaphone className="h-6 w-6 text-blue-600" />
               Strumenti
             </CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription>
               Accedi agli strumenti di gestione, comunicazione e analisi
             </CardDescription>
           </CardHeader>
