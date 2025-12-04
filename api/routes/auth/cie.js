@@ -79,15 +79,28 @@ const getOIDCConfig = () => {
 // Funzioni per gestire OIDC state nel database (necessario per istanze multiple su Render)
 const saveOIDCState = async (state, codeVerifier, expiresAt) => {
   try {
-    await pool.query(
+    const expiresAtDate = new Date(expiresAt);
+    console.log('💾 saveOIDCState: Salvando state:', state.substring(0, 16) + '...', 'expires_at:', expiresAtDate.toISOString());
+    const result = await pool.query(
       `INSERT INTO oidc_states (state, code_verifier, expires_at)
        VALUES ($1, $2, $3)
        ON CONFLICT (state) DO UPDATE SET
          code_verifier = EXCLUDED.code_verifier,
          expires_at = EXCLUDED.expires_at`,
-      [state, codeVerifier, new Date(expiresAt)]
+      [state, codeVerifier, expiresAtDate]
     );
-    console.log('✅ OIDC State salvato nel database:', state.substring(0, 8) + '...');
+    console.log('✅ OIDC State salvato nel database:', state.substring(0, 8) + '...', 'rowCount:', result.rowCount);
+    
+    // Verifica che sia stato salvato correttamente
+    const verify = await pool.query(
+      `SELECT state, expires_at FROM oidc_states WHERE state = $1`,
+      [state]
+    );
+    if (verify.rows.length > 0) {
+      console.log('✅ saveOIDCState: Verifica - state salvato correttamente, expires_at:', verify.rows[0].expires_at);
+    } else {
+      console.error('❌ saveOIDCState: ERRORE - state non trovato dopo il salvataggio!');
+    }
   } catch (error) {
     console.error('❌ Errore salvataggio OIDC state:', error);
     throw error;
@@ -96,17 +109,31 @@ const saveOIDCState = async (state, codeVerifier, expiresAt) => {
 
 const getOIDCState = async (state) => {
   try {
+    console.log('🔍 getOIDCState: Cercando state:', state.substring(0, 16) + '...');
     const result = await pool.query(
-      `SELECT code_verifier, expires_at
+      `SELECT code_verifier, expires_at, created_at
        FROM oidc_states
        WHERE state = $1 AND expires_at > NOW()`,
       [state]
     );
     
+    console.log('🔍 getOIDCState: Risultati query:', result.rows.length);
+    
     if (result.rows.length === 0) {
+      // Verifica se lo state esiste ma è scaduto
+      const expiredCheck = await pool.query(
+        `SELECT expires_at FROM oidc_states WHERE state = $1`,
+        [state]
+      );
+      if (expiredCheck.rows.length > 0) {
+        console.warn('⚠️ getOIDCState: State trovato ma scaduto. Expires_at:', expiredCheck.rows[0].expires_at);
+      } else {
+        console.warn('⚠️ getOIDCState: State non trovato nel database');
+      }
       return null;
     }
     
+    console.log('✅ getOIDCState: State trovato, expires_at:', result.rows[0].expires_at);
     return {
       codeVerifier: result.rows[0].code_verifier,
       expiresAt: new Date(result.rows[0].expires_at).getTime()
@@ -241,15 +268,22 @@ router.post('/exchange', async (req, res) => {
       });
     }
 
+    console.log('🔍 CIE Exchange: Verifica state:', state.substring(0, 16) + '...');
+    
     // Verifica state (CSRF protection) dal database
     let stateData = await getOIDCState(state);
     
     // Fallback alla Map se non trovato nel database (sviluppo locale)
     if (!stateData) {
+      console.log('⚠️ CIE Exchange: State non trovato nel database, provo Map...');
       stateData = oidcStateStore.get(state);
       if (stateData) {
         console.log('⚠️ OIDC State trovato nella Map (fallback)');
+      } else {
+        console.log('❌ CIE Exchange: State non trovato né nel database né nella Map');
       }
+    } else {
+      console.log('✅ CIE Exchange: State trovato nel database');
     }
     
     if (!stateData) {
