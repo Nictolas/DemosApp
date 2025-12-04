@@ -271,8 +271,8 @@ export default function Strumenti() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
-      <div className="max-w-4xl mx-auto h-full flex flex-col space-y-6">
+    <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-2 strumenti-page">
+      <div className="max-w-4xl mx-auto h-full flex flex-col space-y-2">
         {/* Pulsante Riscontro */}
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
         {/* Header */}
@@ -280,24 +280,24 @@ export default function Strumenti() {
         </div>
 
         {/* Titolo */}
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+        <Card className="flex-shrink-0">
+          <CardHeader className="text-center py-3">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl">
               Strumenti
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Accedi agli strumenti di gestione, comunicazione e analisi
             </CardDescription>
           </CardHeader>
         </Card>
 
         {/* Pulsanti Navigazione - Nuova estetica */}
-        <div className="flex-1 grid grid-cols-2 gap-6">
+        <div className="flex-1 grid grid-cols-2 gap-2 min-h-0 auto-rows-fr">
           {/* Votazione (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-full rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform min-h-[100px]"
               onClick={() => setLocation('/votazione')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -419,17 +419,17 @@ export default function Strumenti() {
           )}
         </div>
 
-        {/* Ultima Votazione Section */}
+        {/* Ultima Votazione Section - Compatta */}
         {ultimaComunicazione?.comunicazione && (
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold">Ultima Votazione</CardTitle>
-              <CardDescription>
+          <Card className="max-w-2xl mx-auto flex-shrink-0">
+            <CardHeader className="py-2">
+              <CardTitle className="text-sm font-bold">Ultima Votazione</CardTitle>
+              <CardDescription className="text-xs">
                 La tua ultima comunicazione inviata
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
+            <CardContent className="py-2">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 space-y-1 text-xs">
                 <div>
                   <span className="font-medium">Titolo:</span>
                   <p className="text-sm mt-1">{ultimaComunicazione.comunicazione.titolo}</p>
