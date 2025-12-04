@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth-neon';
 import { useAndroidDetection } from '@/hooks/useAndroidDetection';
@@ -13,7 +13,8 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const { user } = useAuth();
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Rileva dispositivi Android
   useAndroidDetection();
@@ -38,40 +39,51 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
     }
 
     const handleScroll = () => {
-      const mainContent = document.querySelector('.app-main');
-      if (!mainContent) return;
-
-      const currentScrollY = mainContent.scrollTop;
-      const scrollThreshold = 10; // Soglia minima per evitare flickering
-
-      // In cima = mostra sempre la navbar
-      if (currentScrollY <= scrollThreshold) {
-        setIsNavbarVisible(true);
-      }
-      // Scorrere verso il basso = mostra navbar
-      else if (currentScrollY > lastScrollY) {
-        setIsNavbarVisible(true);
-      }
-      // Scorrere verso l'alto = nascondi navbar
-      else if (currentScrollY < lastScrollY) {
-        setIsNavbarVisible(false);
+      // Cancella il timeout precedente per debounce
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
 
-      setLastScrollY(currentScrollY);
+      // Debounce per evitare troppi aggiornamenti
+      scrollTimeoutRef.current = setTimeout(() => {
+        const mainContent = document.querySelector('.app-main');
+        if (!mainContent) return;
+
+        const currentScrollY = mainContent.scrollTop;
+        const scrollThreshold = 10; // Soglia minima per evitare flickering
+
+        // In cima = mostra sempre la navbar
+        if (currentScrollY <= scrollThreshold) {
+          setIsNavbarVisible(true);
+        }
+        // Scorrere verso il basso = mostra navbar
+        else if (currentScrollY > lastScrollYRef.current) {
+          setIsNavbarVisible(true);
+        }
+        // Scorrere verso l'alto = nascondi navbar
+        else if (currentScrollY < lastScrollYRef.current) {
+          setIsNavbarVisible(false);
+        }
+
+        lastScrollYRef.current = currentScrollY;
+      }, 50); // Debounce di 50ms
     };
 
     const mainContent = document.querySelector('.app-main');
     if (mainContent) {
       // Inizializza la posizione
-      setLastScrollY(mainContent.scrollTop);
+      lastScrollYRef.current = mainContent.scrollTop;
       
       mainContent.addEventListener('scroll', handleScroll, { passive: true });
       
       return () => {
         mainContent.removeEventListener('scroll', handleScroll);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
       };
     }
-  }, [shouldShowNavbar, lastScrollY]);
+  }, [shouldShowNavbar]);
 
   useEffect(() => {
     // Forza il layout a essere pronto
