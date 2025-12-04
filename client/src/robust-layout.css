@@ -78,24 +78,26 @@
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   order: 999 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
-  transition: transform 0.3s ease-in-out, height 0.3s ease-in-out;
-  height: auto;
+  transition: transform 0.3s ease-in-out, max-height 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
+  max-height: 200px; /* Altezza massima quando visibile */
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
 
 /* Navbar visibile - mostra */
 .app-navbar.navbar-visible {
   transform: translateY(0);
-  height: auto;
+  max-height: 200px;
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
 
-/* Navbar nascosta - nascondi sotto lo schermo */
+/* Navbar nascosta - nascondi sotto lo schermo E non occupare spazio */
 .app-navbar.navbar-hidden {
   transform: translateY(100%);
-  overflow: hidden !important;
+  max-height: 0 !important;
   padding-bottom: 0 !important; /* Rimuovi padding-bottom quando nascosta per evitare spazio bianco su iPhone */
   margin-bottom: 0 !important;
 }
