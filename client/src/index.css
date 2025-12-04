@@ -34,9 +34,114 @@ html, body, #root {
 
 /* Disabilita overscroll su tutti gli elementi */
 * {
-  overscroll-behavior: none;
-  overscroll-behavior-x: none;
-  overscroll-behavior-y: none;
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su tutti gli elementi scrollabili */
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"],
+[class*="overflow-auto"],
+[class*="overflow-y-scroll"],
+[class*="overflow-x-scroll"],
+[class*="overflow-scroll"],
+div[style*="overflow-y"],
+div[style*="overflow-x"],
+div[style*="overflow"],
+pre[class*="overflow"],
+pre[style*="overflow"],
+dialog,
+[role="dialog"],
+[data-state="open"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su elementi con classi Tailwind overflow */
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto,
+.overflow-y-scroll,
+.overflow-x-scroll,
+.overflow-scroll {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su dialog, modal e popup */
+[data-radix-dialog-content],
+[data-radix-dialog-overlay],
+dialog,
+[role="dialog"],
+.modal,
+.popup,
+.DialogContent {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su elementi con max-height e overflow */
+[style*="max-height"][style*="overflow"],
+[class*="max-h-"][class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su ScrollArea e componenti Radix */
+[data-radix-scroll-area-viewport],
+[data-radix-scroll-area-root],
+.scroll-area,
+[class*="ScrollArea"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su contenitori flex con overflow */
+.flex-1[class*="overflow"],
+[class*="flex"][class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su tutti i div con overflow inline style */
+div[style*="overflow-y: auto"],
+div[style*="overflow-y: scroll"],
+div[style*="overflow-x: auto"],
+div[style*="overflow-x: scroll"],
+div[style*="overflow: auto"],
+div[style*="overflow: scroll"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su pre, code e tabelle */
+pre[class*="overflow"],
+code[class*="overflow"],
+table[class*="overflow"],
+tbody[class*="overflow"],
+thead[class*="overflow"],
+tr[class*="overflow"],
+td[class*="overflow"],
+th[class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su elementi con min-h-screen e overflow */
+[class*="min-h-screen"][class*="overflow"],
+[class*="h-screen"][class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
 }
 
 /* Prevenzione scroll orizzontale su mobile */
