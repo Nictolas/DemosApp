@@ -43,6 +43,14 @@
   overflow: visible !important;
 }
 
+/* Pagina Strumenti - blocca scroll verticale */
+.app-main .strumenti-page {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
 /* Navbar area - SEMPRE FISSA */
 .app-navbar {
   flex-shrink: 0;

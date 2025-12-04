@@ -70,6 +70,26 @@ body {
   -webkit-overflow-scrolling: auto !important;
 }
 
+/* Pagina Strumenti - senza scroll verticale */
+.strumenti-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* Blocca scroll anche per app-main quando contiene strumenti-page */
+.app-main:has(.strumenti-page) {
+  overflow-y: hidden !important;
+}
+
+/* Fallback per browser che non supportano :has() */
+.app-main .strumenti-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
