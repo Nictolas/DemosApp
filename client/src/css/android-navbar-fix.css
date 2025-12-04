@@ -168,16 +168,14 @@
     padding-bottom: calc(6rem + 1rem + env(safe-area-inset-bottom)) !important;
   }
   
-  /* Menu page specifico */
-  .menu-page .container {
-    padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
-  }
+  /* Menu page specifico - padding unificato gestito in index.css */
+  /* Rimuoviamo qui per evitare conflitti - il padding è gestito in index.css */
   
-  /* Pulsanti del menu - altezza originale */
+  /* Pulsanti del menu - altezza ridotta per mobile per evitare che finiscano dietro la navbar */
   .menu-button {
-    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
-    min-height: 120px !important;
-    max-height: 200px !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 250px) / 2) !important;
+    min-height: 100px !important;
+    max-height: 180px !important;
   }
   
   /* Card dei candidati - altezza originale */
