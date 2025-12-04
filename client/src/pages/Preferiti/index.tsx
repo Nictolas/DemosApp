@@ -70,11 +70,11 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
-        <span className="relative flex items-center justify-center w-16 h-16 mb-3">
-          <Icon className="h-14 w-14 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-          <Icon className="h-10 w-10 relative z-10" style={{ color: color.icon }} />
+        <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+          <Icon className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+          <Icon className="h-8 w-8 relative z-10" style={{ color: color.icon }} />
         </span>
-        <div className={`text-gray-700 font-semibold select-none ${label === 'Organizzazioni' ? 'text-2xl' : 'text-3xl'}`}>{label}</div>
+        <div className={`text-gray-700 font-semibold select-none ${label === 'Organizzazioni' ? 'text-lg' : 'text-xl'}`}>{label}</div>
       </div>
     </button>
   );
@@ -263,24 +263,24 @@ export default function Preferiti() {
 
   return (
     <PageContainer className="preferiti-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
-      <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
-        <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
+      <div className="container mx-auto px-4 py-2 flex flex-col">
+        <div className="w-full max-w-4xl mx-auto flex flex-col">
           {/* Header */}
-          <Card className="w-full">
-            <div className="p-6 text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Heart className="h-8 w-8 text-red-500" />
-                <h1 className="text-2xl font-bold text-gray-900" data-testid="preferiti-title">Preferiti</h1>
+          <Card className="w-full flex-shrink-0">
+            <div className="p-3 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Heart className="h-6 w-6 text-red-500" />
+                <h1 className="text-xl font-bold text-gray-900" data-testid="preferiti-title">Preferiti</h1>
               </div>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm">
                 Scegli la categoria che ti interessa
               </p>
             </div>
           </Card>
 
           {/* Grid dei pulsanti */}
-          <div className="mt-4">
-            <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+          <div className="mt-2 flex-1">
+            <div className="grid grid-cols-2 gap-1 min-h-0">
               {preferitiItems.map((item) => (
                 <PreferitiButton
                   key={item.id}

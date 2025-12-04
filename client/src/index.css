@@ -79,13 +79,35 @@ body {
   overscroll-behavior: none !important;
 }
 
-/* Blocca scroll anche per app-main quando contiene strumenti-page */
-.app-main:has(.strumenti-page) {
+/* Pagina Preferiti - senza scroll verticale */
+.preferiti-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* Pagina Impostazioni - senza scroll verticale */
+.impostazioni-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* Blocca scroll anche per app-main quando contiene queste pagine */
+.app-main:has(.strumenti-page),
+.app-main:has(.preferiti-page),
+.app-main:has(.impostazioni-page) {
   overflow-y: hidden !important;
 }
 
 /* Fallback per browser che non supportano :has() */
-.app-main .strumenti-page {
+.app-main .strumenti-page,
+.app-main .preferiti-page,
+.app-main .impostazioni-page {
   height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
   max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }

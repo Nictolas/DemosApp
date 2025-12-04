@@ -51,6 +51,22 @@
   max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }
 
+/* Pagina Preferiti - blocca scroll verticale */
+.app-main .preferiti-page {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
+/* Pagina Impostazioni - blocca scroll verticale */
+.app-main .impostazioni-page {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
 /* Navbar area - Appare/Scompare con scroll */
 .app-navbar {
   flex-shrink: 0;
