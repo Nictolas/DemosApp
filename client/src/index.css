@@ -23,11 +23,20 @@ html, body, #root {
   min-height: 100vh;
   height: 100%;
   overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
   overflow-x: hidden;
   touch-action: pan-y;
   overflow-y: auto;
   background: white; /* Sfondo bianco - ogni pagina gestisce il proprio sfondo */
   /* La navbar fissa in basso deve essere sempre visibile, non tagliata da overflow! */
+}
+
+/* Disabilita overscroll su tutti gli elementi */
+* {
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
 }
 
 /* Prevenzione scroll orizzontale su mobile */
