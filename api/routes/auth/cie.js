@@ -76,7 +76,57 @@ const getOIDCConfig = () => {
   };
 };
 
-// Store temporaneo per state e PKCE (in produzione usare Redis)
+// Funzioni per gestire OIDC state nel database (necessario per istanze multiple su Render)
+const saveOIDCState = async (state, codeVerifier, expiresAt) => {
+  try {
+    await pool.query(
+      `INSERT INTO oidc_states (state, code_verifier, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (state) DO UPDATE SET
+         code_verifier = EXCLUDED.code_verifier,
+         expires_at = EXCLUDED.expires_at`,
+      [state, codeVerifier, new Date(expiresAt)]
+    );
+    console.log('✅ OIDC State salvato nel database:', state.substring(0, 8) + '...');
+  } catch (error) {
+    console.error('❌ Errore salvataggio OIDC state:', error);
+    throw error;
+  }
+};
+
+const getOIDCState = async (state) => {
+  try {
+    const result = await pool.query(
+      `SELECT code_verifier, expires_at
+       FROM oidc_states
+       WHERE state = $1 AND expires_at > NOW()`,
+      [state]
+    );
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    return {
+      codeVerifier: result.rows[0].code_verifier,
+      expiresAt: new Date(result.rows[0].expires_at).getTime()
+    };
+  } catch (error) {
+    console.error('❌ Errore recupero OIDC state:', error);
+    return null;
+  }
+};
+
+const deleteOIDCState = async (state) => {
+  try {
+    await pool.query('DELETE FROM oidc_states WHERE state = $1', [state]);
+  } catch (error) {
+    console.error('❌ Errore eliminazione OIDC state:', error);
+    // Non lanciare errore, è solo pulizia
+  }
+};
+
+// Fallback: Map in-memory per sviluppo locale (se la tabella non esiste)
 const oidcStateStore = new Map();
 
 /**
@@ -98,11 +148,18 @@ router.get('/login', async (req, res) => {
       .update(codeVerifier)
       .digest('base64url');
 
-    // Salva state e code_verifier
-    oidcStateStore.set(state, {
-      codeVerifier,
-      expiresAt: Date.now() + 600000 // 10 minuti
-    });
+    // Salva state e code_verifier nel database
+    const expiresAt = Date.now() + 600000; // 10 minuti
+    try {
+      await saveOIDCState(state, codeVerifier, expiresAt);
+    } catch (error) {
+      // Fallback alla Map se il database fallisce (sviluppo locale)
+      console.warn('⚠️ Fallback a Map in-memory per OIDC state');
+      oidcStateStore.set(state, {
+        codeVerifier,
+        expiresAt
+      });
+    }
 
     // Costruisci URL di autorizzazione
     const authParams = new URLSearchParams({
@@ -184,9 +241,19 @@ router.post('/exchange', async (req, res) => {
       });
     }
 
-    // Verifica state (CSRF protection)
-    const stateData = oidcStateStore.get(state);
+    // Verifica state (CSRF protection) dal database
+    let stateData = await getOIDCState(state);
+    
+    // Fallback alla Map se non trovato nel database (sviluppo locale)
     if (!stateData) {
+      stateData = oidcStateStore.get(state);
+      if (stateData) {
+        console.log('⚠️ OIDC State trovato nella Map (fallback)');
+      }
+    }
+    
+    if (!stateData) {
+      console.error('❌ OIDC State non trovato:', state.substring(0, 8) + '...');
       return res.status(400).json({
         success: false,
         error: 'invalid_state',
@@ -194,17 +261,20 @@ router.post('/exchange', async (req, res) => {
       });
     }
 
-    // Rimuovi state (one-time use)
-    oidcStateStore.delete(state);
-
     // Verifica scadenza state
     if (Date.now() > stateData.expiresAt) {
+      await deleteOIDCState(state);
+      oidcStateStore.delete(state); // Fallback
       return res.status(400).json({
         success: false,
         error: 'expired_state',
         message: 'State scaduto'
       });
     }
+
+    // Rimuovi state (one-time use) dal database
+    await deleteOIDCState(state);
+    oidcStateStore.delete(state); // Fallback
 
     const config = getOIDCConfig();
 
@@ -445,9 +515,19 @@ router.get('/callback', async (req, res) => {
       });
     }
 
-    // Verifica state (CSRF protection)
-    const stateData = oidcStateStore.get(state);
+    // Verifica state (CSRF protection) dal database
+    let stateData = await getOIDCState(state);
+    
+    // Fallback alla Map se non trovato nel database (sviluppo locale)
     if (!stateData) {
+      stateData = oidcStateStore.get(state);
+      if (stateData) {
+        console.log('⚠️ OIDC State trovato nella Map (fallback)');
+      }
+    }
+    
+    if (!stateData) {
+      console.error('❌ OIDC State non trovato:', state.substring(0, 8) + '...');
       return res.status(400).json({
         success: false,
         error: 'invalid_state',
@@ -455,17 +535,20 @@ router.get('/callback', async (req, res) => {
       });
     }
 
-    // Rimuovi state (one-time use)
-    oidcStateStore.delete(state);
-
     // Verifica scadenza state
     if (Date.now() > stateData.expiresAt) {
+      await deleteOIDCState(state);
+      oidcStateStore.delete(state); // Fallback
       return res.status(400).json({
         success: false,
         error: 'expired_state',
         message: 'State scaduto'
       });
     }
+
+    // Rimuovi state (one-time use) dal database
+    await deleteOIDCState(state);
+    oidcStateStore.delete(state); // Fallback
 
     const config = getOIDCConfig();
 
