@@ -84,11 +84,8 @@ export const useMinisteroActions = ({ data, saveVotiMutation, isAdmin = false }:
   };
 
   const removeLocal = (nome: string) => {
-    if (data?.blocco.isBlocked) {
-      toast({ title: "Voti bloccati", description: "Non puoi modificare i voti più di una volta a settimana.", variant: "destructive" });
-      return;
-    }
-    
+    // La rimozione è sempre permessa, anche se l'utente è bloccato
+    // Solo controlliamo se c'è una mutation in corso
     if (saveVotiMutation.isPending) {
       return;
     }
