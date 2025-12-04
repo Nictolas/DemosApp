@@ -23,7 +23,7 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
 
 
   return (
-    <div className="grid grid-cols-2 gap-3 flex-1 pb-4" style={{ alignContent: 'start' }}>
+    <div className="grid grid-cols-2 gap-3 pb-4" style={{ alignContent: 'start', overflow: 'visible' }}>
       {visibleItems.map((item) => (
         <MenuButton
           key={item.id}

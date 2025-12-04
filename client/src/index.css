@@ -594,31 +594,37 @@ body {
   position: relative;
   z-index: 1;
   /* Rimuoviamo max-height per permettere al contenuto di espandersi */
+  overflow: visible !important;
+}
+
+/* Assicuriamo che il container non tagli i pulsanti */
+.menu-page .container {
+  overflow: visible !important;
 }
 
 /* Padding unificato per il container della pagina menu */
-/* Calcolo: navbar (6rem) + safe area + spazio extra generoso per garantire visibilità */
+/* Calcolo: navbar (6rem = 96px) + safe area + spazio minimo necessario */
+/* Riduciamo il padding per evitare spazio bianco eccessivo */
 .menu-page .container {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 4rem) !important;
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 1rem) !important; /* Solo 16px extra */
   margin-bottom: 0 !important;
-  /* Rimuoviamo min-h-0 per permettere al contenuto di espandersi naturalmente */
 }
 
-/* Soluzione unificata per mobile - padding ancora più generoso */
+/* Soluzione unificata per mobile - padding minimo necessario */
 @media screen and (max-width: 768px) {
   .menu-page .container {
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 5rem) !important;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 1.5rem) !important; /* Solo 24px extra */
   }
 }
 
-/* Soluzione specifica per Android - padding massimo */
+/* Soluzione specifica per Android - padding minimo */
 @media screen and (max-width: 768px) {
   .menu-page.android .container {
-    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 6rem) !important;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important; /* Solo 32px extra */
   }
   
   .menu-page.android .menu-button {
-    height: calc((100vh - 12rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+    height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
     min-height: 100px !important;
     max-height: 180px !important;
   }

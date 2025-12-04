@@ -36,6 +36,11 @@
   min-height: 0; /* Importante per Flexbox */
 }
 
+/* Assicuriamo che la pagina menu non venga tagliata */
+.app-main .menu-page {
+  overflow: visible !important;
+}
+
 /* Navbar area - SEMPRE FISSA */
 .app-navbar {
   flex-shrink: 0;
