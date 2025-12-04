@@ -29,7 +29,7 @@
   grid-row: 2;
   overflow-y: auto;
   overflow-x: hidden;
-  background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+  background: white; /* Sfondo bianco di base - ogni pagina gestisce il proprio sfondo */
   /* Scroll behavior moderno */
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -71,13 +71,14 @@
 
 /* ===== PADDING AUTOMATICO PER CONTENUTO ===== */
 
-/* Assicura che il contenuto non venga coperto */
+/* NOTA: Il padding-bottom viene gestito dalle singole pagine per evitare conflitti */
+/* Rimuoviamo solo il margin-bottom per evitare spazi indesiderati */
 .app-main .container,
-.app-main .page-container,
-.app-main .menu-page {
-  padding-bottom: 0 !important; /* Rimuovi padding manuale */
+.app-main .page-container {
   margin-bottom: 0 !important;
 }
+
+/* La pagina menu gestisce il proprio padding-bottom in index.css */
 
 /* ===== SUPPORTO PER SAFE AREAS ===== */
 

@@ -18,9 +18,14 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 
   return (
     <div 
-      className={`min-h-screen flex flex-col ${className}`}
+      className={`min-h-screen flex flex-col w-full ${className}`}
+      style={{ 
+        minHeight: '100%',
+        position: 'relative',
+        zIndex: 1
+      }}
     >
-      <div className="flex-1">
+      <div className="flex-1 w-full">
         {children}
       </div>
     </div>

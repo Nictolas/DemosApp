@@ -587,38 +587,36 @@ body {
   min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }
 
-/* Layout specifico per la pagina menu con padding dinamico */
+/* Layout specifico per la pagina menu con padding dinamico unificato */
 .menu-page {
   min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  width: 100% !important;
+  position: relative;
+  z-index: 1;
 }
 
-/* Assicura che il contenuto della pagina menu abbia spazio sufficiente sopra la navbar */
+/* Padding unificato per il container della pagina menu */
+/* Calcolo: navbar (6rem) + safe area + spazio extra (2rem) per garantire visibilità */
 .menu-page .container {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important; /* Spazio dinamico per la navbar */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
+  margin-bottom: 0 !important;
 }
 
-/* Soluzione specifica per dispositivi Android con navbar più alta */
+/* Soluzione unificata per mobile - padding extra per garantire che i pulsanti non finiscano dietro la navbar */
 @media screen and (max-width: 768px) {
   .menu-page .container {
-    padding-bottom: calc(6rem + 2rem + 1rem) !important; /* Spazio extra per Android */
-  }
-  
-  /* Forza un padding minimo per garantire visibilità */
-  .menu-page .container {
-    min-height: calc(100vh - 8rem) !important;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 3rem) !important;
   }
 }
 
-/* Soluzione specifica per Android - rileva tramite user agent */
+/* Soluzione specifica per Android - padding ancora più generoso */
 @media screen and (max-width: 768px) {
-  /* Applica padding extra solo su dispositivi Android */
   .menu-page.android .container {
-    padding-bottom: calc(6rem + 3rem + 1rem) !important; /* Spazio extra per Android */
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 4rem) !important;
   }
   
   .menu-page.android .menu-button {
-    height: calc((100vh - 9rem - 200px) / 2) !important;
+    height: calc((100vh - 10rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
     min-height: 120px !important;
     max-height: 200px !important;
   }
@@ -651,11 +649,23 @@ body {
 }
 
 /* Assicura che i pulsanti del menu si adattino dinamicamente all'altezza dello schermo */
+/* Calcolo: (viewport height - navbar - safe area - spazio header/margini) / 2 righe */
 .menu-button {
   height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
   min-height: var(--menu-button-min-height, 120px) !important;
   max-height: var(--menu-button-max-height, 200px) !important;
   transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+/* Su mobile, riduci leggermente l'altezza per garantire che i pulsanti non finiscano dietro la navbar */
+@media screen and (max-width: 768px) {
+  .menu-button {
+    height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 250px) / 2)) !important;
+    min-height: 100px !important;
+    max-height: 180px !important;
+  }
 }
 
 /* Classi responsive per i pulsanti */
