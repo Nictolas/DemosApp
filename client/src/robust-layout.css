@@ -82,11 +82,13 @@
   height: 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
+  padding-bottom: 0 !important; /* Rimuovi padding-bottom quando nascosta per evitare spazio bianco su iPhone */
 }
 
 /* Quando la navbar è nascosta, nascondi anche il contenuto interno */
 .app-navbar.navbar-hidden nav {
   display: none !important;
+  padding-bottom: 0 !important; /* Rimuovi anche il padding-bottom del nav interno */
 }
 
 /* ===== CORREZIONI FORZATE PER NAVBAR ===== */
@@ -133,6 +135,11 @@
 @supports (padding: max(0px)) {
   .app-navbar {
     padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  
+  /* Quando la navbar è nascosta, rimuovi il padding-bottom per evitare spazio bianco */
+  .app-navbar.navbar-hidden {
+    padding-bottom: 0 !important;
   }
   
   .app-header {
