@@ -153,9 +153,10 @@ class PerformanceOptimizer {
       const loadFactor = this.calculateLoadFactor(poolStats, memoryUsage);
       
       // Se il carico è basso, possiamo essere più permissivi
+      // Log rimosso per evitare spam (ogni 30 secondi)
       if (loadFactor < 0.5) {
-        console.log('📈 Carico basso, rate limiting più permissivo');
         // Qui potresti implementare logica per aumentare i limiti dinamicamente
+        // Log rimosso: console.log('📈 Carico basso, rate limiting più permissivo');
       }
       
       // Se il carico è alto, essere più restrittivi
