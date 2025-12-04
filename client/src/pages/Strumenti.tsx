@@ -272,7 +272,7 @@ export default function Strumenti() {
   // Mostra in alto nella pagina
   return (
     <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-2 strumenti-page">
-      <div className="max-w-4xl mx-auto h-full flex flex-col space-y-2">
+      <div className="max-w-4xl mx-auto h-full flex flex-col space-y-1">
         {/* Pulsante Riscontro */}
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
         {/* Header */}
@@ -281,8 +281,13 @@ export default function Strumenti() {
 
         {/* Titolo */}
         <Card className="flex-shrink-0">
-          <CardHeader className="text-center py-3">
-            <CardTitle className="flex items-center justify-center gap-2 text-xl">
+          <CardHeader className="text-center py-1.5">
+            <img 
+              src="/icona.png" 
+              alt="Logo Demos" 
+              className="w-16 h-16 mx-auto mb-1"
+            />
+            <CardTitle className="flex items-center justify-center gap-2 text-lg">
               Strumenti
             </CardTitle>
             <CardDescription className="text-xs">
@@ -292,7 +297,7 @@ export default function Strumenti() {
         </Card>
 
         {/* Pulsanti Navigazione - Nuova estetica */}
-        <div className="flex-1 grid grid-cols-2 gap-2 min-h-0 auto-rows-fr">
+        <div className="flex-1 grid grid-cols-2 gap-1.5 min-h-0 auto-rows-fr">
           {/* Votazione (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
