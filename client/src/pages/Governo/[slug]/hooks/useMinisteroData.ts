@@ -50,10 +50,13 @@ export const useMinisteroData = (user: any, categoria?: string) => {
     onSuccess: async (data, variables) => {
       console.log('✅ DEBUG - Voti salvati con successo:', variables);
       toast({ title: "Preferenze salvate", description: "Le tue scelte per questo ministero sono state aggiornate." });
-      // Invalida e forza il refetch immediato per aggiornare i dati
+      // Invalida e forza il refetch immediato per aggiornare i dati del ministero
       await queryClient.invalidateQueries({ queryKey: ['ministeroVoti', categoria] });
+      // Invalida anche la query della pagina principale del governo per aggiornare i dati lì
+      await queryClient.invalidateQueries({ queryKey: ['governoVoti'] });
       // Forza il refetch immediato per vedere i dati aggiornati
       const result = await queryClient.refetchQueries({ queryKey: ['ministeroVoti', categoria] });
+      await queryClient.refetchQueries({ queryKey: ['governoVoti'] });
       console.log('✅ DEBUG - Dati ricaricati dopo salvataggio:', result);
     },
     onError: (error: any) => {
