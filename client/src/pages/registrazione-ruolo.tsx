@@ -154,6 +154,43 @@ export default function RegistrazioneRuolo() {
 
       if (response.ok) {
         // Registrazione completata con successo
+        const userId = result.user.id;
+        
+        // Controlla se ci sono dati CIE da collegare
+        const cieDataStr = localStorage.getItem('cie_pending_registration');
+        if (cieDataStr) {
+          try {
+            const cieData = JSON.parse(cieDataStr);
+            console.log('🔗 Collegamento fiscal_number CIE all\'account...');
+            
+            // Collega il fiscal_number all'account appena creato
+            const linkResponse = await fetch('https://demos-c7k0.onrender.com/api/auth/cie/link-fiscal-number', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: userId,
+                pendingId: cieData.pendingId
+              }),
+            });
+            
+            if (linkResponse.ok) {
+              const linkResult = await linkResponse.json();
+              console.log('✅ Fiscal number collegato:', linkResult);
+              
+              // Rimuovi i dati CIE temporanei
+              localStorage.removeItem('cie_pending_registration');
+            } else {
+              console.warn('⚠️ Errore collegamento fiscal_number, ma registrazione completata');
+              // Non bloccare il flusso se il collegamento fallisce
+            }
+          } catch (linkError) {
+            console.error('❌ Errore collegamento fiscal_number:', linkError);
+            // Non bloccare il flusso se il collegamento fallisce
+          }
+        }
+        
         toast({
           title: "Registrazione completata!",
           description: "Controlla la tua email per confermare l'account.",
@@ -162,7 +199,7 @@ export default function RegistrazioneRuolo() {
         // Salva l'email dell'utente per la verifica
         localStorage.setItem('user_email', email);
         localStorage.setItem('user_status', 'pending');
-        localStorage.setItem('user_id', result.user.id);
+        localStorage.setItem('user_id', userId);
         
         // Pulisce i dati di registrazione
         Object.keys(localStorage).forEach(key => {

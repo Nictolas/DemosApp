@@ -76,6 +76,33 @@ export default function CIECallback() {
 
         const data = await response.json();
 
+        // Se richiede registrazione, reindirizza al modulo di registrazione
+        if (data.requiresRegistration && data.cieData) {
+          console.log('🆕 CIE Callback: Registrazione richiesta, reindirizzamento...');
+          
+          // Salva i dati CIE nel localStorage per precompilare il modulo
+          localStorage.setItem('cie_pending_registration', JSON.stringify({
+            pendingId: data.pendingRegistrationId,
+            fiscal_number: data.cieData.fiscal_number,
+            nome: data.cieData.nome,
+            cognome: data.cieData.cognome,
+            sub: data.cieData.sub
+          }));
+          
+          setStatus('success');
+          toast({
+            title: "Autenticazione CIE completata",
+            description: "Completa la registrazione per continuare",
+            variant: "default"
+          });
+
+          // Reindirizza al modulo di registrazione dopo 1 secondo
+          setTimeout(() => {
+            window.location.href = '/auth?tab=register&from=cie';
+          }, 1000);
+          return;
+        }
+
         if (!data.success || !data.accessToken) {
           throw new Error(data.message || 'Token di accesso non ricevuto');
         }

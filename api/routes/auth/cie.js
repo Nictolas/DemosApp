@@ -452,37 +452,59 @@ router.post('/exchange', async (req, res) => {
 
         console.log('✅ CIE Exchange: Utente esistente trovato', user.id);
       } else {
-        // Nuovo utente - crea record
-        const userId = crypto.randomUUID();
-        const email = userInfo.email || `${normalizedFiscalNumber}@cie.local`; // Email fittizia se non disponibile
+        // Nuovo utente - salva dati temporanei e richiedi registrazione
+        console.log('🆕 CIE Exchange: Nuovo utente, richiesta registrazione');
         
-        await pool.query(
-          `INSERT INTO users (
-            id, email, nome, cognome, fiscal_number, 
-            status, auth_method, verified, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-          [
-            userId,
-            email,
-            userInfo.given_name || 'Utente',
-            userInfo.family_name || 'CIE',
-            normalizedFiscalNumber,
-            'a', // Status attivo
-            'cie', // Metodo autenticazione
-            true // Verificato tramite CIE
-          ]
-        );
-
-        // Recupera utente appena creato
-        const newUserQuery = await pool.query(
-          `SELECT id, email, nome, cognome, ruolo, status, fiscal_number, created_at
-           FROM users 
-           WHERE id = $1`,
-          [userId]
-        );
-
-        user = newUserQuery.rows[0];
-        console.log('✅ CIE Exchange: Nuovo utente creato', user.id);
+        // Salva i dati CIE in attesa di registrazione
+        const pendingId = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 3600000); // 1 ora di validità
+        
+        try {
+          await pool.query(
+            `INSERT INTO cie_pending_registrations (
+              id, fiscal_number, given_name, family_name, sub, cie_data, expires_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (fiscal_number) DO UPDATE SET
+              given_name = EXCLUDED.given_name,
+              family_name = EXCLUDED.family_name,
+              sub = EXCLUDED.sub,
+              cie_data = EXCLUDED.cie_data,
+              expires_at = EXCLUDED.expires_at,
+              created_at = CURRENT_TIMESTAMP`,
+            [
+              pendingId,
+              normalizedFiscalNumber,
+              userInfo.given_name || null,
+              userInfo.family_name || null,
+              userInfo.sub || null,
+              JSON.stringify(userInfo),
+              expiresAt
+            ]
+          );
+          
+          console.log('✅ CIE Exchange: Dati salvati in cie_pending_registrations', pendingId);
+          
+          // Restituisci flag per richiedere registrazione
+          return res.json({
+            success: true,
+            requiresRegistration: true,
+            pendingRegistrationId: pendingId,
+            cieData: {
+              fiscal_number: normalizedFiscalNumber,
+              nome: userInfo.given_name || '',
+              cognome: userInfo.family_name || '',
+              sub: userInfo.sub
+            },
+            message: 'Completa la registrazione per continuare'
+          });
+        } catch (pendingError) {
+          console.error('❌ Errore salvataggio dati CIE temporanei:', pendingError);
+          return res.status(500).json({
+            success: false,
+            error: 'pending_registration_failed',
+            message: 'Errore durante il salvataggio dei dati temporanei'
+          });
+        }
       }
     } catch (dbError) {
       console.error('❌ Errore database durante exchange CIE:', dbError);
@@ -810,6 +832,98 @@ router.get('/callback', async (req, res) => {
       success: false,
       error: 'internal_error',
       message: error.message || 'Errore interno durante l\'autenticazione CIE'
+    });
+  }
+});
+
+/**
+ * POST /cie/link-fiscal-number
+ * Collega il fiscal_number CIE all'account dopo la registrazione
+ */
+router.post('/link-fiscal-number', async (req, res) => {
+  try {
+    const { userId, pendingId } = req.body;
+
+    if (!userId || !pendingId) {
+      return res.status(400).json({
+        success: false,
+        error: 'missing_parameters',
+        message: 'userId e pendingId sono obbligatori'
+      });
+    }
+
+    // Recupera i dati CIE temporanei
+    const pendingQuery = await pool.query(
+      `SELECT fiscal_number, given_name, family_name, sub, cie_data
+       FROM cie_pending_registrations
+       WHERE id = $1 AND expires_at > NOW()`,
+      [pendingId]
+    );
+
+    if (pendingQuery.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'pending_registration_not_found',
+        message: 'Registrazione CIE non trovata o scaduta'
+      });
+    }
+
+    const pendingData = pendingQuery.rows[0];
+    const fiscalNumber = pendingData.fiscal_number;
+
+    // Verifica che l'utente esista
+    const userQuery = await pool.query(
+      `SELECT id, fiscal_number FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'user_not_found',
+        message: 'Utente non trovato'
+      });
+    }
+
+    const user = userQuery.rows[0];
+
+    // Verifica che l'utente non abbia già un fiscal_number
+    if (user.fiscal_number) {
+      return res.status(400).json({
+        success: false,
+        error: 'fiscal_number_already_set',
+        message: 'L\'utente ha già un fiscal_number associato'
+      });
+    }
+
+    // Collega il fiscal_number all'account
+    await pool.query(
+      `UPDATE users 
+       SET fiscal_number = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [fiscalNumber, userId]
+    );
+
+    // Elimina il record temporaneo
+    await pool.query(
+      `DELETE FROM cie_pending_registrations WHERE id = $1`,
+      [pendingId]
+    );
+
+    console.log('✅ CIE: Fiscal number collegato all\'account', userId, fiscalNumber);
+
+    res.json({
+      success: true,
+      message: 'Fiscal number collegato con successo',
+      fiscal_number: fiscalNumber
+    });
+
+  } catch (error) {
+    console.error('❌ Errore collegamento fiscal_number:', error);
+    res.status(500).json({
+      success: false,
+      error: 'internal_error',
+      message: error.message || 'Errore durante il collegamento del fiscal_number'
     });
   }
 });

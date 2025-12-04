@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
-import { Redirect, Link } from "wouter";
+import { Redirect, Link, useLocation } from "wouter";
 import { getApiUrl } from "@/lib/api-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,9 +47,17 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 export default function AuthPage() {
+  const [location] = useLocation();
   const [activeTab, setActiveTab] = useState<"login" | "register" | "cie" | "forgot-password">("login");
   const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail, forgotPasswordMutation } = useAuth();
   const { toast } = useToast();
+  const [ciePendingData, setCiePendingData] = useState<{
+    pendingId: string;
+    fiscal_number: string;
+    nome: string;
+    cognome: string;
+    sub: string;
+  } | null>(null);
 
   // Stato per mostrare/nascondere la password nel login
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -69,6 +77,31 @@ export default function AuthPage() {
       }
     };
   }, [emailCheckTimeout]);
+
+  // Controlla se ci sono dati CIE in attesa di registrazione
+  useEffect(() => {
+    const cieDataStr = localStorage.getItem('cie_pending_registration');
+    if (cieDataStr) {
+      try {
+        const cieData = JSON.parse(cieDataStr);
+        setCiePendingData(cieData);
+        
+        // Se viene da CIE, apri il tab registrazione
+        const urlParams = new URLSearchParams(location.split('?')[1] || '');
+        if (urlParams.get('from') === 'cie' || cieData) {
+          setActiveTab('register');
+          
+          // Precompila il form con i dati CIE
+          registerForm.setValue('email', ''); // L'email deve essere inserita dall'utente
+          // Nota: nome e cognome non sono nel form di registrazione attuale
+          // Potremmo aggiungerli o mostrarli come informazione
+        }
+      } catch (error) {
+        console.error('Errore parsing dati CIE:', error);
+        localStorage.removeItem('cie_pending_registration');
+      }
+    }
+  }, [location]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),

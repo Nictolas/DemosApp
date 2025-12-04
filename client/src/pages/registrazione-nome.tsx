@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,6 +25,22 @@ export default function RegistrazioneNome() {
     },
   });
 
+  // Precompila i dati CIE se disponibili
+  useEffect(() => {
+    const cieDataStr = localStorage.getItem('cie_pending_registration');
+    if (cieDataStr) {
+      try {
+        const cieData = JSON.parse(cieDataStr);
+        if (cieData.nome && cieData.cognome) {
+          form.setValue('nome', cieData.nome);
+          form.setValue('cognome', cieData.cognome);
+        }
+      } catch (error) {
+        console.error('Errore parsing dati CIE:', error);
+      }
+    }
+  }, [form]);
+
   const onSubmit = (data: NomeValues) => {
     localStorage.setItem("registrazione_nome", data.nome);
     localStorage.setItem("registrazione_cognome", data.cognome);
@@ -46,6 +62,13 @@ export default function RegistrazioneNome() {
            <p className="text-gray-600 text-sm">
              Inserisci il tuo nome e cognome
            </p>
+           {localStorage.getItem('cie_pending_registration') && (
+             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+               <p className="text-sm text-blue-800">
+                 ℹ️ I dati sono stati precompilati dalla tua Carta d'Identità Elettronica. Puoi modificarli se necessario.
+               </p>
+             </div>
+           )}
          </div>
 
         <Form {...form}>
