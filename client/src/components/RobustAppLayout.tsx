@@ -12,6 +12,8 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const [location] = useLocation();
   const { user } = useAuth();
   const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   
   // Rileva dispositivi Android
   useAndroidDetection();
@@ -27,6 +29,49 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
     !location.startsWith('/terms-of-service') && 
     !location.startsWith('/cookie-policy') && 
     location !== '/gdpr';
+
+  // Gestione scroll per mostrare/nascondere navbar
+  useEffect(() => {
+    if (!shouldShowNavbar) {
+      setIsNavbarVisible(true);
+      return;
+    }
+
+    const handleScroll = () => {
+      const mainContent = document.querySelector('.app-main');
+      if (!mainContent) return;
+
+      const currentScrollY = mainContent.scrollTop;
+      const scrollThreshold = 10; // Soglia minima per evitare flickering
+
+      // In cima = mostra sempre la navbar
+      if (currentScrollY <= scrollThreshold) {
+        setIsNavbarVisible(true);
+      }
+      // Scorrere verso il basso = mostra navbar
+      else if (currentScrollY > lastScrollY) {
+        setIsNavbarVisible(true);
+      }
+      // Scorrere verso l'alto = nascondi navbar
+      else if (currentScrollY < lastScrollY) {
+        setIsNavbarVisible(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    const mainContent = document.querySelector('.app-main');
+    if (mainContent) {
+      // Inizializza la posizione
+      setLastScrollY(mainContent.scrollTop);
+      
+      mainContent.addEventListener('scroll', handleScroll, { passive: true });
+      
+      return () => {
+        mainContent.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [shouldShowNavbar, lastScrollY]);
 
   useEffect(() => {
     // Forza il layout a essere pronto
@@ -72,16 +117,20 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
         {children}
       </main>
       
-      {/* Navbar area - SEMPRE FISSA */}
+      {/* Navbar area - Appare/Scompare con scroll */}
       {shouldShowNavbar && (
-        <nav className="app-navbar" style={{
-          position: 'sticky',
-          bottom: 0,
-          zIndex: 9999,
-          flexShrink: 0,
-          width: '100%',
-          overflow: 'visible'
-        }}>
+        <nav 
+          className={`app-navbar ${isNavbarVisible ? 'navbar-visible' : 'navbar-hidden'}`}
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 9999,
+            flexShrink: 0,
+            width: '100%',
+            overflow: 'visible',
+            transition: 'transform 0.3s ease-in-out'
+          }}
+        >
           <Navbar />
         </nav>
       )}
