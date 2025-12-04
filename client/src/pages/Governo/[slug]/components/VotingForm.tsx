@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, Plus, X, Info, CheckCircle2, Save } from "lucide-react";
+import { ThumbsUp, Plus, X, Info, CheckCircle2 } from "lucide-react";
 import { VotingFormProps } from "../types";
 
 export const VotingForm: React.FC<VotingFormProps> = ({
@@ -166,19 +166,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         )}
 
-        {/* Pulsante salva */}
-        {votingState.selectedVoti.length > 0 && (
-          <div className="flex justify-center pt-6 border-t mt-6">
-            <Button
-              onClick={onSaveVoti}
-              disabled={isBlocked || votingState.selectedVoti.length === 0}
-              className="min-w-[160px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Salva Voto
-            </Button>
-          </div>
-        )}
+        {/* Il salvataggio è automatico, non serve più il pulsante */}
 
         {/* Messaggio di blocco */}
         {isBlocked && (
