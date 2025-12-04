@@ -33,7 +33,7 @@ export default function Navbar() {
   const hasLimitedAccess = userRole === "A" || userRole === "O";
 
   return (
-    <nav className="bg-white border-t border-gray-200 flex justify-center items-center h-24 pt-3 pb-4 select-none px-4" style={{ boxShadow: '0 -1px 8px 0 rgba(0,0,0,0.03)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+    <nav className="bg-white flex justify-center items-center h-24 pt-3 pb-4 select-none px-4" style={{ boxShadow: '0 -1px 8px 0 rgba(0,0,0,0.03)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', borderTop: 'none' }}>
       <div className="flex items-center justify-center gap-10 max-w-md">
         <Link href="/menu" className={getLinkClasses("/menu")} style={{marginTop: 0}}>
           <Home className={`h-7 w-7 mb-1 ${isActive("/menu") ? "drop-shadow-lg text-blue-600" : ""}`} />
