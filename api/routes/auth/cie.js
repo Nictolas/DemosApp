@@ -46,7 +46,7 @@ const getOIDCConfig = () => {
   // Altrimenti, usa il mock server come fallback
   console.warn('⚠️ Configurazione OIDC non trovata. Usando mock server come fallback.');
   
-  // Determina l'URL base del server
+  // Determina l'URL base del server per l'issuer
   let baseUrl;
   if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_CIE === 'true') {
     // In development, usa localhost
@@ -54,18 +54,25 @@ const getOIDCConfig = () => {
     baseUrl = `http://localhost:${port}`;
   } else {
     // In produzione, usa l'URL del backend Render
-    // Se FRONTEND_URL è configurato, usa quello come base (dovrebbe essere il dominio principale)
-    // Altrimenti, usa l'URL Render diretto
     baseUrl = process.env.BACKEND_URL || 
               process.env.RENDER_EXTERNAL_URL || 
               'https://demos-c7k0.onrender.com';
+  }
+  
+  // Il redirectUri deve puntare al FRONTEND, non al backend
+  // Questo evita problemi con Google Safe Browsing che blocca redirect a Render
+  let frontendUrl;
+  if (process.env.NODE_ENV === 'development' || process.env.USE_MOCK_CIE === 'true') {
+    frontendUrl = 'http://localhost:3000';
+  } else {
+    frontendUrl = process.env.FRONTEND_URL || 'https://www.demos.community';
   }
   
   return {
     issuerUrl: `${baseUrl}/api/auth/mock-cie`,
     clientId: process.env.CIE_CLIENT_ID || 'mock-client-id',
     clientSecret: process.env.CIE_CLIENT_SECRET || 'mock-client-secret',
-    redirectUri: process.env.CIE_REDIRECT_URI || `${baseUrl}/api/auth/cie/callback`
+    redirectUri: process.env.CIE_REDIRECT_URI || `${frontendUrl}/auth/cie/callback`
   };
 };
 
@@ -160,8 +167,260 @@ router.get('/login', async (req, res) => {
 });
 
 /**
+ * POST /cie/exchange
+ * Scambia l'authorization code con i token di accesso
+ * Questo endpoint viene chiamato dal frontend dopo aver ricevuto code e state dall'Identity Provider
+ */
+router.post('/exchange', async (req, res) => {
+  try {
+    const { code, state } = req.body;
+
+    // Verifica parametri obbligatori
+    if (!code || !state) {
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_request',
+        message: 'Parametri code e state obbligatori'
+      });
+    }
+
+    // Verifica state (CSRF protection)
+    const stateData = oidcStateStore.get(state);
+    if (!stateData) {
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_state',
+        message: 'State non valido o scaduto'
+      });
+    }
+
+    // Rimuovi state (one-time use)
+    oidcStateStore.delete(state);
+
+    // Verifica scadenza state
+    if (Date.now() > stateData.expiresAt) {
+      return res.status(400).json({
+        success: false,
+        error: 'expired_state',
+        message: 'State scaduto'
+      });
+    }
+
+    const config = getOIDCConfig();
+
+    // Scambia authorization code con access token
+    let tokenResponse;
+    try {
+      const tokenUrl = `${config.issuerUrl}/token`;
+      const tokenParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: config.redirectUri,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        code_verifier: stateData.codeVerifier
+      });
+
+      const response = await fetchFunction(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: tokenParams.toString()
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error_description || `HTTP ${response.status}`);
+      }
+
+      tokenResponse = { data: await response.json() };
+    } catch (tokenError) {
+      console.error('❌ Errore scambio token:', tokenError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'token_exchange_failed',
+        message: 'Errore durante lo scambio del token'
+      });
+    }
+
+    const { access_token } = tokenResponse.data;
+
+    if (!access_token) {
+      return res.status(500).json({
+        success: false,
+        error: 'no_access_token',
+        message: 'Token di accesso non ricevuto'
+      });
+    }
+
+    // Ottieni informazioni utente
+    let userInfo;
+    try {
+      const userInfoUrl = `${config.issuerUrl}/userinfo`;
+      const userInfoResponse = await fetchFunction(userInfoUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${access_token}`
+        }
+      });
+
+      if (!userInfoResponse.ok) {
+        const errorData = await userInfoResponse.json().catch(() => ({}));
+        throw new Error(errorData.error_description || `HTTP ${userInfoResponse.status}`);
+      }
+
+      userInfo = await userInfoResponse.json();
+    } catch (userInfoError) {
+      console.error('❌ Errore recupero userinfo:', userInfoError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'userinfo_failed',
+        message: 'Errore durante il recupero delle informazioni utente'
+      });
+    }
+
+    // Estrai fiscal_number (può essere in fiscal_number o in altri campi)
+    const fiscalNumber = userInfo.fiscal_number || 
+                        userInfo.tax_id || 
+                        userInfo.codice_fiscale ||
+                        userInfo.sub; // Fallback a sub se non disponibile
+
+    if (!fiscalNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'no_fiscal_number',
+        message: 'Numero fiscale non trovato nei dati utente'
+      });
+    }
+
+    // Normalizza fiscal_number (rimuovi prefisso TINIT- se presente)
+    const normalizedFiscalNumber = fiscalNumber.replace(/^TINIT-/, '');
+
+    console.log('🔐 CIE Exchange: Dati utente ricevuti', {
+      sub: userInfo.sub,
+      fiscal_number: normalizedFiscalNumber,
+      given_name: userInfo.given_name,
+      family_name: userInfo.family_name
+    });
+
+    // Cerca o crea utente nel database
+    let user;
+    try {
+      // Cerca utente esistente per fiscal_number
+      const userQuery = await pool.query(
+        `SELECT id, email, nome, cognome, ruolo, status, fiscal_number, created_at
+         FROM users 
+         WHERE fiscal_number = $1 OR fiscal_number = $2`,
+        [fiscalNumber, normalizedFiscalNumber]
+      );
+
+      if (userQuery.rows.length > 0) {
+        // Utente esistente - aggiorna dati se necessario
+        user = userQuery.rows[0];
+        
+        // Aggiorna ultimo login
+        await pool.query(
+          `UPDATE users 
+           SET updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $1`,
+          [user.id]
+        );
+
+        console.log('✅ CIE Exchange: Utente esistente trovato', user.id);
+      } else {
+        // Nuovo utente - crea record
+        const userId = crypto.randomUUID();
+        const email = userInfo.email || `${normalizedFiscalNumber}@cie.local`; // Email fittizia se non disponibile
+        
+        await pool.query(
+          `INSERT INTO users (
+            id, email, nome, cognome, fiscal_number, 
+            status, auth_method, verified, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [
+            userId,
+            email,
+            userInfo.given_name || 'Utente',
+            userInfo.family_name || 'CIE',
+            normalizedFiscalNumber,
+            'a', // Status attivo
+            'cie', // Metodo autenticazione
+            true // Verificato tramite CIE
+          ]
+        );
+
+        // Recupera utente appena creato
+        const newUserQuery = await pool.query(
+          `SELECT id, email, nome, cognome, ruolo, status, fiscal_number, created_at
+           FROM users 
+           WHERE id = $1`,
+          [userId]
+        );
+
+        user = newUserQuery.rows[0];
+        console.log('✅ CIE Exchange: Nuovo utente creato', user.id);
+      }
+    } catch (dbError) {
+      console.error('❌ Errore database durante exchange CIE:', dbError);
+      return res.status(500).json({
+        success: false,
+        error: 'database_error',
+        message: 'Errore durante la gestione dell\'utente nel database'
+      });
+    }
+
+    // Verifica che l'utente sia attivo
+    if (user.status !== 'a' && user.status !== 'A') {
+      return res.status(403).json({
+        success: false,
+        error: 'account_inactive',
+        message: 'Il tuo account non è attivo. Contatta l\'amministratore.'
+      });
+    }
+
+    // Genera token JWT per la sessione
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.ruolo || 'user',
+      nome: user.nome,
+      cognome: user.cognome,
+      authMethod: 'cie'
+    };
+
+    const tokens = generateTokenPair(tokenPayload);
+
+    // Restituisci i token come JSON
+    console.log('✅ CIE Exchange: Completato con successo per utente', user.id);
+    res.json({
+      success: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        nome: user.nome,
+        cognome: user.cognome,
+        ruolo: user.ruolo
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore exchange CIE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'internal_error',
+      message: error.message || 'Errore interno durante l\'autenticazione CIE'
+    });
+  }
+});
+
+/**
  * GET /cie/callback
- * Gestisce la callback dall'Identity Provider dopo l'autenticazione
+ * DEPRECATO: Questo endpoint non viene più usato direttamente
+ * Il callback OIDC ora punta al frontend, che chiama /exchange
+ * Mantenuto per compatibilità
  */
 router.get('/callback', async (req, res) => {
   try {
@@ -393,26 +652,21 @@ router.get('/callback', async (req, res) => {
 
     const tokens = generateTokenPair(tokenPayload);
 
-    // Redirect al frontend con token (o restituisci JSON)
-    // Determina l'URL del frontend in base all'ambiente
-    let frontendUrl = process.env.FRONTEND_URL;
-    
-    if (!frontendUrl) {
-      // Fallback intelligente basato sull'ambiente
-      if (process.env.NODE_ENV === 'production') {
-        frontendUrl = 'https://www.demos.community';
-      } else {
-        frontendUrl = 'http://localhost:3000';
-      }
-    }
-    
-    const redirectUrl = new URL(`${frontendUrl}/auth/cie/callback`);
-    redirectUrl.searchParams.set('accessToken', tokens.accessToken);
-    redirectUrl.searchParams.set('refreshToken', tokens.refreshToken);
-    redirectUrl.searchParams.set('success', 'true');
-
+    // Restituisci i token come JSON invece di fare redirect
+    // Il frontend gestirà il salvataggio e il redirect
     console.log('✅ CIE Login: Completato con successo per utente', user.id);
-    res.redirect(redirectUrl.toString());
+    res.json({
+      success: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        nome: user.nome,
+        cognome: user.cognome,
+        ruolo: user.ruolo
+      }
+    });
 
   } catch (error) {
     console.error('❌ Errore callback CIE:', error);
