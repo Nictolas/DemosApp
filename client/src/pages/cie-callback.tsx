@@ -4,6 +4,7 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getApiUrl } from "@/lib/api-config";
 
 export default function CIECallback() {
   const [location, setLocation] = useLocation();
@@ -13,79 +14,107 @@ export default function CIECallback() {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
-    // Estrai i parametri dalla query string
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('accessToken');
-    const refreshToken = urlParams.get('refreshToken');
-    const success = urlParams.get('success');
-    const error = urlParams.get('error');
-    const errorDescription = urlParams.get('error_description');
+    const exchangeCode = async () => {
+      // Estrai i parametri dalla query string (code e state dall'Identity Provider)
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
 
-    // Gestisci errori
-    if (error || success === 'false') {
-      setStatus('error');
-      setErrorMessage(errorDescription || error || 'Errore durante l\'autenticazione CIE');
-      toast({
-        title: "Errore autenticazione CIE",
-        description: errorDescription || error || 'Si è verificato un errore durante il login',
-        variant: "destructive"
-      });
-      
-      // Reindirizza alla pagina di autenticazione dopo 3 secondi
-      setTimeout(() => {
-        setLocation('/auth?tab=cie');
-      }, 3000);
-      return;
-    }
-
-    // Verifica che i token siano presenti
-    if (!accessToken || success !== 'true') {
-      setStatus('error');
-      setErrorMessage('Token di accesso non ricevuto');
-      toast({
-        title: "Errore autenticazione",
-        description: "Non è stato possibile completare l'autenticazione",
-        variant: "destructive"
-      });
-      
-      setTimeout(() => {
-        setLocation('/auth?tab=cie');
-      }, 3000);
-      return;
-    }
-
-    // Salva i token nel localStorage
-    try {
-      localStorage.setItem('auth_token', accessToken);
-      if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
+      // Gestisci errori dall'Identity Provider
+      if (error) {
+        setStatus('error');
+        setErrorMessage(errorDescription || error || 'Errore durante l\'autenticazione CIE');
+        toast({
+          title: "Errore autenticazione CIE",
+          description: errorDescription || error || 'Si è verificato un errore durante il login',
+          variant: "destructive"
+        });
+        
+        // Reindirizza alla pagina di autenticazione dopo 3 secondi
+        setTimeout(() => {
+          setLocation('/auth?tab=cie');
+        }, 3000);
+        return;
       }
 
-      setStatus('success');
-      toast({
-        title: "Login effettuato!",
-        description: "Autenticazione CIE completata con successo",
-        variant: "default"
-      });
+      // Verifica che code e state siano presenti
+      if (!code || !state) {
+        setStatus('error');
+        setErrorMessage('Parametri di autenticazione mancanti');
+        toast({
+          title: "Errore autenticazione",
+          description: "Non è stato possibile completare l'autenticazione",
+          variant: "destructive"
+        });
+        
+        setTimeout(() => {
+          setLocation('/auth?tab=cie');
+        }, 3000);
+        return;
+      }
 
-      // Reindirizza al menu dopo 1 secondo
-      setTimeout(() => {
-        // Forza il refresh della pagina per aggiornare lo stato dell'autenticazione
-        window.location.href = '/menu';
-      }, 1000);
-    } catch (err) {
-      setStatus('error');
-      setErrorMessage('Errore durante il salvataggio dei token');
-      toast({
-        title: "Errore",
-        description: "Impossibile salvare i dati di autenticazione",
-        variant: "destructive"
-      });
-      
-      setTimeout(() => {
-        setLocation('/auth?tab=cie');
-      }, 3000);
-    }
+      // Chiama il backend per scambiare code e state con i token
+      try {
+        const exchangeUrl = getApiUrl('/auth/cie/exchange');
+        console.log('🔐 CIE Callback: Scambio code con token...');
+        
+        const response = await fetch(exchangeUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ code, state })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Errore HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.accessToken) {
+          throw new Error(data.message || 'Token di accesso non ricevuto');
+        }
+
+        // Salva i token nel localStorage
+        localStorage.setItem('auth_token', data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem('refresh_token', data.refreshToken);
+        }
+
+        setStatus('success');
+        toast({
+          title: "Login effettuato!",
+          description: "Autenticazione CIE completata con successo",
+          variant: "default"
+        });
+
+        // Reindirizza al menu dopo 1 secondo
+        setTimeout(() => {
+          // Forza il refresh della pagina per aggiornare lo stato dell'autenticazione
+          window.location.href = '/menu';
+        }, 1000);
+      } catch (err: any) {
+        console.error('❌ Errore durante exchange CIE:', err);
+        setStatus('error');
+        setErrorMessage(err.message || 'Errore durante lo scambio del codice di autorizzazione');
+        toast({
+          title: "Errore",
+          description: err.message || "Impossibile completare l'autenticazione",
+          variant: "destructive"
+        });
+        
+        setTimeout(() => {
+          setLocation('/auth?tab=cie');
+        }, 3000);
+      }
+    };
+
+    exchangeCode();
   }, [setLocation, toast]);
 
   // Se l'utente è già autenticato, reindirizza al menu
