@@ -4,13 +4,22 @@ const { pool } = require('../middleware/auth');
 let Axiom;
 let axiomAudit;
 try {
-  Axiom = require('@axiomhq/axiom-node');
+  const axiomModule = require('@axiomhq/axiom-node');
   if (process.env.AXIOM_ENABLED === 'true' && process.env.AXIOM_API_TOKEN && process.env.AXIOM_ORG_ID) {
-    axiomAudit = new Axiom({
-      token: process.env.AXIOM_API_TOKEN,
-      orgId: process.env.AXIOM_ORG_ID,
-      region: process.env.AXIOM_REGION || 'eu'
-    });
+    // Usa Client se disponibile, altrimenti usa direttamente il modulo
+    if (axiomModule.Client) {
+      axiomAudit = new axiomModule.Client({
+        token: process.env.AXIOM_API_TOKEN,
+        orgId: process.env.AXIOM_ORG_ID,
+        region: process.env.AXIOM_REGION || 'eu'
+      });
+    } else {
+      // Fallback: usa direttamente il modulo (metodo deprecato)
+      axiomAudit = axiomModule;
+      axiomAudit.token = process.env.AXIOM_API_TOKEN;
+      axiomAudit.orgId = process.env.AXIOM_ORG_ID;
+      axiomAudit.region = process.env.AXIOM_REGION || 'eu';
+    }
   }
 } catch (error) {
   // Axiom SDK non installato, continua senza
