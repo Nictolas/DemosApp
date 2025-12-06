@@ -7,13 +7,22 @@ const path = require('path');
 let Axiom;
 let axiom;
 try {
-  Axiom = require('@axiomhq/axiom-node');
+  const axiomModule = require('@axiomhq/axiom-node');
   if (process.env.AXIOM_ENABLED === 'true' && process.env.AXIOM_API_TOKEN && process.env.AXIOM_ORG_ID) {
-    axiom = new Axiom({
-      token: process.env.AXIOM_API_TOKEN,
-      orgId: process.env.AXIOM_ORG_ID,
-      region: process.env.AXIOM_REGION || 'eu'
-    });
+    // Usa Client se disponibile, altrimenti usa direttamente il modulo
+    if (axiomModule.Client) {
+      axiom = new axiomModule.Client({
+        token: process.env.AXIOM_API_TOKEN,
+        orgId: process.env.AXIOM_ORG_ID,
+        region: process.env.AXIOM_REGION || 'eu'
+      });
+    } else {
+      // Fallback: usa direttamente il modulo (metodo deprecato)
+      axiom = axiomModule;
+      axiom.token = process.env.AXIOM_API_TOKEN;
+      axiom.orgId = process.env.AXIOM_ORG_ID;
+      axiom.region = process.env.AXIOM_REGION || 'eu';
+    }
   }
 } catch (error) {
   // Axiom SDK non installato, continua senza
