@@ -755,8 +755,8 @@ router.get('/callback', async (req, res) => {
         await pool.query(
           `INSERT INTO users (
             id, email, nome, cognome, fiscal_number, 
-            status, auth_method, verified, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            status, auth_method, verified, ruolo, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
           [
             userId,
             email,
@@ -765,7 +765,8 @@ router.get('/callback', async (req, res) => {
             normalizedFiscalNumber,
             'a', // Status attivo
             'cie', // Metodo autenticazione
-            true // Verificato tramite CIE
+            true, // Verificato tramite CIE
+            'E' // Ruolo automaticamente impostato a "Elettore"
           ]
         );
 

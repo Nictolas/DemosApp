@@ -181,7 +181,7 @@ router.post('/register',
     const compressedRegioneCandidatura = compressUserLocation({ regione_candidatura }).regione_candidatura;
     const compressedProvinciaCandidatura = compressUserLocation({ provincia_candidatura }).provincia_candidatura;
     
-    // Compressione ruolo
+    // Compressione ruolo - tutti i nuovi utenti sono automaticamente "Elettore"
     const ruoloMapping = {
       'Elettore': 'E',
       'Politico': 'P',
@@ -190,7 +190,9 @@ router.post('/register',
       'Attivista': 'A',
       'Admin': 'AD'
     };
-    const compressedRuolo = ruoloMapping[ruolo] || 'E'; // Default a 'Elettore'
+    // Se il ruolo non è fornito o è vuoto, imposta automaticamente "Elettore"
+    const ruoloToUse = ruolo || 'Elettore';
+    const compressedRuolo = ruoloMapping[ruoloToUse] || 'E'; // Default sempre a 'Elettore'
     
     console.log('🔍 DEBUG - Valori compressi:', {
       genere: compressedGenere,

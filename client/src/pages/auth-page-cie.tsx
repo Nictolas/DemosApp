@@ -42,7 +42,7 @@ const registerSchema = z.object({
   regione_candidatura: z.string().optional(),
   provincia_candidatura: z.string().optional(),
   comune_candidatura: z.string().optional(),
-  ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
+  ruolo: z.string().default("Elettore"),
   grado_elezione: z.string().optional(),
   grado_candidatura: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -93,7 +93,7 @@ export default function AuthPageCIE() {
       regione_candidatura: "",
       provincia_candidatura: "",
       comune_candidatura: "",
-      ruolo: "",
+      ruolo: "Elettore", // Ruolo automaticamente impostato a "Elettore"
       grado_elezione: "",
       grado_candidatura: "",
     },
@@ -233,7 +233,9 @@ export default function AuthPageCIE() {
   // Gestione registrazione tradizionale
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
-      await registerMutation.mutateAsync(data);
+      // Assicurati che il ruolo sia sempre "Elettore"
+      const registrationData = { ...data, ruolo: "Elettore" };
+      await registerMutation.mutateAsync(registrationData);
       toast({
         title: "Registrazione completata",
         description: "Controlla la tua email per verificare l'account",
