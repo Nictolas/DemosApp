@@ -2,6 +2,23 @@
 const os = require('os');
 const process = require('process');
 const { pool } = require('../middleware/auth');
+
+// Axiom integration per performance metrics
+let Axiom;
+let axiomPerformance;
+try {
+  Axiom = require('@axiomhq/axiom-node');
+  if (process.env.AXIOM_ENABLED === 'true' && process.env.AXIOM_API_TOKEN && process.env.AXIOM_ORG_ID) {
+    axiomPerformance = new Axiom({
+      token: process.env.AXIOM_API_TOKEN,
+      orgId: process.env.AXIOM_ORG_ID,
+      region: process.env.AXIOM_REGION || 'eu'
+    });
+  }
+} catch (error) {
+  // Axiom SDK non installato, continua senza
+  axiomPerformance = null;
+}
 const logger = require('./centralizedLogger');
 
 class PerformanceMonitor {
@@ -486,8 +503,49 @@ class PerformanceMonitor {
       ];
       
       await pool.query(query, values);
+      
+      // Invia anche ad Axiom (dataset real-time)
+      this.sendMetricsToAxiom(values).catch(() => {});
     } catch (error) {
       console.error('❌ Errore salvataggio metriche storiche:', error);
+    }
+  }
+
+  /**
+   * Invia performance metrics ad Axiom (dataset real-time)
+   */
+  async sendMetricsToAxiom(metricsValues) {
+    if (!axiomPerformance || process.env.AXIOM_ENABLED !== 'true') return;
+
+    try {
+      const logEntry = {
+        _time: new Date().toISOString(),
+        log_type: 'performance',
+        cpu_usage: metricsValues[1],
+        memory_usage: metricsValues[2],
+        memory_total: metricsValues[3],
+        memory_free: metricsValues[4],
+        db_connections: metricsValues[5],
+        db_size_bytes: metricsValues[6],
+        error_count: metricsValues[7],
+        warning_count: metricsValues[8],
+        event_loop_delay: metricsValues[9],
+        uptime: metricsValues[10],
+        load_average: metricsValues[11] ? JSON.parse(metricsValues[11]) : null
+      };
+
+      // Invia ad Axiom (non blocca se fallisce)
+      const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
+      axiomPerformance.datasets.ingest(dataset, [logEntry])
+        .catch(err => {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('❌ Errore invio performance metrics Axiom:', err.message);
+          }
+        });
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Errore preparazione performance metrics Axiom:', error);
+      }
     }
   }
 

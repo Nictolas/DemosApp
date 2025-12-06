@@ -195,8 +195,82 @@ class SecurityMonitor {
         event.severity,
         JSON.stringify(event.details)
       ]);
+      
+      // Invia anche ad Axiom (dataset real-time)
+      this.sendSecurityEventToAxiom(event).catch(() => {});
     } catch (error) {
       console.error('❌ Errore salvataggio evento sicurezza:', error);
+    }
+  }
+
+  /**
+   * Invia security event ad Axiom (dataset real-time)
+   */
+  async sendSecurityEventToAxiom(event) {
+    // Axiom integration per security events
+    let Axiom;
+    let axiomSecurity;
+    try {
+      Axiom = require('@axiomhq/axiom-node');
+      if (process.env.AXIOM_ENABLED === 'true' && process.env.AXIOM_API_TOKEN && process.env.AXIOM_ORG_ID) {
+        axiomSecurity = new Axiom({
+          token: process.env.AXIOM_API_TOKEN,
+          orgId: process.env.AXIOM_ORG_ID,
+          region: process.env.AXIOM_REGION || 'eu'
+        });
+      }
+    } catch (error) {
+      axiomSecurity = null;
+    }
+
+    if (!axiomSecurity || process.env.AXIOM_ENABLED !== 'true') return;
+
+    try {
+      const logEntry = {
+        _time: new Date().toISOString(),
+        log_type: 'security',
+        type: event.type,
+        ip_address: event.ip_address,
+        user_id: event.user_id || null,
+        user_email: event.user_email || null,
+        user_agent: event.user_agent,
+        severity: event.severity,
+        details: event.details
+      };
+
+      // Anonimizza se richiesto (GDPR)
+      if (process.env.AXIOM_ANONYMIZE === 'true') {
+        // Anonimizza IP (solo rete)
+        if (logEntry.ip_address) {
+          const parts = logEntry.ip_address.split('.');
+          if (parts.length === 4) {
+            logEntry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+          }
+        }
+        
+        // Hash user_id se richiesto
+        if (logEntry.user_id && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
+          const crypto = require('crypto');
+          logEntry.user_id = crypto
+            .createHash('sha256')
+            .update(logEntry.user_id + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
+            .digest('hex')
+            .substring(0, 16);
+        }
+      }
+
+      // Invia ad Axiom (non blocca se fallisce)
+      const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
+      axiomSecurity.datasets.ingest(dataset, [logEntry])
+        .catch(err => {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('❌ Errore invio security event Axiom:', err.message);
+          }
+        });
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Errore preparazione security event Axiom:', error);
+      }
     }
   }
 

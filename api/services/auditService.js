@@ -105,6 +105,7 @@ class AuditService {
     try {
       const logEntry = {
         _time: new Date(auditLog.timestamp || Date.now()).toISOString(),
+        log_type: 'audit', // Tag per distinguere nel dataset real-time
         type: 'audit',
         user_id: auditLog.user_id,
         action: auditLog.action,
@@ -151,7 +152,8 @@ class AuditService {
       }
 
       // Invia ad Axiom (non blocca se fallisce)
-      const dataset = process.env.AXIOM_AUDIT_DATASET || process.env.AXIOM_DATASET || 'demosapp-logs';
+      // Audit logs vanno nel dataset real-time insieme a performance e security
+      const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
       axiomAudit.datasets.ingest(dataset, [logEntry])
         .catch(err => {
           if (process.env.NODE_ENV === 'development') {
