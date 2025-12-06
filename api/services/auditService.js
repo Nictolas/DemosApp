@@ -163,7 +163,7 @@ class AuditService {
       // Invia ad Axiom (non blocca se fallisce)
       // Audit logs vanno nel dataset real-time insieme a performance e security
       const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
-      axiomAudit.datasets.ingest(dataset, [logEntry])
+      axiomAudit.ingestEvents(dataset, [logEntry])
         .catch(err => {
           if (process.env.NODE_ENV === 'development') {
             console.error('❌ Errore invio audit log Axiom:', err.message);

@@ -261,7 +261,7 @@ class SecurityMonitor {
 
       // Invia ad Axiom (non blocca se fallisce)
       const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
-      axiomSecurity.datasets.ingest(dataset, [logEntry])
+      axiomSecurity.ingestEvents(dataset, [logEntry])
         .catch(err => {
           if (process.env.NODE_ENV === 'development') {
             console.error('❌ Errore invio security event Axiom:', err.message);
