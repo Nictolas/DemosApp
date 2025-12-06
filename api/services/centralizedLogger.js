@@ -57,7 +57,7 @@ class CentralizedLogger {
     this.maxFileSize = parseInt(process.env.LOG_MAX_FILE_SIZE || '10485760'); // 10MB
     this.maxFiles = parseInt(process.env.LOG_MAX_FILES || '5');
     
-    this.axiomDataset = process.env.AXIOM_DATASET || 'demosapp-logs';
+    this.axiomDataset = process.env.AXIOM_DATASET || 'centralized_logs';
     this.axiomClient = axiom;
     
     this.initializeLogDirectory();
@@ -125,6 +125,7 @@ class CentralizedLogger {
         _time: new Date().toISOString(),
         level: level,
         message: message,
+        log_type: meta.logType || 'application', // 'application', 'performance', 'security'
         pid: process.pid,
         hostname: require('os').hostname(),
         ...meta

@@ -18,6 +18,7 @@
   "author": "DemosApp Team",
   "license": "MIT",
   "dependencies": {
+    "@axiomhq/axiom-node": "^0.12.0",
     "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
