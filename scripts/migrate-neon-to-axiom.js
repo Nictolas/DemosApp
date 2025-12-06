@@ -249,7 +249,7 @@ async function migrateCentralizedLogs() {
       const axiomLogs = result.rows.map(row => convertCentralizedLogToAxiom(row));
       
       // Invia ad Axiom
-      await axiom.datasets.ingest(dataset, axiomLogs);
+      await axiom.ingestEvents(dataset, axiomLogs);
       
       migrated += result.rows.length;
       offset += result.rows.length;
@@ -361,7 +361,7 @@ async function migrateAuditLogs() {
       const axiomLogs = result.rows.map(row => convertAuditLogToAxiom(row));
       
       // Invia ad Axiom
-      await axiom.datasets.ingest(dataset, axiomLogs);
+      await axiom.ingestEvents(dataset, axiomLogs);
       
       migrated += result.rows.length;
       offset += result.rows.length;

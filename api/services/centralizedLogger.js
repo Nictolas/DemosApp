@@ -162,7 +162,7 @@ class CentralizedLogger {
       }
 
       // Invia ad Axiom (non blocca se fallisce)
-      this.axiomClient.datasets.ingest(this.axiomDataset, [logEntry])
+      this.axiomClient.ingestEvents(this.axiomDataset, [logEntry])
         .catch(err => {
           // Log errore silenziosamente (non bloccare applicazione)
           if (process.env.NODE_ENV === 'development') {

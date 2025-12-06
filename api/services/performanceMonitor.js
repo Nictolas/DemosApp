@@ -536,7 +536,7 @@ class PerformanceMonitor {
 
       // Invia ad Axiom (non blocca se fallisce)
       const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
-      axiomPerformance.datasets.ingest(dataset, [logEntry])
+      axiomPerformance.ingestEvents(dataset, [logEntry])
         .catch(err => {
           if (process.env.NODE_ENV === 'development') {
             console.error('❌ Errore invio performance metrics Axiom:', err.message);
