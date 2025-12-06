@@ -4,8 +4,8 @@ const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
 const { requireAdmin } = require('../../middleware/auth');
 
-// Importa le funzioni di migrazione
-const { migrateNeonToAxiom, migrateCentralizedLogs, migrateAuditLogs } = require('../../../scripts/migrate-neon-to-axiom');
+// Le funzioni di migrazione vengono caricate solo quando necessario (lazy loading)
+// per evitare errori all'avvio se 'pg' non è disponibile
 
 /**
  * POST /api/admin/axiom-migration/migrate
@@ -32,6 +32,9 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
         message: 'Configura AXIOM_API_TOKEN e AXIOM_ORG_ID'
       });
     }
+    
+    // Carica le funzioni di migrazione solo quando necessario (lazy loading)
+    const { migrateNeonToAxiom } = require('../../../scripts/migrate-neon-to-axiom');
     
     // Avvia migrazione in background (non blocca la risposta)
     const migrationPromise = migrateNeonToAxiom({
