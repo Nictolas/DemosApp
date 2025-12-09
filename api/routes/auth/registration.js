@@ -372,9 +372,7 @@ router.post('/register',
       
       console.log('✅ Email di verifica inviata per:', email);
       
-      // Rilascia il lock dopo il successo
-      registrationLocks.delete(normalizedEmail);
-      
+      // Il lock verrà rilasciato nel finally
       res.json({
         success: true,
         message: 'Registrazione completata! Controlla la tua email per confermare l\'account.',
@@ -395,9 +393,7 @@ router.post('/register',
       // Se l'email non può essere inviata, elimina l'utente e restituisci errore
       await pool.query('DELETE FROM users WHERE id = $1', [newUser.id]);
       
-      // Rilascia il lock anche in caso di errore email
-      registrationLocks.delete(normalizedEmail);
-      
+      // Il lock verrà rilasciato nel finally
       res.status(500).json({
         success: false,
         error: 'Errore nell\'invio email di verifica. Riprova più tardi.'
@@ -408,8 +404,7 @@ router.post('/register',
       console.error('❌ Errore nella registrazione:', error);
       console.error('❌ Stack trace:', error.stack);
       
-      // Rilascia il lock in caso di errore
-      registrationLocks.delete(normalizedEmail);
+      // Il lock verrà rilasciato nel finally
       
       // Se c'è un errore di constraint di unicità, significa che il controllo iniziale non ha funzionato
       // (non dovrebbe mai succedere con il lock, ma gestiamolo come errore generico)
@@ -433,8 +428,11 @@ router.post('/register',
     }
   } catch (outerError) {
     // Gestione errori generali non catturati dal try interno
+    // (errori che avvengono prima del try interno, quindi il lock potrebbe non essere stato impostato)
     console.error('❌ Errore generale nella registrazione:', outerError);
-    registrationLocks.delete(normalizedEmail);
+    if (normalizedEmail && registrationLocks.has(normalizedEmail)) {
+      registrationLocks.delete(normalizedEmail);
+    }
     res.status(500).json({
       success: false,
       error: 'Errore nella registrazione',
