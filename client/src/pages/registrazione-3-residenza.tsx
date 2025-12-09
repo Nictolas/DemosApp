@@ -95,7 +95,17 @@ export default function RegistrazioneResidenza() {
       });
 
       const responseText = await response.text();
-      const result = responseText ? JSON.parse(responseText) : { message: 'Risposta vuota dal server' };
+      let result;
+      if (responseText) {
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('❌ Errore parsing JSON:', parseError);
+          throw new Error('Risposta del server non valida');
+        }
+      } else {
+        result = { message: 'Risposta vuota dal server' };
+      }
 
       if (response.ok) {
         const userId = result.user?.id;
