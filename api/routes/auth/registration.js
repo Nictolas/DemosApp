@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../../middleware/auth');
 const { validateInput, validateEmail } = require('../../middleware/validation');
 const { authAuditMiddleware } = require('../../middleware/auditMiddleware');
-const { registrationLimiter } = require('../../middleware/rateLimiting');
+// Rate limiter rimosso - abbiamo già altre protezioni (lock, validazione, ecc.)
+// const { registrationLimiter } = require('../../middleware/rateLimiting');
 const { validationRules, sanitizeInput } = require('../../middleware/inputValidation');
 const ValidationService = require('../../services/validationService');
 const { compressGender } = require('../../utils/genderUtils');
@@ -32,7 +33,7 @@ try {
 
 // POST /api/auth/register - Registrazione nuovo utente
 router.post('/register', 
-  registrationLimiter, 
+  // registrationLimiter rimosso - abbiamo già altre protezioni
   validateInput(['email', 'password', 'privacy_policy_consent', 'terms_of_service_consent', 'political_opinions_consent']), 
   sanitizeInput(['nome', 'cognome', 'cittadinanza']),
   authAuditMiddleware, 
