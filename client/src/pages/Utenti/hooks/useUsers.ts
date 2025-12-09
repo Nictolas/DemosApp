@@ -8,11 +8,16 @@ export const useUsers = (user: any) => {
   const { data: responseData, isLoading: isLoadingUsers, isError } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const [allUsersData, pendingUsersData] = await Promise.all([
+      // apiRequest restituisce un oggetto con proprietà 'data' che contiene il JSON parsato
+      const [allUsersResponse, pendingUsersResponse] = await Promise.all([
         apiRequest("GET", "/api/users"),
         apiRequest("GET", "/api/users/pending")
       ]);
+      
+      // Estrai i dati dalla risposta
+      const allUsersData = allUsersResponse.data || allUsersResponse;
+      const pendingUsersData = pendingUsersResponse.data || pendingUsersResponse;
+      
       // Aggiungi campo nome_completo agli utenti
       const addFullName = (users: any[]) => {
         return users.map(user => ({
@@ -22,8 +27,8 @@ export const useUsers = (user: any) => {
       };
 
       return { 
-        utenti: allUsersData.success ? addFullName(allUsersData.users) : [], 
-        pendingUsers: pendingUsersData.success ? addFullName(pendingUsersData.pendingUsers) : [] 
+        utenti: allUsersData.success ? addFullName(allUsersData.users || []) : [], 
+        pendingUsers: pendingUsersData.success ? addFullName(pendingUsersData.pendingUsers || []) : [] 
       };
     },
     // Uso user.ruolo che è il campo restituito dall'API
