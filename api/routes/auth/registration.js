@@ -137,8 +137,25 @@ router.post('/register',
       });
     }
     
-    // L'unicità dell'email viene già verificata dal frontend tramite /api/check-email
-    
+    // Verifica preventiva se l'email esiste già (per evitare errori di constraint)
+    try {
+      const existingUser = await pool.query(
+        'SELECT id, email, status FROM users WHERE email = $1',
+        [email.toLowerCase()]
+      );
+      
+      if (existingUser.rows.length > 0) {
+        console.log('⚠️ Email già esistente:', email);
+        return res.status(400).json({
+          success: false,
+          error: 'Email già registrata',
+          message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
+        });
+      }
+    } catch (checkError) {
+      console.error('❌ Errore nel controllo email esistente:', checkError);
+      // Continua comunque, il constraint del database catturerà l'errore
+    }
     
     // Hash della password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
