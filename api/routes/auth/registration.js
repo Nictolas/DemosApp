@@ -461,6 +461,16 @@ router.post('/register',
       // Rilascia sempre il lock alla fine (anche in caso di successo)
       registrationLocks.delete(normalizedEmail);
     }
+  } catch (outerError) {
+    // Gestione errori generali non catturati dal try interno
+    console.error('❌ Errore generale nella registrazione:', outerError);
+    registrationLocks.delete(normalizedEmail);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella registrazione',
+      message: outerError.message || 'Si è verificato un errore imprevisto'
+    });
+  }
 });
 
 module.exports = router;
