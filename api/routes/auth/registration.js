@@ -16,6 +16,9 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
 
+// Lock per prevenire registrazioni duplicate simultanee
+const registrationLocks = new Map();
+
 // Importazione condizionale del servizio email
 let emailService;
 try {
@@ -147,43 +150,68 @@ router.post('/register',
       });
     }
     
-    // Verifica preventiva se l'email esiste già (per evitare errori di constraint)
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-      const existingUser = await pool.query(
-        'SELECT id, email, status, email_verified FROM users WHERE LOWER(TRIM(email)) = $1',
-        [normalizedEmail]
-      );
-      
-      if (existingUser.rows.length > 0) {
-        const user = existingUser.rows[0];
-        console.log('⚠️ Email già esistente:', {
-          email: normalizedEmail,
-          userId: user.id,
-          status: user.status,
-          email_verified: user.email_verified,
-          existingEmail: user.email
-        });
-        
-        // Se l'utente è in stato "pending" e l'email non è verificata, permettere la registrazione
-        // (eliminerà l'account vecchio e ne creerà uno nuovo)
-        if (user.status === 'p' && !user.email_verified) {
-          console.log('🔄 Account pending non verificato trovato, eliminando e permettendo nuova registrazione...');
-          await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
-          console.log('✅ Account pending eliminato, procedendo con nuova registrazione');
-        } else {
-          // Account attivo o verificato: blocca la registrazione
-          return res.status(400).json({
-            success: false,
-            error: 'Email già registrata',
-            message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
-          });
-        }
-      }
-    } catch (checkError) {
-      console.error('❌ Errore nel controllo email esistente:', checkError);
-      // Continua comunque, il constraint del database catturerà l'errore
+    // Lock per prevenire registrazioni duplicate simultanee per la stessa email
+    // IMPORTANTE: Il lock deve essere impostato PRIMA del controllo email per evitare race conditions
+    const normalizedEmail = email.toLowerCase().trim();
+    if (registrationLocks.has(normalizedEmail)) {
+      console.log('⚠️ Registrazione già in corso per questa email:', normalizedEmail);
+      return res.status(429).json({
+        success: false,
+        error: 'Registrazione in corso',
+        message: 'Una registrazione per questa email è già in corso. Attendi qualche secondo e riprova.'
+      });
     }
+    
+    registrationLocks.set(normalizedEmail, true);
+    
+    try {
+      // Verifica preventiva se l'email esiste già (per evitare errori di constraint)
+      // Questo controllo avviene DOPO il lock, quindi è thread-safe
+      try {
+        const existingUser = await pool.query(
+          'SELECT id, email, status, email_verification_token FROM users WHERE LOWER(TRIM(email)) = $1',
+          [normalizedEmail]
+        );
+        
+        if (existingUser.rows.length > 0) {
+          const user = existingUser.rows[0];
+          const isEmailVerified = !user.email_verification_token || user.status === 'a';
+          
+          console.log('⚠️ Email già esistente:', {
+            email: normalizedEmail,
+            userId: user.id,
+            status: user.status,
+            hasVerificationToken: !!user.email_verification_token,
+            isEmailVerified: isEmailVerified,
+            existingEmail: user.email
+          });
+          
+          // Se l'utente è in stato "pending" e l'email non è verificata, permettere la registrazione
+          // (eliminerà l'account vecchio e ne creerà uno nuovo)
+          if (user.status === 'p' && !isEmailVerified) {
+            console.log('🔄 Account pending non verificato trovato, eliminando e permettendo nuova registrazione...');
+            try {
+              await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
+              console.log('✅ Account pending eliminato, procedendo con nuova registrazione');
+            } catch (deleteError) {
+              console.error('❌ Errore nell\'eliminazione account pending:', deleteError);
+              // Continua comunque, il constraint del database gestirà il caso
+            }
+          } else {
+            // Account attivo o verificato: blocca la registrazione
+            console.log('🚫 Account esistente attivo/verificato, blocco registrazione');
+            registrationLocks.delete(normalizedEmail);
+            return res.status(400).json({
+              success: false,
+              error: 'Email già registrata',
+              message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
+            });
+          }
+        }
+      } catch (checkError) {
+        console.error('❌ Errore nel controllo email esistente:', checkError);
+        // Continua comunque, il constraint del database catturerà l'errore
+      }
     
     // Hash della password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -344,6 +372,9 @@ router.post('/register',
       
       console.log('✅ Email di verifica inviata per:', email);
       
+      // Rilascia il lock dopo il successo
+      registrationLocks.delete(normalizedEmail);
+      
       res.json({
         success: true,
         message: 'Registrazione completata! Controlla la tua email per confermare l\'account.',
@@ -364,6 +395,9 @@ router.post('/register',
       // Se l'email non può essere inviata, elimina l'utente e restituisci errore
       await pool.query('DELETE FROM users WHERE id = $1', [newUser.id]);
       
+      // Rilascia il lock anche in caso di errore email
+      registrationLocks.delete(normalizedEmail);
+      
       res.status(500).json({
         success: false,
         error: 'Errore nell\'invio email di verifica. Riprova più tardi.'
@@ -374,9 +408,42 @@ router.post('/register',
       console.error('❌ Errore nella registrazione:', error);
       console.error('❌ Stack trace:', error.stack);
       
+      // Rilascia il lock in caso di errore
+      registrationLocks.delete(normalizedEmail);
+      
       // Gestione specifica per errori di constraint di unicità
+      // Questo è un fallback nel caso raro in cui il controllo iniziale non abbia funzionato
+      // (ad esempio per race condition estreme o problemi di connessione database)
       if (error.code === '23505') {
         if (error.constraint === 'users_email_key') {
+          console.log('⚠️ Errore constraint email - verifica se account è stato appena creato');
+          // Verifica se l'account è stato appena creato (potrebbe essere una race condition)
+          try {
+            const justCreated = await pool.query(
+              'SELECT id, status, created_at FROM users WHERE LOWER(TRIM(email)) = $1 AND created_at > NOW() - INTERVAL \'5 seconds\'',
+              [normalizedEmail]
+            );
+            
+            if (justCreated.rows.length > 0) {
+              // L'account è stato appena creato, probabilmente da un'altra richiesta simultanea
+              // Restituisci successo invece di errore
+              console.log('✅ Account appena creato trovato, restituisco successo');
+              return res.json({
+                success: true,
+                message: 'Registrazione completata! Controlla la tua email per confermare l\'account.',
+                user: {
+                  id: justCreated.rows[0].id,
+                  email: normalizedEmail,
+                  status: justCreated.rows[0].status
+                },
+                requiresVerification: true
+              });
+            }
+          } catch (checkError) {
+            console.error('❌ Errore nel controllo account appena creato:', checkError);
+          }
+          
+          // Se non è stato appena creato, è un vero errore
           return res.status(400).json({
             success: false,
             error: 'Email già registrata',
@@ -390,6 +457,9 @@ router.post('/register',
         error: 'Errore nella registrazione',
         message: error.message
       });
+    } finally {
+      // Rilascia sempre il lock alla fine (anche in caso di successo)
+      registrationLocks.delete(normalizedEmail);
     }
 });
 
