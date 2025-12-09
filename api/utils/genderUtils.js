@@ -49,6 +49,11 @@ function decompressGender(dbValue) {
 function compressGender(frontendValue) {
   if (!frontendValue) return null;
   
+  // Se il valore è già nel formato compresso del database, restituiscilo direttamente
+  if (frontendValue === 'u' || frontendValue === 'd' || frontendValue === 'a') {
+    return frontendValue;
+  }
+  
   // Prima prova il mapping standard
   if (FRONTEND_TO_DB[frontendValue]) {
     return FRONTEND_TO_DB[frontendValue];
