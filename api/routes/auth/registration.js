@@ -18,7 +18,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
 
 // Lock per prevenire registrazioni duplicate simultanee
+// Ogni lock ha un timestamp per scadere automaticamente dopo 30 secondi
 const registrationLocks = new Map();
+
+// Funzione per pulire lock scaduti
+const cleanupExpiredLocks = () => {
+  const now = Date.now();
+  const timeout = 30000; // 30 secondi
+  for (const [email, timestamp] of registrationLocks.entries()) {
+    if (now - timestamp > timeout) {
+      console.log(`🧹 Rimozione lock scaduto per: ${email}`);
+      registrationLocks.delete(email);
+    }
+  }
+};
+
+// Pulisci lock scaduti ogni 10 secondi
+setInterval(cleanupExpiredLocks, 10000);
 
 // Importazione condizionale del servizio email
 let emailService;
@@ -154,16 +170,30 @@ router.post('/register',
     // Lock per prevenire registrazioni duplicate simultanee per la stessa email
     // IMPORTANTE: Il lock deve essere impostato PRIMA del controllo email per evitare race conditions
     const normalizedEmail = email.toLowerCase().trim();
-    if (registrationLocks.has(normalizedEmail)) {
-      console.log('⚠️ Registrazione già in corso per questa email:', normalizedEmail);
-      return res.status(429).json({
-        success: false,
-        error: 'Registrazione in corso',
-        message: 'Una registrazione per questa email è già in corso. Attendi qualche secondo e riprova.'
-      });
+    
+    // Pulisci lock scaduti prima di controllare
+    cleanupExpiredLocks();
+    
+    // Controlla se c'è un lock attivo (non scaduto)
+    const existingLock = registrationLocks.get(normalizedEmail);
+    if (existingLock) {
+      const lockAge = Date.now() - existingLock;
+      if (lockAge < 30000) { // Lock ancora valido (meno di 30 secondi)
+        console.log('⚠️ Registrazione già in corso per questa email:', normalizedEmail, `(lock attivo da ${lockAge}ms)`);
+        return res.status(429).json({
+          success: false,
+          error: 'Registrazione in corso',
+          message: 'Una registrazione per questa email è già in corso. Attendi qualche secondo e riprova.'
+        });
+      } else {
+        // Lock scaduto, rimuovilo
+        console.log('🧹 Rimozione lock scaduto per:', normalizedEmail);
+        registrationLocks.delete(normalizedEmail);
+      }
     }
     
-    registrationLocks.set(normalizedEmail, true);
+    // Imposta il lock con timestamp
+    registrationLocks.set(normalizedEmail, Date.now());
     
     try {
       // Verifica preventiva se l'email esiste già (per evitare errori di constraint)
