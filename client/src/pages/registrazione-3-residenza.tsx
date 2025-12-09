@@ -21,6 +21,7 @@ export default function RegistrazioneResidenza() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const registrationInProgress = React.useRef(false);
 
   // Debug: verifica che i dati italiani siano caricati
   console.log("ITALY_DATA caricato:", ITALY_DATA);
@@ -46,7 +47,14 @@ export default function RegistrazioneResidenza() {
   console.log("Provincia selezionata:", watchProvinciaResidenza);
 
   const completeRegistration = async () => {
+    // Previeni richieste duplicate
+    if (registrationInProgress.current) {
+      console.log('⚠️ Registrazione già in corso, ignoro richiesta duplicata');
+      return;
+    }
+    
     try {
+      registrationInProgress.current = true;
       setIsSubmitting(true);
 
       // Recupera tutti i dati già salvati nei passaggi precedenti
@@ -184,6 +192,7 @@ export default function RegistrazioneResidenza() {
       });
     } finally {
       setIsSubmitting(false);
+      registrationInProgress.current = false;
     }
   };
 
