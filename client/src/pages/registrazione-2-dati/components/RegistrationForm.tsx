@@ -39,7 +39,7 @@ export const RegistrationForm: React.FC = () => {
   };
 
   const handleNext = async () => {
-    // Salva i dati nel localStorage e naviga alla pagina del ruolo
+    // Salva i dati nel localStorage e naviga al passaggio di residenza
     const data = formState.data;
     Object.entries(data).forEach(([key, value]) => {
       if (value) {
@@ -51,8 +51,8 @@ export const RegistrationForm: React.FC = () => {
     if (formState.selectedRegione) localStorage.setItem('registrazione_regione', formState.selectedRegione);
     if (formState.selectedProvincia) localStorage.setItem('registrazione_provincia', formState.selectedProvincia);
     if (formState.selectedComune) localStorage.setItem('registrazione_comune', formState.selectedComune);
-    
-    navigate('/registrazione-ruolo');
+
+    navigate('/registrazione-3-residenza');
   };
 
   return (
