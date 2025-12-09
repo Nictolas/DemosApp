@@ -49,17 +49,33 @@ router.post('/verify-email', async (req, res) => {
     }
     
     const email = decoded.email;
+    const normalizedEmail = email.toLowerCase().trim();
     console.log('📧 Verifica email per:', email);
+    console.log('📧 Email normalizzata:', normalizedEmail);
     
-    // Trova l'utente nel database
-    const userQuery = 'SELECT id, email, status FROM users WHERE email = $1';
-    const userResult = await pool.query(userQuery, [email.toLowerCase()]);
+    // Trova l'utente nel database - prova con diverse varianti
+    let userQuery = 'SELECT id, email, status, email_verification_token FROM users WHERE LOWER(TRIM(email)) = $1';
+    let userResult = await pool.query(userQuery, [normalizedEmail]);
+    
+    // Se non trovato, prova senza normalizzazione (per debug)
+    if (userResult.rows.length === 0) {
+      console.log('⚠️ Utente non trovato con email normalizzata, provo query alternativa...');
+      const debugQuery = 'SELECT id, email, status FROM users WHERE email ILIKE $1';
+      const debugResult = await pool.query(debugQuery, [`%${normalizedEmail.split('@')[0]}%`]);
+      console.log('🔍 Query debug trovata:', debugResult.rows.length, 'righe');
+      if (debugResult.rows.length > 0) {
+        console.log('🔍 Email simili trovate:', debugResult.rows.map(r => r.email));
+      }
+    }
     
     if (userResult.rows.length === 0) {
+      console.error('❌ Utente non trovato per email:', normalizedEmail);
+      console.error('❌ Email dal token:', email);
+      console.error('❌ Email normalizzata:', normalizedEmail);
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato',
-        message: 'Nessun utente trovato con questa email'
+        message: 'Nessun utente trovato con questa email. Potrebbe essere stato eliminato o non essere stato creato correttamente.'
       });
     }
     
