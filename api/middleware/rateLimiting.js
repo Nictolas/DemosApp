@@ -67,11 +67,21 @@ const authLimiter = rateLimit({
   }
 });
 
-// Rate limiting per registrazione (molto restrittivo)
+// Rate limiting per registrazione
+// Aumentato a 10 registrazioni all'ora per permettere test e sviluppo
+// In produzione, questo limite protegge da spam e abusi
+// skipSuccessfulRequests: true significa che solo i tentativi falliti contano verso il limite
 const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 ora
-  max: 3, // Solo 3 registrazioni per IP all'ora
+  max: process.env.NODE_ENV === 'production' ? 5 : 10, // 5 in produzione, 10 in sviluppo
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
+  skipSuccessfulRequests: true, // Non conta le registrazioni riuscite (solo i tentativi falliti)
+  // Escludi localhost in sviluppo per permettere test senza limiti
+  skip: (req) => {
+    const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+    return isLocalhost && isDevelopment;
+  },
   message: {
     success: false,
     error: 'Troppe registrazioni',
@@ -86,6 +96,10 @@ const registrationLimiter = rateLimit({
       message: 'Hai superato il limite di registrazioni. Riprova tra 1 ora.',
       retryAfter: 60 * 60
     });
+  },
+  // Funzione per ottenere la chiave (per permettere reset manuale)
+  keyGenerator: (req) => {
+    return `registration:${req.ip}`;
   }
 });
 
