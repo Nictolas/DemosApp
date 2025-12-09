@@ -149,18 +149,36 @@ router.post('/register',
     
     // Verifica preventiva se l'email esiste già (per evitare errori di constraint)
     try {
+      const normalizedEmail = email.toLowerCase().trim();
       const existingUser = await pool.query(
-        'SELECT id, email, status FROM users WHERE email = $1',
-        [email.toLowerCase()]
+        'SELECT id, email, status, email_verified FROM users WHERE LOWER(TRIM(email)) = $1',
+        [normalizedEmail]
       );
       
       if (existingUser.rows.length > 0) {
-        console.log('⚠️ Email già esistente:', email);
-        return res.status(400).json({
-          success: false,
-          error: 'Email già registrata',
-          message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
+        const user = existingUser.rows[0];
+        console.log('⚠️ Email già esistente:', {
+          email: normalizedEmail,
+          userId: user.id,
+          status: user.status,
+          email_verified: user.email_verified,
+          existingEmail: user.email
         });
+        
+        // Se l'utente è in stato "pending" e l'email non è verificata, permettere la registrazione
+        // (eliminerà l'account vecchio e ne creerà uno nuovo)
+        if (user.status === 'p' && !user.email_verified) {
+          console.log('🔄 Account pending non verificato trovato, eliminando e permettendo nuova registrazione...');
+          await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
+          console.log('✅ Account pending eliminato, procedendo con nuova registrazione');
+        } else {
+          // Account attivo o verificato: blocca la registrazione
+          return res.status(400).json({
+            success: false,
+            error: 'Email già registrata',
+            message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
+          });
+        }
       }
     } catch (checkError) {
       console.error('❌ Errore nel controllo email esistente:', checkError);
