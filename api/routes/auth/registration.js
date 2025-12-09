@@ -411,45 +411,15 @@ router.post('/register',
       // Rilascia il lock in caso di errore
       registrationLocks.delete(normalizedEmail);
       
-      // Gestione specifica per errori di constraint di unicità
-      // Questo è un fallback nel caso raro in cui il controllo iniziale non abbia funzionato
-      // (ad esempio per race condition estreme o problemi di connessione database)
-      if (error.code === '23505') {
-        if (error.constraint === 'users_email_key') {
-          console.log('⚠️ Errore constraint email - verifica se account è stato appena creato');
-          // Verifica se l'account è stato appena creato (potrebbe essere una race condition)
-          try {
-            const justCreated = await pool.query(
-              'SELECT id, status, created_at FROM users WHERE LOWER(TRIM(email)) = $1 AND created_at > NOW() - INTERVAL \'5 seconds\'',
-              [normalizedEmail]
-            );
-            
-            if (justCreated.rows.length > 0) {
-              // L'account è stato appena creato, probabilmente da un'altra richiesta simultanea
-              // Restituisci successo invece di errore
-              console.log('✅ Account appena creato trovato, restituisco successo');
-              return res.json({
-                success: true,
-                message: 'Registrazione completata! Controlla la tua email per confermare l\'account.',
-                user: {
-                  id: justCreated.rows[0].id,
-                  email: normalizedEmail,
-                  status: justCreated.rows[0].status
-                },
-                requiresVerification: true
-              });
-            }
-          } catch (checkError) {
-            console.error('❌ Errore nel controllo account appena creato:', checkError);
-          }
-          
-          // Se non è stato appena creato, è un vero errore
-          return res.status(400).json({
-            success: false,
-            error: 'Email già registrata',
-            message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
-          });
-        }
+      // Se c'è un errore di constraint di unicità, significa che il controllo iniziale non ha funzionato
+      // (non dovrebbe mai succedere con il lock, ma gestiamolo come errore generico)
+      if (error.code === '23505' && error.constraint === 'users_email_key') {
+        console.error('⚠️ Errore constraint email - il controllo iniziale non ha funzionato correttamente');
+        return res.status(400).json({
+          success: false,
+          error: 'Email già registrata',
+          message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
+        });
       }
       
       res.status(500).json({
