@@ -80,6 +80,7 @@ const monitoringRoutes = require('./routes/admin/monitoring');
 const securityMetricsRoutes = require('./routes/admin/security-metrics');
 const dataExportRoutes = require('./routes/admin/data-export');
 const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
+const migrationsRoutes = require('./routes/migrations');
 const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
 const segnalazioniRoutes = require('./routes/segnalazioni');
@@ -394,6 +395,9 @@ app.use('/api/admin/axiom-migration', adminLimiter, axiomMigrationRoutes);
 // Route per monitoraggio performance e salute
 app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
 app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
+
+// Route per migrazioni database (TEMPORANEA - rimuovere dopo l'esecuzione)
+app.use('/api/migrations', migrationsRoutes);
 
 // Route per pulizia database (temporanea)
 app.use('/api/cleanup', cleanupRoutes);
