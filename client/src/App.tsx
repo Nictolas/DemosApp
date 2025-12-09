@@ -22,7 +22,6 @@ import RegistrazioneGenere from "./pages/registrazione-genere";
 import RegistrazioneCittadinanza from "./pages/registrazione-cittadinanza";
 import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
 import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
-import RegistrazioneRuolo from "./pages/registrazione-ruolo";
 import VerificaEmailStandalone from "./pages/VerificaEmailStandalone";
 import ConfermaEmail from "./pages/ConfermaEmail";
 import Menu from "./pages/Menu";
@@ -212,8 +211,8 @@ function useTouchNavigation() {
         '/registrazione-nome': '/auth',
         '/registrazione-genere': '/registrazione-nome',
         '/registrazione-cittadinanza': '/registrazione-genere',
-        '/registrazione-ruolo': '/registrazione-cittadinanza',
-        '/registrazione-2-dati': '/registrazione-ruolo',
+        '/registrazione-2-dati': '/registrazione-cittadinanza',
+        '/registrazione-3-residenza': '/registrazione-2-dati',
         '/registrazione-3-opinioni': '/registrazione-2-dati',
         '/registrazione-4-avatar': '/registrazione-3-opinioni',
         '/registrazione-5-conferma': '/registrazione-4-avatar'
@@ -436,12 +435,6 @@ export default function App() {
               <Route path="/registrazione-3-residenza">
                 <PageTransition location={location} type="fade-up">
                   <RegistrazioneResidenza />
-                </PageTransition>
-              </Route>
-
-              <Route path="/registrazione-ruolo">
-                <PageTransition location={location} type="fade-up">
-                  <RegistrazioneRuolo />
                 </PageTransition>
               </Route>
 

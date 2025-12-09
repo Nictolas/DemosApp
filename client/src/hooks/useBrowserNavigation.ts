@@ -141,8 +141,8 @@ export function useBrowserNavigation() {
       '/registrazione-nome': '/auth',
       '/registrazione-genere': '/registrazione-nome',
       '/registrazione-cittadinanza': '/registrazione-genere',
-      '/registrazione-ruolo': '/registrazione-cittadinanza',
-      '/registrazione-2-dati': '/registrazione-ruolo',
+      '/registrazione-2-dati': '/registrazione-cittadinanza',
+      '/registrazione-3-residenza': '/registrazione-2-dati',
       '/registrazione-3-opinioni': '/registrazione-2-dati',
       '/registrazione-4-avatar': '/registrazione-3-opinioni',
       '/registrazione-5-conferma': '/registrazione-4-avatar'

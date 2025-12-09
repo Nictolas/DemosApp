@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
+import { useToast } from "@/hooks/use-toast";
 
 const residenzaSchema = z.object({
   paese_residenza: z.string().min(1, "Il paese di residenza è obbligatorio"),
@@ -18,6 +19,8 @@ type ResidenzaValues = z.infer<typeof residenzaSchema>;
 
 export default function RegistrazioneResidenza() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Debug: verifica che i dati italiani siano caricati
   console.log("ITALY_DATA caricato:", ITALY_DATA);
@@ -42,15 +45,122 @@ export default function RegistrazioneResidenza() {
   console.log("Regione selezionata:", watchRegioneResidenza);
   console.log("Provincia selezionata:", watchProvinciaResidenza);
 
-  const onSubmit = (data: ResidenzaValues) => {
+  const completeRegistration = async () => {
+    try {
+      setIsSubmitting(true);
+
+      // Recupera tutti i dati già salvati nei passaggi precedenti
+      const email = localStorage.getItem("registrazione_email");
+      const password = localStorage.getItem("registrazione_password");
+      const nome = localStorage.getItem("registrazione_nome");
+      const cognome = localStorage.getItem("registrazione_cognome");
+      const genere = localStorage.getItem("registrazione_genere");
+      const cittadinanza = localStorage.getItem("registrazione_cittadinanza");
+      const dataNascita = localStorage.getItem("registrazione_data_nascita");
+      const paeseResidenza = localStorage.getItem("registrazione_paese_residenza");
+      const regioneResidenza = localStorage.getItem("registrazione_regione_residenza");
+      const provinciaResidenza = localStorage.getItem("registrazione_provincia_residenza");
+      const comuneResidenza = localStorage.getItem("registrazione_comune_residenza");
+
+      // Recupera i consensi salvati all'inizio del flow
+      const privacyPolicyConsent = localStorage.getItem("registrazione_privacy_consent") === "true";
+      const termsOfServiceConsent = localStorage.getItem("registrazione_terms_consent") === "true";
+      const politicalOpinionsConsent = localStorage.getItem("registrazione_political_opinions_consent") === "true";
+
+      // Imposta ruolo di default per tutti i nuovi utenti
+      localStorage.setItem("registrazione_ruolo", "Elettore");
+
+      const registrationData = {
+        email,
+        password,
+        nome,
+        cognome,
+        genere,
+        cittadinanza,
+        data_nascita: dataNascita,
+        paese_residenza: paeseResidenza,
+        regione_residenza: regioneResidenza,
+        provincia_residenza: provinciaResidenza,
+        comune_residenza: comuneResidenza,
+        ruolo: "Elettore",
+        privacy_policy_consent: privacyPolicyConsent,
+        terms_of_service_consent: termsOfServiceConsent,
+        political_opinions_consent: politicalOpinionsConsent
+      };
+
+      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registrationData),
+      });
+
+      const responseText = await response.text();
+      const result = responseText ? JSON.parse(responseText) : { message: 'Risposta vuota dal server' };
+
+      if (response.ok) {
+        const userId = result.user?.id;
+
+        // Collega eventuale fiscal_number da CIE se presente
+        const cieDataStr = localStorage.getItem('cie_pending_registration');
+        if (cieDataStr && userId) {
+          try {
+            const cieData = JSON.parse(cieDataStr);
+            await fetch('https://demos-c7k0.onrender.com/api/auth/cie/link-fiscal-number', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, pendingId: cieData.pendingId }),
+            });
+            localStorage.removeItem('cie_pending_registration');
+          } catch (linkError) {
+            console.warn('⚠️ Collegamento fiscal_number non riuscito, ma registrazione completata', linkError);
+          }
+        }
+
+        toast({
+          title: "Registrazione completata!",
+          description: "Controlla la tua email per confermare l'account.",
+        });
+
+        // Salva info utente e pulizia
+        if (email) localStorage.setItem('user_email', email);
+        if (userId) localStorage.setItem('user_id', userId);
+        localStorage.setItem('user_status', 'pending');
+
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('registrazione_')) {
+            localStorage.removeItem(key);
+          }
+        });
+
+        navigate(`/verifica-email${email ? `?email=${encodeURIComponent(email)}` : ''}`);
+      } else {
+        toast({
+          title: "Errore nella registrazione",
+          description: result.message || "Si è verificato un errore. Riprova.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Errore nella registrazione:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile completare la registrazione. Riprova più tardi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onSubmit = async (data: ResidenzaValues) => {
     // Salva i dati nel localStorage
     localStorage.setItem("registrazione_paese_residenza", data.paese_residenza);
     localStorage.setItem("registrazione_regione_residenza", data.regione_residenza);
     localStorage.setItem("registrazione_provincia_residenza", data.provincia_residenza);
     localStorage.setItem("registrazione_comune_residenza", data.comune_residenza);
     
-          // Vai alla pagina successiva
-              navigate("/registrazione-ruolo");
+    // Completa direttamente la registrazione impostando il ruolo a Elettore
+    await completeRegistration();
   };
 
   // Reset dei campi dipendenti
@@ -208,8 +318,8 @@ export default function RegistrazioneResidenza() {
               </>
             )}
 
-            <Button type="submit" className="w-full">
-              Continua
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Registrazione in corso..." : "Completa Registrazione"}
             </Button>
           </form>
         </Form>
