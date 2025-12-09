@@ -176,32 +176,10 @@ router.post('/register',
             existingEmail: user.email
           });
           
-          // Se l'utente è in stato "pending" e l'email non è verificata, verifica quando è stato creato
-          // Non eliminare account creati di recente (negli ultimi 10 minuti) per evitare di eliminare
-          // account appena creati prima che l'utente possa verificare l'email
+          // Se l'utente è in stato "pending" e l'email non è verificata, elimina l'account vecchio
+          // e permette la nuova registrazione
           if (user.status === 'p' && !isEmailVerified) {
-            // Controlla quando è stato creato l'account
-            const accountAgeQuery = await pool.query(
-              'SELECT created_at, EXTRACT(EPOCH FROM (NOW() - created_at)) / 60 as age_minutes FROM users WHERE id = $1',
-              [user.id]
-            );
-            
-            if (accountAgeQuery.rows.length > 0) {
-              const ageMinutes = accountAgeQuery.rows[0].age_minutes;
-              console.log('🕐 Account pending trovato, età:', ageMinutes, 'minuti');
-              
-              // Se l'account è stato creato negli ultimi 10 minuti, non eliminarlo
-              if (ageMinutes < 10) {
-                console.log('⚠️ Account pending creato di recente, non elimino. Blocco registrazione.');
-                return res.status(400).json({
-                  success: false,
-                  error: 'Registrazione già in corso',
-                  message: 'Un account con questa email è stato creato di recente. Controlla la tua email per il link di verifica. Se non hai ricevuto l\'email, attendi qualche minuto e riprova.'
-                });
-              }
-            }
-            
-            console.log('🔄 Account pending non verificato trovato (più vecchio di 10 minuti), eliminando e permettendo nuova registrazione...');
+            console.log('🔄 Account pending non verificato trovato, eliminando e permettendo nuova registrazione...');
             try {
               await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
               console.log('✅ Account pending eliminato, procedendo con nuova registrazione');
