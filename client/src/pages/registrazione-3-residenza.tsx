@@ -196,23 +196,12 @@ export default function RegistrazioneResidenza() {
     }
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const onSubmit = async (data: ResidenzaValues) => {
     // Previeni submit multipli
     if (isSubmitting || registrationInProgress.current) {
       console.log('⚠️ Submit già in corso, ignoro');
       return;
     }
-    
-    // Valida il form prima di procedere
-    const isValid = await form.trigger();
-    if (!isValid) {
-      console.log('⚠️ Form non valido');
-      return;
-    }
-    
-    const data = form.getValues();
     
     // Salva i dati nel localStorage
     localStorage.setItem("registrazione_paese_residenza", data.paese_residenza);
@@ -255,7 +244,7 @@ export default function RegistrazioneResidenza() {
         </div>
 
         <Form {...form}>
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="paese_residenza"
