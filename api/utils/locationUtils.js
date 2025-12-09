@@ -81,6 +81,11 @@ function decompressCitizenship(dbValue) {
 function compressCitizenship(frontendValue) {
   if (!frontendValue) return null;
   
+  // Se il valore è già nel formato compresso del database, restituiscilo direttamente
+  if (frontendValue === 'it' || frontendValue === 'st') {
+    return frontendValue;
+  }
+  
   // Prima prova il mapping standard
   if (CITIZENSHIP_FRONTEND_TO_DB[frontendValue]) {
     return CITIZENSHIP_FRONTEND_TO_DB[frontendValue];

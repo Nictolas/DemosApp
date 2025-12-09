@@ -61,6 +61,31 @@ export default function RegistrazioneResidenza() {
       const regioneResidenza = localStorage.getItem("registrazione_regione_residenza");
       const provinciaResidenza = localStorage.getItem("registrazione_provincia_residenza");
       const comuneResidenza = localStorage.getItem("registrazione_comune_residenza");
+      
+      // Debug: verifica che i dati essenziali siano presenti
+      console.log('🔍 DEBUG registrazione - Dati recuperati dal localStorage:', {
+        email: !!email,
+        password: !!password,
+        nome: !!nome,
+        cognome: !!cognome,
+        genere: genere,
+        cittadinanza: cittadinanza,
+        paese_residenza: paeseResidenza,
+        regione_residenza: regioneResidenza,
+        provincia_residenza: provinciaResidenza,
+        comune_residenza: comuneResidenza
+      });
+      
+      // Verifica che i dati essenziali siano presenti
+      if (!genere || !cittadinanza || !paeseResidenza) {
+        console.error('❌ Dati mancanti:', { genere, cittadinanza, paeseResidenza });
+        toast({
+          title: "Dati incompleti",
+          description: "Alcuni dati obbligatori sono mancanti. Per favore, torna indietro e completa tutti i campi.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Recupera i consensi salvati all'inizio del flow
       const privacyPolicyConsent = localStorage.getItem("registrazione_privacy_consent") === "true";

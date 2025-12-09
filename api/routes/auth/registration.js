@@ -95,6 +95,16 @@ router.post('/register',
       comune_candidatura
     } = req.body;
     
+    // Debug: verifica cosa arriva dal frontend
+    console.log('🔍 DEBUG - Dati ricevuti dal frontend:', {
+      genere: genere,
+      cittadinanza: cittadinanza,
+      paese_residenza: paese_residenza,
+      regione_residenza: regione_residenza,
+      provincia_residenza: provincia_residenza,
+      comune_residenza: comune_residenza
+    });
+    
     // Converti la data dal formato DD/MM/YYYY a YYYY-MM-DD per PostgreSQL
     let formattedDataNascita = null;
     if (data_nascita) {
@@ -211,6 +221,12 @@ router.post('/register',
     const ruoloToUse = ruolo || 'Elettore';
     const compressedRuolo = ruoloMapping[ruoloToUse] || 'E'; // Default sempre a 'Elettore'
     
+    console.log('🔍 DEBUG - Valori originali ricevuti:', {
+      genere: genere,
+      cittadinanza: cittadinanza,
+      paese_residenza: paese_residenza
+    });
+    
     console.log('🔍 DEBUG - Valori compressi:', {
       genere: compressedGenere,
       cittadinanza: compressedCittadinanza,
@@ -224,6 +240,15 @@ router.post('/register',
       regione_candidatura: compressedRegioneCandidatura,
       provincia_candidatura: compressedProvinciaCandidatura,
       ruolo: compressedRuolo
+    });
+    
+    // Debug finale prima della query
+    console.log('🔍 DEBUG - Valori che verranno inseriti nel database:', {
+      genere: compressedGenere,
+      cittadinanza: compressedCittadinanza,
+      paese_residenza: compressedPaeseResidenza,
+      regione_residenza: compressedRegioneResidenza,
+      provincia_residenza: compressedProvinciaResidenza
     });
     
     const queryParams = [
