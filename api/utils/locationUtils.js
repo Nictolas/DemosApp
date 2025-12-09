@@ -28,7 +28,13 @@ const COUNTRY_DB_TO_FRONTEND = {
 // Mappatura da frontend a database per paese residenza
 const COUNTRY_FRONTEND_TO_DB = {
   'Italia': 'it',
-  'Straniero': 'st'
+  'Straniero': 'st',
+  'it': 'it', // Supporta anche il valore diretto "it" dal frontend
+  'Francia': 'st',
+  'Germania': 'st',
+  'Spagna': 'st',
+  'Regno Unito': 'st',
+  'altro': 'st'
 };
 
 // Mappatura da valori legacy a database per cittadinanza
@@ -48,7 +54,13 @@ const COUNTRY_LEGACY_TO_DB = {
   'italia': 'it',
   'straniero': 'st',
   'ITALIA': 'it',
-  'STRANIERO': 'st'
+  'STRANIERO': 'st',
+  'it': 'it', // Supporta anche il valore diretto "it"
+  'Francia': 'st',
+  'Germania': 'st',
+  'Spagna': 'st',
+  'Regno Unito': 'st',
+  'altro': 'st'
 };
 
 /**
