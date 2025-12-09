@@ -17,24 +17,8 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
 
-// Lock per prevenire registrazioni duplicate simultanee
-// Ogni lock ha un timestamp per scadere automaticamente dopo 30 secondi
-const registrationLocks = new Map();
-
-// Funzione per pulire lock scaduti
-const cleanupExpiredLocks = () => {
-  const now = Date.now();
-  const timeout = 30000; // 30 secondi
-  for (const [email, timestamp] of registrationLocks.entries()) {
-    if (now - timestamp > timeout) {
-      console.log(`🧹 Rimozione lock scaduto per: ${email}`);
-      registrationLocks.delete(email);
-    }
-  }
-};
-
-// Pulisci lock scaduti ogni 10 secondi
-setInterval(cleanupExpiredLocks, 10000);
+// Lock rimosso - causa più problemi che benefici
+// Abbiamo già altre protezioni: controllo email, constraint database, validazione
 
 // Importazione condizionale del servizio email
 let emailService;
@@ -167,33 +151,8 @@ router.post('/register',
       });
     }
     
-    // Lock per prevenire registrazioni duplicate simultanee per la stessa email
-    // IMPORTANTE: Il lock deve essere impostato PRIMA del controllo email per evitare race conditions
+    // Normalizza email per i controlli
     const normalizedEmail = email.toLowerCase().trim();
-    
-    // Pulisci lock scaduti prima di controllare
-    cleanupExpiredLocks();
-    
-    // Controlla se c'è un lock attivo (non scaduto)
-    const existingLock = registrationLocks.get(normalizedEmail);
-    if (existingLock) {
-      const lockAge = Date.now() - existingLock;
-      if (lockAge < 30000) { // Lock ancora valido (meno di 30 secondi)
-        console.log('⚠️ Registrazione già in corso per questa email:', normalizedEmail, `(lock attivo da ${lockAge}ms)`);
-        return res.status(429).json({
-          success: false,
-          error: 'Registrazione in corso',
-          message: 'Una registrazione per questa email è già in corso. Attendi qualche secondo e riprova.'
-        });
-      } else {
-        // Lock scaduto, rimuovilo
-        console.log('🧹 Rimozione lock scaduto per:', normalizedEmail);
-        registrationLocks.delete(normalizedEmail);
-      }
-    }
-    
-    // Imposta il lock con timestamp
-    registrationLocks.set(normalizedEmail, Date.now());
     
     try {
       // Verifica preventiva se l'email esiste già (per evitare errori di constraint)
@@ -234,7 +193,6 @@ router.post('/register',
               // Se l'account è stato creato negli ultimi 10 minuti, non eliminarlo
               if (ageMinutes < 10) {
                 console.log('⚠️ Account pending creato di recente, non elimino. Blocco registrazione.');
-                registrationLocks.delete(normalizedEmail);
                 return res.status(400).json({
                   success: false,
                   error: 'Registrazione già in corso',
@@ -254,7 +212,6 @@ router.post('/register',
           } else {
             // Account attivo o verificato: blocca la registrazione
             console.log('🚫 Account esistente attivo/verificato, blocco registrazione');
-            registrationLocks.delete(normalizedEmail);
             return res.status(400).json({
               success: false,
               error: 'Email già registrata',
@@ -477,16 +434,11 @@ router.post('/register',
         message: error.message
       });
     } finally {
-      // Rilascia sempre il lock alla fine (anche in caso di successo)
-      registrationLocks.delete(normalizedEmail);
+      // Lock rimosso - non più necessario
     }
   } catch (outerError) {
     // Gestione errori generali non catturati dal try interno
-    // (errori che avvengono prima del try interno, quindi il lock potrebbe non essere stato impostato)
     console.error('❌ Errore generale nella registrazione:', outerError);
-    if (normalizedEmail && registrationLocks.has(normalizedEmail)) {
-      registrationLocks.delete(normalizedEmail);
-    }
     res.status(500).json({
       success: false,
       error: 'Errore nella registrazione',
