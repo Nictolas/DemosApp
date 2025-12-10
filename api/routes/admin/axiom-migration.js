@@ -54,10 +54,16 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
     // Esegui migrazione in background
     migrationPromise
       .then(results => {
-        console.log('✅ Migrazione completata:', results);
+        console.log('✅ Migrazione completata:', JSON.stringify(results, null, 2));
       })
       .catch(error => {
         console.error('❌ Errore migrazione:', error);
+        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Error details:', JSON.stringify({
+          message: error.message,
+          code: error.code,
+          name: error.name
+        }, null, 2));
       });
     
   } catch (error) {
