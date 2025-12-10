@@ -147,16 +147,16 @@ router.get('/stats/:opinionId', async (req, res) => {
 
     console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - columnName mappato:', columnName);
 
-    // Query per ottenere le statistiche dalla tabella users
+    // Query per ottenere le statistiche dalla tabella opinioni_risposte
     const statsQuery = `
       SELECT 
         COUNT(*) as totale_utenti,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-      FROM users 
-      WHERE ${columnName} IS NOT NULL
+        COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+      FROM opinioni_risposte orr
+      WHERE orr.${columnName} IS NOT NULL
     `;
     
     console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - Eseguendo query SQL...');
@@ -270,30 +270,31 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       });
     }
 
-    // Query per ottenere le statistiche per età dalla tabella users
+    // Query per ottenere le statistiche per età dalla tabella opinioni_risposte
     const etaQuery = `
       WITH eta_groups AS (
         SELECT 
           CASE 
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) < 18 THEN 'Under 18'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
             ELSE '65+'
           END as fascia_eta,
-          ${columnName} as opinione_valore
-        FROM users 
-        WHERE ${columnName} IS NOT NULL 
-        AND data_nascita IS NOT NULL
+          orr.${columnName} as opinione_valore
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr.${columnName} IS NOT NULL 
+        AND u.data_nascita IS NOT NULL
       )
       SELECT 
         fascia_eta,
-        COUNT(CASE WHEN opinione_valore = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN opinione_valore = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN opinione_valore = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN opinione_valore = 'Astenuto' THEN 1 END) as astenuto
+        COUNT(CASE WHEN opinione_valore = 'f' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN opinione_valore = 'c' THEN 1 END) as contrario,
+        COUNT(CASE WHEN opinione_valore = 'i' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN opinione_valore IS NULL THEN 1 END) as astenuto
       FROM eta_groups
       GROUP BY fascia_eta
       ORDER BY 
@@ -384,19 +385,20 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       });
     }
 
-    // Query per ottenere le statistiche per genere dalla tabella users
+    // Query per ottenere le statistiche per genere dalla tabella opinioni_risposte
     const genereQuery = `
       SELECT 
-        genere,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-      FROM users 
-      WHERE ${columnName} IS NOT NULL 
-      AND genere IS NOT NULL
-      GROUP BY genere
-      ORDER BY genere
+        u.genere,
+        COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+      FROM opinioni_risposte orr
+      JOIN users u ON u.id = orr.user_id
+      WHERE orr.${columnName} IS NOT NULL 
+      AND u.genere IS NOT NULL
+      GROUP BY u.genere
+      ORDER BY u.genere
     `;
     
     const genereResult = await pool.query(genereQuery);
@@ -494,17 +496,18 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       });
     }
 
-    // Query per ottenere le statistiche dalla tabella users per la regione specifica
+    // Query per ottenere le statistiche dalla tabella opinioni_risposte per la regione specifica
     const statsQuery = `
       SELECT 
         COUNT(*) as totale_utenti,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-      FROM users 
-      WHERE ${columnName} IS NOT NULL
-      AND regione_residenza = $1
+        COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+      FROM opinioni_risposte orr
+      JOIN users u ON u.id = orr.user_id
+      WHERE orr.${columnName} IS NOT NULL
+      AND u.regione_residenza = $1
     `;
     
     const statsResult = await pool.query(statsQuery, [regionCode]);
@@ -616,31 +619,32 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
       });
     }
 
-    // Query per ottenere le statistiche per età dalla tabella users per la regione specifica
+    // Query per ottenere le statistiche per età dalla tabella opinioni_risposte per la regione specifica
     const etaQuery = `
       WITH eta_groups AS (
         SELECT 
           CASE 
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
-            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) < 18 THEN 'Under 18'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, u.data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
             ELSE '65+'
           END as fascia_eta,
-          ${columnName} as opinione_valore
-        FROM users 
-        WHERE ${columnName} IS NOT NULL 
-        AND data_nascita IS NOT NULL
-        AND regione_residenza = $1
+          orr.${columnName} as opinione_valore
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr.${columnName} IS NOT NULL 
+        AND u.data_nascita IS NOT NULL
+        AND u.regione_residenza = $1
       )
       SELECT 
         fascia_eta,
-        COUNT(CASE WHEN opinione_valore = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN opinione_valore = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN opinione_valore = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN opinione_valore = 'Astenuto' THEN 1 END) as astenuto
+        COUNT(CASE WHEN opinione_valore = 'f' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN opinione_valore = 'c' THEN 1 END) as contrario,
+        COUNT(CASE WHEN opinione_valore = 'i' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN opinione_valore IS NULL THEN 1 END) as astenuto
       FROM eta_groups
       GROUP BY fascia_eta
       ORDER BY 
@@ -737,20 +741,21 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
       });
     }
 
-    // Query per ottenere le statistiche per genere dalla tabella users per la regione specifica
+    // Query per ottenere le statistiche per genere dalla tabella opinioni_risposte per la regione specifica
     const genereQuery = `
       SELECT 
-        genere,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-      FROM users 
-      WHERE ${columnName} IS NOT NULL 
-      AND genere IS NOT NULL
-      AND regione_residenza = $1
-      GROUP BY genere
-      ORDER BY genere
+        u.genere,
+        COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+      FROM opinioni_risposte orr
+      JOIN users u ON u.id = orr.user_id
+      WHERE orr.${columnName} IS NOT NULL 
+      AND u.genere IS NOT NULL
+      AND u.regione_residenza = $1
+      GROUP BY u.genere
+      ORDER BY u.genere
     `;
     
     const genereResult = await pool.query(genereQuery, [regionCode]);
