@@ -16,5 +16,8 @@ export default function SondaggiProvincia() {
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
   if (!hasAdvancedAccess) return <Redirect to="/menu" />;
 
-  return <SondaggiContent filterPath={`${regione}/${provincia}`} />;
+  // Costruisci filterPath solo se i parametri sono validi
+  const filterPath = regione && provincia ? `${regione}/${provincia}` : regione || undefined;
+
+  return <SondaggiContent filterPath={filterPath} />;
 }

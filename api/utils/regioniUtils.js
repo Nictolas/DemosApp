@@ -59,8 +59,18 @@ function compressRegione(frontendValue) {
   
   // Se non trova nulla, prova con case insensitive e normalizzazione
   const normalizedValue = frontendValue.toLowerCase().trim();
-  for (const [name, code] of Object.entries(REGIONI_DB_TO_FRONTEND)) {
+  // Cerca nei valori (nomi delle regioni), non nelle chiavi (codici)
+  for (const [code, name] of Object.entries(REGIONI_DB_TO_FRONTEND)) {
     if (name.toLowerCase().trim() === normalizedValue) {
+      return code;
+    }
+  }
+  
+  // Prova anche con normalizzazione degli spazi e trattini
+  const normalizedWithSpaces = normalizedValue.replace(/\s+/g, ' ').replace(/-/g, ' ');
+  for (const [code, name] of Object.entries(REGIONI_DB_TO_FRONTEND)) {
+    const normalizedName = name.toLowerCase().trim().replace(/\s+/g, ' ');
+    if (normalizedName === normalizedWithSpaces) {
       return code;
     }
   }
