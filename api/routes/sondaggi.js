@@ -421,13 +421,14 @@ router.get('/:regione', async (req, res) => {
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_voti,
-          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-        FROM users 
-        WHERE ${columnName} IS NOT NULL 
-        AND regione_residenza = $1
+          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr.${columnName} IS NOT NULL 
+        AND u.regione_residenza = $1
       `;
       
       try {
