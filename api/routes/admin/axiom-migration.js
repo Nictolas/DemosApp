@@ -46,40 +46,43 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
       throw error;
     }
     
-    console.log('🚀 Avvio migrazione in background...');
+    console.log('🚀 Avvio migrazione...');
     console.log(`   Tables: ${(tables || ['centralized_logs', 'audit_logs']).join(', ')}`);
     console.log(`   DryRun: ${dryRun || false}`);
     
-    // Avvia migrazione in background (non blocca la risposta)
-    const migrationPromise = migrateNeonToAxiom({
-      tables: tables || ['centralized_logs', 'audit_logs'],
-      dryRun: dryRun || false
-    });
-    
-    console.log('✅ Promise migrazione creata, in esecuzione in background...');
-    
-    // Rispondi immediatamente
-    res.json({
-      success: true,
-      message: 'Migrazione avviata in background',
-      tables: tables || ['centralized_logs', 'audit_logs'],
-      dryRun: dryRun || false
-    });
-    
-    // Esegui migrazione in background
-    migrationPromise
-      .then(results => {
-        console.log('✅ Migrazione completata:', JSON.stringify(results, null, 2));
-      })
-      .catch(error => {
-        console.error('❌ Errore migrazione:', error);
-        console.error('❌ Stack trace:', error.stack);
-        console.error('❌ Error details:', JSON.stringify({
-          message: error.message,
-          code: error.code,
-          name: error.name
-        }, null, 2));
+    // Esegui migrazione in modo sincrono per vedere errori immediatamente
+    // NOTA: Questo blocca la risposta fino al completamento, ma vediamo gli errori subito
+    try {
+      const results = await migrateNeonToAxiom({
+        tables: tables || ['centralized_logs', 'audit_logs'],
+        dryRun: dryRun || false
       });
+      
+      console.log('✅ Migrazione completata:', JSON.stringify(results, null, 2));
+      
+      res.json({
+        success: true,
+        message: 'Migrazione completata con successo',
+        results: results,
+        tables: tables || ['centralized_logs', 'audit_logs'],
+        dryRun: dryRun || false
+      });
+    } catch (error) {
+      console.error('❌ Errore migrazione:', error);
+      console.error('❌ Stack trace:', error.stack);
+      console.error('❌ Error details:', JSON.stringify({
+        message: error.message,
+        code: error.code,
+        name: error.name
+      }, null, 2));
+      
+      res.status(500).json({
+        success: false,
+        error: 'Errore durante la migrazione',
+        message: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
     
   } catch (error) {
     console.error('❌ Errore avvio migrazione:', error);
