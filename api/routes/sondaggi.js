@@ -182,6 +182,146 @@ router.get('/genere', async (req, res) => {
   }
 });
 
+// GET /api/sondaggi/genere/:regione - Statistiche per genere per regione
+router.get('/genere/:regione', async (req, res) => {
+  try {
+    const { regione } = req.params;
+    
+    // Converte slug in nome regione (es. "toscana" -> "Toscana")
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regionCode]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per regione'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione/:provincia - Statistiche per genere per provincia
+router.get('/genere/:regione/:provincia', async (req, res) => {
+  try {
+    const { regione, provincia } = req.params;
+    
+    // Converte slug in nome regione e provincia
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      AND provincia_residenza = $2
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regionCode, provinciaCode]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per provincia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per provincia'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione/:provincia/:comune - Statistiche per genere per comune
+router.get('/genere/:regione/:provincia/:comune', async (req, res) => {
+  try {
+    const { regione, provincia, comune } = req.params;
+    
+    // Converte slug in nome regione, provincia e comune
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      AND provincia_residenza = $2
+      AND comune_residenza = $3
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regionCode, provinciaCode, comuneName]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per comune:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per comune'
+    });
+  }
+});
+
 // GET /api/sondaggi/:regione - Statistiche per regione
 router.get('/:regione', async (req, res) => {
   try {
@@ -321,50 +461,6 @@ router.get('/:regione', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare sondaggi regionali'
-    });
-  }
-});
-
-// GET /api/sondaggi/genere/:regione - Statistiche per genere per regione
-router.get('/genere/:regione', async (req, res) => {
-  try {
-    const { regione } = req.params;
-    
-    // Converte slug in nome regione (es. "toscana" -> "Toscana")
-    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
-    
-    // Converte nome regione in codice per la query database
-    const regionCode = compressRegione(regionName);
-    
-    if (!regionCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Regione non valida'
-      });
-    }
-    
-    const query = `
-      SELECT 
-        genere,
-        COUNT(*) as totale
-      FROM users 
-      WHERE genere IS NOT NULL 
-      AND regione_residenza = $1
-      GROUP BY genere
-      ORDER BY totale DESC
-    `;
-    
-    const result = await pool.query(query, [regionCode]);
-    
-    res.json({
-      success: true,
-      stats: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere per regione'
     });
   }
 });
