@@ -33,11 +33,9 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Carica le funzioni di migrazione solo quando necessario (lazy loading)
-    // Usa path relativo dalla root del progetto
-    const path = require('path');
-    const migrationScriptPath = path.join(__dirname, '../../../scripts/migrate-neon-to-axiom.js');
-    const { migrateNeonToAxiom } = require(migrationScriptPath);
+    // Usa il servizio di migrazione invece dello script esterno
+    // Questo evita problemi con il modulo 'pg' su Render
+    const { migrateNeonToAxiom } = require('../../services/axiomMigrationService');
     
     // Avvia migrazione in background (non blocca la risposta)
     const migrationPromise = migrateNeonToAxiom({
