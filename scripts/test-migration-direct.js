@@ -44,7 +44,7 @@ async function testMigration() {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
-          timeout: 10000 // 10 secondi per vedere se parte
+          timeout: 300000 // 5 minuti per migrazione completa
         }
       );
       
