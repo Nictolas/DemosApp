@@ -595,7 +595,8 @@ router.get('/:regione/:provincia', async (req, res) => {
         filter: {
           type: 'provincia',
           value: provinciaName,
-          regione: regionName
+          regione: regionName,
+          provincia: provinciaName
         }
       }
     });
@@ -734,7 +735,8 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
           type: 'comune',
           value: comuneName,
           regione: regionName,
-          provincia: provinciaName
+          provincia: provinciaName,
+          comune: comuneName
         }
       }
     });
