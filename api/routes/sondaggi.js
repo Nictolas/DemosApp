@@ -2,6 +2,7 @@ const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
 const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
+const { decompressGender } = require('../utils/genderUtils');
 
 const router = express.Router();
 
@@ -169,9 +170,15 @@ router.get('/genere', async (req, res) => {
     
     const result = await pool.query(query);
     
+    // Decomprimi i generi per il frontend
+    const decompressedStats = result.rows.map(row => ({
+      ...row,
+      genere: decompressGender(row.genere) || row.genere
+    }));
+    
     res.json({
       success: true,
-      stats: result.rows
+      stats: decompressedStats
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche genere:', error);

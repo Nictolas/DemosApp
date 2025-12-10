@@ -2,6 +2,7 @@ const express = require('express');
 const { verifyToken } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
 const { compressRegione, decompressRegione } = require('../../utils/locationUtils');
+const { decompressGender } = require('../../utils/genderUtils');
 
 const router = express.Router();
 
@@ -387,9 +388,15 @@ router.get('/stats/:opinionId/genere', verifyToken, async (req, res) => {
     
     const genereResult = await pool.query(genereQuery);
     
+    // Decomprimi i generi per il frontend
+    const decompressedData = genereResult.rows.map(row => ({
+      ...row,
+      genere: decompressGender(row.genere) || row.genere
+    }));
+    
     res.json({
       success: true,
-      data: genereResult.rows
+      data: decompressedData
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche genere opinione:', error);
