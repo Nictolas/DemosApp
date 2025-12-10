@@ -84,9 +84,10 @@ router.get('/debug', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/stats/:opinionId - Ottieni statistiche per opinione
-router.get('/stats/:opinionId', verifyToken, async (req, res) => {
+router.get('/stats/:opinionId', async (req, res) => {
   try {
     const { opinionId } = req.params;
+    console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - opinionId ricevuto:', opinionId);
     
     // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
     const opinionMapping = {
@@ -136,12 +137,15 @@ router.get('/stats/:opinionId', verifyToken, async (req, res) => {
 
     const columnName = opinionMapping[opinionId];
     if (!columnName) {
+      console.log('❌ DEBUG /api/opinioni/stats/:opinionId - OpinionId non mappato:', opinionId);
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata',
         message: `L'opinione con ID '${opinionId}' non è supportata`
       });
     }
+
+    console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - columnName mappato:', columnName);
 
     // Query per ottenere le statistiche dalla tabella users
     const statsQuery = `
@@ -155,7 +159,9 @@ router.get('/stats/:opinionId', verifyToken, async (req, res) => {
       WHERE ${columnName} IS NOT NULL
     `;
     
+    console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - Eseguendo query SQL...');
     const statsResult = await pool.query(statsQuery);
+    console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - Query eseguita con successo, righe:', statsResult.rows.length);
     const stats = statsResult.rows[0];
     
     // Query per ottenere il testo dell'opinione
@@ -189,6 +195,13 @@ router.get('/stats/:opinionId', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche opinione:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione',
@@ -198,7 +211,7 @@ router.get('/stats/:opinionId', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/stats/:opinionId/eta - Ottieni statistiche per età per opinione
-router.get('/stats/:opinionId/eta', verifyToken, async (req, res) => {
+router.get('/stats/:opinionId/eta', async (req, res) => {
   try {
     const { opinionId } = req.params;
     
@@ -312,7 +325,7 @@ router.get('/stats/:opinionId/eta', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/stats/:opinionId/genere - Ottieni statistiche per genere per opinione
-router.get('/stats/:opinionId/genere', verifyToken, async (req, res) => {
+router.get('/stats/:opinionId/genere', async (req, res) => {
   try {
     const { opinionId } = req.params;
     
@@ -409,7 +422,7 @@ router.get('/stats/:opinionId/genere', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/stats/:opinionId/regione/:regione - Ottieni statistiche per regione per opinione
-router.get('/stats/:opinionId/regione/:regione', verifyToken, async (req, res) => {
+router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
   try {
     const { opinionId, regione } = req.params;
     
@@ -538,7 +551,7 @@ router.get('/stats/:opinionId/regione/:regione', verifyToken, async (req, res) =
 });
 
 // GET /api/opinioni/stats/:opinionId/eta/regione/:regione - Ottieni statistiche per età per regione per opinione
-router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, res) => {
+router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
   try {
     const { opinionId, regione } = req.params;
     
@@ -659,7 +672,7 @@ router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, re
 });
 
 // GET /api/opinioni/stats/:opinionId/genere/regione/:regione - Ottieni statistiche per genere per regione per opinione
-router.get('/stats/:opinionId/genere/regione/:regione', verifyToken, async (req, res) => {
+router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
   try {
     const { opinionId, regione } = req.params;
     
