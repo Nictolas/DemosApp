@@ -1,6 +1,7 @@
 // Servizio per migrare dati da Neon a Axiom
 const { Pool } = require('pg');
 const path = require('path');
+const axios = require('axios');
 
 // Inizializza pool e axiom
 let pool;
@@ -27,17 +28,30 @@ function initializeServices() {
       const axiomModule = require('@axiomhq/axiom-node');
       
       if (process.env.AXIOM_API_TOKEN && process.env.AXIOM_ORG_ID) {
+        const region = process.env.AXIOM_REGION || 'eu';
+        console.log(`🌍 Configurazione Axiom - Regione: ${region}`);
+        
         if (axiomModule.Client) {
-          axiom = new axiomModule.Client({
+          // Forza regione EU esplicitamente
+          const clientConfig = {
             token: process.env.AXIOM_API_TOKEN,
-            orgId: process.env.AXIOM_ORG_ID,
-            region: process.env.AXIOM_REGION || 'eu'
-          });
+            orgId: process.env.AXIOM_ORG_ID
+          };
+          
+          // Se regione è EU, usa 'eu' esplicitamente
+          if (region === 'eu' || region === 'EU') {
+            clientConfig.region = 'eu';
+          } else {
+            clientConfig.region = region;
+          }
+          
+          axiom = new axiomModule.Client(clientConfig);
+          console.log(`✅ Axiom Client inizializzato con regione: ${clientConfig.region}`);
         } else {
           axiom = axiomModule;
           axiom.token = process.env.AXIOM_API_TOKEN;
           axiom.orgId = process.env.AXIOM_ORG_ID;
-          axiom.region = process.env.AXIOM_REGION || 'eu';
+          axiom.region = region === 'eu' ? 'eu' : region;
         }
       }
     } catch (error) {
@@ -143,6 +157,41 @@ function anonymizeData(data, anonymize = false, anonymizeUserId = false) {
   }
   
   return anonymized;
+}
+
+/**
+ * Invia dati ad Axiom usando API HTTP diretta (rispetta la regione EU)
+ */
+async function sendToAxiomHTTP(dataset, events) {
+  const axios = require('axios');
+  
+  const region = process.env.AXIOM_REGION || 'eu';
+  const baseUrl = region === 'eu' 
+    ? 'https://api.eu.axiom.co' 
+    : 'https://api.axiom.co';
+  
+  const url = `${baseUrl}/v1/datasets/${dataset}/ingest`;
+  
+  try {
+    const response = await axios.post(url, events, {
+      headers: {
+        'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+        'Content-Type': 'application/json',
+        'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+      },
+      timeout: 60000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+    
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      const errorMsg = error.response.data?.message || JSON.stringify(error.response.data);
+      throw new Error(`Axiom API error: ${error.response.status} - ${errorMsg}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -279,7 +328,9 @@ async function migrateCentralizedLogs() {
     if (result.rows.length === 0) break;
     
     const axiomLogs = result.rows.map(row => convertCentralizedLogToAxiom(row));
-    await axiom.ingestEvents(dataset, axiomLogs);
+    
+    // Usa API HTTP diretta per evitare problemi di regione con SDK
+    await sendToAxiomHTTP(dataset, axiomLogs);
     
     migrated += result.rows.length;
     offset += result.rows.length;
@@ -360,7 +411,9 @@ async function migrateAuditLogs() {
     if (result.rows.length === 0) break;
     
     const axiomLogs = result.rows.map(row => convertAuditLogToAxiom(row));
-    await axiom.ingestEvents(dataset, axiomLogs);
+    
+    // Usa API HTTP diretta per evitare problemi di regione con SDK
+    await sendToAxiomHTTP(dataset, axiomLogs);
     
     migrated += result.rows.length;
     offset += result.rows.length;
