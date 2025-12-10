@@ -115,3 +115,4 @@ Grazie per l'assistenza.
 3. Copia e incolla il messaggio sopra (usa la versione inglese se il supporto è in inglese)
 4. Allega screenshot se necessario (delle impostazioni del token)
 
+

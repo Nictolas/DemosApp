@@ -24,3 +24,4 @@ Invece di usare l'API HTTP diretta, possiamo usare l'**SDK Axiom** che gestisce 
 2. **Contatta il supporto Axiom** - Il problema potrebbe essere lato server
 3. **Prova con l'SDK** invece dell'API HTTP diretta
 
+

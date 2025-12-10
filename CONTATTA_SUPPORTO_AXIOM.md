@@ -36,3 +36,4 @@ Anche con:
 3. C'è un problema con la regione EU?
 4. Il token è stato appena creato e ci vuole tempo per propagarsi?
 
+

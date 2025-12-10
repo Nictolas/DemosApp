@@ -37,3 +37,4 @@ Dopo il commit e deploy, i log su Render mostreranno:
 3. Riprova migrazione
 4. Controlla i log su Render per vedere i dettagli
 
+

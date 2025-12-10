@@ -269,17 +269,17 @@ router.get('/stats/:opinionId/eta', verifyToken, async (req, res) => {
             WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
             ELSE '65+'
           END as fascia_eta,
-          ${columnName}
+          ${columnName} as opinione_valore
         FROM users 
         WHERE ${columnName} IS NOT NULL 
         AND data_nascita IS NOT NULL
       )
       SELECT 
         fascia_eta,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
+        COUNT(CASE WHEN opinione_valore = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN opinione_valore = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN opinione_valore = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN opinione_valore = 'Astenuto' THEN 1 END) as astenuto
       FROM eta_groups
       GROUP BY fascia_eta
       ORDER BY 
@@ -609,7 +609,7 @@ router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, re
             WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
             ELSE '65+'
           END as fascia_eta,
-          ${columnName}
+          ${columnName} as opinione_valore
         FROM users 
         WHERE ${columnName} IS NOT NULL 
         AND data_nascita IS NOT NULL
@@ -617,10 +617,10 @@ router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, re
       )
       SELECT 
         fascia_eta,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
+        COUNT(CASE WHEN opinione_valore = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN opinione_valore = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN opinione_valore = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN opinione_valore = 'Astenuto' THEN 1 END) as astenuto
       FROM eta_groups
       GROUP BY fascia_eta
       ORDER BY 
