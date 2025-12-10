@@ -35,13 +35,28 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
     
     // Usa il servizio di migrazione invece dello script esterno
     // Questo evita problemi con il modulo 'pg' su Render
-    const { migrateNeonToAxiom } = require('../../services/axiomMigrationService');
+    console.log('📦 Caricamento servizio migrazione...');
+    let migrateNeonToAxiom;
+    try {
+      const migrationService = require('../../services/axiomMigrationService');
+      migrateNeonToAxiom = migrationService.migrateNeonToAxiom;
+      console.log('✅ Servizio migrazione caricato correttamente');
+    } catch (error) {
+      console.error('❌ Errore caricamento servizio migrazione:', error);
+      throw error;
+    }
+    
+    console.log('🚀 Avvio migrazione in background...');
+    console.log(`   Tables: ${(tables || ['centralized_logs', 'audit_logs']).join(', ')}`);
+    console.log(`   DryRun: ${dryRun || false}`);
     
     // Avvia migrazione in background (non blocca la risposta)
     const migrationPromise = migrateNeonToAxiom({
       tables: tables || ['centralized_logs', 'audit_logs'],
       dryRun: dryRun || false
     });
+    
+    console.log('✅ Promise migrazione creata, in esecuzione in background...');
     
     // Rispondi immediatamente
     res.json({
