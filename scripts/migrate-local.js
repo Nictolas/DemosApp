@@ -37,9 +37,16 @@ try {
       token: process.env.AXIOM_API_TOKEN,
       orgId: process.env.AXIOM_ORG_ID
     };
-    if (process.env.AXIOM_REGION && process.env.AXIOM_REGION !== 'us') {
-      axiomConfig.region = process.env.AXIOM_REGION;
+    // Forza regione EU se configurata
+    if (process.env.AXIOM_REGION) {
+      // Axiom SDK usa 'eu' per Europa, ma potrebbe essere necessario 'cloud.eu-central-1.aws'
+      // Prova prima con 'eu', se non funziona useremo il formato completo
+      axiomConfig.region = process.env.AXIOM_REGION === 'eu' ? 'eu' : process.env.AXIOM_REGION;
+    } else {
+      // Default: EU
+      axiomConfig.region = 'eu';
     }
+    console.log(`🌍 Configurazione Axiom - Regione: ${axiomConfig.region}`);
     axiom = new axiomModule.Client(axiomConfig);
   } else {
     throw new Error('Axiom SDK non supporta Client');
@@ -77,10 +84,46 @@ const MIGRATION_CONFIG = {
 // Funzioni di conversione (copiate da migrate-neon-to-axiom.js)
 function convertTimestamp(timestamp) {
   if (!timestamp) return new Date().toISOString();
-  if (timestamp > 1000000000000) {
-    return new Date(timestamp).toISOString();
+  
+  try {
+    // Se è già una stringa ISO, usala direttamente
+    if (typeof timestamp === 'string') {
+      const date = new Date(timestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    
+    // Se è un numero (millisecondi o secondi)
+    if (typeof timestamp === 'number') {
+      // Se è in millisecondi (> 1e12 è circa 2001)
+      if (timestamp > 1000000000000) {
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
+      } else {
+        // Se è in secondi
+        const date = new Date(timestamp * 1000);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
+      }
+    }
+    
+    // Se è un oggetto Date
+    if (timestamp instanceof Date) {
+      if (!isNaN(timestamp.getTime())) {
+        return timestamp.toISOString();
+      }
+    }
+    
+    // Fallback: usa la data corrente
+    return new Date().toISOString();
+  } catch (error) {
+    // In caso di errore, usa la data corrente
+    return new Date().toISOString();
   }
-  return new Date(timestamp * 1000).toISOString();
 }
 
 function decodeLogLevel(code) {
@@ -92,6 +135,40 @@ function decodeLogLevel(code) {
     'T': 'TRACE'
   };
   return mapping[code] || code;
+}
+
+// Funzione per inviare dati ad Axiom usando API HTTP diretta
+async function sendToAxiomHTTP(dataset, events) {
+  const axios = require('axios');
+  
+  const region = process.env.AXIOM_REGION || 'eu';
+  // Axiom EU API endpoint
+  const baseUrl = region === 'eu' 
+    ? 'https://api.eu.axiom.co' 
+    : 'https://api.axiom.co';
+  
+  const url = `${baseUrl}/v1/datasets/${dataset}/ingest`;
+  
+  try {
+    const response = await axios.post(url, events, {
+      headers: {
+        'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+        'Content-Type': 'application/json',
+        'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+      },
+      timeout: 30000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+    
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      const errorMsg = error.response.data?.message || JSON.stringify(error.response.data);
+      throw new Error(`Axiom API error: ${error.response.status} - ${errorMsg}`);
+    }
+    throw error;
+  }
 }
 
 function anonymizeData(data, anonymize = false, anonymizeUserId = false) {
@@ -234,8 +311,8 @@ async function migrateCentralizedLogs() {
     // Converti in formato Axiom
     const axiomLogs = result.rows.map(row => convertCentralizedLogToAxiom(row));
     
-    // Invia ad Axiom
-    await axiom.ingestEvents(dataset, axiomLogs);
+    // Invia ad Axiom usando API HTTP diretta (per evitare problemi di regione)
+    await sendToAxiomHTTP(dataset, axiomLogs);
     
     migrated += result.rows.length;
     offset += result.rows.length;
@@ -305,8 +382,8 @@ async function migrateAuditLogs() {
     // Converti in formato Axiom
     const axiomLogs = result.rows.map(row => convertAuditLogToAxiom(row));
     
-    // Invia ad Axiom
-    await axiom.ingestEvents(dataset, axiomLogs);
+    // Invia ad Axiom usando API HTTP diretta (per evitare problemi di regione)
+    await sendToAxiomHTTP(dataset, axiomLogs);
     
     migrated += result.rows.length;
     offset += result.rows.length;
