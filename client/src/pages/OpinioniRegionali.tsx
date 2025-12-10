@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
+import { vibrateShort } from "@/utils/vibration";
 
 interface Question {
   id: string;
@@ -129,6 +130,8 @@ export default function OpinioniRegionali() {
 
   const handleOpinionChange = (questionId: string, value: string) => {
     console.log(`🔍 DEBUG handleOpinionChange: ${questionId} = ${value}`);
+    // Vibrazione quando si cambia opinione
+    vibrateShort();
     setOpinions(prev => {
       const newOpinions = { ...prev, [questionId]: value };
       console.log(`🔍 DEBUG setOpinions:`, newOpinions);

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { apiRequest } from "@/lib/queryClient";
+import { vibrateShort } from "@/utils/vibration";
 
 
 
@@ -202,6 +203,8 @@ export function EditOpinioniDialog({
   };
 
   const handleOpinionChange = (questionId: string, value: string) => {
+    // Vibrazione quando si cambia opinione
+    vibrateShort();
     setOpinions(prev => {
       // Se la preferenza è già selezionata, la imposto a null (per eliminare il campo su Firestore)
       if (prev[questionId] === value) {

@@ -172,24 +172,48 @@ async function sendToAxiomHTTP(dataset, events) {
   
   const url = `${baseUrl}/v1/datasets/${dataset}/ingest`;
   
+  const token = process.env.AXIOM_API_TOKEN;
+  const orgId = process.env.AXIOM_ORG_ID;
+  
+  // Log per debug (senza esporre token completo)
+  console.log(`📤 Invio a Axiom: ${url}`);
+  console.log(`   Dataset: ${dataset}`);
+  console.log(`   Eventi: ${events.length}`);
+  console.log(`   Token: ${token ? token.substring(0, 10) + '...' : 'MISSING'}`);
+  console.log(`   Org ID: ${orgId || 'MISSING'}`);
+  
+  if (!token) {
+    throw new Error('AXIOM_API_TOKEN non configurato');
+  }
+  
+  if (!orgId) {
+    throw new Error('AXIOM_ORG_ID non configurato');
+  }
+  
   try {
     const response = await axios.post(url, events, {
       headers: {
-        'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+        'X-Axiom-Org-Id': orgId
       },
       timeout: 60000,
       maxContentLength: Infinity,
       maxBodyLength: Infinity
     });
     
+    console.log(`✅ Axiom risposta: ${response.status} - ${JSON.stringify(response.data)}`);
     return response.data;
   } catch (error) {
     if (error.response) {
-      const errorMsg = error.response.data?.message || JSON.stringify(error.response.data);
+      const errorDetails = error.response.data || {};
+      const errorMsg = errorDetails.message || errorDetails.error || JSON.stringify(errorDetails);
+      console.error(`❌ Axiom API error ${error.response.status}:`, errorMsg);
+      console.error(`   URL: ${url}`);
+      console.error(`   Response data:`, JSON.stringify(errorDetails, null, 2));
       throw new Error(`Axiom API error: ${error.response.status} - ${errorMsg}`);
     }
+    console.error(`❌ Errore network:`, error.message);
     throw error;
   }
 }
@@ -329,8 +353,20 @@ async function migrateCentralizedLogs() {
     
     const axiomLogs = result.rows.map(row => convertCentralizedLogToAxiom(row));
     
-    // Usa API HTTP diretta per evitare problemi di regione con SDK
-    await sendToAxiomHTTP(dataset, axiomLogs);
+    // Prova prima con SDK, poi fallback a HTTP
+    try {
+      if (axiom && typeof axiom.ingestEvents === 'function') {
+        console.log(`   📤 Invio tramite SDK Axiom...`);
+        await axiom.ingestEvents(dataset, axiomLogs);
+        console.log(`   ✅ SDK: ${axiomLogs.length} eventi inviati`);
+      } else {
+        throw new Error('SDK non disponibile, uso HTTP');
+      }
+    } catch (sdkError) {
+      console.log(`   ⚠️ SDK fallito: ${sdkError.message}, provo HTTP...`);
+      // Fallback a HTTP
+      await sendToAxiomHTTP(dataset, axiomLogs);
+    }
     
     migrated += result.rows.length;
     offset += result.rows.length;
@@ -412,8 +448,20 @@ async function migrateAuditLogs() {
     
     const axiomLogs = result.rows.map(row => convertAuditLogToAxiom(row));
     
-    // Usa API HTTP diretta per evitare problemi di regione con SDK
-    await sendToAxiomHTTP(dataset, axiomLogs);
+    // Prova prima con SDK, poi fallback a HTTP
+    try {
+      if (axiom && typeof axiom.ingestEvents === 'function') {
+        console.log(`   📤 Invio tramite SDK Axiom...`);
+        await axiom.ingestEvents(dataset, axiomLogs);
+        console.log(`   ✅ SDK: ${axiomLogs.length} eventi inviati`);
+      } else {
+        throw new Error('SDK non disponibile, uso HTTP');
+      }
+    } catch (sdkError) {
+      console.log(`   ⚠️ SDK fallito: ${sdkError.message}, provo HTTP...`);
+      // Fallback a HTTP
+      await sendToAxiomHTTP(dataset, axiomLogs);
+    }
     
     migrated += result.rows.length;
     offset += result.rows.length;
