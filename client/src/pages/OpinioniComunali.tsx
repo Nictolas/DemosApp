@@ -9,6 +9,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
+import { vibrateShort } from '@/utils/vibration';
 
 const options = [
   { value: 'f', color: 'bg-green-500 text-white', label: 'Favorevole' },
@@ -97,6 +98,8 @@ export default function OpinioniComunali() {
   });
 
   const handleOpinionChange = (questionId: string, value: string) => {
+    // Vibrazione quando si cambia opinione
+    vibrateShort();
     setOpinions(prev => ({ ...prev, [questionId]: value }));
   };
 
