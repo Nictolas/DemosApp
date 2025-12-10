@@ -56,14 +56,50 @@ const MIGRATION_CONFIG = {
 };
 
 /**
- * Converte timestamp BIGINT in ISO string
+ * Converte timestamp BIGINT in ISO string (versione robusta)
  */
 function convertTimestamp(timestamp) {
   if (!timestamp) return new Date().toISOString();
-  if (timestamp > 1000000000000) {
-    return new Date(timestamp).toISOString();
+  
+  try {
+    // Se è già una stringa ISO, usala direttamente
+    if (typeof timestamp === 'string') {
+      const date = new Date(timestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    
+    // Se è un numero (millisecondi o secondi)
+    if (typeof timestamp === 'number') {
+      // Se è in millisecondi (> 1e12 è circa 2001)
+      if (timestamp > 1000000000000) {
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
+      } else {
+        // Se è in secondi
+        const date = new Date(timestamp * 1000);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
+      }
+    }
+    
+    // Se è un oggetto Date
+    if (timestamp instanceof Date) {
+      if (!isNaN(timestamp.getTime())) {
+        return timestamp.toISOString();
+      }
+    }
+    
+    // Fallback: usa la data corrente
+    return new Date().toISOString();
+  } catch (error) {
+    // In caso di errore, usa la data corrente
+    return new Date().toISOString();
   }
-  return new Date(timestamp * 1000).toISOString();
 }
 
 /**
@@ -113,8 +149,17 @@ function anonymizeData(data, anonymize = false, anonymizeUserId = false) {
  * Converte record centralized_logs in formato Axiom
  */
 function convertCentralizedLogToAxiom(row) {
+  // Gestisci timestamp con try-catch per evitare errori
+  let timestamp;
+  try {
+    timestamp = convertTimestamp(row.timestamp || row.created_at);
+  } catch (error) {
+    console.warn(`⚠️ Errore conversione timestamp per record ${row.id}:`, error.message);
+    timestamp = new Date().toISOString();
+  }
+  
   const logEntry = {
-    _time: convertTimestamp(row.timestamp || row.created_at),
+    _time: timestamp,
     level: decodeLogLevel(row.level),
     message: row.message || '',
     log_type: 'application',
@@ -150,8 +195,17 @@ function convertCentralizedLogToAxiom(row) {
  * Converte record audit_logs in formato Axiom
  */
 function convertAuditLogToAxiom(row) {
+  // Gestisci timestamp con try-catch per evitare errori
+  let timestamp;
+  try {
+    timestamp = convertTimestamp(row.timestamp || row.created_at);
+  } catch (error) {
+    console.warn(`⚠️ Errore conversione timestamp per audit record ${row.id || 'unknown'}:`, error.message);
+    timestamp = new Date().toISOString();
+  }
+  
   const logEntry = {
-    _time: convertTimestamp(row.timestamp || row.created_at),
+    _time: timestamp,
     level: 'INFO',
     message: row.action || row.message || '',
     log_type: 'audit',
