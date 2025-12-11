@@ -65,10 +65,23 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
             }
           );
 
+          console.log(`✅ API dataset risposta per ${ds.name}:`, JSON.stringify(datasetResponse.data, null, 2));
+          
           const datasetData = datasetResponse.data || {};
-          const eventCount = datasetData.stats?.numEvents || datasetData.numEvents || 0;
-          const dataSizeBytes = datasetData.stats?.inputBytes || datasetData.inputBytes || 0;
+          // Prova diversi percorsi per le statistiche
+          const eventCount = datasetData.stats?.numEvents 
+            || datasetData.numEvents 
+            || datasetData.stats?.events
+            || datasetData.events
+            || 0;
+          const dataSizeBytes = datasetData.stats?.inputBytes 
+            || datasetData.inputBytes 
+            || datasetData.stats?.bytes
+            || datasetData.bytes
+            || 0;
           const dataSizeMB = dataSizeBytes / (1024 * 1024);
+
+          console.log(`📊 ${ds.name}: ${eventCount} eventi, ${dataSizeMB.toFixed(2)} MB`);
 
           results.push({
             name: ds.name,
@@ -79,8 +92,8 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
             error: null
           });
         } catch (datasetErr) {
+          console.error(`❌ API dataset fallita per ${ds.name}:`, datasetErr.response?.status, datasetErr.response?.data || datasetErr.message);
           // Se l'API dataset fallisce, prova con APL come fallback
-          console.log(`API dataset fallita per ${ds.name}, provo APL...`);
           throw datasetErr; // Rilancia per entrare nel catch APL
         }
       } catch (err) {
