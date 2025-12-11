@@ -60,7 +60,10 @@ class CentralizedLogger {
     this.logToFile = process.env.LOG_TO_FILE === 'true';
     this.logToDatabase = process.env.LOG_TO_DATABASE !== 'false';
     this.logToConsole = process.env.LOG_TO_CONSOLE !== 'false';
-    this.logToAxiom = process.env.AXIOM_ENABLED === 'true' && axiom !== null;
+    // Abilita Axiom se configurato (non dipende dall'SDK, usa HTTP diretto)
+    this.logToAxiom = process.env.AXIOM_ENABLED === 'true' 
+      && process.env.AXIOM_API_TOKEN 
+      && process.env.AXIOM_ORG_ID;
     
     this.logDir = process.env.LOG_DIR || path.join(__dirname, '../../logs');
     this.maxFileSize = parseInt(process.env.LOG_MAX_FILE_SIZE || '10485760'); // 10MB
@@ -127,7 +130,8 @@ class CentralizedLogger {
    * Invia log ad Axiom per analisi in tempo reale
    */
   async writeToAxiom(level, message, meta = {}) {
-    if (!this.logToAxiom || !this.axiomClient) return;
+    if (!this.logToAxiom || process.env.AXIOM_ENABLED !== 'true') return;
+    if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
 
     try {
       const logEntry = {
@@ -161,18 +165,44 @@ class CentralizedLogger {
         }
       }
 
-      // Invia ad Axiom (non blocca se fallisce)
-      this.axiomClient.ingestEvents(this.axiomDataset, [logEntry])
-        .catch(err => {
-          // Log errore silenziosamente (non bloccare applicazione)
-          if (process.env.NODE_ENV === 'development') {
-            console.error('❌ Errore invio log Axiom:', err.message);
-          }
-        });
+      // Usa HTTP diretto invece dell'SDK per evitare problemi di regione
+      await this.sendToAxiomHTTP(this.axiomDataset, [logEntry]);
     } catch (error) {
       // Non bloccare applicazione se Axiom fallisce
       if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Errore preparazione log Axiom:', error);
+        console.error('❌ Errore invio log Axiom:', error.message);
+      }
+    }
+  }
+
+  async sendToAxiomHTTP(dataset, events) {
+    const axios = require('axios');
+    
+    const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+    const edgeDomain = process.env.AXIOM_EDGE_DOMAIN 
+      || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+    const url = `https://${edgeDomain}/v1/ingest/${dataset}`;
+    
+    const token = process.env.AXIOM_API_TOKEN;
+    const orgId = process.env.AXIOM_ORG_ID;
+    
+    if (!token || !orgId) return;
+    
+    try {
+      await axios.post(url, events, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Axiom-Org-Id': orgId
+        },
+        timeout: 5000, // Timeout breve per non bloccare
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
+    } catch (error) {
+      // Silenzioso - non bloccare applicazione
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ Errore invio Axiom HTTP:`, error.response?.status || error.message);
       }
     }
   }
