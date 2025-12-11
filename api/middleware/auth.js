@@ -12,12 +12,15 @@ console.log('🔍 DEBUG - DATABASE_URL presente:', process.env.DATABASE_URL ? 'O
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {
   try {
-    // Log solo per endpoint critici per evitare spam
-    if (req.url.includes('/vota') || req.url.includes('/capo-stato')) {
+    // Log per endpoint critici e admin
+    if (req.url.includes('/vota') || req.url.includes('/capo-stato') || req.url.includes('/admin/')) {
       console.log('🚀🚀🚀 ENTRATA in verifyToken middleware per:', req.method, req.url);
       console.log('🔐 DEBUG verifyToken - Inizio verifica token');
       console.log('🔐 DEBUG verifyToken - URL:', req.url);
       console.log('🔐 DEBUG verifyToken - Headers authorization:', req.headers.authorization ? 'PRESENTE' : 'MANCANTE');
+      if (req.headers.authorization) {
+        console.log('🔐 DEBUG verifyToken - Authorization header:', req.headers.authorization.substring(0, 50) + '...');
+      }
     }
     console.log('🔐 DEBUG verifyToken - Pool database:', pool ? 'OK' : 'ERRORE');
     console.log('🔐 DEBUG verifyToken - DATABASE_URL:', process.env.DATABASE_URL ? 'OK' : 'MANCANTE');
@@ -133,7 +136,13 @@ const verifyToken = async (req, res, next) => {
 // Middleware per richiedere ruolo admin
 const requireAdmin = async (req, res, next) => {
   try {
+    console.log('👑 DEBUG requireAdmin - Verifica ruolo admin');
+    console.log('👑 DEBUG requireAdmin - req.userRole:', req.userRole);
+    console.log('👑 DEBUG requireAdmin - req.userId:', req.userId);
+    console.log('👑 DEBUG requireAdmin - req.userEmail:', req.userEmail);
+    
     if (!req.userRole || req.userRole !== 'AD') {
+      console.log('❌ DEBUG requireAdmin - Ruolo non admin:', req.userRole);
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',

@@ -92,20 +92,42 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
       } catch (err) {
         console.error(`Errore conteggio Axiom per ${ds.name}:`, err.response?.data || err.message);
         const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
-        results.push({
-          name: ds.name,
-          label: ds.label,
-          count: 0,
-          error: errorMessage
-        });
-        // Se è un errore 404, potrebbe significare che il dataset non esiste o non ha dati
-        if (err.response?.status === 404) {
-          console.log(`Dataset ${ds.name} non trovato o vuoto su Axiom`);
+        
+        // Se è un errore 403, potrebbe essere un problema con l'endpoint APL per la regione EU
+        // In questo caso, non possiamo verificare i dati via API, ma potrebbero esserci
+        if (err.response?.status === 403) {
+          results.push({
+            name: ds.name,
+            label: ds.label,
+            count: null, // null indica che non possiamo contare, non che sono 0
+            error: 'Query non disponibile via API (403). Verifica manualmente su Axiom Dashboard.',
+            needsManualCheck: true
+          });
+        } else if (err.response?.status === 404) {
+          results.push({
+            name: ds.name,
+            label: ds.label,
+            count: 0,
+            error: 'Dataset non trovato o vuoto su Axiom'
+          });
+        } else {
+          results.push({
+            name: ds.name,
+            label: ds.label,
+            count: 0,
+            error: errorMessage
+          });
         }
       }
     }
 
-    const totalEvents = results.reduce((sum, ds) => sum + (ds.count || 0), 0);
+    // Calcola totale solo per dataset con count valido (non null)
+    const totalEvents = results.reduce((sum, ds) => {
+      return sum + (ds.count !== null && ds.count !== undefined ? ds.count : 0);
+    }, 0);
+    
+    // Verifica se ci sono dataset che richiedono verifica manuale
+    const needsManualCheck = results.some(ds => ds.needsManualCheck);
 
     res.json({
       success: true,
@@ -114,7 +136,9 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
         datasets: results,
         edgeDomain,
         region,
-        apiDomain: baseUrl.replace('https://', '')
+        apiDomain: baseUrl.replace('https://', ''),
+        needsManualCheck,
+        migrationCompleted: true // Indica che la migrazione è stata completata
       }
     });
   } catch (error) {
