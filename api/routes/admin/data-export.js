@@ -52,71 +52,107 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
 
     for (const ds of datasets) {
       try {
-        const aplQuery = `['${ds.name}'] | summarize count()`;
-        const response = await axios.post(
-          `${baseUrl}/v1/datasets/_apl`,
-          { apl: aplQuery },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
-              'Content-Type': 'application/json',
-              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
-            },
-            timeout: 30000
-          }
-        );
+        // Prova prima con l'API dei dataset per ottenere statistiche (eventi e dimensione)
+        try {
+          const datasetResponse = await axios.get(
+            `${baseUrl}/v1/datasets/${ds.name}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+                'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+              },
+              timeout: 30000
+            }
+          );
 
-        // Estrarre il conteggio indipendentemente dalla forma di risposta
-        let count = 0;
-        const data = response.data || {};
-        if (data?.data?.rows && Array.isArray(data.data.rows) && data.data.rows.length > 0) {
-          const firstRow = data.data.rows[0];
-          if (typeof firstRow === 'object') {
-            const firstKey = Object.keys(firstRow)[0];
-            count = Number(firstRow[firstKey]) || 0;
-          } else if (Array.isArray(firstRow)) {
-            count = Number(firstRow[0]) || 0;
-          }
-        } else if (typeof data?.count === 'number') {
-          count = data.count;
-        } else if (data?.matches?.total) {
-          count = Number(data.matches.total) || 0;
+          const datasetData = datasetResponse.data || {};
+          const eventCount = datasetData.stats?.numEvents || datasetData.numEvents || 0;
+          const dataSizeBytes = datasetData.stats?.inputBytes || datasetData.inputBytes || 0;
+          const dataSizeMB = dataSizeBytes / (1024 * 1024);
+
+          results.push({
+            name: ds.name,
+            label: ds.label,
+            count: eventCount,
+            dataSizeMB: dataSizeMB,
+            dataSizeBytes: dataSizeBytes,
+            error: null
+          });
+        } catch (datasetErr) {
+          // Se l'API dataset fallisce, prova con APL come fallback
+          console.log(`API dataset fallita per ${ds.name}, provo APL...`);
+          throw datasetErr; // Rilancia per entrare nel catch APL
         }
-
-        results.push({
-          name: ds.name,
-          label: ds.label,
-          count,
-          error: null
-        });
       } catch (err) {
-        console.error(`Errore conteggio Axiom per ${ds.name}:`, err.response?.data || err.message);
-        const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
-        
-        // Se è un errore 403, potrebbe essere un problema con l'endpoint APL per la regione EU
-        // In questo caso, non possiamo verificare i dati via API, ma potrebbero esserci
-        if (err.response?.status === 403) {
+        // Fallback: prova con APL query
+        try {
+          const aplQuery = `['${ds.name}'] | summarize count()`;
+          const response = await axios.post(
+            `${baseUrl}/v1/datasets/_apl`,
+            { apl: aplQuery },
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+                'Content-Type': 'application/json',
+                'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+              },
+              timeout: 30000
+            }
+          );
+
+          let count = 0;
+          const data = response.data || {};
+          if (data?.data?.rows && Array.isArray(data.data.rows) && data.data.rows.length > 0) {
+            const firstRow = data.data.rows[0];
+            if (typeof firstRow === 'object') {
+              const firstKey = Object.keys(firstRow)[0];
+              count = Number(firstRow[firstKey]) || 0;
+            } else if (Array.isArray(firstRow)) {
+              count = Number(firstRow[0]) || 0;
+            }
+          } else if (typeof data?.count === 'number') {
+            count = data.count;
+          } else if (data?.matches?.total) {
+            count = Number(data.matches.total) || 0;
+          }
+
           results.push({
             name: ds.name,
             label: ds.label,
-            count: null, // null indica che non possiamo contare, non che sono 0
-            error: 'Query non disponibile via API (403). Verifica manualmente su Axiom Dashboard.',
-            needsManualCheck: true
+            count,
+            dataSizeMB: null, // Non disponibile via APL
+            error: null
           });
-        } else if (err.response?.status === 404) {
-          results.push({
-            name: ds.name,
-            label: ds.label,
-            count: 0,
-            error: 'Dataset non trovato o vuoto su Axiom'
-          });
-        } else {
-          results.push({
-            name: ds.name,
-            label: ds.label,
-            count: 0,
-            error: errorMessage
-          });
+        } catch (aplErr) {
+          console.error(`Errore conteggio Axiom per ${ds.name}:`, aplErr.response?.data || aplErr.message);
+          const errorMessage = aplErr.response?.data?.message || aplErr.response?.data?.error || aplErr.message;
+          
+          if (aplErr.response?.status === 403) {
+            results.push({
+              name: ds.name,
+              label: ds.label,
+              count: null,
+              dataSizeMB: null,
+              error: 'Query non disponibile via API (403). Verifica manualmente su Axiom Dashboard.',
+              needsManualCheck: true
+            });
+          } else if (aplErr.response?.status === 404) {
+            results.push({
+              name: ds.name,
+              label: ds.label,
+              count: 0,
+              dataSizeMB: 0,
+              error: 'Dataset non trovato o vuoto su Axiom'
+            });
+          } else {
+            results.push({
+              name: ds.name,
+              label: ds.label,
+              count: 0,
+              dataSizeMB: 0,
+              error: errorMessage
+            });
+          }
         }
       }
     }
@@ -126,6 +162,11 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
       return sum + (ds.count !== null && ds.count !== undefined ? ds.count : 0);
     }, 0);
     
+    // Calcola totale MB solo per dataset con dataSizeMB valido (non null)
+    const totalDataSizeMB = results.reduce((sum, ds) => {
+      return sum + (ds.dataSizeMB !== null && ds.dataSizeMB !== undefined ? ds.dataSizeMB : 0);
+    }, 0);
+    
     // Verifica se ci sono dataset che richiedono verifica manuale
     const needsManualCheck = results.some(ds => ds.needsManualCheck);
 
@@ -133,10 +174,11 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
       success: true,
       data: {
         totalEvents,
+        totalDataSizeMB,
         datasets: results,
         edgeDomain,
         region,
-        apiDomain: baseUrl.replace('https://', ''),
+        apiDomain: baseUrl.replace('https://', '),
         needsManualCheck,
         migrationCompleted: true // Indica che la migrazione è stata completata
       }
