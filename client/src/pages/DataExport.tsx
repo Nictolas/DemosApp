@@ -594,6 +594,69 @@ export default function DataExport() {
     }
   };
 
+  const deleteMigratedData = async () => {
+    const tables = ['centralized_logs', 'audit_logs'];
+    
+    // Conferma multipla per sicurezza
+    const confirm1 = confirm(
+      '⚠️ ATTENZIONE: Questa operazione è IRREVERSIBILE!\n\n' +
+      'Stai per eliminare i dati migrati da Neon.\n\n' +
+      'Hai verificato che i dati sono presenti su Axiom?\n\n' +
+      'Clicca OK per continuare o Annulla per interrompere.'
+    );
+    
+    if (!confirm1) return;
+    
+    const confirm2 = prompt(
+      'Per confermare, digita DELETE (tutto maiuscolo):'
+    );
+    
+    if (confirm2 !== 'DELETE') {
+      toast({
+        title: 'Operazione annullata',
+        description: 'Conferma non valida. I dati non sono stati eliminati.',
+        variant: 'default'
+      });
+      return;
+    }
+    
+    setMigrating(true);
+    try {
+      const response = await apiRequest.post('/admin/axiom-migration/delete-migrated', {
+        tables,
+        confirm: 'DELETE'
+      });
+      
+      if (response.success) {
+        toast({
+          title: 'Dati eliminati',
+          description: 'I dati migrati sono stati eliminati da Neon con successo.',
+          variant: 'default'
+        });
+        // Ricarica i dati
+        setTimeout(() => {
+          loadDatabaseAnalysis();
+          loadAxiomAnalysis();
+        }, 2000);
+      } else {
+        toast({
+          title: 'Errore eliminazione',
+          description: response.error || response.message || 'Impossibile eliminare i dati',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      console.error('Errore eliminazione dati:', error);
+      toast({
+        title: 'Errore eliminazione',
+        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
+        variant: 'destructive'
+      });
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   const startAxiomMigration = async () => {
     // Prima testa l'autenticazione
     try {
@@ -1099,6 +1162,27 @@ export default function DataExport() {
                         <>
                           <Play className="h-4 w-4 mr-2" />
                           Avvia Migrazione
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {axiomAnalysis && axiomAnalysis.totalEvents > 0 && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={deleteMigratedData}
+                      disabled={migrating || loadingAxiom}
+                      title="Elimina i dati migrati da Neon (IRREVERSIBILE)"
+                    >
+                      {migrating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Eliminazione...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Elimina da Neon
                         </>
                       )}
                     </Button>
