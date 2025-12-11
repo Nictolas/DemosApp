@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import apiRequest from '@/lib/api-request';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Download, 
   HardDrive, 
@@ -21,7 +22,14 @@ import {
   BarChart3,
   Settings,
   PieChart as PieChartIcon,
-  List
+  List,
+  RefreshCw,
+  Search,
+  Filter,
+  Info,
+  TrendingUp,
+  TrendingDown,
+  Activity
 } from 'lucide-react';
 import { Link } from 'wouter';
 
@@ -166,6 +174,9 @@ export default function DataExport() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
   const [axiomAnalysis, setAxiomAnalysis] = useState<AxiomAnalysis | null>(null);
   const [loadingAxiom, setLoadingAxiom] = useState(true);
+  const [tableSearch, setTableSearch] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const { toast } = useToast();
 
   // Carica dati iniziali
   useEffect(() => {
@@ -174,6 +185,18 @@ export default function DataExport() {
     loadDatabaseAnalysis();
     loadAxiomAnalysis();
   }, []);
+
+  // Auto-refresh se abilitato
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      loadDatabaseAnalysis();
+      loadAxiomAnalysis();
+    }, 30000); // Refresh ogni 30 secondi
+
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   const loadExportHistory = async () => {
     try {
@@ -323,7 +346,11 @@ export default function DataExport() {
 
   const startExport = async () => {
     if (selectedTables.length === 0) {
-      alert('Seleziona almeno una tabella da esportare');
+      toast({
+        title: 'Nessuna tabella selezionata',
+        description: 'Seleziona almeno una tabella da esportare',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -347,15 +374,26 @@ export default function DataExport() {
         throw new Error(response.error || 'Errore avvio export');
       }
 
+      toast({
+        title: 'Export avviato',
+        description: `Export di ${selectedTables.length} tabella/e avviato con successo`
+      });
+
       // Polling per aggiornare lo stato
       pollExportStatus();
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
       setExportStatus(prev => ({
         ...prev,
         isRunning: false,
-        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+        error: errorMessage
       }));
+      toast({
+        title: 'Errore avvio export',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     }
   };
 
@@ -371,6 +409,12 @@ export default function DataExport() {
           } else {
             // Export completato, ricarica cronologia
             loadExportHistory();
+            if (response.data.progress === 100 && !response.data.error) {
+              toast({
+                title: 'Export completato',
+                description: `Esportati ${response.data.exportedRecords.toLocaleString()} record con successo`
+              });
+            }
           }
         }
       } catch (error) {
@@ -390,8 +434,17 @@ export default function DataExport() {
     try {
       await apiRequest.post('/admin/data-export/stop');
       setExportStatus(prev => ({ ...prev, isRunning: false }));
+      toast({
+        title: 'Export interrotto',
+        description: 'L\'export è stato interrotto con successo'
+      });
     } catch (error) {
       console.error('Errore stop export:', error);
+      toast({
+        title: 'Errore',
+        description: 'Impossibile interrompere l\'export',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -453,10 +506,20 @@ export default function DataExport() {
       } else {
         console.error('Errore caricamento analisi database:', response.error);
         setDatabaseAnalysis(null);
+        toast({
+          title: 'Errore caricamento',
+          description: response.error || 'Impossibile caricare l\'analisi del database',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Errore caricamento analisi database:', error);
       setDatabaseAnalysis(null);
+      toast({
+        title: 'Errore caricamento',
+        description: 'Impossibile caricare l\'analisi del database',
+        variant: 'destructive'
+      });
     } finally {
       setLoadingAnalysis(false);
     }
@@ -470,6 +533,14 @@ export default function DataExport() {
         setAxiomAnalysis(response.data);
       } else {
         setAxiomAnalysis(null);
+        // Non mostrare toast per errori Axiom se non configurato (è normale)
+        if (response.error && !response.error.includes('configurato')) {
+          toast({
+            title: 'Errore caricamento Axiom',
+            description: response.error,
+            variant: 'destructive'
+          });
+        }
       }
     } catch (error) {
       console.error('Errore caricamento analisi Axiom:', error);
@@ -492,6 +563,32 @@ export default function DataExport() {
     
     return descriptions[tableName] || 'Tabella di monitoraggio e logging';
   };
+
+  // Filtra tabelle in base alla ricerca
+  const filteredTables = tables.filter(table => 
+    table.name.toLowerCase().includes(tableSearch.toLowerCase())
+  );
+
+  // Calcola statistiche aggregate
+  const getAggregateStats = () => {
+    if (!databaseAnalysis || !axiomAnalysis) return null;
+
+    const neonTotal = databaseAnalysis.categories.exportable.totalSizeMB;
+    const axiomTotal = axiomAnalysis.totalEvents;
+    // Stima record su Neon basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
+    const estimatedNeonRecords = Math.round(neonTotal * 1000);
+
+    return {
+      neonTotal,
+      axiomTotal,
+      estimatedNeonRecords,
+      migrationProgress: axiomTotal > 0 && estimatedNeonRecords > 0 
+        ? Math.min(100, Math.round((axiomTotal / (estimatedNeonRecords + axiomTotal)) * 100))
+        : 0
+    };
+  };
+
+  const aggregateStats = getAggregateStats();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -598,14 +695,59 @@ export default function DataExport() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Barra di ricerca e filtri */}
+              <div className="mb-4 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Cerca tabella..."
+                    value={tableSearch}
+                    onChange={(e) => setTableSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedTables(tables.filter(t => t.enabled).map(t => t.name));
+                  }}
+                >
+                  Seleziona tutte
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedTables([]);
+                  }}
+                >
+                  Deseleziona tutte
+                </Button>
+              </div>
+
               {loadingTables ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   <span className="ml-3 text-gray-600">Caricamento tabelle...</span>
                 </div>
+              ) : filteredTables.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nessuna tabella trovata con "{tableSearch}"</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setTableSearch('')}
+                  >
+                    Rimuovi filtro
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  {tables.map((table) => (
+                  {filteredTables.map((table) => (
                   <div key={table.name} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                     <div className="flex items-center space-x-3">
                       <input
@@ -625,8 +767,9 @@ export default function DataExport() {
                         <p className="text-sm text-gray-600">
                           {table.recordCount.toLocaleString()} record • {formatSize(table.sizeMB, table.sizeKB)}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                           {getTableDescription(table.name)}
+                          <Info className="h-3 w-3 text-gray-400" title={getTableDescription(table.name)} />
                         </p>
                       </div>
                     </div>
@@ -637,6 +780,11 @@ export default function DataExport() {
                       <Badge variant="outline">
                         {table.retentionDays} giorni
                       </Badge>
+                      {table.exportableRecords > 0 && (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                          {table.exportableRecords.toLocaleString()} esportabili
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   ))}
@@ -694,6 +842,108 @@ export default function DataExport() {
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
+          {/* Statistiche Aggregate e Confronto */}
+          {aggregateStats && (
+            <Card className="bg-white shadow-lg border-2 border-blue-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-blue-600" />
+                      Confronto Neon vs Axiom
+                    </CardTitle>
+                    <CardDescription>
+                      Panoramica della distribuzione dei dati tra Neon e Axiom
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        loadDatabaseAnalysis();
+                        loadAxiomAnalysis();
+                      }}
+                      disabled={loadingAnalysis || loadingAxiom}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${(loadingAnalysis || loadingAxiom) ? 'animate-spin' : ''}`} />
+                      Aggiorna
+                    </Button>
+                    <Button
+                      variant={autoRefresh ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-800">Neon Database</span>
+                      <Database className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="text-2xl font-bold text-blue-900">
+                      {databaseAnalysis?.categories.exportable.totalSizeMB.toLocaleString('it-IT')} MB
+                    </div>
+                    <div className="text-xs text-blue-600 mt-1">
+                      {databaseAnalysis?.categories.exportable.tables.length} tabelle
+                    </div>
+                  </div>
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-green-800">Axiom Platform</span>
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="text-2xl font-bold text-green-900">
+                      {axiomAnalysis?.totalEvents.toLocaleString('it-IT')} eventi
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      {axiomAnalysis?.datasets.length} dataset
+                    </div>
+                  </div>
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-purple-800">Progresso Migrazione</span>
+                      <BarChart3 className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div className="text-2xl font-bold text-purple-900">
+                      {aggregateStats.migrationProgress}%
+                    </div>
+                    <div className="text-xs text-purple-600 mt-1">
+                      Dati migrati su Axiom
+                    </div>
+                  </div>
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Neon (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
+                      { name: 'Axiom (Eventi)', value: Math.round(aggregateStats.axiomTotal / 1000), color: '#10b981' }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#8884d8">
+                        {[
+                          { name: 'Neon (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
+                          { name: 'Axiom (Eventi)', value: Math.round(aggregateStats.axiomTotal / 1000), color: '#10b981' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Analisi Axiom */}
           <Card className="bg-white shadow-lg">
             <CardHeader>
