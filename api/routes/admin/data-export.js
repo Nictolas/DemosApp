@@ -35,9 +35,13 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
     }
 
     const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+    // Per le query APL, usa l'API principale, non l'edge domain
+    // L'edge domain è solo per l'ingest, le query vanno sull'API principale
+    const apiDomain = region === 'eu' ? 'api.eu.axiom.co' : 'api.axiom.co';
+    const baseUrl = `https://${apiDomain}`;
+    
     const edgeDomain = process.env.AXIOM_EDGE_DOMAIN
       || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
-    const baseUrl = `https://${edgeDomain}`;
 
     const datasets = [
       { name: process.env.AXIOM_DATASET || 'centralized_logs', label: 'Centralized Logs' },
@@ -109,7 +113,8 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
         totalEvents,
         datasets: results,
         edgeDomain,
-        region
+        region,
+        apiDomain: baseUrl.replace('https://', '')
       }
     });
   } catch (error) {
