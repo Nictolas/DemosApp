@@ -1225,6 +1225,314 @@ export default function DataExport() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Card per tutte le categorie di tabelle */}
+                  <div className="space-y-6">
+                    {/* Tabelle da Esportare */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-base flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full bg-red-500"></span>
+                        Tabelle da Esportare ({databaseAnalysis.categories.exportable.tables.length} tabelle)
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                        {databaseAnalysis.categories.exportable.tables.map((table) => {
+                          const isCentralizedLogs = table.name === 'centralized_logs';
+                          
+                          const cardContent = (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <h5 className="font-medium text-red-800 flex items-center gap-1 text-xs">
+                                  {table.name}
+                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                                </h5>
+                                <Badge variant="outline" className="text-xs px-1 py-0">
+                                  {table.columnCount}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                <div className="font-medium">{table.sizePretty}</div>
+                                <div className="text-xs text-gray-500">{table.sizeMB} MB</div>
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {getTableDescription(table.name)}
+                              </div>
+                            </div>
+                          );
+                          
+                          if (isCentralizedLogs) {
+                            return (
+                              <Link 
+                                key={table.name}
+                                to="/admin/data-export/centralized-logs"
+                                className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all cursor-pointer hover:border-red-300"
+                              >
+                                {cardContent}
+                              </Link>
+                            );
+                          }
+                          
+                          return (
+                            <div 
+                              key={table.name}
+                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
+                            >
+                              {cardContent}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Dati Utenti */}
+                    {databaseAnalysis.categories.users.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-blue-500"></span>
+                          Dati Utenti ({databaseAnalysis.categories.users.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.users.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-blue-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-blue-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-blue-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-blue-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contenuti App */}
+                    {databaseAnalysis.categories.content.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-green-500"></span>
+                          Contenuti App ({databaseAnalysis.categories.content.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.content.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-green-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-green-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-green-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sistema */}
+                    {databaseAnalysis.categories.system.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
+                          Sistema ({databaseAnalysis.categories.system.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.system.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-yellow-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-yellow-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-yellow-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-yellow-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ministeri */}
+                    {databaseAnalysis.categories.ministries?.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-red-600"></span>
+                          Ministeri ({databaseAnalysis.categories.ministries.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.ministries.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-red-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-red-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-red-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-red-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Voti */}
+                    {databaseAnalysis.categories.votes?.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-purple-600"></span>
+                          Voti ({databaseAnalysis.categories.votes.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.votes.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-purple-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-purple-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-purple-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-purple-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-purple-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Strumenti */}
+                    {databaseAnalysis.categories.tools?.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-green-600"></span>
+                          Strumenti ({databaseAnalysis.categories.tools.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.tools.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-green-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-green-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-green-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-green-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tabelle Temporanee */}
+                    {databaseAnalysis.categories.other.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-gray-500"></span>
+                          Tabelle Temporanee ({databaseAnalysis.categories.other.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.other.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-gray-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-gray-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-gray-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-gray-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Potenziale Risparmio */}
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="font-semibold text-green-800 mb-2">
+                        💾 Potenziale Risparmio
+                      </h4>
+                      <p className="text-green-700">
+                        Esportando le tabelle di monitoraggio, potresti liberare{' '}
+                        <strong>{databaseAnalysis.categories.exportable.totalSizeMB} MB</strong>{' '}
+                        ({databaseAnalysis.categories.exportable.percentage}% del database totale)
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
