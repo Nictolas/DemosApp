@@ -178,7 +178,7 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
         datasets: results,
         edgeDomain,
         region,
-        apiDomain: baseUrl.replace('https://', '),
+        apiDomain: baseUrl.replace('https://', ''),
         needsManualCheck,
         migrationCompleted: true // Indica che la migrazione è stata completata
       }
