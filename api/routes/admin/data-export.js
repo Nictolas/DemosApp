@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
+const axios = require('axios');
 require('dotenv').config();
 
 const router = express.Router();
@@ -11,6 +12,95 @@ const router = express.Router();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+/**
+ * GET /api/admin/data-export/axiom-analysis
+ * Ottiene conteggi dei dataset Axiom per grafico a torta
+ */
+router.get('/axiom-analysis', requireAdmin, async (req, res) => {
+  try {
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({ error: 'Axiom non abilitato' });
+    }
+    if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {
+      return res.status(400).json({ error: 'Token o Org ID Axiom mancanti' });
+    }
+
+    const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+    const edgeDomain = process.env.AXIOM_EDGE_DOMAIN
+      || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+    const baseUrl = `https://${edgeDomain}`;
+
+    const datasets = [
+      { name: process.env.AXIOM_DATASET || 'centralized_logs', label: 'Centralized Logs' },
+      { name: process.env.AXIOM_REALTIME_DATASET || 'real-time', label: 'Audit Logs' }
+    ];
+
+    const results = [];
+
+    for (const ds of datasets) {
+      try {
+        const aplQuery = `['${ds.name}'] | summarize count()`;
+        const response = await axios.post(
+          `${baseUrl}/v1/datasets/_apl`,
+          { apl: aplQuery },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+              'Content-Type': 'application/json',
+              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+            },
+            timeout: 30000
+          }
+        );
+
+        // Estrarre il conteggio indipendentemente dalla forma di risposta
+        let count = 0;
+        const data = response.data || {};
+        if (data?.data?.rows && Array.isArray(data.data.rows) && data.data.rows.length > 0) {
+          const firstRow = data.data.rows[0];
+          if (typeof firstRow === 'object') {
+            const firstKey = Object.keys(firstRow)[0];
+            count = Number(firstRow[firstKey]) || 0;
+          } else if (Array.isArray(firstRow)) {
+            count = Number(firstRow[0]) || 0;
+          }
+        } else if (typeof data?.count === 'number') {
+          count = data.count;
+        } else if (data?.matches?.total) {
+          count = Number(data.matches.total) || 0;
+        }
+
+        results.push({
+          name: ds.name,
+          label: ds.label,
+          count,
+          error: null
+        });
+      } catch (err) {
+        console.error(`Errore conteggio Axiom per ${ds.name}:`, err.response?.data || err.message);
+        results.push({
+          name: ds.name,
+          label: ds.label,
+          count: 0,
+          error: err.response?.data?.message || err.message
+        });
+      }
+    }
+
+    const totalEvents = results.reduce((sum, ds) => sum + (ds.count || 0), 0);
+
+    res.json({
+      totalEvents,
+      datasets: results,
+      edgeDomain,
+      region
+    });
+  } catch (error) {
+    console.error('Errore analisi Axiom:', error);
+    res.status(500).json({ error: 'Errore ottenendo analisi Axiom' });
+  }
 });
 
 // Stato export globale

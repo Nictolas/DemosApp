@@ -165,12 +165,10 @@ function anonymizeData(data, anonymize = false, anonymizeUserId = false) {
 async function sendToAxiomHTTP(dataset, events) {
   const axios = require('axios');
   
-  const region = process.env.AXIOM_REGION || 'eu';
-  const baseUrl = region === 'eu' 
-    ? 'https://api.eu.axiom.co' 
-    : 'https://api.axiom.co';
-  
-  const url = `${baseUrl}/v1/datasets/${dataset}/ingest`;
+  const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+  const edgeDomain = process.env.AXIOM_EDGE_DOMAIN 
+    || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+  const url = `https://${edgeDomain}/v1/ingest/${dataset}`;
   
   const token = process.env.AXIOM_API_TOKEN;
   const orgId = process.env.AXIOM_ORG_ID;
