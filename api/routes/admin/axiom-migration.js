@@ -69,6 +69,52 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
         });
         
         console.log('✅ Migrazione completata:', JSON.stringify(results, null, 2));
+        
+        // Salva statistiche migrazione in una tabella per poterle recuperare dopo
+        try {
+          const { Pool } = require('pg');
+          const statsPool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+          });
+          
+          // Crea tabella se non esiste
+          await statsPool.query(`
+            CREATE TABLE IF NOT EXISTS axiom_migration_stats (
+              id SERIAL PRIMARY KEY,
+              dataset_name VARCHAR(255) NOT NULL,
+              events_migrated BIGINT NOT NULL,
+              batches_count INTEGER NOT NULL,
+              migrated_at TIMESTAMP DEFAULT NOW(),
+              UNIQUE(dataset_name)
+            )
+          `);
+          
+          // Salva statistiche
+          for (const [table, result] of Object.entries(results)) {
+            if (result && result.migrated) {
+              const datasetName = table === 'centralized_logs' 
+                ? (process.env.AXIOM_DATASET || 'centralized_logs')
+                : (process.env.AXIOM_REALTIME_DATASET || 'real-time');
+              
+              await statsPool.query(`
+                INSERT INTO axiom_migration_stats (dataset_name, events_migrated, batches_count)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (dataset_name) 
+                DO UPDATE SET 
+                  events_migrated = axiom_migration_stats.events_migrated + EXCLUDED.events_migrated,
+                  batches_count = axiom_migration_stats.batches_count + EXCLUDED.batches_count,
+                  migrated_at = NOW()
+              `, [datasetName, result.migrated, result.batches || 0]);
+            }
+          }
+          
+          await statsPool.end();
+        } catch (statsError) {
+          console.error('⚠️ Errore salvataggio statistiche:', statsError.message);
+          // Non bloccare se fallisce
+        }
+        
       } catch (error) {
         console.error('❌ Errore migrazione:', error);
         console.error('❌ Stack trace:', error.stack);
