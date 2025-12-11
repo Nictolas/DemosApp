@@ -50,45 +50,67 @@ router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
     console.log(`   Tables: ${(tables || ['centralized_logs', 'audit_logs']).join(', ')}`);
     console.log(`   DryRun: ${dryRun || false}`);
     
-    // Esegui migrazione in modo sincrono per vedere errori immediatamente
-    // NOTA: Questo blocca la risposta fino al completamento, ma vediamo gli errori subito
-    try {
-      const results = await migrateNeonToAxiom({
-        tables: tables || ['centralized_logs', 'audit_logs'],
-        dryRun: dryRun || false
-      });
-      
-      console.log('✅ Migrazione completata:', JSON.stringify(results, null, 2));
-      
-      res.json({
-        success: true,
-        message: 'Migrazione completata con successo',
-        results: results,
-        tables: tables || ['centralized_logs', 'audit_logs'],
-        dryRun: dryRun || false
-      });
-    } catch (error) {
-      console.error('❌ Errore migrazione:', error);
-      console.error('❌ Stack trace:', error.stack);
-      console.error('❌ Error details:', JSON.stringify({
-        message: error.message,
-        code: error.code,
-        name: error.name
-      }, null, 2));
-      
-      res.status(500).json({
-        success: false,
-        error: 'Errore durante la migrazione',
-        message: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
-    }
+    // Rispondi immediatamente al frontend per evitare timeout
+    // La migrazione viene eseguita in background
+    res.json({
+      success: true,
+      message: 'Migrazione avviata in background',
+      tables: tables || ['centralized_logs', 'audit_logs'],
+      dryRun: dryRun || false,
+      status: 'running'
+    });
+    
+    // Esegui migrazione in background (non blocca la risposta)
+    (async () => {
+      try {
+        const results = await migrateNeonToAxiom({
+          tables: tables || ['centralized_logs', 'audit_logs'],
+          dryRun: dryRun || false
+        });
+        
+        console.log('✅ Migrazione completata:', JSON.stringify(results, null, 2));
+      } catch (error) {
+        console.error('❌ Errore migrazione:', error);
+        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Error details:', JSON.stringify({
+          message: error.message,
+          code: error.code,
+          name: error.name
+        }, null, 2));
+      }
+    })();
     
   } catch (error) {
     console.error('❌ Errore avvio migrazione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore avvio migrazione',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/axiom-migration/test-auth
+ * Endpoint di test per verificare autenticazione e permessi
+ */
+router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Autenticazione e permessi admin verificati correttamente',
+      user: {
+        id: req.userId,
+        email: req.userEmail,
+        role: req.userRole
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore test auth:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore test autenticazione',
       message: error.message
     });
   }

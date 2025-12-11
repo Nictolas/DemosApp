@@ -409,11 +409,10 @@ class CentralizedLogger {
     // Scrittura asincrona su tutti i canali
     const promises = [
       this.writeToFile(level, message, meta),
-      this.writeToDatabase(level, message, meta)
+      this.writeToDatabase(level, message, meta),
+      // Axiom (non blocca se fallisce, ma viene eseguito)
+      this.writeToAxiom(level, message, meta).catch(() => {})
     ];
-    
-    // Axiom (non blocca se fallisce)
-    this.writeToAxiom(level, message, meta);
     
     // Console sempre sincrona per debugging
     this.writeToConsole(level, message, meta);

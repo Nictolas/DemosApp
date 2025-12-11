@@ -565,7 +565,55 @@ export default function DataExport() {
     }
   };
 
+  const testAuth = async () => {
+    try {
+      const response = await apiRequest.get('/admin/axiom-migration/test-auth');
+      if (response.success) {
+        toast({
+          title: 'Autenticazione OK',
+          description: `Utente: ${response.data?.user?.email} (${response.data?.user?.role})`,
+          variant: 'default'
+        });
+        console.log('✅ Test auth riuscito:', response.data);
+      } else {
+        toast({
+          title: 'Errore autenticazione',
+          description: response.error || 'Autenticazione fallita',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      console.error('Errore test auth:', error);
+      toast({
+        title: 'Errore autenticazione',
+        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const startAxiomMigration = async () => {
+    // Prima testa l'autenticazione
+    try {
+      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
+      if (!authTest.success) {
+        toast({
+          title: 'Errore autenticazione',
+          description: 'Non sei autenticato correttamente. Effettua il logout e login di nuovo.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    } catch (error: any) {
+      console.error('Errore test auth:', error);
+      toast({
+        title: 'Errore autenticazione',
+        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     if (!confirm('Vuoi avviare la migrazione dei dati da Neon a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
       return;
     }
@@ -580,13 +628,13 @@ export default function DataExport() {
       if (response.success) {
         toast({
           title: 'Migrazione avviata',
-          description: 'La migrazione è stata avviata. Controlla i log su Render per monitorare il progresso.',
+          description: 'La migrazione è stata avviata in background. Controlla i log su Render per monitorare il progresso.',
           variant: 'default'
         });
         // Ricarica i dati dopo un breve delay
         setTimeout(() => {
           loadAxiomAnalysis();
-        }, 5000);
+        }, 10000);
       } else {
         toast({
           title: 'Errore avvio migrazione',
@@ -596,9 +644,10 @@ export default function DataExport() {
       }
     } catch (error: any) {
       console.error('Errore avvio migrazione:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Impossibile avviare la migrazione';
       toast({
         title: 'Errore avvio migrazione',
-        description: error.response?.data?.error || error.response?.data?.message || 'Impossibile avviare la migrazione',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -1014,6 +1063,14 @@ export default function DataExport() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={testAuth}
+                    title="Testa autenticazione"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
                   {(axiomAnalysis?.totalEvents === 0 || !axiomAnalysis) && (
                     <Button 
                       variant="default" 
