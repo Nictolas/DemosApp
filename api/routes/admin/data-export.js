@@ -68,17 +68,56 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
           console.log(`✅ API dataset risposta per ${ds.name}:`, JSON.stringify(datasetResponse.data, null, 2));
           
           const datasetData = datasetResponse.data || {};
-          // Prova diversi percorsi per le statistiche
-          const eventCount = datasetData.stats?.numEvents 
-            || datasetData.numEvents 
-            || datasetData.stats?.events
-            || datasetData.events
-            || 0;
-          const dataSizeBytes = datasetData.stats?.inputBytes 
-            || datasetData.inputBytes 
-            || datasetData.stats?.bytes
-            || datasetData.bytes
-            || 0;
+          
+          // Log completo per debug
+          console.log(`📦 Risposta API dataset per ${ds.name}:`, JSON.stringify(datasetData, null, 2));
+          
+          // Prova diversi percorsi per le statistiche (Axiom può restituire formati diversi)
+          let eventCount = 0;
+          let dataSizeBytes = 0;
+          
+          // Prova vari percorsi per eventCount
+          if (datasetData.stats?.numEvents) {
+            eventCount = datasetData.stats.numEvents;
+          } else if (datasetData.numEvents) {
+            eventCount = datasetData.numEvents;
+          } else if (datasetData.stats?.events) {
+            eventCount = datasetData.stats.events;
+          } else if (datasetData.events) {
+            eventCount = datasetData.events;
+          } else if (typeof datasetData.stats === 'object' && datasetData.stats !== null) {
+            // Cerca qualsiasi campo numerico che potrebbe essere il count
+            const statsKeys = Object.keys(datasetData.stats);
+            for (const key of statsKeys) {
+              if (key.toLowerCase().includes('event') || key.toLowerCase().includes('count')) {
+                eventCount = Number(datasetData.stats[key]) || 0;
+                break;
+              }
+            }
+          }
+          
+          // Prova vari percorsi per dataSizeBytes
+          if (datasetData.stats?.inputBytes) {
+            dataSizeBytes = datasetData.stats.inputBytes;
+          } else if (datasetData.inputBytes) {
+            dataSizeBytes = datasetData.inputBytes;
+          } else if (datasetData.stats?.bytes) {
+            dataSizeBytes = datasetData.stats.bytes;
+          } else if (datasetData.bytes) {
+            dataSizeBytes = datasetData.bytes;
+          } else if (datasetData.stats?.sizeBytes) {
+            dataSizeBytes = datasetData.stats.sizeBytes;
+          } else if (typeof datasetData.stats === 'object' && datasetData.stats !== null) {
+            // Cerca qualsiasi campo numerico che potrebbe essere la dimensione
+            const statsKeys = Object.keys(datasetData.stats);
+            for (const key of statsKeys) {
+              if (key.toLowerCase().includes('byte') || key.toLowerCase().includes('size')) {
+                dataSizeBytes = Number(datasetData.stats[key]) || 0;
+                break;
+              }
+            }
+          }
+          
           const dataSizeMB = dataSizeBytes / (1024 * 1024);
 
           console.log(`📊 ${ds.name}: ${eventCount} eventi, ${dataSizeMB.toFixed(2)} MB`);
