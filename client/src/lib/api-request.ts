@@ -73,6 +73,7 @@ class ApiRequest {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('❌ DEBUG api-request - Errore risposta:', response.status, errorData);
         return {
           success: false,
           error: errorData.error || `HTTP ${response.status}`,
@@ -81,6 +82,11 @@ class ApiRequest {
       }
 
       const data = await response.json();
+      console.log('✅ DEBUG api-request - Risposta ricevuta:', {
+        status: response.status,
+        success: data.success,
+        message: data.message
+      });
       return {
         success: true,
         data: data.data || data,

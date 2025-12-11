@@ -620,15 +620,20 @@ export default function DataExport() {
 
     setMigrating(true);
     try {
+      console.log('🚀 DEBUG - Avvio richiesta migrazione...');
       const response = await apiRequest.post('/admin/axiom-migration/migrate', {
         tables: ['centralized_logs', 'audit_logs'],
         dryRun: false
+      }, {
+        timeout: 30000 // 30 secondi di timeout
       });
+
+      console.log('📦 DEBUG - Risposta migrazione ricevuta:', response);
 
       if (response.success) {
         toast({
           title: 'Migrazione avviata',
-          description: 'La migrazione è stata avviata in background. Controlla i log su Render per monitorare il progresso.',
+          description: response.message || 'La migrazione è stata avviata in background. Controlla i log su Render per monitorare il progresso.',
           variant: 'default'
         });
         // Ricarica i dati dopo un breve delay
@@ -636,6 +641,7 @@ export default function DataExport() {
           loadAxiomAnalysis();
         }, 10000);
       } else {
+        console.error('❌ DEBUG - Migrazione fallita:', response);
         toast({
           title: 'Errore avvio migrazione',
           description: response.error || response.message || 'Impossibile avviare la migrazione',
@@ -643,7 +649,9 @@ export default function DataExport() {
         });
       }
     } catch (error: any) {
-      console.error('Errore avvio migrazione:', error);
+      console.error('❌ DEBUG - Errore avvio migrazione:', error);
+      console.error('❌ DEBUG - Error response:', error.response);
+      console.error('❌ DEBUG - Error data:', error.response?.data);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Impossibile avviare la migrazione';
       toast({
         title: 'Errore avvio migrazione',
