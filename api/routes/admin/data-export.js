@@ -87,26 +87,38 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
         });
       } catch (err) {
         console.error(`Errore conteggio Axiom per ${ds.name}:`, err.response?.data || err.message);
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
         results.push({
           name: ds.name,
           label: ds.label,
           count: 0,
-          error: err.response?.data?.message || err.message
+          error: errorMessage
         });
+        // Se è un errore 404, potrebbe significare che il dataset non esiste o non ha dati
+        if (err.response?.status === 404) {
+          console.log(`Dataset ${ds.name} non trovato o vuoto su Axiom`);
+        }
       }
     }
 
     const totalEvents = results.reduce((sum, ds) => sum + (ds.count || 0), 0);
 
     res.json({
-      totalEvents,
-      datasets: results,
-      edgeDomain,
-      region
+      success: true,
+      data: {
+        totalEvents,
+        datasets: results,
+        edgeDomain,
+        region
+      }
     });
   } catch (error) {
     console.error('Errore analisi Axiom:', error);
-    res.status(500).json({ error: 'Errore ottenendo analisi Axiom' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Errore ottenendo analisi Axiom',
+      message: error.message 
+    });
   }
 });
 

@@ -174,6 +174,7 @@ export default function DataExport() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
   const [axiomAnalysis, setAxiomAnalysis] = useState<AxiomAnalysis | null>(null);
   const [loadingAxiom, setLoadingAxiom] = useState(true);
+  const [migrating, setMigrating] = useState(false);
   const [tableSearch, setTableSearch] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const { toast } = useToast();
@@ -529,24 +530,75 @@ export default function DataExport() {
     setLoadingAxiom(true);
     try {
       const response = await apiRequest.get('/admin/data-export/axiom-analysis');
-      if (response.success) {
+      if (response.success && response.data) {
         setAxiomAnalysis(response.data);
       } else {
         setAxiomAnalysis(null);
         // Non mostrare toast per errori Axiom se non configurato (è normale)
-        if (response.error && !response.error.includes('configurato')) {
+        if (response.error && !response.error.includes('configurato') && !response.error.includes('abilitato')) {
           toast({
             title: 'Errore caricamento Axiom',
-            description: response.error,
+            description: response.error || 'Impossibile caricare i dati da Axiom',
             variant: 'destructive'
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Errore caricamento analisi Axiom:', error);
       setAxiomAnalysis(null);
+      // Mostra errore solo se non è un errore di configurazione
+      if (error?.response?.data?.error && 
+          !error.response.data.error.includes('configurato') && 
+          !error.response.data.error.includes('abilitato')) {
+        toast({
+          title: 'Errore caricamento Axiom',
+          description: error.response?.data?.error || 'Impossibile caricare i dati da Axiom',
+          variant: 'destructive'
+        });
+      }
     } finally {
       setLoadingAxiom(false);
+    }
+  };
+
+  const startAxiomMigration = async () => {
+    if (!confirm('Vuoi avviare la migrazione dei dati da Neon a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
+      return;
+    }
+
+    setMigrating(true);
+    try {
+      const response = await apiRequest.post('/admin/axiom-migration/migrate', {
+        tables: ['centralized_logs', 'audit_logs'],
+        dryRun: false
+      });
+
+      if (response.success) {
+        toast({
+          title: 'Migrazione avviata',
+          description: 'La migrazione è stata avviata. Controlla i log su Render per monitorare il progresso.',
+          variant: 'default'
+        });
+        // Ricarica i dati dopo un breve delay
+        setTimeout(() => {
+          loadAxiomAnalysis();
+        }, 5000);
+      } else {
+        toast({
+          title: 'Errore avvio migrazione',
+          description: response.error || response.message || 'Impossibile avviare la migrazione',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      console.error('Errore avvio migrazione:', error);
+      toast({
+        title: 'Errore avvio migrazione',
+        description: error.response?.data?.error || error.response?.data?.message || 'Impossibile avviare la migrazione',
+        variant: 'destructive'
+      });
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -957,18 +1009,43 @@ export default function DataExport() {
                     Distribuzione eventi presenti in Axiom (post-migrazione)
                   </CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadAxiomAnalysis}
-                  disabled={loadingAxiom}
-                >
-                  {loadingAxiom ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  ) : (
-                    'Aggiorna'
+                <div className="flex items-center gap-2">
+                  {(axiomAnalysis?.totalEvents === 0 || !axiomAnalysis) && (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={startAxiomMigration}
+                      disabled={migrating || loadingAxiom}
+                    >
+                      {migrating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Migrazione...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Avvia Migrazione
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={loadAxiomAnalysis}
+                    disabled={loadingAxiom}
+                  >
+                    {loadingAxiom ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Aggiorna
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1060,8 +1137,35 @@ export default function DataExport() {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Impossibile caricare i dati Axiom</p>
-                  <p className="text-sm mt-2">Verifica configurazione AXIOM_* e riprova</p>
+                  <p className="mb-2">
+                    {axiomAnalysis?.totalEvents === 0 
+                      ? 'Nessun dato presente su Axiom. Avvia la migrazione per trasferire i dati da Neon.'
+                      : 'Impossibile caricare i dati Axiom'}
+                  </p>
+                  <p className="text-sm mt-2 mb-4">
+                    {axiomAnalysis?.totalEvents === 0 
+                      ? 'I dati verranno migrati dalle tabelle centralized_logs e audit_logs'
+                      : 'Verifica configurazione AXIOM_* e riprova'}
+                  </p>
+                  {axiomAnalysis?.totalEvents === 0 && (
+                    <Button
+                      onClick={startAxiomMigration}
+                      disabled={migrating}
+                      className="mt-4"
+                    >
+                      {migrating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Migrazione in corso...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Avvia Migrazione
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
