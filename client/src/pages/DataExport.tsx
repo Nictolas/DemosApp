@@ -133,12 +133,14 @@ interface AxiomDatasetAnalysis {
   name: string;
   label: string;
   count: number | null;
+  dataSizeMB?: number | null;
   error?: string | null;
   needsManualCheck?: boolean;
 }
 
 interface AxiomAnalysis {
   totalEvents: number;
+  totalDataSizeMB?: number;
   datasets: AxiomDatasetAnalysis[];
   edgeDomain?: string;
   region?: string;
@@ -687,16 +689,18 @@ export default function DataExport() {
     if (!databaseAnalysis || !axiomAnalysis) return null;
 
     const neonTotal = databaseAnalysis.categories.exportable.totalSizeMB;
-    const axiomTotal = axiomAnalysis.totalEvents;
+    const axiomTotalEvents = axiomAnalysis.totalEvents;
+    const axiomTotalMB = axiomAnalysis.totalDataSizeMB || 0;
     // Stima record su Neon basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
     const estimatedNeonRecords = Math.round(neonTotal * 1000);
 
     return {
       neonTotal,
-      axiomTotal,
+      axiomTotal: axiomTotalEvents,
+      axiomTotalMB,
       estimatedNeonRecords,
-      migrationProgress: axiomTotal > 0 && estimatedNeonRecords > 0 
-        ? Math.min(100, Math.round((axiomTotal / (estimatedNeonRecords + axiomTotal)) * 100))
+      migrationProgress: axiomTotalMB > 0 && neonTotal > 0 
+        ? Math.min(100, Math.round((axiomTotalMB / neonTotal) * 100))
         : 0
     };
   };
@@ -1013,10 +1017,10 @@ export default function DataExport() {
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
                     <div className="text-2xl font-bold text-green-900">
-                      {axiomAnalysis?.totalEvents.toLocaleString('it-IT')} eventi
+                      {axiomAnalysis?.totalEvents ? axiomAnalysis.totalEvents.toLocaleString('it-IT') + ' eventi' : 'N eventi'}
                     </div>
                     <div className="text-xs text-green-600 mt-1">
-                      {axiomAnalysis?.datasets.length} dataset
+                      {axiomAnalysis?.totalDataSizeMB ? `${axiomAnalysis.totalDataSizeMB.toFixed(2)} MB` : '0 MB'} • {axiomAnalysis?.datasets.length || 0} dataset
                     </div>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
@@ -1036,16 +1040,16 @@ export default function DataExport() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[
                       { name: 'Neon (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
-                      { name: 'Axiom (Eventi)', value: Math.round(aggregateStats.axiomTotal / 1000), color: '#10b981' }
+                      { name: 'Axiom (MB)', value: aggregateStats.axiomTotalMB || 0, color: '#10b981' }
                     ]}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(value: number) => `${value.toFixed(2)} MB`} />
                       <Bar dataKey="value" fill="#8884d8">
                         {[
                           { name: 'Neon (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
-                          { name: 'Axiom (Eventi)', value: Math.round(aggregateStats.axiomTotal / 1000), color: '#10b981' }
+                          { name: 'Axiom (MB)', value: aggregateStats.axiomTotalMB || 0, color: '#10b981' }
                         ].map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
