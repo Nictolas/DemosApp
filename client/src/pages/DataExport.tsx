@@ -1080,10 +1080,10 @@ export default function DataExport() {
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
                     <div className="text-2xl font-bold text-green-900">
-                      {axiomAnalysis?.totalEvents ? axiomAnalysis.totalEvents.toLocaleString('it-IT') + ' eventi' : 'N eventi'}
+                      {axiomAnalysis?.totalDataSizeMB ? `${axiomAnalysis.totalDataSizeMB.toFixed(2)} MB` : '0 MB'}
                     </div>
                     <div className="text-xs text-green-600 mt-1">
-                      {axiomAnalysis?.totalDataSizeMB ? `${axiomAnalysis.totalDataSizeMB.toFixed(2)} MB` : '0 MB'} • {axiomAnalysis?.datasets.length || 0} dataset
+                      {axiomAnalysis?.totalEvents ? axiomAnalysis.totalEvents.toLocaleString('it-IT') + ' eventi' : 'N eventi'} • {axiomAnalysis?.datasets.length || 0} dataset
                     </div>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
@@ -1275,7 +1275,11 @@ export default function DataExport() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                {ds.count !== null && ds.count !== undefined ? (
+                                {ds.dataSizeMB !== null && ds.dataSizeMB !== undefined ? (
+                                  <div className="font-semibold">
+                                    {ds.dataSizeMB.toFixed(2)} MB
+                                  </div>
+                                ) : ds.count !== null && ds.count !== undefined ? (
                                   <div className="font-semibold">
                                     {ds.count.toLocaleString('it-IT')} eventi
                                   </div>
@@ -1369,7 +1373,7 @@ export default function DataExport() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <PieChartIcon className="h-5 w-5" />
-                    Analisi Peso Database
+                    Dati su Neon
                   </CardTitle>
                   <CardDescription>
                     Distribuzione del peso del database per categorie
