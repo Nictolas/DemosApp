@@ -136,6 +136,16 @@ const verifyToken = async (req, res, next) => {
 // Middleware per richiedere ruolo admin
 const requireAdmin = async (req, res, next) => {
   try {
+    // Verifica che verifyToken sia stato eseguito prima
+    if (!req.user || !req.userRole) {
+      console.log('❌ DEBUG requireAdmin - Utente non autenticato, req.user:', !!req.user, 'req.userRole:', req.userRole);
+      return res.status(401).json({
+        success: false,
+        error: 'Token di accesso richiesto',
+        message: 'Effettua il login per continuare'
+      });
+    }
+    
     console.log('👑 DEBUG requireAdmin - Verifica ruolo admin');
     console.log('👑 DEBUG requireAdmin - req.userRole:', req.userRole);
     console.log('👑 DEBUG requireAdmin - req.userId:', req.userId);

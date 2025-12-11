@@ -94,7 +94,9 @@ class AuditService {
         timestamp: new Date(now)
       };
       
-      this.sendAuditLogToAxiom(auditLog).catch(() => {});
+      // Invia ad Axiom usando HTTP diretto (non blocca se fallisce)
+      const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
+      AuditService.sendAuditLogToAxiomHTTP(dataset, auditLog).catch(() => {});
       
       return { id: result.rows[0].id, timestamp: new Date(now) };
     } catch (error) {
@@ -105,7 +107,90 @@ class AuditService {
   }
 
   /**
-   * Invia audit log ad Axiom
+   * Invia audit log ad Axiom usando HTTP diretto
+   * @private
+   */
+  static async sendAuditLogToAxiomHTTP(dataset, auditLog) {
+    if (process.env.AXIOM_ENABLED !== 'true') return;
+    if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
+    
+    try {
+      const logEntry = {
+        _time: new Date(auditLog.timestamp || Date.now()).toISOString(),
+        log_type: 'audit', // Tag per distinguere nel dataset real-time
+        type: 'audit',
+        user_id: auditLog.user_id,
+        action: auditLog.action,
+        resource: auditLog.resource,
+        resource_id: auditLog.resource_id,
+        success: auditLog.success,
+        ip_address: auditLog.ip_address,
+        user_agent: auditLog.user_agent,
+        error_message: auditLog.error_message
+      };
+
+      // Aggiungi details se presente
+      if (auditLog.details) {
+        if (typeof auditLog.details === 'string') {
+          try {
+            Object.assign(logEntry, JSON.parse(auditLog.details));
+          } catch (e) {
+            logEntry.details = auditLog.details;
+          }
+        } else {
+          Object.assign(logEntry, auditLog.details);
+        }
+      }
+
+      // Anonimizza se richiesto (GDPR)
+      if (process.env.AXIOM_ANONYMIZE === 'true') {
+        if (logEntry.ip_address) {
+          const parts = logEntry.ip_address.split('.');
+          if (parts.length === 4) {
+            logEntry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+          }
+        }
+        
+        if (logEntry.user_id && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
+          const crypto = require('crypto');
+          logEntry.user_id = crypto
+            .createHash('sha256')
+            .update(logEntry.user_id + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
+            .digest('hex')
+            .substring(0, 16);
+        }
+      }
+    
+      const axios = require('axios');
+      
+      const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+      const edgeDomain = process.env.AXIOM_EDGE_DOMAIN 
+        || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+      const url = `https://${edgeDomain}/v1/ingest/${dataset}`;
+      
+      const token = process.env.AXIOM_API_TOKEN;
+      const orgId = process.env.AXIOM_ORG_ID;
+      
+      await axios.post(url, [logEntry], {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Axiom-Org-Id': orgId
+        },
+        timeout: 5000, // Timeout breve per non bloccare
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
+    } catch (error) {
+      // Silenzioso - non bloccare applicazione
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ Errore invio audit log Axiom HTTP:`, error.response?.status || error.message);
+      }
+    }
+  }
+
+  /**
+   * Invia audit log ad Axiom (metodo legacy - mantiene compatibilità)
    * @private
    */
   static async sendAuditLogToAxiom(auditLog) {
@@ -160,15 +245,10 @@ class AuditService {
         }
       }
 
-      // Invia ad Axiom (non blocca se fallisce)
+      // Invia ad Axiom usando HTTP diretto (non blocca se fallisce)
       // Audit logs vanno nel dataset real-time insieme a performance e security
       const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
-      axiomAudit.ingestEvents(dataset, [logEntry])
-        .catch(err => {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('❌ Errore invio audit log Axiom:', err.message);
-          }
-        });
+      await this.sendAuditLogToAxiomHTTP(dataset, [logEntry]);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('❌ Errore preparazione audit log Axiom:', error);
