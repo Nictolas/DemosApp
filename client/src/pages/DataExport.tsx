@@ -132,8 +132,9 @@ interface DatabaseAnalysis {
 interface AxiomDatasetAnalysis {
   name: string;
   label: string;
-  count: number;
+  count: number | null;
   error?: string | null;
+  needsManualCheck?: boolean;
 }
 
 interface AxiomAnalysis {
@@ -141,6 +142,9 @@ interface AxiomAnalysis {
   datasets: AxiomDatasetAnalysis[];
   edgeDomain?: string;
   region?: string;
+  apiDomain?: string;
+  needsManualCheck?: boolean;
+  migrationCompleted?: boolean;
 }
 
 // Funzione helper per formattare le dimensioni
@@ -1118,18 +1122,52 @@ export default function DataExport() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-semibold">
-                                  {ds.count.toLocaleString('it-IT')} eventi
-                                </div>
+                                {ds.count !== null && ds.count !== undefined ? (
+                                  <div className="font-semibold">
+                                    {ds.count.toLocaleString('it-IT')} eventi
+                                  </div>
+                                ) : (
+                                  <div className="font-semibold text-yellow-600">
+                                    Verifica manuale richiesta
+                                  </div>
+                                )}
                                 {ds.error && (
-                                  <div className="text-xs text-red-600 max-w-xs">
+                                  <div className={`text-xs max-w-xs mt-1 ${ds.needsManualCheck ? 'text-yellow-600' : 'text-red-600'}`}>
                                     {ds.error}
                                   </div>
+                                )}
+                                {ds.needsManualCheck && (
+                                  <a 
+                                    href={`https://app.axiom.co/demos-institute-jrim/datasets/${ds.name}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline mt-1 block"
+                                  >
+                                    Apri su Axiom →
+                                  </a>
                                 )}
                               </div>
                             </div>
                           </div>
                         ))}
+                        {axiomAnalysis.needsManualCheck && (
+                          <Alert className="mt-4">
+                            <Info className="h-4 w-4" />
+                            <AlertDescription>
+                              Le query API non sono disponibili per questa regione. 
+                              Verifica manualmente i dati su{' '}
+                              <a 
+                                href="https://app.axiom.co/demos-institute-jrim/datasets"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                Axiom Dashboard
+                              </a>
+                              . La migrazione è stata completata con successo.
+                            </AlertDescription>
+                          </Alert>
+                        )}
                       </div>
                     </div>
                   </div>

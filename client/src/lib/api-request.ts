@@ -45,7 +45,8 @@ class ApiRequest {
     const timeout = options.timeout || this.defaultTimeout;
 
     // Aggiungi token di autenticazione se presente
-    const token = localStorage.getItem('token');
+    // Il token viene salvato come 'auth_token' nel localStorage
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -53,6 +54,9 @@ class ApiRequest {
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+      console.log('🔍 DEBUG api-request - Token trovato e aggiunto all\'header');
+    } else {
+      console.log('⚠️ DEBUG api-request - Nessun token trovato nel localStorage');
     }
 
     const controller = new AbortController();
