@@ -4,9 +4,9 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const AXIOM_REGION = process.env.AXIOM_REGION || 'eu';
-const AXIOM_BASE_URL = AXIOM_REGION === 'eu' 
-  ? 'https://api.eu.axiom.co' 
-  : 'https://api.axiom.co';
+const AXIOM_EDGE_DOMAIN = process.env.AXIOM_EDGE_DOMAIN
+  || (AXIOM_REGION === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+const AXIOM_BASE_URL = `https://${AXIOM_EDGE_DOMAIN}`;
 
 async function testIngest() {
   const token = process.env.AXIOM_API_TOKEN;
@@ -25,7 +25,7 @@ async function testIngest() {
     log_type: 'test'
   };
   
-  const url = `${AXIOM_BASE_URL}/v1/datasets/${dataset}/ingest`;
+  const url = `${AXIOM_BASE_URL}/v1/ingest/${dataset}`;
   
   console.log(`📤 Invio a: ${url}\n`);
   
@@ -63,5 +63,6 @@ async function testIngest() {
 }
 
 testIngest();
+
 
 

@@ -141,13 +141,10 @@ function decodeLogLevel(code) {
 async function sendToAxiomHTTP(dataset, events) {
   const axios = require('axios');
   
-  const region = process.env.AXIOM_REGION || 'eu';
-  // Axiom EU API endpoint
-  const baseUrl = region === 'eu' 
-    ? 'https://api.eu.axiom.co' 
-    : 'https://api.axiom.co';
-  
-  const url = `${baseUrl}/v1/datasets/${dataset}/ingest`;
+  const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+  const edgeDomain = process.env.AXIOM_EDGE_DOMAIN 
+    || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+  const url = `https://${edgeDomain}/v1/ingest/${dataset}`;
   
   try {
     const response = await axios.post(url, events, {

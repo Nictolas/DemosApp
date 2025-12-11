@@ -121,6 +121,20 @@ interface DatabaseAnalysis {
   };
 }
 
+interface AxiomDatasetAnalysis {
+  name: string;
+  label: string;
+  count: number;
+  error?: string | null;
+}
+
+interface AxiomAnalysis {
+  totalEvents: number;
+  datasets: AxiomDatasetAnalysis[];
+  edgeDomain?: string;
+  region?: string;
+}
+
 // Funzione helper per formattare le dimensioni
 const formatSize = (sizeMB: number, sizeKB: number): string => {
   if (sizeMB >= 1) {
@@ -150,12 +164,15 @@ export default function DataExport() {
   const [loadingTables, setLoadingTables] = useState(true);
   const [databaseAnalysis, setDatabaseAnalysis] = useState<DatabaseAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
+  const [axiomAnalysis, setAxiomAnalysis] = useState<AxiomAnalysis | null>(null);
+  const [loadingAxiom, setLoadingAxiom] = useState(true);
 
   // Carica dati iniziali
   useEffect(() => {
     loadExportHistory();
     loadTableInfo();
     loadDatabaseAnalysis();
+    loadAxiomAnalysis();
   }, []);
 
   const loadExportHistory = async () => {
@@ -445,6 +462,23 @@ export default function DataExport() {
     }
   };
 
+  const loadAxiomAnalysis = async () => {
+    setLoadingAxiom(true);
+    try {
+      const response = await apiRequest.get('/admin/data-export/axiom-analysis');
+      if (response.success) {
+        setAxiomAnalysis(response.data);
+      } else {
+        setAxiomAnalysis(null);
+      }
+    } catch (error) {
+      console.error('Errore caricamento analisi Axiom:', error);
+      setAxiomAnalysis(null);
+    } finally {
+      setLoadingAxiom(false);
+    }
+  };
+
 
   const getTableDescription = (tableName: string) => {
     const descriptions: { [key: string]: string } = {
@@ -660,6 +694,129 @@ export default function DataExport() {
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
+          {/* Analisi Axiom */}
+          <Card className="bg-white shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChartIcon className="h-5 w-5" />
+                    Dati su Axiom
+                  </CardTitle>
+                  <CardDescription>
+                    Distribuzione eventi presenti in Axiom (post-migrazione)
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadAxiomAnalysis}
+                  disabled={loadingAxiom}
+                >
+                  {loadingAxiom ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  ) : (
+                    'Aggiorna'
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingAxiom ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-gray-600">Caricamento analisi Axiom...</span>
+                </div>
+              ) : axiomAnalysis && axiomAnalysis.datasets.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div className="p-3 bg-blue-50 rounded-lg text-center">
+                        <div className="text-2xl font-bold text-blue-800">
+                          {axiomAnalysis.totalEvents.toLocaleString('it-IT')}
+                        </div>
+                        <p className="text-blue-700 text-sm">Eventi totali su Axiom</p>
+                        {axiomAnalysis.edgeDomain && (
+                          <p className="text-xs text-blue-500 mt-1">
+                            Endpoint: {axiomAnalysis.edgeDomain} ({axiomAnalysis.region?.toUpperCase()})
+                          </p>
+                        )}
+                      </div>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={axiomAnalysis.datasets.map(ds => ({
+                                name: ds.label || ds.name,
+                                value: ds.count,
+                                color: ds.name === 'centralized_logs' ? '#2563eb' : '#10b981'
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, value }) => `${name}: ${value.toLocaleString('it-IT')}`}
+                              outerRadius={80}
+                              dataKey="value"
+                            >
+                              {axiomAnalysis.datasets.map((ds, index) => (
+                                <Cell 
+                                  key={`axiom-cell-${index}`} 
+                                  fill={ds.name === 'centralized_logs' ? '#2563eb' : '#10b981'} 
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: number) => [`${Number(value).toLocaleString('it-IT')}`, 'Eventi']}
+                              labelFormatter={(label) => `Dataset: ${label}`}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-lg">Dettaglio Dataset</h4>
+                      <div className="space-y-3">
+                        {axiomAnalysis.datasets.map(ds => (
+                          <div key={ds.name} className="p-3 border rounded-lg bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-4 h-4 rounded-full" 
+                                  style={{ backgroundColor: ds.name === 'centralized_logs' ? '#2563eb' : '#10b981' }}
+                                ></div>
+                                <div>
+                                  <div className="font-medium">{ds.label || ds.name}</div>
+                                  <div className="text-xs text-gray-500">{ds.name}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">
+                                  {ds.count.toLocaleString('it-IT')} eventi
+                                </div>
+                                {ds.error && (
+                                  <div className="text-xs text-red-600 max-w-xs">
+                                    {ds.error}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Impossibile caricare i dati Axiom</p>
+                  <p className="text-sm mt-2">Verifica configurazione AXIOM_* e riprova</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Analisi Database */}
           <Card className="bg-white shadow-lg">
             <CardHeader>

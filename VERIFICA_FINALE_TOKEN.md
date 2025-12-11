@@ -39,3 +39,4 @@ L'errore `403 - forbidden` indica che:
 Su Render, le variabili d'ambiente sono impostate nell'interfaccia di Render (Environment), non tramite file `.env`. Il file `.env` locale serve solo per sviluppo locale.
 
 
+
