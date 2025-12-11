@@ -14,6 +14,13 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Middleware per autenticazione admin
+const requireAdmin = (req, res, next) => {
+  // Implementa controllo admin
+  // Per ora salto il controllo
+  next();
+};
+
 /**
  * GET /api/admin/data-export/axiom-analysis
  * Ottiene conteggi dei dataset Axiom per grafico a torta
@@ -113,13 +120,6 @@ let exportStatus = {
   exportedRecords: 0,
   totalRecords: 0,
   error: null
-};
-
-// Middleware per autenticazione admin
-const requireAdmin = (req, res, next) => {
-  // Implementa controllo admin
-  // Per ora salto il controllo
-  next();
 };
 
 /**
