@@ -1676,52 +1676,95 @@ export default function DataExport() {
                     <div className="space-y-3">
                       <h4 className="font-semibold text-lg">Dettaglio Dataset</h4>
                       <div className="space-y-3">
-                        {axiomAnalysis.datasets.map(ds => (
-                          <div key={ds.name} className="p-3 border rounded-lg bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-4 h-4 rounded-full" 
-                                  style={{ backgroundColor: ds.name === 'centralized_logs' ? '#2563eb' : '#10b981' }}
-                                ></div>
-                                <div>
-                                  <div className="font-medium">{ds.label || ds.name}</div>
-                                  <div className="text-xs text-gray-500">{ds.name}</div>
+                        {axiomAnalysis.datasets.map(ds => {
+                          // Il dataset real-time può avere nome 'real-time' o il valore di AXIOM_REALTIME_DATASET
+                          // Il label è 'Audit Logs' ma contiene anche Security Events e Performance Metrics
+                          const isRealtimeDataset = ds.name === 'real-time' || 
+                                                    ds.name.includes('real-time') || 
+                                                    (ds.label === 'Audit Logs' && ds.name !== 'centralized_logs');
+                          const realtimeLogTypes = [
+                            { name: 'Audit Logs', description: 'Log delle azioni degli utenti e accessi ai dati', color: '#10b981' },
+                            { name: 'Security Events', description: 'Eventi di sicurezza e tentativi di accesso sospetti', color: '#ef4444' },
+                            { name: 'Performance Metrics', description: 'Metriche di performance e tempi di risposta', color: '#f59e0b' }
+                          ];
+                          
+                          return (
+                            <div key={ds.name} className="p-3 border rounded-lg bg-gray-50">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div 
+                                    className="w-4 h-4 rounded-full" 
+                                    style={{ backgroundColor: ds.name === 'centralized_logs' ? '#2563eb' : '#10b981' }}
+                                  ></div>
+                                  <div>
+                                    <div className="font-medium">{ds.label || ds.name}</div>
+                                    <div className="text-xs text-gray-500">{ds.name}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  {ds.dataSizeMB !== null && ds.dataSizeMB !== undefined ? (
+                                    <div className="font-semibold">
+                                      {ds.dataSizeMB.toFixed(2)} MB
+                                    </div>
+                                  ) : ds.count !== null && ds.count !== undefined ? (
+                                    <div className="font-semibold">
+                                      {ds.count.toLocaleString('it-IT')} eventi
+                                    </div>
+                                  ) : (
+                                    <div className="font-semibold text-yellow-600">
+                                      Verifica manuale richiesta
+                                    </div>
+                                  )}
+                                  {ds.error && (
+                                    <div className={`text-xs max-w-xs mt-1 ${ds.needsManualCheck ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      {ds.error}
+                                    </div>
+                                  )}
+                                  {ds.needsManualCheck && (
+                                    <a 
+                                      href={`https://app.axiom.co/demos-institute-jrim/datasets/${ds.name}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 hover:underline mt-1 block"
+                                    >
+                                      Apri su Axiom →
+                                    </a>
+                                  )}
                                 </div>
                               </div>
-                              <div className="text-right">
-                                {ds.dataSizeMB !== null && ds.dataSizeMB !== undefined ? (
-                                  <div className="font-semibold">
-                                    {ds.dataSizeMB.toFixed(2)} MB
+                              
+                              {/* Mostra dettagli per dataset real-time */}
+                              {isRealtimeDataset && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <div className="text-xs font-medium text-gray-700 mb-2">Tipi di log contenuti:</div>
+                                  <div className="space-y-2">
+                                    {realtimeLogTypes.map((logType, idx) => (
+                                      <div key={idx} className="flex items-start gap-2 text-xs">
+                                        <div 
+                                          className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" 
+                                          style={{ backgroundColor: logType.color }}
+                                        ></div>
+                                        <div className="flex-1">
+                                          <div className="font-medium text-gray-800">{logType.name}</div>
+                                          <div className="text-gray-500 text-xs">{logType.description}</div>
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                ) : ds.count !== null && ds.count !== undefined ? (
-                                  <div className="font-semibold">
-                                    {ds.count.toLocaleString('it-IT')} eventi
+                                </div>
+                              )}
+                              
+                              {/* Mostra descrizione per centralized_logs */}
+                              {ds.name === 'centralized_logs' && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <div className="text-xs text-gray-600">
+                                    Log applicativi centralizzati: errori, warning, info e debug del sistema
                                   </div>
-                                ) : (
-                                  <div className="font-semibold text-yellow-600">
-                                    Verifica manuale richiesta
-                                  </div>
-                                )}
-                                {ds.error && (
-                                  <div className={`text-xs max-w-xs mt-1 ${ds.needsManualCheck ? 'text-yellow-600' : 'text-red-600'}`}>
-                                    {ds.error}
-                                  </div>
-                                )}
-                                {ds.needsManualCheck && (
-                                  <a 
-                                    href={`https://app.axiom.co/demos-institute-jrim/datasets/${ds.name}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-blue-600 hover:underline mt-1 block"
-                                  >
-                                    Apri su Axiom →
-                                  </a>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {axiomAnalysis.needsManualCheck && (
                           <Alert className="mt-4">
                             <Info className="h-4 w-4" />
