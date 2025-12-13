@@ -993,7 +993,7 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       message: error.message
     });
   }
-}););
+});
 
 module.exports = router;
 
