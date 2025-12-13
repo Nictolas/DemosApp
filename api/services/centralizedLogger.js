@@ -134,6 +134,8 @@ class CentralizedLogger {
     if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
 
     try {
+      // Invia solo i campi necessari (come nella migrazione), non tutto il meta object
+      // Questo riduce la dimensione dei dati e rispetta GDPR
       const logEntry = {
         _time: new Date().toISOString(),
         level: level,
@@ -141,8 +143,17 @@ class CentralizedLogger {
         log_type: meta.logType || 'application', // 'application', 'performance', 'security'
         pid: process.pid,
         hostname: require('os').hostname(),
-        ...meta
+        // Solo campi essenziali dalla tabella centralized_logs
+        user_id: meta.userId || null,
+        ip_address: meta.ipAddress || null,
+        user_agent: meta.userAgent || null,
+        endpoint: meta.endpoint || null,
+        request_id: meta.requestId || null,
+        session_id: meta.sessionId || null
       };
+      
+      // Aggiungi solo campi specifici da meta se necessari (non tutto l'oggetto)
+      // Evita di inviare dati non necessari che aumentano la dimensione
 
       // Anonimizza se richiesto (GDPR)
       if (process.env.AXIOM_ANONYMIZE === 'true') {
@@ -208,11 +219,15 @@ class CentralizedLogger {
   }
 
   async writeToDatabase(level, message, meta = {}) {
+    // DISABILITATO: I log vengono salvati solo su Axiom, non più su Neon
+    // Questo per alleggerire Neon e centralizzare i log su Axiom
+    if (process.env.AXIOM_ENABLED === 'true') {
+      // Se Axiom è abilitato, non salvare su Neon
+      return;
+    }
+    
+    // Solo se Axiom non è abilitato, salva su Neon (fallback)
     if (!this.logToDatabase) return;
-
-    // Disabilita temporaneamente il logging su database per evitare errori
-    console.log(`📝 LOG [${level}]: ${message}`, meta);
-    return;
 
     try {
       const logEntry = this.formatMessage(level, message, meta);
