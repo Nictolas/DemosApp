@@ -76,8 +76,45 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
         endTime: endDate
       });
       
-      // Estrai i dati dai risultati
-      let allRows = queryResult.buckets?.flatMap(bucket => bucket.rows || []) || [];
+      // Estrai i dati dai risultati - l'SDK Axiom può restituire dati in formati diversi
+      let allRows = [];
+      
+      // Prova diverse strutture di risposta
+      if (queryResult.matches && Array.isArray(queryResult.matches)) {
+        // Formato matches (array diretto)
+        allRows = queryResult.matches;
+      } else if (queryResult.buckets && Array.isArray(queryResult.buckets)) {
+        // Formato buckets (array di bucket con rows)
+        allRows = queryResult.buckets.flatMap(bucket => {
+          if (Array.isArray(bucket.rows)) {
+            return bucket.rows;
+          } else if (bucket.data && Array.isArray(bucket.data)) {
+            return bucket.data;
+          }
+          return [];
+        });
+      } else if (queryResult.data && Array.isArray(queryResult.data)) {
+        // Formato data diretto
+        allRows = queryResult.data;
+      } else if (queryResult.data?.rows && Array.isArray(queryResult.data.rows)) {
+        // Formato data.rows
+        allRows = queryResult.data.rows;
+      } else if (queryResult.rows && Array.isArray(queryResult.rows)) {
+        // Formato rows diretto
+        allRows = queryResult.rows;
+      } else {
+        // Log per debug se non troviamo i dati
+        console.error('⚠️ Struttura risposta Axiom non riconosciuta');
+        console.error('⚠️ Query result type:', typeof queryResult);
+        if (queryResult) {
+          console.error('⚠️ Query result keys:', Object.keys(queryResult));
+          // Log solo i primi 500 caratteri per non intasare i log
+          const resultStr = JSON.stringify(queryResult, null, 2);
+          console.error('⚠️ Query result sample:', resultStr.substring(0, 500));
+        }
+      }
+      
+      console.log(`✅ Estratti ${allRows.length} righe totali da Axiom`);
       
       // Applica paginazione lato server (Axiom non supporta offset)
       const rows = allRows.slice(offsetNum, offsetNum + limitNum);
