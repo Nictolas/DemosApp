@@ -431,7 +431,7 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
       
       // Assicurati che duplicatesCount non sia maggiore di totalCount
       duplicatesCount = Math.min(duplicatesCount, totalCount);
-      const uniqueCount = totalCount - duplicatesCount;
+      uniqueCount = totalCount - duplicatesCount;
       
       res.json({
         success: true,
