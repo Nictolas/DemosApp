@@ -492,11 +492,13 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       });
     }
     
+    const axios = require('axios');
+    const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+    
     let Axiom;
     let axiomClient;
     try {
       Axiom = require('@axiomhq/axiom-node');
-      const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
       axiomClient = new Axiom.Client({
         token: process.env.AXIOM_API_TOKEN,
         orgId: process.env.AXIOM_ORG_ID,
@@ -511,7 +513,6 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       });
     }
     
-    const axios = require('axios');
     const apiDomain = region === 'eu' ? 'api.eu.axiom.co' : 'api.axiom.co';
     const baseUrl = `https://${apiDomain}`;
     const edgeDomain = process.env.AXIOM_EDGE_DOMAIN
@@ -627,43 +628,67 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
           }
         }
         
+        if (allRecords.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Nessun record trovato',
+            message: 'Il dataset è vuoto o non contiene record nel periodo selezionato'
+          });
+        }
+        
         console.log(`   ✅ Totale record estratti: ${allRecords.length.toLocaleString('it-IT')}`);
         console.log(`   📊 Deduplicazione lato server...`);
         
         // Deduplicazione lato server
         // Crea una mappa per tracciare record unici
         const uniqueMap = new Map();
+        let processedCount = 0;
         
-        allRecords.forEach(record => {
-          const data = record.data || record;
-          const time = record._time || data._time;
-          const message = data.message || '';
-          const requestId = data.request_id || data.requestId || '';
-          
-          // Crea chiave unica
-          let uniqueKey;
-          if (requestId && requestId !== '' && requestId !== null) {
-            // Record CON request_id: usa _time, message, request_id
-            uniqueKey = `${time}|${message}|${requestId}`;
-          } else {
-            // Record SENZA request_id: usa _time, message, user_id, ip_address
-            const userId = data.user_id || data.userId || '';
-            const ipAddress = data.ip_address || data.ipAddress || '';
-            uniqueKey = `${time}|${message}|${userId}|${ipAddress}`;
-          }
-          
-          // Se non abbiamo già questo record, o se questo è più recente, aggiungilo
-          if (!uniqueMap.has(uniqueKey)) {
-            uniqueMap.set(uniqueKey, record);
-          } else {
-            // Confronta timestamp e tieni il più recente
-            const existing = uniqueMap.get(uniqueKey);
-            const existingTime = existing._time || (existing.data && existing.data._time) || '';
-            if (time > existingTime) {
-              uniqueMap.set(uniqueKey, record);
+        try {
+          allRecords.forEach((record, index) => {
+            try {
+              const data = record.data || record;
+              const time = record._time || data._time || '';
+              const message = (data.message || '').toString();
+              const requestId = data.request_id || data.requestId || '';
+              
+              // Crea chiave unica
+              let uniqueKey;
+              if (requestId && requestId !== '' && requestId !== null) {
+                // Record CON request_id: usa _time, message, request_id
+                uniqueKey = `${time}|${message}|${requestId}`;
+              } else {
+                // Record SENZA request_id: usa _time, message, user_id, ip_address
+                const userId = (data.user_id || data.userId || '').toString();
+                const ipAddress = (data.ip_address || data.ipAddress || '').toString();
+                uniqueKey = `${time}|${message}|${userId}|${ipAddress}`;
+              }
+              
+              // Se non abbiamo già questo record, o se questo è più recente, aggiungilo
+              if (!uniqueMap.has(uniqueKey)) {
+                uniqueMap.set(uniqueKey, record);
+              } else {
+                // Confronta timestamp e tieni il più recente
+                const existing = uniqueMap.get(uniqueKey);
+                const existingTime = existing._time || (existing.data && existing.data._time) || '';
+                if (time > existingTime) {
+                  uniqueMap.set(uniqueKey, record);
+                }
+              }
+              
+              processedCount++;
+              if (processedCount % 10000 === 0) {
+                console.log(`   📊 Processati ${processedCount.toLocaleString('it-IT')}/${allRecords.length.toLocaleString('it-IT')} record...`);
+              }
+            } catch (recordErr) {
+              console.error(`   ⚠️ Errore processando record ${index}:`, recordErr.message);
+              // Continua con il prossimo record
             }
-          }
-        });
+          });
+        } catch (dedupErr) {
+          console.error(`   ❌ Errore durante deduplicazione:`, dedupErr.message);
+          throw dedupErr;
+        }
         
         uniqueRecords = Array.from(uniqueMap.values());
         console.log(`   ✅ Record unici dopo deduplicazione: ${uniqueRecords.length.toLocaleString('it-IT')}`);
@@ -968,7 +993,7 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       message: error.message
     });
   }
-});
+}););
 
 module.exports = router;
 
