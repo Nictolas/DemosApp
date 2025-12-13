@@ -736,18 +736,51 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       const batchSize = 1000;
       let sent = 0;
       
-      // Prepara i record per l'invio: estrai solo i dati necessari
+      // Prepara i record per l'invio: estrai solo i dati necessari e rimuovi campi non GDPR
+      // Campi da RIMUOVERE (non necessari per GDPR)
+      const FIELDS_TO_REMOVE = [
+        'pid', 'hostname', 'freed', 'afterGC', 'beforeGC',
+        'alertType', 'errors', 'method', 'statusCode', 'responseTime',
+        'url', 'headers', 'created', 'timestamp', 'severity', 'skipped',
+        'threshold', 'total', 'updated', 'value'
+        // NOTA: request_id NON è nella lista perché è necessario per deduplicazione
+        // e può essere utile per tracciamento (anche se tecnicamente non GDPR)
+      ];
+      
+      // Campi da MANTENERE (necessari per GDPR o per deduplicazione)
+      const FIELDS_TO_KEEP = [
+        '_time', 'level', 'message', 'log_type', 'user_id', 'ip_address',
+        'endpoint', 'session_id', 'user_agent', 'request_id', // request_id necessario per deduplicazione
+        'userId', 'ipAddress', 'sessionId', 'userAgent', 'requestId' // varianti camelCase
+      ];
+      
       const preparedRecords = uniqueRecords.map(record => {
         // Se il record ha struttura { _time, data: {...} }, estrai solo data
+        let cleanRecord;
         if (record.data && typeof record.data === 'object') {
-          // Mantieni _time se presente, altrimenti usa quello da data
-          return {
+          cleanRecord = {
             _time: record._time || record.data._time || new Date().toISOString(),
             ...record.data
           };
+        } else {
+          cleanRecord = { ...record };
         }
-        // Altrimenti usa il record così com'è
-        return record;
+        
+        // Rimuovi campi non necessari per GDPR
+        const cleaned = {};
+        Object.keys(cleanRecord).forEach(key => {
+          // Mantieni sempre _time e metadati Axiom
+          if (key.startsWith('_') || FIELDS_TO_KEEP.includes(key)) {
+            cleaned[key] = cleanRecord[key];
+          } else if (!FIELDS_TO_REMOVE.includes(key)) {
+            // Se non è nella lista da rimuovere e non è nella lista da mantenere,
+            // mantienilo per sicurezza (potrebbe essere un campo importante)
+            cleaned[key] = cleanRecord[key];
+          }
+          // Altrimenti rimuovilo (è nella lista FIELDS_TO_REMOVE)
+        });
+        
+        return cleaned;
       });
       
       for (let i = 0; i < preparedRecords.length; i += batchSize) {
@@ -833,15 +866,30 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
           copyRecords = copyResult.rows;
         }
         
-        // Prepara i record per l'invio
+        // Prepara i record per l'invio (rimuovi campi non GDPR)
+        // Usa le stesse liste di campi definite sopra
         const preparedCopyRecords = copyRecords.map(record => {
+          let cleanRecord;
           if (record.data && typeof record.data === 'object') {
-            return {
+            cleanRecord = {
               _time: record._time || record.data._time || new Date().toISOString(),
               ...record.data
             };
+          } else {
+            cleanRecord = { ...record };
           }
-          return record;
+          
+          // Rimuovi campi non necessari per GDPR (usa le stesse liste)
+          const cleaned = {};
+          Object.keys(cleanRecord).forEach(key => {
+            if (key.startsWith('_') || FIELDS_TO_KEEP.includes(key)) {
+              cleaned[key] = cleanRecord[key];
+            } else if (!FIELDS_TO_REMOVE.includes(key)) {
+              cleaned[key] = cleanRecord[key];
+            }
+          });
+          
+          return cleaned;
         });
         
         // Invia al dataset finale
