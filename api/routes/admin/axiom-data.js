@@ -309,17 +309,26 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
     }
     
     try {
-      // Per la deduplicazione, usiamo solo _time come chiave univoca
-      // Questo perché molti record possono avere lo stesso messaggio ma timestamp diversi
-      // e viceversa. Usare solo _time è più conservativo e evita falsi positivi
-      const uniqueKey = '_time';
+      // Per la deduplicazione, usiamo una combinazione di campi che identifica univocamente un log
+      // Per centralized_logs: _time + message + user_id (se disponibile) + request_id (se disponibile)
+      // Questo è più accurato di solo _time (che potrebbe avere duplicati se migrato più volte)
+      let uniqueKey;
+      if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
+        // Usa _time + message come base, poi aggiungi altri campi se disponibili
+        // Ma dobbiamo verificare quali campi esistono realmente
+        uniqueKey = '_time, message';
+      } else if (dataset === 'real-time' || dataset.includes('real-time')) {
+        uniqueKey = '_time, log_type';
+      } else {
+        uniqueKey = '_time';
+      }
       
       // Query per contare i duplicati reali
-      // Un duplicato è quando ci sono più record con lo stesso _time esatto
+      // Un duplicato è quando ci sono più record con la stessa combinazione di campi univoci
       const totalQuery = `['${dataset}'] | summarize count()`;
-      // Query per trovare duplicati: raggruppa per _time e conta solo quelli con count > 1
+      // Query per trovare duplicati: raggruppa per chiave unica e conta solo quelli con count > 1
       // Poi somma i duplicati (count - 1 per ogni gruppo)
-      const duplicatesQuery = `['${dataset}'] | summarize count() by _time | where count > 1 | summarize sum(count - 1)`;
+      const duplicatesQuery = `['${dataset}'] | summarize count() by ${uniqueKey} | where count > 1 | summarize sum(count - 1)`;
       
       const [totalResult, duplicatesResult] = await Promise.all([
         axiomClient.query(totalQuery, {
