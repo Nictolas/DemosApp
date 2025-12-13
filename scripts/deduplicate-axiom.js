@@ -11,9 +11,8 @@ const AXIOM_EDGE_DOMAIN = process.env.AXIOM_EDGE_DOMAIN
   || (AXIOM_REGION === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
 const AXIOM_EDGE_URL = `https://${AXIOM_EDGE_DOMAIN}`;
 
-async function deduplicateDataset(datasetName, uniqueField = '_time') {
+async function deduplicateDataset(datasetName, uniqueFields = null) {
   console.log(`🔍 Deduplicazione dataset: ${datasetName}\n`);
-  console.log(`📍 Campo univoco: ${uniqueField}\n`);
   
   const token = process.env.AXIOM_API_TOKEN;
   const orgId = process.env.AXIOM_ORG_ID;
@@ -23,12 +22,34 @@ async function deduplicateDataset(datasetName, uniqueField = '_time') {
     process.exit(1);
   }
   
+  // Determina i campi univoci in base al dataset
+  let uniqueKey;
+  if (!uniqueFields) {
+    if (datasetName === 'centralized_logs' || datasetName.includes('centralized')) {
+      // Per centralized_logs: usa _time + message + user_id + endpoint come chiave unica
+      uniqueKey = '_time, message, user_id, endpoint';
+      console.log(`📍 Campi univoci: ${uniqueKey}\n`);
+    } else if (datasetName === 'real-time' || datasetName.includes('real-time')) {
+      // Per real-time: usa _time + log_type + action + user_id + resource_id
+      uniqueKey = '_time, log_type, action, user_id, resource_id';
+      console.log(`📍 Campi univoci: ${uniqueKey}\n`);
+    } else {
+      // Default: solo _time
+      uniqueKey = '_time';
+      console.log(`📍 Campo univoco: ${uniqueKey}\n`);
+    }
+  } else {
+    uniqueKey = uniqueFields;
+    console.log(`📍 Campi univoci: ${uniqueKey}\n`);
+  }
+  
   const tempDataset = `${datasetName}_deduped_${Date.now()}`;
   
   try {
     // Step 1: Query per ottenere solo record unici usando APL
     console.log('📊 Step 1: Query record unici...');
-    const aplQuery = `['${datasetName}'] | summarize arg_max(_time, *) by ${uniqueField}`;
+    // Usa arg_max per prendere l'ultimo record per ogni combinazione unica
+    const aplQuery = `['${datasetName}'] | summarize arg_max(_time, *) by ${uniqueKey}`;
     
     const queryResponse = await axios.post(
       `${AXIOM_BASE_URL}/v1/datasets/_apl`,
@@ -125,11 +146,10 @@ async function deduplicateDataset(datasetName, uniqueField = '_time') {
 
 // Esegui
 const dataset = process.argv[2] || process.env.AXIOM_DATASET || 'centralized_logs';
-const uniqueField = process.argv[3] || '_time';
+const uniqueFields = process.argv[3] || null; // Se null, usa campi predefiniti
 
 console.log('🚀 Deduplicazione Axiom\n');
-console.log(`📊 Dataset: ${dataset}`);
-console.log(`🔑 Campo univoco: ${uniqueField}\n`);
+console.log(`📊 Dataset: ${dataset}\n`);
 
-deduplicateDataset(dataset, uniqueField);
+deduplicateDataset(dataset, uniqueFields);
 
