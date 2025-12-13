@@ -5,7 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, ArrowLeft, Database, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Database, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useLocation } from 'wouter';
 import apiRequest from '@/lib/api-request';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +41,10 @@ export default function Axiom() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(100);
+  const [duplicatesDialogOpen, setDuplicatesDialogOpen] = useState(false);
+  const [duplicatesCount, setDuplicatesCount] = useState<number | null>(null);
+  const [analyzingDuplicates, setAnalyzingDuplicates] = useState(false);
+  const [removingDuplicates, setRemovingDuplicates] = useState(false);
   const { toast } = useToast();
 
   // Carica lista dataset
@@ -169,11 +175,87 @@ export default function Axiom() {
     return sortedFields;
   };
 
+  const handleFindDuplicates = async () => {
+    if (!selectedDataset) return;
+    
+    try {
+      setAnalyzingDuplicates(true);
+      setError(null);
+      
+      const response = await apiRequest.post('/admin/axiom-data/find-duplicates', {
+        dataset: selectedDataset
+      });
+      
+      if (response.success) {
+        setDuplicatesCount(response.data.duplicatesCount);
+        setDuplicatesDialogOpen(true);
+      } else {
+        setError(response.error || 'Errore nell\'analisi dei duplicati');
+        toast({
+          title: 'Errore',
+          description: response.message || 'Impossibile analizzare i duplicati',
+          variant: 'destructive'
+        });
+      }
+    } catch (err: any) {
+      console.error('Errore analisi duplicati:', err);
+      setError(err.message || 'Errore nell\'analisi dei duplicati');
+      toast({
+        title: 'Errore',
+        description: 'Impossibile analizzare i duplicati',
+        variant: 'destructive'
+      });
+    } finally {
+      setAnalyzingDuplicates(false);
+    }
+  };
+
+  const handleRemoveDuplicates = async () => {
+    if (!selectedDataset || duplicatesCount === null || duplicatesCount === 0) return;
+    
+    try {
+      setRemovingDuplicates(true);
+      setError(null);
+      
+      const response = await apiRequest.post('/admin/axiom-data/remove-duplicates', {
+        dataset: selectedDataset
+      });
+      
+      if (response.success) {
+        toast({
+          title: 'Successo',
+          description: `Rimossi ${duplicatesCount.toLocaleString('it-IT')} duplicati con successo`,
+        });
+        setDuplicatesDialogOpen(false);
+        setDuplicatesCount(null);
+        // Ricarica i dati
+        loadData();
+      } else {
+        setError(response.error || 'Errore nella rimozione dei duplicati');
+        toast({
+          title: 'Errore',
+          description: response.message || 'Impossibile rimuovere i duplicati',
+          variant: 'destructive'
+        });
+      }
+    } catch (err: any) {
+      console.error('Errore rimozione duplicati:', err);
+      setError(err.message || 'Errore nella rimozione dei duplicati');
+      toast({
+        title: 'Errore',
+        description: 'Impossibile rimuovere i duplicati',
+        variant: 'destructive'
+      });
+    } finally {
+      setRemovingDuplicates(false);
+    }
+  };
+
   const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20 pb-8 px-4">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -236,6 +318,17 @@ export default function Axiom() {
                   {datasets.find(d => d.name === selectedDataset)?.description}
                 </p>
               )}
+              <div className="mt-4 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={handleFindDuplicates}
+                  disabled={!selectedDataset || analyzingDuplicates}
+                  className="flex items-center gap-2"
+                >
+                  <Search className={`h-4 w-4 ${analyzingDuplicates ? 'animate-spin' : ''}`} />
+                  {analyzingDuplicates ? 'Analisi in corso...' : 'Individua Doppioni'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -358,6 +451,57 @@ export default function Axiom() {
             </CardContent>
           </Card>
         ) : null}
+
+        {/* Dialog Conferma Rimozione Duplicati */}
+        <Dialog open={duplicatesDialogOpen} onOpenChange={setDuplicatesDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Duplicati Trovati</DialogTitle>
+              <DialogDescription>
+                {duplicatesCount !== null && duplicatesCount > 0 ? (
+                  <>
+                    Sono stati trovati <strong>{duplicatesCount.toLocaleString('it-IT')}</strong> duplicati nel dataset{' '}
+                    <strong>{datasets.find(d => d.name === selectedDataset)?.label || selectedDataset}</strong>.
+                    <br /><br />
+                    Vuoi procedere con la rimozione? Questa operazione creerà un nuovo dataset senza duplicati e sostituirà quello attuale.
+                  </>
+                ) : (
+                  <>
+                    Non sono stati trovati duplicati nel dataset{' '}
+                    <strong>{datasets.find(d => d.name === selectedDataset)?.label || selectedDataset}</strong>.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            {duplicatesCount !== null && duplicatesCount > 0 && (
+              <Alert className="mt-4">
+                <AlertDescription>
+                  <strong>Attenzione:</strong> Questa operazione è irreversibile. Il dataset originale verrà sostituito con una versione senza duplicati.
+                </AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDuplicatesDialogOpen(false)}
+                disabled={removingDuplicates}
+              >
+                {duplicatesCount === 0 ? 'Chiudi' : 'Annulla'}
+              </Button>
+              {duplicatesCount !== null && duplicatesCount > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={handleRemoveDuplicates}
+                  disabled={removingDuplicates}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className={`h-4 w-4 ${removingDuplicates ? 'animate-spin' : ''}`} />
+                  {removingDuplicates ? 'Rimozione in corso...' : 'Rimuovi Duplicati'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
