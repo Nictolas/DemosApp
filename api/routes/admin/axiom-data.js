@@ -309,18 +309,24 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
     }
     
     try {
-      // Per la deduplicazione, usiamo una combinazione di campi che identifica univocamente un log
-      // Per centralized_logs: _time + message + user_id (se disponibile) + request_id (se disponibile)
-      // Questo è più accurato di solo _time (che potrebbe avere duplicati se migrato più volte)
+      // Per la deduplicazione, usiamo chiavi diverse in base alla presenza di request_id
+      // Per centralized_logs:
+      // - CON request_id: _time, message, request_id (chiave unica verificata)
+      // - SENZA request_id: _time, message, user_id, ip_address
       let uniqueKey;
+      let uniqueKeyDescription;
+      
       if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
-        // Usa _time + message come base, poi aggiungi altri campi se disponibili
-        // Ma dobbiamo verificare quali campi esistono realmente
-        uniqueKey = '_time, message';
+        // Per ora mostriamo solo la chiave principale (con request_id)
+        // La deduplicazione gestirà entrambi i casi
+        uniqueKey = '_time, message, request_id';
+        uniqueKeyDescription = '_time, message, request_id (per record con request_id) o _time, message, user_id, ip_address (senza request_id)';
       } else if (dataset === 'real-time' || dataset.includes('real-time')) {
         uniqueKey = '_time, log_type';
+        uniqueKeyDescription = '_time, log_type';
       } else {
         uniqueKey = '_time';
+        uniqueKeyDescription = '_time';
       }
       
       // Query per contare i duplicati reali
@@ -432,7 +438,7 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
           duplicatesCount,
           totalCount,
           uniqueCount,
-          uniqueKey
+          uniqueKey: uniqueKeyDescription || uniqueKey
         }
       });
       
@@ -513,16 +519,23 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
     
     try {
       // Determina i campi univoci
-      // Usiamo solo campi che sappiamo esistere sempre
-      let uniqueKey;
+      // Per centralized_logs: gestiamo due casi
+      // 1. Record CON request_id: usa _time, message, request_id (chiave unica)
+      // 2. Record SENZA request_id: usa _time, message, user_id, ip_address
+      let uniqueKeyWithRequestId;
+      let uniqueKeyWithoutRequestId;
+      
       if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
-        // Per centralized_logs: usa _time + message (campi sempre presenti)
-        uniqueKey = '_time, message';
+        // Per record CON request_id: chiave unica verificata
+        uniqueKeyWithRequestId = '_time, message, request_id';
+        // Per record SENZA request_id: usa user_id e ip_address
+        uniqueKeyWithoutRequestId = '_time, message, user_id, ip_address';
       } else if (dataset === 'real-time' || dataset.includes('real-time')) {
-        // Per real-time: usa _time + log_type (campi sempre presenti)
-        uniqueKey = '_time, log_type';
+        uniqueKeyWithRequestId = '_time, log_type';
+        uniqueKeyWithoutRequestId = '_time, log_type';
       } else {
-        uniqueKey = '_time';
+        uniqueKeyWithRequestId = '_time';
+        uniqueKeyWithoutRequestId = '_time';
       }
       
       // Step 0: Conta record totali PRIMA della deduplicazione
@@ -545,33 +558,121 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       }
       
       // Step 1: Query per ottenere solo record unici
+      // Gestiamo due casi: record CON request_id e SENZA request_id
       console.log(`📊 Step 1: Query record unici per ${dataset}...`);
-      const uniqueQuery = `['${dataset}'] | summarize arg_max(_time, *) by ${uniqueKey}`;
       
-      const queryResult = await axiomClient.query(uniqueQuery, {
-        startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
-        endTime: new Date()
-      });
-      
-      // Estrai record unici
       let uniqueRecords = [];
-      if (queryResult.matches && Array.isArray(queryResult.matches)) {
-        uniqueRecords = queryResult.matches;
-      } else if (queryResult.buckets && Array.isArray(queryResult.buckets)) {
-        uniqueRecords = queryResult.buckets.flatMap(bucket => {
-          if (Array.isArray(bucket.rows)) return bucket.rows;
-          if (bucket.data && Array.isArray(bucket.data)) return bucket.data;
-          return [];
+      
+      if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
+        // Query per record CON request_id
+        console.log(`   Query record CON request_id (chiave: ${uniqueKeyWithRequestId})...`);
+        
+        // Strategia: estraiamo tutti i record con questa chiave e filtriamo lato server
+        const uniqueQueryWithRequestId = `['${dataset}'] | summarize arg_max(_time, *) by ${uniqueKeyWithRequestId}`;
+        
+        try {
+          const queryResultWith = await axiomClient.query(uniqueQueryWithRequestId, {
+            startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+            endTime: new Date()
+          });
+          
+          let allRecordsWith = [];
+          if (queryResultWith.matches && Array.isArray(queryResultWith.matches)) {
+            allRecordsWith = queryResultWith.matches;
+          } else if (queryResultWith.buckets && Array.isArray(queryResultWith.buckets)) {
+            allRecordsWith = queryResultWith.buckets.flatMap(bucket => {
+              if (Array.isArray(bucket.rows)) return bucket.rows;
+              if (bucket.data && Array.isArray(bucket.data)) return bucket.data;
+              return [];
+            });
+          } else if (queryResultWith.data && Array.isArray(queryResultWith.data)) {
+            allRecordsWith = queryResultWith.data;
+          } else if (queryResultWith.data?.rows && Array.isArray(queryResultWith.data.rows)) {
+            allRecordsWith = queryResultWith.data.rows;
+          } else if (queryResultWith.rows && Array.isArray(queryResultWith.rows)) {
+            allRecordsWith = queryResultWith.rows;
+          }
+          
+          // Filtra lato server: solo record con request_id non vuoto
+          const recordsWith = allRecordsWith.filter(record => {
+            const data = record.data || record;
+            const requestId = data.request_id || data.requestId || '';
+            return requestId && requestId !== '' && requestId !== null;
+          });
+          
+          console.log(`   ✅ Trovati ${recordsWith.length} record unici CON request_id (da ${allRecordsWith.length} totali)`);
+          uniqueRecords = uniqueRecords.concat(recordsWith);
+        } catch (err) {
+          console.error(`   ⚠️ Errore query record CON request_id: ${err.message}`);
+          console.error(`   💡 Provo approccio alternativo...`);
+        }
+        
+        // Query per record SENZA request_id
+        console.log(`   Query record SENZA request_id (chiave: ${uniqueKeyWithoutRequestId})...`);
+        const uniqueQueryWithoutRequestId = `['${dataset}'] | summarize arg_max(_time, *) by ${uniqueKeyWithoutRequestId}`;
+        
+        try {
+          const queryResultWithout = await axiomClient.query(uniqueQueryWithoutRequestId, {
+            startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+            endTime: new Date()
+          });
+          
+          let allRecordsWithout = [];
+          if (queryResultWithout.matches && Array.isArray(queryResultWithout.matches)) {
+            allRecordsWithout = queryResultWithout.matches;
+          } else if (queryResultWithout.buckets && Array.isArray(queryResultWithout.buckets)) {
+            allRecordsWithout = queryResultWithout.buckets.flatMap(bucket => {
+              if (Array.isArray(bucket.rows)) return bucket.rows;
+              if (bucket.data && Array.isArray(bucket.data)) return bucket.data;
+              return [];
+            });
+          } else if (queryResultWithout.data && Array.isArray(queryResultWithout.data)) {
+            allRecordsWithout = queryResultWithout.data;
+          } else if (queryResultWithout.data?.rows && Array.isArray(queryResultWithout.data.rows)) {
+            allRecordsWithout = queryResultWithout.data.rows;
+          } else if (queryResultWithout.rows && Array.isArray(queryResultWithout.rows)) {
+            allRecordsWithout = queryResultWithout.rows;
+          }
+          
+          // Filtra lato server: solo record SENZA request_id
+          const recordsWithout = allRecordsWithout.filter(record => {
+            const data = record.data || record;
+            const requestId = data.request_id || data.requestId || '';
+            return !requestId || requestId === '' || requestId === null;
+          });
+          
+          console.log(`   ✅ Trovati ${recordsWithout.length} record unici SENZA request_id (da ${allRecordsWithout.length} totali)`);
+          uniqueRecords = uniqueRecords.concat(recordsWithout);
+        } catch (err) {
+          console.error(`   ⚠️ Errore query record SENZA request_id: ${err.message}`);
+          console.error(`   💡 Uso solo record con request_id per ora...`);
+        }
+      } else {
+        // Per altri dataset, usa la chiave standard
+        const uniqueQuery = `['${dataset}'] | summarize arg_max(_time, *) by ${uniqueKeyWithRequestId}`;
+        const queryResult = await axiomClient.query(uniqueQuery, {
+          startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+          endTime: new Date()
         });
-      } else if (queryResult.data && Array.isArray(queryResult.data)) {
-        uniqueRecords = queryResult.data;
-      } else if (queryResult.data?.rows && Array.isArray(queryResult.data.rows)) {
-        uniqueRecords = queryResult.data.rows;
-      } else if (queryResult.rows && Array.isArray(queryResult.rows)) {
-        uniqueRecords = queryResult.rows;
+        
+        if (queryResult.matches && Array.isArray(queryResult.matches)) {
+          uniqueRecords = queryResult.matches;
+        } else if (queryResult.buckets && Array.isArray(queryResult.buckets)) {
+          uniqueRecords = queryResult.buckets.flatMap(bucket => {
+            if (Array.isArray(bucket.rows)) return bucket.rows;
+            if (bucket.data && Array.isArray(bucket.data)) return bucket.data;
+            return [];
+          });
+        } else if (queryResult.data && Array.isArray(queryResult.data)) {
+          uniqueRecords = queryResult.data;
+        } else if (queryResult.data?.rows && Array.isArray(queryResult.data.rows)) {
+          uniqueRecords = queryResult.data.rows;
+        } else if (queryResult.rows && Array.isArray(queryResult.rows)) {
+          uniqueRecords = queryResult.rows;
+        }
       }
       
-      console.log(`✅ Trovati ${uniqueRecords.length} record unici`);
+      console.log(`✅ Trovati ${uniqueRecords.length} record unici totali`);
       
       if (uniqueRecords.length === 0) {
         return res.status(400).json({
@@ -614,8 +715,22 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       const batchSize = 1000;
       let sent = 0;
       
-      for (let i = 0; i < uniqueRecords.length; i += batchSize) {
-        const batch = uniqueRecords.slice(i, i + batchSize);
+      // Prepara i record per l'invio: estrai solo i dati necessari
+      const preparedRecords = uniqueRecords.map(record => {
+        // Se il record ha struttura { _time, data: {...} }, estrai solo data
+        if (record.data && typeof record.data === 'object') {
+          // Mantieni _time se presente, altrimenti usa quello da data
+          return {
+            _time: record._time || record.data._time || new Date().toISOString(),
+            ...record.data
+          };
+        }
+        // Altrimenti usa il record così com'è
+        return record;
+      });
+      
+      for (let i = 0; i < preparedRecords.length; i += batchSize) {
+        const batch = preparedRecords.slice(i, i + batchSize);
         
         await axios.post(
           `${edgeUrl}/v1/ingest/${tempDataset}`,
@@ -631,7 +746,7 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
         );
         
         sent += batch.length;
-        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1}: ${batch.length} record inviati (totale: ${sent}/${uniqueRecords.length})`);
+        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1}: ${batch.length} record inviati (totale: ${sent}/${preparedRecords.length})`);
       }
       
       // Step 4: Elimina dataset originale (se supportato)
@@ -697,9 +812,20 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
           copyRecords = copyResult.rows;
         }
         
+        // Prepara i record per l'invio
+        const preparedCopyRecords = copyRecords.map(record => {
+          if (record.data && typeof record.data === 'object') {
+            return {
+              _time: record._time || record.data._time || new Date().toISOString(),
+              ...record.data
+            };
+          }
+          return record;
+        });
+        
         // Invia al dataset finale
-        for (let i = 0; i < copyRecords.length; i += batchSize) {
-          const batch = copyRecords.slice(i, i + batchSize);
+        for (let i = 0; i < preparedCopyRecords.length; i += batchSize) {
+          const batch = preparedCopyRecords.slice(i, i + batchSize);
           await axios.post(
             `${edgeUrl}/v1/ingest/${dataset}`,
             batch,
