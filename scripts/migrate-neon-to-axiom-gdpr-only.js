@@ -1,0 +1,288 @@
+// Script per migrare centralized_logs da Neon ad Axiom usando SOLO colonne GDPR obbligatorie
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+const { Pool } = require('pg');
+const axios = require('axios');
+
+let Axiom;
+let axiomClient;
+
+// Campi GDPR OBBLIGATORI (solo questi)
+const GDPR_REQUIRED_FIELDS = [
+  '_time',           // Timestamp (obbligatorio)
+  'level',           // Livello log (obbligatorio)
+  'message',         // Messaggio (obbligatorio)
+  'user_id',         // ID utente (obbligatorio)
+  'ip_address',      // IP (obbligatorio)
+  'endpoint',        // Endpoint API (obbligatorio)
+  'session_id',      // ID sessione (obbligatorio)
+  'user_agent'       // User Agent (utile per sicurezza)
+];
+
+// Campi da ESCLUDERE (non GDPR)
+const FIELDS_TO_EXCLUDE = [
+  'pid', 'hostname', 'request_id', 'freed', 'afterGC', 'beforeGC',
+  'alertType', 'errors', 'method', 'statusCode', 'responseTime',
+  'url', 'headers', 'created', 'timestamp', 'severity', 'skipped',
+  'threshold', 'total', 'updated', 'value'
+];
+
+async function migrateNeonToAxiomGDPROnly() {
+  console.log('🚀 Migrazione centralized_logs da Neon ad Axiom (SOLO GDPR)\n');
+  
+  // Verifica variabili ambiente
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL non configurato');
+    process.exit(1);
+  }
+  
+  if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {
+    console.error('❌ Token o Org ID Axiom mancanti');
+    process.exit(1);
+  }
+  
+  const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+  const apiDomain = region === 'eu' ? 'api.eu.axiom.co' : 'api.axiom.co';
+  const baseUrl = `https://${apiDomain}`;
+  const edgeDomain = process.env.AXIOM_EDGE_DOMAIN
+    || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+  const edgeUrl = `https://${edgeDomain}`;
+  const dataset = 'centralized_logs';
+  
+  // Inizializza SDK Axiom
+  try {
+    Axiom = require('@axiomhq/axiom-node');
+    axiomClient = new Axiom.Client({
+      token: process.env.AXIOM_API_TOKEN,
+      orgId: process.env.AXIOM_ORG_ID,
+      region: region
+    });
+    console.log('✅ SDK Axiom inizializzato');
+  } catch (sdkErr) {
+    console.error('⚠️ SDK Axiom non disponibile:', sdkErr.message);
+    console.log('   Procedo con API REST...');
+  }
+  
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : false
+  });
+  
+  try {
+    // Step 1: Elimina dataset esistente su Axiom
+    console.log('🗑️ Step 1: Eliminazione dataset centralized_logs su Axiom...');
+    try {
+      await axios.delete(
+        `${baseUrl}/v1/datasets/${dataset}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+            'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+          }
+        }
+      );
+      console.log('✅ Dataset centralized_logs eliminato');
+    } catch (deleteErr) {
+      if (deleteErr.response?.status === 404) {
+        console.log('⚠️ Dataset non esiste, procediamo con la creazione');
+      } else if (deleteErr.response?.status === 403) {
+        console.log('⚠️ ERRORE 403: Il token non ha i permessi per eliminare il dataset.');
+        console.log('   ⚠️ Devi eliminare manualmente il dataset "centralized_logs" su Axiom Dashboard');
+        console.log('   ⚠️ Oppure verifica che il token abbia i permessi "Datasets" -> WRITE');
+        console.log('   ⚠️ Procedo comunque con la creazione (potrebbe fallire se il dataset esiste già)...');
+      } else {
+        throw deleteErr;
+      }
+    }
+    
+    // Step 2: Verifica/Crea dataset su Axiom
+    console.log('\n📦 Step 2: Verifica dataset centralized_logs su Axiom...');
+    let datasetExists = false;
+    
+    try {
+      // Prova prima con SDK
+      if (axiomClient) {
+        try {
+          await axiomClient.datasets.create({
+            name: dataset,
+            description: 'Centralized logs - Solo campi GDPR obbligatori'
+          });
+          console.log('✅ Dataset centralized_logs creato (via SDK)');
+          datasetExists = true;
+        } catch (sdkCreateErr) {
+          if (sdkCreateErr.message?.includes('already exists') || sdkCreateErr.statusCode === 409) {
+            console.log('✅ Dataset centralized_logs esiste già (via SDK)');
+            datasetExists = true;
+          } else {
+            console.log('⚠️ SDK non ha permessi per creare dataset, verifico se esiste già...');
+            // Verifica se esiste
+            try {
+              const datasets = await axiomClient.datasets.list();
+              datasetExists = datasets.some(ds => ds.name === dataset);
+              if (datasetExists) {
+                console.log('✅ Dataset centralized_logs esiste già');
+              } else {
+                console.log('⚠️ Dataset non esiste. Crea manualmente il dataset "centralized_logs" su Axiom Dashboard');
+                console.log('   ⚠️ Poi riesegui lo script per migrare i dati');
+                throw new Error('Dataset non esiste. Crealo manualmente su Axiom Dashboard');
+              }
+            } catch (listErr) {
+              console.log('⚠️ Impossibile verificare dataset, procedo comunque...');
+              datasetExists = true; // Assumiamo che esista
+            }
+          }
+        }
+      } else {
+        console.log('⚠️ SDK non disponibile, assumo che il dataset esista già');
+        datasetExists = true;
+      }
+    } catch (err) {
+      console.log('⚠️ Errore verifica dataset:', err.message);
+      console.log('   ⚠️ Assumo che il dataset esista già e procedo...');
+      datasetExists = true;
+    }
+    
+    if (!datasetExists) {
+      throw new Error('Dataset centralized_logs non esiste. Crealo manualmente su Axiom Dashboard prima di continuare.');
+    }
+    
+    // Step 3: Conta record su Neon
+    console.log('\n📊 Step 3: Conteggio record su Neon...');
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM centralized_logs');
+    const totalRecords = parseInt(countResult.rows[0].count);
+    console.log(`✅ Trovati ${totalRecords.toLocaleString('it-IT')} record su Neon`);
+    
+    if (totalRecords === 0) {
+      console.log('⚠️ Nessun record da migrare');
+      await pool.end();
+      return;
+    }
+    
+    // Step 4: Estrai e migra record in batch
+    console.log('\n📤 Step 4: Migrazione record (solo campi GDPR)...');
+    const batchSize = 1000;
+    let offset = 0;
+    let migrated = 0;
+    let batches = 0;
+    
+    while (offset < totalRecords) {
+      const query = `
+        SELECT 
+          timestamp,
+          level,
+          message,
+          user_id,
+          ip_address,
+          endpoint,
+          session_id,
+          user_agent
+        FROM centralized_logs
+        ORDER BY timestamp ASC
+        LIMIT $1 OFFSET $2
+      `;
+      
+      const result = await pool.query(query, [batchSize, offset]);
+      
+      if (result.rows.length === 0) {
+        break;
+      }
+      
+      // Converti record Neon in formato Axiom (solo campi GDPR)
+      const axiomRecords = result.rows.map(row => {
+        // Converti timestamp BIGINT a ISO string
+        let timestamp;
+        try {
+          if (row.timestamp) {
+            timestamp = new Date(parseInt(row.timestamp)).toISOString();
+          } else {
+            timestamp = new Date().toISOString();
+          }
+        } catch (e) {
+          timestamp = new Date().toISOString();
+        }
+        
+        // Decodifica livello log
+        const levelMap = {
+          'I': 'INFO',
+          'E': 'ERROR',
+          'W': 'WARNING',
+          'D': 'DEBUG'
+        };
+        const level = levelMap[row.level] || row.level || 'INFO';
+        
+        // Crea record con SOLO campi GDPR obbligatori
+        const record = {
+          _time: timestamp,
+          level: level,
+          message: row.message || '',
+          log_type: 'application'
+        };
+        
+        // Aggiungi solo campi GDPR se presenti
+        if (row.user_id) record.user_id = row.user_id;
+        if (row.ip_address) record.ip_address = row.ip_address;
+        if (row.endpoint) record.endpoint = row.endpoint;
+        if (row.session_id) record.session_id = row.session_id;
+        if (row.user_agent) record.user_agent = row.user_agent;
+        
+        return record;
+      });
+      
+      // Invia batch ad Axiom
+      try {
+        await axios.post(
+          `${edgeUrl}/v1/ingest/${dataset}`,
+          axiomRecords,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+              'Content-Type': 'application/json',
+              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+            },
+            timeout: 60000
+          }
+        );
+        
+        migrated += axiomRecords.length;
+        batches++;
+        
+        if (batches % 10 === 0 || offset + batchSize >= totalRecords) {
+          console.log(`   ✅ Batch ${batches}: ${axiomRecords.length} record inviati (totale: ${migrated.toLocaleString('it-IT')}/${totalRecords.toLocaleString('it-IT')})`);
+        }
+      } catch (ingestErr) {
+        console.error(`❌ Errore ingest batch ${batches}:`, ingestErr.response?.status, ingestErr.response?.data || ingestErr.message);
+        throw ingestErr;
+      }
+      
+      offset += batchSize;
+    }
+    
+    console.log(`\n✅ Migrazione completata!`);
+    console.log(`   Record migrati: ${migrated.toLocaleString('it-IT')}`);
+    console.log(`   Batch inviati: ${batches}`);
+    console.log(`   Campi inclusi: ${GDPR_REQUIRED_FIELDS.join(', ')}`);
+    
+  } catch (error) {
+    console.error('\n❌ Errore durante la migrazione:', error.message);
+    if (error.response) {
+      console.error('   Status:', error.response.status);
+      console.error('   Data:', error.response.data);
+    }
+    process.exit(1);
+  } finally {
+    await pool.end();
+  }
+}
+
+// Esegui migrazione
+migrateNeonToAxiomGDPROnly()
+  .then(() => {
+    console.log('\n✅ Script completato con successo');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('\n❌ Errore fatale:', error);
+    process.exit(1);
+  });
+

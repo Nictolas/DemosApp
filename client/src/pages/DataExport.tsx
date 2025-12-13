@@ -728,6 +728,78 @@ export default function DataExport() {
     }
   };
 
+  const startCentralizedLogsMigration = async () => {
+    // Prima testa l'autenticazione
+    try {
+      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
+      if (!authTest.success) {
+        toast({
+          title: 'Errore autenticazione',
+          description: 'Non sei autenticato correttamente. Effettua il logout e login di nuovo.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    } catch (error: any) {
+      console.error('Errore test auth:', error);
+      toast({
+        title: 'Errore autenticazione',
+        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!confirm('Vuoi avviare la migrazione di centralized_logs da Neon a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
+      return;
+    }
+
+    setMigrating(true);
+    try {
+      console.log('🚀 DEBUG - Avvio richiesta migrazione centralized_logs...');
+      const response = await apiRequest.post('/admin/axiom-migration/migrate', {
+        tables: ['centralized_logs'],
+        dryRun: false
+      }, {
+        timeout: 30000 // 30 secondi di timeout
+      });
+
+      console.log('📦 DEBUG - Risposta migrazione ricevuta:', response);
+
+      if (response.success) {
+        toast({
+          title: 'Migrazione centralized_logs avviata',
+          description: response.message || 'La migrazione è stata avviata in background. Controlla i log su Render per monitorare il progresso.',
+          variant: 'default'
+        });
+        // Ricarica i dati dopo un breve delay
+        setTimeout(() => {
+          loadAxiomAnalysis();
+          loadDatabaseAnalysis();
+        }, 10000);
+      } else {
+        console.error('❌ DEBUG - Migrazione fallita:', response);
+        toast({
+          title: 'Errore avvio migrazione',
+          description: response.error || response.message || 'Impossibile avviare la migrazione',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ DEBUG - Errore avvio migrazione:', error);
+      console.error('❌ DEBUG - Error response:', error.response);
+      console.error('❌ DEBUG - Error data:', error.response?.data);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Impossibile avviare la migrazione';
+      toast({
+        title: 'Errore avvio migrazione',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    } finally {
+      setMigrating(false);
+    }
+  };
+
 
   const getTableDescription = (tableName: string) => {
     const descriptions: { [key: string]: string } = {
@@ -1256,18 +1328,44 @@ export default function DataExport() {
                               <div className="text-xs text-gray-500 truncate">
                                 {getTableDescription(table.name)}
                               </div>
+                              {isCentralizedLogs && (
+                                <div className="mt-2 pt-2 border-t border-red-200">
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      startCentralizedLogsMigration();
+                                    }}
+                                    disabled={migrating}
+                                    className="w-full text-xs h-7"
+                                  >
+                                    {migrating ? (
+                                      <>
+                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                        Migrazione...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Migra su Axiom
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           );
                           
                           if (isCentralizedLogs) {
                             return (
-                              <Link 
+                              <div
                                 key={table.name}
-                                to="/admin/data-export/centralized-logs"
-                                className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all cursor-pointer hover:border-red-300"
+                                className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
                               >
                                 {cardContent}
-                              </Link>
+                              </div>
                             );
                           }
                           

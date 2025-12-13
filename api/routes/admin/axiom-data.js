@@ -582,10 +582,13 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
         while (hasMore) {
           try {
             const query = `['${dataset}'] | order by _time desc | limit ${batchSize}`;
+            console.log(`   📊 Esecuzione query Axiom per estrarre record...`);
             const queryResult = await axiomClient.query(query, {
               startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
-              endTime: new Date()
+              endTime: new Date(),
+              timeout: 300000 // 5 minuti
             });
+            console.log(`   ✅ Query completata`);
             
             let batchRecords = [];
             if (queryResult.matches && Array.isArray(queryResult.matches)) {
@@ -623,7 +626,11 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
               }
             }
           } catch (err) {
-            console.error(`   ⚠️ Errore estrazione batch: ${err.message}`);
+            console.error(`   ⚠️ Errore estrazione batch:`, err.message);
+            console.error(`   ⚠️ Dettagli errore:`, err.response?.status, err.response?.data || err.stack);
+            if (err.response?.status === 403 || err.message?.includes('403')) {
+              throw new Error(`403 Forbidden: Il token Axiom non ha i permessi per eseguire query. Verifica che il token abbia i permessi "Query" -> READ.`);
+            }
             hasMore = false;
           }
         }
@@ -728,16 +735,38 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
         });
       }
       
-      // Step 2: Crea nuovo dataset temporaneo
-      const tempDataset = `${dataset}_deduped_${Date.now()}`;
-      console.log(`📦 Step 2: Creazione dataset temporaneo: ${tempDataset}...`);
+      // Step 2: Elimina il dataset originale (lo ricreeremo dopo)
+      console.log(`🗑️ Step 2: Eliminazione dataset originale ${dataset}...`);
+      try {
+        await axios.delete(
+          `${baseUrl}/v1/datasets/${dataset}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+            }
+          }
+        );
+        console.log(`✅ Dataset originale ${dataset} eliminato`);
+      } catch (deleteErr) {
+        console.error(`❌ Errore eliminazione dataset ${dataset}:`, deleteErr.response?.status, deleteErr.response?.data || deleteErr.message);
+        if (deleteErr.response?.status === 403) {
+          throw new Error(`403 Forbidden: Il token Axiom non ha i permessi per eliminare dataset. Verifica che il token abbia i permessi "Datasets" -> WRITE.`);
+        } else if (deleteErr.response?.status === 404) {
+          console.log(`⚠️ Dataset ${dataset} non esiste, procediamo con la creazione`);
+        } else {
+          throw deleteErr;
+        }
+      }
       
+      // Step 3: Ricrea il dataset con lo stesso nome
+      console.log(`📦 Step 3: Ricreazione dataset ${dataset}...`);
       try {
         await axios.post(
           `${baseUrl}/v1/datasets`,
           {
-            name: tempDataset,
-            description: `Dataset deduplicato da ${dataset}`
+            name: dataset,
+            description: `Dataset deduplicato e pulito (${new Date().toISOString()})`
           },
           {
             headers: {
@@ -747,17 +776,18 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
             }
           }
         );
-        console.log(`✅ Dataset ${tempDataset} creato`);
+        console.log(`✅ Dataset ${dataset} ricreato`);
       } catch (createErr) {
-        if (createErr.response?.status === 409) {
-          console.log(`⚠️ Dataset ${tempDataset} già esiste`);
+        console.error(`❌ Errore ricreazione dataset ${dataset}:`, createErr.response?.status, createErr.response?.data || createErr.message);
+        if (createErr.response?.status === 403) {
+          throw new Error(`403 Forbidden: Il token Axiom non ha i permessi per creare dataset. Verifica che il token abbia i permessi "Datasets" -> WRITE.`);
         } else {
           throw createErr;
         }
       }
       
-      // Step 3: Invia record unici al nuovo dataset in batch
-      console.log(`📤 Step 3: Invio record unici al nuovo dataset...`);
+      // Step 4: Invia record unici e puliti al dataset ricreato
+      console.log(`📤 Step 4: Invio record unici e puliti al dataset ${dataset}...`);
       const batchSize = 1000;
       let sent = 0;
       
@@ -811,115 +841,7 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       for (let i = 0; i < preparedRecords.length; i += batchSize) {
         const batch = preparedRecords.slice(i, i + batchSize);
         
-        await axios.post(
-          `${edgeUrl}/v1/ingest/${tempDataset}`,
-          batch,
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
-              'Content-Type': 'application/json',
-              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
-            },
-            timeout: 60000
-          }
-        );
-        
-        sent += batch.length;
-        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1}: ${batch.length} record inviati (totale: ${sent}/${preparedRecords.length})`);
-      }
-      
-      // Step 4: Elimina dataset originale (se supportato)
-      console.log(`🗑️ Step 4: Eliminazione dataset originale ${dataset}...`);
-      try {
-        await axios.delete(
-          `${baseUrl}/v1/datasets/${dataset}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
-              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
-            }
-          }
-        );
-        console.log(`✅ Dataset originale ${dataset} eliminato`);
-      } catch (deleteErr) {
-        console.error(`⚠️ Impossibile eliminare dataset originale:`, deleteErr.message);
-        // Non blocchiamo se non possiamo eliminare, l'utente può farlo manualmente
-      }
-      
-      // Step 5: Rinomina dataset temporaneo (Axiom non supporta rename diretto)
-      // Quindi dobbiamo creare un nuovo dataset con il nome originale e copiare i dati
-      console.log(`📝 Step 5: Creazione dataset finale con nome originale...`);
-      
-      try {
-        // Crea dataset con nome originale
-        await axios.post(
-          `${baseUrl}/v1/datasets`,
-          {
-            name: dataset,
-            description: `Dataset deduplicato (sostituito ${new Date().toISOString()})`
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
-              'Content-Type': 'application/json',
-              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
-            }
-          }
-        );
-        
-        // Copia i dati dal dataset temporaneo a quello finale
-        const copyQuery = `['${tempDataset}']`;
-        const copyResult = await axiomClient.query(copyQuery, {
-          startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
-          endTime: new Date()
-        });
-        
-        let copyRecords = [];
-        if (copyResult.matches && Array.isArray(copyResult.matches)) {
-          copyRecords = copyResult.matches;
-        } else if (copyResult.buckets && Array.isArray(copyResult.buckets)) {
-          copyRecords = copyResult.buckets.flatMap(bucket => {
-            if (Array.isArray(bucket.rows)) return bucket.rows;
-            if (bucket.data && Array.isArray(bucket.data)) return bucket.data;
-            return [];
-          });
-        } else if (copyResult.data && Array.isArray(copyResult.data)) {
-          copyRecords = copyResult.data;
-        } else if (copyResult.data?.rows && Array.isArray(copyResult.data.rows)) {
-          copyRecords = copyResult.data.rows;
-        } else if (copyResult.rows && Array.isArray(copyResult.rows)) {
-          copyRecords = copyResult.rows;
-        }
-        
-        // Prepara i record per l'invio (rimuovi campi non GDPR)
-        // Usa le stesse liste di campi definite sopra
-        const preparedCopyRecords = copyRecords.map(record => {
-          let cleanRecord;
-          if (record.data && typeof record.data === 'object') {
-            cleanRecord = {
-              _time: record._time || record.data._time || new Date().toISOString(),
-              ...record.data
-            };
-          } else {
-            cleanRecord = { ...record };
-          }
-          
-          // Rimuovi campi non necessari per GDPR (usa le stesse liste)
-          const cleaned = {};
-          Object.keys(cleanRecord).forEach(key => {
-            if (key.startsWith('_') || FIELDS_TO_KEEP.includes(key)) {
-              cleaned[key] = cleanRecord[key];
-            } else if (!FIELDS_TO_REMOVE.includes(key)) {
-              cleaned[key] = cleanRecord[key];
-            }
-          });
-          
-          return cleaned;
-        });
-        
-        // Invia al dataset finale
-        for (let i = 0; i < preparedCopyRecords.length; i += batchSize) {
-          const batch = preparedCopyRecords.slice(i, i + batchSize);
+        try {
           await axios.post(
             `${edgeUrl}/v1/ingest/${dataset}`,
             batch,
@@ -932,37 +854,19 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
               timeout: 60000
             }
           );
-        }
-        
-        // Elimina dataset temporaneo
-        try {
-          await axios.delete(
-            `${baseUrl}/v1/datasets/${tempDataset}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
-                'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
-              }
-            }
-          );
-        } catch (tempDeleteErr) {
-          console.error(`⚠️ Impossibile eliminare dataset temporaneo:`, tempDeleteErr.message);
-        }
-        
-        console.log(`✅ Dataset ${dataset} sostituito con versione deduplicata`);
-      } catch (renameErr) {
-        console.error(`⚠️ Errore durante la sostituzione del dataset:`, renameErr.message);
-        // Se fallisce, almeno abbiamo il dataset temporaneo
-        return res.json({
-          success: true,
-          data: {
-            message: `Dataset deduplicato creato come ${tempDataset}. Elimina manualmente ${dataset} e rinomina ${tempDataset} su Axiom Dashboard.`,
-            tempDataset,
-            originalDataset: dataset,
-            recordsDeduplicated: uniqueRecords.length
+          
+          sent += batch.length;
+          console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1}: ${batch.length} record inviati (totale: ${sent}/${preparedRecords.length})`);
+        } catch (ingestErr) {
+          console.error(`❌ Errore ingest batch ${Math.floor(i / batchSize) + 1}:`, ingestErr.response?.status, ingestErr.response?.data || ingestErr.message);
+          if (ingestErr.response?.status === 403) {
+            throw new Error(`403 Forbidden: Il token Axiom non ha i permessi per inviare dati. Verifica che il token abbia i permessi "Data" -> WRITE.`);
           }
-        });
+          throw ingestErr;
+        }
       }
+      
+      console.log(`✅ Dataset ${dataset} sostituito con versione deduplicata e pulita`);
       
       // Calcola quanti duplicati sono stati rimossi
       const duplicatesRemoved = Math.max(0, totalBefore - uniqueRecords.length);
@@ -978,6 +882,17 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
       
     } catch (queryErr) {
       console.error(`❌ Errore rimozione duplicati per ${dataset}:`, queryErr.message);
+      console.error(`   Stack:`, queryErr.stack);
+      
+      // Gestisci errori 403 in modo più chiaro
+      if (queryErr.message && queryErr.message.includes('403')) {
+        return res.status(403).json({
+          success: false,
+          error: 'Permessi Axiom insufficienti',
+          message: queryErr.message || 'Il token Axiom non ha i permessi necessari. Verifica che il token abbia i permessi: "Datasets" -> WRITE e "Data" -> WRITE.'
+        });
+      }
+      
       res.status(500).json({
         success: false,
         error: 'Errore rimozione duplicati',
@@ -990,6 +905,234 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
     res.status(500).json({
       success: false,
       error: 'Errore rimozione duplicati',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/axiom-data/clean-gdpr
+ * Rimuove solo i campi non GDPR dal dataset (senza deduplicazione)
+ * ATTENZIONE: Elimina e ricrea il dataset per rimuovere le colonne
+ */
+router.post('/clean-gdpr', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { dataset } = req.body;
+    
+    if (!dataset) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dataset non specificato'
+      });
+    }
+    
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato'
+      });
+    }
+    
+    if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token o Org ID Axiom mancanti'
+      });
+    }
+    
+    const axios = require('axios');
+    const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+    
+    let Axiom;
+    let axiomClient;
+    try {
+      Axiom = require('@axiomhq/axiom-node');
+      axiomClient = new Axiom.Client({
+        token: process.env.AXIOM_API_TOKEN,
+        orgId: process.env.AXIOM_ORG_ID,
+        region: region
+      });
+    } catch (sdkErr) {
+      console.error('⚠️ SDK Axiom non disponibile:', sdkErr.message);
+      return res.status(500).json({
+        success: false,
+        error: 'SDK Axiom non disponibile',
+        message: sdkErr.message
+      });
+    }
+    
+    const apiDomain = region === 'eu' ? 'api.eu.axiom.co' : 'api.axiom.co';
+    const baseUrl = `https://${apiDomain}`;
+    const edgeDomain = process.env.AXIOM_EDGE_DOMAIN
+      || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+    const edgeUrl = `https://${edgeDomain}`;
+    
+    try {
+      // Step 1: Estrai tutti i record
+      console.log(`📊 Step 1: Estrazione di tutti i record da ${dataset}...`);
+      const batchSize = 100000;
+      const query = `['${dataset}'] | order by _time desc | limit ${batchSize}`;
+      const queryResult = await axiomClient.query(query, {
+        startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        endTime: new Date(),
+        timeout: 300000
+      });
+      
+      let allRecords = [];
+      if (queryResult.matches && Array.isArray(queryResult.matches)) {
+        allRecords = queryResult.matches;
+      } else if (queryResult.buckets && Array.isArray(queryResult.buckets)) {
+        allRecords = queryResult.buckets.flatMap(bucket => {
+          if (Array.isArray(bucket.rows)) return bucket.rows;
+          if (bucket.data && Array.isArray(bucket.data)) return bucket.data;
+          return [];
+        });
+      } else if (queryResult.data && Array.isArray(queryResult.data)) {
+        allRecords = queryResult.data;
+      } else if (queryResult.data?.rows && Array.isArray(queryResult.data.rows)) {
+        allRecords = queryResult.data.rows;
+      } else if (queryResult.rows && Array.isArray(queryResult.rows)) {
+        allRecords = queryResult.rows;
+      }
+      
+      console.log(`✅ Estratti ${allRecords.length.toLocaleString('it-IT')} record`);
+      
+      if (allRecords.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Nessun record trovato',
+          message: 'Il dataset è vuoto'
+        });
+      }
+      
+      // Step 2: Rimuovi campi non GDPR
+      console.log(`🧹 Step 2: Rimozione campi non GDPR...`);
+      const FIELDS_TO_REMOVE = [
+        'pid', 'hostname', 'freed', 'afterGC', 'beforeGC',
+        'alertType', 'errors', 'method', 'statusCode', 'responseTime',
+        'url', 'headers', 'created', 'timestamp', 'severity', 'skipped',
+        'threshold', 'total', 'updated', 'value'
+      ];
+      
+      const FIELDS_TO_KEEP = [
+        '_time', 'level', 'message', 'log_type', 'user_id', 'ip_address',
+        'endpoint', 'session_id', 'user_agent', 'request_id',
+        'userId', 'ipAddress', 'sessionId', 'userAgent', 'requestId'
+      ];
+      
+      const cleanedRecords = allRecords.map(record => {
+        let cleanRecord;
+        if (record.data && typeof record.data === 'object') {
+          cleanRecord = {
+            _time: record._time || record.data._time || new Date().toISOString(),
+            ...record.data
+          };
+        } else {
+          cleanRecord = { ...record };
+        }
+        
+        const cleaned = {};
+        Object.keys(cleanRecord).forEach(key => {
+          if (key.startsWith('_') || FIELDS_TO_KEEP.includes(key)) {
+            cleaned[key] = cleanRecord[key];
+          } else if (!FIELDS_TO_REMOVE.includes(key)) {
+            cleaned[key] = cleanRecord[key];
+          }
+        });
+        
+        return cleaned;
+      });
+      
+      console.log(`✅ Record puliti: ${cleanedRecords.length.toLocaleString('it-IT')}`);
+      
+      // Step 3: Elimina e ricrea il dataset
+      console.log(`🗑️ Step 3: Eliminazione dataset ${dataset}...`);
+      try {
+        await axios.delete(
+          `${baseUrl}/v1/datasets/${dataset}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+            }
+          }
+        );
+        console.log(`✅ Dataset eliminato`);
+      } catch (deleteErr) {
+        if (deleteErr.response?.status === 404) {
+          console.log(`⚠️ Dataset non esiste, procediamo con la creazione`);
+        } else {
+          throw deleteErr;
+        }
+      }
+      
+      console.log(`📦 Step 4: Ricreazione dataset ${dataset}...`);
+      await axios.post(
+        `${baseUrl}/v1/datasets`,
+        {
+          name: dataset,
+          description: `Dataset pulito GDPR (${new Date().toISOString()})`
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+            'Content-Type': 'application/json',
+            'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+          }
+        }
+      );
+      console.log(`✅ Dataset ricreato`);
+      
+      // Step 5: Re-inserisci record puliti
+      console.log(`📤 Step 5: Re-inserimento record puliti...`);
+      const ingestBatchSize = 1000;
+      let sent = 0;
+      
+      for (let i = 0; i < cleanedRecords.length; i += ingestBatchSize) {
+        const batch = cleanedRecords.slice(i, i + ingestBatchSize);
+        
+        await axios.post(
+          `${edgeUrl}/v1/ingest/${dataset}`,
+          batch,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+              'Content-Type': 'application/json',
+              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+            },
+            timeout: 60000
+          }
+        );
+        
+        sent += batch.length;
+        console.log(`   ✅ Batch ${Math.floor(i / ingestBatchSize) + 1}: ${batch.length} record inviati (totale: ${sent}/${cleanedRecords.length})`);
+      }
+      
+      console.log(`✅ Dataset ${dataset} pulito e ricreato`);
+      
+      res.json({
+        success: true,
+        data: {
+          message: `Dataset ${dataset} pulito: rimossi campi non GDPR`,
+          recordsProcessed: cleanedRecords.length,
+          fieldsRemoved: FIELDS_TO_REMOVE.length
+        }
+      });
+      
+    } catch (queryErr) {
+      console.error(`❌ Errore pulizia GDPR per ${dataset}:`, queryErr.message);
+      res.status(500).json({
+        success: false,
+        error: 'Errore pulizia GDPR',
+        message: queryErr.message
+      });
+    }
+    
+  } catch (error) {
+    console.error('Errore pulizia GDPR:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore pulizia GDPR',
       message: error.message
     });
   }
