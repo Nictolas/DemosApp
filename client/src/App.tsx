@@ -109,6 +109,7 @@ import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
 import DataExport from "./pages/DataExport";
 import CentralizedLogs from "./pages/CentralizedLogs";
+import Axiom from "./pages/Axiom";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -402,6 +403,13 @@ export default function App() {
                 <Route path="/admin/data-export/centralized-logs">
                   <PageTransition location={location} type="fade-up">
                     <CentralizedLogs />
+                  </PageTransition>
+                </Route>
+
+                {/* Route per Dati Axiom */}
+                <Route path="/admin/data-export/axiom">
+                  <PageTransition location={location} type="fade-up">
+                    <Axiom />
                   </PageTransition>
                 </Route>
 

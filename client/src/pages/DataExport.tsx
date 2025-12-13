@@ -1550,7 +1550,12 @@ export default function DataExport() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <PieChartIcon className="h-5 w-5" />
-                    Dati su Axiom
+                    <Link 
+                      to="/admin/data-export/axiom"
+                      className="hover:underline flex items-center gap-2"
+                    >
+                      Dati su Axiom
+                    </Link>
                   </CardTitle>
                   <CardDescription>
                     Distribuzione eventi presenti in Axiom (post-migrazione)
