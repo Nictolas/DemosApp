@@ -234,8 +234,7 @@ function convertCentralizedLogToAxiom(row) {
     level: decodeLogLevel(row.level),
     message: row.message || '',
     log_type: 'application',
-    pid: row.pid || null,
-    hostname: row.hostname || null,
+    // NOTA: pid e hostname rimossi - non necessari per GDPR
     user_id: row.user_id || null,
     ip_address: row.ip_address || null,
     user_agent: row.user_agent || null,
@@ -244,16 +243,19 @@ function convertCentralizedLogToAxiom(row) {
     session_id: row.session_id || null
   };
   
-  if (row.meta_data) {
-    try {
-      const meta = typeof row.meta_data === 'string' 
-        ? JSON.parse(row.meta_data) 
-        : row.meta_data;
-      Object.assign(logEntry, meta);
-    } catch (e) {
-      // Ignora errori parsing
-    }
-  }
+  // NOTA: NON aggiungiamo tutti i campi da meta_data per evitare di inviare dati non necessari per GDPR
+  // I campi essenziali sono già stati aggiunti sopra
+  // Se necessario in futuro, aggiungi solo campi specifici da meta_data qui
+  // if (row.meta_data) {
+  //   try {
+  //     const meta = typeof row.meta_data === 'string' 
+  //       ? JSON.parse(row.meta_data) 
+  //       : row.meta_data;
+  //     // NON fare Object.assign(logEntry, meta) - aggiunge troppi campi non necessari (freed, afterGC, etc.)
+  //   } catch (e) {
+  //     // Ignora errori parsing
+  //   }
+  // }
   
   return anonymizeData(
     logEntry,
@@ -292,16 +294,19 @@ function convertAuditLogToAxiom(row) {
     details: row.details || null
   };
   
-  if (row.meta_data) {
-    try {
-      const meta = typeof row.meta_data === 'string' 
-        ? JSON.parse(row.meta_data) 
-        : row.meta_data;
-      Object.assign(logEntry, meta);
-    } catch (e) {
-      // Ignora errori parsing
-    }
-  }
+  // NOTA: NON aggiungiamo tutti i campi da meta_data per evitare di inviare dati non necessari per GDPR
+  // I campi essenziali sono già stati aggiunti sopra
+  // Se necessario in futuro, aggiungi solo campi specifici da meta_data qui
+  // if (row.meta_data) {
+  //   try {
+  //     const meta = typeof row.meta_data === 'string' 
+  //       ? JSON.parse(row.meta_data) 
+  //       : row.meta_data;
+  //     // NON fare Object.assign(logEntry, meta) - aggiunge troppi campi non necessari (freed, afterGC, etc.)
+  //   } catch (e) {
+  //     // Ignora errori parsing
+  //   }
+  // }
   
   return anonymizeData(
     logEntry,

@@ -141,8 +141,7 @@ class CentralizedLogger {
         level: level,
         message: message,
         log_type: meta.logType || 'application', // 'application', 'performance', 'security'
-        pid: process.pid,
-        hostname: require('os').hostname(),
+        // NOTA: pid e hostname rimossi - non necessari per GDPR
         // Solo campi essenziali dalla tabella centralized_logs
         user_id: meta.userId || null,
         ip_address: meta.ipAddress || null,
