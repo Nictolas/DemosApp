@@ -534,7 +534,7 @@ export default function Axiom() {
 
         {/* Dialog Conferma Rimozione Duplicati */}
         <Dialog open={duplicatesDialogOpen} onOpenChange={setDuplicatesDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md bg-white">
             <DialogHeader>
               <DialogTitle>Duplicati Trovati</DialogTitle>
               <DialogDescription>

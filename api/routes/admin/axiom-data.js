@@ -309,33 +309,29 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
     }
     
     try {
-      // Determina i campi univoci in base al dataset
-      // Usiamo solo campi che sappiamo esistere sempre
-      let uniqueKey;
-      if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
-        // Per centralized_logs: usa _time + message (campi sempre presenti)
-        // user_id e endpoint potrebbero non esistere sempre
-        uniqueKey = '_time, message';
-      } else if (dataset === 'real-time' || dataset.includes('real-time')) {
-        // Per real-time: usa _time + log_type (campi sempre presenti)
-        uniqueKey = '_time, log_type';
-      } else {
-        uniqueKey = '_time';
-      }
+      // Per la deduplicazione, usiamo solo _time come chiave univoca
+      // Questo perché molti record possono avere lo stesso messaggio ma timestamp diversi
+      // e viceversa. Usare solo _time è più conservativo e evita falsi positivi
+      const uniqueKey = '_time';
       
-      // Query per contare i duplicati
-      // Conta tutti i record, poi conta i record unici, la differenza sono i duplicati
+      // Query per contare i duplicati reali
+      // Un duplicato è quando ci sono più record con lo stesso _time esatto
       const totalQuery = `['${dataset}'] | summarize count()`;
-      const uniqueQuery = `['${dataset}'] | summarize count() by ${uniqueKey}`;
+      // Query per trovare duplicati: raggruppa per _time e conta solo quelli con count > 1
+      // Poi somma i duplicati (count - 1 per ogni gruppo)
+      const duplicatesQuery = `['${dataset}'] | summarize count() by _time | where count > 1 | summarize sum(count - 1)`;
       
-      const [totalResult, uniqueResult] = await Promise.all([
+      const [totalResult, duplicatesResult] = await Promise.all([
         axiomClient.query(totalQuery, {
           startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
           endTime: new Date()
         }),
-        axiomClient.query(uniqueQuery, {
+        axiomClient.query(duplicatesQuery, {
           startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
           endTime: new Date()
+        }).catch((err) => {
+          console.error('⚠️ Query duplicati fallita, uso approccio alternativo:', err.message);
+          return null;
         })
       ]);
       
@@ -347,23 +343,79 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
         totalCount = parseInt(totalResult.status.rowsExamined);
       }
       
-      // Estrai count unici
-      let uniqueCount = 0;
-      if (uniqueResult.buckets && Array.isArray(uniqueResult.buckets)) {
-        // Somma tutti i bucket
-        uniqueCount = uniqueResult.buckets.reduce((sum, bucket) => {
-          if (bucket.rows && Array.isArray(bucket.rows)) {
-            return sum + bucket.rows.length;
+      // Estrai count duplicati
+      let duplicatesCount = 0;
+      if (duplicatesResult) {
+        // Prova a estrarre il valore dalla query di duplicati
+        if (duplicatesResult.buckets?.totals?.[0]?.aggregations?.[0]?.value) {
+          duplicatesCount = parseInt(duplicatesResult.buckets.totals[0].aggregations[0].value);
+        } else if (duplicatesResult.matches && Array.isArray(duplicatesResult.matches)) {
+          // Se restituisce matches, calcola la somma dei duplicati
+          duplicatesCount = duplicatesResult.matches.reduce((sum, match) => {
+            if (typeof match === 'object') {
+              // Cerca il campo che contiene il valore della somma
+              const values = Object.values(match);
+              for (const val of values) {
+                if (typeof val === 'number') {
+                  return sum + val;
+                }
+              }
+            }
+            return sum;
+          }, 0);
+        } else if (duplicatesResult.data?.rows && Array.isArray(duplicatesResult.data.rows) && duplicatesResult.data.rows.length > 0) {
+          // Estrai il valore dalla prima riga
+          const firstRow = duplicatesResult.data.rows[0];
+          if (typeof firstRow === 'object') {
+            const values = Object.values(firstRow);
+            for (const val of values) {
+              if (typeof val === 'number') {
+                duplicatesCount = val;
+                break;
+              }
+            }
           }
-          return sum;
-        }, 0);
-      } else if (uniqueResult.matches && Array.isArray(uniqueResult.matches)) {
-        uniqueCount = uniqueResult.matches.length;
-      } else if (uniqueResult.data?.rows && Array.isArray(uniqueResult.data.rows)) {
-        uniqueCount = uniqueResult.data.rows.length;
+        }
       }
       
-      const duplicatesCount = Math.max(0, totalCount - uniqueCount);
+      // Se la query duplicati non ha funzionato o ha restituito 0, prova approccio alternativo
+      // ma solo se il totale è ragionevole (non milioni)
+      if (duplicatesCount === 0 && totalCount > 0 && totalCount < 10000000) {
+        // Query alternativa: conta quanti _time unici ci sono
+        const uniqueTimeQuery = `['${dataset}'] | summarize count() by _time`;
+        try {
+          const uniqueTimeResult = await axiomClient.query(uniqueTimeQuery, {
+            startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+            endTime: new Date()
+          });
+          
+          // Conta quanti gruppi unici ci sono (ogni gruppo rappresenta un _time)
+          let uniqueTimeGroups = 0;
+          if (uniqueTimeResult.buckets && Array.isArray(uniqueTimeResult.buckets)) {
+            uniqueTimeGroups = uniqueTimeResult.buckets.reduce((sum, bucket) => {
+              if (bucket.rows && Array.isArray(bucket.rows)) {
+                return sum + bucket.rows.length;
+              }
+              return sum;
+            }, 0);
+          } else if (uniqueTimeResult.matches && Array.isArray(uniqueTimeResult.matches)) {
+            uniqueTimeGroups = uniqueTimeResult.matches.length;
+          } else if (uniqueTimeResult.data?.rows && Array.isArray(uniqueTimeResult.data.rows)) {
+            uniqueTimeGroups = uniqueTimeResult.data.rows.length;
+          }
+          
+          // Se ci sono meno timestamp unici del totale, ci sono duplicati
+          if (uniqueTimeGroups > 0 && uniqueTimeGroups < totalCount) {
+            duplicatesCount = totalCount - uniqueTimeGroups;
+          }
+        } catch (uniqueErr) {
+          console.error('⚠️ Errore query timestamp unici:', uniqueErr.message);
+        }
+      }
+      
+      // Assicurati che duplicatesCount non sia maggiore di totalCount
+      duplicatesCount = Math.min(duplicatesCount, totalCount);
+      const uniqueCount = totalCount - duplicatesCount;
       
       res.json({
         success: true,
