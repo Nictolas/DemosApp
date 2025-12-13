@@ -310,11 +310,15 @@ router.post('/find-duplicates', verifyToken, requireAdmin, async (req, res) => {
     
     try {
       // Determina i campi univoci in base al dataset
+      // Usiamo solo campi che sappiamo esistere sempre
       let uniqueKey;
       if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
-        uniqueKey = '_time, message, user_id, endpoint';
+        // Per centralized_logs: usa _time + message (campi sempre presenti)
+        // user_id e endpoint potrebbero non esistere sempre
+        uniqueKey = '_time, message';
       } else if (dataset === 'real-time' || dataset.includes('real-time')) {
-        uniqueKey = '_time, log_type, action, user_id, resource_id';
+        // Per real-time: usa _time + log_type (campi sempre presenti)
+        uniqueKey = '_time, log_type';
       } else {
         uniqueKey = '_time';
       }
@@ -448,11 +452,14 @@ router.post('/remove-duplicates', verifyToken, requireAdmin, async (req, res) =>
     
     try {
       // Determina i campi univoci
+      // Usiamo solo campi che sappiamo esistere sempre
       let uniqueKey;
       if (dataset === 'centralized_logs' || dataset.includes('centralized')) {
-        uniqueKey = '_time, message, user_id, endpoint';
+        // Per centralized_logs: usa _time + message (campi sempre presenti)
+        uniqueKey = '_time, message';
       } else if (dataset === 'real-time' || dataset.includes('real-time')) {
-        uniqueKey = '_time, log_type, action, user_id, resource_id';
+        // Per real-time: usa _time + log_type (campi sempre presenti)
+        uniqueKey = '_time, log_type';
       } else {
         uniqueKey = '_time';
       }

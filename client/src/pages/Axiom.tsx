@@ -148,8 +148,85 @@ export default function Axiom() {
   const getFieldValue = (event: AxiomEvent, field: string): string => {
     const value = event[field];
     if (value === null || value === undefined) return '-';
-    if (typeof value === 'object') return JSON.stringify(value);
+    if (typeof value === 'object') return JSON.stringify(value, null, 2);
     return String(value);
+  };
+
+  const getFieldColor = (field: string, value: string): string => {
+    if (!value || value === '-') return 'text-gray-500';
+    
+    const lowerValue = value.toLowerCase();
+    
+    // Colori per campo level
+    if (field === 'level') {
+      if (lowerValue.includes('error') || lowerValue === 'e' || lowerValue.includes('fatal')) {
+        return 'text-red-600 font-semibold';
+      }
+      if (lowerValue.includes('warn') || lowerValue === 'w') {
+        return 'text-yellow-600 font-semibold';
+      }
+      if (lowerValue.includes('info') || lowerValue === 'i') {
+        return 'text-blue-600';
+      }
+      if (lowerValue.includes('debug') || lowerValue === 'd') {
+        return 'text-gray-600';
+      }
+    }
+    
+    // Colori per campo log_type
+    if (field === 'log_type') {
+      if (lowerValue.includes('error') || lowerValue.includes('security')) {
+        return 'text-red-600';
+      }
+      if (lowerValue.includes('audit')) {
+        return 'text-green-600';
+      }
+      if (lowerValue.includes('performance')) {
+        return 'text-purple-600';
+      }
+    }
+    
+    // Colori per campo message (errori in rosso)
+    if (field === 'message') {
+      if (lowerValue.includes('error') || lowerValue.includes('failed') || 
+          lowerValue.includes('exception') || lowerValue.includes('err') ||
+          lowerValue.includes('fatal') || lowerValue.includes('crash')) {
+        return 'text-red-600';
+      }
+      if (lowerValue.includes('warn') || lowerValue.includes('warning')) {
+        return 'text-yellow-600';
+      }
+      if (lowerValue.includes('success') || lowerValue.includes('ok') || 
+          lowerValue.includes('completed')) {
+        return 'text-green-600';
+      }
+    }
+    
+    // Colori per campo action (audit)
+    if (field === 'action') {
+      if (lowerValue.includes('delete') || lowerValue.includes('remove')) {
+        return 'text-red-600';
+      }
+      if (lowerValue.includes('create') || lowerValue.includes('add')) {
+        return 'text-green-600';
+      }
+      if (lowerValue.includes('update') || lowerValue.includes('modify')) {
+        return 'text-blue-600';
+      }
+    }
+    
+    // Colori per campo success
+    if (field === 'success') {
+      if (lowerValue === 'false' || lowerValue === '0' || lowerValue === 'no') {
+        return 'text-red-600 font-semibold';
+      }
+      if (lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes') {
+        return 'text-green-600 font-semibold';
+      }
+    }
+    
+    // Default
+    return 'text-gray-700';
   };
 
   // Estrai tutti i campi unici dai dati
@@ -369,7 +446,7 @@ export default function Axiom() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-100 border-b">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky left-0 bg-gray-100 z-10">
                         Timestamp
                       </th>
                       {getAllFields().map((field) => (
@@ -385,18 +462,21 @@ export default function Axiom() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {data.rows.map((row, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 sticky left-0 bg-white z-10">
                           {formatTimestamp(row._time)}
                         </td>
                         {getAllFields().map((field) => {
                           const value = getFieldValue(row, field);
+                          const colorClass = getFieldColor(field, value);
                           return (
                             <td
                               key={field}
-                              className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate"
-                              title={value}
+                              className={`px-4 py-3 text-sm ${colorClass} break-words`}
+                              style={{ minWidth: '150px', maxWidth: '500px' }}
                             >
-                              {value.length > 50 ? `${value.substring(0, 50)}...` : value}
+                              <div className="whitespace-pre-wrap break-words">
+                                {value}
+                              </div>
                             </td>
                           );
                         })}
