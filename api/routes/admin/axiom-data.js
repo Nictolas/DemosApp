@@ -51,7 +51,8 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Costruisci query APL per ottenere i dati con limit e offset
+    // Costruisci query APL per ottenere i dati con limit
+    // Axiom APL non supporta offset direttamente, quindi recuperiamo più risultati e facciamo paginazione lato server
     const limitNum = Math.min(parseInt(limit) || 100, 1000); // Max 1000 per query
     const offsetNum = parseInt(offset) || 0;
     
@@ -61,8 +62,13 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       ? new Date(startTime) 
       : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     
+    // Per la paginazione, recuperiamo limit + offset risultati, poi prendiamo solo quelli necessari
+    // Axiom APL non supporta offset, quindi dobbiamo recuperare più dati e filtrare lato server
+    const resultsToFetch = limitNum + offsetNum;
+    
     // Query APL per ottenere i dati con ordinamento per _time decrescente
-    const query = `['${dataset}'] | order by _time desc | limit ${limitNum} offset ${offsetNum}`;
+    // Usiamo solo limit, senza offset (non supportato)
+    const query = `['${dataset}'] | order by _time desc | limit ${resultsToFetch}`;
     
     try {
       const queryResult = await axiomClient.query(query, {
@@ -71,7 +77,10 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       });
       
       // Estrai i dati dai risultati
-      const rows = queryResult.buckets?.flatMap(bucket => bucket.rows || []) || [];
+      let allRows = queryResult.buckets?.flatMap(bucket => bucket.rows || []) || [];
+      
+      // Applica paginazione lato server (Axiom non supporta offset)
+      const rows = allRows.slice(offsetNum, offsetNum + limitNum);
       
       // Conta totale eventi (query separata per performance)
       const countQuery = `['${dataset}'] | summarize count()`;
