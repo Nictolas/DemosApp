@@ -200,18 +200,12 @@ async function getAuditLogs(options = {}) {
   
   let aplQuery = `['${process.env.AXIOM_REALTIME_DATASET || 'real-time'}']`;
   
-  // Filtri (solo se non null)
-  const filters = [];
-  if (userId) filters.push(`user_id == '${userId}'`);
-  if (action) filters.push(`action == '${action}'`);
-  if (resource) filters.push(`resource == '${resource}'`);
-  // success non viene filtrato in APL se è false (problema sintassi) - filtriamo lato server
-  
-  if (filters.length > 0) {
-    aplQuery += ` | where ${filters.join(' AND ')}`;
-  }
-  
-  aplQuery += ` | order by _time desc | limit ${limit * 3}`; // Prendi più record per filtrare lato server
+  // NOTA: APL ha problemi con campi nested e operatori OR complessi
+  // Quindi filtriamo TUTTO lato server per evitare errori di sintassi
+  // Prendiamo più record per compensare il filtering lato server
+  const hasFilters = userId || action || resource || success !== null;
+  const fetchLimit = hasFilters ? limit * 20 : limit * 3;
+  aplQuery += ` | order by _time desc | limit ${fetchLimit}`;
   
   const records = await queryAxiom(aplQuery, { startTime, endTime });
   
@@ -221,6 +215,30 @@ async function getAuditLogs(options = {}) {
     const logResource = log.resource || (log.data && log.data.resource);
     return logAction && logResource;
   });
+  
+  // Filtra per userId lato server se specificato
+  if (userId) {
+    auditLogs = auditLogs.filter(log => {
+      const logUserId = log.user_id || (log.data && log.data.user_id);
+      return logUserId === userId;
+    });
+  }
+  
+  // Filtra per action lato server se specificato
+  if (action) {
+    auditLogs = auditLogs.filter(log => {
+      const logAction = log.action || (log.data && log.data.action);
+      return logAction === action;
+    });
+  }
+  
+  // Filtra per resource lato server se specificato
+  if (resource) {
+    auditLogs = auditLogs.filter(log => {
+      const logResource = log.resource || (log.data && log.data.resource);
+      return logResource === resource;
+    });
+  }
   
   // Filtra per success lato server se specificato
   if (success !== null && success !== undefined) {

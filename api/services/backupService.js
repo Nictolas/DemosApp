@@ -605,24 +605,22 @@ class BackupService {
    */
   static async logBackupOperation(type, fileName, success, error) {
     try {
-      const query = `
-        INSERT INTO audit_logs (user_id, action, resource, resource_id, details, success, error_message)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `;
-      
-      await pool.query(query, [
-        'system',
-        'BACKUP_OPERATION',
-        'backup',
-        fileName,
-        JSON.stringify({
+      // Usa AuditService che gestisce automaticamente Axiom
+      const AuditService = require('./auditService');
+      await AuditService.logAction({
+        userId: 'system',
+        action: 'BACKUP_OPERATION',
+        resource: 'backup',
+        resourceId: fileName,
+        details: {
           backup_type: type,
           file_name: fileName,
           timestamp: new Date().toISOString()
-        }),
-        success,
-        error
-      ]);
+        },
+        success: success,
+        errorMessage: error || null,
+        ipAddress: 'system'
+      });
     } catch (logError) {
       console.error('❌ Errore nel log backup:', logError);
     }
