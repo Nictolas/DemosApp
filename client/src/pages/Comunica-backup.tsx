@@ -307,7 +307,7 @@ export default function Comunica() {
           <button
             type="button"
             className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => setLocation('/votazione')}
+            onClick={() => setLocation('/comunica')}
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

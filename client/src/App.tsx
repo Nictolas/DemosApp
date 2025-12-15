@@ -896,25 +896,17 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route votazione */}
-              <Route path="/votazione">
+              {/* Route comunica (ex /votazione) */}
+              <Route path="/comunica">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/votazione" component={Votazione} />
+                  <ProtectedRoute path="/comunica" component={Votazione} />
                 </PageTransition>
               </Route>
-
 
               {/* Route sostenitori */}
               <Route path="/sostenitori">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/sostenitori" component={Sostenitori} />
-                </PageTransition>
-              </Route>
-
-              {/* Route comunica */}
-              <Route path="/comunica">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/comunica" component={Comunica} />
                 </PageTransition>
               </Route>
 
