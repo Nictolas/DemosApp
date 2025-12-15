@@ -241,6 +241,19 @@ class SecurityMonitor {
         sessionId = `security_${sessionId}`; // Prefisso per security events
       }
       
+      // Pulisci details per mantenere solo campi essenziali GDPR
+      let cleanedDetails = null;
+      if (event.details && typeof event.details === 'object') {
+        cleanedDetails = {};
+        // Mantieni solo campi essenziali per GDPR
+        if (event.details.message) cleanedDetails.message = event.details.message;
+        // Rimuovi campi non essenziali come endpoint, url, method, body, query, headers, etc.
+        // (non obbligatori per GDPR - già coperti da type e severity)
+      } else if (event.details && typeof event.details === 'string') {
+        // Se details è una stringa, mantienila (può essere un messaggio di errore)
+        cleanedDetails = event.details;
+      }
+      
       // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
       // Campi GDPR obbligatori per security: _time, user_id, ip_address, type, severity, details (solo essenziali), session_id
       const logEntry = {
@@ -249,7 +262,7 @@ class SecurityMonitor {
         ip_address: event.ip_address || null,   // GDPR: Da dove (da anonimizzare)
         type: event.type || null,               // GDPR: Tipo evento sicurezza
         severity: event.severity || null,        // GDPR: Gravità evento
-        details: event.details || null,          // GDPR: Dettagli evento (solo essenziali)
+        details: cleanedDetails,                 // GDPR: Dettagli evento (solo essenziali: message)
         session_id: sessionId || null           // GDPR: Identifica la sessione utente
       };
       
@@ -257,6 +270,7 @@ class SecurityMonitor {
       // - log_type: categorizzazione non obbligatoria
       // - user_email: non obbligatorio (abbiamo user_id)
       // - user_agent: non obbligatorio per GDPR
+      // - details.endpoint, details.url, details.method, details.body, details.query, details.headers: non obbligatori
 
       // Anonimizza se richiesto (GDPR)
       if (process.env.AXIOM_ANONYMIZE === 'true') {
