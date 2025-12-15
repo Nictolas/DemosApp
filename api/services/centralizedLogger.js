@@ -136,14 +136,20 @@ class CentralizedLogger {
     try {
       // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
       // Campi GDPR obbligatori: _time, message, user_id, ip_address, endpoint, session_id
+      // IMPORTANTE: Invia sempre tutti i campi, anche se null, per garantire che Axiom riconosca lo schema
       const logEntry = {
         _time: new Date().toISOString(),        // GDPR: Quando è successo (audit trail)
-        message: message,                        // GDPR: Cosa è successo (descrizione azione)
-        user_id: meta.userId || null,            // GDPR: Chi ha fatto l'azione
-        ip_address: meta.ipAddress || null,      // GDPR: Da dove è arrivata la richiesta (da anonimizzare)
-        endpoint: meta.endpoint || null,          // GDPR: Quale risorsa è stata acceduta
-        session_id: meta.sessionId || null       // GDPR: Identifica la sessione utente
+        message: message || '',                 // GDPR: Cosa è successo (descrizione azione)
+        user_id: meta.userId || null,           // GDPR: Chi ha fatto l'azione (sempre presente, anche se null)
+        ip_address: meta.ipAddress || null,     // GDPR: Da dove è arrivata la richiesta (sempre presente, anche se null)
+        endpoint: meta.endpoint || null,         // GDPR: Quale risorsa è stata acceduta (sempre presente, anche se null)
+        session_id: meta.sessionId || null      // GDPR: Identifica la sessione utente (sempre presente, generato se non disponibile)
       };
+      
+      // Debug: log del payload inviato (solo in development)
+      if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AXIOM_LOGS === 'true') {
+        console.log('📤 Log inviato ad Axiom:', JSON.stringify(logEntry, null, 2));
+      }
       
       // NOTA: Campi rimossi (non obbligatori per GDPR):
       // - level: non obbligatorio (utile per debugging ma non GDPR-required)
@@ -536,6 +542,49 @@ class CentralizedLogger {
       }
     }
 
+    // Genera session_id per tracciare sessioni utente (GDPR: traccia attività utente)
+    // Priorità: 1) Express sessionID, 2) JWT ID (jti)
+    // NOTA: Tutti gli utenti sono autenticati, quindi useremo sempre jti
+    let sessionId = req.sessionID || null;
+    
+    if (!sessionId && req.user?.jti) {
+      const crypto = require('crypto');
+      
+      // Usa il JWT ID (jti) come base per la sessione
+      // Il jti è unico per ogni login, quindi traccia la sessione di autenticazione
+      // Usa jti + finestra temporale di 24 ore per tracciare la sessione di login
+      // Stesso login (jti) nella stessa giornata = stessa sessione
+      const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Finestra di 24 ore
+      const sessionKey = `${req.user.jti}-${timeWindow}`;
+      sessionId = crypto
+        .createHash('sha256')
+        .update(sessionKey)
+        .digest('hex')
+        .substring(0, 16);
+      sessionId = `jwt_${sessionId}`; // Prefisso per sessioni basate su JWT
+    }
+    
+    // Fallback: se sessionId non è disponibile (route pubbliche senza autenticazione)
+    // Genera un session_id basato su user_id o IP per garantire che sia sempre presente
+    if (!sessionId) {
+      const crypto = require('crypto');
+      const userId = req.user?.id || 'public';
+      const ip = req.ip || 'unknown';
+      const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+      
+      // Per route pubbliche senza user_id, usa IP per tracciare la sessione
+      const sessionKey = userId !== 'public' 
+        ? `${userId}-${timeWindow}` 
+        : `${ip}-${timeWindow}`;
+      
+      sessionId = crypto
+        .createHash('sha256')
+        .update(sessionKey)
+        .digest('hex')
+        .substring(0, 16);
+      sessionId = userId !== 'public' ? `fallback_${sessionId}` : `public_${sessionId}`;
+    }
+
     const meta = {
       method: req.method,
       url: req.originalUrl,
@@ -544,7 +593,7 @@ class CentralizedLogger {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       userId: req.user?.id || null,
-      sessionId: req.sessionID || null,
+      sessionId: sessionId, // Sempre presente (non null)
       requestId: req.id || null,
       endpoint: req.originalUrl.split('?')[0] // Endpoint senza query string
     };
