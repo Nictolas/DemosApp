@@ -115,50 +115,68 @@ class AuditService {
     if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
     
     try {
-      const logEntry = {
-        _time: new Date(auditLog.timestamp || Date.now()).toISOString(),
-        log_type: 'audit', // Tag per distinguere nel dataset real-time
-        type: 'audit',
-        user_id: auditLog.user_id,
-        action: auditLog.action,
-        resource: auditLog.resource,
-        resource_id: auditLog.resource_id,
-        success: auditLog.success,
-        ip_address: auditLog.ip_address,
-        user_agent: auditLog.user_agent,
-        error_message: auditLog.error_message
-      };
-
-      // Aggiungi details se presente
-      if (auditLog.details) {
-        if (typeof auditLog.details === 'string') {
-          try {
-            Object.assign(logEntry, JSON.parse(auditLog.details));
-          } catch (e) {
-            logEntry.details = auditLog.details;
-          }
-        } else {
-          Object.assign(logEntry, auditLog.details);
+      // Gestisci array o singolo oggetto
+      const auditLogs = Array.isArray(auditLog) ? auditLog : [auditLog];
+      
+      // Converti ogni audit log in formato GDPR-compliant
+      const logEntries = auditLogs.map(audit => {
+        // Genera session_id se non disponibile (per coerenza con centralized_logs)
+        let sessionId = audit.session_id || null;
+        if (!sessionId && audit.user_id) {
+          const crypto = require('crypto');
+          // Usa user_id + finestra temporale di 24 ore (stesso approccio di centralized_logs)
+          const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+          const sessionKey = `${audit.user_id}-${timeWindow}`;
+          sessionId = crypto
+            .createHash('sha256')
+            .update(sessionKey)
+            .digest('hex')
+            .substring(0, 16);
+          sessionId = `audit_${sessionId}`; // Prefisso per audit logs
         }
-      }
+        
+        // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
+        // Campi GDPR obbligatori per audit: _time, user_id, ip_address, action, resource, resource_id, success, error_message, session_id
+        return {
+          _time: new Date(audit.timestamp || Date.now()).toISOString(), // GDPR: Quando è successo
+          user_id: audit.user_id || null,                              // GDPR: Chi ha fatto l'azione
+          ip_address: audit.ip_address || null,                        // GDPR: Da dove (da anonimizzare)
+          action: audit.action || null,                                 // GDPR: Cosa è stato fatto
+          resource: audit.resource || null,                             // GDPR: Su quale risorsa
+          resource_id: audit.resource_id || null,                       // GDPR: ID specifico risorsa
+          success: audit.success !== undefined ? audit.success : null,  // GDPR: Se l'azione è riuscita
+          error_message: audit.error_message || null,                   // GDPR: Dettagli errore (se presente)
+          session_id: sessionId || null                                 // GDPR: Identifica la sessione utente
+        };
+      });
+      
+      // NOTA: Campi rimossi (non obbligatori per GDPR):
+      // - log_type: categorizzazione non obbligatoria
+      // - type: duplicato di log_type
+      // - user_agent: non obbligatorio per GDPR
+      // - details.*: campi nested non necessari (es. method, path, endpoint già coperti da action/resource)
 
       // Anonimizza se richiesto (GDPR)
       if (process.env.AXIOM_ANONYMIZE === 'true') {
-        if (logEntry.ip_address) {
-          const parts = logEntry.ip_address.split('.');
-          if (parts.length === 4) {
-            logEntry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+        const crypto = require('crypto');
+        logEntries.forEach(logEntry => {
+          // Anonimizza IP (solo rete)
+          if (logEntry.ip_address) {
+            const parts = logEntry.ip_address.split('.');
+            if (parts.length === 4) {
+              logEntry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+            }
           }
-        }
-        
-        if (logEntry.user_id && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
-          const crypto = require('crypto');
-          logEntry.user_id = crypto
-            .createHash('sha256')
-            .update(logEntry.user_id + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
-            .digest('hex')
-            .substring(0, 16);
-        }
+          
+          // Hash user_id se richiesto
+          if (logEntry.user_id && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
+            logEntry.user_id = crypto
+              .createHash('sha256')
+              .update(logEntry.user_id + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
+              .digest('hex')
+              .substring(0, 16);
+          }
+        });
       }
     
       const axios = require('axios');
@@ -171,7 +189,7 @@ class AuditService {
       const token = process.env.AXIOM_API_TOKEN;
       const orgId = process.env.AXIOM_ORG_ID;
       
-      await axios.post(url, [logEntry], {
+      await axios.post(url, logEntries, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -197,58 +215,10 @@ class AuditService {
     if (!axiomAudit || process.env.AXIOM_ENABLED !== 'true') return;
 
     try {
-      const logEntry = {
-        _time: new Date(auditLog.timestamp || Date.now()).toISOString(),
-        log_type: 'audit', // Tag per distinguere nel dataset real-time
-        type: 'audit',
-        user_id: auditLog.user_id,
-        action: auditLog.action,
-        resource: auditLog.resource,
-        resource_id: auditLog.resource_id,
-        success: auditLog.success,
-        ip_address: auditLog.ip_address,
-        user_agent: auditLog.user_agent,
-        error_message: auditLog.error_message
-      };
-
-      // Aggiungi details se presente
-      if (auditLog.details) {
-        if (typeof auditLog.details === 'string') {
-          try {
-            Object.assign(logEntry, JSON.parse(auditLog.details));
-          } catch (e) {
-            logEntry.details = auditLog.details;
-          }
-        } else {
-          Object.assign(logEntry, auditLog.details);
-        }
-      }
-
-      // Anonimizza se richiesto (GDPR)
-      if (process.env.AXIOM_ANONYMIZE === 'true') {
-        // Anonimizza IP (solo rete)
-        if (logEntry.ip_address) {
-          const parts = logEntry.ip_address.split('.');
-          if (parts.length === 4) {
-            logEntry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
-          }
-        }
-        
-        // Hash user_id se richiesto
-        if (logEntry.user_id && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
-          const crypto = require('crypto');
-          logEntry.user_id = crypto
-            .createHash('sha256')
-            .update(logEntry.user_id + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
-            .digest('hex')
-            .substring(0, 16);
-        }
-      }
-
-      // Invia ad Axiom usando HTTP diretto (non blocca se fallisce)
+      // Usa il metodo HTTP pulito (già GDPR-compliant)
       // Audit logs vanno nel dataset real-time insieme a performance e security
       const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
-      await this.sendAuditLogToAxiomHTTP(dataset, [logEntry]);
+      await this.sendAuditLogToAxiomHTTP(dataset, auditLog);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('❌ Errore preparazione audit log Axiom:', error);
