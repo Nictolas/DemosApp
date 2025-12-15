@@ -226,17 +226,37 @@ class SecurityMonitor {
     if (!axiomSecurity || process.env.AXIOM_ENABLED !== 'true') return;
 
     try {
+      // Genera session_id se non disponibile (per coerenza con centralized_logs)
+      let sessionId = event.session_id || null;
+      if (!sessionId && event.user_id) {
+        const crypto = require('crypto');
+        // Usa user_id + finestra temporale di 24 ore (stesso approccio di centralized_logs)
+        const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+        const sessionKey = `${event.user_id}-${timeWindow}`;
+        sessionId = crypto
+          .createHash('sha256')
+          .update(sessionKey)
+          .digest('hex')
+          .substring(0, 16);
+        sessionId = `security_${sessionId}`; // Prefisso per security events
+      }
+      
+      // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
+      // Campi GDPR obbligatori per security: _time, user_id, ip_address, type, severity, details (solo essenziali), session_id
       const logEntry = {
-        _time: new Date().toISOString(),
-        log_type: 'security',
-        type: event.type,
-        ip_address: event.ip_address,
-        user_id: event.user_id || null,
-        user_email: event.user_email || null,
-        user_agent: event.user_agent,
-        severity: event.severity,
-        details: event.details
+        _time: new Date().toISOString(),        // GDPR: Quando è successo
+        user_id: event.user_id || null,         // GDPR: Chi (se disponibile)
+        ip_address: event.ip_address || null,   // GDPR: Da dove (da anonimizzare)
+        type: event.type || null,               // GDPR: Tipo evento sicurezza
+        severity: event.severity || null,        // GDPR: Gravità evento
+        details: event.details || null,          // GDPR: Dettagli evento (solo essenziali)
+        session_id: sessionId || null           // GDPR: Identifica la sessione utente
       };
+      
+      // NOTA: Campi rimossi (non obbligatori per GDPR):
+      // - log_type: categorizzazione non obbligatoria
+      // - user_email: non obbligatorio (abbiamo user_id)
+      // - user_agent: non obbligatorio per GDPR
 
       // Anonimizza se richiesto (GDPR)
       if (process.env.AXIOM_ANONYMIZE === 'true') {

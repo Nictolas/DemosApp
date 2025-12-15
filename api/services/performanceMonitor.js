@@ -513,8 +513,17 @@ class PerformanceMonitor {
 
   /**
    * Invia performance metrics ad Axiom (dataset real-time)
+   * DISABILITATO: Le performance metrics non sono necessarie per GDPR
+   * Mantengono solo metriche tecniche (CPU, memoria, database) che non riguardano dati personali
    */
   async sendMetricsToAxiom(metricsValues) {
+    // DISABILITATO per GDPR compliance
+    // Le performance metrics non sono necessarie per conformità GDPR
+    // Contengono solo metriche tecniche (CPU, memoria, database) che non riguardano dati personali
+    return;
+    
+    // Codice originale commentato per riferimento:
+    /*
     if (!axiomPerformance || process.env.AXIOM_ENABLED !== 'true') return;
 
     try {
@@ -534,7 +543,6 @@ class PerformanceMonitor {
         load_average: metricsValues[11] ? JSON.parse(metricsValues[11]) : null
       };
 
-      // Invia ad Axiom (non blocca se fallisce)
       const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
       axiomPerformance.ingestEvents(dataset, [logEntry])
         .catch(err => {
@@ -547,6 +555,7 @@ class PerformanceMonitor {
         console.error('❌ Errore preparazione performance metrics Axiom:', error);
       }
     }
+    */
   }
 
   // Ottieni metriche storiche
