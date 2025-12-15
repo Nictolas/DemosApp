@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { UserAutocomplete } from "@/components/UserAutocomplete";
@@ -98,15 +99,16 @@ const InformaCittadiniCard = React.memo(({
   const [dalGiorno, setDalGiorno] = useState("");
   const [alGiorno, setAlGiorno] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [tuttoComune, setTuttoComune] = useState(false);
 
   const handleSubmit = () => {
-    if (!tipologia || !dove.trim() || !dalGiorno || !alGiorno) {
+    if (!tipologia || (!tuttoComune && !dove.trim()) || !dalGiorno || !alGiorno) {
       return;
     }
 
     submitInformaCittadini.mutate({
       tipologia,
-      dove: dove.trim(),
+      dove: tuttoComune ? "Tutto il comune" : dove.trim(),
       dalGiorno,
       alGiorno,
     });
@@ -118,6 +120,7 @@ const InformaCittadiniCard = React.memo(({
       setDove("");
       setDalGiorno("");
       setAlGiorno("");
+      setTuttoComune(false);
       setIsDialogOpen(false);
     }
   }, [submitInformaCittadini.isSuccess]);
@@ -132,7 +135,7 @@ const InformaCittadiniCard = React.memo(({
               key={tipo.value}
               type="button"
               variant="outline"
-              className={`min-h-[5.5rem] rounded-2xl border-0 bg-gradient-to-br text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
+              className={`min-h-[6.5rem] rounded-2xl border-0 bg-gradient-to-br text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
                 ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}
                 ${(() => {
                   switch (tipo.value) {
@@ -158,10 +161,13 @@ const InformaCittadiniCard = React.memo(({
                     case "Chiusura parchi pubblici per vento forte":
                     case "Scuole Chiuse":
                       return "from-teal-500 to-emerald-600";
-                    case "Ordinanze urgenti (es. divieto botti, divieto vendita alcolici)":
-                    case "Scadenze fiscali (IMU, TARI)":
+                    case "Divieto Botti":
+                    case "Divieto vendita alcolici":
+                    case "Scadenza IMU":
+                    case "Scadenza TARI":
+                    case "Scadenza iscrizione Mensa":
+                    case "Scadenza iscrizione Scuolabus":
                       return "from-red-600 to-rose-600";
-                    case "Apertura iscrizioni servizi scolastici (Mensa, Scuolabus, Nido)":
                     case "Pubblicazione Bandi e Concorsi":
                       return "from-indigo-500 to-blue-700";
                     case "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)":
@@ -205,7 +211,27 @@ const InformaCittadiniCard = React.memo(({
                 placeholder="Es: Via Roma, quartiere Centro Storico"
                 value={dove}
                 onChange={(e) => setDove(e.target.value)}
+                disabled={tuttoComune}
               />
+              <div className="flex items-center gap-2 pt-1">
+                <Checkbox
+                  id="tutto-comune"
+                  checked={tuttoComune}
+                  onCheckedChange={(checked) => {
+                    const value = Boolean(checked);
+                    setTuttoComune(value);
+                    if (value) {
+                      setDove("");
+                    }
+                  }}
+                />
+                <label
+                  htmlFor="tutto-comune"
+                  className="text-xs text-gray-700 leading-none cursor-pointer"
+                >
+                  Tutto il comune
+                </label>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -233,7 +259,7 @@ const InformaCittadiniCard = React.memo(({
               disabled={
                 submitInformaCittadini.isPending ||
                 !tipologia ||
-                !dove.trim() ||
+                (!tuttoComune && !dove.trim()) ||
                 !dalGiorno ||
                 !alGiorno
               }
