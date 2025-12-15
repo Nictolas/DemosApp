@@ -41,7 +41,7 @@ const emergencyCategories: EmergencyCategory[] = [
     id: "uccelli-feriti",
     title: "Uccelli feriti",
     description: "Segnala uccelli feriti o in difficoltà",
-    icon: "🦅",
+    icon: "🐦",
     bgClass: "from-sky-400 to-blue-500",
     numbers: [
       { number: "1515", label: "1515", description: "Carabinieri Forestali" },
@@ -50,7 +50,7 @@ const emergencyCategories: EmergencyCategory[] = [
   },
   {
     id: "lupi",
-    title: "Lupi pericolosi",
+    title: "Lupo",
     description: "Segnala lupi pericolosi o troppo vicini alle abitazioni",
     icon: "🐺",
     bgClass: "from-slate-700 to-slate-900",
@@ -61,7 +61,7 @@ const emergencyCategories: EmergencyCategory[] = [
   },
   {
     id: "volpi",
-    title: "Volpi pericolose",
+    title: "Volpi",
     description: "Segnala volpi pericolose o in prossimità delle case",
     icon: "🦊",
     bgClass: "from-orange-500 to-red-500",
@@ -72,7 +72,7 @@ const emergencyCategories: EmergencyCategory[] = [
   },
   {
     id: "cinghiali",
-    title: "Cinghiali pericolosi",
+    title: "Cinghiali",
     description: "Segnala cinghiali pericolosi o in gruppo",
     icon: "🐗",
     bgClass: "from-amber-700 to-orange-700",
@@ -94,7 +94,7 @@ const emergencyCategories: EmergencyCategory[] = [
   },
   {
     id: "frane",
-    title: "Frane / smottamenti",
+    title: "Frana",
     description: "Segnala pericoli strutturali",
     icon: "⛰️",
     bgClass: "from-stone-500 to-stone-700",
@@ -192,6 +192,129 @@ const emergencyCategories: EmergencyCategory[] = [
     numbers: [
       { number: "1515", label: "1515", description: "Carabinieri Forestali" }
     ]
+  },
+  {
+    id: "allagamenti",
+    title: "Allagamenti",
+    description: "Segnala piene, allagamenti, fognature intasate",
+    icon: "🌊",
+    bgClass: "from-blue-500 to-cyan-600",
+    numbers: [
+      { number: "115", label: "115", description: "Vigili del Fuoco" },
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "gas-odori-sospetti",
+    title: "Gas / odori sospetti",
+    description: "Segnala perdite di gas o odori anomali",
+    icon: "⛽",
+    bgClass: "from-yellow-600 to-orange-600",
+    numbers: [
+      { number: "115", label: "115", description: "Vigili del Fuoco" },
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "incidente-stradale",
+    title: "Incidente stradale",
+    description: "Segnala incidenti con feriti",
+    icon: "🚨",
+    bgClass: "from-red-700 to-red-900",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" },
+      { number: "118", label: "118", description: "Emergenza Sanitaria" }
+    ]
+  },
+  {
+    id: "randagio",
+    title: "Randagio",
+    description: "Segnala animali randagi",
+    icon: "🐕",
+    bgClass: "from-amber-500 to-orange-500",
+    numbers: [
+      { number: "1515", label: "1515", description: "Carabinieri Forestali" }
+    ]
+  },
+  {
+    id: "rifiuti-abbandonati",
+    title: "Rifiuti abbandonati",
+    description: "Segnala rifiuti sparsi",
+    icon: "🗑️",
+    bgClass: "from-gray-500 to-gray-700",
+    numbers: [
+      { number: "1515", label: "1515", description: "Carabinieri Forestali" }
+    ]
+  },
+  {
+    id: "vandalismo",
+    title: "Vandalismo",
+    description: "Segnala scritte o danni a muri/arredi",
+    icon: "🎨",
+    bgClass: "from-purple-500 to-purple-700",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "segnaletica-danneggiata",
+    title: "Segnaletica danneggiata",
+    description: "Segnala cartelli mancanti o illeggibili",
+    icon: "🚦",
+    bgClass: "from-yellow-500 to-amber-500",
+    numbers: [
+      { number: "1518", label: "1518", description: "Viabilità ANAS" }
+    ]
+  },
+  {
+    id: "parcheggio-abusivo",
+    title: "Parcheggio abusivo",
+    description: "Segnala veicoli parcheggiati in divieto",
+    icon: "🚫",
+    bgClass: "from-red-500 to-pink-600",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "rumore-eccessivo",
+    title: "Rumore eccessivo",
+    description: "Segnala schiamazzi o rumori molesti",
+    icon: "🔊",
+    bgClass: "from-orange-400 to-red-500",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "aggressione",
+    title: "Aggressione",
+    description: "Segnala aggressioni in corso",
+    icon: "👊",
+    bgClass: "from-red-800 to-red-900",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "furto",
+    title: "Furto",
+    description: "Segnala furti o tentativi di furto",
+    icon: "💰",
+    bgClass: "from-amber-600 to-yellow-600",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "persone-sospette",
+    title: "Persone sospette",
+    description: "Segnala comportamenti sospetti",
+    icon: "👥",
+    bgClass: "from-slate-600 to-slate-800",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
   }
 ];
 
@@ -207,19 +330,28 @@ const emergencySections: EmergencySection[] = [
       "persona-difficolta",
       "lupi",
       "cinghiali",
-      "volpi"
+      "volpi",
+      "allagamenti",
+      "gas-odori-sospetti",
+      "incidente-stradale",
+      "randagio"
     ]
   },
   {
     id: "decoro-urbano",
-    title: "Decoro urbano",
+    title: "Decoro Urbano",
     categories: [
       "illuminazione",
       "buca-stradale",
       "frane",
       "albero-pericolante",
       "discarica-abusiva",
-      "veicolo-abbandonato"
+      "veicolo-abbandonato",
+      "rifiuti-abbandonati",
+      "vandalismo",
+      "segnaletica-danneggiata",
+      "parcheggio-abusivo",
+      "rumore-eccessivo"
     ]
   },
   {
@@ -227,7 +359,10 @@ const emergencySections: EmergencySection[] = [
     title: "Sicurezza e ordine pubblico",
     categories: [
       "veicoli-sospetti",
-      "attivita-illegali"
+      "attivita-illegali",
+      "aggressione",
+      "furto",
+      "persone-sospette"
     ]
   }
 ];
@@ -302,7 +437,7 @@ export default function Avvistamenti() {
         <div className="flex-1 overflow-y-auto space-y-8">
           {emergencySections.map((section) => (
             <div key={section.id}>
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
                 {section.title}
               </h2>
               <div className="grid grid-cols-3 gap-4">
@@ -321,8 +456,8 @@ export default function Avvistamenti() {
                         <div className="text-5xl leading-none">
                           {category.icon}
                         </div>
-                        <div className="text-center px-2">
-                          <div className="font-semibold text-xs sm:text-sm">
+                        <div className="text-center px-2 w-full">
+                          <div className="font-semibold text-xs sm:text-sm break-words whitespace-normal">
                             {category.title}
                           </div>
                         </div>
