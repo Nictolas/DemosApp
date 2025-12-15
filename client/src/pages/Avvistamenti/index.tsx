@@ -60,6 +60,17 @@ const emergencyCategories: EmergencyCategory[] = [
     ]
   },
   {
+    id: "volpi",
+    title: "Volpi pericolose",
+    description: "Segnala volpi pericolose o in prossimità delle case",
+    icon: "🦊",
+    bgClass: "from-orange-500 to-red-500",
+    numbers: [
+      { number: "115", label: "115", description: "Vigili del Fuoco" },
+      { number: "1515", label: "1515", description: "Carabinieri Forestali" }
+    ]
+  },
+  {
     id: "cinghiali",
     title: "Cinghiali pericolosi",
     description: "Segnala cinghiali pericolosi o in gruppo",
@@ -195,7 +206,8 @@ const emergencySections: EmergencySection[] = [
       "persona-scomparsa",
       "persona-difficolta",
       "lupi",
-      "cinghiali"
+      "cinghiali",
+      "volpi"
     ]
   },
   {
@@ -293,7 +305,7 @@ export default function Avvistamenti() {
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
                 {section.title}
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 {section.categories.map((categoryId) => {
                   const category = emergencyCategories.find((c) => c.id === categoryId);
                   if (!category) return null;
