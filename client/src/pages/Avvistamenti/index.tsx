@@ -286,46 +286,41 @@ export default function Avvistamenti() {
           </div>
         </div>
 
-        {/* Grid delle categorie, divise in tre sezioni e tre colonne */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {emergencySections.map((section) => (
-              <div key={section.id} className="space-y-3">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  {section.title}
-                </h2>
-                <div className="grid grid-cols-1 gap-3">
-                  {section.categories.map((categoryId) => {
-                    const category = emergencyCategories.find((c) => c.id === categoryId);
-                    if (!category) return null;
+        {/* Sezioni con pulsanti disposti in tre colonne */}
+        <div className="flex-1 overflow-y-auto space-y-8">
+          {emergencySections.map((section) => (
+            <div key={section.id}>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                {section.title}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {section.categories.map((categoryId) => {
+                  const category = emergencyCategories.find((c) => c.id === categoryId);
+                  if (!category) return null;
 
-                    return (
-                      <Button
-                        key={category.id}
-                        variant="outline"
-                        className={`w-full h-28 rounded-2xl border-0 bg-gradient-to-br ${category.bgClass} hover:brightness-110 hover:shadow-xl transition-all duration-300 p-0`}
-                        onClick={() => handleCategoryClick(category)}
-                      >
-                        <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-white">
-                          <div className="text-5xl leading-none">
-                            {category.icon}
-                          </div>
-                          <div className="text-center px-2">
-                            <div className="font-semibold text-xs sm:text-sm">
-                              {category.title}
-                            </div>
-                            <div className="text-[10px] sm:text-xs opacity-90">
-                              {category.description}
-                            </div>
+                  return (
+                    <Button
+                      key={category.id}
+                      variant="outline"
+                      className={`w-full h-28 rounded-2xl border-0 bg-gradient-to-br ${category.bgClass} hover:brightness-110 hover:shadow-xl transition-all duration-300 p-0`}
+                      onClick={() => handleCategoryClick(category)}
+                    >
+                      <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-white">
+                        <div className="text-5xl leading-none">
+                          {category.icon}
+                        </div>
+                        <div className="text-center px-2">
+                          <div className="font-semibold text-xs sm:text-sm">
+                            {category.title}
                           </div>
                         </div>
-                      </Button>
-                    );
-                  })}
-                </div>
+                      </div>
+                    </Button>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         {/* Dialog per i numeri telefonici */}
