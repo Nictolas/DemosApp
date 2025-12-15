@@ -98,13 +98,26 @@ router.post('/', async (req, res) => {
       zona,
       id_utente,
       tipo = 'votazione',
-      voti // Array di voti per "Comunica Voti"
+      voti, // Array di voti per "Comunica Voti"
+      tipologia, // Per "Informa Cittadini"
+      dove, // Per "Informa Cittadini"
+      dal_giorno, // Per "Informa Cittadini"
+      al_giorno // Per "Informa Cittadini"
     } = req.body;
 
-    if (!titolo || !id_utente) {
+    // Validazione: per "informa_cittadini" il titolo non è obbligatorio
+    if (tipo !== 'informa_cittadini' && (!titolo || !id_utente)) {
       return res.status(400).json({
         success: false,
         error: 'Titolo e ID utente sono obbligatori'
+      });
+    }
+
+    // Validazione per "informa_cittadini"
+    if (tipo === 'informa_cittadini' && (!id_utente || !tipologia || !dove || !dal_giorno || !al_giorno)) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente, tipologia, dove, dal_giorno e al_giorno sono obbligatori per Informa Cittadini'
       });
     }
 
@@ -191,6 +204,32 @@ router.post('/', async (req, res) => {
         success: true,
         data: comunicazioni,
         message: `${comunicazioni.length} voti salvati con successo`
+      });
+    }
+
+    // Gestione speciale per "Informa Cittadini"
+    if (tipo === 'informa_cittadini') {
+      const titoloComunicazione = `${tipologia} - ${dove}`;
+      const testo = `Tipologia: ${tipologia}\nDove: ${dove}\nDal: ${dal_giorno}\nAl: ${al_giorno}`;
+      
+      // Crea nuova comunicazione per "Informa Cittadini"
+      const result = await pool.query(
+        `INSERT INTO comunicazioni (
+          id, id_utente, titolo, testo, zona, tipologia, dove, dal_giorno, al_giorno,
+          data_creazione, likes, dislikes, punti_trasparenza, tipo, status
+        ) VALUES (
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), 0, 0, 3, $9, 'non_letta'
+        ) RETURNING *`,
+        [id_utente, titoloComunicazione, testo, zona || 'Generale', tipologia, dove, dal_giorno, al_giorno, tipo]
+      );
+
+      // Crea record in notifiche_utente per tutti gli utenti attivi
+      await createNotificheUtente(result.rows[0].id);
+
+      return res.status(201).json({
+        success: true,
+        data: result.rows[0],
+        message: 'Comunicazione "Informa Cittadini" creata con successo'
       });
     }
 

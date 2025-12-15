@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell, ChevronDown } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { UserAutocomplete } from "@/components/UserAutocomplete";
@@ -41,27 +41,29 @@ type ComunicaFormData = z.infer<typeof comunicaSchema>;
 type ComunicaVotiFormData = z.infer<typeof comunicaVotiSchema>;
 type DemosNotificationFormData = z.infer<typeof demosNotificationSchema>;
 
-// Tipologie per la sezione "Informa Cittadini"
+// Tipologie per la sezione "Informa Cittadini" con emoji
 const INFORMA_TIPOLOGIE = [
-  "Interruzione erogazione acqua",
-  "Acqua non potabile",
-  "Interruzione energia elettrica programmata",
-  "Chiusura strade per lavori",
-  "Modifiche alla viabilità per eventi o manifestazioni",
-  "Pulizia strade (Divieto di sosta temporaneo)",
-  "Disinfestazione zanzare",
-  "Derattizzazione",
-  "Variazioni calendario raccolta rifiuti (es. Festività)",
-  "Sciopero servizio raccolta rifiuti",
-  "Blocco del traffico per inquinamento (PM10)",
-  "Chiusura parchi pubblici per vento forte",
-  "Ordinanze urgenti (es. divieto botti, divieto vendita alcolici)",
-  "Scadenze fiscali (IMU, TARI)",
-  "Apertura iscrizioni servizi scolastici (Mensa, Scuolabus, Nido)",
-  "Pubblicazione Bandi e Concorsi",
-  "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)",
-  "Ritrovamento ordigni bellici (Evacuazione)",
-  "Variazione orari uffici comunali",
+  { value: "Interruzione erogazione acqua", emoji: "💧" },
+  { value: "Acqua non potabile", emoji: "🚱" },
+  { value: "Interruzione energia elettrica programmata", emoji: "⚡" },
+  { value: "Chiusura strade per lavori", emoji: "🚧" },
+  { value: "Modifiche alla viabilità per eventi o manifestazioni", emoji: "🎪" },
+  { value: "Pulizia strade (Divieto di sosta temporaneo)", emoji: "🧹" },
+  { value: "Disinfestazione zanzare", emoji: "🦟" },
+  { value: "Derattizzazione", emoji: "🐀" },
+  { value: "Variazioni calendario raccolta rifiuti (es. Festività)", emoji: "🗑️" },
+  { value: "Sciopero servizio raccolta rifiuti", emoji: "🚛" },
+  { value: "Blocco del traffico per inquinamento (PM10)", emoji: "🌫️" },
+  { value: "Chiusura parchi pubblici per vento forte", emoji: "🌳" },
+  { value: "Ordinanze urgenti (es. divieto botti, divieto vendita alcolici)", emoji: "📋" },
+  { value: "Scadenze fiscali (IMU, TARI)", emoji: "💰" },
+  { value: "Apertura iscrizioni servizi scolastici (Mensa, Scuolabus, Nido)", emoji: "🎓" },
+  { value: "Pubblicazione Bandi e Concorsi", emoji: "📢" },
+  { value: "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)", emoji: "🚨" },
+  { value: "Ritrovamento ordigni bellici (Evacuazione)", emoji: "⚠️" },
+  { value: "Variazione orari uffici comunali", emoji: "🏛️" },
+  { value: "Scuole Chiuse", emoji: "🏫" },
+  { value: "Allerta Meteo", emoji: "🌦️" },
 ] as const;
 
 interface ExistingComunicazione {
@@ -82,19 +84,17 @@ const InformaCittadiniCard = React.memo(({
 }: {
   submitInformaCittadini: any;
 }) => {
-  const [titolo, setTitolo] = useState("");
   const [tipologia, setTipologia] = useState<string>("");
   const [dove, setDove] = useState("");
   const [dalGiorno, setDalGiorno] = useState("");
   const [alGiorno, setAlGiorno] = useState("");
 
   const handleSubmit = () => {
-    if (!titolo.trim() || !tipologia || !dove.trim() || !dalGiorno || !alGiorno) {
+    if (!tipologia || !dove.trim() || !dalGiorno || !alGiorno) {
       return;
     }
 
     submitInformaCittadini.mutate({
-      titolo: titolo.trim(),
       tipologia,
       dove: dove.trim(),
       dalGiorno,
@@ -104,7 +104,6 @@ const InformaCittadiniCard = React.memo(({
 
   React.useEffect(() => {
     if (submitInformaCittadini.isSuccess) {
-      setTitolo("");
       setTipologia("");
       setDove("");
       setDalGiorno("");
@@ -113,91 +112,111 @@ const InformaCittadiniCard = React.memo(({
   }, [submitInformaCittadini.isSuccess]);
 
   return (
-    <Card className="w-full bg-white">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center">
-          Informa Cittadini
-        </CardTitle>
-        <CardDescription className="text-center">
-          Comunica in modo chiaro avvisi e informazioni di pubblica utilità.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Tipologia *</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {INFORMA_TIPOLOGIE.map((tipo) => (
+            <Button
+              key={tipo.value}
+              type="button"
+              variant="outline"
+              className={`h-20 rounded-2xl border-0 bg-gradient-to-br text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
+                ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}
+                ${(() => {
+                  switch (tipo.value) {
+                    case "Interruzione erogazione acqua":
+                    case "Acqua non potabile":
+                      return "from-sky-500 to-blue-600";
+                    case "Interruzione energia elettrica programmata":
+                      return "from-amber-400 to-orange-500";
+                    case "Chiusura strade per lavori":
+                    case "Modifiche alla viabilità per eventi o manifestazioni":
+                      return "from-orange-500 to-red-500";
+                    case "Pulizia strade (Divieto di sosta temporaneo)":
+                    case "Variazioni calendario raccolta rifiuti (es. Festività)":
+                    case "Rifiuti abbandonati":
+                      return "from-emerald-500 to-green-600";
+                    case "Disinfestazione zanzare":
+                    case "Derattizzazione":
+                      return "from-purple-500 to-indigo-600";
+                    case "Sciopero servizio raccolta rifiuti":
+                      return "from-yellow-400 to-amber-500";
+                    case "Blocco del traffico per inquinamento (PM10)":
+                    case "Allerta Meteo":
+                      return "from-slate-600 to-slate-800";
+                    case "Chiusura parchi pubblici per vento forte":
+                    case "Scuole Chiuse":
+                      return "from-teal-500 to-emerald-600";
+                    case "Ordinanze urgenti (es. divieto botti, divieto vendita alcolici)":
+                    case "Scadenze fiscali (IMU, TARI)":
+                      return "from-red-600 to-rose-600";
+                    case "Apertura iscrizioni servizi scolastici (Mensa, Scuolabus, Nido)":
+                    case "Pubblicazione Bandi e Concorsi":
+                      return "from-indigo-500 to-blue-700";
+                    case "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)":
+                    case "Ritrovamento ordigni bellici (Evacuazione)":
+                      return "from-red-700 to-red-900";
+                    case "Variazione orari uffici comunali":
+                    default:
+                      return "from-gray-500 to-gray-700";
+                  }
+                })()}`}
+              onClick={() => setTipologia(tipo.value)}
+            >
+              <span className="text-2xl leading-none">{tipo.emoji}</span>
+              <span className="text-[11px] text-center leading-snug line-clamp-2">
+                {tipo.value}
+              </span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Dove *</label>
+        <Input
+          type="text"
+          placeholder="Es: Via Roma, quartiere Centro Storico"
+          value={dove}
+          onChange={(e) => setDove(e.target.value)}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Titolo *</label>
+          <label className="text-sm font-medium">Dal giorno *</label>
           <Input
-            type="text"
-            placeholder="Es: Interruzione erogazione acqua in Via Roma"
-            value={titolo}
-            onChange={(e) => setTitolo(e.target.value)}
+            type="date"
+            value={dalGiorno}
+            onChange={(e) => setDalGiorno(e.target.value)}
           />
         </div>
-
         <div className="space-y-2">
-          <label className="text-sm font-medium">Tipologia *</label>
-          <Select
-            value={tipologia}
-            onValueChange={(value) => setTipologia(value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona una tipologia" />
-            </SelectTrigger>
-            <SelectContent>
-              {INFORMA_TIPOLOGIE.map((tipo) => (
-                <SelectItem key={tipo} value={tipo}>
-                  {tipo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Dove *</label>
+          <label className="text-sm font-medium">Al giorno *</label>
           <Input
-            type="text"
-            placeholder="Es: Via Roma, quartiere Centro Storico"
-            value={dove}
-            onChange={(e) => setDove(e.target.value)}
+            type="date"
+            value={alGiorno}
+            onChange={(e) => setAlGiorno(e.target.value)}
           />
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Dal giorno *</label>
-            <Input
-              type="date"
-              value={dalGiorno}
-              onChange={(e) => setDalGiorno(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Al giorno *</label>
-            <Input
-              type="date"
-              value={alGiorno}
-              onChange={(e) => setAlGiorno(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          className="w-full"
-          disabled={
-            submitInformaCittadini.isPending ||
-            !titolo.trim() ||
-            !tipologia ||
-            !dove.trim() ||
-            !dalGiorno ||
-            !alGiorno
-          }
-          onClick={handleSubmit}
-        >
-          {submitInformaCittadini.isPending ? "Invio in corso..." : "Invia Comunicazione"}
-        </Button>
-      </CardContent>
-    </Card>
+      <Button
+        type="button"
+        className="w-full"
+        disabled={
+          submitInformaCittadini.isPending ||
+          !tipologia ||
+          !dove.trim() ||
+          !dalGiorno ||
+          !alGiorno
+        }
+        onClick={handleSubmit}
+      >
+        {submitInformaCittadini.isPending ? "Invio in corso..." : "Invia Comunicazione"}
+      </Button>
+    </div>
   );
 });
 
@@ -341,7 +360,6 @@ const Votazione = React.memo(function Votazione() {
   // Mutation per la sezione "Informa Cittadini"
   const submitInformaCittadini = useMutation({
     mutationFn: async (data: {
-      titolo: string;
       tipologia: string;
       dove: string;
       dalGiorno: string;
@@ -351,18 +369,16 @@ const Votazione = React.memo(function Votazione() {
         throw new Error('ID utente non disponibile. Riprova tra qualche secondo.');
       }
 
-      const comunicazioneData = {
-        titolo: data.titolo,
+      const payload = {
         tipologia: data.tipologia,
         dove: data.dove,
         dal_giorno: data.dalGiorno,
         al_giorno: data.alGiorno,
         zona: "Generale",
         id_utente: user.id,
-        tipo: "informa_cittadini",
       };
 
-      const response = await apiRequest("POST", "/api/comunicazioni", comunicazioneData);
+      const response = await apiRequest("POST", "/api/informa-cittadini", payload);
       if (!response.ok) {
         throw new Error("Errore nell'invio della comunicazione ai cittadini");
       }
@@ -385,9 +401,8 @@ const Votazione = React.memo(function Votazione() {
     },
   });
   
-  // Stato per input manuale (test) - rimosso per debug
-  // const [manualTitolo, setManualTitolo] = useState("");
-  
+  const [isInformaOpen, setIsInformaOpen] = useState(false);
+  const [isComunicaVotiOpen, setIsComunicaVotiOpen] = useState(false);
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
@@ -856,19 +871,60 @@ const Votazione = React.memo(function Votazione() {
               <NuovaComunicazioneCard />
             </TabsContent>
             
-            <TabsContent value="comunica-voti" className="mt-6 space-y-6">
-              {/* Sezione Informa Cittadini sopra Comunica Voti */}
-              <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
+            <TabsContent value="comunica-voti" className="mt-6 space-y-4">
+              {/* Sezione Informa Cittadini (collassabile) */}
+              <Card className="w-full bg-white">
+                <CardHeader 
+                  className="flex flex-row items-center justify-between cursor-pointer"
+                  onClick={() => setIsInformaOpen(prev => !prev)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-emerald-600" />
+                    <CardTitle className="text-lg font-semibold">
+                      Informa Cittadini
+                    </CardTitle>
+                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 text-gray-500 transition-transform ${isInformaOpen ? "rotate-180" : ""}`}
+                  />
+                </CardHeader>
+                {isInformaOpen && (
+                  <CardContent className="pt-0 pb-6">
+                    <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
+                  </CardContent>
+                )}
+              </Card>
               
-              <ComunicaVotiCard 
-                titoloVotazione={titoloVotazione}
-                setTitoloVotazione={setTitoloVotazione}
-                votiEntries={votiEntries}
-                addVotoEntry={addVotoEntry}
-                updateVotoEntry={updateVotoEntry}
-                removeVotoEntry={removeVotoEntry}
-                submitComunicaVoti={submitComunicaVoti}
-              />
+              {/* Sezione Comunica Voti (collassabile) */}
+              <Card className="w-full bg-white">
+                <CardHeader 
+                  className="flex flex-row items-center justify-between cursor-pointer"
+                  onClick={() => setIsComunicaVotiOpen(prev => !prev)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg font-semibold">
+                      Comunica Voti
+                    </CardTitle>
+                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
+                  />
+                </CardHeader>
+                {isComunicaVotiOpen && (
+                  <CardContent className="pt-0 pb-6">
+                    <ComunicaVotiCard 
+                      titoloVotazione={titoloVotazione}
+                      setTitoloVotazione={setTitoloVotazione}
+                      votiEntries={votiEntries}
+                      addVotoEntry={addVotoEntry}
+                      updateVotoEntry={updateVotoEntry}
+                      removeVotoEntry={removeVotoEntry}
+                      submitComunicaVoti={submitComunicaVoti}
+                    />
+                  </CardContent>
+                )}
+              </Card>
             </TabsContent>
             
             <TabsContent value="notifiche-demos" className="mt-6">
@@ -881,16 +937,57 @@ const Votazione = React.memo(function Votazione() {
             {isAllowed && <NuovaComunicazioneCard />}
             {canComunicaVoti && (
               <>
-                <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
-                <ComunicaVotiCard 
-                  titoloVotazione={titoloVotazione}
-                  setTitoloVotazione={setTitoloVotazione}
-                  votiEntries={votiEntries}
-                  addVotoEntry={addVotoEntry}
-                  updateVotoEntry={updateVotoEntry}
-                  removeVotoEntry={removeVotoEntry}
-                  submitComunicaVoti={submitComunicaVoti}
-                />
+                <Card className="w-full bg-white">
+                  <CardHeader 
+                    className="flex flex-row items-center justify-between cursor-pointer"
+                    onClick={() => setIsInformaOpen(prev => !prev)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-5 w-5 text-emerald-600" />
+                      <CardTitle className="text-lg font-semibold">
+                        Informa Cittadini
+                      </CardTitle>
+                    </div>
+                    <ChevronDown
+                      className={`h-5 w-5 text-gray-500 transition-transform ${isInformaOpen ? "rotate-180" : ""}`}
+                    />
+                  </CardHeader>
+                  {isInformaOpen && (
+                    <CardContent className="pt-0 pb-6">
+                      <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card className="w-full bg-white">
+                  <CardHeader 
+                    className="flex flex-row items-center justify-between cursor-pointer"
+                    onClick={() => setIsComunicaVotiOpen(prev => !prev)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Calculator className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="text-lg font-semibold">
+                        Comunica Voti
+                      </CardTitle>
+                    </div>
+                    <ChevronDown
+                      className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
+                    />
+                  </CardHeader>
+                  {isComunicaVotiOpen && (
+                    <CardContent className="pt-0 pb-6">
+                      <ComunicaVotiCard 
+                        titoloVotazione={titoloVotazione}
+                        setTitoloVotazione={setTitoloVotazione}
+                        votiEntries={votiEntries}
+                        addVotoEntry={addVotoEntry}
+                        updateVotoEntry={updateVotoEntry}
+                        removeVotoEntry={removeVotoEntry}
+                        submitComunicaVoti={submitComunicaVoti}
+                      />
+                    </CardContent>
+                  )}
+                </Card>
               </>
             )}
             {canSendDemosNotifications && <NotificheDemosCard />}
