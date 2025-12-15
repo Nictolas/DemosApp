@@ -311,7 +311,7 @@ export default function Strumenti() {
                   <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                   <Megaphone className="h-8 w-8 text-blue-600 relative z-10" />
                 </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Votazione</div>
+                <div className="text-gray-700 font-semibold text-lg select-none">Comunica</div>
               </div>
             </button>
           )}
