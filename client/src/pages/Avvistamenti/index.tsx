@@ -12,6 +12,7 @@ interface EmergencyCategory {
   title: string;
   description: string;
   icon: string;
+  bgClass: string;
   numbers: Array<{
     number: string;
     label: string;
@@ -19,12 +20,19 @@ interface EmergencyCategory {
   }>;
 }
 
+interface EmergencySection {
+  id: string;
+  title: string;
+  categories: string[]; // array di id delle categorie
+}
+
 const emergencyCategories: EmergencyCategory[] = [
   {
     id: "animali-feriti",
-    title: "Animali feriti (selvatici)",
+    title: "Animali feriti",
     description: "Segnala animali selvatici feriti",
     icon: "🐾",
+    bgClass: "from-emerald-500 to-green-500",
     numbers: [
       { number: "1515", label: "1515", description: "Carabinieri Forestali" }
     ]
@@ -34,16 +42,29 @@ const emergencyCategories: EmergencyCategory[] = [
     title: "Uccelli feriti",
     description: "Segnala uccelli feriti o in difficoltà",
     icon: "🦅",
+    bgClass: "from-sky-400 to-blue-500",
     numbers: [
       { number: "1515", label: "1515", description: "Carabinieri Forestali" },
       { number: "0521273043", label: "LIPU 0521 273043", description: "Lega Italiana Protezione Uccelli" }
     ]
   },
   {
-    id: "animali-pericolosi",
-    title: "Lupi/volpi/cinghiali pericolosi",
-    description: "Segnala animali pericolosi",
+    id: "lupi",
+    title: "Lupi pericolosi",
+    description: "Segnala lupi pericolosi o troppo vicini alle abitazioni",
     icon: "🐺",
+    bgClass: "from-slate-700 to-slate-900",
+    numbers: [
+      { number: "115", label: "115", description: "Vigili del Fuoco" },
+      { number: "1515", label: "1515", description: "Carabinieri Forestali" }
+    ]
+  },
+  {
+    id: "cinghiali",
+    title: "Cinghiali pericolosi",
+    description: "Segnala cinghiali pericolosi o in gruppo",
+    icon: "🐗",
+    bgClass: "from-amber-700 to-orange-700",
     numbers: [
       { number: "115", label: "115", description: "Vigili del Fuoco" },
       { number: "1515", label: "1515", description: "Carabinieri Forestali" }
@@ -54,6 +75,7 @@ const emergencyCategories: EmergencyCategory[] = [
     title: "Incendi / fumo sospetto",
     description: "Segnala incendi o fumo sospetto",
     icon: "🔥",
+    bgClass: "from-red-600 to-orange-500",
     numbers: [
       { number: "115", label: "115", description: "Vigili del Fuoco" },
       { number: "1515", label: "1515", description: "Carabinieri Forestali" }
@@ -61,9 +83,20 @@ const emergencyCategories: EmergencyCategory[] = [
   },
   {
     id: "frane",
-    title: "Frane, alberi pericolanti, smottamenti",
+    title: "Frane / smottamenti",
     description: "Segnala pericoli strutturali",
     icon: "⛰️",
+    bgClass: "from-stone-500 to-stone-700",
+    numbers: [
+      { number: "115", label: "115", description: "Vigili del Fuoco" }
+    ]
+  },
+  {
+    id: "albero-pericolante",
+    title: "Albero pericolante",
+    description: "Segnala alberi pericolanti o rami a rischio caduta",
+    icon: "🌳",
+    bgClass: "from-lime-600 to-green-700",
     numbers: [
       { number: "115", label: "115", description: "Vigili del Fuoco" }
     ]
@@ -73,6 +106,17 @@ const emergencyCategories: EmergencyCategory[] = [
     title: "Veicoli sospetti / ricercati",
     description: "Segnala veicoli sospetti",
     icon: "🚗",
+    bgClass: "from-indigo-500 to-indigo-700",
+    numbers: [
+      { number: "112", label: "112", description: "Numero Unico di Emergenza" }
+    ]
+  },
+  {
+    id: "veicolo-abbandonato",
+    title: "Veicolo abbandonato",
+    description: "Segnala veicoli abbandonati o senza targa",
+    icon: "🚙",
+    bgClass: "from-sky-700 to-blue-800",
     numbers: [
       { number: "112", label: "112", description: "Numero Unico di Emergenza" }
     ]
@@ -82,15 +126,17 @@ const emergencyCategories: EmergencyCategory[] = [
     title: "Persona scomparsa / avvistata",
     description: "Segnala persone scomparse o avvistate",
     icon: "👤",
+    bgClass: "from-amber-500 to-yellow-500",
     numbers: [
       { number: "112", label: "112", description: "Numero Unico di Emergenza" }
     ]
   },
   {
     id: "persona-difficolta",
-    title: "Persona in difficoltà",
+    title: "SOS Persona in difficoltà",
     description: "Segnala persone in difficoltà",
     icon: "🆘",
+    bgClass: "from-rose-500 to-pink-600",
     numbers: [
       { number: "112", label: "112", description: "Numero Unico di Emergenza" }
     ]
@@ -100,6 +146,7 @@ const emergencyCategories: EmergencyCategory[] = [
     title: "Attività illegali",
     description: "Segnala attività illegali",
     icon: "🚨",
+    bgClass: "from-red-700 to-red-900",
     numbers: [
       { number: "112", label: "112", description: "Numero Unico di Emergenza" },
       { number: "117", label: "117", description: "Guardia di Finanza" }
@@ -107,11 +154,68 @@ const emergencyCategories: EmergencyCategory[] = [
   },
   {
     id: "illuminazione",
-    title: "Illuminazione pubblica guasta / pericoli stradali",
+    title: "Illuminazione pubblica guasta",
     description: "Segnala problemi stradali",
     icon: "💡",
+    bgClass: "from-yellow-300 to-amber-400",
     numbers: [
       { number: "1518", label: "1518", description: "Viabilità ANAS" }
+    ]
+  },
+  {
+    id: "buca-stradale",
+    title: "Buca stradale",
+    description: "Segnala buche pericolose sulla strada",
+    icon: "🕳️",
+    bgClass: "from-slate-500 to-slate-700",
+    numbers: [
+      { number: "1518", label: "1518", description: "Viabilità ANAS" }
+    ]
+  },
+  {
+    id: "discarica-abusiva",
+    title: "Discarica abusiva",
+    description: "Segnala discariche abusive o rifiuti pericolosi",
+    icon: "🗑️",
+    bgClass: "from-emerald-700 to-green-800",
+    numbers: [
+      { number: "1515", label: "1515", description: "Carabinieri Forestali" }
+    ]
+  }
+];
+
+const emergencySections: EmergencySection[] = [
+  {
+    id: "emergenze",
+    title: "Emergenze",
+    categories: [
+      "incendi",
+      "animali-feriti",
+      "uccelli-feriti",
+      "persona-scomparsa",
+      "persona-difficolta",
+      "lupi",
+      "cinghiali"
+    ]
+  },
+  {
+    id: "decoro-urbano",
+    title: "Decoro urbano",
+    categories: [
+      "illuminazione",
+      "buca-stradale",
+      "frane",
+      "albero-pericolante",
+      "discarica-abusiva",
+      "veicolo-abbandonato"
+    ]
+  },
+  {
+    id: "sicurezza",
+    title: "Sicurezza e ordine pubblico",
+    categories: [
+      "veicoli-sospetti",
+      "attivita-illegali"
     ]
   }
 ];
@@ -182,24 +286,44 @@ export default function Avvistamenti() {
           </div>
         </div>
 
-        {/* Grid delle categorie */}
+        {/* Grid delle categorie, divise in tre sezioni e tre colonne */}
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {emergencyCategories.map((category) => (
-              <Button
-                key={category.id}
-                variant="outline"
-                className="w-full justify-start h-24 rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 group p-4"
-                onClick={() => handleCategoryClick(category)}
-              >
-                <div className="flex items-center gap-3 w-full">
-                  <div className="text-3xl">{category.icon}</div>
-                  <div className="text-left flex-1">
-                    <div className="font-semibold text-gray-900 text-sm">{category.title}</div>
-                    <div className="text-xs text-gray-600">{category.description}</div>
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {emergencySections.map((section) => (
+              <div key={section.id} className="space-y-3">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {section.title}
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  {section.categories.map((categoryId) => {
+                    const category = emergencyCategories.find((c) => c.id === categoryId);
+                    if (!category) return null;
+
+                    return (
+                      <Button
+                        key={category.id}
+                        variant="outline"
+                        className={`w-full h-28 rounded-2xl border-0 bg-gradient-to-br ${category.bgClass} hover:brightness-110 hover:shadow-xl transition-all duration-300 p-0`}
+                        onClick={() => handleCategoryClick(category)}
+                      >
+                        <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-white">
+                          <div className="text-5xl leading-none">
+                            {category.icon}
+                          </div>
+                          <div className="text-center px-2">
+                            <div className="font-semibold text-xs sm:text-sm">
+                              {category.title}
+                            </div>
+                            <div className="text-[10px] sm:text-xs opacity-90">
+                              {category.description}
+                            </div>
+                          </div>
+                        </div>
+                      </Button>
+                    );
+                  })}
                 </div>
-              </Button>
+              </div>
             ))}
           </div>
         </div>
