@@ -41,6 +41,29 @@ type ComunicaFormData = z.infer<typeof comunicaSchema>;
 type ComunicaVotiFormData = z.infer<typeof comunicaVotiSchema>;
 type DemosNotificationFormData = z.infer<typeof demosNotificationSchema>;
 
+// Tipologie per la sezione "Informa Cittadini"
+const INFORMA_TIPOLOGIE = [
+  "Interruzione erogazione acqua",
+  "Acqua non potabile",
+  "Interruzione energia elettrica programmata",
+  "Chiusura strade per lavori",
+  "Modifiche alla viabilità per eventi o manifestazioni",
+  "Pulizia strade (Divieto di sosta temporaneo)",
+  "Disinfestazione zanzare",
+  "Derattizzazione",
+  "Variazioni calendario raccolta rifiuti (es. Festività)",
+  "Sciopero servizio raccolta rifiuti",
+  "Blocco del traffico per inquinamento (PM10)",
+  "Chiusura parchi pubblici per vento forte",
+  "Ordinanze urgenti (es. divieto botti, divieto vendita alcolici)",
+  "Scadenze fiscali (IMU, TARI)",
+  "Apertura iscrizioni servizi scolastici (Mensa, Scuolabus, Nido)",
+  "Pubblicazione Bandi e Concorsi",
+  "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)",
+  "Ritrovamento ordigni bellici (Evacuazione)",
+  "Variazione orari uffici comunali",
+] as const;
+
 interface ExistingComunicazione {
   titolo: string;
   vincitore: string;
@@ -52,6 +75,131 @@ interface VotoEntry {
   nome: string;
   voto: "Favorevole" | "Contrario" | "Astenuto";
 }
+
+// Card per la sezione "Informa Cittadini"
+const InformaCittadiniCard = React.memo(({
+  submitInformaCittadini
+}: {
+  submitInformaCittadini: any;
+}) => {
+  const [titolo, setTitolo] = useState("");
+  const [tipologia, setTipologia] = useState<string>("");
+  const [dove, setDove] = useState("");
+  const [dalGiorno, setDalGiorno] = useState("");
+  const [alGiorno, setAlGiorno] = useState("");
+
+  const handleSubmit = () => {
+    if (!titolo.trim() || !tipologia || !dove.trim() || !dalGiorno || !alGiorno) {
+      return;
+    }
+
+    submitInformaCittadini.mutate({
+      titolo: titolo.trim(),
+      tipologia,
+      dove: dove.trim(),
+      dalGiorno,
+      alGiorno,
+    });
+  };
+
+  React.useEffect(() => {
+    if (submitInformaCittadini.isSuccess) {
+      setTitolo("");
+      setTipologia("");
+      setDove("");
+      setDalGiorno("");
+      setAlGiorno("");
+    }
+  }, [submitInformaCittadini.isSuccess]);
+
+  return (
+    <Card className="w-full bg-white">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-center">
+          Informa Cittadini
+        </CardTitle>
+        <CardDescription className="text-center">
+          Comunica in modo chiaro avvisi e informazioni di pubblica utilità.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Titolo *</label>
+          <Input
+            type="text"
+            placeholder="Es: Interruzione erogazione acqua in Via Roma"
+            value={titolo}
+            onChange={(e) => setTitolo(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Tipologia *</label>
+          <Select
+            value={tipologia}
+            onValueChange={(value) => setTipologia(value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona una tipologia" />
+            </SelectTrigger>
+            <SelectContent>
+              {INFORMA_TIPOLOGIE.map((tipo) => (
+                <SelectItem key={tipo} value={tipo}>
+                  {tipo}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Dove *</label>
+          <Input
+            type="text"
+            placeholder="Es: Via Roma, quartiere Centro Storico"
+            value={dove}
+            onChange={(e) => setDove(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Dal giorno *</label>
+            <Input
+              type="date"
+              value={dalGiorno}
+              onChange={(e) => setDalGiorno(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Al giorno *</label>
+            <Input
+              type="date"
+              value={alGiorno}
+              onChange={(e) => setAlGiorno(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          className="w-full"
+          disabled={
+            submitInformaCittadini.isPending ||
+            !titolo.trim() ||
+            !tipologia ||
+            !dove.trim() ||
+            !dalGiorno ||
+            !alGiorno
+          }
+          onClick={handleSubmit}
+        >
+          {submitInformaCittadini.isPending ? "Invio in corso..." : "Invia Comunicazione"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+});
 
 // Componente per Comunica Voti - spostato fuori dal componente principale
 const ComunicaVotiCard = React.memo(({ 
@@ -189,6 +337,53 @@ const Votazione = React.memo(function Votazione() {
     { id: "1", nome: "", voto: "Favorevole" }
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
+
+  // Mutation per la sezione "Informa Cittadini"
+  const submitInformaCittadini = useMutation({
+    mutationFn: async (data: {
+      titolo: string;
+      tipologia: string;
+      dove: string;
+      dalGiorno: string;
+      alGiorno: string;
+    }) => {
+      if (!user?.id) {
+        throw new Error('ID utente non disponibile. Riprova tra qualche secondo.');
+      }
+
+      const comunicazioneData = {
+        titolo: data.titolo,
+        tipologia: data.tipologia,
+        dove: data.dove,
+        dal_giorno: data.dalGiorno,
+        al_giorno: data.alGiorno,
+        zona: "Generale",
+        id_utente: user.id,
+        tipo: "informa_cittadini",
+      };
+
+      const response = await apiRequest("POST", "/api/comunicazioni", comunicazioneData);
+      if (!response.ok) {
+        throw new Error("Errore nell'invio della comunicazione ai cittadini");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Comunicazione inviata",
+        description: "L'avviso ai cittadini è stato registrato con successo.",
+      });
+      console.log('🔄 Invalidando notificationBadge dopo invio Informa Cittadini');
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore nell'invio della comunicazione.",
+        variant: "destructive",
+      });
+    },
+  });
   
   // Stato per input manuale (test) - rimosso per debug
   // const [manualTitolo, setManualTitolo] = useState("");
@@ -649,7 +844,7 @@ const Votazione = React.memo(function Votazione() {
               </TabsTrigger>
               <TabsTrigger value="comunica-voti" className="flex items-center gap-2">
                 <Calculator className="h-4 w-4" />
-                Comunica Voti
+                Istituzione
               </TabsTrigger>
               <TabsTrigger value="notifiche-demos" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" />
@@ -661,7 +856,10 @@ const Votazione = React.memo(function Votazione() {
               <NuovaComunicazioneCard />
             </TabsContent>
             
-            <TabsContent value="comunica-voti" className="mt-6">
+            <TabsContent value="comunica-voti" className="mt-6 space-y-6">
+              {/* Sezione Informa Cittadini sopra Comunica Voti */}
+              <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
+              
               <ComunicaVotiCard 
                 titoloVotazione={titoloVotazione}
                 setTitoloVotazione={setTitoloVotazione}
@@ -682,15 +880,18 @@ const Votazione = React.memo(function Votazione() {
           <div className="space-y-6">
             {isAllowed && <NuovaComunicazioneCard />}
             {canComunicaVoti && (
-              <ComunicaVotiCard 
-                titoloVotazione={titoloVotazione}
-                setTitoloVotazione={setTitoloVotazione}
-                votiEntries={votiEntries}
-                addVotoEntry={addVotoEntry}
-                updateVotoEntry={updateVotoEntry}
-                removeVotoEntry={removeVotoEntry}
-                submitComunicaVoti={submitComunicaVoti}
-              />
+              <>
+                <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
+                <ComunicaVotiCard 
+                  titoloVotazione={titoloVotazione}
+                  setTitoloVotazione={setTitoloVotazione}
+                  votiEntries={votiEntries}
+                  addVotoEntry={addVotoEntry}
+                  updateVotoEntry={updateVotoEntry}
+                  removeVotoEntry={removeVotoEntry}
+                  submitComunicaVoti={submitComunicaVoti}
+                />
+              </>
             )}
             {canSendDemosNotifications && <NotificheDemosCard />}
           </div>

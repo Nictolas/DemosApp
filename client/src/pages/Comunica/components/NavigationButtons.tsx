@@ -16,7 +16,7 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({ canAccessP
       title: "Votazione",
       icon: Megaphone,
       color: "blue",
-      route: "/votazione",
+      route: "/comunica",
       svgPath: "100,0 0,0 0,35 100,20",
       svgFill: "#dbeafe"
     },
