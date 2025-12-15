@@ -13,6 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell, ChevronDown } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { UserAutocomplete } from "@/components/UserAutocomplete";
@@ -88,6 +94,7 @@ const InformaCittadiniCard = React.memo(({
   const [dove, setDove] = useState("");
   const [dalGiorno, setDalGiorno] = useState("");
   const [alGiorno, setAlGiorno] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleSubmit = () => {
     if (!tipologia || !dove.trim() || !dalGiorno || !alGiorno) {
@@ -108,11 +115,12 @@ const InformaCittadiniCard = React.memo(({
       setDove("");
       setDalGiorno("");
       setAlGiorno("");
+      setIsDialogOpen(false);
     }
   }, [submitInformaCittadini.isSuccess]);
 
   return (
-    <div className="space-y-6">
+    <>
       <div className="space-y-2">
         <label className="text-sm font-medium">Tipologia *</label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -135,7 +143,6 @@ const InformaCittadiniCard = React.memo(({
                       return "from-orange-500 to-red-500";
                     case "Pulizia strade (Divieto di sosta temporaneo)":
                     case "Variazioni calendario raccolta rifiuti (es. Festività)":
-                    case "Rifiuti abbandonati":
                       return "from-emerald-500 to-green-600";
                     case "Disinfestazione zanzare":
                     case "Derattizzazione":
@@ -162,10 +169,13 @@ const InformaCittadiniCard = React.memo(({
                       return "from-gray-500 to-gray-700";
                   }
                 })()}`}
-              onClick={() => setTipologia(tipo.value)}
+              onClick={() => {
+                setTipologia(tipo.value);
+                setIsDialogOpen(true);
+              }}
             >
               <span className="text-2xl leading-none">{tipo.emoji}</span>
-              <span className="text-[11px] text-center leading-snug line-clamp-2">
+              <span className="text-[11px] text-center leading-snug break-words whitespace-normal">
                 {tipo.value}
               </span>
             </Button>
@@ -173,50 +183,65 @@ const InformaCittadiniCard = React.memo(({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Dove *</label>
-        <Input
-          type="text"
-          placeholder="Es: Via Roma, quartiere Centro Storico"
-          value={dove}
-          onChange={(e) => setDove(e.target.value)}
-        />
-      </div>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+              <span>
+                {INFORMA_TIPOLOGIE.find(t => t.value === tipologia)?.emoji}
+              </span>
+              <span>{tipologia || "Informa Cittadini"}</span>
+            </DialogTitle>
+          </DialogHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Dal giorno *</label>
-          <Input
-            type="date"
-            value={dalGiorno}
-            onChange={(e) => setDalGiorno(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Al giorno *</label>
-          <Input
-            type="date"
-            value={alGiorno}
-            onChange={(e) => setAlGiorno(e.target.value)}
-          />
-        </div>
-      </div>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Dove *</label>
+              <Input
+                type="text"
+                placeholder="Es: Via Roma, quartiere Centro Storico"
+                value={dove}
+                onChange={(e) => setDove(e.target.value)}
+              />
+            </div>
 
-      <Button
-        type="button"
-        className="w-full"
-        disabled={
-          submitInformaCittadini.isPending ||
-          !tipologia ||
-          !dove.trim() ||
-          !dalGiorno ||
-          !alGiorno
-        }
-        onClick={handleSubmit}
-      >
-        {submitInformaCittadini.isPending ? "Invio in corso..." : "Invia Comunicazione"}
-      </Button>
-    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Dal giorno *</label>
+                <Input
+                  type="date"
+                  value={dalGiorno}
+                  onChange={(e) => setDalGiorno(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Al giorno *</label>
+                <Input
+                  type="date"
+                  value={alGiorno}
+                  onChange={(e) => setAlGiorno(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              className="w-full"
+              disabled={
+                submitInformaCittadini.isPending ||
+                !tipologia ||
+                !dove.trim() ||
+                !dalGiorno ||
+                !alGiorno
+              }
+              onClick={handleSubmit}
+            >
+              {submitInformaCittadini.isPending ? "Invio in corso..." : "Invia Comunicazione"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 });
 
