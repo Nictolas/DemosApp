@@ -134,22 +134,23 @@ class CentralizedLogger {
     if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
 
     try {
-      // Invia solo i campi necessari (come nella migrazione), non tutto il meta object
-      // Questo riduce la dimensione dei dati e rispetta GDPR
+      // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
+      // Campi GDPR obbligatori: _time, message, user_id, ip_address, endpoint, session_id
       const logEntry = {
-        _time: new Date().toISOString(),
-        level: level,
-        message: message,
-        log_type: meta.logType || 'application', // 'application', 'performance', 'security'
-        // NOTA: pid e hostname rimossi - non necessari per GDPR
-        // Solo campi essenziali dalla tabella centralized_logs
-        user_id: meta.userId || null,
-        ip_address: meta.ipAddress || null,
-        user_agent: meta.userAgent || null,
-        endpoint: meta.endpoint || null,
-        request_id: meta.requestId || null,
-        session_id: meta.sessionId || null
+        _time: new Date().toISOString(),        // GDPR: Quando è successo (audit trail)
+        message: message,                        // GDPR: Cosa è successo (descrizione azione)
+        user_id: meta.userId || null,            // GDPR: Chi ha fatto l'azione
+        ip_address: meta.ipAddress || null,      // GDPR: Da dove è arrivata la richiesta (da anonimizzare)
+        endpoint: meta.endpoint || null,          // GDPR: Quale risorsa è stata acceduta
+        session_id: meta.sessionId || null       // GDPR: Identifica la sessione utente
       };
+      
+      // NOTA: Campi rimossi (non obbligatori per GDPR):
+      // - level: non obbligatorio (utile per debugging ma non GDPR-required)
+      // - log_type: non obbligatorio (categorizzazione non GDPR-required)
+      // - user_agent: non obbligatorio (utile per sicurezza ma non GDPR-required)
+      // - request_id: non obbligatorio (tracciamento tecnico non GDPR-required)
+      // - pid, hostname: già rimossi in precedenza
       
       // Aggiungi solo campi specifici da meta se necessari (non tutto l'oggetto)
       // Evita di inviare dati non necessari che aumentano la dimensione
@@ -456,8 +457,85 @@ class CentralizedLogger {
     await this.log('TRACE', message, meta);
   }
 
+  /**
+   * Verifica se una richiesta deve essere loggata per GDPR
+   * GDPR richiede solo log di accesso/modifica ai dati personali
+   */
+  shouldLogForGDPR(url, method, statusCode) {
+    // SEMPRE loggare errori (necessari per sicurezza GDPR)
+    if (statusCode >= 400) {
+      return true;
+    }
+
+    // Endpoint che NON accedono a dati personali - NON loggare per GDPR
+    const publicEndpoints = [
+      '/api/health',
+      '/api/ministero/iniziative',
+      '/api/ministero/iniziative/',
+      '/api/governo/ministri',
+      '/api/governo/ministri/',
+      '/api/statistiche',
+      '/api/statistiche/',
+      '/api/services',
+      '/api/compatibility'
+    ];
+
+    // Verifica se è un endpoint pubblico
+    for (const endpoint of publicEndpoints) {
+      if (url.startsWith(endpoint)) {
+        return false; // Non necessario per GDPR
+      }
+    }
+
+    // Endpoint che accedono a dati personali - SEMPRE loggare per GDPR
+    const gdprRequiredEndpoints = [
+      '/api/users',           // Dati utenti
+      '/api/auth',            // Autenticazione (dati personali)
+      '/api/opinioni',        // Opinion personali
+      '/api/voti',            // Voti personali
+      '/api/comunicazioni',   // Comunicazioni personali
+      '/api/notifiche',       // Notifiche personali
+      '/api/segnalazioni',    // Segnalazioni (possono contenere dati personali)
+      '/api/admin',           // Admin (accesso a dati personali)
+      '/api/user/',           // Profilo utente
+      '/api/gdpr',            // Richieste GDPR
+      '/api/download-data',   // Download dati personali
+      '/api/delete-account'   // Cancellazione account
+    ];
+
+    // Verifica se è un endpoint GDPR-required
+    for (const endpoint of gdprRequiredEndpoints) {
+      if (url.startsWith(endpoint)) {
+        return true; // Necessario per GDPR
+      }
+    }
+
+    // Metodi che modificano dati - loggare per GDPR
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      return true; // Modifiche ai dati potrebbero riguardare dati personali
+    }
+
+    // Di default, se non è chiaro, loggare per sicurezza (meglio avere più log che meno)
+    // Ma puoi cambiare questo comportamento se vuoi essere più restrittivo
+    return process.env.GDPR_LOGGING_STRICT === 'true' ? false : true;
+  }
+
   // Logging specifico per richieste HTTP
   async logRequest(req, res, responseTime) {
+    const url = req.originalUrl.split('?')[0]; // Rimuovi query string per matching
+    const method = req.method;
+    const statusCode = res.statusCode;
+
+    // Filtra per GDPR se abilitato
+    if (process.env.GDPR_LOGGING_FILTER === 'true') {
+      if (!this.shouldLogForGDPR(url, method, statusCode)) {
+        // Non loggare su Axiom (ma puoi ancora loggare su console/file per debugging)
+        if (this.logToAxiom) {
+          return; // Skip logging to Axiom
+        }
+      }
+    }
+
     const meta = {
       method: req.method,
       url: req.originalUrl,
@@ -467,7 +545,8 @@ class CentralizedLogger {
       userAgent: req.get('User-Agent'),
       userId: req.user?.id || null,
       sessionId: req.sessionID || null,
-      requestId: req.id || null
+      requestId: req.id || null,
+      endpoint: req.originalUrl.split('?')[0] // Endpoint senza query string
     };
 
     const level = res.statusCode >= 400 ? 'WARN' : 'INFO';
