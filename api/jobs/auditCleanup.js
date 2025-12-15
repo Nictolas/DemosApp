@@ -7,6 +7,12 @@ const AuditService = require('../services/auditService');
  */
 const auditCleanupJob = cron.schedule('0 2 * * *', async () => {
   try {
+    // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
+    if (process.env.AXIOM_ENABLED === 'true') {
+      console.log('ℹ️  Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom');
+      return;
+    }
+    
     console.log('🧹 Avvio pulizia automatica log di audit...');
     
     // Pulisce log più vecchi di 1 anno (365 giorni)
@@ -123,8 +129,15 @@ const dailyStatsJob = cron.schedule('0 6 * * *', async () => {
 
 /**
  * Avvia tutti i job
+ * NOTA: Con Axiom abilitato, i job vengono disabilitati
  */
 const startAuditJobs = () => {
+  // Se Axiom è abilitato, non avviare i job (non necessari)
+  if (process.env.AXIOM_ENABLED === 'true') {
+    console.log('ℹ️  Job di audit logging disabilitati: Axiom gestisce automaticamente i log');
+    return;
+  }
+  
   console.log('🚀 Avvio job di audit logging...');
   
   auditCleanupJob.start();

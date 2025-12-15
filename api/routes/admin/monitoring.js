@@ -6,6 +6,7 @@ const performanceOptimizer = require('../../services/performanceOptimizer');
 const healthCheckService = require('../../services/healthCheckService');
 const { pool } = require('../../middleware/auth');
 const { auditMiddleware } = require('../../middleware/auditMiddleware');
+const { getCentralizedLogs } = require('../../utils/axiomQueryHelper');
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
@@ -105,29 +106,48 @@ router.get('/health/history', auditMiddleware, async (req, res) => {
 // GET /api/admin/monitoring/alerts - Alert recenti
 router.get('/alerts', auditMiddleware, async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Gli alert sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     const hours = parseInt(req.query.hours) || 24;
+    const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const endTime = new Date();
     
-    const query = `
-      SELECT * FROM centralized_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${hours} hours'
-      AND (message ILIKE '%alert%' OR message ILIKE '%warning%' OR message ILIKE '%critical%')
-      AND level IN ('WARN', 'ERROR')
-      ORDER BY timestamp DESC
-      LIMIT 100
-    `;
+    // Ottieni log da Axiom
+    const logs = await getCentralizedLogs({
+      startTime,
+      endTime,
+      limit: 1000
+    });
     
-    const result = await pool.query(query);
+    // Filtra alert (WARN o ERROR con messaggi specifici)
+    const alerts = logs
+      .filter(log => {
+        const message = (log.message || '').toLowerCase();
+        const level = log.level || '';
+        return (level === 'WARN' || level === 'ERROR') &&
+               (message.includes('alert') || message.includes('warning') || message.includes('critical'));
+      })
+      .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+      .slice(0, 100);
     
     res.json({
       success: true,
-      data: result.rows,
-      count: result.rows.length
+      data: alerts,
+      count: alerts.length
     });
   } catch (error) {
     console.error('❌ Errore recupero alert:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore recupero alert'
+      error: 'Errore recupero alert',
+      message: error.message
     });
   }
 });

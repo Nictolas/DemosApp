@@ -257,6 +257,41 @@ class PerformanceMonitor {
       }
 
       // Conta errori recenti dal logging centralizzato
+      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      if (process.env.AXIOM_ENABLED === 'true') {
+        try {
+          const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+          const endTime = new Date();
+          
+          const logs = await getCentralizedLogs({
+            startTime: oneHourAgo,
+            endTime,
+            limit: 100000
+          });
+          
+          // Filtra ERROR e WARN
+          const errors = logs.filter(log => log.level === 'ERROR' || log.level === 'E').length;
+          const warnings = logs.filter(log => log.level === 'WARN' || log.level === 'W').length;
+          
+          return {
+            timestamp: new Date().toISOString(),
+            errorsLastHour: errors,
+            warningsLastHour: warnings,
+            totalIssues: errors + warnings
+          };
+        } catch (error) {
+          console.error('❌ Errore metriche errori da Axiom:', error);
+          return {
+            timestamp: new Date().toISOString(),
+            errorsLastHour: 0,
+            warningsLastHour: 0,
+            totalIssues: 0
+          };
+        }
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       const query = `
         SELECT 
           level,

@@ -667,7 +667,45 @@ class CentralizedLogger {
   // Statistiche log
   async getLogStats(days = 7) {
     try {
-      // Usa la vista decompressa per leggere i dati
+      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
+        
+        const startTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getCentralizedLogs({
+          startTime,
+          endTime,
+          limit: 100000 // Limite alto per statistiche
+        });
+        
+        // Calcola statistiche per livello e data
+        const statsByLevelAndDate = {};
+        logs.forEach(log => {
+          const date = new Date(log._time || Date.now()).toISOString().split('T')[0];
+          const level = log.level || 'UNKNOWN';
+          const key = `${date}-${level}`;
+          
+          if (!statsByLevelAndDate[key]) {
+            statsByLevelAndDate[key] = {
+              level,
+              count: 0,
+              date
+            };
+          }
+          statsByLevelAndDate[key].count++;
+        });
+        
+        return Object.values(statsByLevelAndDate).sort((a, b) => {
+          if (a.date !== b.date) {
+            return b.date.localeCompare(a.date);
+          }
+          return a.level.localeCompare(b.level);
+        });
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       const query = `
         SELECT 
           level,
@@ -690,6 +728,13 @@ class CentralizedLogger {
   // Pulizia log vecchi
   async cleanupOldLogs(retentionDays = 30) {
     try {
+      // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        console.log(`ℹ️  Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Retention: ${retentionDays} giorni`);
+        return 0; // Non è necessario pulire manualmente
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       const query = `
         DELETE FROM centralized_logs 
         WHERE timestamp < (EXTRACT(EPOCH FROM NOW() - INTERVAL '${retentionDays} days') * 1000)::BIGINT
@@ -708,6 +753,29 @@ class CentralizedLogger {
   // Esporta log per analisi
   async exportLogs(startDate, endDate, level = null) {
     try {
+      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
+        
+        const logs = await getCentralizedLogs({
+          level: level || null,
+          startTime: new Date(startDate),
+          endTime: new Date(endDate),
+          limit: 100000 // Limite alto per esportazione
+        });
+        
+        // Formatta per compatibilità con formato precedente
+        return logs.map(log => ({
+          timestamp: log._time || new Date().toISOString(),
+          level: log.level || 'UNKNOWN',
+          message: log.message || '',
+          user_id: log.user_id || null,
+          ip_address: log.ip_address || null,
+          endpoint: log.endpoint || null
+        }));
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       let query = `
         SELECT * FROM centralized_logs_decompressed 
         WHERE timestamp BETWEEN $1 AND $2

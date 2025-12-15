@@ -4,13 +4,34 @@ const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const logger = require('../../services/centralizedLogger');
 const { pool } = require('../../middleware/auth');
 const { auditMiddleware } = require('../../middleware/auditMiddleware');
+const { getCentralizedLogs, queryAxiom } = require('../../utils/axiomQueryHelper');
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
 
-// Funzioni helper per la ricerca
+// Funzioni helper per la ricerca (ora leggono da Axiom)
 const searchByIP = async (ipAddress, hours = 24, limit = 100) => {
   try {
+    // Se Axiom è abilitato, leggi da Axiom
+    if (process.env.AXIOM_ENABLED === 'true') {
+      const { getCentralizedLogs } = require('../../utils/axiomQueryHelper');
+      const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const endTime = new Date();
+      
+      const logs = await getCentralizedLogs({
+        ipAddress: ipAddress,
+        startTime,
+        endTime,
+        limit: limit * 2
+      });
+      
+      return logs
+        .filter(log => log.ip_address === ipAddress)
+        .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+        .slice(0, limit);
+    }
+    
+    // Fallback a Neon
     const query = `
       SELECT * FROM find_logs_by_ip($1)
       WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
@@ -27,6 +48,13 @@ const searchByIP = async (ipAddress, hours = 24, limit = 100) => {
 
 const searchByUserAgent = async (userAgent, hours = 24, limit = 100) => {
   try {
+    // NOTA: user_agent non è più disponibile su Axiom (rimosso per GDPR)
+    // Questa funzione restituisce un array vuoto
+    if (process.env.AXIOM_ENABLED === 'true') {
+      return [];
+    }
+    
+    // Fallback a Neon (solo se Axiom non è abilitato)
     const query = `
       SELECT * FROM find_logs_by_user_agent($1)
       WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
@@ -43,6 +71,26 @@ const searchByUserAgent = async (userAgent, hours = 24, limit = 100) => {
 
 const searchByEndpoint = async (endpoint, hours = 24, limit = 100) => {
   try {
+    // Se Axiom è abilitato, leggi da Axiom
+    if (process.env.AXIOM_ENABLED === 'true') {
+      const { getCentralizedLogs } = require('../../utils/axiomQueryHelper');
+      const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const endTime = new Date();
+      
+      const logs = await getCentralizedLogs({
+        endpoint: endpoint,
+        startTime,
+        endTime,
+        limit: limit * 2
+      });
+      
+      return logs
+        .filter(log => log.endpoint && log.endpoint.includes(endpoint))
+        .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+        .slice(0, limit);
+    }
+    
+    // Fallback a Neon
     const query = `
       SELECT * FROM find_logs_by_endpoint($1)
       WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
@@ -101,35 +149,51 @@ router.get('/stats', auditMiddleware, async (req, res) => {
 // GET /api/admin/logging/recent - Log recenti
 router.get('/recent', auditMiddleware, async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'I log sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     const limit = parseInt(req.query.limit) || 50;
     const level = req.query.level;
     const hours = parseInt(req.query.hours) || 24;
     
-    let query = `
-      SELECT * FROM centralized_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '${hours} hours'
-    `;
-    const params = [];
+    const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const endTime = new Date();
     
+    // Ottieni log da Axiom
+    const logs = await getCentralizedLogs({
+      level: level || null,
+      startTime,
+      endTime,
+      limit: limit * 2 // Prendi più record per filtrare level lato server se necessario
+    });
+    
+    // Filtra per level se specificato (se non già filtrato)
+    let filteredLogs = logs;
     if (level) {
-      query += ' AND level = $1';
-      params.push(level);
+      filteredLogs = logs.filter(log => log.level === level);
     }
     
-    query += ' ORDER BY timestamp DESC LIMIT $' + (params.length + 1);
-    params.push(limit);
-    
-    const result = await pool.query(query, params);
+    // Limita e ordina
+    const result = filteredLogs
+      .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+      .slice(0, limit);
     
     res.json({
       success: true,
-      data: result.rows
+      data: result
     });
   } catch (error) {
     console.error('❌ Errore recupero log recenti:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore recupero log recenti'
+      error: 'Errore recupero log recenti',
+      message: error.message
     });
   }
 });
@@ -137,6 +201,15 @@ router.get('/recent', auditMiddleware, async (req, res) => {
 // GET /api/admin/logging/search - Ricerca log
 router.get('/search', auditMiddleware, async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'La ricerca log è disponibile solo con Axiom abilitato'
+      });
+    }
+    
     const {
       level,
       message,
@@ -148,67 +221,49 @@ router.get('/search', auditMiddleware, async (req, res) => {
       limit = 100
     } = req.query;
     
-    let query = 'SELECT * FROM centralized_logs_decompressed WHERE 1=1';
-    const params = [];
-    let paramCount = 0;
+    const startTime = startDate ? new Date(startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const endTime = endDate ? new Date(endDate) : new Date();
     
-    if (level) {
-      paramCount++;
-      query += ` AND level = $${paramCount}`;
-      params.push(level);
+    // Ottieni log da Axiom
+    const logs = await getCentralizedLogs({
+      userId: userId || null,
+      level: level || null,
+      endpoint: endpoint || null,
+      startTime,
+      endTime,
+      limit: parseInt(limit) * 10 // Prendi più record per filtrare lato server
+    });
+    
+    // Applica filtri lato server
+    let filteredLogs = logs;
+    
+    if (ipAddress) {
+      filteredLogs = filteredLogs.filter(log => log.ip_address === ipAddress);
     }
     
     if (message) {
-      paramCount++;
-      query += ` AND message ILIKE $${paramCount}`;
-      params.push(`%${message}%`);
+      const messageLower = message.toLowerCase();
+      filteredLogs = filteredLogs.filter(log => 
+        (log.message && log.message.toLowerCase().includes(messageLower))
+      );
     }
     
-    if (userId) {
-      paramCount++;
-      query += ` AND user_id = $${paramCount}`;
-      params.push(userId);
-    }
-    
-    if (ipAddress) {
-      paramCount++;
-      query += ` AND ip_address = $${paramCount}`;
-      params.push(ipAddress);
-    }
-    
-    if (endpoint) {
-      paramCount++;
-      query += ` AND endpoint ILIKE $${paramCount}`;
-      params.push(`%${endpoint}%`);
-    }
-    
-    if (startDate) {
-      paramCount++;
-      query += ` AND timestamp >= $${paramCount}`;
-      params.push(startDate);
-    }
-    
-    if (endDate) {
-      paramCount++;
-      query += ` AND timestamp <= $${paramCount}`;
-      params.push(endDate);
-    }
-    
-    query += ` ORDER BY timestamp DESC LIMIT $${paramCount + 1}`;
-    params.push(parseInt(limit));
-    
-    const result = await pool.query(query, params);
+    // Ordina e limita
+    const result = filteredLogs
+      .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+      .slice(0, parseInt(limit));
     
     res.json({
       success: true,
-      data: result.rows,
-      count: result.rows.length
+      data: result,
+      count: result.length
     });
   } catch (error) {
     console.error('❌ Errore ricerca log:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore ricerca log'
+      error: 'Errore ricerca log',
+      message: error.message
     });
   }
 });
@@ -265,6 +320,15 @@ router.get('/export', auditMiddleware, async (req, res) => {
 // POST /api/admin/logging/cleanup - Pulizia log vecchi
 router.post('/cleanup', auditMiddleware, async (req, res) => {
   try {
+    // Se Axiom è abilitato, la pulizia viene gestita automaticamente
+    if (process.env.AXIOM_ENABLED === 'true') {
+      return res.json({
+        success: true,
+        message: 'Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Non è necessario pulire manualmente.',
+        deletedCount: 0
+      });
+    }
+    
     const { retentionDays = 30 } = req.body;
     
     const deletedCount = await logger.cleanupOldLogs(retentionDays);
@@ -278,7 +342,8 @@ router.post('/cleanup', auditMiddleware, async (req, res) => {
     console.error('❌ Errore pulizia log:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore pulizia log'
+      error: 'Errore pulizia log',
+      message: error.message
     });
   }
 });
@@ -342,29 +407,46 @@ router.get('/health', auditMiddleware, async (req, res) => {
 // GET /api/admin/logging/errors - Solo errori recenti
 router.get('/errors', auditMiddleware, async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Gli errori sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     const hours = parseInt(req.query.hours) || 24;
     const limit = parseInt(req.query.limit) || 100;
     
-    const query = `
-      SELECT * FROM centralized_logs_decompressed 
-      WHERE level = 'ERROR' 
-      AND timestamp >= NOW() - INTERVAL '${hours} hours'
-      ORDER BY timestamp DESC 
-      LIMIT $1
-    `;
+    const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const endTime = new Date();
     
-    const result = await pool.query(query, [limit]);
+    // Ottieni log ERROR da Axiom
+    const logs = await getCentralizedLogs({
+      level: 'ERROR',
+      startTime,
+      endTime,
+      limit: limit * 2 // Prendi più record per filtrare lato server
+    });
+    
+    // Ordina e limita
+    const result = logs
+      .filter(log => log.level === 'ERROR')
+      .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+      .slice(0, limit);
     
     res.json({
       success: true,
-      data: result.rows,
-      count: result.rows.length
+      data: result,
+      count: result.length
     });
   } catch (error) {
     console.error('❌ Errore recupero errori:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore recupero errori'
+      error: 'Errore recupero errori',
+      message: error.message
     });
   }
 });
@@ -372,29 +454,29 @@ router.get('/errors', auditMiddleware, async (req, res) => {
 // GET /api/admin/logging/performance - Log di performance
 router.get('/performance', auditMiddleware, async (req, res) => {
   try {
-    const hours = parseInt(req.query.hours) || 24;
-    const limit = parseInt(req.query.limit) || 100;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'I log di performance sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const query = `
-      SELECT * FROM centralized_logs_decompressed 
-      WHERE meta_data->>'performanceEvent' = 'true'
-      AND timestamp >= NOW() - INTERVAL '${hours} hours'
-      ORDER BY timestamp DESC 
-      LIMIT $1
-    `;
-    
-    const result = await pool.query(query, [limit]);
-    
+    // NOTA: I log di performance non vengono più inviati ad Axiom (non GDPR-required)
+    // Questo endpoint restituisce un array vuoto
     res.json({
       success: true,
-      data: result.rows,
-      count: result.rows.length
+      data: [],
+      count: 0,
+      message: 'I log di performance non sono più tracciati (non GDPR-required)'
     });
   } catch (error) {
     console.error('❌ Errore recupero performance log:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore recupero performance log'
+      error: 'Errore recupero performance log',
+      message: error.message
     });
   }
 });
