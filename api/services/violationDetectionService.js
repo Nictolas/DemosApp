@@ -4,6 +4,7 @@
 
 const { pool } = require('../middleware/auth');
 const AuditService = require('./auditService');
+const { getAuditLogs } = require('../utils/axiomQueryHelper');
 
 class ViolationDetectionService {
   /**
@@ -137,6 +138,65 @@ class ViolationDetectionService {
    */
   static async detectUnauthorizedAccess() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          action: 'DATA_ACCESS',
+          startTime,
+          endTime,
+          limit: 100000
+        });
+        
+        // Filtra e raggruppa
+        const unauthorizedAccess = {};
+        logs.forEach(log => {
+          if (log.resource === 'users' && 
+              log.resource_id && 
+              log.user_id &&
+              log.resource_id !== log.user_id) {
+            const key = `${log.user_id}-${log.ip_address}-${log.resource_id}`;
+            if (!unauthorizedAccess[key]) {
+              unauthorizedAccess[key] = {
+                user_id: log.user_id,
+                ip_address: log.ip_address,
+                action: log.action,
+                resource: log.resource,
+                resource_id: log.resource_id,
+                access_count: 0,
+                last_access: log._time
+              };
+            }
+            unauthorizedAccess[key].access_count++;
+            const logTime = new Date(log._time || 0);
+            const lastTime = new Date(unauthorizedAccess[key].last_access || 0);
+            if (logTime > lastTime) {
+              unauthorizedAccess[key].last_access = log._time;
+            }
+          }
+        });
+        
+        return Object.values(unauthorizedAccess)
+          .filter(item => item.access_count > 3)
+          .sort((a, b) => b.access_count - a.access_count)
+          .map(item => ({
+            type: 'UNAUTHORIZED_ACCESS',
+            severity: 'HIGH',
+            description: `Accesso non autorizzato ai dati di utente ${item.resource_id}`,
+            details: {
+              user_id: item.user_id,
+              ip_address: item.ip_address,
+              target_user: item.resource_id,
+              access_count: item.access_count,
+              last_access: item.last_access
+            },
+            timestamp: new Date()
+          }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,
@@ -183,6 +243,61 @@ class ViolationDetectionService {
    */
   static async detectSuspiciousActivity() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          startTime: oneHourAgo,
+          endTime,
+          limit: 100000
+        });
+        
+        // Raggruppa per user_id e ip_address
+        const activityByUser = {};
+        logs.forEach(log => {
+          if (!log.user_id || !log.ip_address) return;
+          const key = `${log.user_id}-${log.ip_address}`;
+          if (!activityByUser[key]) {
+            activityByUser[key] = {
+              user_id: log.user_id,
+              ip_address: log.ip_address,
+              action_count: 0,
+              failed_count: 0,
+              last_activity: log._time
+            };
+          }
+          activityByUser[key].action_count++;
+          if (log.success === false) {
+            activityByUser[key].failed_count++;
+          }
+          const logTime = new Date(log._time || 0);
+          const lastTime = new Date(activityByUser[key].last_activity || 0);
+          if (logTime > lastTime) {
+            activityByUser[key].last_activity = log._time;
+          }
+        });
+        
+        return Object.values(activityByUser)
+          .filter(item => item.action_count > 50 || item.failed_count > 20)
+          .sort((a, b) => b.action_count - a.action_count)
+          .map(item => ({
+            type: 'SUSPICIOUS_ACTIVITY',
+            severity: 'MEDIUM',
+            description: `Attività sospetta rilevata: ${item.action_count} azioni in 1 ora`,
+            details: {
+              user_id: item.user_id,
+              ip_address: item.ip_address,
+              action_count: item.action_count,
+              failed_count: item.failed_count,
+              last_activity: item.last_activity
+            },
+            timestamp: new Date()
+          }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,
@@ -223,6 +338,58 @@ class ViolationDetectionService {
    */
   static async detectFailedAccess() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          action: 'AUTH_OPERATION',
+          success: false,
+          startTime: oneHourAgo,
+          endTime,
+          limit: 100000
+        });
+        
+        // Raggruppa per user_id e ip_address
+        const failedByUser = {};
+        logs.forEach(log => {
+          if (!log.user_id || !log.ip_address) return;
+          const key = `${log.user_id}-${log.ip_address}`;
+          if (!failedByUser[key]) {
+            failedByUser[key] = {
+              user_id: log.user_id,
+              ip_address: log.ip_address,
+              failed_count: 0,
+              last_attempt: log._time
+            };
+          }
+          failedByUser[key].failed_count++;
+          const logTime = new Date(log._time || 0);
+          const lastTime = new Date(failedByUser[key].last_attempt || 0);
+          if (logTime > lastTime) {
+            failedByUser[key].last_attempt = log._time;
+          }
+        });
+        
+        return Object.values(failedByUser)
+          .filter(item => item.failed_count > 10)
+          .sort((a, b) => b.failed_count - a.failed_count)
+          .map(item => ({
+            type: 'SECURITY_BREACH',
+            severity: 'CRITICAL',
+            description: `Tentativi di accesso falliti: ${item.failed_count} in 1 ora`,
+            details: {
+              user_id: item.user_id,
+              ip_address: item.ip_address,
+              failed_count: item.failed_count,
+              last_attempt: item.last_attempt
+            },
+            timestamp: new Date()
+          }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,
@@ -263,6 +430,58 @@ class ViolationDetectionService {
    */
   static async detectSuspiciousIPs() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          startTime,
+          endTime,
+          limit: 100000
+        });
+        
+        // Raggruppa per IP
+        const ipStats = {};
+        logs.forEach(log => {
+          if (!log.ip_address) return;
+          if (!ipStats[log.ip_address]) {
+            ipStats[log.ip_address] = {
+              ip_address: log.ip_address,
+              users: new Set(),
+              total_actions: 0,
+              last_activity: log._time
+            };
+          }
+          if (log.user_id) {
+            ipStats[log.ip_address].users.add(log.user_id);
+          }
+          ipStats[log.ip_address].total_actions++;
+          const logTime = new Date(log._time || 0);
+          const lastTime = new Date(ipStats[log.ip_address].last_activity || 0);
+          if (logTime > lastTime) {
+            ipStats[log.ip_address].last_activity = log._time;
+          }
+        });
+        
+        return Object.values(ipStats)
+          .filter(item => item.users.size > 5)
+          .sort((a, b) => b.users.size - a.users.size || b.total_actions - a.total_actions)
+          .map(item => ({
+            type: 'SUSPICIOUS_ACTIVITY',
+            severity: 'MEDIUM',
+            description: `IP sospetto: ${item.users.size} utenti diversi da ${item.ip_address}`,
+            details: {
+              ip_address: item.ip_address,
+              unique_users: item.users.size,
+              total_actions: item.total_actions,
+              last_activity: item.last_activity
+            },
+            timestamp: new Date()
+          }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           ip_address,
@@ -302,6 +521,41 @@ class ViolationDetectionService {
    */
   static async detectDataBreaches() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          action: 'DATA_DELETE',
+          resource: 'users',
+          startTime,
+          endTime,
+          limit: 100000
+        });
+        
+        // Filtra per breach nei details
+        const breaches = logs.filter(log => {
+          const details = JSON.stringify(log.details || {}).toLowerCase();
+          return details.includes('breach');
+        });
+        
+        return breaches.map(log => ({
+          type: 'DATA_BREACH',
+          severity: 'CRITICAL',
+          description: 'Possibile violazione dei dati personali rilevata',
+          details: {
+            user_id: log.user_id,
+            action: log.action,
+            resource: log.resource,
+            details: log.details,
+            timestamp: log._time
+          },
+          timestamp: new Date()
+        }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,
@@ -343,6 +597,39 @@ class ViolationDetectionService {
    */
   static async detectConsentViolations() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          action: 'CONSENT_CHANGE',
+          startTime,
+          endTime,
+          limit: 100000
+        });
+        
+        // Filtra per violation nei details
+        const violations = logs.filter(log => {
+          const details = JSON.stringify(log.details || {}).toLowerCase();
+          return details.includes('violation');
+        });
+        
+        return violations.map(log => ({
+          type: 'CONSENT_VIOLATION',
+          severity: 'HIGH',
+          description: 'Violazione del consenso GDPR rilevata',
+          details: {
+            user_id: log.user_id,
+            action: log.action,
+            details: log.details,
+            timestamp: log._time
+          },
+          timestamp: new Date()
+        }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,
@@ -381,6 +668,35 @@ class ViolationDetectionService {
    */
   static async detectRetentionViolations() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          action: 'DATA_RETENTION_DELETE',
+          success: false,
+          startTime,
+          endTime,
+          limit: 100000
+        });
+        
+        return logs.map(log => ({
+          type: 'RETENTION_VIOLATION',
+          severity: 'MEDIUM',
+          description: 'Violazione delle policy di retention rilevata',
+          details: {
+            user_id: log.user_id,
+            action: log.action,
+            resource: log.resource,
+            details: log.details,
+            timestamp: log._time
+          },
+          timestamp: new Date()
+        }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,
@@ -421,6 +737,66 @@ class ViolationDetectionService {
    */
   static async detectUnauthorizedDataAccess() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getAuditLogs({
+          action: 'DATA_ACCESS',
+          startTime,
+          endTime,
+          limit: 100000
+        });
+        
+        // Filtra e raggruppa
+        const unauthorizedAccess = {};
+        logs.forEach(log => {
+          if (['users', 'opinions', 'votes'].includes(log.resource) &&
+              log.resource_id &&
+              log.user_id &&
+              log.resource_id !== log.user_id) {
+            const key = `${log.user_id}-${log.ip_address}-${log.resource}-${log.resource_id}`;
+            if (!unauthorizedAccess[key]) {
+              unauthorizedAccess[key] = {
+                user_id: log.user_id,
+                ip_address: log.ip_address,
+                action: log.action,
+                resource: log.resource,
+                resource_id: log.resource_id,
+                access_count: 0,
+                last_access: log._time
+              };
+            }
+            unauthorizedAccess[key].access_count++;
+            const logTime = new Date(log._time || 0);
+            const lastTime = new Date(unauthorizedAccess[key].last_access || 0);
+            if (logTime > lastTime) {
+              unauthorizedAccess[key].last_access = log._time;
+            }
+          }
+        });
+        
+        return Object.values(unauthorizedAccess)
+          .filter(item => item.access_count > 2)
+          .sort((a, b) => b.access_count - a.access_count)
+          .map(item => ({
+            type: 'UNAUTHORIZED_ACCESS',
+            severity: 'HIGH',
+            description: `Accesso non autorizzato ai dati personali: ${item.resource}`,
+            details: {
+              user_id: item.user_id,
+              ip_address: item.ip_address,
+              resource: item.resource,
+              target_id: item.resource_id,
+              access_count: item.access_count,
+              last_access: item.last_access
+            },
+            timestamp: new Date()
+          }));
+      }
+      
+      // Fallback a Neon
       const query = `
         SELECT 
           user_id,

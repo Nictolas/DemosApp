@@ -353,108 +353,67 @@ router.get('/database', async (req, res) => {
  */
 router.get('/logs', async (req, res) => {
   try {
-    const { pool } = require('../middleware/auth');
-    
-    // Prima verifica se la tabella centralized_logs esiste
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'centralized_logs'
-      );
-    `);
-    
-    if (!tableCheck.rows[0].exists) {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
       return res.json({
         success: false,
-        error: 'Tabella centralized_logs non trovata',
-        message: 'La tabella dei log non è stata ancora creata. I log sono disponibili solo nella console del server o nei log di Render.',
-        hint: 'Esegui lo script create-centralized-logs-table.cjs per creare la tabella, oppure controlla i log su Render.com'
+        error: 'Axiom non abilitato',
+        message: 'I log sono disponibili solo con Axiom abilitato. Controlla i log della console del server su Render.com.',
+        hint: 'I log sono disponibili anche nella console del server o sui log di Render.com'
       });
     }
     
-    // Prima controlla quanti log ci sono in totale nella tabella
-    const totalLogsResult = await pool.query(`
-      SELECT COUNT(*) as total FROM centralized_logs
-    `);
-    const totalLogs = parseInt(totalLogsResult.rows[0].total || 0);
+    const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
     
-    // Recupera gli ultimi log dalla tabella centralized_logs
-    // Cerca log relativi a ministero, sincronizzazione o iniziative
-    // Nota: timestamp è BIGINT (millisecondi Unix), quindi convertiamo il limite temporale
-    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000); // 24 ore fa in millisecondi
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const endTime = new Date();
     
-    const result = await pool.query(`
-      SELECT 
-        id,
-        timestamp,
-        level,
-        message,
-        meta_data,
-        endpoint,
-        user_id,
-        ip_address,
-        created_at
-      FROM centralized_logs 
-      WHERE 
-        (message ILIKE '%ministero%' 
-         OR message ILIKE '%sincronizzazione%' 
-         OR message ILIKE '%iniziativa%'
-         OR endpoint ILIKE '%ministero%')
-        AND timestamp >= $1
-      ORDER BY timestamp DESC 
-      LIMIT 100
-    `, [twentyFourHoursAgo]);
+    // Ottieni log da Axiom
+    const allLogs = await getCentralizedLogs({
+      startTime: twentyFourHoursAgo,
+      endTime,
+      limit: 1000
+    });
     
-    // Se non trova log filtrati, mostriamo anche gli ultimi log generici (senza filtro)
-    let allLogs = [];
-    if (result.rows.length === 0 && totalLogs > 0) {
-      const allLogsResult = await pool.query(`
-        SELECT 
-          id,
-          timestamp,
-          level,
-          message,
-          meta_data,
-          endpoint,
-          user_id,
-          ip_address,
-          created_at
-        FROM centralized_logs 
-        WHERE timestamp >= $1
-        ORDER BY timestamp DESC 
-        LIMIT 20
-      `, [twentyFourHoursAgo]);
-      allLogs = allLogsResult.rows;
-    }
+    // Filtra log relativi a ministero, sincronizzazione o iniziative
+    const filteredLogs = allLogs.filter(log => {
+      const message = (log.message || '').toLowerCase();
+      const endpoint = (log.endpoint || '').toLowerCase();
+      return message.includes('ministero') || 
+             message.includes('sincronizzazione') || 
+             message.includes('iniziativa') ||
+             endpoint.includes('ministero');
+    });
+    
+    // Se non trova log filtrati, mostra gli ultimi log generici
+    const logsToFormat = filteredLogs.length > 0 
+      ? filteredLogs 
+      : allLogs.slice(0, 20);
     
     // Formatta i log per la risposta
-    const logsToFormat = result.rows.length > 0 ? result.rows : allLogs;
-    const formattedLogs = logsToFormat.map(row => ({
-      id: row.id,
-      timestamp: row.timestamp,
-      level: row.level,
-      message: row.message,
-      meta: row.meta_data || {},
-      endpoint: row.endpoint,
-      userId: row.user_id,
-      ipAddress: row.ip_address,
-      createdAt: row.created_at
+    const formattedLogs = logsToFormat.map(log => ({
+      id: log._time || Date.now().toString(),
+      timestamp: log._time || new Date().toISOString(),
+      level: log.level || 'INFO',
+      message: log.message || '',
+      meta: log.meta_data || {},
+      endpoint: log.endpoint || null,
+      userId: log.user_id || null,
+      ipAddress: log.ip_address || null,
+      createdAt: log._time || new Date().toISOString()
     }));
     
     // Aggiungi informazioni utili
     const explanation = formattedLogs.length === 0 
-      ? totalLogs === 0
-        ? '⚠️ La tabella centralized_logs è vuota. Il logging su database è probabilmente disabilitato (vedi centralizedLogger.js, riga 99-101). I log vengono scritti solo nella console del server.'
-        : '⚠️ Nessun log trovato negli ultimi 24 ore che corrisponda ai filtri "ministero/sincronizzazione/iniziativa". Potrebbero esserci log con messaggi diversi. Mostriamo gli ultimi log generici.'
-      : result.rows.length === 0 && allLogs.length > 0
-        ? 'ℹ️ Nessun log trovato con i filtri specifici, ma ci sono altri log nella tabella. Mostriamo gli ultimi log generici.'
+      ? '⚠️ Nessun log trovato negli ultimi 24 ore. I log potrebbero non essere ancora indicizzati su Axiom (attendi qualche minuto).'
+      : filteredLogs.length === 0 && allLogs.length > 0
+        ? 'ℹ️ Nessun log trovato con i filtri specifici (ministero/sincronizzazione/iniziativa), ma ci sono altri log. Mostriamo gli ultimi log generici.'
         : null;
     
     res.json({
       success: true,
       count: formattedLogs.length,
-      totalLogsInTable: totalLogs,
+      totalLogsInTable: allLogs.length,
       logs: formattedLogs,
       timestamp: new Date().toISOString(),
       explanation: explanation,
@@ -465,10 +424,8 @@ router.get('/logs', async (req, res) => {
           'Errori se una sincronizzazione fallisce',
           'Dettagli sul processo (quante iniziative recuperate, salvate, errori)'
         ],
-        whyEmpty: formattedLogs.length === 0 && totalLogs > 0
-          ? 'I log di sincronizzazione potrebbero non essere scritti nel database (logging disabilitato) o usare messaggi diversi. Controlla i log della console del server su Render.com.'
-          : formattedLogs.length === 0 && totalLogs === 0
-          ? 'Il logging su database è disabilitato. I log vengono scritti solo nella console del server.'
+        whyEmpty: formattedLogs.length === 0
+          ? 'I log potrebbero non essere ancora indicizzati su Axiom (attendi qualche minuto) o non ci sono log relativi a ministero/sincronizzazione.'
           : null
       }
     });

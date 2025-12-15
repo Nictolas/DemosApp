@@ -1,6 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
+const { getAuditLogs } = require('../../utils/axiomQueryHelper');
 
 const router = express.Router();
 
@@ -18,60 +19,68 @@ const pool = new Pool({
  */
 router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche JWT reali dai log di audit con logica migliorata
-    const jwtStatsQuery = `
-      SELECT 
-        COUNT(CASE WHEN action = 'LOGIN' AND success = true THEN 1 END) as login_successes,
-        COUNT(CASE WHEN action = 'LOGOUT' AND success = true THEN 1 END) as logout_successes,
-        COUNT(CASE WHEN action = 'TOKEN_EXPIRED' OR (action = 'AUTH_FAILED' AND error_message LIKE '%expired%') THEN 1 END) as expired_tokens,
-        COUNT(CASE WHEN action = 'AUTH_FAILED' AND success = false THEN 1 END) as suspicious_activity
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '7 days'
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le statistiche JWT sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const result = await pool.query(jwtStatsQuery);
-    const stats = result.rows[0];
+    const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // Ultimi 7 giorni
+    const endTime = new Date();
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    // Calcola token attivi come differenza tra login e logout degli ultimi 7 giorni
-    const loginSuccesses = parseInt(stats.login_successes) || 0;
-    const logoutSuccesses = parseInt(stats.logout_successes) || 0;
-    const expiredTokens = parseInt(stats.expired_tokens) || 0;
+    // Ottieni audit logs degli ultimi 7 giorni
+    const allLogs = await getAuditLogs({
+      startTime,
+      endTime,
+      limit: 100000
+    });
     
-    // Stima token attivi: login - logout - expired (con un minimo di 1 se ci sono login recenti)
+    // Calcola statistiche JWT
+    const loginSuccesses = allLogs.filter(log => log.action === 'LOGIN' && log.success === true).length;
+    const logoutSuccesses = allLogs.filter(log => log.action === 'LOGOUT' && log.success === true).length;
+    const expiredTokens = allLogs.filter(log => {
+      return log.action === 'TOKEN_EXPIRED' || 
+             (log.action === 'AUTH_FAILED' && log.error_message && log.error_message.toLowerCase().includes('expired'));
+    }).length;
+    const suspiciousActivity = allLogs.filter(log => log.action === 'AUTH_FAILED' && log.success === false).length;
+    
+    // Stima token attivi: login - logout - expired
     let activeTokens = Math.max(0, loginSuccesses - logoutSuccesses - expiredTokens);
     
     // Se ci sono login recenti ma 0 token attivi, controlla le sessioni attive
     if (loginSuccesses > 0 && activeTokens === 0) {
       // Controlla sessioni attive nella tabella active_sessions
-      const activeSessionsQuery = `
-        SELECT COUNT(*) as active_sessions_count
-        FROM active_sessions 
-        WHERE is_active = true 
-          AND expires_at > NOW()
-          AND last_activity >= NOW() - INTERVAL '2 hours'
-      `;
-      
-      const activeSessionsResult = await pool.query(activeSessionsQuery);
-      const activeSessionsCount = parseInt(activeSessionsResult.rows[0].active_sessions_count) || 0;
-      
-      if (activeSessionsCount > 0) {
-        activeTokens = activeSessionsCount;
-      } else {
-        // Fallback: controlla se ci sono login molto recenti (ultime 24h)
-        const recentLoginQuery = `
-          SELECT COUNT(*) as recent_logins
-          FROM audit_logs_decompressed 
-          WHERE action = 'LOGIN' 
-            AND success = true 
-            AND timestamp >= NOW() - INTERVAL '24 hours'
-        `;
+      try {
+        const activeSessionsResult = await pool.query(`
+          SELECT COUNT(*) as active_sessions_count
+          FROM active_sessions 
+          WHERE is_active = true 
+            AND expires_at > NOW()
+            AND last_activity >= NOW() - INTERVAL '2 hours'
+        `);
+        const activeSessionsCount = parseInt(activeSessionsResult.rows[0].active_sessions_count) || 0;
         
-        const recentResult = await pool.query(recentLoginQuery);
-        const recentLogins = parseInt(recentResult.rows[0].recent_logins) || 0;
-        
-        if (recentLogins > 0) {
-          activeTokens = 1; // Almeno 1 token attivo se ci sono login recenti
+        if (activeSessionsCount > 0) {
+          activeTokens = activeSessionsCount;
+        } else {
+          // Fallback: controlla se ci sono login molto recenti (ultime 24h)
+          const recentLogins = allLogs.filter(log => {
+            const logTime = new Date(log._time || 0);
+            return log.action === 'LOGIN' && 
+                   log.success === true && 
+                   logTime >= last24Hours;
+          }).length;
+          
+          if (recentLogins > 0) {
+            activeTokens = 1; // Almeno 1 token attivo se ci sono login recenti
+          }
         }
+      } catch (error) {
+        console.error('Errore verifica sessioni attive:', error);
       }
     }
     
@@ -79,7 +88,7 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
       activeTokens: activeTokens,
       revokedTokens: logoutSuccesses,
       expiredTokens: expiredTokens,
-      suspiciousActivity: parseInt(stats.suspicious_activity) || 0
+      suspiciousActivity: suspiciousActivity
     };
 
     res.json({
@@ -93,7 +102,7 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare le statistiche JWT'
+      message: error.message || 'Impossibile recuperare le statistiche JWT'
     });
   }
 });
@@ -104,38 +113,50 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/rate-limiting-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche rate limiting reali dai log
-    const rateLimitQuery = `
-      SELECT 
-        COUNT(DISTINCT ip_address) as blocked_ips,
-        COUNT(*) as total_requests,
-        COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 minute' THEN 1 END) as requests_per_minute
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '1 hour'
-        AND ip_address IS NOT NULL
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le statistiche rate limiting sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const topEndpointsQuery = `
-      SELECT resource, COUNT(*) as count
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '1 hour'
-        AND resource IS NOT NULL
-      GROUP BY resource
-      ORDER BY count DESC
-      LIMIT 5
-    `;
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const endTime = new Date();
     
-    const [rateLimitResult, endpointsResult] = await Promise.all([
-      pool.query(rateLimitQuery),
-      pool.query(topEndpointsQuery)
-    ]);
+    // Ottieni audit logs dell'ultima ora
+    const logs = await getAuditLogs({
+      startTime: oneHourAgo,
+      endTime,
+      limit: 100000
+    });
     
-    const stats = rateLimitResult.rows[0];
-    const topEndpoints = endpointsResult.rows.map(row => row.resource);
+    // Calcola statistiche
+    const uniqueIPs = new Set(logs.map(log => log.ip_address).filter(Boolean));
+    const blockedIPs = uniqueIPs.size;
+    const totalRequests = logs.length;
+    const requestsPerMinute = logs.filter(log => {
+      const logTime = new Date(log._time || 0);
+      return logTime >= oneMinuteAgo;
+    }).length;
+    
+    // Top endpoints
+    const resourceCounts = {};
+    logs.forEach(log => {
+      if (log.resource) {
+        resourceCounts[log.resource] = (resourceCounts[log.resource] || 0) + 1;
+      }
+    });
+    const topEndpoints = Object.entries(resourceCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([resource]) => resource);
     
     const rateLimitingStats = {
-      blockedIPs: parseInt(stats.blocked_ips) || 0,
-      requestsPerMinute: parseInt(stats.requests_per_minute) || 0,
+      blockedIPs,
+      requestsPerMinute,
       topBlockedEndpoints: topEndpoints
     };
 
@@ -161,25 +182,40 @@ router.get('/rate-limiting-stats', verifyToken, requireAdmin, async (req, res) =
  */
 router.get('/ssl-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche SSL reali dai log
-    const sslQuery = `
-      SELECT 
-        COUNT(CASE WHEN success = true THEN 1 END) as secure_connections,
-        COUNT(CASE WHEN success = false AND (details LIKE '%SSL%' OR details LIKE '%TLS%' OR details LIKE '%certificate%') THEN 1 END) as insecure_connections
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '24 hours'
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le statistiche SSL sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const result = await pool.query(sslQuery);
-    const stats = result.rows[0];
+    const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // Ultime 24 ore
+    const endTime = new Date();
+    
+    // Ottieni audit logs delle ultime 24 ore
+    const logs = await getAuditLogs({
+      startTime,
+      endTime,
+      limit: 100000
+    });
+    
+    // Calcola statistiche SSL
+    const secureConnections = logs.filter(log => log.success === true).length;
+    const insecureConnections = logs.filter(log => {
+      if (log.success !== false) return false;
+      const details = JSON.stringify(log.details || {}).toLowerCase();
+      return details.includes('ssl') || details.includes('tls') || details.includes('certificate');
+    }).length;
     
     // Per il certificato, usiamo una data fissa (in produzione si dovrebbe controllare il certificato reale)
     const certificateExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 giorni da ora
     
     const sslStats = {
-      secureConnections: parseInt(stats.secure_connections) || 0,
-      insecureConnections: parseInt(stats.insecure_connections) || 0,
-      certificateExpiry: certificateExpiry
+      secureConnections,
+      insecureConnections,
+      certificateExpiry
     };
 
     res.json({
@@ -193,7 +229,7 @@ router.get('/ssl-stats', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare le statistiche SSL'
+      message: error.message || 'Impossibile recuperare le statistiche SSL'
     });
   }
 });
@@ -204,23 +240,41 @@ router.get('/ssl-stats', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche validazione reali dai log
-    const validationQuery = `
-      SELECT 
-        COUNT(CASE WHEN action = 'VALIDATION_FAILED' AND success = false THEN 1 END) as validation_failures,
-        COUNT(CASE WHEN details LIKE '%injection%' OR details LIKE '%XSS%' OR details LIKE '%SQL%' THEN 1 END) as blocked_injection_attempts,
-        COUNT(CASE WHEN action = 'INPUT_SANITIZED' THEN 1 END) as sanitized_inputs
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '7 days'
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le statistiche validazione sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const result = await pool.query(validationQuery);
-    const stats = result.rows[0];
+    const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // Ultimi 7 giorni
+    const endTime = new Date();
+    
+    // Ottieni audit logs degli ultimi 7 giorni
+    const logs = await getAuditLogs({
+      startTime,
+      endTime,
+      limit: 100000
+    });
+    
+    // Calcola statistiche validazione
+    const validationFailures = logs.filter(log => 
+      log.action === 'VALIDATION_FAILED' && log.success === false
+    ).length;
+    
+    const blockedInjectionAttempts = logs.filter(log => {
+      const details = JSON.stringify(log.details || {}).toLowerCase();
+      return details.includes('injection') || details.includes('xss') || details.includes('sql');
+    }).length;
+    
+    const sanitizedInputs = logs.filter(log => log.action === 'INPUT_SANITIZED').length;
     
     const validationStats = {
-      blockedInjectionAttempts: parseInt(stats.blocked_injection_attempts) || 0,
-      sanitizedInputs: parseInt(stats.sanitized_inputs) || 0,
-      validationFailures: parseInt(stats.validation_failures) || 0
+      blockedInjectionAttempts,
+      sanitizedInputs,
+      validationFailures
     };
 
     res.json({
@@ -234,7 +288,7 @@ router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare le statistiche validazione'
+      message: error.message || 'Impossibile recuperare le statistiche validazione'
     });
   }
 });
@@ -245,70 +299,90 @@ router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche di salute del sistema reali con logica migliorata
-    const systemQuery = `
-      SELECT 
-        COUNT(DISTINCT user_id) as active_users,
-        COUNT(*) as total_requests,
-        COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 minute' THEN 1 END) as requests_per_minute,
-        COUNT(CASE WHEN success = true THEN 1 END) as successful_requests,
-        COUNT(CASE WHEN success = false THEN 1 END) as failed_requests
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '2 hours'
-        AND user_id IS NOT NULL
-        AND user_id != 'anonymous'
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le statistiche di salute del sistema sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const result = await pool.query(systemQuery);
-    const stats = result.rows[0];
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const endTime = new Date();
     
-    // Controlla sessioni attive nella tabella active_sessions
-    let activeUsers = parseInt(stats.active_users) || 0;
+    // Ottieni audit logs delle ultime 2 ore
+    const logs = await getAuditLogs({
+      startTime: twoHoursAgo,
+      endTime,
+      limit: 100000
+    });
     
-    // Se non ci sono utenti attivi negli audit_logs, controlla le sessioni attive
+    // Filtra solo log con user_id valido
+    const validLogs = logs.filter(log => log.user_id && log.user_id !== 'anonymous');
+    
+    // Calcola statistiche
+    const uniqueUsers = new Set(validLogs.map(log => log.user_id));
+    let activeUsers = uniqueUsers.size;
+    
+    const totalRequests = validLogs.length || 1;
+    const successfulRequests = validLogs.filter(log => log.success === true).length;
+    const failedRequests = validLogs.filter(log => log.success === false).length;
+    const requestsPerMinute = validLogs.filter(log => {
+      const logTime = new Date(log._time || 0);
+      return logTime >= oneMinuteAgo;
+    }).length;
+    
+    // Se non ci sono utenti attivi, controlla le sessioni attive
     if (activeUsers === 0) {
-      const activeSessionsQuery = `
-        SELECT COUNT(DISTINCT user_id) as active_sessions_count
-        FROM active_sessions 
-        WHERE is_active = true 
-          AND expires_at > NOW()
-          AND last_activity >= NOW() - INTERVAL '2 hours'
-      `;
-      
-      const activeSessionsResult = await pool.query(activeSessionsQuery);
-      const activeSessionsCount = parseInt(activeSessionsResult.rows[0].active_sessions_count) || 0;
-      
-      if (activeSessionsCount > 0) {
-        activeUsers = activeSessionsCount;
-      } else {
-        // Fallback: controlla se ci sono utenti con token validi (ultimi 24h)
-        const tokenQuery = `
-          SELECT COUNT(DISTINCT user_id) as users_with_tokens
-          FROM audit_logs_decompressed 
-          WHERE timestamp >= NOW() - INTERVAL '24 hours'
-            AND action IN ('LOGIN', 'DATA_ACCESS', 'PROFILE_UPDATE')
-            AND success = true
-            AND user_id IS NOT NULL
-            AND user_id != 'anonymous'
-        `;
+      try {
+        const activeSessionsResult = await pool.query(`
+          SELECT COUNT(DISTINCT user_id) as active_sessions_count
+          FROM active_sessions 
+          WHERE is_active = true 
+            AND expires_at > NOW()
+            AND last_activity >= NOW() - INTERVAL '2 hours'
+        `);
+        const activeSessionsCount = parseInt(activeSessionsResult.rows[0].active_sessions_count) || 0;
         
-        const tokenResult = await pool.query(tokenQuery);
-        const usersWithTokens = parseInt(tokenResult.rows[0].users_with_tokens) || 0;
-        
-        if (usersWithTokens > 0) {
-          activeUsers = Math.max(1, usersWithTokens);
+        if (activeSessionsCount > 0) {
+          activeUsers = activeSessionsCount;
+        } else {
+          // Fallback: controlla se ci sono utenti con token validi (ultimi 24h)
+          const last24Logs = await getAuditLogs({
+            startTime: last24Hours,
+            endTime,
+            limit: 100000
+          });
+          
+          const usersWithTokens = new Set(
+            last24Logs
+              .filter(log => 
+                ['LOGIN', 'DATA_ACCESS', 'PROFILE_UPDATE'].includes(log.action) &&
+                log.success === true &&
+                log.user_id &&
+                log.user_id !== 'anonymous'
+              )
+              .map(log => log.user_id)
+          ).size;
+          
+          if (usersWithTokens > 0) {
+            activeUsers = Math.max(1, usersWithTokens);
+          }
         }
+      } catch (error) {
+        console.error('Errore verifica sessioni attive:', error);
       }
     }
     
-    const totalRequests = parseInt(stats.total_requests) || 1;
-    const successfulRequests = parseInt(stats.successful_requests) || 0;
-    const errorRate = ((parseInt(stats.failed_requests) || 0) / totalRequests * 100).toFixed(1);
+    const errorRate = ((failedRequests / totalRequests) * 100).toFixed(1);
     
     const systemHealth = {
       activeUsers: activeUsers,
       totalRequests: totalRequests,
-      requestsPerMinute: parseInt(stats.requests_per_minute) || 0,
+      requestsPerMinute: requestsPerMinute,
       uptime: '99.9%', // In produzione si dovrebbe calcolare dal sistema
       responseTime: '120ms', // In produzione si dovrebbe calcolare dalle metriche reali
       errorRate: `${errorRate}%`
@@ -336,41 +410,58 @@ router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/real-time-events', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Recupera eventi di sicurezza reali dagli ultimi 5 minuti
-    const eventsQuery = `
-      SELECT 
-        id,
-        action,
-        resource,
-        details,
-        ip_address,
-        user_agent,
-        timestamp,
-        success,
-        error_message,
-        CASE 
-          WHEN success = false AND action LIKE '%AUTH%' THEN 'high'
-          WHEN success = false AND action LIKE '%SECURITY%' THEN 'medium'
-          ELSE 'low'
-        END as severity
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '5 minutes'
-        AND (success = false OR action LIKE '%SECURITY%' OR action LIKE '%AUTH%')
-      ORDER BY timestamp DESC
-      LIMIT 20
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Gli eventi real-time sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const result = await pool.query(eventsQuery);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const endTime = new Date();
     
-    const realTimeEvents = result.rows.map(row => ({
-      id: row.id,
-      type: row.action,
-      description: row.error_message || row.details || `Evento ${row.action} rilevato`,
-      severity: row.severity,
-      timestamp: row.timestamp,
-      ip: row.ip_address || 'N/A',
-      userAgent: row.user_agent || 'N/A'
-    }));
+    // Ottieni audit logs degli ultimi 5 minuti
+    const logs = await getAuditLogs({
+      startTime: fiveMinutesAgo,
+      endTime,
+      limit: 1000
+    });
+    
+    // Filtra eventi di sicurezza
+    const securityEvents = logs
+      .filter(log => 
+        log.success === false || 
+        (log.action && (log.action.includes('SECURITY') || log.action.includes('AUTH')))
+      )
+      .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+      .slice(0, 20);
+    
+    // Determina severity
+    const realTimeEvents = securityEvents.map(log => {
+      const action = (log.action || '').toUpperCase();
+      let severity = 'low';
+      if (log.success === false && action.includes('AUTH')) {
+        severity = 'high';
+      } else if (log.success === false && action.includes('SECURITY')) {
+        severity = 'medium';
+      }
+      
+      const details = typeof log.details === 'object' 
+        ? JSON.stringify(log.details) 
+        : (log.details || '');
+      
+      return {
+        id: log._time || Date.now().toString(),
+        type: log.action,
+        description: log.error_message || details || `Evento ${log.action} rilevato`,
+        severity,
+        timestamp: log._time || new Date().toISOString(),
+        ip: log.ip_address || 'N/A',
+        userAgent: null // Non più disponibile (rimosso per GDPR)
+      };
+    });
 
     res.json({
       success: true,
@@ -383,7 +474,7 @@ router.get('/real-time-events', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare gli eventi real-time'
+      message: error.message || 'Impossibile recuperare gli eventi real-time'
     });
   }
 });
@@ -394,49 +485,82 @@ router.get('/real-time-events', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/real-violations', verifyToken, requireAdmin, async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le violazioni di sicurezza sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     const { days = 30 } = req.query;
+    const startTime = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000);
+    const endTime = new Date();
     
-    // Calcola solo le vere violazioni di sicurezza (escludendo errori tecnici)
-    const realViolationsQuery = `
-      SELECT 
-        COUNT(*) as total_real_violations,
-        COUNT(CASE WHEN action = 'AUTH_FAILED' AND error_message NOT LIKE '%HTTP 500%' THEN 1 END) as auth_failures,
-        COUNT(CASE WHEN error_message LIKE '%Unauthorized%' OR error_message LIKE '%Forbidden%' THEN 1 END) as access_denied,
-        COUNT(CASE WHEN error_message LIKE '%Invalid credentials%' THEN 1 END) as invalid_credentials,
-        COUNT(CASE WHEN error_message LIKE '%Token expired%' OR error_message LIKE '%Invalid token%' THEN 1 END) as token_issues,
-        COUNT(CASE WHEN action LIKE '%SECURITY%' THEN 1 END) as security_events
-      FROM audit_logs_decompressed 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-        AND success = false
-        AND NOT (
-          error_message LIKE '%HTTP 500%' OR 
-          error_message LIKE '%Errore nella registrazione%' OR
-          error_message LIKE '%Internal Server Error%' OR
-          error_message LIKE '%Database Error%'
-        )
-        AND (
-          action LIKE '%SECURITY%' OR 
-          action LIKE '%AUTH%' OR 
-          action LIKE '%PERMISSION%' OR
-          error_message LIKE '%Unauthorized%' OR
-          error_message LIKE '%Forbidden%' OR
-          error_message LIKE '%Invalid credentials%' OR
-          error_message LIKE '%Access denied%' OR
-          error_message LIKE '%Token expired%' OR
-          error_message LIKE '%Invalid token%'
-        )
-    `;
+    // Ottieni audit logs falliti del periodo
+    const logs = await getAuditLogs({
+      success: false,
+      startTime,
+      endTime,
+      limit: 100000
+    });
     
-    const result = await pool.query(realViolationsQuery);
-    const stats = result.rows[0];
+    // Filtra solo vere violazioni (escludendo errori tecnici)
+    const violations = logs.filter(log => {
+      const errorMsg = (log.error_message || '').toLowerCase();
+      const action = (log.action || '').toUpperCase();
+      
+      // Escludi errori tecnici
+      if (errorMsg.includes('http 500') || 
+          errorMsg.includes('errore nella registrazione') ||
+          errorMsg.includes('internal server error') ||
+          errorMsg.includes('database error')) {
+        return false;
+      }
+      
+      // Includi solo violazioni di sicurezza
+      return action.includes('SECURITY') || 
+             action.includes('AUTH') || 
+             action.includes('PERMISSION') ||
+             errorMsg.includes('unauthorized') ||
+             errorMsg.includes('forbidden') ||
+             errorMsg.includes('invalid credentials') ||
+             errorMsg.includes('access denied') ||
+             errorMsg.includes('token expired') ||
+             errorMsg.includes('invalid token');
+    });
+    
+    // Calcola statistiche
+    const totalRealViolations = violations.length;
+    const authFailures = violations.filter(v => 
+      v.action === 'AUTH_FAILED' && 
+      !(v.error_message && v.error_message.toLowerCase().includes('http 500'))
+    ).length;
+    const accessDenied = violations.filter(v => {
+      const errorMsg = (v.error_message || '').toLowerCase();
+      return errorMsg.includes('unauthorized') || errorMsg.includes('forbidden');
+    }).length;
+    const invalidCredentials = violations.filter(v => {
+      const errorMsg = (v.error_message || '').toLowerCase();
+      return errorMsg.includes('invalid credentials');
+    }).length;
+    const tokenIssues = violations.filter(v => {
+      const errorMsg = (v.error_message || '').toLowerCase();
+      return errorMsg.includes('token expired') || errorMsg.includes('invalid token');
+    }).length;
+    const securityEvents = violations.filter(v => {
+      const action = (v.action || '').toUpperCase();
+      return action.includes('SECURITY');
+    }).length;
     
     const realViolations = {
-      totalRealViolations: parseInt(stats.total_real_violations) || 0,
-      authFailures: parseInt(stats.auth_failures) || 0,
-      accessDenied: parseInt(stats.access_denied) || 0,
-      invalidCredentials: parseInt(stats.invalid_credentials) || 0,
-      tokenIssues: parseInt(stats.token_issues) || 0,
-      securityEvents: parseInt(stats.security_events) || 0
+      totalRealViolations,
+      authFailures,
+      accessDenied,
+      invalidCredentials,
+      tokenIssues,
+      securityEvents
     };
 
     res.json({
@@ -450,7 +574,7 @@ router.get('/real-violations', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare le violazioni di sicurezza reali'
+      message: error.message || 'Impossibile recuperare le violazioni di sicurezza reali'
     });
   }
 });

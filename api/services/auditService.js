@@ -52,6 +52,34 @@ class AuditService {
     errorMessage = null
   }) {
     try {
+      const now = Date.now(); // Timestamp in millisecondi
+      
+      // Prepara audit log per Axiom
+      const auditLog = {
+        user_id: userId,
+        action: action,
+        resource: resource,
+        resource_id: resourceId,
+        details: details,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        success: success,
+        error_message: errorMessage,
+        timestamp: new Date(now)
+      };
+      
+      // DISABILITATO: I log vengono salvati solo su Axiom, non più su Neon
+      // Questo per alleggerire Neon e centralizzare i log su Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        // Se Axiom è abilitato, invia solo ad Axiom (non blocca se fallisce)
+        const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
+        AuditService.sendAuditLogToAxiomHTTP(dataset, auditLog).catch(() => {});
+        
+        console.log(`📝 Audit log inviato ad Axiom: ${action} su ${resource} per utente ${userId}`);
+        return { id: 'axiom-' + Date.now(), timestamp: new Date(now) };
+      }
+      
+      // Solo se Axiom non è abilitato, salva su Neon (fallback)
       const query = `
         INSERT INTO audit_logs_compressed (
           id, user_id, action, resource, resource_id, details, 
@@ -59,8 +87,6 @@ class AuditService {
         ) VALUES (gen_random_uuid(), $1, compress_audit_action($2), compress_audit_resource($3), $4, $5, compress_ip_address($6), compress_audit_user_agent($7), $8, $9, $10, $11)
         RETURNING id
       `;
-      
-      const now = Date.now(); // Timestamp in millisecondi
       
       const values = [
         userId,
@@ -78,25 +104,7 @@ class AuditService {
 
       const result = await pool.query(query, values);
       
-      console.log(`📝 Audit log creato: ${action} su ${resource} per utente ${userId}`);
-      
-      // Invia anche ad Axiom (non blocca se fallisce)
-      const auditLog = {
-        user_id: userId,
-        action: action,
-        resource: resource,
-        resource_id: resourceId,
-        details: details,
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        success: success,
-        error_message: errorMessage,
-        timestamp: new Date(now)
-      };
-      
-      // Invia ad Axiom usando HTTP diretto (non blocca se fallisce)
-      const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
-      AuditService.sendAuditLogToAxiomHTTP(dataset, auditLog).catch(() => {});
+      console.log(`📝 Audit log creato su Neon: ${action} su ${resource} per utente ${userId}`);
       
       return { id: result.rows[0].id, timestamp: new Date(now) };
     } catch (error) {
@@ -239,6 +247,36 @@ class AuditService {
    */
   static async getUserAuditLogs(userId, filters = {}) {
     try {
+      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const { getAuditLogs } = require('../utils/axiomQueryHelper');
+        
+        const logs = await getAuditLogs({
+          userId,
+          action: filters.action || null,
+          resource: filters.resource || null,
+          startTime: filters.fromDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          endTime: filters.toDate || new Date(),
+          limit: filters.limit || 100,
+          offset: filters.offset || 0
+        });
+        
+        // Formatta i log per compatibilità con il formato precedente
+        return logs.map(log => ({
+          id: log._time || Date.now().toString(),
+          action: log.action,
+          resource: log.resource,
+          resource_id: log.resource_id,
+          details: log.details || null,
+          ip_address: log.ip_address,
+          user_agent: null, // Non più disponibile (rimosso per GDPR)
+          timestamp: log._time || new Date().toISOString(),
+          success: log.success,
+          error_message: log.error_message
+        }));
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       let query = `
         SELECT id, action, resource, resource_id, details, 
                ip_address, user_agent, timestamp, success, error_message
@@ -302,6 +340,56 @@ class AuditService {
    */
   static async getUserAuditStats(userId) {
     try {
+      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const { getAuditLogs } = require('../utils/axiomQueryHelper');
+        
+        const logs = await getAuditLogs({
+          userId,
+          startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // Ultimo anno
+          endTime: new Date(),
+          limit: 100000 // Limite alto per statistiche
+        });
+        
+        // Calcola statistiche
+        const statsByAction = {};
+        logs.forEach(log => {
+          if (!log.action) return;
+          
+          if (!statsByAction[log.action]) {
+            statsByAction[log.action] = {
+              action: log.action,
+              count: 0,
+              success_count: 0,
+              error_count: 0,
+              first_action: log._time,
+              last_action: log._time
+            };
+          }
+          
+          statsByAction[log.action].count++;
+          if (log.success === true) {
+            statsByAction[log.action].success_count++;
+          } else if (log.success === false) {
+            statsByAction[log.action].error_count++;
+          }
+          
+          const logTime = new Date(log._time || 0);
+          const firstTime = new Date(statsByAction[log.action].first_action || 0);
+          const lastTime = new Date(statsByAction[log.action].last_action || 0);
+          
+          if (logTime < firstTime || !statsByAction[log.action].first_action) {
+            statsByAction[log.action].first_action = log._time;
+          }
+          if (logTime > lastTime || !statsByAction[log.action].last_action) {
+            statsByAction[log.action].last_action = log._time;
+          }
+        });
+        
+        return Object.values(statsByAction).sort((a, b) => b.count - a.count);
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       const query = `
         SELECT 
           action,

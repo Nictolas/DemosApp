@@ -239,7 +239,42 @@ class HealthCheckService {
   // Controlla sicurezza
   async checkSecurity() {
     try {
-      // Controlla errori di sicurezza recenti
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getCentralizedLogs({
+          startTime: oneHourAgo,
+          endTime,
+          limit: 100000
+        });
+        
+        // Filtra errori di sicurezza
+        const securityIssues = logs.filter(log => {
+          const message = (log.message || '').toLowerCase();
+          const level = log.level || '';
+          return (level === 'ERROR' || level === 'E' || level === 'WARN' || level === 'W') &&
+                 (message.includes('security') || message.includes('attack') || message.includes('violation'));
+        }).length;
+        
+        let status = 'OK';
+        if (securityIssues > 10) {
+          status = 'ERROR';
+        } else if (securityIssues > 5) {
+          status = 'WARNING';
+        }
+        
+        return {
+          status,
+          message: `Sicurezza: ${securityIssues} eventi nell'ultima ora`,
+          securityIssues: securityIssues,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Fallback a Neon
       const securityErrorsQuery = `
         SELECT COUNT(*) as count
         FROM centralized_logs 

@@ -225,6 +225,23 @@ class PerformanceOptimizer {
   // Ottiene il tasso di errori
   async getErrorRate() {
     try {
+      // Se Axiom è abilitato, leggi da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const endTime = new Date();
+        
+        const logs = await getCentralizedLogs({
+          level: 'ERROR',
+          startTime: oneHourAgo,
+          endTime,
+          limit: 100000
+        });
+        
+        return logs.filter(log => log.level === 'ERROR' || log.level === 'E').length;
+      }
+      
+      // Fallback a Neon
       const pool = getPool();
       const result = await pool.query(`
         SELECT COUNT(*) as error_count 

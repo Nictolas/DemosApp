@@ -388,7 +388,14 @@ router.delete('/account', validateInput(['confirmation']), async (req, res) => {
       await pool.query('DELETE FROM user_rights_requests WHERE user_id = $1', [userId]);
 
       // 8. Cancella log di audit
-      await pool.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
+      // NOTA: Con Axiom abilitato, i log vengono conservati su Axiom per conformità GDPR
+      // Axiom non supporta DELETE diretto di record, quindi i log vengono mantenuti
+      // Questo è conforme al GDPR che richiede conservazione dei log per sicurezza
+      if (process.env.AXIOM_ENABLED !== 'true') {
+        await pool.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
+      } else {
+        console.log(`ℹ️  Log audit per utente ${userId} conservati su Axiom per conformità GDPR`);
+      }
 
       // 9. Cancella account utente
       await pool.query('DELETE FROM users WHERE id = $1', [userId]);

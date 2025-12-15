@@ -621,26 +621,37 @@ router.get('/download/:exportId', requireAdmin, async (req, res) => {
  */
 router.get('/centralized-logs', requireAdmin, async (req, res) => {
   try {
-    // Ottieni i 10 log più recenti
-    const recentLogsQuery = `
-      SELECT 
-        id,
-        timestamp,
-        level,
-        message,
-        user_id,
-        ip_address,
-        endpoint,
-        request_id,
-        meta_data
-      FROM centralized_logs_decompressed 
-      ORDER BY timestamp DESC 
-      LIMIT 10
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({ 
+        error: 'Axiom non abilitato',
+        message: 'I log centralizzati sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const recentLogsResult = await pool.query(recentLogsQuery);
+    const { getCentralizedLogs, countAxiomRecords } = require('../../utils/axiomQueryHelper');
     
-    // Ottieni il glossario dei livelli
+    // Ottieni i 10 log più recenti da Axiom
+    const recentLogs = await getCentralizedLogs({
+      startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      endTime: new Date(),
+      limit: 10
+    });
+    
+    // Formatta per compatibilità
+    const formattedLogs = recentLogs.map(log => ({
+      id: log._time || Date.now().toString(),
+      timestamp: log._time || new Date().toISOString(),
+      level: log.level || 'INFO',
+      message: log.message || '',
+      user_id: log.user_id || null,
+      ip_address: log.ip_address || null,
+      endpoint: log.endpoint || null,
+      request_id: null, // Non più disponibile (rimosso per GDPR)
+      meta_data: log.meta_data || {}
+    }));
+    
+    // Ottieni il glossario dei livelli (sempre da Neon)
     const glossaryQuery = `
       SELECT 
         code,
@@ -652,27 +663,38 @@ router.get('/centralized-logs', requireAdmin, async (req, res) => {
     
     const glossaryResult = await pool.query(glossaryQuery);
     
-    // Statistiche rapide
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_logs,
-        COUNT(DISTINCT level) as unique_levels,
-        MIN(timestamp) as oldest_log,
-        MAX(timestamp) as newest_log
-      FROM centralized_logs_decompressed
-    `;
+    // Statistiche rapide da Axiom
+    const dataset = process.env.AXIOM_DATASET || 'centralized_logs';
+    const totalLogs = await countAxiomRecords(dataset, {
+      startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+      endTime: new Date()
+    });
     
-    const statsResult = await pool.query(statsQuery);
+    // Calcola livelli unici
+    const uniqueLevels = new Set(recentLogs.map(log => log.level).filter(Boolean));
+    
+    // Calcola oldest e newest dai log recenti (approssimativo)
+    const timestamps = recentLogs.map(log => log._time).filter(Boolean).sort();
+    const oldest_log = timestamps.length > 0 ? timestamps[0] : null;
+    const newest_log = timestamps.length > 0 ? timestamps[timestamps.length - 1] : null;
     
     res.json({
-      recentLogs: recentLogsResult.rows,
+      recentLogs: formattedLogs,
       glossary: glossaryResult.rows,
-      stats: statsResult.rows[0]
+      stats: {
+        total_logs: totalLogs,
+        unique_levels: uniqueLevels.size,
+        oldest_log: oldest_log,
+        newest_log: newest_log
+      }
     });
     
   } catch (error) {
     console.error('Errore ottenendo log centralizzati:', error);
-    res.status(500).json({ error: 'Errore ottenendo log centralizzati' });
+    res.status(500).json({ 
+      error: 'Errore ottenendo log centralizzati',
+      message: error.message
+    });
   }
 });
 

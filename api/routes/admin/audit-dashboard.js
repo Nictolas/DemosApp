@@ -4,6 +4,7 @@ const { validateInput } = require('../../middleware/validation');
 const AuditService = require('../../services/auditService');
 const { pool } = require('../../middleware/auth');
 const { formatAuditLogDate, formatSecurityViolationDate } = require('../../utils/dateUtils');
+const { getAuditLogs, queryAxiom } = require('../../utils/axiomQueryHelper');
 
 const router = express.Router();
 
@@ -19,93 +20,125 @@ router.get('/stats', async (req, res) => {
   try {
     const { days = 30 } = req.query;
     
-    // Statistiche generali (escludendo errori tecnici HTTP 500)
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_actions,
-        COUNT(CASE WHEN success = true THEN 1 END) as successful_actions,
-        COUNT(CASE WHEN success = false AND NOT (
-          error_message LIKE '%HTTP 500%' OR 
-          error_message LIKE '%Errore nella registrazione%' OR
-          error_message LIKE '%Internal Server Error%' OR
-          error_message LIKE '%Database Error%'
-        ) THEN 1 END) as failed_actions,
-        COUNT(CASE WHEN success = false AND (
-          error_message LIKE '%HTTP 500%' OR 
-          error_message LIKE '%Errore nella registrazione%' OR
-          error_message LIKE '%Internal Server Error%' OR
-          error_message LIKE '%Database Error%'
-        ) THEN 1 END) as technical_errors,
-        COUNT(DISTINCT user_id) as unique_users,
-        COUNT(DISTINCT action) as unique_actions,
-        COUNT(DISTINCT resource) as unique_resources
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-    `;
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le statistiche audit sono disponibili solo con Axiom abilitato'
+      });
+    }
     
-    const statsResult = await pool.query(statsQuery);
-    const stats = statsResult.rows[0];
+    const startTime = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000);
+    const endTime = new Date();
+    const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
+    
+    // Ottieni tutti gli audit logs per il periodo
+    const allLogs = await getAuditLogs({
+      startTime,
+      endTime,
+      limit: 100000 // Limite alto per statistiche
+    });
+    
+    // Calcola statistiche generali
+    const total_actions = allLogs.length;
+    const successful_actions = allLogs.filter(log => log.success === true).length;
+    const failed_actions = allLogs.filter(log => {
+      if (log.success !== false) return false;
+      const errorMsg = log.error_message || '';
+      return !errorMsg.includes('HTTP 500') && 
+             !errorMsg.includes('Errore nella registrazione') &&
+             !errorMsg.includes('Internal Server Error') &&
+             !errorMsg.includes('Database Error');
+    }).length;
+    const technical_errors = allLogs.filter(log => {
+      if (log.success !== false) return false;
+      const errorMsg = log.error_message || '';
+      return errorMsg.includes('HTTP 500') || 
+             errorMsg.includes('Errore nella registrazione') ||
+             errorMsg.includes('Internal Server Error') ||
+             errorMsg.includes('Database Error');
+    }).length;
+    
+    const unique_users = new Set(allLogs.map(log => log.user_id).filter(Boolean)).size;
+    const unique_actions = new Set(allLogs.map(log => log.action).filter(Boolean)).size;
+    const unique_resources = new Set(allLogs.map(log => log.resource).filter(Boolean)).size;
+    
+    const stats = {
+      total_actions,
+      successful_actions,
+      failed_actions,
+      technical_errors,
+      unique_users,
+      unique_actions,
+      unique_resources
+    };
     
     // Top azioni
-    const topActionsQuery = `
-      SELECT action, COUNT(*) as count
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-      GROUP BY action
-      ORDER BY count DESC
-      LIMIT 10
-    `;
-    
-    const topActionsResult = await pool.query(topActionsQuery);
+    const actionCounts = {};
+    allLogs.forEach(log => {
+      if (log.action) {
+        actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
+      }
+    });
+    const top_actions = Object.entries(actionCounts)
+      .map(([action, count]) => ({ action, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
     
     // Top risorse
-    const topResourcesQuery = `
-      SELECT resource, COUNT(*) as count
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-      GROUP BY resource
-      ORDER BY count DESC
-      LIMIT 10
-    `;
-    
-    const topResourcesResult = await pool.query(topResourcesQuery);
+    const resourceCounts = {};
+    allLogs.forEach(log => {
+      if (log.resource) {
+        resourceCounts[log.resource] = (resourceCounts[log.resource] || 0) + 1;
+      }
+    });
+    const top_resources = Object.entries(resourceCounts)
+      .map(([resource, count]) => ({ resource, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
     
     // Top utenti
-    const topUsersQuery = `
-      SELECT user_id, COUNT(*) as count
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-      GROUP BY user_id
-      ORDER BY count DESC
-      LIMIT 10
-    `;
-    
-    const topUsersResult = await pool.query(topUsersQuery);
+    const userCounts = {};
+    allLogs.forEach(log => {
+      if (log.user_id) {
+        userCounts[log.user_id] = (userCounts[log.user_id] || 0) + 1;
+      }
+    });
+    const top_users = Object.entries(userCounts)
+      .map(([user_id, count]) => ({ user_id, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
     
     // Attività per giorno
-    const dailyActivityQuery = `
-      SELECT 
-        DATE(timestamp) as date,
-        COUNT(*) as actions,
-        COUNT(CASE WHEN success = true THEN 1 END) as successful,
-        COUNT(CASE WHEN success = false THEN 1 END) as failed
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-      GROUP BY DATE(timestamp)
-      ORDER BY date DESC
-    `;
-    
-    const dailyActivityResult = await pool.query(dailyActivityQuery);
+    const dailyActivity = {};
+    allLogs.forEach(log => {
+      if (log._time) {
+        const date = new Date(log._time).toISOString().split('T')[0];
+        if (!dailyActivity[date]) {
+          dailyActivity[date] = { actions: 0, successful: 0, failed: 0 };
+        }
+        dailyActivity[date].actions++;
+        if (log.success === true) {
+          dailyActivity[date].successful++;
+        } else if (log.success === false) {
+          dailyActivity[date].failed++;
+        }
+      }
+    });
+    const daily_activity = Object.entries(dailyActivity)
+      .map(([date, stats]) => ({ date, ...stats }))
+      .sort((a, b) => b.date.localeCompare(a.date));
     
     res.json({
       success: true,
       data: {
         period_days: parseInt(days),
         general_stats: stats,
-        top_actions: topActionsResult.rows,
-        top_resources: topResourcesResult.rows,
-        top_users: topUsersResult.rows,
-        daily_activity: dailyActivityResult.rows
+        top_actions,
+        top_resources,
+        top_users,
+        daily_activity
       }
     });
     
@@ -113,7 +146,8 @@ router.get('/stats', async (req, res) => {
     console.error('❌ Errore nel recupero statistiche audit:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      message: error.message
     });
   }
 });
@@ -124,6 +158,15 @@ router.get('/stats', async (req, res) => {
  */
 router.get('/logs', async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'I log audit sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     const { 
       page = 1, 
       limit = 50, 
@@ -138,95 +181,82 @@ router.get('/logs', async (req, res) => {
     
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
-    let query = `
-      SELECT 
-        al.id, 
-        al.user_id, 
-        al.action, 
-        al.resource, 
-        al.resource_id, 
-        al.details, 
-        al.ip_address, 
-        al.user_agent, 
-        al.timestamp, 
-        al.success, 
-        al.error_message,
-        COALESCE(u.nome || ' ' || u.cognome, 'Utente Sconosciuto') as user_name
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      WHERE 1=1
-    `;
+    // Prepara filtri per Axiom
+    const startTime = from_date ? new Date(from_date) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const endTime = to_date ? new Date(to_date) : new Date();
     
-    const values = [];
-    let paramCount = 0;
+    // Ottieni audit logs da Axiom
+    const logs = await getAuditLogs({
+      userId: user_id || null,
+      action: action || null,
+      resource: resource || null,
+      success: success !== undefined ? (success === 'true') : null,
+      startTime,
+      endTime,
+      limit: parseInt(limit) * 10, // Prendi più record per filtrare search lato server
+      offset: 0
+    });
     
-    // Aggiungi filtri
-    if (user_id) {
-      paramCount++;
-      query += ` AND user_id = $${paramCount}`;
-      values.push(user_id);
-    }
-    
-    if (action) {
-      paramCount++;
-      query += ` AND action = $${paramCount}`;
-      values.push(action);
-    }
-    
-    if (resource) {
-      paramCount++;
-      query += ` AND resource = $${paramCount}`;
-      values.push(resource);
-    }
-    
-    if (success !== undefined) {
-      paramCount++;
-      query += ` AND success = $${paramCount}`;
-      values.push(success === 'true');
-    }
-    
-    if (from_date) {
-      paramCount++;
-      query += ` AND timestamp >= $${paramCount}`;
-      values.push(from_date);
-    }
-    
-    if (to_date) {
-      paramCount++;
-      query += ` AND timestamp <= $${paramCount}`;
-      values.push(to_date);
-    }
-    
+    // Applica filtro search se presente
+    let filteredLogs = logs;
     if (search) {
-      paramCount++;
-      query += ` AND (user_id ILIKE $${paramCount} OR action ILIKE $${paramCount} OR resource ILIKE $${paramCount} OR error_message ILIKE $${paramCount})`;
-      values.push(`%${search}%`);
+      const searchLower = search.toLowerCase();
+      filteredLogs = logs.filter(log => {
+        return (log.message && log.message.toLowerCase().includes(searchLower)) ||
+               (log.action && log.action.toLowerCase().includes(searchLower)) ||
+               (log.resource && log.resource.toLowerCase().includes(searchLower)) ||
+               (log.error_message && log.error_message.toLowerCase().includes(searchLower)) ||
+               (log.user_id && log.user_id.toLowerCase().includes(searchLower));
+      });
     }
     
-    // Conteggio totale per paginazione
-    const countQuery = query.replace(
-      'SELECT \n        al.id, \n        al.user_id, \n        al.action, \n        al.resource, \n        al.resource_id, \n        al.details, \n        al.ip_address, \n        al.user_agent, \n        al.timestamp, \n        al.success, \n        al.error_message,\n        COALESCE(u.nome || \' \' || u.cognome, \'Utente Sconosciuto\') as user_name',
-      'SELECT COUNT(*)'
-    );
+    // Applica paginazione
+    const paginatedLogs = filteredLogs.slice(offset, offset + parseInt(limit));
     
-    const countResult = await pool.query(countQuery, values);
-    const totalCount = parseInt(countResult.rows[0].count);
+    // Ottieni nomi utenti se necessario (per compatibilità con frontend)
+    const userIds = [...new Set(paginatedLogs.map(log => log.user_id).filter(Boolean))];
+    const userNames = {};
+    if (userIds.length > 0) {
+      try {
+        const usersResult = await pool.query(
+          'SELECT id, nome, cognome FROM users WHERE id = ANY($1)',
+          [userIds]
+        );
+        usersResult.rows.forEach(user => {
+          userNames[user.id] = `${user.nome || ''} ${user.cognome || ''}`.trim() || 'Utente Sconosciuto';
+        });
+      } catch (error) {
+        console.error('Errore recupero nomi utenti:', error);
+      }
+    }
     
-    // Query principale con paginazione
-    query += ` ORDER BY timestamp DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    values.push(parseInt(limit), offset);
+    // Formatta i log per il frontend
+    const formattedLogs = paginatedLogs.map(log => ({
+      id: log._time || Date.now().toString(), // Usa _time come ID se non c'è id
+      user_id: log.user_id,
+      action: log.action,
+      resource: log.resource,
+      resource_id: log.resource_id,
+      details: log.details || null,
+      ip_address: log.ip_address,
+      user_agent: null, // Non più disponibile (rimosso per GDPR)
+      timestamp: log._time || new Date().toISOString(),
+      success: log.success,
+      error_message: log.error_message,
+      user_name: userNames[log.user_id] || 'Utente Sconosciuto'
+    }));
     
-    const result = await pool.query(query, values);
+    const total = filteredLogs.length;
     
     res.json({
       success: true,
       data: {
-        logs: result.rows,
+        logs: formattedLogs,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: totalCount,
-          pages: Math.ceil(totalCount / parseInt(limit))
+          total,
+          total_pages: Math.ceil(total / parseInt(limit))
         }
       }
     });
@@ -281,70 +311,103 @@ router.get('/user/:userId', async (req, res) => {
  */
 router.get('/suspicious', async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Il rilevamento attività sospette è disponibile solo con Axiom abilitato'
+      });
+    }
+    
     const { days = 7 } = req.query;
+    const startTime = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000);
+    const endTime = new Date();
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    
+    // Ottieni tutti gli audit logs per il periodo
+    const allLogs = await getAuditLogs({
+      startTime,
+      endTime,
+      limit: 100000 // Limite alto per analisi
+    });
     
     // Trova utenti con molte azioni fallite
-    const failedActionsQuery = `
-      SELECT user_id, COUNT(*) as failed_count
-      FROM audit_logs 
-      WHERE success = false 
-        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-      GROUP BY user_id
-      HAVING COUNT(*) > 10
-      ORDER BY failed_count DESC
-    `;
+    const failedByUser = {};
+    allLogs.forEach(log => {
+      if (log.success === false && log.user_id) {
+        failedByUser[log.user_id] = (failedByUser[log.user_id] || 0) + 1;
+      }
+    });
+    const failed_actions = Object.entries(failedByUser)
+      .filter(([_, count]) => count > 10)
+      .map(([user_id, failed_count]) => ({ user_id, failed_count }))
+      .sort((a, b) => b.failed_count - a.failed_count);
     
-    const failedActionsResult = await pool.query(failedActionsQuery);
-    
-    // Trova utenti con molte azioni in poco tempo
-    const rapidActionsQuery = `
-      SELECT user_id, COUNT(*) as action_count
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '1 hour'
-      GROUP BY user_id
-      HAVING COUNT(*) > 50
-      ORDER BY action_count DESC
-    `;
-    
-    const rapidActionsResult = await pool.query(rapidActionsQuery);
+    // Trova utenti con molte azioni in poco tempo (ultima ora)
+    const recentLogs = allLogs.filter(log => {
+      const logTime = new Date(log._time || 0);
+      return logTime >= oneHourAgo;
+    });
+    const rapidByUser = {};
+    recentLogs.forEach(log => {
+      if (log.user_id) {
+        rapidByUser[log.user_id] = (rapidByUser[log.user_id] || 0) + 1;
+      }
+    });
+    const rapid_actions = Object.entries(rapidByUser)
+      .filter(([_, count]) => count > 50)
+      .map(([user_id, action_count]) => ({ user_id, action_count }))
+      .sort((a, b) => b.action_count - a.action_count);
     
     // Trova accessi da IP sospetti (molti utenti diversi)
-    const suspiciousIPsQuery = `
-      SELECT ip_address, COUNT(DISTINCT user_id) as unique_users, COUNT(*) as total_actions
-      FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-        AND ip_address IS NOT NULL
-      GROUP BY ip_address
-      HAVING COUNT(DISTINCT user_id) > 5
-      ORDER BY unique_users DESC, total_actions DESC
-    `;
-    
-    const suspiciousIPsResult = await pool.query(suspiciousIPsQuery);
+    const ipStats = {};
+    allLogs.forEach(log => {
+      if (log.ip_address && log.user_id) {
+        if (!ipStats[log.ip_address]) {
+          ipStats[log.ip_address] = { users: new Set(), count: 0 };
+        }
+        ipStats[log.ip_address].users.add(log.user_id);
+        ipStats[log.ip_address].count++;
+      }
+    });
+    const suspicious_ips = Object.entries(ipStats)
+      .filter(([_, stats]) => stats.users.size > 5)
+      .map(([ip_address, stats]) => ({
+        ip_address,
+        unique_users: stats.users.size,
+        total_actions: stats.count
+      }))
+      .sort((a, b) => b.unique_users - a.unique_users || b.total_actions - a.total_actions);
     
     // Trova tentativi di accesso a dati di altri utenti
-    const unauthorizedAccessQuery = `
-      SELECT user_id, resource, resource_id, COUNT(*) as access_count
-      FROM audit_logs 
-      WHERE action = 'DATA_ACCESS' 
-        AND resource = 'users'
-        AND resource_id IS NOT NULL
-        AND resource_id != user_id
-        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-      GROUP BY user_id, resource, resource_id
-      HAVING COUNT(*) > 3
-      ORDER BY access_count DESC
-    `;
-    
-    const unauthorizedAccessResult = await pool.query(unauthorizedAccessQuery);
+    const unauthorizedAccess = {};
+    allLogs.forEach(log => {
+      if (log.action === 'DATA_ACCESS' && 
+          log.resource === 'users' && 
+          log.resource_id && 
+          log.user_id &&
+          log.resource_id !== log.user_id) {
+        const key = `${log.user_id}-${log.resource_id}`;
+        unauthorizedAccess[key] = (unauthorizedAccess[key] || 0) + 1;
+      }
+    });
+    const unauthorized_access = Object.entries(unauthorizedAccess)
+      .filter(([_, count]) => count > 3)
+      .map(([key, access_count]) => {
+        const [user_id, resource_id] = key.split('-');
+        return { user_id, resource: 'users', resource_id, access_count };
+      })
+      .sort((a, b) => b.access_count - a.access_count);
     
     res.json({
       success: true,
       data: {
         period_days: parseInt(days),
-        failed_actions: failedActionsResult.rows,
-        rapid_actions: rapidActionsResult.rows,
-        suspicious_ips: suspiciousIPsResult.rows,
-        unauthorized_access: unauthorizedAccessResult.rows
+        failed_actions,
+        rapid_actions,
+        suspicious_ips,
+        unauthorized_access
       }
     });
     
@@ -352,7 +415,8 @@ router.get('/suspicious', async (req, res) => {
     console.error('❌ Errore nel rilevamento attività sospette:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      message: error.message
     });
   }
 });
@@ -363,92 +427,118 @@ router.get('/suspicious', async (req, res) => {
  */
 router.get('/violations', async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le violazioni di sicurezza sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     const { days = 7 } = req.query;
+    const startTime = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000);
+    const endTime = new Date();
     
-    // Violazioni di sicurezza (escludendo errori tecnici HTTP 500)
-    const violationsQuery = `
-      SELECT 
-        al.id,
-        al.user_id,
-        al.action,
-        al.resource,
-        al.details,
-        al.timestamp,
-        COALESCE(u.nome || ' ' || u.cognome, 'Utente Sconosciuto') as user_name,
-        CASE 
-          WHEN al.action LIKE '%FAILED%' OR al.action LIKE '%ERROR%' THEN 'Critical'
-          WHEN al.action LIKE '%WARNING%' THEN 'High'
-          ELSE 'Medium'
-        END as severity
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      WHERE al.success = false 
-        AND al.timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-        AND NOT (
-          al.error_message LIKE '%HTTP 500%' OR 
-          al.error_message LIKE '%Errore nella registrazione%' OR
-          al.error_message LIKE '%Internal Server Error%' OR
-          al.error_message LIKE '%Database Error%'
-        )
-        AND (
-          al.action LIKE '%SECURITY%' OR 
-          al.action LIKE '%AUTH%' OR 
-          al.action LIKE '%PERMISSION%' OR
-          al.error_message LIKE '%Unauthorized%' OR
-          al.error_message LIKE '%Forbidden%' OR
-          al.error_message LIKE '%Invalid credentials%' OR
-          al.error_message LIKE '%Access denied%' OR
-          al.error_message LIKE '%Token expired%' OR
-          al.error_message LIKE '%Invalid token%'
-        )
-      ORDER BY al.timestamp DESC
-      LIMIT 20
-    `;
+    // Ottieni tutti gli audit logs falliti per il periodo
+    const allLogs = await getAuditLogs({
+      success: false,
+      startTime,
+      endTime,
+      limit: 10000 // Limite alto per analisi violazioni
+    });
     
-    const violationsResult = await pool.query(violationsQuery);
+    // Filtra violazioni di sicurezza (escludendo errori tecnici HTTP 500)
+    const violations = allLogs.filter(log => {
+      const errorMsg = (log.error_message || '').toLowerCase();
+      const action = (log.action || '').toUpperCase();
+      
+      // Escludi errori tecnici
+      if (errorMsg.includes('http 500') || 
+          errorMsg.includes('errore nella registrazione') ||
+          errorMsg.includes('internal server error') ||
+          errorMsg.includes('database error')) {
+        return false;
+      }
+      
+      // Includi solo violazioni di sicurezza
+      return action.includes('SECURITY') || 
+             action.includes('AUTH') || 
+             action.includes('PERMISSION') ||
+             errorMsg.includes('unauthorized') ||
+             errorMsg.includes('forbidden') ||
+             errorMsg.includes('invalid credentials') ||
+             errorMsg.includes('access denied') ||
+             errorMsg.includes('token expired') ||
+             errorMsg.includes('invalid token');
+    });
     
-    // Conteggio violazioni per tipo (escludendo errori tecnici HTTP 500)
-    const violationStatsQuery = `
-      SELECT 
-        COUNT(*) as total_violations,
-        COUNT(CASE WHEN action LIKE '%FAILED%' OR action LIKE '%ERROR%' THEN 1 END) as critical_issues,
-        COUNT(CASE WHEN action LIKE '%WARNING%' THEN 1 END) as high_issues,
-        COUNT(CASE WHEN action LIKE '%SECURITY%' THEN 1 END) as security_violations
-      FROM audit_logs 
-      WHERE success = false 
-        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-        AND NOT (
-          error_message LIKE '%HTTP 500%' OR 
-          error_message LIKE '%Errore nella registrazione%' OR
-          error_message LIKE '%Internal Server Error%' OR
-          error_message LIKE '%Database Error%'
-        )
-        AND (
-          action LIKE '%SECURITY%' OR 
-          action LIKE '%AUTH%' OR 
-          action LIKE '%PERMISSION%' OR
-          error_message LIKE '%Unauthorized%' OR
-          error_message LIKE '%Forbidden%' OR
-          error_message LIKE '%Invalid credentials%' OR
-          error_message LIKE '%Access denied%' OR
-          error_message LIKE '%Token expired%' OR
-          error_message LIKE '%Invalid token%'
-        )
-    `;
+    // Ordina per timestamp e limita a 20
+    const sortedViolations = violations
+      .sort((a, b) => new Date(b._time || 0) - new Date(a._time || 0))
+      .slice(0, 20);
     
-    const statsResult = await pool.query(violationStatsQuery);
+    // Ottieni nomi utenti
+    const userIds = [...new Set(sortedViolations.map(v => v.user_id).filter(Boolean))];
+    const userNames = {};
+    if (userIds.length > 0) {
+      try {
+        const usersResult = await pool.query(
+          'SELECT id, nome, cognome FROM users WHERE id = ANY($1)',
+          [userIds]
+        );
+        usersResult.rows.forEach(user => {
+          userNames[user.id] = `${user.nome || ''} ${user.cognome || ''}`.trim() || 'Utente Sconosciuto';
+        });
+      } catch (error) {
+        console.error('Errore recupero nomi utenti:', error);
+      }
+    }
+    
+    // Formatta violazioni
+    const formattedViolations = sortedViolations.map(v => {
+      const action = (v.action || '').toUpperCase();
+      let severity = 'Medium';
+      if (action.includes('FAILED') || action.includes('ERROR')) {
+        severity = 'Critical';
+      } else if (action.includes('WARNING')) {
+        severity = 'High';
+      }
+      
+      return {
+        id: v._time || Date.now().toString(),
+        type: v.action,
+        user: userNames[v.user_id] || 'Utente Sconosciuto',
+        timestamp: formatSecurityViolationDate(v._time || new Date().toISOString()),
+        severity
+      };
+    });
+    
+    // Calcola statistiche
+    const total_violations = violations.length;
+    const critical_issues = violations.filter(v => {
+      const action = (v.action || '').toUpperCase();
+      return action.includes('FAILED') || action.includes('ERROR');
+    }).length;
+    const high_issues = violations.filter(v => {
+      const action = (v.action || '').toUpperCase();
+      return action.includes('WARNING');
+    }).length;
+    const security_violations = violations.filter(v => {
+      const action = (v.action || '').toUpperCase();
+      return action.includes('SECURITY');
+    }).length;
     
     res.json({
       success: true,
       data: {
-        violations: violationsResult.rows.map(v => ({
-          id: v.id,
-          type: v.action,
-          user: v.user_name,
-          timestamp: formatSecurityViolationDate(v.timestamp),
-          severity: v.severity
-        })),
-        stats: statsResult.rows[0]
+        violations: formattedViolations,
+        stats: {
+          total_violations,
+          critical_issues,
+          high_issues,
+          security_violations
+        }
       }
     });
     
@@ -456,7 +546,8 @@ router.get('/violations', async (req, res) => {
     console.error('❌ Errore nel recupero violazioni:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      message: error.message
     });
   }
 });
@@ -467,26 +558,49 @@ router.get('/violations', async (req, res) => {
  */
 router.get('/performance', async (req, res) => {
   try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({
+        success: false,
+        error: 'Axiom non abilitato',
+        message: 'Le metriche di performance sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
     // Per ora restituiamo un array vuoto - in futuro si potrebbero integrare monitoring tools reali
     const performanceData = [];
     
-    // Statistiche di logging
-    const loggingStatsQuery = `
-      SELECT 
-        COUNT(*) as total_logs,
-        COUNT(CASE WHEN success = true THEN 1 END) as successful_logs,
-        COUNT(CASE WHEN success = false THEN 1 END) as error_logs,
-        COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 day' THEN 1 END) as today_logs
-      FROM audit_logs
-    `;
+    // Statistiche di logging da Axiom
+    const startTime = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // Ultimo anno
+    const endTime = new Date();
+    const todayStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    const loggingResult = await pool.query(loggingStatsQuery);
+    const allLogs = await getAuditLogs({
+      startTime,
+      endTime,
+      limit: 100000 // Limite alto per statistiche
+    });
+    
+    const todayLogs = allLogs.filter(log => {
+      const logTime = new Date(log._time || 0);
+      return logTime >= todayStart;
+    });
+    
+    const total_logs = allLogs.length;
+    const successful_logs = allLogs.filter(log => log.success === true).length;
+    const error_logs = allLogs.filter(log => log.success === false).length;
+    const today_logs = todayLogs.length;
     
     res.json({
       success: true,
       data: {
         performance: performanceData,
-        logging: loggingResult.rows[0]
+        logging: {
+          total_logs,
+          successful_logs,
+          error_logs,
+          today_logs
+        }
       }
     });
     
@@ -494,7 +608,8 @@ router.get('/performance', async (req, res) => {
     console.error('❌ Errore nel recupero performance:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      message: error.message
     });
   }
 });
@@ -505,6 +620,15 @@ router.get('/performance', async (req, res) => {
  */
 router.post('/cleanup', async (req, res) => {
   try {
+    // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
+    if (process.env.AXIOM_ENABLED === 'true') {
+      return res.json({
+        success: true,
+        message: 'Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Non è necessario pulire manualmente.',
+        deleted_count: 0
+      });
+    }
+    
     const { daysToKeep = 365 } = req.body;
     
     const deletedCount = await AuditService.cleanupOldLogs(parseInt(daysToKeep));
@@ -519,7 +643,8 @@ router.post('/cleanup', async (req, res) => {
     console.error('❌ Errore nella pulizia log audit:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      message: error.message
     });
   }
 });
