@@ -123,7 +123,7 @@ const InformaCittadiniCard = React.memo(({
     <>
       <div className="space-y-2">
         <label className="text-sm font-medium">Tipologia *</label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
           {INFORMA_TIPOLOGIE.map((tipo) => (
             <Button
               key={tipo.value}
@@ -174,7 +174,7 @@ const InformaCittadiniCard = React.memo(({
                 setIsDialogOpen(true);
               }}
             >
-              <span className="text-2xl leading-none">{tipo.emoji}</span>
+              <span className="text-3xl leading-none">{tipo.emoji}</span>
               <span className="text-[11px] text-center leading-snug break-words whitespace-normal">
                 {tipo.value}
               </span>
