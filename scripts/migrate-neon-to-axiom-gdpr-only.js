@@ -159,11 +159,55 @@ async function migrateNeonToAxiomGDPROnly() {
       return;
     }
     
-    // Step 4: Estrai e migra record in batch
-    console.log('\n📤 Step 4: Migrazione record (solo campi GDPR)...');
+    // Step 4: Estrai record esistenti da Axiom per evitare duplicati
+    console.log('\n🔍 Step 4: Estrazione record esistenti da Axiom per evitare duplicati...');
+    const existingKeys = new Set();
+    
+    try {
+      // Estrai tutti i record esistenti (con limit per performance)
+      const existingQuery = `['${dataset}'] | limit 100000`;
+      const existingResult = await axiomClient.query(existingQuery, {
+        startTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        endTime: new Date(),
+        timeout: 300000
+      });
+      
+      let existingRecords = [];
+      if (existingResult.matches && Array.isArray(existingResult.matches)) {
+        existingRecords = existingResult.matches;
+      } else if (existingResult.buckets && Array.isArray(existingResult.buckets)) {
+        existingRecords = existingResult.buckets.flatMap(b => b.rows || b.data || []);
+      } else if (existingResult.data?.rows && Array.isArray(existingResult.data.rows)) {
+        existingRecords = existingResult.data.rows;
+      } else if (existingResult.rows && Array.isArray(existingResult.rows)) {
+        existingRecords = existingResult.rows;
+      }
+      
+      // Crea chiavi uniche per i record esistenti
+      // Chiave: _time + message + user_id + ip_address
+      existingRecords.forEach(record => {
+        const data = record.data || record;
+        const time = record._time || data._time || '';
+        const message = (data.message || '').toString();
+        const userId = (data.user_id || '').toString();
+        const ipAddress = (data.ip_address || '').toString();
+        const key = `${time}|${message}|${userId}|${ipAddress}`;
+        existingKeys.add(key);
+      });
+      
+      console.log(`✅ Trovati ${existingKeys.size.toLocaleString('it-IT')} record esistenti su Axiom`);
+      console.log(`   ⚠️ Questi record verranno saltati per evitare duplicati\n`);
+    } catch (existingErr) {
+      console.log(`⚠️ Impossibile estrarre record esistenti: ${existingErr.message}`);
+      console.log(`   ⚠️ Procedo comunque con la migrazione (potrebbero esserci duplicati)\n`);
+    }
+    
+    // Step 5: Estrai e migra record in batch (solo quelli non presenti)
+    console.log('📤 Step 5: Migrazione record (solo campi GDPR, senza duplicati)...');
     const batchSize = 1000;
     let offset = 0;
     let migrated = 0;
+    let skipped = 0;
     let batches = 0;
     
     while (offset < totalRecords) {
@@ -189,7 +233,9 @@ async function migrateNeonToAxiomGDPROnly() {
       }
       
       // Converti record Neon in formato Axiom (solo campi GDPR)
-      const axiomRecords = result.rows.map(row => {
+      const axiomRecords = [];
+      
+      for (const row of result.rows) {
         // Converti timestamp BIGINT a ISO string
         let timestamp;
         try {
@@ -211,48 +257,103 @@ async function migrateNeonToAxiomGDPROnly() {
         };
         const level = levelMap[row.level] || row.level || 'INFO';
         
+        // Crea chiave unica per questo record
+        const message = (row.message || '').toString();
+        const userId = (row.user_id || '').toString();
+        const ipAddress = (row.ip_address || '').toString();
+        const uniqueKey = `${timestamp}|${message}|${userId}|${ipAddress}`;
+        
+        // Verifica se il record esiste già su Axiom
+        if (existingKeys.has(uniqueKey)) {
+          skipped++;
+          continue; // Salta questo record
+        }
+        
         // Crea record con SOLO campi GDPR obbligatori
+        // NOTA: Axiom richiede che _time sia una stringa ISO 8601
         const record = {
           _time: timestamp,
           level: level,
-          message: row.message || '',
+          message: message,
           log_type: 'application'
         };
         
-        // Aggiungi solo campi GDPR se presenti
-        if (row.user_id) record.user_id = row.user_id;
-        if (row.ip_address) record.ip_address = row.ip_address;
-        if (row.endpoint) record.endpoint = row.endpoint;
-        if (row.session_id) record.session_id = row.session_id;
-        if (row.user_agent) record.user_agent = row.user_agent;
+        // Aggiungi solo campi GDPR se presenti (anche se null, per mantenere struttura)
+        record.user_id = row.user_id || null;
+        record.ip_address = row.ip_address || null;
+        record.endpoint = row.endpoint || null;
+        record.session_id = row.session_id || null;
+        record.user_agent = row.user_agent || null;
         
-        return record;
-      });
+        // NOTA: NON includiamo request_id (non GDPR obbligatorio)
+        
+        axiomRecords.push(record);
+      }
       
-      // Invia batch ad Axiom
-      try {
-        await axios.post(
-          `${edgeUrl}/v1/ingest/${dataset}`,
-          axiomRecords,
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
-              'Content-Type': 'application/json',
-              'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
-            },
-            timeout: 60000
+      // Invia batch ad Axiom solo se ci sono record da inviare
+      if (axiomRecords.length > 0) {
+        try {
+          const response = await axios.post(
+            `${edgeUrl}/v1/ingest/${dataset}`,
+            axiomRecords,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.AXIOM_API_TOKEN}`,
+                'Content-Type': 'application/json',
+                'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+              },
+              timeout: 60000
+            }
+          );
+          
+          // Verifica risposta
+          if (response.status === 200 || response.status === 204) {
+            // Verifica se ci sono errori nella risposta
+            if (response.data) {
+              const ingested = response.data.ingested || 0;
+              const failed = response.data.failed || 0;
+              
+              if (failed > 0) {
+                console.error(`⚠️ Batch ${batches}: ${failed} record falliti su ${axiomRecords.length}`);
+                if (response.data.failures && response.data.failures.length > 0) {
+                  console.error(`   Errori:`, JSON.stringify(response.data.failures.slice(0, 3), null, 2)); // Mostra primi 3 errori
+                }
+              }
+              
+              if (ingested > 0) {
+                migrated += ingested;
+                if (batches % 10 === 0 || offset + batchSize >= totalRecords) {
+                  console.log(`   ✅ Batch ${batches}: ${ingested}/${axiomRecords.length} record ingeriti (failed: ${failed}), ${skipped} saltati (totale migrati: ${migrated.toLocaleString('it-IT')}, saltati: ${skipped.toLocaleString('it-IT')})`);
+                }
+              } else {
+                migrated += axiomRecords.length; // Fallback se ingested non è presente
+                if (batches % 10 === 0 || offset + batchSize >= totalRecords) {
+                  console.log(`   ✅ Batch ${batches}: ${axiomRecords.length} record inviati (status: ${response.status}, response: ${JSON.stringify(response.data)}), ${skipped} saltati (totale migrati: ${migrated.toLocaleString('it-IT')}, saltati: ${skipped.toLocaleString('it-IT')})`);
+                }
+              }
+            } else {
+              migrated += axiomRecords.length;
+              if (batches % 10 === 0 || offset + batchSize >= totalRecords) {
+                console.log(`   ✅ Batch ${batches}: ${axiomRecords.length} record inviati (status: ${response.status}, no response data), ${skipped} saltati (totale migrati: ${migrated.toLocaleString('it-IT')}, saltati: ${skipped.toLocaleString('it-IT')})`);
+              }
+            }
+            
+            batches++;
+          } else {
+            console.error(`⚠️ Batch ${batches}: Risposta inattesa (status: ${response.status})`);
+            console.error(`   Response data:`, response.data);
           }
-        );
-        
-        migrated += axiomRecords.length;
-        batches++;
-        
-        if (batches % 10 === 0 || offset + batchSize >= totalRecords) {
-          console.log(`   ✅ Batch ${batches}: ${axiomRecords.length} record inviati (totale: ${migrated.toLocaleString('it-IT')}/${totalRecords.toLocaleString('it-IT')})`);
+        } catch (ingestErr) {
+          console.error(`❌ Errore ingest batch ${batches}:`, ingestErr.response?.status, ingestErr.response?.data || ingestErr.message);
+          console.error(`   Batch size: ${axiomRecords.length}`);
+          console.error(`   Primo record:`, JSON.stringify(axiomRecords[0], null, 2));
+          throw ingestErr;
         }
-      } catch (ingestErr) {
-        console.error(`❌ Errore ingest batch ${batches}:`, ingestErr.response?.status, ingestErr.response?.data || ingestErr.message);
-        throw ingestErr;
+      } else {
+        // Nessun record da inviare in questo batch (tutti duplicati)
+        if (offset + batchSize >= totalRecords || skipped % 1000 === 0) {
+          console.log(`   ⏭️  Batch ${Math.floor(offset / batchSize) + 1}: Tutti i record sono già presenti (saltati: ${skipped.toLocaleString('it-IT')})`);
+        }
       }
       
       offset += batchSize;
@@ -260,8 +361,13 @@ async function migrateNeonToAxiomGDPROnly() {
     
     console.log(`\n✅ Migrazione completata!`);
     console.log(`   Record migrati: ${migrated.toLocaleString('it-IT')}`);
+    console.log(`   Record saltati (già presenti): ${skipped.toLocaleString('it-IT')}`);
     console.log(`   Batch inviati: ${batches}`);
     console.log(`   Campi inclusi: ${GDPR_REQUIRED_FIELDS.join(', ')}`);
+    
+    if (skipped > 0) {
+      console.log(`\n✅ Nessun duplicato generato: ${skipped.toLocaleString('it-IT')} record già presenti sono stati saltati`);
+    }
     
   } catch (error) {
     console.error('\n❌ Errore durante la migrazione:', error.message);
