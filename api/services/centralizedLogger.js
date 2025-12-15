@@ -157,20 +157,20 @@ class CentralizedLogger {
 
       // Anonimizza se richiesto (GDPR)
       if (process.env.AXIOM_ANONYMIZE === 'true') {
-        // Anonimizza IP (solo rete)
-        if (logEntry.ipAddress) {
-          const parts = logEntry.ipAddress.split('.');
+        // Anonimizza IP (solo rete) - usa ip_address (con underscore)
+        if (logEntry.ip_address) {
+          const parts = logEntry.ip_address.split('.');
           if (parts.length === 4) {
-            logEntry.ipAddress = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+            logEntry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
           }
         }
         
-        // Hash user_id se richiesto
-        if (logEntry.userId && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
+        // Hash user_id se richiesto - usa user_id (con underscore)
+        if (logEntry.user_id && process.env.AXIOM_ANONYMIZE_USER_ID === 'true') {
           const crypto = require('crypto');
-          logEntry.userId = crypto
+          logEntry.user_id = crypto
             .createHash('sha256')
-            .update(logEntry.userId + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
+            .update(logEntry.user_id + (process.env.EXPORT_HASH_SALT || 'axiom-salt'))
             .digest('hex')
             .substring(0, 16);
         }
