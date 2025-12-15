@@ -61,9 +61,12 @@ const INFORMA_TIPOLOGIE = [
   { value: "Sciopero servizio raccolta rifiuti", emoji: "🚛" },
   { value: "Blocco del traffico per inquinamento (PM10)", emoji: "🌫️" },
   { value: "Chiusura parchi pubblici per vento forte", emoji: "🌳" },
-  { value: "Ordinanze urgenti (es. divieto botti, divieto vendita alcolici)", emoji: "📋" },
-  { value: "Scadenze fiscali (IMU, TARI)", emoji: "💰" },
-  { value: "Apertura iscrizioni servizi scolastici (Mensa, Scuolabus, Nido)", emoji: "🎓" },
+  { value: "Divieto Botti", emoji: "🎆" },
+  { value: "Divieto vendita alcolici", emoji: "🚫🍺" },
+  { value: "Scadenza IMU", emoji: "🏠" },
+  { value: "Scadenza TARI", emoji: "🧾" },
+  { value: "Scadenza iscrizione Mensa", emoji: "🍽️" },
+  { value: "Scadenza iscrizione Scuolabus", emoji: "🚌" },
   { value: "Pubblicazione Bandi e Concorsi", emoji: "📢" },
   { value: "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)", emoji: "🚨" },
   { value: "Ritrovamento ordigni bellici (Evacuazione)", emoji: "⚠️" },
@@ -129,7 +132,7 @@ const InformaCittadiniCard = React.memo(({
               key={tipo.value}
               type="button"
               variant="outline"
-              className={`h-20 rounded-2xl border-0 bg-gradient-to-br text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
+              className={`min-h-[5.5rem] rounded-2xl border-0 bg-gradient-to-br text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
                 ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}
                 ${(() => {
                   switch (tipo.value) {
