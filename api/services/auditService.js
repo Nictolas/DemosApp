@@ -418,6 +418,13 @@ class AuditService {
    */
   static async cleanupOldLogs(daysToKeep = 365) {
     try {
+      // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        console.log(`ℹ️  Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Retention: ${daysToKeep} giorni`);
+        return 0; // Non è necessario pulire manualmente
+      }
+      
+      // Fallback a Neon se Axiom non è abilitato
       const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000); // Converti in millisecondi
       const query = `
         DELETE FROM audit_logs_compressed 
