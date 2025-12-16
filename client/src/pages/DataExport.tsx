@@ -75,6 +75,7 @@ interface DatabaseAnalysis {
         columnCount: number;
       }>;
       totalSizeMB: number;
+      totalSizeKB: number;
       percentage: number;
       color: string;
     };
@@ -87,6 +88,7 @@ interface DatabaseAnalysis {
         columnCount: number;
       }>;
       totalSizeMB: number;
+      totalSizeKB: number;
       percentage: number;
       color: string;
     };
@@ -99,6 +101,7 @@ interface DatabaseAnalysis {
         columnCount: number;
       }>;
       totalSizeMB: number;
+      totalSizeKB: number;
       percentage: number;
       color: string;
     };
@@ -111,6 +114,7 @@ interface DatabaseAnalysis {
         columnCount: number;
       }>;
       totalSizeMB: number;
+      totalSizeKB: number;
       percentage: number;
       color: string;
     };
@@ -123,6 +127,7 @@ interface DatabaseAnalysis {
         columnCount: number;
       }>;
       totalSizeMB: number;
+      totalSizeKB: number;
       percentage: number;
       color: string;
     };
@@ -823,7 +828,8 @@ export default function DataExport() {
   const getAggregateStats = () => {
     if (!databaseAnalysis || !axiomAnalysis) return null;
 
-    const neonTotal = databaseAnalysis.categories.exportable.totalSizeMB;
+    // Usa il totale del database, non solo le tabelle exportable
+    const neonTotal = databaseAnalysis?.totalDatabaseSizeMB || databaseAnalysis?.categories?.exportable?.totalSizeMB || 0;
     const axiomTotalEvents = axiomAnalysis.totalEvents;
     const axiomTotalMB = axiomAnalysis.totalDataSizeMB || 0;
     // Stima record su Neon basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
@@ -1140,10 +1146,10 @@ export default function DataExport() {
                       <Database className="h-5 w-5 text-blue-600" />
                     </div>
                     <div className="text-2xl font-bold text-blue-900">
-                      {databaseAnalysis?.categories.exportable.totalSizeMB.toLocaleString('it-IT')} MB
+                      {databaseAnalysis?.totalDatabaseSizeMB?.toLocaleString('it-IT') || '0'} MB
                     </div>
                     <div className="text-xs text-blue-600 mt-1">
-                      {databaseAnalysis?.categories.exportable.tables.length} tabelle
+                      Database completo
                     </div>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -1282,8 +1288,8 @@ export default function DataExport() {
                               <div className="text-right">
                                 <div className="font-semibold">
                                   {category.totalSizeMB > 0 ? 
-                                    category.totalSizeMB + ' MB' : 
-                                    '0 MB'
+                                    category.totalSizeMB.toFixed(2) + ' MB' : 
+                                    (category.totalSizeKB > 0 ? category.totalSizeKB.toFixed(2) + ' kB' : '0 MB')
                                   }
                                 </div>
                                 <div className="text-sm text-gray-600">{category.percentage}%</div>

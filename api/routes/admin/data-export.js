@@ -804,8 +804,9 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
     // Categorizza ogni tabella
     for (const table of tablesResult.rows) {
       const tableSizeBytes = parseInt(table.size_bytes);
-      const tableSizeMB = Math.round(tableSizeBytes / 1024 / 1024);
-      const tableSizeKB = Math.round(tableSizeBytes / 1024);
+      // Calcola MB con decimali per precisione (arrotonda a 2 decimali)
+      const tableSizeMB = Math.round((tableSizeBytes / 1024 / 1024) * 100) / 100;
+      const tableSizeKB = Math.round((tableSizeBytes / 1024) * 100) / 100;
       const tableInfo = {
         name: table.tablename,
         sizeMB: tableSizeMB,
@@ -816,24 +817,24 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
 
       if (exportableTables.includes(table.tablename)) {
         analysis.categories.exportable.tables.push(tableInfo);
-        analysis.categories.exportable.totalSizeMB += tableSizeMB;
-        analysis.categories.exportable.totalSizeKB += tableSizeKB;
+        analysis.categories.exportable.totalSizeMB = Math.round((analysis.categories.exportable.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.exportable.totalSizeKB = Math.round((analysis.categories.exportable.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users' || table.tablename.includes('utente') || table.tablename === 'opinioni') {
         analysis.categories.users.tables.push(tableInfo);
-        analysis.categories.users.totalSizeMB += tableSizeMB;
-        analysis.categories.users.totalSizeKB += tableSizeKB;
+        analysis.categories.users.totalSizeMB = Math.round((analysis.categories.users.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.users.totalSizeKB = Math.round((analysis.categories.users.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename.includes('candidate') || table.tablename.includes('election') || 
                  table.tablename.includes('rappresentante')) {
         analysis.categories.content.tables.push(tableInfo);
-        analysis.categories.content.totalSizeMB += tableSizeMB;
-        analysis.categories.content.totalSizeKB += tableSizeKB;
+        analysis.categories.content.totalSizeMB = Math.round((analysis.categories.content.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.content.totalSizeKB = Math.round((analysis.categories.content.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename.includes('migration') || table.tablename.includes('session') || table.tablename.includes('cache') ||
                  table.tablename.includes('security') || table.tablename.includes('audit') || table.tablename.includes('performance') ||
                  table.tablename.includes('health') || table.tablename.includes('rate_limit') || table.tablename.includes('validation') ||
                  table.tablename.includes('active_sessions') || table.tablename.includes('suspicious_ips') || table.tablename.includes('security_config')) {
         analysis.categories.system.tables.push(tableInfo);
-        analysis.categories.system.totalSizeMB += tableSizeMB;
-        analysis.categories.system.totalSizeKB += tableSizeKB;
+        analysis.categories.system.totalSizeMB = Math.round((analysis.categories.system.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.system.totalSizeKB = Math.round((analysis.categories.system.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename === 'voti_istruzione' || table.tablename === 'voti_interno' || 
                  table.tablename === 'voti_difesa' || table.tablename === 'voti_giustizia' ||
                  table.tablename === 'voti_economia' || table.tablename === 'voti_esteri' ||
@@ -844,8 +845,8 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
                  table.tablename === 'consenso_governo') {
         // Tabelle specifiche per i ministeri
         analysis.categories.ministries.tables.push(tableInfo);
-        analysis.categories.ministries.totalSizeMB += tableSizeMB;
-        analysis.categories.ministries.totalSizeKB += tableSizeKB;
+        analysis.categories.ministries.totalSizeMB = Math.round((analysis.categories.ministries.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.ministries.totalSizeKB = Math.round((analysis.categories.ministries.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename === 'iniziative_popolari' || table.tablename === 'voti_iniziative_popolari' ||
                  table.tablename === 'voti_ice' || table.tablename === 'ice' ||
                  table.tablename === 'amnistia' || table.tablename === 'voti_opinioni_proposte' ||
@@ -856,15 +857,15 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
                  table.tablename === 'consenso_capo_stato') {
         // Tabelle per i voti
         analysis.categories.votes.tables.push(tableInfo);
-        analysis.categories.votes.totalSizeMB += tableSizeMB;
-        analysis.categories.votes.totalSizeKB += tableSizeKB;
+        analysis.categories.votes.totalSizeMB = Math.round((analysis.categories.votes.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.votes.totalSizeKB = Math.round((analysis.categories.votes.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename === 'reazioni' || table.tablename === 'programmi' ||
                  table.tablename === 'sostenitori' || table.tablename === 'eventi' ||
                  table.tablename === 'comunicazioni' || table.tablename === 'segnalazioni') {
         // Tabelle per strumenti
         analysis.categories.tools.tables.push(tableInfo);
-        analysis.categories.tools.totalSizeMB += tableSizeMB;
-        analysis.categories.tools.totalSizeKB += tableSizeKB;
+        analysis.categories.tools.totalSizeMB = Math.round((analysis.categories.tools.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.tools.totalSizeKB = Math.round((analysis.categories.tools.totalSizeKB + tableSizeKB) * 100) / 100;
       } else if (table.tablename.includes('voti_') || table.tablename.includes('vote') || 
                  table.tablename.includes('voting') || table.tablename.includes('ballot')) {
         // Altre tabelle di voto (non ministeri)
@@ -874,8 +875,8 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
       } else {
         // Solo tabelle veramente temporanee o non categorizzabili
         analysis.categories.other.tables.push(tableInfo);
-        analysis.categories.other.totalSizeMB += tableSizeMB;
-        analysis.categories.other.totalSizeKB += tableSizeKB;
+        analysis.categories.other.totalSizeMB = Math.round((analysis.categories.other.totalSizeMB + tableSizeMB) * 100) / 100;
+        analysis.categories.other.totalSizeKB = Math.round((analysis.categories.other.totalSizeKB + tableSizeKB) * 100) / 100;
       }
     }
 
