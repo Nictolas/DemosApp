@@ -241,8 +241,22 @@ router.post('/salva', async (req, res) => {
     const existingOpinionIds = new Set(checkOpinionsResult.rows.map(row => row.id));
     
     console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
+    console.log(`🔍 DEBUG - ID opinioni da verificare:`, opinionIdsToCheck);
     console.log(`🔍 DEBUG - Opinion esistenti nel DB: ${existingOpinionIds.size}`);
     console.log(`🔍 DEBUG - Opinion esistenti:`, Array.from(existingOpinionIds));
+    
+    // Verifica anche quali colonne esistono in opinioni_risposte
+    const checkColumnsQuery = `
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id'
+      AND column_name != 'fonti_opinioni'
+      AND column_name = ANY($1::text[])
+    `;
+    const checkColumnsResult = await pool.query(checkColumnsQuery, [opinionIdsToCheck]);
+    const existingColumns = new Set(checkColumnsResult.rows.map(row => row.column_name));
+    console.log(`🔍 DEBUG - Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
@@ -254,12 +268,21 @@ router.post('/salva', async (req, res) => {
         // Se non esiste nel database, prova il mapping (per compatibilità con vecchie opinioni)
         dbField = opinionMapping[opinionId];
         if (!dbField) {
-          console.warn(`⚠️ Campo non mappato e non trovato nel DB: ${opinionId}`);
-          unmappedOpinions.push(opinionId);
-          errorCount++;
-          continue;
+          // Verifica se esiste una colonna con questo nome nella tabella opinioni_risposte
+          if (existingColumns.has(opinionId)) {
+            console.log(`✅ Colonna trovata in opinioni_risposte (ma non in opinioni_domande): ${opinionId}`);
+            dbField = opinionId; // Usa l'ID direttamente se la colonna esiste
+          } else {
+            console.warn(`⚠️ Campo non mappato e non trovato nel DB: ${opinionId}`);
+            console.warn(`⚠️ ID opinioni esistenti nel DB:`, Array.from(existingOpinionIds));
+            console.warn(`⚠️ Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
+            unmappedOpinions.push(opinionId);
+            errorCount++;
+            continue;
+          }
+        } else {
+          console.log(`ℹ️ Usato mapping per opinione: ${opinionId} -> ${dbField}`);
         }
-        console.log(`ℹ️ Usato mapping per opinione: ${opinionId} -> ${dbField}`);
       } else {
         console.log(`✅ Opinione trovata nel DB: ${opinionId}`);
       }
