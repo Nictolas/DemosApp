@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { vibrateShort } from "@/utils/vibration";
+import { PoliticalOpinionsConsentModal } from "@/components/PoliticalOpinionsConsentModal";
 
 interface Question {
   id: string;
@@ -51,6 +52,8 @@ export default function OpinioniNazionali() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
@@ -138,16 +141,6 @@ export default function OpinioniNazionali() {
   };
 
   const handleSave = () => {
-    // Verifica consenso opinioni politiche (GDPR Art. 9)
-    if (!hasConsent) {
-      toast({
-        title: "Consenso richiesto",
-        description: "Devi accettare il consenso al trattamento delle opinioni politiche durante la registrazione per salvare le tue opinioni. Puoi concederlo dalle impostazioni GDPR.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     console.log('🔍 DEBUG handleSave:');
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
@@ -170,8 +163,27 @@ export default function OpinioniNazionali() {
       return;
     }
     
+    // Verifica consenso opinioni politiche (GDPR Art. 9)
+    if (!hasConsent) {
+      // Salva le opinioni da salvare in uno stato temporaneo
+      setPendingOpinionsToSave(opinionsToSave);
+      // Apri il dialog del consenso
+      setShowConsentDialog(true);
+      return;
+    }
+    
     console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
+  };
+
+  // Funzione chiamata quando il consenso viene concesso
+  const handleConsentGranted = () => {
+    // Dopo che il consenso è stato concesso, salva le opinioni in attesa
+    if (pendingOpinionsToSave) {
+      console.log('✅ DEBUG: Consenso concesso, procedo con il salvataggio delle opinioni');
+      saveMutation.mutate(pendingOpinionsToSave);
+      setPendingOpinionsToSave(null);
+    }
   };
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -280,6 +292,13 @@ export default function OpinioniNazionali() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog per il consenso alle opinioni politiche */}
+      <PoliticalOpinionsConsentModal
+        open={showConsentDialog}
+        onOpenChange={setShowConsentDialog}
+        onConsentGranted={handleConsentGranted}
+      />
     </div>
   );
 }
