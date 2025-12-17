@@ -181,13 +181,42 @@ export default function OpinioniNazionali() {
     // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
       console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
+      console.log('✅ DEBUG: Opinion in attesa da salvare:', pendingOpinionsToSave);
+      console.log('✅ DEBUG: Numero opinioni in attesa:', Object.keys(pendingOpinionsToSave).length);
+      
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
+      
+      // Ricostruisci le opinioni da salvare includendo tutte le opinioni correnti
+      // Questo assicura che anche le opinioni modificate dopo aver aperto il dialog vengano incluse
+      const allOpinionsToSave: Record<string, string> = {};
+      questions.forEach(question => {
+        // Usa l'opinione corrente se disponibile, altrimenti quella in attesa
+        const currentOpinion = opinions[question.id] || pendingOpinionsToSave[question.id];
+        if (currentOpinion && currentOpinion !== 'Astenuto') {
+          allOpinionsToSave[question.id] = currentOpinion;
+        }
+      });
+      
+      console.log('✅ DEBUG: Opinion finali da salvare (dopo ricostruzione):', allOpinionsToSave);
+      console.log('✅ DEBUG: Numero opinioni finali:', Object.keys(allOpinionsToSave).length);
+      
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
       setTimeout(() => {
-        saveMutation.mutate(pendingOpinionsToSave);
+        // Verifica che le opinioni siano ancora valide
+        if (allOpinionsToSave && Object.keys(allOpinionsToSave).length > 0) {
+          console.log('✅ DEBUG: Invio opinioni al backend:', allOpinionsToSave);
+          saveMutation.mutate(allOpinionsToSave);
+        } else {
+          console.error('❌ DEBUG: Nessuna opinione valida da salvare dopo il consenso');
+          toast({ 
+            title: "Errore", 
+            description: "Nessuna opinione valida da salvare. Riprova a salvare le tue opinioni.", 
+            variant: "destructive" 
+          });
+        }
         setPendingOpinionsToSave(null);
-      }, 300);
+      }, 500);
     }
   };
 

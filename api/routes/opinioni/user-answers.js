@@ -165,6 +165,10 @@ router.post('/salva', async (req, res) => {
     }
     
     if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
+      console.error('❌ ERRORE: Dati mancanti o non validi');
+      console.error('❌ req.body:', req.body);
+      console.error('❌ req.body.opinioni:', req.body.opinioni);
+      console.error('❌ opinioni:', opinioni);
       return res.status(400).json({
         success: false,
         error: 'Dati mancanti',
@@ -231,21 +235,9 @@ router.post('/salva', async (req, res) => {
     
     const unmappedOpinions = [];
     
-    // Prima verifica quali opinioni esistono nel database
+    // Verifica quali colonne esistono in opinioni_risposte
+    // Usa direttamente gli ID inviati dal frontend (che provengono da opinioni_domande)
     const opinionIdsToCheck = Object.keys(opinioni);
-    const checkOpinionsQuery = `
-      SELECT id FROM opinioni_domande 
-      WHERE id = ANY($1::text[])
-    `;
-    const checkOpinionsResult = await pool.query(checkOpinionsQuery, [opinionIdsToCheck]);
-    const existingOpinionIds = new Set(checkOpinionsResult.rows.map(row => row.id));
-    
-    console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
-    console.log(`🔍 DEBUG - ID opinioni da verificare:`, opinionIdsToCheck);
-    console.log(`🔍 DEBUG - Opinion esistenti nel DB: ${existingOpinionIds.size}`);
-    console.log(`🔍 DEBUG - Opinion esistenti:`, Array.from(existingOpinionIds));
-    
-    // Verifica anche quali colonne esistono in opinioni_risposte
     const checkColumnsQuery = `
       SELECT column_name 
       FROM information_schema.columns 
@@ -256,35 +248,32 @@ router.post('/salva', async (req, res) => {
     `;
     const checkColumnsResult = await pool.query(checkColumnsQuery, [opinionIdsToCheck]);
     const existingColumns = new Set(checkColumnsResult.rows.map(row => row.column_name));
+    
+    console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
+    console.log(`🔍 DEBUG - ID opinioni da verificare:`, opinionIdsToCheck);
     console.log(`🔍 DEBUG - Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
       
-      // Prima verifica se l'ID esiste nel database (per nuove opinioni)
+      // Usa direttamente l'ID inviato dal frontend (che proviene da opinioni_domande)
+      // Verifica solo che la colonna esista in opinioni_risposte
       let dbField = opinionId;
       
-      if (!existingOpinionIds.has(opinionId)) {
-        // Se non esiste nel database, prova il mapping (per compatibilità con vecchie opinioni)
+      if (!existingColumns.has(opinionId)) {
+        // Se la colonna non esiste, prova il mapping (per compatibilità con vecchie opinioni)
         dbField = opinionMapping[opinionId];
         if (!dbField) {
-          // Verifica se esiste una colonna con questo nome nella tabella opinioni_risposte
-          if (existingColumns.has(opinionId)) {
-            console.log(`✅ Colonna trovata in opinioni_risposte (ma non in opinioni_domande): ${opinionId}`);
-            dbField = opinionId; // Usa l'ID direttamente se la colonna esiste
-          } else {
-            console.warn(`⚠️ Campo non mappato e non trovato nel DB: ${opinionId}`);
-            console.warn(`⚠️ ID opinioni esistenti nel DB:`, Array.from(existingOpinionIds));
-            console.warn(`⚠️ Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
-            unmappedOpinions.push(opinionId);
-            errorCount++;
-            continue;
-          }
+          console.warn(`⚠️ Campo non trovato: ${opinionId}`);
+          console.warn(`⚠️ Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
+          unmappedOpinions.push(opinionId);
+          errorCount++;
+          continue;
         } else {
           console.log(`ℹ️ Usato mapping per opinione: ${opinionId} -> ${dbField}`);
         }
       } else {
-        console.log(`✅ Opinione trovata nel DB: ${opinionId}`);
+        console.log(`✅ Colonna trovata in opinioni_risposte: ${opinionId}`);
       }
       
       // Converti i valori al formato corretto
