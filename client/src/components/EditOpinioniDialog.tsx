@@ -308,7 +308,13 @@ export function EditOpinioniDialog({
         fonti: fontiPerDatabase
       });
       
-      if (response && response.success) {
+      console.log('🔍 DEBUG EditOpinioniDialog - Response salvataggio:', response);
+      console.log('🔍 DEBUG EditOpinioniDialog - response.ok:', response?.ok);
+      console.log('🔍 DEBUG EditOpinioniDialog - response.data:', response?.data);
+      
+      // apiRequest restituisce { ok, status, data } dove data è il JSON parsato
+      // L'API restituisce { success: true, message: '...' }
+      if (response && response.ok && response.data && response.data.success) {
         toast({
           title: "Successo",
           description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
@@ -317,7 +323,9 @@ export function EditOpinioniDialog({
         onOpinioniUpdated();
         onOpenChange(false);
       } else {
-        throw new Error(response?.error || 'Errore nel salvataggio');
+        const errorMsg = response?.data?.error || response?.data?.message || 'Errore nel salvataggio';
+        console.error('❌ ERRORE EditOpinioniDialog - Salvataggio fallito:', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Errore nell\'aggiornamento delle opinioni:', error);
