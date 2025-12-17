@@ -176,9 +176,21 @@ class SecurityMonitor {
 
   /**
    * Salva evento di sicurezza nel database
+   * DISABILITATO: I security events vengono salvati solo su Axiom, non più su Neon
+   * Questo per alleggerire Neon e centralizzare i log su Axiom
    */
   async saveSecurityEvent(event) {
     try {
+      // DISABILITATO: I security events vengono salvati solo su Axiom, non più su Neon
+      // Questo per alleggerire Neon e centralizzare i log su Axiom
+      if (process.env.AXIOM_ENABLED === 'true') {
+        // Se Axiom è abilitato, invia solo ad Axiom (non blocca se fallisce)
+        this.sendSecurityEventToAxiom(event).catch(() => {});
+        console.log(`🔒 Security event inviato ad Axiom: ${event.type} per utente ${event.user_id || 'anonimo'}`);
+        return;
+      }
+      
+      // Solo se Axiom non è abilitato, salva su Neon (fallback)
       const query = `
         INSERT INTO security_events (
           type, ip_address, user_id, user_email, user_agent,
@@ -196,7 +208,7 @@ class SecurityMonitor {
         JSON.stringify(event.details)
       ]);
       
-      // Invia anche ad Axiom (dataset real-time)
+      // Invia anche ad Axiom (dataset real-time) se disponibile
       this.sendSecurityEventToAxiom(event).catch(() => {});
     } catch (error) {
       console.error('❌ Errore salvataggio evento sicurezza:', error);
