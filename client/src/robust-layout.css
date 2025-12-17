@@ -30,7 +30,7 @@
 /* Main content area */
 .app-main {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto !important;
   overflow-x: hidden;
   background: white; /* Sfondo bianco di base - ogni pagina gestisce il proprio sfondo */
   /* Scroll behavior moderno */
@@ -42,6 +42,11 @@
   min-height: 0; /* Importante per Flexbox */
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
+  /* Assicura che lo scroll con la rotellina funzioni */
+  touch-action: pan-y !important;
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+  /* Permetti lo scroll con la rotellina del mouse */
+  pointer-events: auto !important;
 }
 
 /* Assicuriamo che la pagina menu non venga tagliata */
