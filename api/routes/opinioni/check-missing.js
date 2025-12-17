@@ -56,42 +56,78 @@ router.get('/check-missing/:grado', verifyToken, async (req, res) => {
       });
     }
     
-    // 2. Ottieni le risposte dell'utente per queste opinioni
-    const userIds = opinioniDelGrado.map(op => op.id);
-    const colonneQuery = userIds.join(', ');
-    
-    const risposteQuery = `
-      SELECT ${colonneQuery}
-      FROM opinioni_risposte 
-      WHERE user_id = $1
+    // 2. Verifica quali colonne esistono nella tabella opinioni_risposte
+    const colonneEsistentiQuery = `
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id'
+      AND column_name != 'fonti_opinioni'
     `;
+    const colonneEsistentiResult = await pool.query(colonneEsistentiQuery);
+    const colonneEsistenti = new Set(colonneEsistentiResult.rows.map(row => row.column_name));
     
-    const risposteResult = await pool.query(risposteQuery, [userId]);
+    console.log(`📊 Colonne esistenti in opinioni_risposte: ${colonneEsistenti.size}`);
     
+    // 3. Filtra le opinioni per includere solo quelle con colonna corrispondente
+    // Le opinioni senza colonna sono considerate mancanti
+    const opinioniConColonna = opinioniDelGrado.filter(op => colonneEsistenti.has(op.id));
+    const opinioniSenzaColonna = opinioniDelGrado.filter(op => !colonneEsistenti.has(op.id));
+    
+    // Aggiungi le opinioni senza colonna alle mancanti
+    let opinioniMancanti = opinioniSenzaColonna.map(op => ({
+      id: op.id,
+      text: op.text
+    }));
+    
+    // 4. Ottieni le risposte dell'utente solo per le opinioni con colonna esistente
     let opinioniRisposte = 0;
-    let opinioniMancanti = [];
     
-    if (risposteResult.rows.length > 0) {
-      const userAnswers = risposteResult.rows[0];
+    if (opinioniConColonna.length > 0) {
+      const userIds = opinioniConColonna.map(op => `"${op.id}"`).join(', ');
       
-      // Conta opinioni risposte e mancanti
-      opinioniDelGrado.forEach(opinione => {
-        const answer = userAnswers[opinione.id];
-        if (answer && answer !== null && answer !== '') {
-          opinioniRisposte++;
-        } else {
-          opinioniMancanti.push({
-            id: opinione.id,
-            text: opinione.text
+      const risposteQuery = `
+        SELECT ${userIds}
+        FROM opinioni_risposte 
+        WHERE user_id = $1
+      `;
+      
+      try {
+        const risposteResult = await pool.query(risposteQuery, [userId]);
+        
+        if (risposteResult.rows.length > 0) {
+          const userAnswers = risposteResult.rows[0];
+          
+          // Conta opinioni risposte e mancanti
+          opinioniConColonna.forEach(opinione => {
+            const answer = userAnswers[opinione.id];
+            if (answer && answer !== null && answer !== '') {
+              opinioniRisposte++;
+            } else {
+              opinioniMancanti.push({
+                id: opinione.id,
+                text: opinione.text
+              });
+            }
           });
+        } else {
+          // Nessuna risposta trovata, tutte le opinioni con colonna sono mancanti
+          opinioniMancanti.push(...opinioniConColonna.map(op => ({
+            id: op.id,
+            text: op.text
+          })));
         }
-      });
+      } catch (error) {
+        console.error('❌ Errore nella query risposte:', error);
+        // In caso di errore, considera tutte le opinioni come mancanti
+        opinioniMancanti.push(...opinioniConColonna.map(op => ({
+          id: op.id,
+          text: op.text
+        })));
+      }
     } else {
-      // Nessuna risposta trovata, tutte le opinioni sono mancanti
-      opinioniMancanti = opinioniDelGrado.map(op => ({
-        id: op.id,
-        text: op.text
-      }));
+      // Nessuna opinione ha colonna corrispondente, tutte sono mancanti
+      console.log('⚠️ Nessuna opinione ha colonna corrispondente in opinioni_risposte');
     }
     
     const percentualeCompletamento = opinioniDelGrado.length > 0 
