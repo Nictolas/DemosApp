@@ -113,6 +113,15 @@ router.get('/opinioni-list', async (req, res) => {
     if (userAnswersResult.rows.length > 0) {
       // Prendi la prima (e unica) riga dell'utente
       const userRow = userAnswersResult.rows[0];
+      const availableColumns = Object.keys(userRow).filter(k => k !== 'user_id' && k !== 'fonti_opinioni');
+      
+      console.log('🔍 DEBUG - Colonne disponibili in opinioni_risposte:', availableColumns);
+      console.log('🔍 DEBUG - Valori nelle colonne:');
+      availableColumns.forEach(col => {
+        if (userRow[col] !== null && userRow[col] !== undefined && userRow[col] !== '') {
+          console.log(`  ${col} = ${userRow[col]}`);
+        }
+      });
       
       // Per ogni opinione, cerca la risposta nella colonna corrispondente
       opinionResult.rows.forEach(opinion => {
@@ -122,13 +131,29 @@ router.get('/opinioni-list', async (req, res) => {
           userAnswers[opinionId] = userRow[opinionId];
           console.log(`✅ DEBUG - Risposta trovata per ${opinionId}: ${userRow[opinionId]}`);
         } else {
-          console.log(`⚠️ DEBUG - Colonna ${opinionId} non trovata in opinioni_risposte`);
-          userAnswers[opinionId] = null;
+          // Prova anche con varianti del nome (per gestire errori di ortografia)
+          const variants = [
+            opinionId.replace('obbligatoria', 'obbliatoria'),
+            opinionId.replace('obbliatoria', 'obbligatoria')
+          ];
+          let found = false;
+          for (const variant of variants) {
+            if (userRow.hasOwnProperty(variant)) {
+              userAnswers[opinionId] = userRow[variant];
+              console.log(`✅ DEBUG - Risposta trovata per ${opinionId} (variante ${variant}): ${userRow[variant]}`);
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            console.log(`⚠️ DEBUG - Colonna ${opinionId} non trovata in opinioni_risposte`);
+            console.log(`⚠️ DEBUG - Colonne simili cercate:`, variants);
+            userAnswers[opinionId] = null;
+          }
         }
       });
       
       console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
-      console.log('🔍 DEBUG - Colonne disponibili in opinioni_risposte:', Object.keys(userRow).filter(k => k !== 'user_id' && k !== 'fonti_opinioni'));
     } else {
       console.log('⚠️ DEBUG - Nessuna riga trovata in opinioni_risposte per utente:', userId);
     }
