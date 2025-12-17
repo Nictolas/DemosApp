@@ -102,21 +102,36 @@ router.get('/opinioni-list', async (req, res) => {
     }
     
     // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    const userQuery = `
-      SELECT o.id, o.text, orr.*
-      FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte orr ON orr.user_id = $1
-      WHERE $2 = ANY(o.gradi_opinione)
+    // Recupera direttamente la riga dell'utente e poi accedi alle colonne per ID
+    const userAnswersQuery = `
+      SELECT * FROM opinioni_risposte WHERE user_id = $1
     `;
+    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
     
-    const userAnswersResult = await pool.query(userQuery, [userId, grado]);
     const userAnswers = {};
-    userAnswersResult.rows.forEach(row => {
-      // Usa l'ID direttamente dal database
-      const opinionId = row.id;
-      // Prendi il valore dalla colonna corrispondente usando l'ID
-      userAnswers[opinionId] = row[opinionId];
-    });
+    
+    if (userAnswersResult.rows.length > 0) {
+      // Prendi la prima (e unica) riga dell'utente
+      const userRow = userAnswersResult.rows[0];
+      
+      // Per ogni opinione, cerca la risposta nella colonna corrispondente
+      opinionResult.rows.forEach(opinion => {
+        const opinionId = opinion.id;
+        // Prendi il valore dalla colonna corrispondente usando l'ID
+        if (userRow.hasOwnProperty(opinionId)) {
+          userAnswers[opinionId] = userRow[opinionId];
+          console.log(`✅ DEBUG - Risposta trovata per ${opinionId}: ${userRow[opinionId]}`);
+        } else {
+          console.log(`⚠️ DEBUG - Colonna ${opinionId} non trovata in opinioni_risposte`);
+          userAnswers[opinionId] = null;
+        }
+      });
+      
+      console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
+      console.log('🔍 DEBUG - Colonne disponibili in opinioni_risposte:', Object.keys(userRow).filter(k => k !== 'user_id' && k !== 'fonti_opinioni'));
+    } else {
+      console.log('⚠️ DEBUG - Nessuna riga trovata in opinioni_risposte per utente:', userId);
+    }
     
     console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
     
