@@ -134,11 +134,16 @@ export default function OpinioniComunali() {
   };
 
   // Funzione chiamata quando il consenso viene concesso
-  const handleConsentGranted = () => {
-    // Dopo che il consenso è stato concesso, salva le opinioni in attesa
+  const handleConsentGranted = async () => {
+    // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      saveMutation.mutate(pendingOpinionsToSave);
-      setPendingOpinionsToSave(null);
+      // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
+      await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
+      // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
+      setTimeout(() => {
+        saveMutation.mutate(pendingOpinionsToSave);
+        setPendingOpinionsToSave(null);
+      }, 300);
     }
   };
 
