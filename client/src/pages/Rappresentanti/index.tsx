@@ -4,7 +4,6 @@ import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
-import { PageContainer } from "@/components/PageContainer";
 import { useRappresentantiData } from "./hooks/useRappresentantiData";
 import { useRappresentantiActions } from "./hooks/useRappresentantiActions";
 import { CategoriaPrincipale } from "./components/CategoriaPrincipale";
@@ -66,8 +65,8 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <PageContainer className={`rappresentanti-page flex flex-col overflow-hidden select-none ${isAndroid ? 'android' : ''}`}>
-        <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full" style={{ paddingBottom: 0, marginBottom: 0 }}>
+      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
+        <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
@@ -118,7 +117,7 @@ export default function Rappresentanti() {
             categoria={opinioniDialogData?.categoria as any}
           />
         )}
-      </PageContainer>
+      </div>
     </PageTransition>
   );
 }
