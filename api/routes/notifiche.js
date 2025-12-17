@@ -31,12 +31,13 @@ router.get('/', async (req, res) => {
     const isAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin === true;
     
     // Recupera le comunicazioni e controlla se l'utente le ha lette
+    // Include sia demos_notification che new_opinions
     const comunicazioniResult = await pool.query(`
       SELECT
         c.*,
         $1 = ANY(c.read_by) as is_read
       FROM comunicazioni c
-      WHERE c.tipo = 'demos_notification'
+      WHERE c.tipo IN ('demos_notification', 'new_opinions')
       ORDER BY c.data_creazione DESC
       LIMIT 10
     `, [user_id]);
@@ -46,7 +47,7 @@ router.get('/', async (req, res) => {
       titolo: c.titolo,
       messaggio: c.testo || c.commento || 'Nessun messaggio',
       data_creazione: c.data_creazione,
-      tipo_notifica: 'demos_notification',
+      tipo_notifica: c.tipo,
       status: c.is_read ? 'letta' : 'non_letta',
       commento: c.commento
     }));
