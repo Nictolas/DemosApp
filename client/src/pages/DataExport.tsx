@@ -66,19 +66,6 @@ interface DatabaseAnalysis {
   totalDatabaseSizeMB: number;
   totalDatabaseSizePretty: string;
   categories: {
-    exportable: {
-      name: string;
-      tables: Array<{
-        name: string;
-        sizeMB: number;
-        sizePretty: string;
-        columnCount: number;
-      }>;
-      totalSizeMB: number;
-      totalSizeKB: number;
-      percentage: number;
-      color: string;
-    };
     users: {
       name: string;
       tables: Array<{
@@ -855,8 +842,8 @@ export default function DataExport() {
   const getAggregateStats = () => {
     if (!databaseAnalysis || !axiomAnalysis) return null;
 
-    // Usa il totale del database, non solo le tabelle exportable
-    const neonTotal = databaseAnalysis?.totalDatabaseSizeMB || databaseAnalysis?.categories?.exportable?.totalSizeMB || 0;
+    // Usa il totale del database
+    const neonTotal = databaseAnalysis?.totalDatabaseSizeMB || 0;
     const axiomTotalEvents = axiomAnalysis.totalEvents;
     const axiomTotalMB = axiomAnalysis.totalDataSizeMB || 0;
     // Stima record su Neon basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
@@ -952,7 +939,7 @@ export default function DataExport() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Seleziona Tabelle da Esportare</CardTitle>
+                  <CardTitle>Seleziona Tabelle</CardTitle>
                   <CardDescription>
                     Scegli quali tabelle esportare. I dati più vecchi di 30 giorni verranno esportati.
                   </CardDescription>
@@ -1333,87 +1320,6 @@ export default function DataExport() {
 
                   {/* Card per tutte le categorie di tabelle */}
                   <div className="space-y-6">
-                    {/* Tabelle da Esportare */}
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-base flex items-center gap-2">
-                        <span className="w-4 h-4 rounded-full bg-red-500"></span>
-                        Tabelle da Esportare ({databaseAnalysis.categories.exportable.tables.length} tabelle)
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                        {databaseAnalysis.categories.exportable.tables.map((table) => {
-                          const isCentralizedLogs = table.name === 'centralized_logs';
-                          
-                          const cardContent = (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <h5 className="font-medium text-red-800 flex items-center gap-1 text-xs">
-                                  {table.name}
-                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                                </h5>
-                                <Badge variant="outline" className="text-xs px-1 py-0">
-                                  {table.columnCount}
-                                </Badge>
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                <div className="font-medium">{table.sizePretty}</div>
-                                <div className="text-xs text-gray-500">{table.sizeMB} MB</div>
-                              </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {getTableDescription(table.name)}
-                              </div>
-                              {isCentralizedLogs && (
-                                <div className="mt-2 pt-2 border-t border-red-200">
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      startCentralizedLogsMigration();
-                                    }}
-                                    disabled={migrating}
-                                    className="w-full text-xs h-7"
-                                  >
-                                    {migrating ? (
-                                      <>
-                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                                        Migrazione...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Play className="h-3 w-3 mr-1" />
-                                        Migra su Axiom
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                          
-                          if (isCentralizedLogs) {
-                            return (
-                              <div
-                                key={table.name}
-                                className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
-                              >
-                                {cardContent}
-                              </div>
-                            );
-                          }
-                          
-                          return (
-                            <div 
-                              key={table.name}
-                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
-                            >
-                              {cardContent}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
                     {/* Dati Utenti */}
                     {databaseAnalysis.categories.users.tables.length > 0 && (
                       <div className="space-y-3">
@@ -1659,8 +1565,8 @@ export default function DataExport() {
                       </h4>
                       <p className="text-green-700">
                         Esportando le tabelle di monitoraggio, potresti liberare{' '}
-                        <strong>{databaseAnalysis.categories.exportable.totalSizeMB} MB</strong>{' '}
-                        ({databaseAnalysis.categories.exportable.percentage}% del database totale)
+                        <strong>{databaseAnalysis.totalDatabaseSizeMB} MB</strong>
+                        (database totale)
                       </p>
                     </div>
                   </div>
