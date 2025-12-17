@@ -81,14 +81,56 @@ export function EditOpinioniDialog({
       console.log('🔍 DEBUG - Dati opinioni utente ricevuti:', data);
       
       if (data.success && data.data && data.data.opinioni) {
+        console.log('🔍 DEBUG - Opinion totali ricevute:', data.data.opinioni.length);
+        console.log('🔍 DEBUG - Prime 3 opinioni (struttura):', data.data.opinioni.slice(0, 3).map((o: any) => ({
+          id: o.id,
+          text: o.text,
+          grado: o.grado,
+          gradi_opinione: o.gradi_opinione,
+          userAnswer: o.userAnswer
+        })));
+        
         // Filtra le opinioni escludendo quelle con "da approvare" in gradi_opinione
         const validOpinions = data.data.opinioni.filter((opinion: any) => {
-          const gradi = opinion.grado || opinion.gradi_opinione || [];
-          return Array.isArray(gradi) && !gradi.includes('da approvare');
+          // Prova prima con grado, poi con gradi_opinione
+          const gradi = opinion.grado || opinion.gradi_opinione;
+          
+          // Se gradi è null/undefined, includi l'opinione (non ha "da approvare")
+          if (!gradi || gradi === null || gradi === undefined) {
+            console.log('🔍 DEBUG - Opinione inclusa (gradi null/undefined):', {
+              id: opinion.id,
+              text: opinion.text
+            });
+            return true;
+          }
+          
+          // Se gradi non è un array, convertilo
+          const gradiArray = Array.isArray(gradi) ? gradi : [gradi];
+          
+          const hasDaApprovare = gradiArray.includes('da approvare');
+          if (hasDaApprovare) {
+            console.log('🔍 DEBUG - Opinione esclusa (ha "da approvare"):', {
+              id: opinion.id,
+              text: opinion.text,
+              gradi: gradiArray
+            });
+            return false;
+          }
+          
+          return true;
         });
         
         console.log('🔍 DEBUG - Opinion totali:', data.data.opinioni.length);
         console.log('🔍 DEBUG - Opinion valide (senza "da approvare"):', validOpinions.length);
+        
+        if (validOpinions.length === 0 && data.data.opinioni.length > 0) {
+          console.warn('⚠️ ATTENZIONE: Tutte le opinioni sono state filtrate! Probabilmente tutte hanno "da approvare"');
+          console.warn('⚠️ Esempio gradi_opinione:', data.data.opinioni.slice(0, 3).map((o: any) => ({
+            id: o.id,
+            text: o.text,
+            gradi: o.grado || o.gradi_opinione
+          })));
+        }
         
         // Estrai le domande dalle opinioni valide
         const questionsList = validOpinions.map((opinion: any) => ({
