@@ -833,23 +833,14 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
     const tablesResult = await pool.query(tablesQuery);
     
     // Categorizza le tabelle
-    // NOTA: security_events e access_audit sono stati rimossi perché ora vengono salvati solo su Axiom
-    const exportableTables = [
-      'centralized_logs', 'performance_metrics', 
-      'health_checks', 'audit_logs'
-    ];
+    // NOTA: Le tabelle da esportare (centralized_logs, audit_logs, performance_metrics, health_checks)
+    // sono state migrate su Axiom, quindi non servono più su Neon per l'export
+    // Le tabelle vengono ora categorizzate solo per visualizzazione, non per export
     
     const analysis = {
       totalDatabaseSizeMB: totalDbSizeMB,
       totalDatabaseSizePretty: totalDbSizePretty,
       categories: {
-        exportable: {
-          name: 'Tabelle da Esportare',
-          tables: [],
-          totalSizeMB: 0,
-          totalSizeKB: 0,
-          color: '#ef4444' // rosso
-        },
         users: {
           name: 'Dati Utenti',
           tables: [],
@@ -916,11 +907,9 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
         columnCount: parseInt(table.column_count)
       };
 
-      if (exportableTables.includes(table.tablename)) {
-        analysis.categories.exportable.tables.push(tableInfo);
-        analysis.categories.exportable.totalSizeMB = Math.round((analysis.categories.exportable.totalSizeMB + tableSizeMB) * 100) / 100;
-        analysis.categories.exportable.totalSizeKB = Math.round((analysis.categories.exportable.totalSizeKB + tableSizeKB) * 100) / 100;
-      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users' || table.tablename.includes('utente') || table.tablename === 'opinioni') {
+      // Le tabelle di logging (centralized_logs, audit_logs, performance_metrics, health_checks)
+      // vengono categorizzate come "Sistema" perché sono già migrate su Axiom
+      if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users' || table.tablename.includes('utente') || table.tablename === 'opinioni') {
         analysis.categories.users.tables.push(tableInfo);
         analysis.categories.users.totalSizeMB = Math.round((analysis.categories.users.totalSizeMB + tableSizeMB) * 100) / 100;
         analysis.categories.users.totalSizeKB = Math.round((analysis.categories.users.totalSizeKB + tableSizeKB) * 100) / 100;
