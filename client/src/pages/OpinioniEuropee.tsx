@@ -180,12 +180,17 @@ export default function OpinioniEuropee() {
   };
 
   // Funzione chiamata quando il consenso viene concesso
-  const handleConsentGranted = () => {
-    // Dopo che il consenso è stato concesso, salva le opinioni in attesa
+  const handleConsentGranted = async () => {
+    // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      console.log('✅ DEBUG: Consenso concesso, procedo con il salvataggio delle opinioni');
-      saveMutation.mutate(pendingOpinionsToSave);
-      setPendingOpinionsToSave(null);
+      console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
+      // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
+      await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
+      // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
+      setTimeout(() => {
+        saveMutation.mutate(pendingOpinionsToSave);
+        setPendingOpinionsToSave(null);
+      }, 300);
     }
   };
 
