@@ -64,7 +64,7 @@ export function EditOpinioniDialog({
   const [fonti, setFonti] = useState<Record<string, string>>({});
   const { user } = useAuth();
 
-  // Carica le domande dinamiche
+  // Carica le domande dinamiche (escludendo quelle "da approvare")
   useEffect(() => {
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
@@ -110,9 +110,18 @@ export function EditOpinioniDialog({
       console.log('🔍 DEBUG - Dati opinioni utente ricevuti:', data);
       
       if (data.success && data.data && data.data.opinioni) {
-        // Converte le opinioni nel formato atteso
+        // Filtra le opinioni escludendo quelle con "da approvare" in gradi_opinione
+        const validOpinions = data.data.opinioni.filter((opinion: any) => {
+          const gradi = opinion.grado || opinion.gradi_opinione || [];
+          return Array.isArray(gradi) && !gradi.includes('da approvare');
+        });
+        
+        console.log('🔍 DEBUG - Opinion totali:', data.data.opinioni.length);
+        console.log('🔍 DEBUG - Opinion valide (senza "da approvare"):', validOpinions.length);
+        
+        // Converte le opinioni nel formato atteso (solo quelle valide)
         const opinioniMap: Record<string, string> = {};
-        data.data.opinioni.forEach((opinion: any) => {
+        validOpinions.forEach((opinion: any) => {
           console.log('🔍 DEBUG - Processando opinione:', opinion);
           // Usa sempre l'ID reale dell'opinione (ora sempre presente)
           if (!opinion.id) {
@@ -170,25 +179,29 @@ export function EditOpinioniDialog({
         console.log('🔍 DEBUG - Tipo fonti:', typeof data.data.fonti);
         console.log('🔍 DEBUG - Chiavi fonti:', Object.keys(data.data.fonti));
         
-        // Mappa le fonti usando gli ID reali delle opinioni
+        // Filtra le opinioni escludendo quelle con "da approvare" in gradi_opinione
+        const validOpinions = data.data.opinioni.filter((opinion: any) => {
+          const gradi = opinion.grado || opinion.gradi_opinione || [];
+          return Array.isArray(gradi) && !gradi.includes('da approvare');
+        });
+        
+        // Mappa le fonti usando gli ID reali delle opinioni (solo quelle valide)
         const fontiMap: Record<string, string> = {};
-        if (data.data.opinioni) {
-          data.data.opinioni.forEach((opinion: any) => {
-            // Usa sempre l'ID reale dell'opinione
-            if (!opinion.id) {
-              console.warn('⚠️ Opinione senza ID per fonte:', opinion);
-              return;
-            }
-            
-            const questionId = opinion.id;
-            // Le fonti sono già mappate per ID nell'oggetto fonti
-            const fonte = data.data.fonti[questionId];
-            if (fonte && fonte !== 'unknown') {
-              fontiMap[questionId] = fonte;
-              console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
-            }
-          });
-        }
+        validOpinions.forEach((opinion: any) => {
+          // Usa sempre l'ID reale dell'opinione
+          if (!opinion.id) {
+            console.warn('⚠️ Opinione senza ID per fonte:', opinion);
+            return;
+          }
+          
+          const questionId = opinion.id;
+          // Le fonti sono già mappate per ID nell'oggetto fonti
+          const fonte = data.data.fonti[questionId];
+          if (fonte && fonte !== 'unknown') {
+            fontiMap[questionId] = fonte;
+            console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
+          }
+        });
         
         console.log('🔍 DEBUG - Mappa fonti creata:', fontiMap);
         setFonti(fontiMap);
@@ -201,6 +214,7 @@ export function EditOpinioniDialog({
       setFonti({});
     }
   };
+
 
   const handleOpinionChange = (questionId: string, value: string) => {
     // Vibrazione quando si cambia opinione
