@@ -9,10 +9,11 @@ const router = express.Router();
 // GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
 router.get('/', async (req, res) => {
   try {
-    // 1. Prima recupera le domande dalla tabella opinioni
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
     const questionsQuery = `
       SELECT id, text
       FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
       ORDER BY text
     `;
     
@@ -27,73 +28,60 @@ router.get('/', async (req, res) => {
       const questionId = opinione.id;
       const questionText = opinione.text;
       
-      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-      const opinionMapping = {
-        // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-        'energia_nucleare': 'energia_nucleare',
-        'sperimentazione_animale': 'sperimentazione_animale',
-        'legalizzazione_canapa': 'legalizzazione_canapa',
-        'caccia': 'caccia',
-        'eutanasia': 'eutanasia',
-        'carne_coltivata': 'carne_coltivata',
-        'cittadina_animale': 'cittadina_animale',
-        'nato': 'nato',
-        'matrimonio_gay': 'matrimonio_gay',
-        'salario_minimo': 'salario_minimo',
-        'case_chiuse': 'case_chiuse',
-        'omobitransfobia': 'omobitransfobia',
-        
-        // Opinion regionali/comunali (senza prefissi)
-        'nuovi_inceneritori': 'nuovi_inceneritori',
-        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-        
-        // Opinion comunali (senza prefissi)
-        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-        
-        // Opinion nazionali/comunali (senza prefissi)
-        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-        'nuove_case_popolari': 'nuove_case_popolari',
-        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-        'sostegno_commercio_locale': 'sostegno_commercio_locale',
-        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-      };
-
-      const columnName = opinionMapping[questionId];
-      if (!columnName) {
-        console.log(`⚠️ DEBUG: ID opinione non mappato: ${questionId}`);
-        continue; // Salta questa opinione se non è mappata
+      // Log per debug: verifica se l'opinione "Leva obbligatoria" viene trovata
+      if (questionText && questionText.toLowerCase().includes('leva')) {
+        console.log(`🔍 DEBUG - Trovata opinione "Leva": ID=${questionId}, Text="${questionText}"`);
+      }
+      
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId} (text: "${questionText}"), salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
+      
+      // Log per debug: verifica se la colonna viene trovata per "Leva obbligatoria"
+      if (questionText && questionText.toLowerCase().includes('leva')) {
+        console.log(`✅ DEBUG: Colonna trovata per opinione "Leva": ${columnName}`);
       }
       
       // Query per contare le risposte per questa opinione dalla tabella opinioni_risposte
+      // Usa virgolette doppie per quotare correttamente il nome della colonna
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_voti,
-          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
-        WHERE orr.${columnName} IS NOT NULL
+        WHERE orr."${columnName}" IS NOT NULL
       `;
       
       try {
         const statsResult = await pool.query(statsQuery);
         const row = statsResult.rows[0];
+        
+        // Log per debug: verifica i risultati per "Leva obbligatoria"
+        if (questionText && questionText.toLowerCase().includes('leva')) {
+          console.log(`📊 DEBUG: Statistiche per "Leva obbligatoria":`, {
+            totale_voti: row.totale_voti,
+            favorevole: row.favorevole,
+            contrario: row.contrario,
+            indeciso: row.indeciso
+          });
+        }
         
         stats[questionId] = {
           favorevole: parseInt(row.favorevole) || 0,
@@ -106,8 +94,13 @@ router.get('/', async (req, res) => {
           id: questionId,
           text: questionText
         });
+        
+        // Log per debug: verifica se l'opinione viene aggiunta alla lista
+        if (questionText && questionText.toLowerCase().includes('leva')) {
+          console.log(`✅ DEBUG: Opinione "Leva obbligatoria" aggiunta alla lista questions`);
+        }
       } catch (statsError) {
-        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} (text: "${questionText}"):`, statsError.message);
         // Se la colonna non esiste, salta questa opinione
         continue;
       }
@@ -347,10 +340,11 @@ router.get('/:regione', async (req, res) => {
       });
     }
     
-    // 1. Prima recupera le domande dalla tabella opinioni
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
     const questionsQuery = `
       SELECT id, text
       FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
       ORDER BY text
     `;
     
@@ -365,69 +359,36 @@ router.get('/:regione', async (req, res) => {
       const questionId = opinione.id;
       const questionText = opinione.text;
       
-      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-      const opinionMapping = {
-        // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-        'energia_nucleare': 'energia_nucleare',
-        'sperimentazione_animale': 'sperimentazione_animale',
-        'legalizzazione_canapa': 'legalizzazione_canapa',
-        'caccia': 'caccia',
-        'eutanasia': 'eutanasia',
-        'carne_coltivata': 'carne_coltivata',
-        'cittadina_animale': 'cittadina_animale',
-        'nato': 'nato',
-        'matrimonio_gay': 'matrimonio_gay',
-        'salario_minimo': 'salario_minimo',
-        'case_chiuse': 'case_chiuse',
-        'omobitransfobia': 'omobitransfobia',
-        
-        // Opinion regionali/comunali (senza prefissi)
-        'nuovi_inceneritori': 'nuovi_inceneritori',
-        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-        
-        // Opinion comunali (senza prefissi)
-        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-        
-        // Opinion nazionali/comunali (senza prefissi)
-        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-        'nuove_case_popolari': 'nuove_case_popolari',
-        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-        'sostegno_commercio_locale': 'sostegno_commercio_locale',
-        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-      };
-
-      const columnName = opinionMapping[questionId];
-      if (!columnName) {
-        console.log(`⚠️ DEBUG: ID opinione non mappato: ${questionId}`);
-        continue; // Salta questa opinione se non è mappata
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
+        continue; // Salta questa opinione se la colonna non esiste
       }
       
       // Query per contare le risposte per questa opinione nella regione specifica
+      // Usa quote_ident per quotare correttamente il nome della colonna
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_voti,
-          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
-        WHERE orr.${columnName} IS NOT NULL 
+        WHERE orr."${columnName}" IS NOT NULL 
         AND u.regione_residenza = $1
       `;
       
@@ -493,10 +454,11 @@ router.get('/:regione/:provincia', async (req, res) => {
       });
     }
     
-    // 1. Prima recupera le domande dalla tabella opinioni
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
     const questionsQuery = `
       SELECT id, text
       FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
       ORDER BY text
     `;
     
@@ -511,58 +473,35 @@ router.get('/:regione/:provincia', async (req, res) => {
       const questionId = opinione.id;
       const questionText = opinione.text;
       
-      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-      const opinionMapping = {
-        'energia_nucleare': 'energia_nucleare',
-        'sperimentazione_animale': 'sperimentazione_animale',
-        'legalizzazione_canapa': 'legalizzazione_canapa',
-        'caccia': 'caccia',
-        'eutanasia': 'eutanasia',
-        'carne_coltivata': 'carne_coltivata',
-        'cittadina_animale': 'cittadina_animale',
-        'nato': 'nato',
-        'matrimonio_gay': 'matrimonio_gay',
-        'salario_minimo': 'salario_minimo',
-        'case_chiuse': 'case_chiuse',
-        'omobitransfobia': 'omobitransfobia',
-        'nuovi_inceneritori': 'nuovi_inceneritori',
-        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-        'nuove_case_popolari': 'nuove_case_popolari',
-        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-        'sostegno_commercio_locale': 'sostegno_commercio_locale',
-        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-      };
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
 
-      const columnName = opinionMapping[questionId];
-      if (!columnName) continue;
-
+      // Usa quote_ident per quotare correttamente il nome della colonna
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_utenti,
-          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
-        WHERE orr.${columnName} IS NOT NULL
+        WHERE orr."${columnName}" IS NOT NULL
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
       `;
@@ -631,10 +570,11 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
       });
     }
     
-    // 1. Prima recupera le domande dalla tabella opinioni
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
     const questionsQuery = `
       SELECT id, text
       FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
       ORDER BY text
     `;
     
@@ -649,58 +589,35 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
       const questionId = opinione.id;
       const questionText = opinione.text;
       
-      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-      const opinionMapping = {
-        'energia_nucleare': 'energia_nucleare',
-        'sperimentazione_animale': 'sperimentazione_animale',
-        'legalizzazione_canapa': 'legalizzazione_canapa',
-        'caccia': 'caccia',
-        'eutanasia': 'eutanasia',
-        'carne_coltivata': 'carne_coltivata',
-        'cittadina_animale': 'cittadina_animale',
-        'nato': 'nato',
-        'matrimonio_gay': 'matrimonio_gay',
-        'salario_minimo': 'salario_minimo',
-        'case_chiuse': 'case_chiuse',
-        'omobitransfobia': 'omobitransfobia',
-        'nuovi_inceneritori': 'nuovi_inceneritori',
-        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-        'nuove_case_popolari': 'nuove_case_popolari',
-        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-        'sostegno_commercio_locale': 'sostegno_commercio_locale',
-        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-      };
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
 
-      const columnName = opinionMapping[questionId];
-      if (!columnName) continue;
-
+      // Usa quote_ident per quotare correttamente il nome della colonna
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_utenti,
-          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
-        WHERE orr.${columnName} IS NOT NULL
+        WHERE orr."${columnName}" IS NOT NULL
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
         AND u.comune_residenza = $3
