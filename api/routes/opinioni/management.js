@@ -35,23 +35,59 @@ async function notifyAllUsersNewOpinion(opinionText, opinionId) {
   try {
     console.log('📢 Invio notifiche per nuova opinione:', opinionText);
     
-    // Usa la tabella comunicazioni come per le altre notifiche Demos
-    // Crea una comunicazione di tipo demos_notification
     const titolo = 'Nuova opinione disponibile';
     const messaggio = `È stata aggiunta una nuova opinione: "${opinionText}". Vai nella sezione Opinioni per esprimere la tua posizione!`;
     
-    // Crea la comunicazione (le notifiche vengono gestite automaticamente dalla route /api/comunicazioni)
-    // Per semplicità, creiamo direttamente una comunicazione che apparirà nelle notifiche
-    const result = await pool.query(
-      `INSERT INTO comunicazioni (
-        id, id_utente, titolo, testo, zona, tipo, data_creazione, likes, dislikes, punti_trasparenza
-      ) VALUES (
-        gen_random_uuid(), NULL, $1, $2, 'Generale', 'demos_notification', NOW(), 0, 0, 0
-      ) RETURNING *`,
-      [titolo, messaggio]
+    // Controlla se esiste già una comunicazione con tipo 'new_opinions' e la sovrascrivi
+    const existingNotification = await pool.query(
+      'SELECT id FROM comunicazioni WHERE tipo = $1 ORDER BY data_creazione DESC LIMIT 1',
+      ['new_opinions']
     );
 
-    console.log(`✅ Notifica creata per la nuova opinione: ${opinionText}`);
+    let result;
+    if (existingNotification.rows.length > 0) {
+      // Aggiorna notifica esistente (sovrascrive)
+      const comunicazioneId = existingNotification.rows[0].id;
+      
+      // Reset like/dislike e read_by per far apparire la notifica come non letta per tutti
+      await pool.query(
+        'DELETE FROM reazioni WHERE comunicazione_id = $1',
+        [comunicazioneId]
+      );
+
+      result = await pool.query(
+        `UPDATE comunicazioni SET
+          id_utente = NULL,
+          titolo = $1,
+          testo = $2,
+          zona = 'Generale',
+          commento = NULL,
+          data_creazione = NOW(),
+          likes = 0,
+          dislikes = 0,
+          punti_trasparenza = 0,
+          read_by = ARRAY[]::uuid[]
+        WHERE id = $3
+        RETURNING *`,
+        [titolo, messaggio, comunicazioneId]
+      );
+      
+      console.log(`✅ Notifica new_opinions aggiornata (sovrascritta) per: ${opinionText}`);
+    } else {
+      // Crea nuova notifica new_opinions
+      result = await pool.query(
+        `INSERT INTO comunicazioni (
+          id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+          data_creazione, likes, dislikes, punti_trasparenza, tipo, read_by
+        ) VALUES (
+          gen_random_uuid(), NULL, $1, $2, 'Generale', NULL, NULL, NULL, NOW(), 0, 0, 0, $3, ARRAY[]::uuid[]
+        ) RETURNING *`,
+        [titolo, messaggio, 'new_opinions']
+      );
+      
+      console.log(`✅ Notifica new_opinions creata per: ${opinionText}`);
+    }
+
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche per nuova opinione:', error);
     // Non bloccare l'operazione se fallisce, ma logga l'errore
