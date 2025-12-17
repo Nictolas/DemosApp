@@ -330,12 +330,11 @@ let exportStatus = {
  */
 router.get('/tables', requireAdmin, async (req, res) => {
   try {
+    // NOTA: security_events e access_audit sono stati rimossi perché ora vengono salvati solo su Axiom
     const tables = [
       'centralized_logs',
-      'security_events', 
       'performance_metrics',
       'health_checks',
-      'access_audit',
       'audit_logs'
     ];
 
@@ -616,6 +615,107 @@ router.get('/download/:exportId', requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/data-export/security-events-stats
+ * Ottiene statistiche dettagliate dei Security Events da Axiom
+ */
+router.get('/security-events-stats', requireAdmin, async (req, res) => {
+  try {
+    // Verifica se Axiom è configurato
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      return res.status(400).json({ 
+        error: 'Axiom non abilitato',
+        message: 'I security events sono disponibili solo con Axiom abilitato'
+      });
+    }
+    
+    const { getSecurityEvents, countAxiomRecords, queryAxiom } = require('../../utils/axiomQueryHelper');
+    const dataset = process.env.AXIOM_REALTIME_DATASET || 'real-time';
+    
+    // Conta totale security events (ultimo anno)
+    const startTime = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    const endTime = new Date();
+    
+    // Query per contare security events (hanno type e severity)
+    const countQuery = `['${dataset}'] | where type != null AND severity != null | summarize count()`;
+    let totalCount = 0;
+    try {
+      const countResult = await queryAxiom(countQuery, { startTime, endTime });
+      // Estrai count dal risultato
+      if (countResult && Array.isArray(countResult) && countResult.length > 0) {
+        totalCount = countResult.length; // Approssimativo
+      } else {
+        // Prova con query diversa
+        const allRecords = await queryAxiom(`['${dataset}'] | where type != null AND severity != null | limit 100000`, { startTime, endTime });
+        totalCount = allRecords.filter(r => r.type && r.severity).length;
+      }
+    } catch (err) {
+      console.error('Errore conteggio security events:', err);
+      // Fallback: conta manualmente
+      const allRecords = await queryAxiom(`['${dataset}'] | limit 100000`, { startTime, endTime });
+      totalCount = allRecords.filter(r => r.type && r.severity).length;
+    }
+    
+    // Ottieni ultimi 10 security events
+    const recentEvents = await getSecurityEvents({
+      startTime,
+      endTime,
+      limit: 10
+    });
+    
+    // Calcola statistiche per severity
+    const severityStats = {
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0
+    };
+    
+    // Query per severity (ultimi 1000 eventi per performance)
+    try {
+      const severityQuery = `['${dataset}'] | where type != null AND severity != null | summarize count() by severity | limit 1000`;
+      const severityResults = await queryAxiom(severityQuery, { startTime, endTime });
+      
+      // Se la query non restituisce il formato atteso, conta manualmente
+      if (recentEvents.length > 0) {
+        recentEvents.forEach(event => {
+          if (event.severity && severityStats.hasOwnProperty(event.severity)) {
+            severityStats[event.severity]++;
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Errore calcolo severity stats:', err);
+    }
+    
+    // Calcola dimensione approssimativa (basata su ~335 bytes per evento)
+    const bytesPerEvent = 335;
+    const dataSizeBytes = totalCount * bytesPerEvent;
+    const dataSizeMB = dataSizeBytes / (1024 * 1024);
+    
+    res.json({
+      success: true,
+      totalEvents: totalCount,
+      dataSizeMB: dataSizeMB,
+      dataSizeBytes: dataSizeBytes,
+      recentEvents: recentEvents.slice(0, 10),
+      severityStats: severityStats,
+      dataset: dataset,
+      period: {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('Errore ottenendo statistiche security events:', error);
+    res.status(500).json({ 
+      error: 'Errore ottenendo statistiche security events',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/data-export/centralized-logs
  * Ottiene i 10 log più recenti e il glossario dei livelli
  */
@@ -733,9 +833,10 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
     const tablesResult = await pool.query(tablesQuery);
     
     // Categorizza le tabelle
+    // NOTA: security_events e access_audit sono stati rimossi perché ora vengono salvati solo su Axiom
     const exportableTables = [
-      'centralized_logs', 'security_events', 'performance_metrics', 
-      'health_checks', 'access_audit', 'audit_logs'
+      'centralized_logs', 'performance_metrics', 
+      'health_checks', 'audit_logs'
     ];
     
     const analysis = {

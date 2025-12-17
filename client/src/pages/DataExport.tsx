@@ -185,6 +185,8 @@ export default function DataExport() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
   const [axiomAnalysis, setAxiomAnalysis] = useState<AxiomAnalysis | null>(null);
   const [loadingAxiom, setLoadingAxiom] = useState(true);
+  const [securityEventsStats, setSecurityEventsStats] = useState<any>(null);
+  const [loadingSecurityEvents, setLoadingSecurityEvents] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [tableSearch, setTableSearch] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -196,6 +198,7 @@ export default function DataExport() {
     loadTableInfo();
     loadDatabaseAnalysis();
     loadAxiomAnalysis();
+    loadSecurityEventsStats();
   }, []);
 
   // Auto-refresh se abilitato
@@ -205,6 +208,7 @@ export default function DataExport() {
     const interval = setInterval(() => {
       loadDatabaseAnalysis();
       loadAxiomAnalysis();
+      loadSecurityEventsStats();
     }, 30000); // Refresh ogni 30 secondi
 
     return () => clearInterval(interval);
@@ -569,6 +573,29 @@ export default function DataExport() {
       }
     } finally {
       setLoadingAxiom(false);
+    }
+  };
+
+  const loadSecurityEventsStats = async () => {
+    setLoadingSecurityEvents(true);
+    try {
+      const response = await apiRequest.get('/admin/data-export/security-events-stats');
+      if (response.success && response.data) {
+        setSecurityEventsStats(response.data);
+      } else {
+        setSecurityEventsStats(null);
+      }
+    } catch (error: any) {
+      console.error('Errore caricamento statistiche security events:', error);
+      setSecurityEventsStats(null);
+      // Non mostrare toast per errori se Axiom non è configurato
+      if (error?.response?.data?.error && 
+          !error.response.data.error.includes('configurato') && 
+          !error.response.data.error.includes('abilitato')) {
+        // Errore silenzioso per non disturbare l'utente
+      }
+    } finally {
+      setLoadingSecurityEvents(false);
     }
   };
 
@@ -1895,6 +1922,94 @@ export default function DataExport() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Card Security Events */}
+                  {securityEventsStats && (
+                    <div className="mt-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            Security Events
+                          </CardTitle>
+                          <CardDescription>
+                            Eventi di sicurezza e tentativi di accesso sospetti (GDPR obbligatori - Articolo 32)
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-red-800">Totale Eventi</span>
+                                <Activity className="h-5 w-5 text-red-600" />
+                              </div>
+                              <div className="text-2xl font-bold text-red-900">
+                                {securityEventsStats.totalEvents?.toLocaleString('it-IT') || '0'}
+                              </div>
+                              <div className="text-xs text-red-600 mt-1">
+                                Dataset: {securityEventsStats.dataset || 'real-time'}
+                              </div>
+                            </div>
+                            <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-orange-800">Dimensione</span>
+                                <Database className="h-5 w-5 text-orange-600" />
+                              </div>
+                              <div className="text-2xl font-bold text-orange-900">
+                                {securityEventsStats.dataSizeMB ? securityEventsStats.dataSizeMB.toFixed(2) : '0.00'} MB
+                              </div>
+                              <div className="text-xs text-orange-600 mt-1">
+                                {securityEventsStats.dataSizeBytes ? (securityEventsStats.dataSizeBytes / 1024).toFixed(0) : '0'} KB
+                              </div>
+                            </div>
+                            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-blue-800">Periodo</span>
+                                <Clock className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div className="text-sm font-bold text-blue-900">
+                                Ultimi 365 giorni
+                              </div>
+                              <div className="text-xs text-blue-600 mt-1">
+                                GDPR: Conservazione 3 anni
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {securityEventsStats.severityStats && (
+                            <div className="mt-4 pt-4 border-t">
+                              <div className="text-sm font-medium mb-3">Distribuzione per Gravità:</div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {Object.entries(securityEventsStats.severityStats).map(([severity, count]: [string, any]) => (
+                                  <div key={severity} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                    <span className="text-xs font-medium capitalize">{severity}</span>
+                                    <span className="text-xs font-bold">{count || 0}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-gray-600">
+                                <strong>GDPR:</strong> Obbligatori per conformità (Articolo 32 - Sicurezza del trattamento)
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={loadSecurityEventsStats}
+                                disabled={loadingSecurityEvents}
+                              >
+                                <RefreshCw className={`h-3 w-3 mr-1 ${loadingSecurityEvents ? 'animate-spin' : ''}`} />
+                                Aggiorna
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
