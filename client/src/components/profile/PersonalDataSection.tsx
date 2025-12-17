@@ -95,13 +95,18 @@ export function PersonalDataSection({ formData, onFieldChange, isAdmin = false }
         
         <div>
           <Label htmlFor="cittadinanza">Cittadinanza *</Label>
-          <Input
-            id="cittadinanza"
-            value={formData.cittadinanza || ""}
-            onChange={(e) => onFieldChange("cittadinanza", e.target.value)}
-            placeholder="Inserisci la cittadinanza"
-            required
-          />
+          <Select
+            value={getCittadinanzaValue(formData.cittadinanza)}
+            onValueChange={(value) => onFieldChange("cittadinanza", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona la cittadinanza" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Italiana">Italiana</SelectItem>
+              <SelectItem value="Straniera">Straniera</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
@@ -152,4 +157,25 @@ function getGenereValue(genere: string): string {
   };
   
   return mapping[genere] || genere;
+}
+
+// Funzione per mappare i valori della cittadinanza
+function getCittadinanzaValue(cittadinanza: string): string {
+  if (!cittadinanza) return "";
+  
+  // Mappa i valori dal database ai valori del form
+  const mapping: Record<string, string> = {
+    'Italiana': 'Italiana',
+    'Straniera': 'Straniera',
+    'italiana': 'Italiana',
+    'straniera': 'Straniera',
+    'ITALIANA': 'Italiana',
+    'STRANIERA': 'Straniera',
+    'it': 'Italiana', // Valore compresso dal database
+    'st': 'Straniera', // Valore compresso dal database
+    'europea': 'Straniera', // Mappa "europea" a "Straniera"
+    'extra-ue': 'Straniera' // Mappa "extra-ue" a "Straniera"
+  };
+  
+  return mapping[cittadinanza] || cittadinanza;
 }
