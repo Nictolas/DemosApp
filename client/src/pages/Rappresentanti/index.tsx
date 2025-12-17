@@ -67,7 +67,7 @@ export default function Rappresentanti() {
   return (
     <PageTransition>
       <PageContainer className={`rappresentanti-page flex flex-col overflow-hidden select-none ${isAndroid ? 'android' : ''}`}>
-        <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
+        <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full" style={{ paddingBottom: 0, marginBottom: 0 }}>
           {isLoading ? (
             <LoadingState />
           ) : isError ? (

@@ -786,8 +786,13 @@ body {
   }
   
   /* Stili per pagina rappresentanti */
+  .rappresentanti-page .container {
+    padding-bottom: 0 !important; /* Rimuovi padding-bottom di default */
+    margin-bottom: 0 !important;
+  }
+  
   .rappresentanti-page.android .container {
-    padding-bottom: calc(6rem + 3rem + 1rem) !important; /* Spazio extra per Android */
+    padding-bottom: calc(6rem + 3rem + 1rem) !important; /* Spazio extra solo per Android */
   }
   
   .rappresentanti-page.android .rappresentante-card {
