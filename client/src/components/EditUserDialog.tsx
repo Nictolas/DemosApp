@@ -45,12 +45,16 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
 
     try {
       // Carica i dati tramite API usando l'uid
-      // apiRequest restituisce già i dati JSON parsati, non un oggetto Response
+      // apiRequest restituisce un oggetto wrapper con { ok, status, data, json }
       console.log('🔍 DEBUG loadUserData - Chiamando API:', `/api/users/${encodeURIComponent(userUid)}`);
-      const data = await apiRequest("GET", `/api/users/${encodeURIComponent(userUid)}`);
-      console.log('🔍 DEBUG - Dati utente ricevuti:', data);
+      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(userUid)}`);
+      console.log('🔍 DEBUG - Risposta API ricevuta:', response);
       
-      if (data.success && data.user) {
+      // I dati effettivi sono in response.data
+      const data = response.data;
+      console.log('🔍 DEBUG - Dati utente parsati:', data);
+      
+      if (data && data.success && data.user) {
         console.log('🔍 DEBUG - Dati utente specifici:', {
           id: data.user.id,
           nome: data.user.nome,
@@ -80,7 +84,7 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
         
         setUserData({ ...data.user, email: userEmail, uid: userUid });
       } else {
-        throw new Error(data.message || data.error || "Formato dati non valido");
+        throw new Error(data?.message || data?.error || "Formato dati non valido");
       }
     } catch (err) {
       console.error("Errore:", err);
