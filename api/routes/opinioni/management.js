@@ -4,6 +4,32 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
+// Funzione helper per aggiungere la colonna in opinioni_risposte se non esiste
+async function ensureOpinioniRisposteColumn(opinionId) {
+  try {
+    const checkColumnQuery = `
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name = $1
+    `;
+    const columnCheck = await pool.query(checkColumnQuery, [opinionId]);
+    
+    if (columnCheck.rows.length === 0) {
+      console.log(`📊 Aggiungo colonna ${opinionId} a opinioni_risposte...`);
+      // Usa un identificatore quotato per il nome della colonna
+      const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN "${opinionId}" TEXT`;
+      await pool.query(addColumnQuery);
+      console.log(`✅ Colonna ${opinionId} aggiunta a opinioni_risposte`);
+    } else {
+      console.log(`ℹ️ Colonna ${opinionId} già esistente in opinioni_risposte`);
+    }
+  } catch (error) {
+    console.error(`❌ Errore nell'aggiungere colonna ${opinionId} a opinioni_risposte:`, error);
+    // Non bloccare l'operazione se fallisce, ma logga l'errore
+  }
+}
+
 // GET /api/opinioni - Ottieni tutte le opinioni (per gestione)
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -128,6 +154,9 @@ router.post('/', verifyToken, async (req, res) => {
     const approfondimento = `## Proposta ${gradi_opinione.join(', ')}\n\n${text}`;
     const result = await pool.query(insertQuery, [id, text, mappedGradi, approfondimento]);
     
+    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
+    await ensureOpinioniRisposteColumn(id);
+    
     console.log('✅ Opinione creata/aggiornata con successo:', id);
     
     res.json({
@@ -191,6 +220,9 @@ router.put('/:id', verifyToken, async (req, res) => {
         message: 'Impossibile aggiornare l\'opinione'
       });
     }
+    
+    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
+    await ensureOpinioniRisposteColumn(id);
     
     console.log('✅ Opinione aggiornata con successo:', id);
     

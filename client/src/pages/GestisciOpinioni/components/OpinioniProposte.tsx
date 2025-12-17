@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageSquare, Check, X } from "lucide-react";
+import { Loader2, Check, X } from "lucide-react";
 import { OpinioneProposta } from "../types";
 import { useOpinioniMutations } from "../hooks";
 import { ApprofondimentoDialog } from "./ApprofondimentoDialog";
@@ -54,12 +54,7 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
   }
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <MessageSquare className="h-5 w-5 text-fuchsia-600" />
-        <span className="font-semibold">Opinioni proposte dagli utenti</span>
-      </div>
-      
+    <div>
       <ul className="space-y-2">
         {proposte.map((op) => (
           <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">

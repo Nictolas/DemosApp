@@ -12,7 +12,7 @@ export default function GestisciOpinioni() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
-      <div className="container mx-auto max-w-3xl">
+      <div className="container mx-auto max-w-full px-4">
         <Button 
           variant="ghost" 
           className="mb-4 flex items-center" 
@@ -22,32 +22,45 @@ export default function GestisciOpinioni() {
           Torna a Gestisci 
         </Button>
         
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Gestisci Opinioni</CardTitle>
-            <CardDescription>
-              Aggiungi, modifica o elimina le opinioni ufficiali e gestisci le proposte degli utenti.
-            </CardDescription>
-          </CardHeader>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold text-center mb-2">Gestisci Opinioni</h1>
+          <p className="text-center text-muted-foreground">
+            Aggiungi, modifica o elimina le opinioni ufficiali e gestisci le proposte degli utenti.
+          </p>
+        </div>
+        
+        {/* Layout a due colonne */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Colonna sinistra: Opinion Proposte */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">Opinioni proposte dagli utenti</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OpinioniProposte 
+                proposte={proposte} 
+                isLoading={isLoadingProposte} 
+                isError={isProposteError} 
+              />
+            </CardContent>
+          </Card>
           
-          <CardContent>
-            {/* Sezione Opinion Proposte */}
-            <OpinioniProposte 
-              proposte={proposte} 
-              isLoading={isLoadingProposte} 
-              isError={isProposteError} 
-            />
-            
-            {/* Sezione Opinion Ufficiali */}
-            <FormAggiungiOpinione />
-            
-            <ListaOpinioni 
-              opinioni={opinioni} 
-              isLoading={isLoading} 
-              isError={isOpinioniError} 
-            />
-          </CardContent>
-        </Card>
+          {/* Colonna destra: Opinion Ufficiali */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">Opinioni ufficiali</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormAggiungiOpinione />
+              
+              <ListaOpinioni 
+                opinioni={opinioni} 
+                isLoading={isLoading} 
+                isError={isOpinioniError} 
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
