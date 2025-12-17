@@ -46,6 +46,9 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     Regionale: '',
     Comunale: ''
   });
+  
+  const [descrizioneAbilitata, setDescrizioneAbilitata] = useState(false);
+  const [descrizione, setDescrizione] = useState('');
 
   // Carica l'approfondimento esistente quando si apre il dialog
   useEffect(() => {
@@ -114,10 +117,21 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           Comunale: ''
         };
         
+        let descrizioneTesto = '';
+        let descrizioneAbilitataFlag = false;
+        
         // Se l'approfondimento contiene sezioni con ## Proposta, separale
         if (approfondimentoGenerale.includes('## Proposta')) {
           const sezioni = approfondimentoGenerale.split('## Proposta');
-          sezioni.forEach(sezione => {
+          
+          // La prima sezione (prima di "## Proposta") è la descrizione
+          if (sezioni[0] && sezioni[0].trim()) {
+            descrizioneTesto = sezioni[0].trim();
+            descrizioneAbilitataFlag = descrizioneTesto.length > 0;
+          }
+          
+          // Le altre sezioni sono per grado
+          sezioni.slice(1).forEach(sezione => {
             if (sezione.trim()) {
               const lines = sezione.trim().split('\n');
               const titolo = lines[0].trim();
@@ -135,14 +149,15 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
             }
           });
         } else {
-          // Se non ci sono sezioni, metti l'approfondimento generale in tutti i gradi attivi
-          const gradiAttivi = data.data.gradi_opinione || [];
-          if (gradiAttivi.includes('E')) approfondimentiSeparati.Europeo = approfondimentoGenerale;
-          if (gradiAttivi.includes('N')) approfondimentiSeparati.Nazionale = approfondimentoGenerale;
-          if (gradiAttivi.includes('R')) approfondimentiSeparati.Regionale = approfondimentoGenerale;
-          if (gradiAttivi.includes('CO')) approfondimentiSeparati.Comunale = approfondimentoGenerale;
+          // Se non ci sono sezioni, tutto il testo è la descrizione
+          if (approfondimentoGenerale.trim()) {
+            descrizioneTesto = approfondimentoGenerale.trim();
+            descrizioneAbilitataFlag = true;
+          }
         }
         
+        setDescrizione(descrizioneTesto);
+        setDescrizioneAbilitata(descrizioneAbilitataFlag);
         setApprofondimentiPerGrado(approfondimentiSeparati);
         
           // Mantieni anche l'approfondimento generale per compatibilità
@@ -150,6 +165,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         } else {
           console.log('⚠️ DEBUG loadApprofondimento - Nessun dato nella risposta, inizializzo vuoto');
           setApprofondimento("");
+          setDescrizione('');
+          setDescrizioneAbilitata(false);
           setApprofondimentiPerGrado({
             Europeo: '',
             Nazionale: '',
@@ -163,6 +180,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         if (error.message && error.message.includes('Opinione non trovata')) {
           console.log('⚠️ DEBUG loadApprofondimento - Opinione non trovata (404), inizializzo vuoto per nuova opinione');
           setApprofondimento("");
+          setDescrizione('');
+          setDescrizioneAbilitata(false);
           setApprofondimentiPerGrado({
             Europeo: '',
             Nazionale: '',
@@ -182,6 +201,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         } else {
           console.error('❌ Errore nel caricamento dell\'approfondimento:', error);
           setApprofondimento("");
+          setDescrizione('');
+          setDescrizioneAbilitata(false);
           setApprofondimentiPerGrado({
             Europeo: '',
             Nazionale: '',
@@ -261,11 +282,26 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         return;
       }
       
-      // Combina tutti gli approfondimenti in un unico testo
-      const approfondimentoCombinato = Object.entries(approfondimentiPerGrado)
+      // Combina descrizione e approfondimenti in un unico testo
+      let approfondimentoCombinato = '';
+      
+      // Aggiungi la descrizione se abilitata e con contenuto
+      if (descrizioneAbilitata && descrizione.trim()) {
+        approfondimentoCombinato = descrizione.trim();
+      }
+      
+      // Aggiungi gli approfondimenti per grado
+      const approfondimentiGrado = Object.entries(approfondimentiPerGrado)
         .filter(([grado, _]) => gradiProposta[grado as keyof typeof gradiProposta])
         .map(([grado, testo]) => `## Proposta ${grado}\n\n${testo}`)
         .join('\n\n');
+      
+      // Combina descrizione e approfondimenti per grado
+      if (approfondimentoCombinato && approfondimentiGrado) {
+        approfondimentoCombinato = `${approfondimentoCombinato}\n\n${approfondimentiGrado}`;
+      } else if (approfondimentiGrado) {
+        approfondimentoCombinato = approfondimentiGrado;
+      }
       
       // Per opinioni "da approvare", invia l'ID vecchio nell'URL e il nuovo ID nel body
       const urlOpinionId = isDaApprovare ? (opinionId || opinione?.id) : (opinionId || opinione?.id);
@@ -372,6 +408,60 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
             ) : (
               <div className="h-full overflow-y-auto space-y-6">
                 {(() => {
+                  // Sezione Descrizione (solo in modalità admin)
+                  const descrizioneSection = !readOnly ? (
+                    <div key="descrizione" className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="descrizione-checkbox"
+                          checked={descrizioneAbilitata}
+                          onCheckedChange={(checked) => {
+                            setDescrizioneAbilitata(checked as boolean);
+                            if (!checked) {
+                              setDescrizione('');
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="descrizione-checkbox"
+                          className="text-lg font-semibold text-gray-900"
+                        >
+                          Descrizione
+                        </label>
+                      </div>
+                      <Textarea
+                        value={descrizione}
+                        onChange={(e) => {
+                          setDescrizione(e.target.value);
+                          if (e.target.value.trim()) {
+                            setDescrizioneAbilitata(true);
+                          }
+                        }}
+                        placeholder={`Inserisci qui la descrizione generale dell'opinione...
+
+Esempi di formattazione Markdown:
+# Titolo principale
+## Sottotitolo
+### Sezione
+
+**Testo in grassetto**
+*Testo in corsivo*
+
+- Punto elenco 1
+- Punto elenco 2
+
+Puoi aggiungere:
+- Contesto generale
+- Dati statistici
+- Pro e contro
+- Impatto sociale
+- Riferimenti normativi`}
+                        className="min-h-[200px] resize-none bg-white"
+                        disabled={!descrizioneAbilitata}
+                      />
+                    </div>
+                  ) : null;
+
                   const gradiAttivi = Object.entries(approfondimentiPerGrado)
                     .filter(([grado, _]) => {
                       // In modalità readOnly, mostra solo i gradi spuntati
@@ -383,7 +473,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                     });
 
                   // Se in modalità readOnly e non ci sono gradi attivi, mostra un messaggio
-                  if (readOnly && gradiAttivi.length === 0) {
+                  if (readOnly && gradiAttivi.length === 0 && !descrizione) {
                     return (
                       <div className="text-center py-8 text-muted-foreground">
                         <p>Nessun approfondimento disponibile per questa opinione.</p>
@@ -391,7 +481,24 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                     );
                   }
 
-                  return gradiAttivi.map(([grado, testo]) => {
+                  // In modalità readOnly, mostra la descrizione se presente
+                  const descrizioneReadOnly = readOnly && descrizione ? (
+                    <div key="descrizione-readonly" className="space-y-3">
+                      <div className="flex items-start space-x-3">
+                        <span className="text-2xl mt-1">📝</span>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold mb-2">Descrizione</h3>
+                          <div className="bg-gray-50 p-4 rounded-lg border">
+                            <div className="whitespace-pre-wrap text-gray-900">
+                              {descrizione || 'Nessun contenuto disponibile.'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null;
+
+                  const gradiSections = gradiAttivi.map(([grado, testo]) => {
                     // Mappa delle emoji per ogni grado
                     const emojiMap = {
                       'Europeo': '🌍',
@@ -470,6 +577,15 @@ Puoi aggiungere:
                       </div>
                     );
                   });
+                  
+                  // Combina descrizione e sezioni per grado
+                  return (
+                    <>
+                      {descrizioneSection}
+                      {descrizioneReadOnly}
+                      {gradiSections}
+                    </>
+                  );
                 })()}
               </div>
             )}

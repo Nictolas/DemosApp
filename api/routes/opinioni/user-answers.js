@@ -331,7 +331,10 @@ router.post('/salva', async (req, res) => {
         console.log('🔍 DEBUG - Query SQL:', insertQuery);
         console.log('🔍 DEBUG - Valori query:', allValues);
         console.log('🔍 DEBUG - Campi:', insertFields);
-        console.log('🔍 DEBUG - Indice parametri:', paramIndex);
+        console.log('🔍 DEBUG - Mapping campi-valori:');
+        insertFields.forEach((field, idx) => {
+          console.log(`  ${field} = ${insertValues[idx]}`);
+        });
         
         const result = await pool.query(insertQuery, allValues);
         savedCount = insertFields.length;
@@ -351,10 +354,20 @@ router.post('/salva', async (req, res) => {
         console.log('🔍 DEBUG - Query SQL:', updateQuery);
         console.log('🔍 DEBUG - Valori query:', allValues);
         console.log('🔍 DEBUG - Campi da aggiornare:', updateFields);
+        console.log('🔍 DEBUG - Mapping campi-valori:');
+        updateFields.forEach((field, idx) => {
+          const fieldName = field.split(' = ')[0];
+          console.log(`  ${fieldName} = ${insertValues[idx]}`);
+        });
         
         const result = await pool.query(updateQuery, allValues);
         savedCount = updateFields.length;
         console.log(`✅ Query eseguita con successo. Righe aggiornate: ${result.rowCount}`);
+        
+        // Verifica che l'aggiornamento sia andato a buon fine
+        if (result.rowCount === 0) {
+          console.warn('⚠️ ATTENZIONE: Nessuna riga aggiornata!');
+        }
       }
       
       console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
