@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
 import { vibrateShort } from '@/utils/vibration';
+import { PoliticalOpinionsConsentModal } from '@/components/PoliticalOpinionsConsentModal';
 
 const options = [
   { value: 'f', color: 'bg-green-500 text-white', label: 'Favorevole' },
@@ -31,6 +32,8 @@ export default function OpinioniComunali() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
   
   // Controllo consenso opinioni politiche (GDPR Art. 9)
   const { hasConsent } = usePoliticalOpinionsConsent();
@@ -104,16 +107,6 @@ export default function OpinioniComunali() {
   };
 
   const handleSave = () => {
-    // Verifica consenso opinioni politiche (GDPR Art. 9)
-    if (!hasConsent) {
-      toast({
-        title: "Consenso richiesto",
-        description: "Devi accettare il consenso al trattamento delle opinioni politiche durante la registrazione per salvare le tue opinioni. Puoi concederlo dalle impostazioni GDPR.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
@@ -128,7 +121,25 @@ export default function OpinioniComunali() {
       return;
     }
     
+    // Verifica consenso opinioni politiche (GDPR Art. 9)
+    if (!hasConsent) {
+      // Salva le opinioni da salvare in uno stato temporaneo
+      setPendingOpinionsToSave(opinionsToSave);
+      // Apri il dialog del consenso
+      setShowConsentDialog(true);
+      return;
+    }
+    
     saveMutation.mutate(opinionsToSave);
+  };
+
+  // Funzione chiamata quando il consenso viene concesso
+  const handleConsentGranted = () => {
+    // Dopo che il consenso è stato concesso, salva le opinioni in attesa
+    if (pendingOpinionsToSave) {
+      saveMutation.mutate(pendingOpinionsToSave);
+      setPendingOpinionsToSave(null);
+    }
   };
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -237,6 +248,13 @@ export default function OpinioniComunali() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog per il consenso alle opinioni politiche */}
+      <PoliticalOpinionsConsentModal
+        open={showConsentDialog}
+        onOpenChange={setShowConsentDialog}
+        onConsentGranted={handleConsentGranted}
+      />
     </div>
   );
 }
