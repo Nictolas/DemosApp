@@ -8,11 +8,41 @@ export const useOpinioniData = () => {
   const { data: opinioniResponse, isLoading, isError: isOpinioniError } = useQuery<{success: boolean, data: Opinione[]}>({
     queryKey: ['opinioni'],
     queryFn: async () => {
-      console.log('🔍 DEBUG - Chiamata API /api/opinioni/proposte');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest('GET', '/api/opinioni/proposte');
-      console.log('🔍 DEBUG - Dati ricevuti:', data);
-      return data;
+      console.log('🔍 DEBUG - Chiamata API /api/opinioni');
+      const response = await apiRequest('GET', '/api/opinioni');
+      console.log('🔍 DEBUG - Dati ricevuti:', response);
+      
+      // apiRequest restituisce { ok, status, data, json }
+      // response.data contiene la risposta dell'API che ha struttura { success, data: [...] }
+      if (!response?.ok || !response?.data) {
+        throw new Error(response?.data?.error || 'Errore nel caricamento delle opinioni');
+      }
+      
+      const apiData = response.data;
+      if (apiData.success === false) {
+        throw new Error(apiData.error || 'Errore nel caricamento delle opinioni');
+      }
+      
+      // Mappa i gradi da lettere a nomi completi se necessario
+      const opinioni = (apiData.data || []).map((op: any) => {
+        const gradoMapping: Record<string, string> = {
+          'E': 'Europeo',
+          'N': 'Nazionale',
+          'R': 'Regionale',
+          'CO': 'Comunale'
+        };
+        
+        const mappedGradi = op.gradi_opinione?.map((g: string) => 
+          gradoMapping[g] || g
+        ) || [];
+        
+        return {
+          ...op,
+          gradi_opinione: mappedGradi
+        };
+      });
+      
+      return { success: true, data: opinioni };
     }
   });
 
@@ -20,14 +50,24 @@ export const useOpinioniData = () => {
   const { data: proposteResponse, isLoading: isLoadingProposte, isError: isProposteError } = useQuery<{success: boolean, data: OpinioneProposta[]}>({
     queryKey: ['opinioniProposte'],
     queryFn: async () => {
-      // apiRequest restituisce già il JSON parsato, non un Response
-      return await apiRequest('GET', '/api/opinioni-proposte');
+      const response = await apiRequest('GET', '/api/opinioni-proposte');
+      
+      if (!response?.ok || !response?.data) {
+        throw new Error(response?.data?.error || 'Errore nel caricamento delle proposte');
+      }
+      
+      const apiData = response.data;
+      if (apiData.success === false) {
+        throw new Error(apiData.error || 'Errore nel caricamento delle proposte');
+      }
+      
+      return { success: true, data: apiData.data || [] };
     }
   });
 
   // Estrai i dati con fallback sicuro
-  const opinioni = opinioniResponse?.data || opinioniResponse || [];
-  const proposte = proposteResponse?.data || proposteResponse || [];
+  const opinioni = opinioniResponse?.data || [];
+  const proposte = proposteResponse?.data || [];
 
   return {
     opinioni,
