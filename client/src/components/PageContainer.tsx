@@ -25,7 +25,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
         zIndex: 1
       }}
     >
-      <div className="flex-1 w-full">
+      <div className="flex-1 w-full" style={{ marginBottom: 0, paddingBottom: 0, minHeight: 0 }}>
         {children}
       </div>
     </div>
