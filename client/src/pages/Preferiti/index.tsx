@@ -162,12 +162,19 @@ export default function Preferiti() {
       
       for (const grado of gradi) {
         console.log(`🔍 DEBUG Preferiti - Controllo grado: ${grado}`);
-        const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+        const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
         
-        console.log(`🔍 DEBUG Preferiti - Risposta per grado ${grado}:`, result);
+        console.log(`🔍 DEBUG Preferiti - Risposta per grado ${grado}:`, response);
         
-        if (result && result.success && result.data && !result.data.isComplete) {
-          console.log(`⚠️ DEBUG Preferiti - Opinion incomplete trovate nel grado ${grado}:`, result.data);
+        // apiRequest restituisce { ok, status, data } dove data contiene la risposta JSON
+        if (!response?.ok || !response?.data) {
+          console.error(`❌ DEBUG Preferiti - Errore nella risposta per grado ${grado}`);
+          continue; // Continua con il prossimo grado invece di permettere l'accesso
+        }
+        
+        const apiData = response.data;
+        if (apiData.success && apiData.data && !apiData.data.isComplete) {
+          console.log(`⚠️ DEBUG Preferiti - Opinion incomplete trovate nel grado ${grado}:`, apiData.data);
           return false; // Trovate opinioni incomplete
         }
       }
@@ -177,7 +184,8 @@ export default function Preferiti() {
       
     } catch (error) {
       console.error("❌ Errore nel controllo opinioni:", error);
-      return true; // In caso di errore, permetti l'accesso
+      // In caso di errore, considera le opinioni incomplete per sicurezza
+      return false;
     }
   };
 
@@ -207,13 +215,17 @@ export default function Preferiti() {
           const allMissingOpinions: any[] = [];
           
           for (const grado of gradi) {
-            const result = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-            if (result && result.success && result.data) {
-              totaleOpinioni += result.data.totaleOpinioni || 0;
-              opinioniRisposte += result.data.opinioniRisposte || 0;
-              totaliMancanti += result.data.opinioniMancanti || 0;
-              if (result.data.missingOpinions) {
-                allMissingOpinions.push(...result.data.missingOpinions);
+            const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+            // apiRequest restituisce { ok, status, data } dove data contiene la risposta JSON
+            if (response?.ok && response?.data) {
+              const apiData = response.data;
+              if (apiData.success && apiData.data) {
+                totaleOpinioni += apiData.data.totaleOpinioni || 0;
+                opinioniRisposte += apiData.data.opinioniRisposte || 0;
+                totaliMancanti += apiData.data.opinioniMancanti || 0;
+                if (apiData.data.missingOpinions) {
+                  allMissingOpinions.push(...apiData.data.missingOpinions);
+                }
               }
             }
           }
