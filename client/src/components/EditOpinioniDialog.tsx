@@ -76,13 +76,26 @@ export function EditOpinioniDialog({
     try {
       setIsLoadingOpinions(true);
       setIsLoadingQuestions(true);
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
-      console.log('🔍 DEBUG - Dati opinioni utente ricevuti:', data);
+      // apiRequest restituisce { ok, status, data } dove data è il JSON parsato
+      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      console.log('🔍 DEBUG EditOpinioniDialog - Response completa:', response);
       
-      if (data.success && data.data && data.data.opinioni) {
-        console.log('🔍 DEBUG - Opinion totali ricevute:', data.data.opinioni.length);
-        console.log('🔍 DEBUG - Prime 3 opinioni (struttura):', data.data.opinioni.slice(0, 3).map((o: any) => ({
+      if (!response?.ok || !response?.data) {
+        console.error('❌ ERRORE - Risposta non ok o dati mancanti:', response);
+        setQuestions([]);
+        setOpinions({});
+        setFonti({});
+        return;
+      }
+      
+      const result = response.data;
+      console.log('🔍 DEBUG EditOpinioniDialog - result:', result);
+      console.log('🔍 DEBUG EditOpinioniDialog - result.success:', result?.success);
+      console.log('🔍 DEBUG EditOpinioniDialog - result.data:', result?.data);
+      
+      if (result && result.success && result.data && result.data.opinioni) {
+        console.log('🔍 DEBUG EditOpinioniDialog - Opinion totali ricevute:', result.data.opinioni.length);
+        console.log('🔍 DEBUG EditOpinioniDialog - Prime 3 opinioni (struttura):', result.data.opinioni.slice(0, 3).map((o: any) => ({
           id: o.id,
           text: o.text,
           grado: o.grado,
@@ -91,7 +104,7 @@ export function EditOpinioniDialog({
         })));
         
         // Filtra le opinioni escludendo quelle con "da approvare" in gradi_opinione
-        const validOpinions = data.data.opinioni.filter((opinion: any) => {
+        const validOpinions = result.data.opinioni.filter((opinion: any) => {
           // Prova prima con grado, poi con gradi_opinione
           const gradi = opinion.grado || opinion.gradi_opinione;
           
@@ -120,12 +133,12 @@ export function EditOpinioniDialog({
           return true;
         });
         
-        console.log('🔍 DEBUG - Opinion totali:', data.data.opinioni.length);
-        console.log('🔍 DEBUG - Opinion valide (senza "da approvare"):', validOpinions.length);
+        console.log('🔍 DEBUG EditOpinioniDialog - Opinion totali:', result.data.opinioni.length);
+        console.log('🔍 DEBUG EditOpinioniDialog - Opinion valide (senza "da approvare"):', validOpinions.length);
         
-        if (validOpinions.length === 0 && data.data.opinioni.length > 0) {
+        if (validOpinions.length === 0 && result.data.opinioni.length > 0) {
           console.warn('⚠️ ATTENZIONE: Tutte le opinioni sono state filtrate! Probabilmente tutte hanno "da approvare"');
-          console.warn('⚠️ Esempio gradi_opinione:', data.data.opinioni.slice(0, 3).map((o: any) => ({
+          console.warn('⚠️ Esempio gradi_opinione:', result.data.opinioni.slice(0, 3).map((o: any) => ({
             id: o.id,
             text: o.text,
             gradi: o.grado || o.gradi_opinione
@@ -176,10 +189,10 @@ export function EditOpinioniDialog({
         setOpinions(opinioniMap);
         
         // Carica anche le fonti dai dati già ricevuti (solo per opinioni valide)
-        if (data.data.fonti) {
-          console.log('🔍 DEBUG - Fonti caricate:', data.data.fonti);
-          console.log('🔍 DEBUG - Tipo fonti:', typeof data.data.fonti);
-          console.log('🔍 DEBUG - Chiavi fonti:', Object.keys(data.data.fonti));
+        if (result.data.fonti) {
+          console.log('🔍 DEBUG EditOpinioniDialog - Fonti caricate:', result.data.fonti);
+          console.log('🔍 DEBUG EditOpinioniDialog - Tipo fonti:', typeof result.data.fonti);
+          console.log('🔍 DEBUG EditOpinioniDialog - Chiavi fonti:', Object.keys(result.data.fonti));
           
           // Mappa le fonti usando gli ID reali delle opinioni (solo quelle valide)
           const fontiMap: Record<string, string> = {};
@@ -192,7 +205,7 @@ export function EditOpinioniDialog({
             
             const questionId = opinion.id;
             // Le fonti sono già mappate per ID nell'oggetto fonti
-            const fonte = data.data.fonti[questionId];
+            const fonte = result.data.fonti[questionId];
             if (fonte && fonte !== 'unknown') {
               fontiMap[questionId] = fonte;
               console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
@@ -206,6 +219,12 @@ export function EditOpinioniDialog({
           setFonti({});
         }
       } else {
+        console.error('❌ ERRORE EditOpinioniDialog - Struttura dati non valida:');
+        console.error('❌ result:', result);
+        console.error('❌ result.success:', result?.success);
+        console.error('❌ result.data:', result?.data);
+        console.error('❌ result.data?.opinioni:', result?.data?.opinioni);
+        console.error('❌ response completa:', response);
         console.log('⚠️ Nessuna opinione trovata nei dati ricevuti');
         setQuestions([]);
         setFonti({});
