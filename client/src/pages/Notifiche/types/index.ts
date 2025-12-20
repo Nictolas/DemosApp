@@ -16,9 +16,10 @@ export interface Notifica {
     cognome: string;
     ruolo: string;
   };
-  voto_dato?: 'Favorevole' | 'Contrario' | 'Astenuto';
-  vincitore?: 'Approvata' | 'Respinta' | 'Pareggio';
-  commento?: string;
+  voto?: string;
+  data?: string;
+  comune_residenza?: string;
+  politico?: string;
 }
 
 export interface NotificheData {

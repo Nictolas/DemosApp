@@ -62,16 +62,29 @@ router.post('/', verifyToken, async (req, res) => {
     
     const existingTokens = userResult.rows[0].fcm_tokens || [];
     
+    // Filtra i token validi (solo quelli che sono token FCM reali, non device ID fittizi)
+    const validExistingTokens = existingTokens.filter(t => 
+      t && t.length > 100 && !t.startsWith('web_')
+    );
+    
     // Aggiungi il nuovo token se non è già presente
     let updatedTokens;
-    if (existingTokens.includes(token)) {
-      // Token già presente, non fare nulla
-      updatedTokens = existingTokens;
+    if (validExistingTokens.includes(token)) {
+      // Token già presente, mantieni solo i token validi
+      updatedTokens = validExistingTokens;
       console.log('   ℹ️ Token già presente, nessuna modifica');
     } else {
-      // Aggiungi il nuovo token
-      updatedTokens = [...existingTokens, token];
-      console.log(`   ✅ Token aggiunto. Totale token: ${updatedTokens.length}`);
+      // Aggiungi il nuovo token e mantieni solo i token validi
+      updatedTokens = [...validExistingTokens, token];
+      // Rimuovi duplicati
+      updatedTokens = [...new Set(updatedTokens)];
+      console.log(`   ✅ Token aggiunto. Totale token validi: ${updatedTokens.length}`);
+      
+      // Se abbiamo rimosso token vecchi, loggalo
+      const removedCount = existingTokens.length - validExistingTokens.length;
+      if (removedCount > 0) {
+        console.log(`   🧹 Rimossi ${removedCount} token non validi o duplicati`);
+      }
     }
     
     // Salva i token aggiornati
