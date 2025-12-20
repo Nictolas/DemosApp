@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -321,6 +322,56 @@ router.post('/', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/notifiche/preferenze - Salva preferenze notifiche utente
+router.post('/preferenze', verifyToken, async (req, res) => {
+  try {
+    const user_id = req.user.id; // Ottieni user_id dal token
+    const { preferenze } = req.body;
+    
+    if (!preferenze || typeof preferenze !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Preferenze devono essere un oggetto'
+      });
+    }
+    
+    // Aggiorna le preferenze notifiche nella tabella users
+    // La colonna si chiama notifiche_preferenze
+    const result = await pool.query(
+      `UPDATE users 
+       SET notifiche_preferenze = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, notifiche_preferenze`,
+      [JSON.stringify(preferenze), user_id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, preferenze);
+    
+    res.json({
+      success: true,
+      message: 'Preferenze salvate con successo',
+      data: {
+        user_id: result.rows[0].id,
+        preferenze: result.rows[0].notifiche_preferenze
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel salvataggio preferenze notifiche:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
     });
   }
 });
