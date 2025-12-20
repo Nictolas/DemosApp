@@ -404,10 +404,105 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
   }
 }
 
+// Funzione helper per inviare push notification usando Firebase Admin SDK
+async function sendPushNotification(fcmToken, title, body, data = {}) {
+  try {
+    if (!fcmToken || !fcmToken.trim()) {
+      return { success: false, error: 'Token FCM non valido' };
+    }
+
+    // Inizializza Firebase Admin se non già fatto
+    const { getFirebaseAdmin } = require('../services/firebaseAdmin');
+    const admin = getFirebaseAdmin();
+    
+    if (!admin) {
+      console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
+      return { success: false, error: 'Firebase Admin non configurato' };
+    }
+
+    // Prepara il messaggio FCM
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: title,
+        body: body
+      },
+      data: {
+        ...data,
+        click_action: 'FLUTTER_NOTIFICATION_CLICK', // Per compatibilità mobile
+        type: data.type || 'demos_notification'
+      },
+      webpush: {
+        headers: {
+          'Urgency': 'high'
+        },
+        notification: {
+          icon: '/icona.png',
+          badge: '/icona.png',
+          tag: 'demos-notification',
+          requireInteraction: true,
+          data: {
+            url: data.url || '/comunica',
+            link: data.link || 'https://www.demos.community/comunica'
+          },
+          actions: [
+            {
+              action: 'open',
+              title: 'Apri'
+            },
+            {
+              action: 'close',
+              title: 'Chiudi'
+            }
+          ]
+        },
+        fcmOptions: {
+          link: data.link || data.url || 'https://www.demos.community/comunica'
+        }
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'demos_notifications'
+        }
+      },
+      apns: {
+        headers: {
+          'apns-priority': '10'
+        },
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1
+          }
+        }
+      }
+    };
+
+    // Invia la notifica push
+    const response = await admin.messaging().send(message);
+    console.log(`✅ Push notification inviata con successo. Message ID: ${response}`);
+    
+    return { success: true, messageId: response };
+  } catch (error) {
+    // Gestisci errori specifici di FCM
+    if (error.code === 'messaging/invalid-registration-token' || 
+        error.code === 'messaging/registration-token-not-registered') {
+      console.warn(`⚠️ Token FCM non valido o non registrato: ${fcmToken?.substring(0, 20)}...`);
+      return { success: false, error: 'Token non valido', shouldRemoveToken: true };
+    }
+    
+    console.error('❌ Errore invio push notification:', error.message);
+    console.error('❌ Error code:', error.code);
+    return { success: false, error: error.message, code: error.code };
+  }
+}
+
 // Funzione per notificare tutti gli utenti (per notifiche Demos)
 async function notifyAllUsers(titolo, commento) {
   try {
-    // Recupera tutti gli utenti attivi
+    // Recupera tutti gli utenti attivi per notifiche in-app
     const utentiResult = await pool.query(
       'SELECT id FROM users WHERE status = $1 OR status IS NULL',
       ['active']
@@ -415,7 +510,7 @@ async function notifyAllUsers(titolo, commento) {
 
     if (utentiResult.rows.length === 0) return;
 
-    // Crea notifiche per ogni utente
+    // Crea notifiche in-app per ogni utente (sempre create per tutti)
     const notifiche = utentiResult.rows.map(utente => ({
       utente_id: utente.id,
       titolo: `Notifica Demos: ${titolo}`,
@@ -424,7 +519,7 @@ async function notifyAllUsers(titolo, commento) {
       priorita: 'alta'
     }));
 
-    // Inserisci le notifiche in batch per performance
+    // Inserisci le notifiche in-app in batch per performance
     const batchSize = 100;
     for (let i = 0; i < notifiche.length; i += batchSize) {
       const batch = notifiche.slice(i, i + batchSize);
@@ -446,11 +541,121 @@ async function notifyAllUsers(titolo, commento) {
       );
     }
 
-    console.log(`✅ Notifiche Demos inviate a ${utentiResult.rows.length} utenti`);
+    console.log(`✅ Notifiche in-app Demos create per ${utentiResult.rows.length} utenti`);
+
+    // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
+    // SOLO gli utenti con demos: true (non NULL o undefined)
+    const utentiConPushResult = await pool.query(`
+      SELECT id, fcm_tokens, notifiche_preferenze
+      FROM users 
+      WHERE (status = $1 OR status IS NULL)
+        AND notifiche_preferenze->>'demos' = 'true'
+        AND fcm_tokens IS NOT NULL 
+        AND array_length(fcm_tokens, 1) > 0
+    `, ['active']);
+
+    if (utentiConPushResult.rows.length === 0) {
+      console.log('ℹ️ Nessun utente con push notifications attive per Demos');
+      return;
+    }
+
+    // Invia push notifications solo agli utenti con preferenza attiva
+    const pushTitle = `Notifica Demos: ${titolo}`;
+    const pushBody = commento || titolo;
+    let pushSuccessCount = 0;
+    let pushFailureCount = 0;
+
+    const invalidTokens = []; // Raccogli token non validi da rimuovere
+    
+    for (const utente of utentiConPushResult.rows) {
+      const fcmTokens = utente.fcm_tokens || [];
+      const validTokens = [];
+      
+      // Invia push notification a tutti i token FCM dell'utente
+      for (const token of fcmTokens) {
+        if (token && token.trim()) {
+          const result = await sendPushNotification(
+            token,
+            pushTitle,
+            pushBody,
+            {
+              type: 'demos_notification',
+              titolo: titolo,
+              messaggio: commento,
+              url: '/comunica',
+              link: 'https://www.demos.community/comunica'
+            }
+          );
+          
+          if (result.success) {
+            pushSuccessCount++;
+            validTokens.push(token); // Mantieni solo i token validi
+          } else {
+            pushFailureCount++;
+            // Se il token non è valido, segnalo per rimozione
+            if (result.shouldRemoveToken) {
+              invalidTokens.push({ userId: utente.id, token });
+            } else {
+              validTokens.push(token); // Mantieni il token se l'errore è temporaneo
+            }
+          }
+        }
+      }
+      
+      // Rimuovi token non validi dal database
+      if (invalidTokens.length > 0 && validTokens.length !== fcmTokens.length) {
+        try {
+          await pool.query(
+            'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
+            [validTokens, utente.id]
+          );
+          console.log(`🧹 Rimossi ${fcmTokens.length - validTokens.length} token FCM non validi per utente ${utente.id}`);
+        } catch (error) {
+          console.error(`❌ Errore nella rimozione token FCM per utente ${utente.id}:`, error);
+        }
+      }
+    }
+
+    console.log(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiConPushResult.rows.length} utenti`);
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche Demos:', error);
   }
 }
+
+// POST /api/comunicazioni/send-demos-notification - Invia notifica "Notifiche Demos" manualmente
+router.post('/send-demos-notification', async (req, res) => {
+  try {
+    const { titolo, messaggio } = req.body;
+    
+    if (!titolo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Titolo richiesto'
+      });
+    }
+
+    const commento = messaggio || titolo;
+
+    // Invia la notifica a tutti gli utenti con demos: true
+    await notifyAllUsers(titolo, commento);
+
+    res.json({
+      success: true,
+      message: 'Notifica "Notifiche Demos" inviata con successo',
+      data: {
+        titolo,
+        messaggio: commento,
+        destinatari: 'Tutti gli utenti con notifiche Demos attivate'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'invio notifica Demos:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
 
 // GET /api/ultima-comunicazione - Ultima comunicazione dell'utente
 router.get('/ultima-comunicazione', async (req, res) => {
