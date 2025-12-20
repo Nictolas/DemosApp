@@ -83,11 +83,14 @@ router.get('/', async (req, res) => {
       return {
         id: c.id,
         titolo: c.titolo,
-        messaggio: c.testo || c.commento || 'Nessun messaggio',
-        data_creazione: c.data_creazione,
+        messaggio: c.testo || 'Nessun messaggio',
+        data_creazione: c.data_creazione || c.data,
         tipo_notifica: c.tipo,
         status: status,
-        commento: c.commento
+        voto: c.voto,
+        data: c.data,
+        comune_residenza: c.comune_residenza,
+        politico: c.politico
       };
     });
     

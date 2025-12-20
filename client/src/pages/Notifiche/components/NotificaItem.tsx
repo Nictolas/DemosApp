@@ -104,33 +104,31 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   {notifica.autore.ruolo}
                 </span>
               </div>
-              {notifica.voto_dato && (
+              {notifica.voto && (
                 <div className="text-sm text-gray-600">
                   <strong>Voto:</strong> 
                   <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                    notifica.voto_dato === 'Favorevole' ? 'bg-green-100 text-green-800' :
-                    notifica.voto_dato === 'Contrario' ? 'bg-red-100 text-red-800' :
+                    notifica.voto === 'Favorevole' ? 'bg-green-100 text-green-800' :
+                    notifica.voto === 'Contrario' ? 'bg-red-100 text-red-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {notifica.voto_dato}
+                    {notifica.voto}
                   </span>
                 </div>
               )}
-              {notifica.vincitore && (
+              {notifica.data && (
                 <div className="text-sm text-gray-600 mt-1">
-                  <strong>Risultato:</strong> 
-                  <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                    notifica.vincitore === 'Approvata' ? 'bg-green-100 text-green-800' :
-                    notifica.vincitore === 'Respinta' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {notifica.vincitore}
-                  </span>
+                  <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
                 </div>
               )}
-              {notifica.commento && (
+              {notifica.comune_residenza && (
                 <div className="text-sm text-gray-600 mt-1">
-                  <strong>Commento:</strong> {notifica.commento}
+                  <strong>Comune:</strong> {notifica.comune_residenza}
+                </div>
+              )}
+              {notifica.politico && (
+                <div className="text-sm text-gray-600 mt-1">
+                  <strong>Politico:</strong> {notifica.politico}
                 </div>
               )}
             </div>
