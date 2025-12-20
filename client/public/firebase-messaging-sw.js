@@ -5,14 +5,15 @@ importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging-compat.js');
 
 // Inizializza Firebase nel Service Worker
-// NOTA: Le credenziali devono essere configurate qui o passate dal client
+// Le credenziali vengono passate dinamicamente dal client tramite postMessage
+// Oppure usa queste credenziali se non vengono passate dinamicamente
 firebase.initializeApp({
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "<REDACTED_GCP_API_KEY>",
+  authDomain: "demos-finale.firebaseapp.com",
+  projectId: "demos-finale",
+  storageBucket: "demos-finale.firebasestorage.app",
+  messagingSenderId: "848085963511",
+  appId: "1:848085963511:web:2efb3d13fb5576ecd0b9f2"
 });
 
 const messaging = firebase.messaging();
