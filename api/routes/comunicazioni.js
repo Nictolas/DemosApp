@@ -502,51 +502,67 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
 // Funzione per notificare tutti gli utenti (per notifiche Demos)
 async function notifyAllUsers(titolo, commento) {
   try {
-    // Recupera tutti gli utenti attivi per notifiche in-app
-    const utentiResult = await pool.query(
-      'SELECT id FROM users WHERE status = $1 OR status IS NULL',
-      ['active']
-    );
-
-    if (utentiResult.rows.length === 0) return;
-
-    // Crea notifiche in-app per ogni utente (sempre create per tutti)
-    const notifiche = utentiResult.rows.map(utente => ({
-      utente_id: utente.id,
-      titolo: `Notifica Demos: ${titolo}`,
-      messaggio: commento,
-      tipo: 'demos_notification',
-      priorita: 'alta'
-    }));
-
-    // Inserisci le notifiche in-app in batch per performance
-    const batchSize = 100;
-    for (let i = 0; i < notifiche.length; i += batchSize) {
-      const batch = notifiche.slice(i, i + batchSize);
-      const values = batch.map((notifica, index) => {
-        const baseIndex = i + index;
-        return `(gen_random_uuid(), $${baseIndex * 4 + 1}, $${baseIndex * 4 + 2}, $${baseIndex * 4 + 3}, $${baseIndex * 4 + 4}, NOW())`;
-      }).join(', ');
+    // Crea UNA comunicazione nella tabella comunicazioni con tipo 'demos_notification'
+    // Questa sarà visibile a tutti gli utenti e il badge la mostrerà come non letta
+    // Usa gen_random_uuid() per compatibilità con UUID o VARCHAR
+    let comunicazioneId;
+    
+    // Verifica se esiste il campo read_by, altrimenti lo crea
+    try {
+      const checkColumns = await pool.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'comunicazioni' 
+        AND column_name IN ('read_by', 'tipo', 'id')
+      `);
       
-      const params = batch.flatMap(notifica => [
-        notifica.utente_id, 
-        notifica.titolo, 
-        notifica.messaggio, 
-        notifica.tipo
-      ]);
-
-      await pool.query(
-        `INSERT INTO notifiche_utente (id, utente_id, titolo, messaggio, tipo, data_creazione) VALUES ${values}`,
-        params
-      );
+      const hasReadBy = checkColumns.rows.some(r => r.column_name === 'read_by');
+      const hasTipo = checkColumns.rows.some(r => r.column_name === 'tipo');
+      const idType = checkColumns.rows.find(r => r.column_name === 'id')?.data_type || 'uuid';
+      
+      // Aggiungi read_by se non esiste (può essere UUID[] o VARCHAR[])
+      if (!hasReadBy) {
+        const readByType = idType === 'uuid' ? 'UUID[]' : 'VARCHAR[]';
+        await pool.query(`
+          ALTER TABLE comunicazioni ADD COLUMN read_by ${readByType} DEFAULT ARRAY[]::${readByType}
+        `);
+        console.log(`✅ Aggiunta colonna read_by (${readByType})`);
+      }
+      
+      // Aggiungi tipo se non esiste
+      if (!hasTipo) {
+        await pool.query(`
+          ALTER TABLE comunicazioni ADD COLUMN tipo VARCHAR(50) DEFAULT 'votazione'
+        `);
+        console.log('✅ Aggiunta colonna tipo');
+      }
+    } catch (alterError) {
+      console.warn('⚠️ Errore nel verificare/creare colonne:', alterError.message);
     }
 
-    console.log(`✅ Notifiche in-app Demos create per ${utentiResult.rows.length} utenti`);
+    // Crea la comunicazione nella tabella comunicazioni
+    // Usa gen_random_uuid() per compatibilità
+    const comunicazioneResult = await pool.query(`
+      INSERT INTO comunicazioni (
+        id, id_utente, titolo, testo, zona, tipo, 
+        data_creazione, likes, dislikes, punti_trasparenza, 
+        read_by, status
+      ) VALUES (
+        gen_random_uuid(), NULL, $1, $2, 'Generale', 'demos_notification',
+        NOW(), 0, 0, 0, ARRAY[]::VARCHAR[], 'non_letta'
+      ) RETURNING id
+    `, [
+      `Notifica Demos: ${titolo}`,
+      commento || titolo
+    ]);
+
+    comunicazioneId = comunicazioneResult.rows[0].id;
+    console.log(`✅ Comunicazione Demos creata con ID: ${comunicazioneId}`);
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
     // SOLO gli utenti con demos: true (non NULL o undefined)
     const utentiConPushResult = await pool.query(`
-      SELECT id, fcm_tokens, notifiche_preferenze
+      SELECT id, fcm_tokens, notifiche_preferenze, email, nome, cognome
       FROM users 
       WHERE (status = $1 OR status IS NULL)
         AND notifiche_preferenze->>'demos' = 'true'
@@ -554,8 +570,13 @@ async function notifyAllUsers(titolo, commento) {
         AND array_length(fcm_tokens, 1) > 0
     `, ['active']);
 
+    console.log(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
+    
     if (utentiConPushResult.rows.length === 0) {
       console.log('ℹ️ Nessun utente con push notifications attive per Demos');
+      console.log('💡 Verifica che gli utenti abbiano:');
+      console.log('   1. notifiche_preferenze->>\'demos\' = \'true\'');
+      console.log('   2. fcm_tokens non vuoto');
       return;
     }
 
@@ -567,13 +588,19 @@ async function notifyAllUsers(titolo, commento) {
 
     const invalidTokens = []; // Raccogli token non validi da rimuovere
     
+    console.log(`📤 Invio push notifications a ${utentiConPushResult.rows.length} utenti...`);
+    
     for (const utente of utentiConPushResult.rows) {
       const fcmTokens = utente.fcm_tokens || [];
       const validTokens = [];
       
+      console.log(`  📱 Utente ${utente.email || utente.id}: ${fcmTokens.length} token(s) FCM`);
+      
       // Invia push notification a tutti i token FCM dell'utente
       for (const token of fcmTokens) {
         if (token && token.trim()) {
+          console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 20)}...`);
+          
           const result = await sendPushNotification(
             token,
             pushTitle,
@@ -590,11 +617,14 @@ async function notifyAllUsers(titolo, commento) {
           if (result.success) {
             pushSuccessCount++;
             validTokens.push(token); // Mantieni solo i token validi
+            console.log(`    ✅ Notifica inviata con successo`);
           } else {
             pushFailureCount++;
+            console.log(`    ❌ Errore invio notifica: ${result.error}`);
             // Se il token non è valido, segnalo per rimozione
             if (result.shouldRemoveToken) {
               invalidTokens.push({ userId: utente.id, token });
+              console.log(`    🗑️ Token marcato per rimozione`);
             } else {
               validTokens.push(token); // Mantieni il token se l'errore è temporaneo
             }
