@@ -542,6 +542,8 @@ async function notifyAllUsers(titolo, commento) {
 
     // Crea la comunicazione nella tabella comunicazioni
     // Usa gen_random_uuid() per compatibilità
+    // Inizializza read_by come array vuoto per assicurarsi che sia non letta per tutti
+    console.log('📝 Creazione comunicazione Demos...');
     const comunicazioneResult = await pool.query(`
       INSERT INTO comunicazioni (
         id, id_utente, titolo, testo, zona, tipo, 
@@ -549,8 +551,19 @@ async function notifyAllUsers(titolo, commento) {
         read_by, status
       ) VALUES (
         gen_random_uuid(), NULL, $1, $2, 'Generale', 'demos_notification',
-        NOW(), 0, 0, 0, ARRAY[]::VARCHAR[], 'non_letta'
-      ) RETURNING id
+        NOW(), 0, 0, 0, 
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'comunicazioni' 
+            AND column_name = 'read_by' 
+            AND data_type = 'ARRAY'
+            AND udt_name LIKE '%uuid%'
+          ) THEN ARRAY[]::UUID[]
+          ELSE ARRAY[]::VARCHAR[]
+        END,
+        'non_letta'
+      ) RETURNING id, read_by
     `, [
       `Notifica Demos: ${titolo}`,
       commento || titolo
@@ -558,6 +571,7 @@ async function notifyAllUsers(titolo, commento) {
 
     comunicazioneId = comunicazioneResult.rows[0].id;
     console.log(`✅ Comunicazione Demos creata con ID: ${comunicazioneId}`);
+    console.log(`📋 read_by inizializzato: ${JSON.stringify(comunicazioneResult.rows[0].read_by)}`);
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
     // SOLO gli utenti con demos: true (non NULL o undefined)
@@ -655,9 +669,13 @@ async function notifyAllUsers(titolo, commento) {
 // POST /api/comunicazioni/send-demos-notification - Invia notifica "Notifiche Demos" manualmente
 router.post('/send-demos-notification', async (req, res) => {
   try {
+    console.log('📢 RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS');
     const { titolo, messaggio } = req.body;
     
+    console.log('📝 Dati ricevuti:', { titolo, messaggio });
+    
     if (!titolo) {
+      console.log('❌ Titolo mancante');
       return res.status(400).json({
         success: false,
         error: 'Titolo richiesto'
@@ -665,9 +683,12 @@ router.post('/send-demos-notification', async (req, res) => {
     }
 
     const commento = messaggio || titolo;
+    console.log('🚀 Avvio invio notifiche...');
 
     // Invia la notifica a tutti gli utenti con demos: true
     await notifyAllUsers(titolo, commento);
+
+    console.log('✅ Invio notifiche completato');
 
     res.json({
       success: true,
@@ -680,9 +701,11 @@ router.post('/send-demos-notification', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nell\'invio notifica Demos:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: error.message
     });
   }
 });

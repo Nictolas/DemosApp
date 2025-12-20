@@ -34,11 +34,12 @@ router.get('/', async (req, res) => {
     // Recupera le comunicazioni e controlla se l'utente le ha lette
     // Include sia demos_notification che new_opinions
     // Gestisce sia UUID che VARCHAR per read_by
+    console.log(`🔍 Query notifiche per user_id: ${user_id}`);
     const comunicazioniResult = await pool.query(`
       SELECT
         c.*,
         CASE 
-          WHEN c.read_by IS NULL THEN false
+          WHEN c.read_by IS NULL OR array_length(c.read_by, 1) IS NULL THEN false
           WHEN c.read_by::text[] @> ARRAY[$1::text] THEN true
           ELSE false
         END as is_read
@@ -48,15 +49,23 @@ router.get('/', async (req, res) => {
       LIMIT 10
     `, [user_id]);
     
-    const comunicazioni = comunicazioniResult.rows.map(c => ({
-      id: c.id,
-      titolo: c.titolo,
-      messaggio: c.testo || c.commento || 'Nessun messaggio',
-      data_creazione: c.data_creazione,
-      tipo_notifica: c.tipo,
-      status: c.is_read ? 'letta' : 'non_letta',
-      commento: c.commento
-    }));
+    console.log(`📋 Comunicazioni trovate dal DB: ${comunicazioniResult.rows.length}`);
+    
+    const comunicazioni = comunicazioniResult.rows.map(c => {
+      const status = c.is_read ? 'letta' : 'non_letta';
+      console.log(`📋 Notifica ${c.id}: is_read=${c.is_read}, status=${status}, read_by=${JSON.stringify(c.read_by)}`);
+      return {
+        id: c.id,
+        titolo: c.titolo,
+        messaggio: c.testo || c.commento || 'Nessun messaggio',
+        data_creazione: c.data_creazione,
+        tipo_notifica: c.tipo,
+        status: status,
+        commento: c.commento
+      };
+    });
+    
+    console.log(`📊 Comunicazioni mappate: ${comunicazioni.length}, non lette: ${comunicazioni.filter(c => c.status === 'non_letta').length}`);
 
     // Se l'utente è admin, recupera anche le segnalazioni
     let segnalazioni = [];
@@ -113,9 +122,13 @@ router.get('/', async (req, res) => {
       new Date(b.data_creazione) - new Date(a.data_creazione)
     );
     
+    const unreadCount = allNotifiche.filter(n => n.status !== 'letta').length;
+    
     console.log('🔍 DEBUG: Comunicazioni trovate:', comunicazioni.length);
     console.log('🔍 DEBUG: Segnalazioni trovate:', segnalazioni.length);
     console.log('🔍 DEBUG: Totale notifiche:', allNotifiche.length);
+    console.log('🔍 DEBUG: Notifiche non lette:', unreadCount);
+    console.log('🔍 DEBUG: Dettaglio status:', allNotifiche.map(n => ({ id: n.id, status: n.status })));
     
     res.json({
       success: true,
