@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { AuthProvider } from "@/hooks/use-auth-neon";
 import { RegistrationProvider } from "@/hooks/use-registration";
+import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
 import { queryClient } from "./lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -249,6 +250,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="App">
         <AuthProvider>
+          <FCMTokenSync />
           <RegistrationProvider>
             <RobustAppLayout>
               <AppWrapper>
@@ -969,4 +971,10 @@ export default function App() {
       </div>
     </QueryClientProvider>
   );
+}
+
+// Componente per sincronizzare token FCM quando l'utente è loggato
+function FCMTokenSync() {
+  useSyncFcmToken();
+  return null;
 }

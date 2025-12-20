@@ -35,7 +35,31 @@ router.get('/', async (req, res) => {
     // Include sia demos_notification che new_opinions
     // Gestisce sia UUID che VARCHAR per read_by
     console.log(`🔍 Query notifiche per user_id: ${user_id}`);
-    const comunicazioniResult = await pool.query(`
+    
+    // Verifica il tipo di read_by
+    const readByTypeCheck = await pool.query(`
+      SELECT udt_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'comunicazioni' 
+      AND column_name = 'read_by'
+    `);
+    
+    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
+    
+    // Usa la query appropriata in base al tipo
+    const isReadQuery = isUUIDArray ? `
+      SELECT
+        c.*,
+        CASE 
+          WHEN c.read_by IS NULL OR array_length(c.read_by, 1) IS NULL THEN false
+          WHEN $1::uuid = ANY(c.read_by) THEN true
+          ELSE false
+        END as is_read
+      FROM comunicazioni c
+      WHERE c.tipo IN ('demos_notification', 'new_opinions')
+      ORDER BY c.data_creazione DESC
+      LIMIT 10
+    ` : `
       SELECT
         c.*,
         CASE 
@@ -47,7 +71,9 @@ router.get('/', async (req, res) => {
       WHERE c.tipo IN ('demos_notification', 'new_opinions')
       ORDER BY c.data_creazione DESC
       LIMIT 10
-    `, [user_id]);
+    `;
+    
+    const comunicazioniResult = await pool.query(isReadQuery, [user_id]);
     
     console.log(`📋 Comunicazioni trovate dal DB: ${comunicazioniResult.rows.length}`);
     
@@ -183,7 +209,25 @@ router.put('/:id/read', async (req, res) => {
     
     // Aggiungi l'utente all'array read_by se non è già presente
     // Gestisce sia UUID[] che VARCHAR[] per read_by
-    const result = await pool.query(`
+    const readByTypeCheck = await pool.query(`
+      SELECT udt_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'comunicazioni' 
+      AND column_name = 'read_by'
+    `);
+    
+    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
+    
+    const updateQuery = isUUIDArray ? `
+      UPDATE comunicazioni 
+      SET read_by = CASE 
+        WHEN read_by IS NULL THEN ARRAY[$1::uuid]
+        WHEN $1::uuid = ANY(read_by) THEN read_by
+        ELSE array_append(read_by, $1::uuid)
+      END
+      WHERE id = $2 AND ($1::uuid != ALL(read_by) OR read_by IS NULL)
+      RETURNING *
+    ` : `
       UPDATE comunicazioni 
       SET read_by = CASE 
         WHEN read_by IS NULL THEN ARRAY[$1::text]
@@ -192,7 +236,9 @@ router.put('/:id/read', async (req, res) => {
       END
       WHERE id = $2 AND ($1::text != ALL(read_by::text[]) OR read_by IS NULL)
       RETURNING *
-    `, [user_id, id]);
+    `;
+    
+    const result = await pool.query(updateQuery, [user_id, id]);
     
     if (result.rows.length === 0) {
       // Controlla se la notifica esiste
@@ -275,9 +321,28 @@ router.put('/mark-all-read', async (req, res) => {
     
     let totalUpdated = 0;
     
+    // Verifica il tipo di read_by una volta
+    const readByTypeCheck = await pool.query(`
+      SELECT udt_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'comunicazioni' 
+      AND column_name = 'read_by'
+    `);
+    
+    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
+    
     // Aggiorna comunicazioni
     for (const notificaId of comunicazioniIds) {
-      const result = await pool.query(`
+      const updateQuery = isUUIDArray ? `
+        UPDATE comunicazioni 
+        SET read_by = CASE 
+          WHEN read_by IS NULL THEN ARRAY[$1::uuid]
+          WHEN $1::uuid = ANY(read_by) THEN read_by
+          ELSE array_append(read_by, $1::uuid)
+        END
+        WHERE id = $2 AND ($1::uuid != ALL(read_by) OR read_by IS NULL)
+        RETURNING id
+      ` : `
         UPDATE comunicazioni 
         SET read_by = CASE 
           WHEN read_by IS NULL THEN ARRAY[$1::text]
@@ -286,7 +351,9 @@ router.put('/mark-all-read', async (req, res) => {
         END
         WHERE id = $2 AND ($1::text != ALL(read_by::text[]) OR read_by IS NULL)
         RETURNING id
-      `, [user_id, notificaId]);
+      `;
+      
+      const result = await pool.query(updateQuery, [user_id, notificaId]);
       
       if (result.rows.length > 0) {
         totalUpdated++;

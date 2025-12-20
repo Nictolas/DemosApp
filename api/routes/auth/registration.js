@@ -97,6 +97,7 @@ router.post('/register',
       regione_candidatura,
       provincia_candidatura,
       comune_candidatura
+      // NOTE: fcmToken non viene più gestito qui, ma tramite useSyncFcmToken nel frontend
     } = req.body;
     
     // Debug: verifica cosa arriva dal frontend
@@ -353,6 +354,9 @@ router.post('/register',
     }
     
     const newUser = result.rows[0];
+    
+    // NOTE: Il token FCM viene gestito automaticamente da useSyncFcmToken nel frontend
+    // tramite l'endpoint /api/fcm-tokens dopo il login, quindi non serve gestirlo qui
     
     // Invia email di verifica
     try {

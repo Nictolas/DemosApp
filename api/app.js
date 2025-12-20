@@ -10,7 +10,7 @@ const logger = require('./services/centralizedLogger');
 let healthRoutes, emailRoutes, databaseRoutes, compatibilityRoutes, testOpinioniRoutes;
 let testAddOpinioneRoutes, servicesRoutes, authRoutes, clearTokenRoutes, userRoutes;
 let opinioniRoutes, opinioniProposteRoutes, governoRoutes, governoMinistroRoutes;
-let rappresentantiRoutes, notificheRoutes;
+let rappresentantiRoutes, notificheRoutes, fcmTokensRoutes;
 
 try {
   console.log('📦 Caricamento moduli routes...');
@@ -30,6 +30,7 @@ try {
   governoMinistroRoutes = require('./routes/governo-ministro');
   rappresentantiRoutes = require('./routes/rappresentanti');
   notificheRoutes = require('./routes/notifiche');
+  fcmTokensRoutes = require('./routes/fcm-tokens');
   console.log('✅ Moduli routes base caricati correttamente');
 } catch (error) {
   console.error('❌ Errore nel caricamento dei moduli routes base:', error);
@@ -315,6 +316,7 @@ app.use('/api/governo', publicLimiter, userLimiter, governoRoutes);
 app.use('/api/governo/ministro', publicLimiter, userLimiter, governoMinistroRoutes);
 app.use('/api/rappresentanti', publicLimiter, userLimiter, rappresentantiRoutes);
 app.use('/api/notifiche', publicLimiter, userLimiter, notificheRoutes);
+app.use('/api/fcm-tokens', userLimiter, fcmTokensRoutes);
 app.use('/api/test-db', publicLimiter, testDbRoutes);
 app.use('/api/eventi', publicLimiter, eventiRoutes);
 app.use('/api/grazia', publicLimiter, graziaRoutes);

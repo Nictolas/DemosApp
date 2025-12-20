@@ -6,64 +6,9 @@ require('dotenv').config();
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
-// Funzione per creare record in notifiche_utente per tutti gli utenti attivi
-async function createNotificheUtente(comunicazioneId) {
-  try {
-    console.log('📝 Creazione record notifiche_utente per comunicazione:', comunicazioneId);
-    
-    // Trova tutti gli utenti attivi
-    const utenti = await pool.query('SELECT id FROM users WHERE status = $1 OR status = $2', ['A', 'a']);
-    
-    // Crea un record per ogni utente
-    for (const utente of utenti.rows) {
-      await pool.query(`
-        INSERT INTO notifiche_utente (utente_id, comunicazione_id, status)
-        VALUES ($1, $2, 'non_letta')
-        ON CONFLICT (utente_id, comunicazione_id) DO NOTHING
-      `, [utente.id, comunicazioneId]);
-    }
-    
-    console.log(`✅ Creati record notifiche_utente per ${utenti.rows.length} utenti`);
-  } catch (error) {
-    console.error('❌ Errore nella creazione record notifiche_utente:', error);
-  }
-}
-
-// Funzione per aggiornare record in notifiche_utente (reset status a non_letta)
-async function updateNotificheUtente(comunicazioneId) {
-  try {
-    console.log('🔄 Aggiornamento record notifiche_utente per comunicazione:', comunicazioneId);
-    
-    // Reset tutti i record esistenti a 'non_letta'
-    await pool.query(`
-      UPDATE notifiche_utente 
-      SET status = 'non_letta', data_lettura = NULL
-      WHERE comunicazione_id = $1
-    `, [comunicazioneId]);
-    
-    // Crea record per nuovi utenti attivi che non hanno ancora il record
-    const utenti = await pool.query(`
-      SELECT u.id 
-      FROM users u 
-      WHERE (u.status = 'A' OR u.status = 'a') 
-      AND NOT EXISTS (
-        SELECT 1 FROM notifiche_utente nu 
-        WHERE nu.utente_id = u.id AND nu.comunicazione_id = $1
-      )
-    `, [comunicazioneId]);
-    
-    for (const utente of utenti.rows) {
-      await pool.query(`
-        INSERT INTO notifiche_utente (utente_id, comunicazione_id, status)
-        VALUES ($1, $2, 'non_letta')
-      `, [utente.id, comunicazioneId]);
-    }
-    
-    console.log(`✅ Aggiornati record notifiche_utente per comunicazione ${comunicazioneId}`);
-  } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento record notifiche_utente:', error);
-  }
-}
+// NOTE: Le funzioni createNotificheUtente e updateNotificheUtente sono state rimosse
+// perché ora si usa la colonna read_by nella tabella comunicazioni per tracciare le notifiche lette
+// La tabella notifiche_utente non è più necessaria
 
 // ===== ENDPOINTS PER COMUNICAZIONI =====
 
@@ -223,9 +168,6 @@ router.post('/', async (req, res) => {
         [id_utente, titoloComunicazione, testo, zona || 'Generale', tipologia, dove, dal_giorno, al_giorno, tipo]
       );
 
-      // Crea record in notifiche_utente per tutti gli utenti attivi
-      await createNotificheUtente(result.rows[0].id);
-
       return res.status(201).json({
         success: true,
         data: result.rows[0],
@@ -292,11 +234,144 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Per "Nuova Comunicazione Votazione", controlla se esiste già una comunicazione per questo utente
-    const existingComunicazione = await pool.query(
-      'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
-      [id_utente, tipo]
-    );
+    // Gestione speciale per "Istituzione" - crea più righe (una per voto) e cancella quelle precedenti della stessa votazione
+    if (tipo === 'istituzione' && voti && Array.isArray(voti) && voti.length > 0) {
+      // Cancella tutte le comunicazioni precedenti con lo stesso titolo e tipo 'istituzione'
+      await pool.query(
+        'DELETE FROM comunicazioni WHERE titolo = $1 AND tipo = $2',
+        [titolo, 'istituzione']
+      );
+      console.log(`🗑️ Cancellate comunicazioni precedenti per votazione "${titolo}" (tipo: istituzione)`);
+
+      const comunicazioni = [];
+      const { getFirebaseAdmin } = require('../services/firebaseAdmin');
+      const admin = getFirebaseAdmin();
+
+      for (const voto of voti) {
+        if (!voto.nome || !voto.voto) continue;
+
+        // Cerca l'utente per nome (deve essere un utente reale registrato)
+        // Il nome può essere "Nome Cognome" o solo "Nome" o "Cognome"
+        const utenteResult = await pool.query(
+          `SELECT id, nome, cognome, ruolo FROM users 
+           WHERE CONCAT(nome, ' ', cognome) ILIKE $1 
+              OR nome ILIKE $1 
+              OR cognome ILIKE $1
+           LIMIT 1`,
+          [voto.nome.trim()]
+        );
+
+        if (utenteResult.rows.length === 0) {
+          console.log(`⚠️ Utente non trovato per: ${voto.nome}`);
+          return res.status(400).json({
+            success: false,
+            error: `Utente "${voto.nome}" non trovato. Assicurati che sia un utente registrato.`
+          });
+        }
+
+        const utentePolitico = utenteResult.rows[0];
+        const testo = `Il voto di ${utentePolitico.nome} ${utentePolitico.cognome}: ${voto.voto}`;
+        const titoloCompleto = `${titolo} - ${utentePolitico.nome} ${utentePolitico.cognome}`;
+
+        // Crea nuova comunicazione per questo voto
+        const result = await pool.query(
+          `INSERT INTO comunicazioni (
+            id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+            data_creazione, likes, dislikes, punti_trasparenza, tipo, status, read_by
+          ) VALUES (
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8, 'non_letta', ARRAY[]::UUID[]
+          ) RETURNING *`,
+          [utentePolitico.id, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '', 'istituzione']
+        );
+
+        comunicazioni.push(result.rows[0]);
+
+        // Trova gli utenti che hanno questo rappresentante come rappresentante_comune
+        // Gestisce sia UUID che TEXT per rappresentante_comune
+        const rappresentanteComuneType = await pool.query(`
+          SELECT data_type, udt_name
+          FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'rappresentante_comune'
+        `);
+        
+        const isUUID = rappresentanteComuneType.rows.length > 0 && 
+                       (rappresentanteComuneType.rows[0].udt_name === 'uuid' || 
+                        rappresentanteComuneType.rows[0].data_type === 'uuid');
+        
+        const utentiConRappresentante = isUUID
+          ? await pool.query(
+              `SELECT id, fcm_tokens, notifiche_preferenze, email, nome, cognome
+               FROM users 
+               WHERE rappresentante_comune = $1::uuid
+                 AND (status = 'active' OR status IS NULL)
+                 AND fcm_tokens IS NOT NULL 
+                 AND array_length(fcm_tokens, 1) > 0
+                 AND (notifiche_preferenze->>'istituzione' = 'true' OR notifiche_preferenze->>'istituzione' IS NULL)`,
+              [utentePolitico.id]
+            )
+          : await pool.query(
+              `SELECT id, fcm_tokens, notifiche_preferenze, email, nome, cognome
+               FROM users 
+               WHERE rappresentante_comune::text = $1::text
+                 AND (status = 'active' OR status IS NULL)
+                 AND fcm_tokens IS NOT NULL 
+                 AND array_length(fcm_tokens, 1) > 0
+                 AND (notifiche_preferenze->>'istituzione' = 'true' OR notifiche_preferenze->>'istituzione' IS NULL)`,
+              [utentePolitico.id]
+            );
+
+        console.log(`📢 Trovati ${utentiConRappresentante.rows.length} utenti con rappresentante_comune = ${utentePolitico.id}`);
+
+        // Invia notifica push solo agli utenti che hanno questo rappresentante
+        if (admin && utentiConRappresentante.rows.length > 0) {
+          const pushTitle = `Voto del tuo rappresentante: ${utentePolitico.nome} ${utentePolitico.cognome}`;
+          const pushBody = `${titolo}: ${voto.voto}`;
+
+          for (const utenteDestinatario of utentiConRappresentante.rows) {
+            const fcmTokens = utenteDestinatario.fcm_tokens || [];
+            
+            for (const token of fcmTokens) {
+              if (token && token.trim()) {
+                try {
+                  await sendPushNotification(
+                    token,
+                    pushTitle,
+                    pushBody,
+                    {
+                      type: 'istituzione',
+                      comunicazione_id: result.rows[0].id,
+                      rappresentante_id: utentePolitico.id,
+                      titolo: titolo,
+                      voto: voto.voto,
+                      url: '/comunica',
+                      link: 'https://www.demos.community/comunica'
+                    }
+                  );
+                } catch (error) {
+                  console.error(`❌ Errore invio notifica a ${utenteDestinatario.email}:`, error);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        data: comunicazioni,
+        message: `${comunicazioni.length} voti istituzionali salvati con successo`
+      });
+    }
+
+    // Per comunicazioni che devono essere sovrascritte (votazione, comunicazione)
+    // Controlla se esiste già una comunicazione per questo utente con lo stesso tipo
+    const tipiSovrascrivibili = ['votazione', 'comunicazione'];
+    const existingComunicazione = tipiSovrascrivibili.includes(tipo) 
+      ? await pool.query(
+          'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
+          [id_utente, tipo]
+        )
+      : { rows: [] };
 
     const testo = `Voto: ${voto_dato || 'Non specificato'}${commento ? ` - Commento: ${commento}` : ''}`;
 
@@ -329,8 +404,21 @@ router.post('/', async (req, res) => {
       // Invia notifica ai sostenitori
       await notifySostenitori(id_utente, titolo, result.rows[0]);
 
-      // Aggiorna i record in notifiche_utente per tutti gli utenti attivi
-      await updateNotificheUtente(comunicazioneId);
+      // Reset read_by per renderla non letta per tutti (sovrascrittura)
+      const readByTypeCheck = await pool.query(`
+        SELECT udt_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'comunicazioni' 
+        AND column_name = 'read_by'
+      `);
+      const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
+      const readByInit = isUUIDArray ? 'ARRAY[]::UUID[]' : 'ARRAY[]::VARCHAR[]';
+      
+      await pool.query(`
+        UPDATE comunicazioni 
+        SET read_by = ${readByInit}, status = 'non_letta'
+        WHERE id = $1
+      `, [comunicazioneId]);
 
       res.status(200).json({
         success: true,
@@ -351,9 +439,6 @@ router.post('/', async (req, res) => {
 
       // Invia notifica ai sostenitori
       await notifySostenitori(id_utente, titolo, result.rows[0]);
-
-      // Crea record in notifiche_utente per tutti gli utenti attivi
-      await createNotificheUtente(result.rows[0].id);
 
       res.status(201).json({
         success: true,
@@ -380,25 +465,10 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
 
     if (sostenitoriResult.rows.length === 0) return;
 
-    // Crea notifiche per ogni sostenitore
-    const notifiche = sostenitoriResult.rows.map(sostenitore => ({
-      utente_id: sostenitore.utente_id,
-      titolo: `Nuova comunicazione da ${comunicazione.titolo}`,
-      messaggio: `Il tuo sostenuto ha pubblicato una nuova comunicazione: "${titolo}"`,
-      tipo: 'comunicazione_aggiornata',
-      priorita: 'media'
-    }));
-
-    // Inserisci le notifiche
-    for (const notifica of notifiche) {
-      await pool.query(
-        `INSERT INTO notifiche_utente (id, utente_id, titolo, messaggio, tipo, priorita, data_creazione)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())`,
-        [notifica.utente_id, notifica.titolo, notifica.messaggio, notifica.tipo, notifica.priorita]
-      );
-    }
-
-    console.log(`✅ Notifiche inviate a ${sostenitoriResult.rows.length} sostenitori`);
+    // NOTE: Le notifiche ai sostenitori ora vengono gestite tramite la tabella comunicazioni
+    // con la colonna read_by. La tabella notifiche_utente non è più utilizzata.
+    // Le comunicazioni create/aggiornate sono visibili a tutti gli utenti tramite GET /api/notifiche
+    console.log(`✅ Comunicazione disponibile per ${sostenitoriResult.rows.length} sostenitori`);
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche ai sostenitori:', error);
   }
@@ -502,11 +572,6 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
 // Funzione per notificare tutti gli utenti (per notifiche Demos)
 async function notifyAllUsers(titolo, commento) {
   try {
-    // Crea UNA comunicazione nella tabella comunicazioni con tipo 'demos_notification'
-    // Questa sarà visibile a tutti gli utenti e il badge la mostrerà come non letta
-    // Usa gen_random_uuid() per compatibilità con UUID o VARCHAR
-    let comunicazioneId;
-    
     // Verifica se esiste il campo read_by, altrimenti lo crea
     try {
       const checkColumns = await pool.query(`
@@ -540,38 +605,90 @@ async function notifyAllUsers(titolo, commento) {
       console.warn('⚠️ Errore nel verificare/creare colonne:', alterError.message);
     }
 
-    // Crea la comunicazione nella tabella comunicazioni
-    // Usa gen_random_uuid() per compatibilità
-    // Inizializza read_by come array vuoto per assicurarsi che sia non letta per tutti
-    console.log('📝 Creazione comunicazione Demos...');
-    const comunicazioneResult = await pool.query(`
-      INSERT INTO comunicazioni (
-        id, id_utente, titolo, testo, zona, tipo, 
-        data_creazione, likes, dislikes, punti_trasparenza, 
-        read_by, status
-      ) VALUES (
-        gen_random_uuid(), NULL, $1, $2, 'Generale', 'demos_notification',
-        NOW(), 0, 0, 0, 
-        CASE 
-          WHEN EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'comunicazioni' 
-            AND column_name = 'read_by' 
-            AND data_type = 'ARRAY'
-            AND udt_name LIKE '%uuid%'
-          ) THEN ARRAY[]::UUID[]
-          ELSE ARRAY[]::VARCHAR[]
-        END,
-        'non_letta'
-      ) RETURNING id, read_by
-    `, [
-      `Notifica Demos: ${titolo}`,
-      commento || titolo
-    ]);
+    // Verifica il tipo di read_by
+    const readByTypeCheck = await pool.query(`
+      SELECT udt_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'comunicazioni' 
+      AND column_name = 'read_by'
+    `);
+    
+    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
+    const readByInit = isUUIDArray ? 'ARRAY[]::UUID[]' : 'ARRAY[]::VARCHAR[]';
+    
+    // Usa un id_utente valido (non può essere NULL)
+    // Prendi il primo utente attivo come mittente sistema
+    const systemUserResult = await pool.query(`
+      SELECT id FROM users WHERE status = 'active' LIMIT 1
+    `);
+    const systemUserId = systemUserResult.rows.length > 0 ? systemUserResult.rows[0].id : null;
+    
+    if (!systemUserId) {
+      throw new Error('Nessun utente attivo trovato per creare la comunicazione');
+    }
+    
+    // Controlla se esiste già una notifica Demos e la sovrascrivi
+    const existingDemosNotification = await pool.query(`
+      SELECT id FROM comunicazioni WHERE tipo = 'demos_notification' ORDER BY data_creazione DESC LIMIT 1
+    `);
+    
+    let comunicazioneId;
+    
+    if (existingDemosNotification.rows.length > 0) {
+      // Aggiorna comunicazione esistente (sovrascrittura)
+      comunicazioneId = existingDemosNotification.rows[0].id;
+      
+      // Reset reazioni
+      await pool.query('DELETE FROM reazioni WHERE comunicazione_id = $1', [comunicazioneId]);
+      
+      // Aggiorna la comunicazione, resettando read_by per renderla non letta per tutti
+      const comunicazioneResult = await pool.query(`
+        UPDATE comunicazioni SET
+          id_utente = $1,
+          titolo = $2,
+          testo = $3,
+          zona = 'Generale',
+          tipo = 'demos_notification',
+          data_creazione = NOW(),
+          likes = 0,
+          dislikes = 0,
+          punti_trasparenza = 0,
+          read_by = ${readByInit},
+          status = 'non_letta'
+        WHERE id = $4
+        RETURNING id, read_by
+      `, [
+        systemUserId,
+        `Notifica Demos: ${titolo}`,
+        commento || titolo,
+        comunicazioneId
+      ]);
+      
+      console.log(`✅ Comunicazione Demos aggiornata (sovrascritta) con ID: ${comunicazioneId}`);
+      console.log(`📋 read_by resettato: ${JSON.stringify(comunicazioneResult.rows[0].read_by)}`);
+    } else {
+      // Crea nuova comunicazione solo se non esiste
+      const comunicazioneResult = await pool.query(`
+        INSERT INTO comunicazioni (
+          id, id_utente, titolo, testo, zona, tipo, 
+          data_creazione, likes, dislikes, punti_trasparenza, 
+          read_by, status
+        ) VALUES (
+          gen_random_uuid(), $3, $1, $2, 'Generale', 'demos_notification',
+          NOW(), 0, 0, 0, 
+          ${readByInit},
+          'non_letta'
+        ) RETURNING id, read_by
+      `, [
+        `Notifica Demos: ${titolo}`,
+        commento || titolo,
+        systemUserId
+      ]);
 
-    comunicazioneId = comunicazioneResult.rows[0].id;
-    console.log(`✅ Comunicazione Demos creata con ID: ${comunicazioneId}`);
-    console.log(`📋 read_by inizializzato: ${JSON.stringify(comunicazioneResult.rows[0].read_by)}`);
+      comunicazioneId = comunicazioneResult.rows[0].id;
+      console.log(`✅ Comunicazione Demos creata con ID: ${comunicazioneId}`);
+      console.log(`📋 read_by inizializzato: ${JSON.stringify(comunicazioneResult.rows[0].read_by)}`);
+    }
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
     // SOLO gli utenti con demos: true (non NULL o undefined)
