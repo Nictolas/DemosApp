@@ -532,7 +532,7 @@ const Votazione = React.memo(function Votazione() {
         vincitore: "Approvata", // Valore fisso per test
         zona: "Generale",
         id_utente: user?.id,
-        tipo: "comunica_voti",
+        tipo: "istituzione", // Cambiato da "comunica_voti" a "istituzione"
         voti: validVoti.map(entry => ({
           nome: entry.nome,
           voto: entry.voto
@@ -904,13 +904,9 @@ const Votazione = React.memo(function Votazione() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
       <div className="container mx-auto px-4 py-8 pb-24">
         {isAdmin ? (
-          // Admin vede le 3 schede
-          <Tabs defaultValue="comunicazione" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="comunicazione" className="flex items-center gap-2">
-                <Vote className="h-4 w-4" />
-                Comunicazione
-              </TabsTrigger>
+          // Admin vede le 2 schede (Istituzione e Notifiche Demos)
+          <Tabs defaultValue="comunica-voti" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="comunica-voti" className="flex items-center gap-2">
                 <Calculator className="h-4 w-4" />
                 Istituzione
@@ -920,10 +916,6 @@ const Votazione = React.memo(function Votazione() {
                 Notifiche Demos
               </TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="comunicazione" className="mt-6">
-              <NuovaComunicazioneCard />
-            </TabsContent>
             
             <TabsContent value="comunica-voti" className="mt-6 space-y-4">
               {/* Sezione Informa Cittadini (collassabile) */}
@@ -988,7 +980,6 @@ const Votazione = React.memo(function Votazione() {
         ) : (
           // Altri utenti vedono solo i riquadri che possono usare
           <div className="space-y-6">
-            {isAllowed && <NuovaComunicazioneCard />}
             {canComunicaVoti && (
               <>
                 <Card className="w-full bg-white">

@@ -22,8 +22,24 @@ function initializeFirebaseAdmin() {
       return admin;
     }
 
-    // Inizializza Firebase Admin con service account
-    // Cerca il file serviceAccountKey.json nella root del progetto
+    // PRIORITÀ 1: Usa variabili d'ambiente (come configurato su Render.com)
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      console.log('📝 Inizializzazione Firebase Admin con variabili d\'ambiente...');
+      
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        })
+      });
+
+      isInitialized = true;
+      console.log('✅ Firebase Admin inizializzato con successo (variabili d\'ambiente)');
+      return admin;
+    }
+
+    // PRIORITÀ 2: Fallback al file serviceAccountKey.json
     const path = require('path');
     const fs = require('fs');
     
@@ -43,21 +59,23 @@ function initializeFirebaseAdmin() {
       }
     }
 
-    if (!serviceAccountPath) {
-      console.warn('⚠️ serviceAccountKey.json non trovato. Notifiche push non disponibili.');
-      console.warn('⚠️ Percorsi cercati:', possiblePaths);
-      return null;
+    if (serviceAccountPath) {
+      console.log('📝 Inizializzazione Firebase Admin con file JSON...');
+      const serviceAccount = require(serviceAccountPath);
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+
+      isInitialized = true;
+      console.log('✅ Firebase Admin inizializzato con successo (file JSON)');
+      return admin;
     }
 
-    const serviceAccount = require(serviceAccountPath);
-    
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-
-    isInitialized = true;
-    console.log('✅ Firebase Admin inizializzato con successo');
-    return admin;
+    // Nessun metodo di configurazione trovato
+    console.warn('⚠️ Firebase Admin non configurato. Notifiche push non disponibili.');
+    console.warn('⚠️ Configura FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY oppure serviceAccountKey.json');
+    return null;
   } catch (error) {
     console.error('❌ Errore nell\'inizializzazione Firebase Admin:', error.message);
     console.error('❌ Stack:', error.stack);

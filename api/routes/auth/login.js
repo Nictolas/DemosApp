@@ -111,12 +111,15 @@ router.post('/login',
       }
 
       // Aggiorna ultimo login
+      // NOTE: Il token FCM viene gestito automaticamente da useSyncFcmToken nel frontend
+      // tramite l'endpoint /api/fcm-tokens, quindi non serve gestirlo qui
       console.log(`📝 Aggiornamento ultimo login...`);
       const updateStart = Date.now();
       await pool.query(
         'UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
         [user.id]
       );
+      
       const updateTime = Date.now() - updateStart;
       console.log(`⏱️ Aggiornamento ultimo login completato in ${updateTime}ms`);
 
