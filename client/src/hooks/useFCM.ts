@@ -23,7 +23,9 @@ export function useFCM() {
       setPermission(Notification.permission);
     }
 
-    // Inizializza Firebase Messaging con tutte le credenziali
+    // Inizializza Firebase Messaging con le credenziali essenziali
+    // NOTA: Per FCM web NON serve Firestore o altri servizi Firebase
+    // Serve solo: projectId, messagingSenderId, e VAPID key (per l'autenticazione)
     const firebaseConfig = {
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
       authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -33,6 +35,14 @@ export function useFCM() {
       appId: import.meta.env.VITE_FIREBASE_APP_ID,
       measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
     };
+    
+    // Log per debug
+    console.log('🔧 Configurazione Firebase FCM:', {
+      projectId: firebaseConfig.projectId || 'MANCANTE',
+      messagingSenderId: firebaseConfig.messagingSenderId || 'MANCANTE',
+      apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'MANCANTE',
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY ? 'PRESENTE' : 'MANCANTE'
+    });
 
     // Verifica se abbiamo almeno le credenziali essenziali per FCM web
     // Servono: projectId, messagingSenderId, e vapidKey (quest'ultima viene usata dopo)
@@ -43,13 +53,20 @@ export function useFCM() {
           const messagingInstance = getMessaging(app);
           setMessaging(messagingInstance);
           console.log('✅ Firebase Messaging inizializzato per web push');
+          console.log('   Project ID:', firebaseConfig.projectId);
+          console.log('   Messaging Sender ID:', firebaseConfig.messagingSenderId);
+          console.log('   VAPID Key presente:', !!import.meta.env.VITE_FIREBASE_VAPID_KEY);
         }
       } catch (firebaseError) {
         console.warn('⚠️ Firebase non configurato o non disponibile:', firebaseError);
         // Non è un errore critico, continuiamo senza Firebase
       }
     } else {
-      console.warn('⚠️ Credenziali Firebase essenziali non configurate (VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_MESSAGING_SENDER_ID). Le notifiche push web non funzioneranno.');
+      console.warn('⚠️ Credenziali Firebase essenziali non configurate');
+      console.warn('   VITE_FIREBASE_PROJECT_ID:', firebaseConfig.projectId || 'MANCANTE');
+      console.warn('   VITE_FIREBASE_MESSAGING_SENDER_ID:', firebaseConfig.messagingSenderId || 'MANCANTE');
+      console.warn('   VITE_FIREBASE_VAPID_KEY:', import.meta.env.VITE_FIREBASE_VAPID_KEY ? 'PRESENTE' : 'MANCANTE');
+      console.warn('   Le notifiche push web non funzioneranno.');
     }
   }, []);
 
@@ -110,10 +127,13 @@ export function useFCM() {
           }
 
           const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+          console.log('🔑 VAPID Key check:', vapidKey ? `Presente (${vapidKey.substring(0, 20)}...)` : 'MANCANTE');
+          
           if (!vapidKey) {
-            throw new Error('VAPID key non configurata. Configura VITE_FIREBASE_VAPID_KEY nel frontend.');
+            throw new Error('VAPID key non configurata. Configura VITE_FIREBASE_VAPID_KEY nel frontend e rideploya.');
           }
 
+          console.log('🔐 Tentativo di ottenere token FCM con VAPID key...');
           const currentToken = await getFCMToken(messaging, { vapidKey });
           
           if (currentToken) {
