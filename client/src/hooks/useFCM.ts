@@ -149,6 +149,27 @@ export function useFCM() {
 
           console.log('🔐 Tentativo di ottenere token FCM con VAPID key...');
           console.log('   VAPID key (primi 30 caratteri):', vapidKey.substring(0, 30));
+          console.log('   VAPID key (ultimi 30 caratteri):', vapidKey.substring(vapidKey.length - 30));
+          
+          // Verifica che la VAPID key corrisponda a quella attesa
+          const expectedVAPID = 'BIHJ29xtgACTW0TrdApZa1XsV-h7LIa5qoxah13RtkWHCKU_UJLwO4vMeXeMhvpz7XEFhas-r5t4uuhLsAcOoBw';
+          if (vapidKey !== expectedVAPID) {
+            console.warn('⚠️ ATTENZIONE: La VAPID key potrebbe non corrispondere esattamente');
+            console.warn(`   Attesa: ${expectedVAPID.substring(0, 30)}...`);
+            console.warn(`   Trovata: ${vapidKey.substring(0, 30)}...`);
+            console.warn(`   Lunghezza attesa: ${expectedVAPID.length}, trovata: ${vapidKey.length}`);
+            
+            // Confronta carattere per carattere per trovare differenze
+            const minLength = Math.min(expectedVAPID.length, vapidKey.length);
+            for (let i = 0; i < minLength; i++) {
+              if (expectedVAPID[i] !== vapidKey[i]) {
+                console.warn(`   Differenza alla posizione ${i}: atteso '${expectedVAPID[i]}', trovato '${vapidKey[i]}'`);
+                break;
+              }
+            }
+          } else {
+            console.log('✅ VAPID key corrisponde esattamente a quella attesa');
+          }
           
           const currentToken = await getFCMToken(messaging, { vapidKey });
           
