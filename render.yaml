@@ -42,6 +42,23 @@ services:
         value: production
       - key: VITE_API_URL
         value: https://api.demos.community
+      # Firebase Configuration - IMPORTANTE: Queste variabili devono essere presenti durante il build
+      - key: VITE_FIREBASE_API_KEY
+        sync: false  # Deve essere configurata manualmente su Render.com
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        sync: false
+      - key: VITE_FIREBASE_VAPID_KEY
+        sync: false  # CRITICO: Deve essere configurata su Render.com
     customDomains:
       - name: www.demos.community
     headers:

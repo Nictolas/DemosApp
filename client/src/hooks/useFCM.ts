@@ -127,13 +127,29 @@ export function useFCM() {
           }
 
           const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-          console.log('🔑 VAPID Key check:', vapidKey ? `Presente (${vapidKey.substring(0, 20)}...)` : 'MANCANTE');
+          
+          // Log dettagliato per debug
+          console.log('🔑 VAPID Key check:', {
+            presente: !!vapidKey,
+            lunghezza: vapidKey ? vapidKey.length : 0,
+            inizio: vapidKey ? vapidKey.substring(0, 30) + '...' : 'N/A',
+            tutteEnvVars: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_FIREBASE_'))
+          });
           
           if (!vapidKey) {
+            console.error('❌ VAPID KEY MANCANTE!');
+            console.error('   Verifica che VITE_FIREBASE_VAPID_KEY sia configurata su Render.com');
+            console.error('   E che il frontend sia stato rideployato dopo averla aggiunta');
             throw new Error('VAPID key non configurata. Configura VITE_FIREBASE_VAPID_KEY nel frontend e rideploya.');
           }
 
+          if (vapidKey.length < 80) {
+            console.warn('⚠️ VAPID key sembra troppo corta. Dovrebbe essere ~87 caratteri');
+          }
+
           console.log('🔐 Tentativo di ottenere token FCM con VAPID key...');
+          console.log('   VAPID key (primi 30 caratteri):', vapidKey.substring(0, 30));
+          
           const currentToken = await getFCMToken(messaging, { vapidKey });
           
           if (currentToken) {
