@@ -33,10 +33,15 @@ router.get('/', async (req, res) => {
     
     // Recupera le comunicazioni e controlla se l'utente le ha lette
     // Include sia demos_notification che new_opinions
+    // Gestisce sia UUID che VARCHAR per read_by
     const comunicazioniResult = await pool.query(`
       SELECT
         c.*,
-        $1 = ANY(c.read_by) as is_read
+        CASE 
+          WHEN c.read_by IS NULL THEN false
+          WHEN c.read_by::text[] @> ARRAY[$1::text] THEN true
+          ELSE false
+        END as is_read
       FROM comunicazioni c
       WHERE c.tipo IN ('demos_notification', 'new_opinions')
       ORDER BY c.data_creazione DESC
@@ -164,10 +169,15 @@ router.put('/:id/read', async (req, res) => {
     console.log('📖 Marcatura notifica come letta per utente:', user_id, 'comunicazione:', id);
     
     // Aggiungi l'utente all'array read_by se non è già presente
+    // Gestisce sia UUID[] che VARCHAR[] per read_by
     const result = await pool.query(`
       UPDATE comunicazioni 
-      SET read_by = array_append(read_by, $1)
-      WHERE id = $2 AND $1 != ALL(read_by)
+      SET read_by = CASE 
+        WHEN read_by IS NULL THEN ARRAY[$1::text]
+        WHEN $1::text = ANY(read_by::text[]) THEN read_by
+        ELSE array_append(read_by::text[], $1::text)
+      END
+      WHERE id = $2 AND ($1::text != ALL(read_by::text[]) OR read_by IS NULL)
       RETURNING *
     `, [user_id, id]);
     
@@ -256,8 +266,12 @@ router.put('/mark-all-read', async (req, res) => {
     for (const notificaId of comunicazioniIds) {
       const result = await pool.query(`
         UPDATE comunicazioni 
-        SET read_by = array_append(read_by, $1)
-        WHERE id = $2 AND $1 != ALL(read_by)
+        SET read_by = CASE 
+          WHEN read_by IS NULL THEN ARRAY[$1::text]
+          WHEN $1::text = ANY(read_by::text[]) THEN read_by
+          ELSE array_append(read_by::text[], $1::text)
+        END
+        WHERE id = $2 AND ($1::text != ALL(read_by::text[]) OR read_by IS NULL)
         RETURNING id
       `, [user_id, notificaId]);
       
