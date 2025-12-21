@@ -379,7 +379,20 @@ router.get('/', async (req, res) => {
           ? `${c.politico_nome} ${c.politico_cognome}`
           : c.politico || 'Politico';
         const voto = c.voto || 'Voto';
-        const titoloVotazione = c.titolo || 'Votazione';
+        let titoloVotazione = c.titolo || 'Votazione';
+        
+        // Rimuovi il nome del politico dal titolo se presente (es: "Votazione Piano Urbanistico - Alberto Cirio" -> "Votazione Piano Urbanistico")
+        if (titoloVotazione.includes(' - ')) {
+          const parts = titoloVotazione.split(' - ');
+          // Se la parte dopo " - " corrisponde al nome del politico, rimuovila
+          if (parts.length > 1) {
+            const parteDopoTrattino = parts[parts.length - 1].trim();
+            if (parteDopoTrattino === nomePolitico || parteDopoTrattino === c.politico) {
+              titoloVotazione = parts.slice(0, -1).join(' - ').trim();
+            }
+          }
+        }
+        
         titolo = `${nomePolitico} ha votato ${voto} a ${titoloVotazione}`;
         messaggio = c.testo || 'Nessun messaggio';
       } else {
