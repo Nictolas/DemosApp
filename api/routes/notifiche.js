@@ -348,7 +348,7 @@ router.get('/', async (req, res) => {
       let titolo, messaggio;
       if (c.tipo_notifica === 'avvistamento') {
         titolo = `Avvistamento ${c.tipo_avvistamento || 'Animale'}`;
-        messaggio = `Un cittadino ha segnalato un avvistamento di ${(c.tipo_avvistamento || 'animale').toLowerCase()} nel comune di ${c.comune_residenza || 'zona'}. Presta attenzione se ti trovi nella zona.`;
+        messaggio = ''; // Nessun messaggio per le notifiche di avvistamento
       } else {
         titolo = c.titolo || 'Nessun titolo';
         messaggio = c.testo || 'Nessun messaggio';
