@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../database/db');
+const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+require('dotenv').config();
+
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 /**
  * POST /api/avvistamenti/avvisa-vicini
