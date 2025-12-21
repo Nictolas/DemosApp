@@ -368,6 +368,32 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </div>
           )}
           
+          {/* Pulsanti like/dislike per voto_comune (sopra l'orario) */}
+          {notifica.tipo_notifica === 'voto_comune' && user?.id && (
+            <div className="mb-3 flex items-center gap-2">
+              <Button
+                variant={userReaction === 'like' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleReaction('like')}
+                disabled={reactionMutation.isPending}
+                className="flex items-center gap-1"
+              >
+                <ThumbsUp className="h-4 w-4" />
+                {likes}
+              </Button>
+              <Button
+                variant={userReaction === 'dislike' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleReaction('dislike')}
+                disabled={reactionMutation.isPending}
+                className="flex items-center gap-1"
+              >
+                <ThumbsDown className="h-4 w-4" />
+                {dislikes}
+              </Button>
+            </div>
+          )}
+
           <div className={`flex items-center gap-4 text-sm ${style.textColor} opacity-70`}>
             <span>
               {notifica.tipo_notifica === 'demos' && notifica.data ? (
@@ -378,8 +404,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </span>
           </div>
 
-          {/* Pulsanti like/dislike per comunicazioni e voto_comune */}
-          {(notifica.tipo_notifica === 'comunicazione' || notifica.tipo_notifica === 'voto_comune') && user?.id && (
+          {/* Pulsanti like/dislike per comunicazioni (sotto l'orario) */}
+          {notifica.tipo_notifica === 'comunicazione' && user?.id && (
             <div className="mt-4 flex items-center gap-2">
               <Button
                 variant={userReaction === 'like' ? 'default' : 'outline'}
