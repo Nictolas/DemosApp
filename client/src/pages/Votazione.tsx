@@ -48,33 +48,81 @@ type ComunicaFormData = z.infer<typeof comunicaSchema>;
 type ComunicaVotiFormData = z.infer<typeof comunicaVotiSchema>;
 type DemosNotificationFormData = z.infer<typeof demosNotificationSchema>;
 
-// Tipologie per la sezione "Informa Cittadini" con emoji
-const INFORMA_TIPOLOGIE = [
-  { value: "Interruzione erogazione acqua", emoji: "💧" },
-  { value: "Acqua non potabile", emoji: "🚱" },
-  { value: "Interruzione energia elettrica programmata", emoji: "⚡" },
-  { value: "Chiusura strade per lavori", emoji: "🚧" },
-  { value: "Modifiche alla viabilità per eventi o manifestazioni", emoji: "🎪" },
-  { value: "Pulizia strade (Divieto di sosta temporaneo)", emoji: "🧹" },
-  { value: "Disinfestazione zanzare", emoji: "🦟" },
-  { value: "Derattizzazione", emoji: "🐀" },
-  { value: "Variazioni calendario raccolta rifiuti (es. Festività)", emoji: "🗑️" },
-  { value: "Sciopero servizio raccolta rifiuti", emoji: "🚛" },
-  { value: "Blocco del traffico per inquinamento (PM10)", emoji: "🌫️" },
-  { value: "Chiusura parchi pubblici per vento forte", emoji: "🌳" },
-  { value: "Divieto Botti", emoji: "🎆" },
-  { value: "Divieto vendita alcolici", emoji: "🚫🍺" },
-  { value: "Scadenza IMU", emoji: "🏠" },
-  { value: "Scadenza TARI", emoji: "🧾" },
-  { value: "Scadenza iscrizione Mensa", emoji: "🍽️" },
-  { value: "Scadenza iscrizione Scuolabus", emoji: "🚌" },
-  { value: "Pubblicazione Bandi e Concorsi", emoji: "📢" },
-  { value: "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)", emoji: "🚨" },
-  { value: "Ritrovamento ordigni bellici (Evacuazione)", emoji: "⚠️" },
-  { value: "Variazione orari uffici comunali", emoji: "🏛️" },
-  { value: "Scuole Chiuse", emoji: "🏫" },
-  { value: "Allerta Meteo", emoji: "🌦️" },
+// Tematiche e tipologie per la sezione "Informa Cittadini"
+const INFORMA_TEMATICHE = [
+  {
+    id: "servizi-pubblici",
+    nome: "Servizi Pubblici",
+    emoji: "🏢",
+    bgColor: "from-blue-500 to-cyan-600",
+    tipologie: [
+      { value: "Interruzione erogazione acqua", emoji: "💧" },
+      { value: "Acqua non potabile", emoji: "🚱" },
+      { value: "Interruzione energia elettrica programmata", emoji: "⚡" },
+      { value: "Variazioni calendario raccolta rifiuti (es. Festività)", emoji: "🗑️" },
+      { value: "Sciopero servizio raccolta rifiuti", emoji: "🚛" },
+      { value: "Pulizia strade (Divieto di sosta temporaneo)", emoji: "🧹" },
+    ]
+  },
+  {
+    id: "viabilita",
+    nome: "Viabilità",
+    emoji: "🛣️",
+    bgColor: "from-orange-500 to-red-500",
+    tipologie: [
+      { value: "Chiusura strade per lavori", emoji: "🚧" },
+      { value: "Modifiche alla viabilità per eventi o manifestazioni", emoji: "🎪" },
+      { value: "Blocco del traffico per inquinamento (PM10)", emoji: "🌫️" },
+    ]
+  },
+  {
+    id: "scuola",
+    nome: "Scuola",
+    emoji: "🏫",
+    bgColor: "from-teal-500 to-emerald-600",
+    tipologie: [
+      { value: "Scuole Chiuse", emoji: "🏫" },
+      { value: "Scadenza iscrizione Scuolabus", emoji: "🚌" },
+      { value: "Scadenza iscrizione Mensa", emoji: "🍽️" },
+    ]
+  },
+  {
+    id: "tasse-amministrazione",
+    nome: "Tasse e Amministrazione",
+    emoji: "📋",
+    bgColor: "from-indigo-500 to-purple-600",
+    tipologie: [
+      { value: "Scadenza IMU", emoji: "🏠" },
+      { value: "Scadenza TARI", emoji: "🧾" },
+      { value: "Pubblicazione Bandi e Concorsi", emoji: "📢" },
+      { value: "Variazione orari uffici comunali", emoji: "🏛️" },
+    ]
+  },
+  {
+    id: "sicurezza-ambiente",
+    nome: "Sicurezza e Ambiente",
+    emoji: "🛡️",
+    bgColor: "from-red-600 to-orange-600",
+    tipologie: [
+      { value: "Disinfestazione zanzare", emoji: "🦟" },
+      { value: "Derattizzazione", emoji: "🐀" },
+      { value: "Chiusura parchi pubblici per vento forte", emoji: "🌳" },
+      { value: "Divieto Botti", emoji: "🎆" },
+      { value: "Divieto vendita alcolici", emoji: "🚫🍺" },
+      { value: "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)", emoji: "🚨" },
+      { value: "Ritrovamento ordigni bellici (Evacuazione)", emoji: "⚠️" },
+      { value: "Allerta Meteo", emoji: "🌦️" },
+    ]
+  },
 ] as const;
+
+// Array flat di tutte le tipologie per compatibilità con il codice esistente
+const INFORMA_TIPOLOGIE = INFORMA_TEMATICHE.flatMap(tematica => 
+  tematica.tipologie.map(tipologia => ({
+    value: tipologia.value,
+    emoji: tipologia.emoji
+  }))
+) as const;
 
 interface ExistingComunicazione {
   titolo: string;
@@ -94,6 +142,7 @@ const InformaCittadiniCard = React.memo(({
 }: {
   submitInformaCittadini: any;
 }) => {
+  const [tematicheSelezionata, setTematicheSelezionata] = useState<string | null>(null);
   const [tipologia, setTipologia] = useState<string>("");
   const [dove, setDove] = useState("");
   const [dalGiorno, setDalGiorno] = useState("");
@@ -125,71 +174,72 @@ const InformaCittadiniCard = React.memo(({
     }
   }, [submitInformaCittadini.isSuccess]);
 
+  const tematicaSelezionata = tematicheSelezionata 
+    ? INFORMA_TEMATICHE.find(t => t.id === tematicheSelezionata)
+    : null;
+
   return (
     <>
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Tipologia *</label>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-          {INFORMA_TIPOLOGIE.map((tipo) => (
-            <Button
-              key={tipo.value}
-              type="button"
-              variant="outline"
-              className={`min-h-[6.5rem] rounded-2xl border-0 bg-gradient-to-br text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
-                ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}
-                ${(() => {
-                  switch (tipo.value) {
-                    case "Interruzione erogazione acqua":
-                    case "Acqua non potabile":
-                      return "from-sky-500 to-blue-600";
-                    case "Interruzione energia elettrica programmata":
-                      return "from-amber-400 to-orange-500";
-                    case "Chiusura strade per lavori":
-                    case "Modifiche alla viabilità per eventi o manifestazioni":
-                      return "from-orange-500 to-red-500";
-                    case "Pulizia strade (Divieto di sosta temporaneo)":
-                    case "Variazioni calendario raccolta rifiuti (es. Festività)":
-                      return "from-emerald-500 to-green-600";
-                    case "Disinfestazione zanzare":
-                    case "Derattizzazione":
-                      return "from-purple-500 to-indigo-600";
-                    case "Sciopero servizio raccolta rifiuti":
-                      return "from-yellow-400 to-amber-500";
-                    case "Blocco del traffico per inquinamento (PM10)":
-                    case "Allerta Meteo":
-                      return "from-slate-600 to-slate-800";
-                    case "Chiusura parchi pubblici per vento forte":
-                    case "Scuole Chiuse":
-                      return "from-teal-500 to-emerald-600";
-                    case "Divieto Botti":
-                    case "Divieto vendita alcolici":
-                    case "Scadenza IMU":
-                    case "Scadenza TARI":
-                    case "Scadenza iscrizione Mensa":
-                    case "Scadenza iscrizione Scuolabus":
-                      return "from-red-600 to-rose-600";
-                    case "Pubblicazione Bandi e Concorsi":
-                      return "from-indigo-500 to-blue-700";
-                    case "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)":
-                    case "Ritrovamento ordigni bellici (Evacuazione)":
-                      return "from-red-700 to-red-900";
-                    case "Variazione orari uffici comunali":
-                    default:
-                      return "from-gray-500 to-gray-700";
-                  }
-                })()}`}
-              onClick={() => {
-                setTipologia(tipo.value);
-                setIsDialogOpen(true);
-              }}
-            >
-              <span className="text-3xl leading-none">{tipo.emoji}</span>
-              <span className="text-[11px] text-center leading-snug break-words whitespace-normal">
-                {tipo.value}
-              </span>
-            </Button>
-          ))}
-        </div>
+      <div className="space-y-4">
+        {!tematicheSelezionata ? (
+          <>
+            <label className="text-sm font-medium">Tematica *</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {INFORMA_TEMATICHE.map((tematica) => (
+                <Button
+                  key={tematica.id}
+                  type="button"
+                  variant="outline"
+                  className={`min-h-[6rem] rounded-2xl border-0 bg-gradient-to-br ${tematica.bgColor} text-white text-sm px-3 py-3 flex flex-col items-center justify-center gap-2 transition-all duration-200 opacity-90 hover:opacity-100 hover:scale-105`}
+                  onClick={() => setTematicheSelezionata(tematica.id)}
+                >
+                  <span className="text-4xl leading-none">{tematica.emoji}</span>
+                  <span className="text-xs text-center leading-snug font-semibold">
+                    {tematica.nome}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setTematicheSelezionata(null);
+                  setTipologia("");
+                }}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                ← Torna alle tematiche
+              </Button>
+            </div>
+            <label className="text-sm font-medium">Tipologia *</label>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {tematicaSelezionata?.tipologie.map((tipo) => (
+                <Button
+                  key={tipo.value}
+                  type="button"
+                  variant="outline"
+                  className={`min-h-[6.5rem] rounded-2xl border-0 bg-gradient-to-br ${tematicaSelezionata.bgColor} text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
+                    ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}`}
+                  onClick={() => {
+                    setTipologia(tipo.value);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <span className="text-3xl leading-none">{tipo.emoji}</span>
+                  <span className="text-[11px] text-center leading-snug break-words whitespace-normal">
+                    {tipo.value}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
