@@ -139,8 +139,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 </div>
               )}
               
-              {/* Mostra comune se presente */}
-              {notifica.comune_residenza && (
+              {/* Mostra comune se presente (non per notifiche Demos) */}
+              {notifica.comune_residenza && notifica.tipo_notifica !== 'demos' && (
                 <div className="text-sm text-gray-600 mt-1">
                   <strong>Comune:</strong> {notifica.comune_residenza}
                 </div>

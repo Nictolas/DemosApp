@@ -42,7 +42,6 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
           <TableHead>Titolo</TableHead>
           <TableHead>Testo</TableHead>
           <TableHead>Data</TableHead>
-          <TableHead>Comune</TableHead>
         </>
       );
     } else {
@@ -103,7 +102,9 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
                   <TableCell>{notifica.politico || '-'}</TableCell>
                 </>
               )}
-              <TableCell>{notifica.comune_residenza || '-'}</TableCell>
+              {tipo !== 'demos' && (
+                <TableCell>{notifica.comune_residenza || '-'}</TableCell>
+              )}
               {(tipo === 'voti_comuni' || tipo === 'comunali') && (
                 <>
                   <TableCell>{notifica.likes || 0}</TableCell>

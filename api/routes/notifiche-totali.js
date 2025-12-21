@@ -116,7 +116,7 @@ router.get('/', verifyToken, async (req, res) => {
             titolo,
             testo,
             COALESCE(data, CURRENT_DATE) as data,
-            comune_residenza,
+            NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine,
             NULL::TEXT as voto,
             NULL::TEXT as politico,
