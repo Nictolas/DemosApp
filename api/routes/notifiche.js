@@ -256,22 +256,51 @@ router.get('/', async (req, res) => {
       `);
       
       if (tableExists.rows[0]?.exists) {
-        const query = `
-          SELECT 
-            id,
-            id_utente,
-            tipo_avvistamento,
-            titolo,
-            comune_residenza,
-            COALESCE(data, data_creazione, CURRENT_TIMESTAMP) as data,
-            'notifiche_avvistamenti' as tabella_origine
-          FROM notifiche_avvistamenti
-          ORDER BY COALESCE(data, data_creazione, CURRENT_TIMESTAMP) DESC
-          LIMIT 50
-        `;
+        // Verifica colonne disponibili per costruire la query dinamicamente
+        const columnsResult = await pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'notifiche_avvistamenti'
+          AND table_schema = 'public'
+        `);
+        const availableColumns = columnsResult.rows.map(r => r.column_name);
+        console.log('📋 Colonne disponibili in notifiche_avvistamenti:', availableColumns);
         
-        console.log('📋 Query notifiche_avvistamenti:', query);
-        avvistamentiResult = await pool.query(query);
+        // Costruisci la query solo con colonne esistenti (escludi esplicitamente 'testo' e 'titolo')
+        const selectColumns = [
+          'id',
+          'id_utente',
+          'tipo_avvistamento',
+          'comune_residenza'
+        ].filter(col => availableColumns.includes(col) && col !== 'testo' && col !== 'titolo');
+        
+        // Aggiungi data se esiste
+        if (availableColumns.includes('data')) {
+          selectColumns.push('COALESCE(data, data_creazione, CURRENT_TIMESTAMP) as data');
+        } else if (availableColumns.includes('data_creazione')) {
+          selectColumns.push('COALESCE(data_creazione, CURRENT_TIMESTAMP) as data');
+        } else {
+          selectColumns.push('CURRENT_TIMESTAMP as data');
+        }
+        
+        selectColumns.push(`'notifiche_avvistamenti' as tabella_origine`);
+        
+        const orderBy = availableColumns.includes('data') 
+          ? 'COALESCE(data, data_creazione, CURRENT_TIMESTAMP) DESC'
+          : availableColumns.includes('data_creazione')
+          ? 'data_creazione DESC'
+          : 'CURRENT_TIMESTAMP DESC';
+        
+        // Verifica che 'testo' non sia presente nella query
+        const queryText = `SELECT ${selectColumns.join(', ')} FROM notifiche_avvistamenti ORDER BY ${orderBy} LIMIT 50`;
+        if (queryText.includes('testo')) {
+          console.error('❌ ERRORE: La query contiene ancora "testo"!', queryText);
+          throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
+        }
+        
+        console.log('📋 Query notifiche_avvistamenti:', queryText);
+        console.log('📋 Colonne selezionate:', selectColumns);
+        avvistamentiResult = await pool.query(queryText);
         console.log(`✅ Notifiche avvistamenti recuperate: ${avvistamentiResult.rows.length}`);
       } else {
         console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
@@ -281,7 +310,8 @@ router.get('/', async (req, res) => {
       console.error('❌ Error details:', {
         message: err.message,
         code: err.code,
-        detail: err.detail
+        detail: err.detail,
+        position: err.position
       });
       avvistamentiResult = { rows: [] };
     }
@@ -314,14 +344,19 @@ router.get('/', async (req, res) => {
     
     // Mappa le notifiche nel formato atteso dal frontend
     const comunicazioni = allNotificheRaw.map(c => {
-      // Per le notifiche di avvistamento, usa il titolo come messaggio
-      const messaggio = c.tipo_notifica === 'avvistamento' 
-        ? (c.titolo || 'Nessun messaggio')
-        : (c.testo || 'Nessun messaggio');
+      // Per le notifiche di avvistamento, costruisci titolo e messaggio da tipo_avvistamento
+      let titolo, messaggio;
+      if (c.tipo_notifica === 'avvistamento') {
+        titolo = `Avvistamento ${c.tipo_avvistamento || 'Animale'}`;
+        messaggio = `Un cittadino ha segnalato un avvistamento di ${(c.tipo_avvistamento || 'animale').toLowerCase()} nel comune di ${c.comune_residenza || 'zona'}. Presta attenzione se ti trovi nella zona.`;
+      } else {
+        titolo = c.titolo || 'Nessun titolo';
+        messaggio = c.testo || 'Nessun messaggio';
+      }
       
       return {
         id: c.id,
-        titolo: c.titolo || 'Nessun titolo',
+        titolo: titolo,
         messaggio: messaggio,
         data_creazione: c.data,
         data: c.data,

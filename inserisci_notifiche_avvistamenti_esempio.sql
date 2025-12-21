@@ -31,7 +31,6 @@ END $$;
 INSERT INTO notifiche_avvistamenti (
     id_utente,
     tipo_avvistamento,
-    titolo,
     comune_residenza,
     data,
     data_creazione,
@@ -40,7 +39,6 @@ INSERT INTO notifiche_avvistamenti (
 SELECT 
     u.id,
     'Lupo',
-    'Un cittadino ha segnalato un avvistamento di lupo nel comune. Presta attenzione se ti trovi nella zona e mantieni la distanza di sicurezza.',
     u.comune_residenza,
     CURRENT_TIMESTAMP - INTERVAL '2 days',
     CURRENT_TIMESTAMP - INTERVAL '2 days',
@@ -54,7 +52,6 @@ LIMIT 1;
 INSERT INTO notifiche_avvistamenti (
     id_utente,
     tipo_avvistamento,
-    titolo,
     comune_residenza,
     data,
     data_creazione,
@@ -63,7 +60,6 @@ INSERT INTO notifiche_avvistamenti (
 SELECT 
     u.id,
     'Cinghiale',
-    'Un cittadino ha segnalato un gruppo di cinghiali in prossimità delle abitazioni. Si consiglia di evitare la zona e di non avvicinarsi agli animali.',
     u.comune_residenza,
     CURRENT_TIMESTAMP - INTERVAL '1 day',
     CURRENT_TIMESTAMP - INTERVAL '1 day',
@@ -78,7 +74,6 @@ LIMIT 1;
 INSERT INTO notifiche_avvistamenti (
     id_utente,
     tipo_avvistamento,
-    titolo,
     comune_residenza,
     data,
     data_creazione,
@@ -87,7 +82,6 @@ INSERT INTO notifiche_avvistamenti (
 SELECT 
     u.id,
     'Cinghiale',
-    'Un cittadino ha segnalato un gruppo di cinghiali in prossimità delle abitazioni. Si consiglia di evitare la zona e di non avvicinarsi agli animali.',
     u.comune_residenza,
     CURRENT_TIMESTAMP - INTERVAL '1 day',
     CURRENT_TIMESTAMP - INTERVAL '1 day',
@@ -106,7 +100,6 @@ LIMIT 1;
 INSERT INTO notifiche_avvistamenti (
     id_utente,
     tipo_avvistamento,
-    titolo,
     comune_residenza,
     data,
     data_creazione,
@@ -115,7 +108,6 @@ INSERT INTO notifiche_avvistamenti (
 SELECT 
     u.id,
     'Volpe',
-    'Un cittadino ha segnalato un avvistamento di volpe in zona residenziale. L''animale sembrava in buone condizioni. Si consiglia di non avvicinarsi e di tenere gli animali domestici al sicuro.',
     u.comune_residenza,
     CURRENT_TIMESTAMP - INTERVAL '3 hours',
     CURRENT_TIMESTAMP - INTERVAL '3 hours',
@@ -134,7 +126,6 @@ LIMIT 1;
 INSERT INTO notifiche_avvistamenti (
     id_utente,
     tipo_avvistamento,
-    titolo,
     comune_residenza,
     data,
     data_creazione,
@@ -143,7 +134,6 @@ INSERT INTO notifiche_avvistamenti (
 SELECT 
     u.id,
     'Volpe',
-    'Un cittadino ha segnalato un avvistamento di volpe in zona residenziale. L''animale sembrava in buone condizioni. Si consiglia di non avvicinarsi e di tenere gli animali domestici al sicuro.',
     u.comune_residenza,
     CURRENT_TIMESTAMP - INTERVAL '3 hours',
     CURRENT_TIMESTAMP - INTERVAL '3 hours',
@@ -165,7 +155,7 @@ LIMIT 1;
 SELECT 
     id,
     tipo_avvistamento,
-    titolo,
+    'Avvistamento ' || tipo_avvistamento as titolo_costruito,
     comune_residenza,
     data,
     (SELECT COUNT(*) FROM users WHERE comune_residenza = na.comune_residenza) as cittadini_nel_comune

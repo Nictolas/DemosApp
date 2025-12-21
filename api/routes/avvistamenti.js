@@ -14,12 +14,12 @@ const pool = getPool();
 router.post('/avvisa-vicini', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { tipo_avvistamento, titolo } = req.body;
+    const { tipo_avvistamento } = req.body;
 
-    if (!tipo_avvistamento || !titolo) {
+    if (!tipo_avvistamento) {
       return res.status(400).json({
         success: false,
-        error: 'Tipo avvistamento e titolo sono obbligatori'
+        error: 'Tipo avvistamento è obbligatorio'
       });
     }
 
@@ -64,10 +64,10 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     // Crea la notifica nella tabella notifiche_avvistamenti
     const insertResult = await pool.query(
       `INSERT INTO notifiche_avvistamenti 
-       (id_utente, tipo_avvistamento, titolo, comune_residenza, data, data_creazione)
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       (id_utente, tipo_avvistamento, comune_residenza, data, data_creazione)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING id`,
-      [userId, tipo_avvistamento, titolo, comuneResidenza]
+      [userId, tipo_avvistamento, comuneResidenza]
     );
 
     const notificaId = insertResult.rows[0].id;
@@ -126,7 +126,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
             token: fcmToken.trim(),
             notification: {
               title: `Avvistamento ${tipo_avvistamento}`,
-              body: titolo.substring(0, 100) // Usa il titolo come body
+              body: `Un cittadino ha segnalato un avvistamento di ${tipo_avvistamento.toLowerCase()} nel comune di ${comuneResidenza}. Presta attenzione se ti trovi nella zona.`
             },
             data: {
               type: 'avvistamento',
