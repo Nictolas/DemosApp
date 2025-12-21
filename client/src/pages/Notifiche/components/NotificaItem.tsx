@@ -79,19 +79,63 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       deleteSegnalazioneMutation.mutate(notifica.id);
     }
   };
+  // Funzione per ottenere emoji e colori basati sul tipo di notifica
+  const getNotificaStyle = (tipo: string) => {
+    switch (tipo) {
+      case 'voto_comune':
+        return {
+          emoji: '🗳️',
+          bgColor: 'bg-blue-50 border-blue-200',
+          textColor: 'text-blue-900',
+          accentColor: 'text-blue-600'
+        };
+      case 'demos':
+        return {
+          emoji: '📢',
+          bgColor: 'bg-pink-50 border-pink-200',
+          textColor: 'text-pink-900',
+          accentColor: 'text-pink-600'
+        };
+      case 'comunale':
+        return {
+          emoji: '🏛️',
+          bgColor: 'bg-green-50 border-green-200',
+          textColor: 'text-green-900',
+          accentColor: 'text-green-600'
+        };
+      case 'segnalazione_problema':
+        return {
+          emoji: '⚠️',
+          bgColor: 'bg-orange-50 border-orange-200',
+          textColor: 'text-orange-900',
+          accentColor: 'text-orange-600'
+        };
+      default:
+        return {
+          emoji: '📬',
+          bgColor: 'bg-gray-50 border-gray-200',
+          textColor: 'text-gray-900',
+          accentColor: 'text-gray-600'
+        };
+    }
+  };
+
+  const style = getNotificaStyle(notifica.tipo_notifica || 'default');
+
   return (
     <div
-      className={`p-4 rounded-lg border ${getNotificaBackground(notifica.status)}`}
+      className={`p-4 rounded-lg border-2 ${style.bgColor} ${style.textColor} shadow-sm hover:shadow-md transition-shadow`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h3 className="font-semibold text-gray-900">
+            <span className="text-2xl">{style.emoji}</span>
+            <h3 className={`font-semibold ${style.textColor}`}>
               {getNotificaTitle(notifica.titolo)}
             </h3>
           </div>
           
-          <p className="text-gray-700 mb-3">
+          <p className={`${style.textColor} opacity-90 mb-3`}>
             {getNotificaMessage(notifica.messaggio)}
           </p>
 
@@ -100,12 +144,12 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             notifica.tipo_notifica === 'voto_comune' || 
             notifica.tipo_notifica === 'demos' || 
             notifica.tipo_notifica === 'comunale') && (
-            <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+            <div className={`mb-3 p-3 rounded-lg ${style.bgColor} border ${style.textColor} opacity-80`}>
               {/* Mostra autore solo se presente */}
               {notifica.autore && (
-                <div className="text-sm text-gray-600 mb-2">
+                <div className={`text-sm ${style.textColor} mb-2`}>
                   <strong>Autore:</strong> {notifica.autore.nome} {notifica.autore.cognome} 
-                  <span className="ml-2 text-xs bg-gray-200 px-2 py-1 rounded">
+                  <span className={`ml-2 text-xs px-2 py-1 rounded ${style.bgColor} border`}>
                     {notifica.autore.ruolo}
                   </span>
                 </div>
@@ -113,7 +157,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               
               {/* Mostra voto per voti comuni */}
               {notifica.voto && (notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && (
-                <div className="text-sm text-gray-600">
+                <div className={`text-sm ${style.textColor}`}>
                   <strong>Voto:</strong> 
                   <span className={`ml-2 px-2 py-1 rounded text-xs ${
                     notifica.voto === 'Favorevole' ? 'bg-green-100 text-green-800' :
@@ -127,21 +171,21 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               
               {/* Mostra politico per voti comuni */}
               {notifica.politico && notifica.tipo_notifica === 'voto_comune' && (
-                <div className="text-sm text-gray-600 mt-1">
+                <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Politico:</strong> {notifica.politico}
                 </div>
               )}
               
               {/* Mostra data se presente */}
               {notifica.data && (
-                <div className="text-sm text-gray-600 mt-1">
+                <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
                 </div>
               )}
               
               {/* Mostra comune se presente (non per notifiche Demos) */}
               {notifica.comune_residenza && notifica.tipo_notifica !== 'demos' && (
-                <div className="text-sm text-gray-600 mt-1">
+                <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Comune:</strong> {notifica.comune_residenza}
                 </div>
               )}
@@ -149,7 +193,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {/* Mostra likes/dislikes se presenti */}
               {((notifica.likes !== undefined && notifica.likes > 0) || 
                 (notifica.dislikes !== undefined && notifica.dislikes > 0)) && (
-                <div className="text-sm text-gray-600 mt-1 flex items-center gap-4">
+                <div className={`text-sm ${style.textColor} mt-1 flex items-center gap-4`}>
                   {notifica.likes !== undefined && (
                     <span>👍 {notifica.likes}</span>
                   )}
@@ -158,21 +202,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   )}
                 </div>
               )}
-              
-              {/* Mostra tipo notifica come badge */}
-              <div className="mt-2">
-                <span className={`text-xs px-2 py-1 rounded ${
-                  notifica.tipo_notifica === 'voto_comune' ? 'bg-blue-100 text-blue-800' :
-                  notifica.tipo_notifica === 'demos' ? 'bg-pink-100 text-pink-800' :
-                  notifica.tipo_notifica === 'comunale' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {notifica.tipo_notifica === 'voto_comune' ? 'Voto Comune' :
-                   notifica.tipo_notifica === 'demos' ? 'Notifica Demos' :
-                   notifica.tipo_notifica === 'comunale' ? 'Notifica Comunale' :
-                   notifica.tipo_notifica}
-                </span>
-              </div>
             </div>
           )}
 
@@ -266,7 +295,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </div>
           )}
           
-          <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div className={`flex items-center gap-4 text-sm ${style.textColor} opacity-70`}>
             <span>
               {formatDate(notifica.data || notifica.created_at || notifica.data_creazione || '')}
             </span>
