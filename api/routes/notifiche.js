@@ -38,47 +38,97 @@ router.get('/', async (req, res) => {
     
     // Recupera da notifiche_voti_comuni
     try {
-      votiComuniResult = await pool.query(`
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          COALESCE(data, CURRENT_DATE) as data,
-          voto,
-          comune_residenza,
-          politico,
-          COALESCE(likes, 0) as likes,
-          COALESCE(dislikes, 0) as dislikes,
-          'notifiche_voti_comuni' as tabella_origine
-        FROM notifiche_voti_comuni
-        ORDER BY COALESCE(data, CURRENT_DATE) DESC
-        LIMIT 50
+      // Verifica colonne disponibili
+      const votiComuniColumns = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'notifiche_voti_comuni'
       `);
-      console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
+      const votiComuniCols = votiComuniColumns.rows.map(r => r.column_name);
+      console.log('📋 Colonne disponibili in notifiche_voti_comuni:', votiComuniCols);
+      
+      if (!votiComuniCols.includes('titolo') || !votiComuniCols.includes('testo')) {
+        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_voti_comuni');
+        votiComuniResult = { rows: [] };
+      } else {
+        // Costruisci la query dinamicamente
+        const votoCol = votiComuniCols.includes('voto') ? 'voto' : 'NULL::TEXT as voto';
+        const comuneCol = votiComuniCols.includes('comune_residenza') ? 'comune_residenza' : 'NULL::TEXT as comune_residenza';
+        const politicoCol = votiComuniCols.includes('politico') ? 'politico' : 'NULL::TEXT as politico';
+        const likesCol = votiComuniCols.includes('likes') ? 'COALESCE(likes, 0) as likes' : '0::INTEGER as likes';
+        const dislikesCol = votiComuniCols.includes('dislikes') ? 'COALESCE(dislikes, 0) as dislikes' : '0::INTEGER as dislikes';
+        const dataCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) as data' : 'CURRENT_DATE as data';
+        const orderByCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) DESC' : 'CURRENT_DATE DESC';
+        
+        const query = `
+          SELECT 
+            id,
+            id_utente,
+            titolo,
+            testo,
+            ${dataCol},
+            ${votoCol},
+            ${comuneCol},
+            ${politicoCol},
+            ${likesCol},
+            ${dislikesCol},
+            'notifiche_voti_comuni' as tabella_origine
+          FROM notifiche_voti_comuni
+          ORDER BY ${orderByCol}
+          LIMIT 50
+        `;
+        
+        console.log('📋 Query notifiche_voti_comuni:', query);
+        votiComuniResult = await pool.query(query);
+        console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
+      }
     } catch (err) {
       console.error('❌ Errore query notifiche_voti_comuni:', err);
+      console.error('❌ Error details:', {
+        message: err.message,
+        code: err.code,
+        detail: err.detail
+      });
       votiComuniResult = { rows: [] };
     }
     
     // Recupera da notifiche_demos (senza comune_residenza)
     try {
-      demosResult = await pool.query(`
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          COALESCE(data, CURRENT_DATE) as data,
-          NULL::TEXT as comune_residenza,
-          'notifiche_demos' as tabella_origine
-        FROM notifiche_demos
-        ORDER BY COALESCE(data, CURRENT_DATE) DESC
-        LIMIT 50
+      // Verifica colonne disponibili
+      const demosColumns = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'notifiche_demos'
       `);
-      console.log(`✅ Notifiche demos recuperate: ${demosResult.rows.length}`);
+      const demosCols = demosColumns.rows.map(r => r.column_name);
+      console.log('📋 Colonne disponibili in notifiche_demos:', demosCols);
+      
+      if (!demosCols.includes('titolo') || !demosCols.includes('testo')) {
+        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_demos');
+        demosResult = { rows: [] };
+      } else {
+        demosResult = await pool.query(`
+          SELECT 
+            id,
+            id_utente,
+            titolo,
+            testo,
+            COALESCE(data, CURRENT_DATE) as data,
+            NULL::TEXT as comune_residenza,
+            'notifiche_demos' as tabella_origine
+          FROM notifiche_demos
+          ORDER BY COALESCE(data, CURRENT_DATE) DESC
+          LIMIT 50
+        `);
+        console.log(`✅ Notifiche demos recuperate: ${demosResult.rows.length}`);
+      }
     } catch (err) {
       console.error('❌ Errore query notifiche_demos:', err);
+      console.error('❌ Error details:', {
+        message: err.message,
+        code: err.code,
+        detail: err.detail
+      });
       demosResult = { rows: [] };
     }
     
