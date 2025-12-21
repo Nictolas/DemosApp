@@ -10,7 +10,7 @@ export interface Notifica {
   data_lettura?: string;
   priorita?: string;
   // Nuove proprietà per comunicazioni
-  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'demos' | 'comunale' | 'segnalazione_problema';
+  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'demos' | 'comunale' | 'segnalazione_problema' | 'avvistamento';
   autore?: {
     nome: string;
     cognome: string;
@@ -23,6 +23,7 @@ export interface Notifica {
   politico_avatar_config?: any;
   politico_nome?: string;
   politico_cognome?: string;
+  tipo_avvistamento?: string; // Per notifiche avvistamenti
   likes?: number;
   dislikes?: number;
   tabella_origine?: string;

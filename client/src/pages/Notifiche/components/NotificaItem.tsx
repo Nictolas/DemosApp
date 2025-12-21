@@ -153,6 +153,13 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           textColor: 'text-orange-900',
           accentColor: 'text-orange-600'
         };
+      case 'avvistamento':
+        return {
+          emoji: '🐺',
+          bgColor: 'bg-amber-50 border-amber-200',
+          textColor: 'text-amber-900',
+          accentColor: 'text-amber-600'
+        };
       default:
         return {
           emoji: '📬',
@@ -186,7 +193,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           {(notifica.tipo_notifica === 'comunicazione' || 
             notifica.tipo_notifica === 'voto_comune' || 
             notifica.tipo_notifica === 'demos' || 
-            notifica.tipo_notifica === 'comunale') && (
+            notifica.tipo_notifica === 'comunale' ||
+            notifica.tipo_notifica === 'avvistamento') && (
             <div className={`mb-3 p-3 rounded-lg ${style.bgColor} border ${style.textColor} opacity-80`}>
               {/* Mostra autore solo se presente */}
               {notifica.autore && (
@@ -238,6 +246,13 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {notifica.data && notifica.tipo_notifica !== 'demos' && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
+                </div>
+              )}
+              
+              {/* Mostra tipo avvistamento per notifiche avvistamento */}
+              {notifica.tipo_avvistamento && notifica.tipo_notifica === 'avvistamento' && (
+                <div className={`text-sm ${style.textColor} mt-1`}>
+                  <strong>Tipo:</strong> {notifica.tipo_avvistamento}
                 </div>
               )}
               
