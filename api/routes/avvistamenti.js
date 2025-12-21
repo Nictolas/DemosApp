@@ -126,7 +126,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
             token: fcmToken.trim(),
             notification: {
               title: `Avvistamento ${tipo_avvistamento}`,
-              body: `Un cittadino ha segnalato un avvistamento di ${tipo_avvistamento.toLowerCase()} nel comune di ${comuneResidenza}. Presta attenzione se ti trovi nella zona.`
+              body: `Avvistamento segnalato nel comune di ${comuneResidenza}`
             },
             data: {
               type: 'avvistamento',
