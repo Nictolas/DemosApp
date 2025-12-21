@@ -4,9 +4,119 @@ import { Redirect } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Bell } from "lucide-react";
+import { Loader2, Bell, Vote, Building2 } from "lucide-react";
+
+// Componente per la tabella delle notifiche
+function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string }) {
+  if (notifiche.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+        <p>Nessuna notifica disponibile</p>
+      </div>
+    );
+  }
+
+  const getTableHeaders = () => {
+    if (tipo === 'voti_comuni') {
+      return (
+        <>
+          <TableHead>ID</TableHead>
+          <TableHead>Titolo</TableHead>
+          <TableHead>Testo</TableHead>
+          <TableHead>Data</TableHead>
+          <TableHead>Voto</TableHead>
+          <TableHead>Politico</TableHead>
+          <TableHead>Comune</TableHead>
+          <TableHead>Likes</TableHead>
+          <TableHead>Dislikes</TableHead>
+        </>
+      );
+    } else if (tipo === 'demos') {
+      return (
+        <>
+          <TableHead>ID</TableHead>
+          <TableHead>Titolo</TableHead>
+          <TableHead>Testo</TableHead>
+          <TableHead>Data</TableHead>
+          <TableHead>Comune</TableHead>
+        </>
+      );
+    } else {
+      return (
+        <>
+          <TableHead>ID</TableHead>
+          <TableHead>Titolo</TableHead>
+          <TableHead>Testo</TableHead>
+          <TableHead>Data</TableHead>
+          <TableHead>Comune</TableHead>
+          <TableHead>Likes</TableHead>
+          <TableHead>Dislikes</TableHead>
+        </>
+      );
+    }
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {getTableHeaders()}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {notifiche.map((notifica: any) => (
+            <TableRow key={notifica.id}>
+              <TableCell className="font-mono text-xs">
+                {notifica.id?.substring(0, 8)}...
+              </TableCell>
+              <TableCell className="font-medium">
+                {notifica.titolo || 'Nessun titolo'}
+              </TableCell>
+              <TableCell className="max-w-md">
+                <p className="text-sm text-gray-600 truncate">
+                  {notifica.testo || notifica.messaggio || 'Nessun messaggio'}
+                </p>
+              </TableCell>
+              <TableCell>
+                {notifica.data 
+                  ? new Date(notifica.data).toLocaleDateString('it-IT')
+                  : 'N/A'}
+              </TableCell>
+              {tipo === 'voti_comuni' && (
+                <>
+                  <TableCell>
+                    {notifica.voto ? (
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        notifica.voto === 'Favorevole' ? 'bg-green-100 text-green-800' :
+                        notifica.voto === 'Contrario' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {notifica.voto}
+                      </span>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell>{notifica.politico || '-'}</TableCell>
+                </>
+              )}
+              <TableCell>{notifica.comune_residenza || '-'}</TableCell>
+              {(tipo === 'voti_comuni' || tipo === 'comunali') && (
+                <>
+                  <TableCell>{notifica.likes || 0}</TableCell>
+                  <TableCell>{notifica.dislikes || 0}</TableCell>
+                </>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
 export default function NotificheTotali() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -110,70 +220,44 @@ export default function NotificheTotali() {
                     </CardContent>
                   </Card>
                 </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Tabella</TableHead>
-                        <TableHead>Titolo</TableHead>
-                        <TableHead>Testo</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Voto</TableHead>
-                        <TableHead>Politico</TableHead>
-                        <TableHead>Comune</TableHead>
-                        <TableHead>Likes</TableHead>
-                        <TableHead>Dislikes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.notifiche.map((notifica: any) => (
-                        <TableRow key={notifica.id}>
-                          <TableCell className="font-mono text-xs">
-                            {notifica.id?.substring(0, 8)}...
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              notifica.tabella_origine === 'notifiche_voti_comuni' ? 'bg-blue-100 text-blue-800' :
-                              notifica.tabella_origine === 'notifiche_demos' ? 'bg-pink-100 text-pink-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {notifica.tabella_origine || 'N/A'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {notifica.titolo || 'Nessun titolo'}
-                          </TableCell>
-                          <TableCell className="max-w-md">
-                            <p className="text-sm text-gray-600 truncate">
-                              {notifica.testo || notifica.messaggio || 'Nessun messaggio'}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            {notifica.data 
-                              ? new Date(notifica.data).toLocaleDateString('it-IT')
-                              : 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            {notifica.voto ? (
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                notifica.voto === 'Favorevole' ? 'bg-green-100 text-green-800' :
-                                notifica.voto === 'Contrario' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {notifica.voto}
-                              </span>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell>{notifica.politico || '-'}</TableCell>
-                          <TableCell>{notifica.comune_residenza || '-'}</TableCell>
-                          <TableCell>{notifica.likes || 0}</TableCell>
-                          <TableCell>{notifica.dislikes || 0}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                
+                <Tabs defaultValue="voti-comuni" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="voti-comuni" className="flex items-center gap-2">
+                      <Vote className="h-4 w-4" />
+                      Voti Comuni ({data.stats?.voti_comuni || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="demos" className="flex items-center gap-2">
+                      <Bell className="h-4 w-4" />
+                      Demos ({data.stats?.demos || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="comunali" className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Comunali ({data.stats?.comunali || 0})
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="voti-comuni" className="mt-6">
+                    <NotificheTable 
+                      notifiche={data.notifiche?.voti_comuni || []} 
+                      tipo="voti_comuni"
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="demos" className="mt-6">
+                    <NotificheTable 
+                      notifiche={data.notifiche?.demos || []} 
+                      tipo="demos"
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="comunali" className="mt-6">
+                    <NotificheTable 
+                      notifiche={data.notifiche?.comunali || []} 
+                      tipo="comunali"
+                    />
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </CardContent>

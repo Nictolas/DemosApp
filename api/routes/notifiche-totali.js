@@ -146,17 +146,33 @@ router.get('/', verifyToken, async (req, res) => {
           SELECT 
             id,
             id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            comune_residenza,
+            COALESCE(titolo, 
+              CASE 
+                WHEN tipologia IS NOT NULL AND dove IS NOT NULL THEN tipologia || ' - ' || dove
+                WHEN tipologia IS NOT NULL THEN tipologia
+                WHEN dove IS NOT NULL THEN dove
+                ELSE 'Notifica Comunale'
+              END
+            ) as titolo,
+            COALESCE(testo,
+              CASE 
+                WHEN tipologia IS NOT NULL OR dove IS NOT NULL OR dal_giorno IS NOT NULL OR al_giorno IS NOT NULL THEN
+                  COALESCE('Tipologia: ' || tipologia, '') ||
+                  CASE WHEN tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
+                  COALESCE('Dove: ' || dove, '') ||
+                  CASE WHEN dove IS NOT NULL THEN E'\\n' ELSE '' END ||
+                  COALESCE('Dal: ' || dal_giorno::text, '') ||
+                  CASE WHEN dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
+                  COALESCE('Al: ' || al_giorno::text, '')
+                ELSE 'Notifica comunale'
+              END
+            ) as testo,
+            COALESCE(data, dal_giorno, CURRENT_DATE) as data,
+            COALESCE(comune_residenza, dove, zona) as comune_residenza,
             COALESCE(likes, 0) as likes,
-            COALESCE(dislikes, 0) as dislikes,
-            'notifiche_comunali' as tabella_origine,
-            NULL::TEXT as voto,
-            NULL::TEXT as politico
+            COALESCE(dislikes, 0) as dislikes
           FROM notifiche_comunali
-          ORDER BY COALESCE(data, CURRENT_DATE) DESC
+          ORDER BY COALESCE(data, dal_giorno, CURRENT_DATE) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_comunali:', err);
@@ -201,7 +217,11 @@ router.get('/', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      notifiche: allNotifiche,
+      notifiche: {
+        voti_comuni: votiComuni?.rows || [],
+        demos: demos?.rows || [],
+        comunali: comunali?.rows || []
+      },
       stats: {
         voti_comuni: votiComuni?.rows?.length || 0,
         demos: demos?.rows?.length || 0,
