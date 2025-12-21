@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2 } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -92,5 +92,15 @@ export const gestisciSections: GestisciSection[] = [
       buttonColor: "bg-indigo-500 hover:bg-indigo-600",
       route: "/backup-dashboard",
       buttonText: "Gestisci Backup"
+    },
+    {
+      id: "notifiche-totali",
+      title: "Notifiche Totali",
+      description: "Visualizza e gestisci tutte le notifiche del sistema",
+      icon: Bell,
+      color: "text-pink-600 group-hover:text-pink-800",
+      buttonColor: "bg-pink-500 hover:bg-pink-600",
+      route: "/notifiche-totali",
+      buttonText: "Notifiche Totali"
     },
 ];

@@ -66,170 +66,22 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Se ci sono voti multipli (Comunica Voti), gestisci ogni voto
-    if (voti && Array.isArray(voti) && voti.length > 0) {
-      const comunicazioni = [];
-
-      for (const voto of voti) {
-        if (!voto.nome || !voto.voto) continue;
-
-        // Cerca l'utente Politico/Candidato Politico per nome
-        const utenteResult = await pool.query(
-          `SELECT id, nome, cognome, ruolo FROM users 
-           WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
-           AND ruolo IN ('P', 'CP')
-           LIMIT 1`,
-          [`%${voto.nome}%`]
-        );
-
-        if (utenteResult.rows.length === 0) {
-          console.log(`⚠️ Utente non trovato per: ${voto.nome}`);
-          continue;
-        }
-
-        const utentePolitico = utenteResult.rows[0];
-        const testo = `Il voto di ${utentePolitico.nome} ${utentePolitico.cognome}: ${voto.voto}`;
-        const titoloCompleto = `${titolo} - ${utentePolitico.nome} ${utentePolitico.cognome}`;
-
-        // Controlla se esiste già una comunicazione per questo utente politico
-        const existingComunicazione = await pool.query(
-          'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
-          [utentePolitico.id, 'comunica_voti']
-        );
-
-        if (existingComunicazione.rows.length > 0) {
-          // Aggiorna comunicazione esistente
-          const comunicazioneId = existingComunicazione.rows[0].id;
-          
-          // Reset like/dislike
-          await pool.query(
-            'DELETE FROM reazioni WHERE comunicazione_id = $1',
-            [comunicazioneId]
-          );
-
-          const result = await pool.query(
-            `UPDATE comunicazioni SET 
-              titolo = $1, 
-              testo = $2, 
-              voto_dato = $3, 
-              vincitore = $4, 
-              commento = $5,
-              data_creazione = NOW(),
-              likes = 0,
-              dislikes = 0
-            WHERE id = $6 
-            RETURNING *`,
-            [titoloCompleto, testo, voto.voto, vincitore, commento || '', comunicazioneId]
-          );
-
-          comunicazioni.push(result.rows[0]);
-
-          // Invia notifica ai sostenitori
-          await notifySostenitori(utentePolitico.id, titoloCompleto, result.rows[0]);
-        } else {
-          // Crea nuova comunicazione
-          const result = await pool.query(
-            `INSERT INTO comunicazioni (
-              id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-              data_creazione, likes, dislikes, punti_trasparenza, tipo
-            ) VALUES (
-              gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
-            ) RETURNING *`,
-            [utentePolitico.id, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '', 'comunica_voti']
-          );
-
-          comunicazioni.push(result.rows[0]);
-
-          // Invia notifica ai sostenitori
-          await notifySostenitori(utentePolitico.id, titoloCompleto, result.rows[0]);
-        }
-      }
-
-      return res.status(201).json({
-        success: true,
-        data: comunicazioni,
-        message: `${comunicazioni.length} voti salvati con successo`
-      });
-    }
-
-    // Gestione speciale per "Informa Cittadini"
+    // Gestione speciale per "Informa Cittadini" - ora gestita da /api/informa-cittadini
+    // Questo codice è stato spostato in api/routes/informa-cittadini.js che usa notifiche_comunali
     if (tipo === 'informa_cittadini') {
-      const titoloComunicazione = `${tipologia} - ${dove}`;
-      const testo = `Tipologia: ${tipologia}\nDove: ${dove}\nDal: ${dal_giorno}\nAl: ${al_giorno}`;
-      
-      // Crea nuova comunicazione per "Informa Cittadini"
-      const result = await pool.query(
-        `INSERT INTO comunicazioni (
-          id, id_utente, titolo, testo, zona, tipologia, dove, dal_giorno, al_giorno,
-          data_creazione, likes, dislikes, punti_trasparenza, tipo, status
-        ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), 0, 0, 3, $9, 'non_letta'
-        ) RETURNING *`,
-        [id_utente, titoloComunicazione, testo, zona || 'Generale', tipologia, dove, dal_giorno, al_giorno, tipo]
-      );
-
-      return res.status(201).json({
-        success: true,
-        data: result.rows[0],
-        message: 'Comunicazione "Informa Cittadini" creata con successo'
+      return res.status(400).json({
+        success: false,
+        error: 'Usa l\'endpoint /api/informa-cittadini per questa funzionalità'
       });
     }
 
-    // Gestione speciale per notifiche di Demos
+    // Gestione speciale per notifiche di Demos - ora gestita da notifyAllUsers che usa notifiche_demos
     if (tipo === 'demos_notification') {
-      const testo = `Notifica Demos: ${commento || ''}`;
-      
-      // Controlla se esiste già una notifica Demos e la sovrascrivi
-      const existingDemosNotification = await pool.query(
-        'SELECT id FROM comunicazioni WHERE tipo = $1 ORDER BY data_creazione DESC LIMIT 1',
-        ['demos_notification']
-      );
-
-      let result;
-      if (existingDemosNotification.rows.length > 0) {
-        // Aggiorna notifica esistente
-        const comunicazioneId = existingDemosNotification.rows[0].id;
-        
-        // Reset like/dislike
-        await pool.query(
-          'DELETE FROM reazioni WHERE comunicazione_id = $1',
-          [comunicazioneId]
-        );
-
-        result = await pool.query(
-          `UPDATE comunicazioni SET
-            id_utente = $1,
-            titolo = $2,
-            testo = $3,
-            zona = $4,
-            commento = $5,
-            data_creazione = NOW(),
-            likes = 0,
-            dislikes = 0,
-            punti_trasparenza = 0
-          WHERE id = $6
-          RETURNING *`,
-          [id_utente, titolo, testo, zona || 'Generale', commento || '', comunicazioneId]
-        );
-      } else {
-        // Crea nuova notifica Demos
-        result = await pool.query(
-          `INSERT INTO comunicazioni (
-            id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-            data_creazione, likes, dislikes, punti_trasparenza, tipo
-          ) VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 0, $8
-          ) RETURNING *`,
-          [id_utente, titolo, testo, zona || 'Generale', null, null, commento || '', tipo]
-        );
-      }
-
-      // Invia notifica a TUTTI gli utenti
+      // Invia notifica a TUTTI gli utenti usando notifiche_demos
       await notifyAllUsers(titolo, commento || '');
 
       return res.status(201).json({
         success: true,
-        data: result.rows[0],
         message: 'Notifica Demos inviata a tutti gli utenti'
       });
     }
@@ -238,10 +90,10 @@ router.post('/', async (req, res) => {
     if (tipo === 'istituzione' && voti && Array.isArray(voti) && voti.length > 0) {
       // Cancella tutte le comunicazioni precedenti con lo stesso titolo e tipo 'istituzione'
       await pool.query(
-        'DELETE FROM comunicazioni WHERE titolo = $1 AND tipo = $2',
-        [titolo, 'istituzione']
+        'DELETE FROM notifiche_voti_comuni WHERE titolo = $1',
+        [titolo]
       );
-      console.log(`🗑️ Cancellate comunicazioni precedenti per votazione "${titolo}" (tipo: istituzione)`);
+      console.log(`🗑️ Cancellate comunicazioni precedenti per votazione "${titolo}"`);
 
       const comunicazioni = [];
       const { getFirebaseAdmin } = require('../services/firebaseAdmin');
@@ -273,15 +125,23 @@ router.post('/', async (req, res) => {
         const testo = `Il voto di ${utentePolitico.nome} ${utentePolitico.cognome}: ${voto.voto}`;
         const titoloCompleto = `${titolo} - ${utentePolitico.nome} ${utentePolitico.cognome}`;
 
-        // Crea nuova comunicazione per questo voto
+        // Crea nuova comunicazione per questo voto in notifiche_voti_comuni
+        // Recupera comune_residenza dall'utente politico se disponibile
+        const utenteComuneResult = await pool.query(
+          'SELECT comune_residenza FROM users WHERE id = $1',
+          [utentePolitico.id]
+        );
+        const comuneResidenza = utenteComuneResult.rows.length > 0 
+          ? utenteComuneResult.rows[0].comune_residenza 
+          : null;
+
         const result = await pool.query(
-          `INSERT INTO comunicazioni (
-            id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-            data_creazione, likes, dislikes, punti_trasparenza, tipo, status, read_by
+          `INSERT INTO notifiche_voti_comuni (
+            id, id_utente, titolo, testo, voto, comune_residenza, politico, likes, dislikes, data
           ) VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8, 'non_letta', ARRAY[]::UUID[]
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE
           ) RETURNING *`,
-          [utentePolitico.id, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '', 'istituzione']
+          [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenza, `${utentePolitico.nome} ${utentePolitico.cognome}`]
         );
 
         comunicazioni.push(result.rows[0]);
@@ -395,7 +255,6 @@ router.post('/', async (req, res) => {
           data_creazione = NOW(),
           likes = 0,
           dislikes = 0,
-          status = 'non_letta'
         WHERE id = $6 
         RETURNING *`,
         [titolo, testo, voto_dato, vincitore, commento || '', comunicazioneId]
@@ -416,7 +275,7 @@ router.post('/', async (req, res) => {
       
       await pool.query(`
         UPDATE comunicazioni 
-        SET read_by = ${readByInit}, status = 'non_letta'
+        SET read_by = ${readByInit}
         WHERE id = $1
       `, [comunicazioneId]);
 
@@ -430,9 +289,9 @@ router.post('/', async (req, res) => {
       const result = await pool.query(
         `INSERT INTO comunicazioni (
           id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-          data_creazione, likes, dislikes, punti_trasparenza, tipo, status
+          data_creazione, likes, dislikes, punti_trasparenza, tipo
         ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8, 'non_letta'
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
         ) RETURNING *`,
         [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '', tipo]
       );
@@ -572,50 +431,6 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
 // Funzione per notificare tutti gli utenti (per notifiche Demos)
 async function notifyAllUsers(titolo, commento) {
   try {
-    // Verifica se esiste il campo read_by, altrimenti lo crea
-    try {
-      const checkColumns = await pool.query(`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'comunicazioni' 
-        AND column_name IN ('read_by', 'tipo', 'id')
-      `);
-      
-      const hasReadBy = checkColumns.rows.some(r => r.column_name === 'read_by');
-      const hasTipo = checkColumns.rows.some(r => r.column_name === 'tipo');
-      const idType = checkColumns.rows.find(r => r.column_name === 'id')?.data_type || 'uuid';
-      
-      // Aggiungi read_by se non esiste (può essere UUID[] o VARCHAR[])
-      if (!hasReadBy) {
-        const readByType = idType === 'uuid' ? 'UUID[]' : 'VARCHAR[]';
-        await pool.query(`
-          ALTER TABLE comunicazioni ADD COLUMN read_by ${readByType} DEFAULT ARRAY[]::${readByType}
-        `);
-        console.log(`✅ Aggiunta colonna read_by (${readByType})`);
-      }
-      
-      // Aggiungi tipo se non esiste
-      if (!hasTipo) {
-        await pool.query(`
-          ALTER TABLE comunicazioni ADD COLUMN tipo VARCHAR(50) DEFAULT 'votazione'
-        `);
-        console.log('✅ Aggiunta colonna tipo');
-      }
-    } catch (alterError) {
-      console.warn('⚠️ Errore nel verificare/creare colonne:', alterError.message);
-    }
-
-    // Verifica il tipo di read_by
-    const readByTypeCheck = await pool.query(`
-      SELECT udt_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'comunicazioni' 
-      AND column_name = 'read_by'
-    `);
-    
-    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
-    const readByInit = isUUIDArray ? 'ARRAY[]::UUID[]' : 'ARRAY[]::VARCHAR[]';
-    
     // Usa un id_utente valido (non può essere NULL)
     // Prendi il primo utente attivo come mittente sistema
     const systemUserResult = await pool.query(`
@@ -629,7 +444,7 @@ async function notifyAllUsers(titolo, commento) {
     
     // Controlla se esiste già una notifica Demos e la sovrascrivi
     const existingDemosNotification = await pool.query(`
-      SELECT id FROM comunicazioni WHERE tipo = 'demos_notification' ORDER BY data_creazione DESC LIMIT 1
+      SELECT id FROM notifiche_demos ORDER BY data DESC NULLS LAST LIMIT 1
     `);
     
     let comunicazioneId;
@@ -641,22 +456,15 @@ async function notifyAllUsers(titolo, commento) {
       // Reset reazioni
       await pool.query('DELETE FROM reazioni WHERE comunicazione_id = $1', [comunicazioneId]);
       
-      // Aggiorna la comunicazione, resettando read_by per renderla non letta per tutti
+      // Aggiorna la comunicazione in notifiche_demos
       const comunicazioneResult = await pool.query(`
-        UPDATE comunicazioni SET
+        UPDATE notifiche_demos SET
           id_utente = $1,
           titolo = $2,
           testo = $3,
-          zona = 'Generale',
-          tipo = 'demos_notification',
-          data_creazione = NOW(),
-          likes = 0,
-          dislikes = 0,
-          punti_trasparenza = 0,
-          read_by = ${readByInit},
-          status = 'non_letta'
+          data = CURRENT_DATE
         WHERE id = $4
-        RETURNING id, read_by
+        RETURNING id
       `, [
         systemUserId,
         `Notifica Demos: ${titolo}`,
@@ -664,21 +472,15 @@ async function notifyAllUsers(titolo, commento) {
         comunicazioneId
       ]);
       
-      console.log(`✅ Comunicazione Demos aggiornata (sovrascritta) con ID: ${comunicazioneId}`);
-      console.log(`📋 read_by resettato: ${JSON.stringify(comunicazioneResult.rows[0].read_by)}`);
+      console.log(`✅ Notifica Demos aggiornata (sovrascritta) con ID: ${comunicazioneId}`);
     } else {
       // Crea nuova comunicazione solo se non esiste
       const comunicazioneResult = await pool.query(`
-        INSERT INTO comunicazioni (
-          id, id_utente, titolo, testo, zona, tipo, 
-          data_creazione, likes, dislikes, punti_trasparenza, 
-          read_by, status
+        INSERT INTO notifiche_demos (
+          id, id_utente, titolo, testo, data
         ) VALUES (
-          gen_random_uuid(), $3, $1, $2, 'Generale', 'demos_notification',
-          NOW(), 0, 0, 0, 
-          ${readByInit},
-          'non_letta'
-        ) RETURNING id, read_by
+          gen_random_uuid(), $3, $1, $2, CURRENT_DATE
+        ) RETURNING id
       `, [
         `Notifica Demos: ${titolo}`,
         commento || titolo,
@@ -686,8 +488,7 @@ async function notifyAllUsers(titolo, commento) {
       ]);
 
       comunicazioneId = comunicazioneResult.rows[0].id;
-      console.log(`✅ Comunicazione Demos creata con ID: ${comunicazioneId}`);
-      console.log(`📋 read_by inizializzato: ${JSON.stringify(comunicazioneResult.rows[0].read_by)}`);
+      console.log(`✅ Notifica Demos creata con ID: ${comunicazioneId}`);
     }
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
@@ -852,17 +653,18 @@ router.get('/ultima-comunicazione', async (req, res) => {
       });
     }
     
-    // Cerca comunicazioni per questo utente
+    // Cerca comunicazioni per questo utente in notifiche_voti_comuni
     const result = await pool.query(
       `SELECT 
         c.*,
         COALESCE(SUM(CASE WHEN r.tipo = 'like' THEN 1 ELSE 0 END), 0) as likes,
-        COALESCE(SUM(CASE WHEN r.tipo = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes
-      FROM comunicazioni c
+        COALESCE(SUM(CASE WHEN r.tipo = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes,
+        COALESCE(c.data, c.data_creazione) as data_creazione
+      FROM notifiche_voti_comuni c
       LEFT JOIN reazioni r ON c.id::text = r.comunicazione_id
       WHERE c.id_utente = $1::uuid
       GROUP BY c.id
-      ORDER BY c.data_creazione DESC
+      ORDER BY COALESCE(c.data, c.data_creazione) DESC
       LIMIT 1`,
       [user_id]
     );
