@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
         const orderByCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) DESC' : 'CURRENT_DATE DESC';
         
         // Query con JOIN per ottenere l'avatar del politico
-        // Gestisce sia il caso in cui politico è l'ID (stringa) che quando è nome e cognome
+        // Gestisce sia il caso in cui politico è l'ID (UUID) che quando è nome e cognome
         const query = `
           SELECT 
             nv.id,
@@ -83,19 +83,16 @@ router.get('/', async (req, res) => {
             ${likesCol},
             ${dislikesCol},
             'notifiche_voti_comuni' as tabella_origine,
-            COALESCE(u.avatar_config, NULL) as politico_avatar_config,
-            COALESCE(u.nome, NULL) as politico_nome,
-            COALESCE(u.cognome, NULL) as politico_cognome
+            u.avatar_config as politico_avatar_config,
+            u.nome as politico_nome,
+            u.cognome as politico_cognome
           FROM notifiche_voti_comuni nv
           LEFT JOIN users u ON (
-            CASE 
-              WHEN nv.politico IS NOT NULL AND nv.politico::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-                u.id::text = nv.politico::text
-              WHEN nv.politico IS NOT NULL THEN
-                u.nome || ' ' || u.cognome = nv.politico
-              ELSE
-                u.id = nv.id_utente
-            END
+            (nv.politico IS NOT NULL AND (
+              (nv.politico::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND u.id::text = nv.politico::text)
+              OR (nv.politico::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND u.nome || ' ' || u.cognome = nv.politico)
+            ))
+            OR (nv.politico IS NULL AND u.id = nv.id_utente)
           )
           ORDER BY ${orderByCol}
           LIMIT 50
