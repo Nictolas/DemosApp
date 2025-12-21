@@ -89,8 +89,10 @@ router.get('/', async (req, res) => {
           FROM notifiche_voti_comuni nv
           LEFT JOIN users u ON (
             CASE 
+              WHEN nv.politico IS NOT NULL AND nv.politico::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+                u.id::text = nv.politico::text
               WHEN nv.politico IS NOT NULL THEN
-                (u.id::text = nv.politico OR u.nome || ' ' || u.cognome = nv.politico)
+                u.nome || ' ' || u.cognome = nv.politico
               ELSE
                 u.id = nv.id_utente
             END
@@ -100,16 +102,29 @@ router.get('/', async (req, res) => {
         `;
         
         console.log('📋 Query notifiche_voti_comuni:', query);
-        votiComuniResult = await pool.query(query);
-        console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
-        if (votiComuniResult.rows.length > 0) {
-          console.log('📋 Prime 3 notifiche voti comuni:', votiComuniResult.rows.slice(0, 3).map(n => ({
-            id: n.id,
-            titolo: n.titolo,
-            politico: n.politico,
-            politico_nome: n.politico_nome,
-            politico_cognome: n.politico_cognome
-          })));
+        try {
+          votiComuniResult = await pool.query(query);
+          console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
+          if (votiComuniResult.rows.length > 0) {
+            console.log('📋 Prime 3 notifiche voti comuni:', votiComuniResult.rows.slice(0, 3).map(n => ({
+              id: n.id,
+              titolo: n.titolo,
+              politico: n.politico,
+              politico_nome: n.politico_nome,
+              politico_cognome: n.politico_cognome
+            })));
+          } else {
+            console.warn('⚠️ Nessuna notifica voti comuni trovata nella tabella');
+          }
+        } catch (queryError) {
+          console.error('❌ Errore nell\'esecuzione della query notifiche_voti_comuni:', queryError);
+          console.error('❌ Query error details:', {
+            message: queryError.message,
+            code: queryError.code,
+            detail: queryError.detail,
+            position: queryError.position
+          });
+          throw queryError; // Rilancia l'errore per essere catturato dal catch esterno
         }
       }
     } catch (err) {
@@ -329,7 +344,6 @@ router.get('/', async (req, res) => {
         data_creazione: c.data,
         data: c.data,
         tipo_notifica: c.tipo_notifica,
-        status: 'non_letta', // Le notifiche non hanno più read_by, quindi tutte sono "non lette"
         voto: c.voto || null,
         comune_residenza: c.comune_residenza || null,
         politico: c.politico || null,
@@ -402,13 +416,9 @@ router.get('/', async (req, res) => {
       return dateB.getTime() - dateA.getTime();
     });
     
-    const unreadCount = allNotifiche.filter(n => n.status !== 'letta').length;
-    
     console.log('🔍 DEBUG: Comunicazioni trovate:', comunicazioni.length);
     console.log('🔍 DEBUG: Segnalazioni trovate:', segnalazioni.length);
     console.log('🔍 DEBUG: Totale notifiche:', allNotifiche.length);
-    console.log('🔍 DEBUG: Notifiche non lette:', unreadCount);
-    console.log('🔍 DEBUG: Dettaglio status:', allNotifiche.map(n => ({ id: n.id, status: n.status })));
     
     res.json({
       success: true,
@@ -446,203 +456,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PUT /api/notifiche/:id/read - Marca notifica come letta per l'utente specifico
-router.put('/:id/read', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { user_id } = req.query;
-    
-    if (!user_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID utente richiesto'
-      });
-    }
-    
-    console.log('📖 Marcatura notifica come letta per utente:', user_id, 'comunicazione:', id);
-    
-    // Aggiungi l'utente all'array read_by se non è già presente
-    // Gestisce sia UUID[] che VARCHAR[] per read_by
-    const readByTypeCheck = await pool.query(`
-      SELECT udt_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'comunicazioni' 
-      AND column_name = 'read_by'
-    `);
-    
-    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
-    
-    const updateQuery = isUUIDArray ? `
-      UPDATE comunicazioni 
-      SET read_by = CASE 
-        WHEN read_by IS NULL THEN ARRAY[$1::uuid]
-        WHEN $1::uuid = ANY(read_by) THEN read_by
-        ELSE array_append(read_by, $1::uuid)
-      END
-      WHERE id = $2 AND ($1::uuid != ALL(read_by) OR read_by IS NULL)
-      RETURNING *
-    ` : `
-      UPDATE comunicazioni 
-      SET read_by = CASE 
-        WHEN read_by IS NULL THEN ARRAY[$1::text]
-        WHEN $1::text = ANY(read_by::text[]) THEN read_by
-        ELSE array_append(read_by::text[], $1::text)
-      END
-      WHERE id = $2 AND ($1::text != ALL(read_by::text[]) OR read_by IS NULL)
-      RETURNING *
-    `;
-    
-    const result = await pool.query(updateQuery, [user_id, id]);
-    
-    if (result.rows.length === 0) {
-      // Controlla se la notifica esiste
-      const exists = await pool.query('SELECT id FROM comunicazioni WHERE id = $1', [id]);
-      if (exists.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Notifica non trovata'
-        });
-      } else {
-        return res.status(200).json({
-          success: true,
-          message: 'Notifica già marcata come letta'
-        });
-      }
-    }
-    
-    console.log('✅ Notifica marcata come letta per utente:', user_id);
-    
-    res.json({
-      success: true,
-      message: 'Notifica marcata come letta',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nel marcare notifica come letta:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
-
-// PUT /api/notifiche/mark-all-read - Marca tutte le notifiche come lette per l'utente specifico
-router.put('/mark-all-read', async (req, res) => {
-  try {
-    const { notifica_ids, user_id } = req.body;
-    
-    if (!notifica_ids || !Array.isArray(notifica_ids) || notifica_ids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Array di ID notifiche richiesto'
-      });
-    }
-    
-    if (!user_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID utente richiesto'
-      });
-    }
-    
-    console.log('📖 Marcatura di', notifica_ids.length, 'notifiche come lette per utente:', user_id);
-    
-    // Prima, identifica il tipo di ogni notifica
-    let comunicazioniIds = [];
-    let segnalazioniIds = [];
-    
-    for (const notificaId of notifica_ids) {
-      // Controlla se è una comunicazione
-      const comunicazioneResult = await pool.query(
-        'SELECT id FROM comunicazioni WHERE id = $1',
-        [notificaId]
-      );
-      
-      if (comunicazioneResult.rows.length > 0) {
-        comunicazioniIds.push(notificaId);
-      } else {
-        // Controlla se è una segnalazione
-        const segnalazioneResult = await pool.query(
-          'SELECT id FROM segnalazioni WHERE id = $1',
-          [notificaId]
-        );
-        
-        if (segnalazioneResult.rows.length > 0) {
-          segnalazioniIds.push(notificaId);
-        }
-      }
-    }
-    
-    let totalUpdated = 0;
-    
-    // Verifica il tipo di read_by una volta
-    const readByTypeCheck = await pool.query(`
-      SELECT udt_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'comunicazioni' 
-      AND column_name = 'read_by'
-    `);
-    
-    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
-    
-    // Aggiorna comunicazioni
-    for (const notificaId of comunicazioniIds) {
-      const updateQuery = isUUIDArray ? `
-        UPDATE comunicazioni 
-        SET read_by = CASE 
-          WHEN read_by IS NULL THEN ARRAY[$1::uuid]
-          WHEN $1::uuid = ANY(read_by) THEN read_by
-          ELSE array_append(read_by, $1::uuid)
-        END
-        WHERE id = $2 AND ($1::uuid != ALL(read_by) OR read_by IS NULL)
-        RETURNING id
-      ` : `
-        UPDATE comunicazioni 
-        SET read_by = CASE 
-          WHEN read_by IS NULL THEN ARRAY[$1::text]
-          WHEN $1::text = ANY(read_by::text[]) THEN read_by
-          ELSE array_append(read_by::text[], $1::text)
-        END
-        WHERE id = $2 AND ($1::text != ALL(read_by::text[]) OR read_by IS NULL)
-        RETURNING id
-      `;
-      
-      const result = await pool.query(updateQuery, [user_id, notificaId]);
-      
-      if (result.rows.length > 0) {
-        totalUpdated++;
-      }
-    }
-    
-    // Aggiorna segnalazioni
-    for (const notificaId of segnalazioniIds) {
-      const result = await pool.query(`
-        UPDATE segnalazioni 
-        SET status = 'letta', data_aggiornamento = NOW()
-        WHERE id = $1 AND status != 'letta'
-        RETURNING id
-      `, [notificaId]);
-      
-      if (result.rows.length > 0) {
-        totalUpdated++;
-      }
-    }
-    
-    console.log('✅ Notifiche marcate come lette per utente:', totalUpdated);
-    
-    res.json({
-      success: true,
-      message: `${totalUpdated} notifiche marcate come lette`,
-      data: { updated_count: totalUpdated }
-    });
-  } catch (error) {
-    console.error('❌ Errore nel marcare notifiche come lette:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
+// Endpoint rimossi: non serve più marcare le notifiche come lette
 
 // POST /api/notifiche - Crea nuova notifica
 router.post('/', async (req, res) => {

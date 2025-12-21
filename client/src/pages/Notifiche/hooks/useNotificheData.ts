@@ -36,34 +36,6 @@ export const useNotificheData = (user: any) => {
     refetchInterval: 60000, // Ricarica i dati ogni minuto
   });
 
-  // Mutazione per segnare notifica come letta
-  const markAsReadMutation = useMutation({
-    mutationFn: async (notificaId: string) => {
-      if (!user?.id || !isValidUUID(user.id)) {
-        throw new Error("ID utente non valido");
-      }
-      const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read?user_id=${user.id}`);
-      if (!response?.ok || !response?.data) {
-        const errorMsg = response?.data?.error || "Errore nell'aggiornamento notifica.";
-        throw new Error(errorMsg);
-      }
-      const result = response.data;
-      if (!result || result.success === false) {
-        const errorMsg = result?.error || "Errore nell'aggiornamento notifica.";
-        throw new Error(errorMsg);
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
-      toast({ title: "Notifica segnata come letta" });
-    },
-    onError: (error: any) => {
-      toast({ title: "Errore", description: error.message, variant: "destructive" });
-    },
-  });
-
   // Mutazione per cancellare segnalazione (solo per admin)
   const deleteSegnalazioneMutation = useMutation({
     mutationFn: async (segnalazioneId: string) => {
@@ -96,7 +68,6 @@ export const useNotificheData = (user: any) => {
     data,
     isLoading,
     error,
-    markAsReadMutation,
     deleteSegnalazioneMutation
   };
 };
