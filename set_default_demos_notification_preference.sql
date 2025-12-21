@@ -41,3 +41,4 @@ FROM users
 WHERE notifiche_preferenze->>'demos' = 'true'
 LIMIT 5;
 
+

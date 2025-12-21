@@ -46,3 +46,4 @@ SELECT
         ELSE '❌ Colonna notifiche_preferenze NON presente'
     END as verifica;
 
+

@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
         END as is_read
       FROM comunicazioni c
       WHERE c.tipo IN ('demos_notification', 'new_opinions')
-      ORDER BY c.data_creazione DESC
+      ORDER BY c.data DESC NULLS LAST
       LIMIT 10
     ` : `
       SELECT
@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
         END as is_read
       FROM comunicazioni c
       WHERE c.tipo IN ('demos_notification', 'new_opinions')
-      ORDER BY c.data_creazione DESC
+      ORDER BY c.data DESC NULLS LAST
       LIMIT 10
     `;
     
@@ -84,7 +84,7 @@ router.get('/', async (req, res) => {
         id: c.id,
         titolo: c.titolo,
         messaggio: c.testo || 'Nessun messaggio',
-        data_creazione: c.data_creazione || c.data,
+        data_creazione: c.data || c.data_creazione, // Usa data come priorità
         tipo_notifica: c.tipo,
         status: status,
         voto: c.voto,
@@ -147,9 +147,11 @@ router.get('/', async (req, res) => {
     }
     
     // Combina tutte le notifiche
-    const allNotifiche = [...comunicazioni, ...segnalazioni].sort((a, b) => 
-      new Date(b.data_creazione) - new Date(a.data_creazione)
-    );
+    const allNotifiche = [...comunicazioni, ...segnalazioni].sort((a, b) => {
+      const dateA = a.data ? new Date(a.data) : (a.data_creazione ? new Date(a.data_creazione) : new Date(0));
+      const dateB = b.data ? new Date(b.data) : (b.data_creazione ? new Date(b.data_creazione) : new Date(0));
+      return dateB.getTime() - dateA.getTime();
+    });
     
     const unreadCount = allNotifiche.filter(n => n.status !== 'letta').length;
     

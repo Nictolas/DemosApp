@@ -226,7 +226,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <span>
-              {formatDate(notifica.created_at || notifica.data_creazione || '')}
+              {formatDate(notifica.data || notifica.created_at || notifica.data_creazione || '')}
             </span>
           </div>
 

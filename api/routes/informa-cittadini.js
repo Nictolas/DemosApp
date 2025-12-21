@@ -20,13 +20,14 @@ router.post('/', async (req, res) => {
     const titolo = `${tipologia} - ${dove}`;
     const testo = `Tipologia: ${tipologia}\nDove: ${dove}\nDal: ${dal_giorno}\nAl: ${al_giorno}`;
 
+    // Inserisci in notifiche_comunali invece di informa_cittadini
     const result = await pool.query(
-      `INSERT INTO informa_cittadini (
-        id, id_utente, tipologia, dove, dal_giorno, al_giorno, zona, data_creazione
+      `INSERT INTO notifiche_comunali (
+        id, id_utente, titolo, testo, comune_residenza, data
       ) VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW()
+        gen_random_uuid(), $1, $2, $3, $4, CURRENT_DATE
       ) RETURNING *`,
-      [id_utente, tipologia, dove, dal_giorno, al_giorno, zona || 'Generale']
+      [id_utente, titolo, testo, dove]
     );
 
     return res.status(201).json({
