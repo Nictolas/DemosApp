@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Bell } from "lucide-react";
@@ -109,31 +110,69 @@ export default function NotificheTotali() {
                     </CardContent>
                   </Card>
                 </div>
-                <div className="space-y-2">
-                  {data.notifiche.map((notifica: any) => (
-                    <Card key={notifica.id} className="border-l-4 border-l-blue-500">
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 mb-1">
-                              {notifica.titolo || 'Nessun titolo'}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-2">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Tabella</TableHead>
+                        <TableHead>Titolo</TableHead>
+                        <TableHead>Testo</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Voto</TableHead>
+                        <TableHead>Politico</TableHead>
+                        <TableHead>Comune</TableHead>
+                        <TableHead>Likes</TableHead>
+                        <TableHead>Dislikes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.notifiche.map((notifica: any) => (
+                        <TableRow key={notifica.id}>
+                          <TableCell className="font-mono text-xs">
+                            {notifica.id?.substring(0, 8)}...
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                              notifica.tabella_origine === 'notifiche_voti_comuni' ? 'bg-blue-100 text-blue-800' :
+                              notifica.tabella_origine === 'notifiche_demos' ? 'bg-pink-100 text-pink-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {notifica.tabella_origine || 'N/A'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {notifica.titolo || 'Nessun titolo'}
+                          </TableCell>
+                          <TableCell className="max-w-md">
+                            <p className="text-sm text-gray-600 truncate">
                               {notifica.testo || notifica.messaggio || 'Nessun messaggio'}
                             </p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span>Tabella: {notifica.tabella_origine || 'N/A'}</span>
-                              <span>
-                                Data: {notifica.data 
-                                  ? new Date(notifica.data).toLocaleDateString('it-IT')
-                                  : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {notifica.data 
+                              ? new Date(notifica.data).toLocaleDateString('it-IT')
+                              : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {notifica.voto ? (
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                notifica.voto === 'Favorevole' ? 'bg-green-100 text-green-800' :
+                                notifica.voto === 'Contrario' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {notifica.voto}
                               </span>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell>{notifica.politico || '-'}</TableCell>
+                          <TableCell>{notifica.comune_residenza || '-'}</TableCell>
+                          <TableCell>{notifica.likes || 0}</TableCell>
+                          <TableCell>{notifica.dislikes || 0}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             )}

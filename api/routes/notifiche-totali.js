@@ -34,57 +34,96 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Recupera tutte le notifiche dalle tre tabelle
-    const [votiComuni, demos, comunali] = await Promise.all([
-      // Notifiche voti comuni (ex comunicazioni)
-      pool.query(`
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          data,
-          voto,
-          comune_residenza,
-          politico,
-          likes,
-          dislikes,
-          'notifiche_voti_comuni' as tabella_origine
-        FROM notifiche_voti_comuni
-        ORDER BY data DESC NULLS LAST
-        LIMIT 100
-      `),
-      // Notifiche Demos
-      pool.query(`
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          data,
-          comune_residenza,
-          'notifiche_demos' as tabella_origine
-        FROM notifiche_demos
-        ORDER BY data DESC NULLS LAST
-        LIMIT 100
-      `),
-      // Notifiche comunali
-      pool.query(`
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          data,
-          comune_residenza,
-          likes,
-          dislikes,
-          'notifiche_comunali' as tabella_origine
-        FROM notifiche_comunali
-        ORDER BY data DESC NULLS LAST
-        LIMIT 100
-      `)
-    ]);
+    // Verifica che le tabelle esistano prima di eseguire le query
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name IN ('notifiche_voti_comuni', 'notifiche_demos', 'notifiche_comunali')
+    `);
+    
+    const existingTables = tableCheck.rows.map(r => r.table_name);
+    console.log('📋 Tabelle notifiche trovate:', existingTables);
+
+    // Recupera tutte le notifiche dalle tre tabelle (solo se esistono)
+    const queries = [];
+    
+    if (existingTables.includes('notifiche_voti_comuni')) {
+      queries.push(
+        pool.query(`
+          SELECT 
+            id,
+            id_utente,
+            titolo,
+            testo,
+            data,
+            voto,
+            comune_residenza,
+            politico,
+            likes,
+            dislikes,
+            'notifiche_voti_comuni' as tabella_origine
+          FROM notifiche_voti_comuni
+          ORDER BY data DESC NULLS LAST
+          LIMIT 100
+        `).catch(err => {
+          console.error('❌ Errore query notifiche_voti_comuni:', err);
+          return { rows: [] };
+        })
+      );
+    } else {
+      queries.push(Promise.resolve({ rows: [] }));
+    }
+    
+    if (existingTables.includes('notifiche_demos')) {
+      queries.push(
+        pool.query(`
+          SELECT 
+            id,
+            id_utente,
+            titolo,
+            testo,
+            data,
+            comune_residenza,
+            'notifiche_demos' as tabella_origine
+          FROM notifiche_demos
+          ORDER BY data DESC NULLS LAST
+          LIMIT 100
+        `).catch(err => {
+          console.error('❌ Errore query notifiche_demos:', err);
+          return { rows: [] };
+        })
+      );
+    } else {
+      queries.push(Promise.resolve({ rows: [] }));
+    }
+    
+    if (existingTables.includes('notifiche_comunali')) {
+      queries.push(
+        pool.query(`
+          SELECT 
+            id,
+            id_utente,
+            titolo,
+            testo,
+            data,
+            comune_residenza,
+            likes,
+            dislikes,
+            'notifiche_comunali' as tabella_origine
+          FROM notifiche_comunali
+          ORDER BY data DESC NULLS LAST
+          LIMIT 100
+        `).catch(err => {
+          console.error('❌ Errore query notifiche_comunali:', err);
+          return { rows: [] };
+        })
+      );
+    } else {
+      queries.push(Promise.resolve({ rows: [] }));
+    }
+    
+    const [votiComuni, demos, comunali] = await Promise.all(queries);
 
     // Combina tutte le notifiche
     const allNotifiche = [
