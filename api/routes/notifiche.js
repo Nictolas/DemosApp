@@ -34,75 +34,143 @@ router.get('/', async (req, res) => {
     // Recupera le notifiche da tutte e tre le tabelle
     console.log(`🔍 Query notifiche per user_id: ${user_id}`);
     
-    // Recupera da notifiche_voti_comuni
-    const votiComuniResult = await pool.query(`
-      SELECT 
-        id,
-        id_utente,
-        titolo,
-        testo,
-        COALESCE(data, CURRENT_DATE) as data,
-        voto,
-        comune_residenza,
-        politico,
-        COALESCE(likes, 0) as likes,
-        COALESCE(dislikes, 0) as dislikes,
-        'notifiche_voti_comuni' as tabella_origine
-      FROM notifiche_voti_comuni
-      ORDER BY COALESCE(data, CURRENT_DATE) DESC
-      LIMIT 50
-    `);
+    let votiComuniResult, demosResult, comunaliResult;
     
-    // Recupera da notifiche_demos
-    const demosResult = await pool.query(`
-      SELECT 
-        id,
-        id_utente,
-        titolo,
-        testo,
-        COALESCE(data, CURRENT_DATE) as data,
-        comune_residenza,
-        'notifiche_demos' as tabella_origine
-      FROM notifiche_demos
-      ORDER BY COALESCE(data, CURRENT_DATE) DESC
-      LIMIT 50
-    `);
+    // Recupera da notifiche_voti_comuni
+    try {
+      votiComuniResult = await pool.query(`
+        SELECT 
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          voto,
+          comune_residenza,
+          politico,
+          COALESCE(likes, 0) as likes,
+          COALESCE(dislikes, 0) as dislikes,
+          'notifiche_voti_comuni' as tabella_origine
+        FROM notifiche_voti_comuni
+        ORDER BY COALESCE(data, CURRENT_DATE) DESC
+        LIMIT 50
+      `);
+      console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
+    } catch (err) {
+      console.error('❌ Errore query notifiche_voti_comuni:', err);
+      votiComuniResult = { rows: [] };
+    }
+    
+    // Recupera da notifiche_demos (senza comune_residenza)
+    try {
+      demosResult = await pool.query(`
+        SELECT 
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          NULL::TEXT as comune_residenza,
+          'notifiche_demos' as tabella_origine
+        FROM notifiche_demos
+        ORDER BY COALESCE(data, CURRENT_DATE) DESC
+        LIMIT 50
+      `);
+      console.log(`✅ Notifiche demos recuperate: ${demosResult.rows.length}`);
+    } catch (err) {
+      console.error('❌ Errore query notifiche_demos:', err);
+      demosResult = { rows: [] };
+    }
     
     // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
-    const comunaliResult = await pool.query(`
-      SELECT 
-        id,
-        id_utente,
-        COALESCE(titolo, 
-          CASE 
-            WHEN tipologia IS NOT NULL AND dove IS NOT NULL THEN tipologia || ' - ' || dove
-            WHEN tipologia IS NOT NULL THEN tipologia
-            WHEN dove IS NOT NULL THEN dove
-            ELSE 'Notifica Comunale'
-          END
-        ) as titolo,
-        COALESCE(testo,
-          CASE 
-            WHEN tipologia IS NOT NULL OR dove IS NOT NULL OR dal_giorno IS NOT NULL OR al_giorno IS NOT NULL THEN
-              COALESCE('Tipologia: ' || tipologia, '') ||
-              CASE WHEN tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
-              COALESCE('Dove: ' || dove, '') ||
-              CASE WHEN dove IS NOT NULL THEN E'\\n' ELSE '' END ||
-              COALESCE('Dal: ' || dal_giorno::text, '') ||
-              CASE WHEN dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
-              COALESCE('Al: ' || al_giorno::text, '')
-            ELSE 'Notifica comunale'
-          END
-        ) as testo,
-        COALESCE(data, dal_giorno, CURRENT_DATE) as data,
-        COALESCE(comune_residenza, dove, zona) as comune_residenza,
-        COALESCE(likes, 0) as likes,
-        COALESCE(dislikes, 0) as dislikes,
-        'notifiche_comunali' as tabella_origine
-      FROM notifiche_comunali
-      ORDER BY COALESCE(data, dal_giorno, CURRENT_DATE) DESC
-      LIMIT 50
-    `);
+    try {
+      // Prima verifica quali colonne esistono
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'notifiche_comunali'
+      `);
+      const existingColumns = columnCheck.rows.map(r => r.column_name);
+      console.log('📋 Colonne disponibili in notifiche_comunali:', existingColumns);
+      
+      // Costruisci la query in base alle colonne disponibili
+      let selectParts = ['id', 'id_utente'];
+      
+      if (existingColumns.includes('titolo')) {
+        selectParts.push('COALESCE(titolo, \'Notifica Comunale\') as titolo');
+      } else if (existingColumns.includes('tipologia') && existingColumns.includes('dove')) {
+        selectParts.push(`COALESCE(tipologia || ' - ' || dove, 'Notifica Comunale') as titolo`);
+      } else if (existingColumns.includes('tipologia')) {
+        selectParts.push(`COALESCE(tipologia, 'Notifica Comunale') as titolo`);
+      } else if (existingColumns.includes('dove')) {
+        selectParts.push(`COALESCE(dove, 'Notifica Comunale') as titolo`);
+      } else {
+        selectParts.push(`'Notifica Comunale' as titolo`);
+      }
+      
+      if (existingColumns.includes('testo')) {
+        selectParts.push('COALESCE(testo, \'Notifica comunale\') as testo');
+      } else {
+        let testoParts = [];
+        if (existingColumns.includes('tipologia')) testoParts.push(`COALESCE('Tipologia: ' || tipologia, '')`);
+        if (existingColumns.includes('dove')) testoParts.push(`COALESCE('Dove: ' || dove, '')`);
+        if (existingColumns.includes('dal_giorno')) testoParts.push(`COALESCE('Dal: ' || dal_giorno::text, '')`);
+        if (existingColumns.includes('al_giorno')) testoParts.push(`COALESCE('Al: ' || al_giorno::text, '')`);
+        
+        if (testoParts.length > 0) {
+          selectParts.push(`(${testoParts.join(' || E\'\\n\' || ')}) as testo`);
+        } else {
+          selectParts.push(`'Notifica comunale' as testo`);
+        }
+      }
+      
+      if (existingColumns.includes('data')) {
+        selectParts.push('COALESCE(data, CURRENT_DATE) as data');
+      } else if (existingColumns.includes('dal_giorno')) {
+        selectParts.push('COALESCE(dal_giorno, CURRENT_DATE) as data');
+      } else {
+        selectParts.push('CURRENT_DATE as data');
+      }
+      
+      if (existingColumns.includes('comune_residenza')) {
+        selectParts.push('comune_residenza');
+      } else if (existingColumns.includes('dove')) {
+        selectParts.push('dove as comune_residenza');
+      } else if (existingColumns.includes('zona')) {
+        selectParts.push('zona as comune_residenza');
+      } else {
+        selectParts.push('NULL::TEXT as comune_residenza');
+      }
+      
+      selectParts.push('COALESCE(likes, 0) as likes');
+      selectParts.push('COALESCE(dislikes, 0) as dislikes');
+      selectParts.push(`'notifiche_comunali' as tabella_origine`);
+      
+      const orderBy = existingColumns.includes('data') 
+        ? 'COALESCE(data, CURRENT_DATE) DESC'
+        : existingColumns.includes('dal_giorno')
+        ? 'COALESCE(dal_giorno, CURRENT_DATE) DESC'
+        : 'CURRENT_DATE DESC';
+      
+      const query = `
+        SELECT ${selectParts.join(', ')}
+        FROM notifiche_comunali
+        ORDER BY ${orderBy}
+        LIMIT 50
+      `;
+      
+      console.log('📋 Query notifiche_comunali:', query);
+      comunaliResult = await pool.query(query);
+      console.log(`✅ Notifiche comunali recuperate: ${comunaliResult.rows.length}`);
+    } catch (err) {
+      console.error('❌ Errore query notifiche_comunali:', err);
+      console.error('❌ Error details:', {
+        message: err.message,
+        code: err.code,
+        detail: err.detail
+      });
+      comunaliResult = { rows: [] };
+    }
     
     // Combina tutte le notifiche
     const allNotificheRaw = [
