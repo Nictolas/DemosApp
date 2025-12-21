@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { NotificaItemProps } from "../types";
 import { 
@@ -20,8 +20,46 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [userReaction, setUserReaction] = useState<string | null>(null);
-  const [likes, setLikes] = useState(0);
-  const [dislikes, setDislikes] = useState(0);
+  const [likes, setLikes] = useState(notifica.likes || 0);
+  const [dislikes, setDislikes] = useState(notifica.dislikes || 0);
+
+  // Carica reazioni e reazione utente per voto_comune e comunicazione
+  const shouldLoadReactions = (notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && user?.id;
+
+  const { data: reactionsData } = useQuery({
+    queryKey: ['reazioni', notifica.id],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/reazioni-comunicazioni/${notifica.id}`);
+      return response?.data || { likes: 0, dislikes: 0 };
+    },
+    enabled: shouldLoadReactions,
+    refetchOnWindowFocus: false
+  });
+
+  const { data: userReactionData } = useQuery({
+    queryKey: ['reazione-utente', user?.id, notifica.id],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/reazioni-comunicazioni/user/${user?.id}/${notifica.id}`);
+      return response?.data || null;
+    },
+    enabled: shouldLoadReactions,
+    refetchOnWindowFocus: false
+  });
+
+  // Aggiorna likes/dislikes quando arrivano i dati
+  useEffect(() => {
+    if (reactionsData) {
+      setLikes(reactionsData.likes || 0);
+      setDislikes(reactionsData.dislikes || 0);
+    }
+  }, [reactionsData]);
+
+  // Aggiorna reazione utente quando arrivano i dati
+  useEffect(() => {
+    if (userReactionData !== undefined) {
+      setUserReaction(userReactionData);
+    }
+  }, [userReactionData]);
 
   // Mutazione per gestire like/dislike
   const reactionMutation = useMutation({
@@ -37,6 +75,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       return response;
     },
     onSuccess: (data) => {
+      // Invalida le query per ricaricare i dati
+      queryClient.invalidateQueries({ queryKey: ['reazioni', notifica.id] });
+      queryClient.invalidateQueries({ queryKey: ['reazione-utente', user?.id, notifica.id] });
+      
       // Aggiorna lo stato locale
       if (data.action === 'added') {
         setUserReaction(data.data.tipo);
@@ -70,7 +112,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   });
 
   const handleReaction = (tipo: 'like' | 'dislike') => {
-    if (!user?.id || notifica.tipo_notifica !== 'comunicazione') return;
+    if (!user?.id || (notifica.tipo_notifica !== 'comunicazione' && notifica.tipo_notifica !== 'voto_comune')) return;
     reactionMutation.mutate(tipo);
   };
 
@@ -176,10 +218,18 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 </div>
               )}
               
-              {/* Mostra data se presente */}
+              {/* Mostra data se presente (solo orario per Demos) */}
               {notifica.data && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
-                  <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
+                  {notifica.tipo_notifica === 'demos' ? (
+                    <>
+                      <strong>Orario:</strong> {new Date(notifica.data).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                    </>
+                  ) : (
+                    <>
+                      <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
+                    </>
+                  )}
                 </div>
               )}
               
@@ -190,8 +240,9 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 </div>
               )}
               
-              {/* Mostra likes/dislikes se presenti */}
-              {((notifica.likes !== undefined && notifica.likes > 0) || 
+              {/* Mostra likes/dislikes solo per notifiche che non sono voto_comune (voto_comune mostra i pulsanti di voto) */}
+              {notifica.tipo_notifica !== 'voto_comune' && 
+               ((notifica.likes !== undefined && notifica.likes > 0) || 
                 (notifica.dislikes !== undefined && notifica.dislikes > 0)) && (
                 <div className={`text-sm ${style.textColor} mt-1 flex items-center gap-4`}>
                   {notifica.likes !== undefined && (
@@ -297,12 +348,16 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           
           <div className={`flex items-center gap-4 text-sm ${style.textColor} opacity-70`}>
             <span>
-              {formatDate(notifica.data || notifica.created_at || notifica.data_creazione || '')}
+              {notifica.tipo_notifica === 'demos' && notifica.data ? (
+                new Date(notifica.data).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+              ) : (
+                formatDate(notifica.data || notifica.created_at || notifica.data_creazione || '')
+              )}
             </span>
           </div>
 
-          {/* Pulsanti like/dislike per comunicazioni (non per notifiche Demos) */}
-          {notifica.tipo_notifica === 'comunicazione' && user?.id && (
+          {/* Pulsanti like/dislike per comunicazioni e voto_comune */}
+          {(notifica.tipo_notifica === 'comunicazione' || notifica.tipo_notifica === 'voto_comune') && user?.id && (
             <div className="mt-4 flex items-center gap-2">
               <Button
                 variant={userReaction === 'like' ? 'default' : 'outline'}
