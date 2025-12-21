@@ -31,70 +31,106 @@ router.get('/', async (req, res) => {
     
     const isAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin === true;
     
-    // Recupera le comunicazioni e controlla se l'utente le ha lette
-    // Include sia demos_notification che new_opinions
-    // Gestisce sia UUID che VARCHAR per read_by
+    // Recupera le notifiche da tutte e tre le tabelle
     console.log(`🔍 Query notifiche per user_id: ${user_id}`);
     
-    // Verifica il tipo di read_by
-    const readByTypeCheck = await pool.query(`
-      SELECT udt_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'comunicazioni' 
-      AND column_name = 'read_by'
+    // Recupera da notifiche_voti_comuni
+    const votiComuniResult = await pool.query(`
+      SELECT 
+        id,
+        id_utente,
+        titolo,
+        testo,
+        COALESCE(data, CURRENT_DATE) as data,
+        voto,
+        comune_residenza,
+        politico,
+        COALESCE(likes, 0) as likes,
+        COALESCE(dislikes, 0) as dislikes,
+        'notifiche_voti_comuni' as tabella_origine
+      FROM notifiche_voti_comuni
+      ORDER BY COALESCE(data, CURRENT_DATE) DESC
+      LIMIT 50
     `);
     
-    const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
+    // Recupera da notifiche_demos
+    const demosResult = await pool.query(`
+      SELECT 
+        id,
+        id_utente,
+        titolo,
+        testo,
+        COALESCE(data, CURRENT_DATE) as data,
+        comune_residenza,
+        'notifiche_demos' as tabella_origine
+      FROM notifiche_demos
+      ORDER BY COALESCE(data, CURRENT_DATE) DESC
+      LIMIT 50
+    `);
     
-    // Usa la query appropriata in base al tipo
-    const isReadQuery = isUUIDArray ? `
-      SELECT
-        c.*,
-        CASE 
-          WHEN c.read_by IS NULL OR array_length(c.read_by, 1) IS NULL THEN false
-          WHEN $1::uuid = ANY(c.read_by) THEN true
-          ELSE false
-        END as is_read
-      FROM comunicazioni c
-      WHERE c.tipo IN ('demos_notification', 'new_opinions')
-      ORDER BY c.data DESC NULLS LAST
-      LIMIT 10
-    ` : `
-      SELECT
-        c.*,
-        CASE 
-          WHEN c.read_by IS NULL OR array_length(c.read_by, 1) IS NULL THEN false
-          WHEN c.read_by::text[] @> ARRAY[$1::text] THEN true
-          ELSE false
-        END as is_read
-      FROM comunicazioni c
-      WHERE c.tipo IN ('demos_notification', 'new_opinions')
-      ORDER BY c.data DESC NULLS LAST
-      LIMIT 10
-    `;
+    // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
+    const comunaliResult = await pool.query(`
+      SELECT 
+        id,
+        id_utente,
+        COALESCE(titolo, 
+          CASE 
+            WHEN tipologia IS NOT NULL AND dove IS NOT NULL THEN tipologia || ' - ' || dove
+            WHEN tipologia IS NOT NULL THEN tipologia
+            WHEN dove IS NOT NULL THEN dove
+            ELSE 'Notifica Comunale'
+          END
+        ) as titolo,
+        COALESCE(testo,
+          CASE 
+            WHEN tipologia IS NOT NULL OR dove IS NOT NULL OR dal_giorno IS NOT NULL OR al_giorno IS NOT NULL THEN
+              COALESCE('Tipologia: ' || tipologia, '') ||
+              CASE WHEN tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
+              COALESCE('Dove: ' || dove, '') ||
+              CASE WHEN dove IS NOT NULL THEN E'\\n' ELSE '' END ||
+              COALESCE('Dal: ' || dal_giorno::text, '') ||
+              CASE WHEN dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
+              COALESCE('Al: ' || al_giorno::text, '')
+            ELSE 'Notifica comunale'
+          END
+        ) as testo,
+        COALESCE(data, dal_giorno, CURRENT_DATE) as data,
+        COALESCE(comune_residenza, dove, zona) as comune_residenza,
+        COALESCE(likes, 0) as likes,
+        COALESCE(dislikes, 0) as dislikes,
+        'notifiche_comunali' as tabella_origine
+      FROM notifiche_comunali
+      ORDER BY COALESCE(data, dal_giorno, CURRENT_DATE) DESC
+      LIMIT 50
+    `);
     
-    const comunicazioniResult = await pool.query(isReadQuery, [user_id]);
+    // Combina tutte le notifiche
+    const allNotificheRaw = [
+      ...votiComuniResult.rows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
+      ...demosResult.rows.map(n => ({ ...n, tipo_notifica: 'demos' })),
+      ...comunaliResult.rows.map(n => ({ ...n, tipo_notifica: 'comunale' }))
+    ];
     
-    console.log(`📋 Comunicazioni trovate dal DB: ${comunicazioniResult.rows.length}`);
-    
-    const comunicazioni = comunicazioniResult.rows.map(c => {
-      const status = c.is_read ? 'letta' : 'non_letta';
-      console.log(`📋 Notifica ${c.id}: is_read=${c.is_read}, status=${status}, read_by=${JSON.stringify(c.read_by)}`);
+    // Mappa le notifiche nel formato atteso dal frontend
+    const comunicazioni = allNotificheRaw.map(c => {
       return {
         id: c.id,
-        titolo: c.titolo,
+        titolo: c.titolo || 'Nessun titolo',
         messaggio: c.testo || 'Nessun messaggio',
-        data_creazione: c.data || c.data_creazione, // Usa data come priorità
-        tipo_notifica: c.tipo,
-        status: status,
-        voto: c.voto,
+        data_creazione: c.data,
         data: c.data,
-        comune_residenza: c.comune_residenza,
-        politico: c.politico
+        tipo_notifica: c.tipo_notifica,
+        status: 'non_letta', // Le notifiche non hanno più read_by, quindi tutte sono "non lette"
+        voto: c.voto || null,
+        comune_residenza: c.comune_residenza || null,
+        politico: c.politico || null,
+        likes: c.likes || 0,
+        dislikes: c.dislikes || 0,
+        tabella_origine: c.tabella_origine
       };
     });
     
-    console.log(`📊 Comunicazioni mappate: ${comunicazioni.length}, non lette: ${comunicazioni.filter(c => c.status === 'non_letta').length}`);
+    console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuniResult.rows.length}, demos=${demosResult.rows.length}, comunali=${comunaliResult.rows.length}, totale=${comunicazioni.length}`);
 
     // Se l'utente è admin, recupera anche le segnalazioni
     let segnalazioni = [];
