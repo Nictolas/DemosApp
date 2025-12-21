@@ -201,6 +201,13 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </p>
           )}
 
+          {/* Mostra "Segnalato da" per notifiche di avvistamento */}
+          {notifica.tipo_notifica === 'avvistamento' && (notifica.utente_nome || notifica.utente_cognome) && (
+            <p className={`${style.textColor} opacity-80 text-sm mb-3`}>
+              Segnalato da {notifica.utente_nome || ''} {notifica.utente_cognome || ''}
+            </p>
+          )}
+
           {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos e Avvistamento che non hanno informazioni aggiuntive) */}
           {(notifica.tipo_notifica === 'comunicazione' || 
             notifica.tipo_notifica === 'voto_comune' || 

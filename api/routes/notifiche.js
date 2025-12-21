@@ -293,19 +293,27 @@ router.get('/', async (req, res) => {
           ? 'data_creazione DESC'
           : 'CURRENT_TIMESTAMP DESC';
         
-        // Filtra per comune_residenza dell'utente
+        // Filtra per comune_residenza dell'utente e aggiungi JOIN con users per nome e cognome
         let whereClause = '';
         const queryParams = [];
         if (userComuneResidenza) {
-          whereClause = 'WHERE comune_residenza = $1';
+          whereClause = 'WHERE na.comune_residenza = $1';
           queryParams.push(userComuneResidenza);
         } else {
           // Se l'utente non ha un comune_residenza, non mostra nessuna notifica di avvistamento
           whereClause = 'WHERE 1 = 0'; // Condizione sempre falsa
         }
         
+        // Aggiungi JOIN con users per recuperare nome e cognome
+        const joinClause = 'LEFT JOIN users u ON na.id_utente = u.id';
+        const selectColumnsWithUser = [
+          ...selectColumns.map(col => col === 'id' ? 'na.id' : col === 'id_utente' ? 'na.id_utente' : col === 'tipo_avvistamento' ? 'na.tipo_avvistamento' : col === 'comune_residenza' ? 'na.comune_residenza' : col.includes('data') ? col.replace('data', 'na.data') : col.includes('tabella_origine') ? col : `na.${col}`),
+          'u.nome as utente_nome',
+          'u.cognome as utente_cognome'
+        ];
+        
         // Verifica che 'testo' non sia presente nella query
-        const queryText = `SELECT ${selectColumns.join(', ')} FROM notifiche_avvistamenti ${whereClause} ORDER BY ${orderBy} LIMIT 50`;
+        const queryText = `SELECT ${selectColumnsWithUser.join(', ')} FROM notifiche_avvistamenti na ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT 50`;
         if (queryText.includes('testo')) {
           console.error('❌ ERRORE: La query contiene ancora "testo"!', queryText);
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
@@ -383,6 +391,8 @@ router.get('/', async (req, res) => {
         politico_nome: c.politico_nome || null,
         politico_cognome: c.politico_cognome || null,
         tipo_avvistamento: c.tipo_avvistamento || null, // Per notifiche avvistamenti
+        utente_nome: c.utente_nome || null, // Nome utente che ha fatto la segnalazione
+        utente_cognome: c.utente_cognome || null, // Cognome utente che ha fatto la segnalazione
         likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         tabella_origine: c.tabella_origine

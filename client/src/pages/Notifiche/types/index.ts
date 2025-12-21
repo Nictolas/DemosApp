@@ -24,6 +24,8 @@ export interface Notifica {
   politico_nome?: string;
   politico_cognome?: string;
   tipo_avvistamento?: string; // Per notifiche avvistamenti
+  utente_nome?: string; // Nome utente che ha fatto la segnalazione di avvistamento
+  utente_cognome?: string; // Cognome utente che ha fatto la segnalazione di avvistamento
   likes?: number;
   dislikes?: number;
   tabella_origine?: string;
