@@ -23,16 +23,18 @@ router.get('/', async (req, res) => {
       });
     }
 
-    // Verifica se l'utente è admin
+    // Recupera informazioni utente (is_admin e comune_residenza)
     const userResult = await pool.query(
-      'SELECT is_admin FROM users WHERE id = $1',
+      'SELECT is_admin, comune_residenza FROM users WHERE id = $1',
       [user_id]
     );
     
     const isAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin === true;
+    const userComuneResidenza = userResult.rows.length > 0 ? userResult.rows[0].comune_residenza : null;
     
     // Recupera le notifiche da tutte e tre le tabelle
     console.log(`🔍 Query notifiche per user_id: ${user_id}`);
+    console.log(`🔍 Comune residenza utente: ${userComuneResidenza}`);
     
     let votiComuniResult, demosResult, comunaliResult;
     
@@ -291,16 +293,29 @@ router.get('/', async (req, res) => {
           ? 'data_creazione DESC'
           : 'CURRENT_TIMESTAMP DESC';
         
+        // Filtra per comune_residenza dell'utente
+        let whereClause = '';
+        const queryParams = [];
+        if (userComuneResidenza) {
+          whereClause = 'WHERE comune_residenza = $1';
+          queryParams.push(userComuneResidenza);
+        } else {
+          // Se l'utente non ha un comune_residenza, non mostra nessuna notifica di avvistamento
+          whereClause = 'WHERE 1 = 0'; // Condizione sempre falsa
+        }
+        
         // Verifica che 'testo' non sia presente nella query
-        const queryText = `SELECT ${selectColumns.join(', ')} FROM notifiche_avvistamenti ORDER BY ${orderBy} LIMIT 50`;
+        const queryText = `SELECT ${selectColumns.join(', ')} FROM notifiche_avvistamenti ${whereClause} ORDER BY ${orderBy} LIMIT 50`;
         if (queryText.includes('testo')) {
           console.error('❌ ERRORE: La query contiene ancora "testo"!', queryText);
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         
         console.log('📋 Query notifiche_avvistamenti:', queryText);
+        console.log('📋 Parametri query:', queryParams);
         console.log('📋 Colonne selezionate:', selectColumns);
-        avvistamentiResult = await pool.query(queryText);
+        console.log('📋 Comune residenza utente:', userComuneResidenza);
+        avvistamentiResult = await pool.query(queryText, queryParams);
         console.log(`✅ Notifiche avvistamenti recuperate: ${avvistamentiResult.rows.length}`);
       } else {
         console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
