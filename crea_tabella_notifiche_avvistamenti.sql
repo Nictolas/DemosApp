@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS notifiche_avvistamenti (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_utente UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     tipo_avvistamento VARCHAR(100) NOT NULL, -- Es: "Lupo", "Cinghiale", ecc.
-    titolo TEXT NOT NULL,
-    testo TEXT NOT NULL,
+    titolo TEXT NOT NULL, -- Il titolo contiene anche il messaggio completo
     comune_residenza TEXT NOT NULL, -- Comune dell'utente che ha inviato l'avvistamento
     data TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     data_creazione TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

@@ -262,7 +262,6 @@ router.get('/', async (req, res) => {
             id_utente,
             tipo_avvistamento,
             titolo,
-            testo,
             comune_residenza,
             COALESCE(data, data_creazione, CURRENT_TIMESTAMP) as data,
             'notifiche_avvistamenti' as tabella_origine
@@ -315,10 +314,15 @@ router.get('/', async (req, res) => {
     
     // Mappa le notifiche nel formato atteso dal frontend
     const comunicazioni = allNotificheRaw.map(c => {
+      // Per le notifiche di avvistamento, usa il titolo come messaggio
+      const messaggio = c.tipo_notifica === 'avvistamento' 
+        ? (c.titolo || 'Nessun messaggio')
+        : (c.testo || 'Nessun messaggio');
+      
       return {
         id: c.id,
         titolo: c.titolo || 'Nessun titolo',
-        messaggio: c.testo || 'Nessun messaggio',
+        messaggio: messaggio,
         data_creazione: c.data,
         data: c.data,
         tipo_notifica: c.tipo_notifica,
