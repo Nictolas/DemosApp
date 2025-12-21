@@ -38,91 +38,72 @@ router.get('/', async (req, res) => {
     
     // Recupera da notifiche_voti_comuni
     try {
-      // Verifica colonne disponibili
-      const votiComuniColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_voti_comuni'
-      `);
-      const votiComuniCols = votiComuniColumns.rows.map(r => r.column_name);
-      console.log('📋 Colonne disponibili in notifiche_voti_comuni:', votiComuniCols);
+      // Query semplificata senza JOIN complesso - recupera prima i dati base
+      const baseQuery = `
+        SELECT 
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          voto,
+          comune_residenza,
+          politico,
+          COALESCE(likes, 0) as likes,
+          COALESCE(dislikes, 0) as dislikes,
+          'notifiche_voti_comuni' as tabella_origine
+        FROM notifiche_voti_comuni
+        ORDER BY COALESCE(data, CURRENT_DATE) DESC
+        LIMIT 50
+      `;
       
-      if (!votiComuniCols.includes('titolo') || !votiComuniCols.includes('testo')) {
-        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_voti_comuni');
-        votiComuniResult = { rows: [] };
-      } else {
-        // Verifica se ci sono righe nella tabella
-        const countResult = await pool.query('SELECT COUNT(*) as count FROM notifiche_voti_comuni');
-        const rowCount = parseInt(countResult.rows[0]?.count || '0');
-        console.log(`📊 Righe totali in notifiche_voti_comuni: ${rowCount}`);
+      console.log('📋 Query base notifiche_voti_comuni');
+      votiComuniResult = await pool.query(baseQuery);
+      console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
+      
+      // Se ci sono risultati, aggiungi i dati del politico con un secondo query
+      if (votiComuniResult.rows.length > 0) {
+        console.log('📋 Prime 3 notifiche voti comuni:', votiComuniResult.rows.slice(0, 3).map(n => ({
+          id: n.id,
+          titolo: n.titolo,
+          politico: n.politico
+        })));
         
-        if (rowCount === 0) {
-          console.warn('⚠️ Tabella notifiche_voti_comuni è vuota');
-        }
-        // Costruisci la query dinamicamente
-        const votoCol = votiComuniCols.includes('voto') ? 'voto' : 'NULL::TEXT as voto';
-        const comuneCol = votiComuniCols.includes('comune_residenza') ? 'comune_residenza' : 'NULL::TEXT as comune_residenza';
-        const politicoCol = votiComuniCols.includes('politico') ? 'politico' : 'NULL::TEXT as politico';
-        const likesCol = votiComuniCols.includes('likes') ? 'COALESCE(likes, 0) as likes' : '0::INTEGER as likes';
-        const dislikesCol = votiComuniCols.includes('dislikes') ? 'COALESCE(dislikes, 0) as dislikes' : '0::INTEGER as dislikes';
-        const dataCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) as data' : 'CURRENT_DATE as data';
-        const orderByCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) DESC' : 'CURRENT_DATE DESC';
-        
-        // Query con JOIN per ottenere l'avatar del politico
-        // Gestisce sia il caso in cui politico è l'ID (UUID) che quando è nome e cognome
-        const query = `
-          SELECT 
-            nv.id,
-            nv.id_utente,
-            nv.titolo,
-            nv.testo,
-            ${dataCol},
-            ${votoCol},
-            ${comuneCol},
-            ${politicoCol},
-            ${likesCol},
-            ${dislikesCol},
-            'notifiche_voti_comuni' as tabella_origine,
-            u.avatar_config as politico_avatar_config,
-            u.nome as politico_nome,
-            u.cognome as politico_cognome
-          FROM notifiche_voti_comuni nv
-          LEFT JOIN users u ON (
-            (nv.politico IS NOT NULL AND (
-              (nv.politico::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND u.id::text = nv.politico::text)
-              OR (nv.politico::text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND u.nome || ' ' || u.cognome = nv.politico)
-            ))
-            OR (nv.politico IS NULL AND u.id = nv.id_utente)
-          )
-          ORDER BY ${orderByCol}
-          LIMIT 50
-        `;
-        
-        console.log('📋 Query notifiche_voti_comuni:', query);
-        try {
-          votiComuniResult = await pool.query(query);
-          console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
-          if (votiComuniResult.rows.length > 0) {
-            console.log('📋 Prime 3 notifiche voti comuni:', votiComuniResult.rows.slice(0, 3).map(n => ({
-              id: n.id,
-              titolo: n.titolo,
-              politico: n.politico,
-              politico_nome: n.politico_nome,
-              politico_cognome: n.politico_cognome
-            })));
-          } else {
-            console.warn('⚠️ Nessuna notifica voti comuni trovata nella tabella');
+        // Per ogni notifica, recupera i dati del politico se presente
+        for (let i = 0; i < votiComuniResult.rows.length; i++) {
+          const notifica = votiComuniResult.rows[i];
+          if (notifica.politico) {
+            try {
+              // Prova prima come UUID
+              let politicoResult;
+              if (notifica.politico.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                politicoResult = await pool.query(
+                  'SELECT id, nome, cognome, avatar_config FROM users WHERE id = $1',
+                  [notifica.politico]
+                );
+              } else {
+                // Prova come nome e cognome
+                politicoResult = await pool.query(
+                  `SELECT id, nome, cognome, avatar_config FROM users 
+                   WHERE nome || ' ' || cognome = $1 OR nome = $1 OR cognome = $1
+                   LIMIT 1`,
+                  [notifica.politico]
+                );
+              }
+              
+              if (politicoResult.rows.length > 0) {
+                const politico = politicoResult.rows[0];
+                notifica.politico_avatar_config = politico.avatar_config;
+                notifica.politico_nome = politico.nome;
+                notifica.politico_cognome = politico.cognome;
+              }
+            } catch (politicoError) {
+              console.warn(`⚠️ Errore nel recupero dati politico per notifica ${notifica.id}:`, politicoError.message);
+            }
           }
-        } catch (queryError) {
-          console.error('❌ Errore nell\'esecuzione della query notifiche_voti_comuni:', queryError);
-          console.error('❌ Query error details:', {
-            message: queryError.message,
-            code: queryError.code,
-            detail: queryError.detail,
-            position: queryError.position
-          });
-          throw queryError; // Rilancia l'errore per essere catturato dal catch esterno
         }
+      } else {
+        console.warn('⚠️ Nessuna notifica voti comuni trovata nella tabella');
       }
     } catch (err) {
       console.error('❌ Errore query notifiche_voti_comuni:', err);
