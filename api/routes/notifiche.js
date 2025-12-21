@@ -60,20 +60,25 @@ router.get('/', async (req, res) => {
         const dataCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) as data' : 'CURRENT_DATE as data';
         const orderByCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) DESC' : 'CURRENT_DATE DESC';
         
+        // Query con JOIN per ottenere l'avatar del politico
         const query = `
           SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
+            nv.id,
+            nv.id_utente,
+            nv.titolo,
+            nv.testo,
             ${dataCol},
             ${votoCol},
             ${comuneCol},
             ${politicoCol},
             ${likesCol},
             ${dislikesCol},
-            'notifiche_voti_comuni' as tabella_origine
-          FROM notifiche_voti_comuni
+            'notifiche_voti_comuni' as tabella_origine,
+            u.avatar_config as politico_avatar_config,
+            u.nome as politico_nome,
+            u.cognome as politico_cognome
+          FROM notifiche_voti_comuni nv
+          LEFT JOIN users u ON u.id::text = nv.politico OR u.id = nv.id_utente
           ORDER BY ${orderByCol}
           LIMIT 50
         `;
@@ -192,8 +197,7 @@ router.get('/', async (req, res) => {
         selectParts.push('NULL::TEXT as comune_residenza');
       }
       
-      selectParts.push('COALESCE(likes, 0) as likes');
-      selectParts.push('COALESCE(dislikes, 0) as dislikes');
+      // notifiche_comunali non ha likes/dislikes, quindi non li includiamo
       selectParts.push(`'notifiche_comunali' as tabella_origine`);
       
       const orderBy = existingColumns.includes('data') 
@@ -242,8 +246,11 @@ router.get('/', async (req, res) => {
         voto: c.voto || null,
         comune_residenza: c.comune_residenza || null,
         politico: c.politico || null,
-        likes: c.likes || 0,
-        dislikes: c.dislikes || 0,
+        politico_avatar_config: c.politico_avatar_config || null,
+        politico_nome: c.politico_nome || null,
+        politico_cognome: c.politico_cognome || null,
+        likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' ? undefined : 0),
+        dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' ? undefined : 0),
         tabella_origine: c.tabella_origine
       };
     });

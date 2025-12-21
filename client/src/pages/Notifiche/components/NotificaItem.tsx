@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { NotificaItemProps } from "../types";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { 
   getNotificaBackground,
   getNotificaTitle,
@@ -211,25 +212,32 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 </div>
               )}
               
-              {/* Mostra politico per voti comuni */}
+              {/* Mostra politico per voti comuni con avatar */}
               {notifica.politico && notifica.tipo_notifica === 'voto_comune' && (
-                <div className={`text-sm ${style.textColor} mt-1`}>
-                  <strong>Politico:</strong> {notifica.politico}
+                <div className={`text-sm ${style.textColor} mt-1 flex items-center gap-2`}>
+                  <strong>Politico:</strong>
+                  {notifica.politico_avatar_config && (
+                    <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                      <CustomAvatar 
+                        config={typeof notifica.politico_avatar_config === 'string' 
+                          ? JSON.parse(notifica.politico_avatar_config) 
+                          : notifica.politico_avatar_config} 
+                        size={24} 
+                      />
+                    </div>
+                  )}
+                  <span>
+                    {notifica.politico_nome && notifica.politico_cognome 
+                      ? `${notifica.politico_nome} ${notifica.politico_cognome}`
+                      : notifica.politico}
+                  </span>
                 </div>
               )}
               
-              {/* Mostra data se presente (solo orario per Demos) */}
-              {notifica.data && (
+              {/* Mostra data se presente (non per Demos, l'orario è mostrato in basso) */}
+              {notifica.data && notifica.tipo_notifica !== 'demos' && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
-                  {notifica.tipo_notifica === 'demos' ? (
-                    <>
-                      <strong>Orario:</strong> {new Date(notifica.data).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
-                    </>
-                  ) : (
-                    <>
-                      <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
-                    </>
-                  )}
+                  <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
                 </div>
               )}
               
