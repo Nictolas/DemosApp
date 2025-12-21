@@ -58,8 +58,7 @@ export const EmergencyDialog: React.FC<EmergencyDialogProps> = ({
     setIsNotifying(true);
     try {
       const response = await apiRequest("POST", "/api/avvistamenti/avvisa-vicini", {
-        tipo_avvistamento: category.title,
-        titolo: `Un cittadino ha segnalato un avvistamento di ${category.title.toLowerCase()} nel comune di ${user.comune_residenza}. Presta attenzione se ti trovi nella zona.`
+        tipo_avvistamento: category.title
       });
 
       if (response?.ok) {
