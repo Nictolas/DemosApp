@@ -175,12 +175,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               </div>
             </div>
           )}
-                <div className="text-sm text-gray-600 mt-1">
-                  <strong>Politico:</strong> {notifica.politico}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Informazioni dettagliate per segnalazioni */}
           {notifica.tipo_notifica === 'segnalazione_problema' && (
