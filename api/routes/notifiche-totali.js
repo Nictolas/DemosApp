@@ -141,18 +141,6 @@ router.get('/', verifyToken, async (req, res) => {
     }
     
     if (existingTables.includes('notifiche_comunali')) {
-      // Verifica colonne disponibili per notifiche_comunali
-      const comunaliColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_comunali'
-      `);
-      const comunaliCols = comunaliColumns.rows.map(r => r.column_name);
-      console.log('📋 Colonne disponibili in notifiche_comunali:', comunaliCols);
-      
-      const likesCol = comunaliCols.includes('likes') ? 'COALESCE(likes, 0) as likes' : '0::INTEGER as likes';
-      const dislikesCol = comunaliCols.includes('dislikes') ? 'COALESCE(dislikes, 0) as dislikes' : '0::INTEGER as dislikes';
-      
       queries.push(
         pool.query(`
           SELECT 
@@ -181,8 +169,8 @@ router.get('/', verifyToken, async (req, res) => {
             ) as testo,
             COALESCE(data, dal_giorno, CURRENT_DATE) as data,
             COALESCE(comune_residenza, dove, zona) as comune_residenza,
-            ${likesCol},
-            ${dislikesCol}
+            NULL::INTEGER as likes,
+            NULL::INTEGER as dislikes
           FROM notifiche_comunali
           ORDER BY COALESCE(data, dal_giorno, CURRENT_DATE) DESC
           LIMIT 100
