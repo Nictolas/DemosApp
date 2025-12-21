@@ -251,18 +251,63 @@ router.get('/', async (req, res) => {
       comunaliResult = { rows: [] };
     }
     
+    // Recupera da notifiche_avvistamenti
+    let avvistamentiResult = { rows: [] };
+    try {
+      const tableExists = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'notifiche_avvistamenti'
+        )
+      `);
+      
+      if (tableExists.rows[0]?.exists) {
+        const query = `
+          SELECT 
+            id,
+            id_utente,
+            tipo_avvistamento,
+            titolo,
+            testo,
+            comune_residenza,
+            COALESCE(data, data_creazione, CURRENT_TIMESTAMP) as data,
+            'notifiche_avvistamenti' as tabella_origine
+          FROM notifiche_avvistamenti
+          ORDER BY COALESCE(data, data_creazione, CURRENT_TIMESTAMP) DESC
+          LIMIT 50
+        `;
+        
+        console.log('📋 Query notifiche_avvistamenti:', query);
+        avvistamentiResult = await pool.query(query);
+        console.log(`✅ Notifiche avvistamenti recuperate: ${avvistamentiResult.rows.length}`);
+      } else {
+        console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
+      }
+    } catch (err) {
+      console.error('❌ Errore query notifiche_avvistamenti:', err);
+      console.error('❌ Error details:', {
+        message: err.message,
+        code: err.code,
+        detail: err.detail
+      });
+      avvistamentiResult = { rows: [] };
+    }
+    
     // Combina tutte le notifiche
     const votiComuniRows = votiComuniResult?.rows || [];
     const demosRows = demosResult?.rows || [];
     const comunaliRows = comunaliResult?.rows || [];
+    const avvistamentiRows = avvistamentiResult?.rows || [];
     
     const allNotificheRaw = [
       ...votiComuniRows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
       ...demosRows.map(n => ({ ...n, tipo_notifica: 'demos' })),
-      ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' }))
+      ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' })),
+      ...avvistamentiRows.map(n => ({ ...n, tipo_notifica: 'avvistamento' }))
     ];
     
-    console.log(`📊 Notifiche raw combinate: voti_comuni=${votiComuniRows.length}, demos=${demosRows.length}, comunali=${comunaliRows.length}, totale=${allNotificheRaw.length}`);
+    console.log(`📊 Notifiche raw combinate: voti_comuni=${votiComuniRows.length}, demos=${demosRows.length}, comunali=${comunaliRows.length}, avvistamenti=${avvistamentiRows.length}, totale=${allNotificheRaw.length}`);
     
     if (votiComuniRows.length > 0) {
       console.log('📋 Esempio notifica voto_comune:', {
@@ -291,8 +336,9 @@ router.get('/', async (req, res) => {
         politico_avatar_config: c.politico_avatar_config || null,
         politico_nome: c.politico_nome || null,
         politico_cognome: c.politico_cognome || null,
-        likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' ? undefined : 0),
-        dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' ? undefined : 0),
+        tipo_avvistamento: c.tipo_avvistamento || null, // Per notifiche avvistamenti
+        likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
+        dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         tabella_origine: c.tabella_origine
       };
     });
