@@ -10,7 +10,7 @@ export interface Notifica {
   data_lettura?: string;
   priorita?: string;
   // Nuove proprietà per comunicazioni
-  tipo_notifica?: 'notifica' | 'comunicazione';
+  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'demos' | 'comunale' | 'segnalazione_problema';
   autore?: {
     nome: string;
     cognome: string;
@@ -20,6 +20,16 @@ export interface Notifica {
   data?: string;
   comune_residenza?: string;
   politico?: string;
+  likes?: number;
+  dislikes?: number;
+  tabella_origine?: string;
+  // Proprietà per segnalazioni
+  tipo_segnalazione?: string;
+  passaggi?: string;
+  comportamento_atteso?: string;
+  comportamento_effettivo?: string;
+  browser?: string;
+  dispositivo?: string;
 }
 
 export interface NotificheData {

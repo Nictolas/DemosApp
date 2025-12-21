@@ -95,16 +95,24 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             {getNotificaMessage(notifica.messaggio)}
           </p>
 
-          {/* Informazioni aggiuntive per comunicazioni */}
-          {notifica.tipo_notifica === 'comunicazione' && notifica.autore && (
+          {/* Informazioni aggiuntive per tutti i tipi di notifiche */}
+          {(notifica.tipo_notifica === 'comunicazione' || 
+            notifica.tipo_notifica === 'voto_comune' || 
+            notifica.tipo_notifica === 'demos' || 
+            notifica.tipo_notifica === 'comunale') && (
             <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm text-gray-600 mb-2">
-                <strong>Autore:</strong> {notifica.autore.nome} {notifica.autore.cognome} 
-                <span className="ml-2 text-xs bg-gray-200 px-2 py-1 rounded">
-                  {notifica.autore.ruolo}
-                </span>
-              </div>
-              {notifica.voto && (
+              {/* Mostra autore solo se presente */}
+              {notifica.autore && (
+                <div className="text-sm text-gray-600 mb-2">
+                  <strong>Autore:</strong> {notifica.autore.nome} {notifica.autore.cognome} 
+                  <span className="ml-2 text-xs bg-gray-200 px-2 py-1 rounded">
+                    {notifica.autore.ruolo}
+                  </span>
+                </div>
+              )}
+              
+              {/* Mostra voto per voti comuni */}
+              {notifica.voto && (notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && (
                 <div className="text-sm text-gray-600">
                   <strong>Voto:</strong> 
                   <span className={`ml-2 px-2 py-1 rounded text-xs ${
@@ -116,17 +124,57 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   </span>
                 </div>
               )}
+              
+              {/* Mostra politico per voti comuni */}
+              {notifica.politico && notifica.tipo_notifica === 'voto_comune' && (
+                <div className="text-sm text-gray-600 mt-1">
+                  <strong>Politico:</strong> {notifica.politico}
+                </div>
+              )}
+              
+              {/* Mostra data se presente */}
               {notifica.data && (
                 <div className="text-sm text-gray-600 mt-1">
                   <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
                 </div>
               )}
+              
+              {/* Mostra comune se presente */}
               {notifica.comune_residenza && (
                 <div className="text-sm text-gray-600 mt-1">
                   <strong>Comune:</strong> {notifica.comune_residenza}
                 </div>
               )}
-              {notifica.politico && (
+              
+              {/* Mostra likes/dislikes se presenti */}
+              {((notifica.likes !== undefined && notifica.likes > 0) || 
+                (notifica.dislikes !== undefined && notifica.dislikes > 0)) && (
+                <div className="text-sm text-gray-600 mt-1 flex items-center gap-4">
+                  {notifica.likes !== undefined && (
+                    <span>👍 {notifica.likes}</span>
+                  )}
+                  {notifica.dislikes !== undefined && (
+                    <span>👎 {notifica.dislikes}</span>
+                  )}
+                </div>
+              )}
+              
+              {/* Mostra tipo notifica come badge */}
+              <div className="mt-2">
+                <span className={`text-xs px-2 py-1 rounded ${
+                  notifica.tipo_notifica === 'voto_comune' ? 'bg-blue-100 text-blue-800' :
+                  notifica.tipo_notifica === 'demos' ? 'bg-pink-100 text-pink-800' :
+                  notifica.tipo_notifica === 'comunale' ? 'bg-green-100 text-green-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {notifica.tipo_notifica === 'voto_comune' ? 'Voto Comune' :
+                   notifica.tipo_notifica === 'demos' ? 'Notifica Demos' :
+                   notifica.tipo_notifica === 'comunale' ? 'Notifica Comunale' :
+                   notifica.tipo_notifica}
+                </span>
+              </div>
+            </div>
+          )}
                 <div className="text-sm text-gray-600 mt-1">
                   <strong>Politico:</strong> {notifica.politico}
                 </div>

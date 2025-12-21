@@ -167,7 +167,7 @@ export default function NotificheTotali() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-6xl mx-auto w-full">
+      <div className="w-full">
         <Card className="bg-white">
           <CardHeader>
             <div className="flex items-center gap-3">
