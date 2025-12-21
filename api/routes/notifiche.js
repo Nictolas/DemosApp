@@ -51,6 +51,14 @@ router.get('/', async (req, res) => {
         console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_voti_comuni');
         votiComuniResult = { rows: [] };
       } else {
+        // Verifica se ci sono righe nella tabella
+        const countResult = await pool.query('SELECT COUNT(*) as count FROM notifiche_voti_comuni');
+        const rowCount = parseInt(countResult.rows[0]?.count || '0');
+        console.log(`📊 Righe totali in notifiche_voti_comuni: ${rowCount}`);
+        
+        if (rowCount === 0) {
+          console.warn('⚠️ Tabella notifiche_voti_comuni è vuota');
+        }
         // Costruisci la query dinamicamente
         const votoCol = votiComuniCols.includes('voto') ? 'voto' : 'NULL::TEXT as voto';
         const comuneCol = votiComuniCols.includes('comune_residenza') ? 'comune_residenza' : 'NULL::TEXT as comune_residenza';
@@ -61,6 +69,7 @@ router.get('/', async (req, res) => {
         const orderByCol = votiComuniCols.includes('data') ? 'COALESCE(data, CURRENT_DATE) DESC' : 'CURRENT_DATE DESC';
         
         // Query con JOIN per ottenere l'avatar del politico
+        // Gestisce sia il caso in cui politico è l'ID (stringa) che quando è nome e cognome
         const query = `
           SELECT 
             nv.id,
@@ -74,11 +83,18 @@ router.get('/', async (req, res) => {
             ${likesCol},
             ${dislikesCol},
             'notifiche_voti_comuni' as tabella_origine,
-            u.avatar_config as politico_avatar_config,
-            u.nome as politico_nome,
-            u.cognome as politico_cognome
+            COALESCE(u.avatar_config, NULL) as politico_avatar_config,
+            COALESCE(u.nome, NULL) as politico_nome,
+            COALESCE(u.cognome, NULL) as politico_cognome
           FROM notifiche_voti_comuni nv
-          LEFT JOIN users u ON u.id::text = nv.politico OR u.id = nv.id_utente
+          LEFT JOIN users u ON (
+            CASE 
+              WHEN nv.politico IS NOT NULL THEN
+                (u.id::text = nv.politico OR u.nome || ' ' || u.cognome = nv.politico)
+              ELSE
+                u.id = nv.id_utente
+            END
+          )
           ORDER BY ${orderByCol}
           LIMIT 50
         `;
@@ -86,6 +102,15 @@ router.get('/', async (req, res) => {
         console.log('📋 Query notifiche_voti_comuni:', query);
         votiComuniResult = await pool.query(query);
         console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
+        if (votiComuniResult.rows.length > 0) {
+          console.log('📋 Prime 3 notifiche voti comuni:', votiComuniResult.rows.slice(0, 3).map(n => ({
+            id: n.id,
+            titolo: n.titolo,
+            politico: n.politico,
+            politico_nome: n.politico_nome,
+            politico_cognome: n.politico_cognome
+          })));
+        }
       }
     } catch (err) {
       console.error('❌ Errore query notifiche_voti_comuni:', err);
@@ -227,11 +252,28 @@ router.get('/', async (req, res) => {
     }
     
     // Combina tutte le notifiche
+    const votiComuniRows = votiComuniResult?.rows || [];
+    const demosRows = demosResult?.rows || [];
+    const comunaliRows = comunaliResult?.rows || [];
+    
     const allNotificheRaw = [
-      ...votiComuniResult.rows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
-      ...demosResult.rows.map(n => ({ ...n, tipo_notifica: 'demos' })),
-      ...comunaliResult.rows.map(n => ({ ...n, tipo_notifica: 'comunale' }))
+      ...votiComuniRows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
+      ...demosRows.map(n => ({ ...n, tipo_notifica: 'demos' })),
+      ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' }))
     ];
+    
+    console.log(`📊 Notifiche raw combinate: voti_comuni=${votiComuniRows.length}, demos=${demosRows.length}, comunali=${comunaliRows.length}, totale=${allNotificheRaw.length}`);
+    
+    if (votiComuniRows.length > 0) {
+      console.log('📋 Esempio notifica voto_comune:', {
+        id: votiComuniRows[0].id,
+        titolo: votiComuniRows[0].titolo,
+        tipo_notifica: 'voto_comune',
+        politico: votiComuniRows[0].politico,
+        politico_nome: votiComuniRows[0].politico_nome,
+        politico_cognome: votiComuniRows[0].politico_cognome
+      });
+    }
     
     // Mappa le notifiche nel formato atteso dal frontend
     const comunicazioni = allNotificheRaw.map(c => {
