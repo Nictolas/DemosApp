@@ -154,8 +154,18 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           accentColor: 'text-orange-600'
         };
       case 'avvistamento':
+        // Determina l'emoji in base al tipo_avvistamento (usa le stesse emoji della pagina avvistamenti)
+        const tipoAvvistamento = notifica.tipo_avvistamento?.toLowerCase() || '';
+        let emoji = '🐺'; // Default: lupo (come nella pagina avvistamenti)
+        if (tipoAvvistamento.includes('cinghiale') || tipoAvvistamento.includes('cinghiali')) {
+          emoji = '🐗'; // Cinghiale (come nella pagina avvistamenti)
+        } else if (tipoAvvistamento.includes('volpe') || tipoAvvistamento.includes('volpi')) {
+          emoji = '🦊'; // Volpe (come nella pagina avvistamenti)
+        } else if (tipoAvvistamento.includes('lupo') || tipoAvvistamento.includes('lupi')) {
+          emoji = '🐺'; // Lupo (come nella pagina avvistamenti)
+        }
         return {
-          emoji: '🐺',
+          emoji: emoji,
           bgColor: 'bg-amber-50 border-amber-200',
           textColor: 'text-amber-900',
           accentColor: 'text-amber-600'
