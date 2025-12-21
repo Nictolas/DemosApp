@@ -41,6 +41,22 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
       });
     }
 
+    // Verifica se la tabella esiste
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'notifiche_avvistamenti'
+      )
+    `);
+
+    if (!tableExists.rows[0]?.exists) {
+      return res.status(500).json({
+        success: false,
+        error: 'Tabella notifiche_avvistamenti non trovata. Esegui lo script SQL per crearla.'
+      });
+    }
+
     // Crea la notifica nella tabella notifiche_avvistamenti
     const insertResult = await pool.query(
       `INSERT INTO notifiche_avvistamenti 

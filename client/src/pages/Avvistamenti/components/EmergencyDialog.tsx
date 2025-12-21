@@ -7,11 +7,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Phone, Bell } from "lucide-react";
+import { Phone, Bell, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
 interface EmergencyNumber {
   number: string;
