@@ -368,10 +368,20 @@ router.get('/', async (req, res) => {
     // Mappa le notifiche nel formato atteso dal frontend
     const comunicazioni = allNotificheRaw.map(c => {
       // Per le notifiche di avvistamento, costruisci titolo e messaggio da tipo_avvistamento
+      // Per le notifiche di voto_comune, costruisci titolo nel formato "Nome Cognome ha votato Voto a Titolo"
       let titolo, messaggio;
       if (c.tipo_notifica === 'avvistamento') {
         titolo = `Avvistamento ${c.tipo_avvistamento || 'Animale'}`;
         messaggio = ''; // Nessun messaggio per le notifiche di avvistamento
+      } else if (c.tipo_notifica === 'voto_comune') {
+        // Costruisci titolo nel formato: "Nome Cognome ha votato Voto a Titolo"
+        const nomePolitico = c.politico_nome && c.politico_cognome 
+          ? `${c.politico_nome} ${c.politico_cognome}`
+          : c.politico || 'Politico';
+        const voto = c.voto || 'Voto';
+        const titoloVotazione = c.titolo || 'Votazione';
+        titolo = `${nomePolitico} ha votato ${voto} a ${titoloVotazione}`;
+        messaggio = c.testo || 'Nessun messaggio';
       } else {
         titolo = c.titolo || 'Nessun titolo';
         messaggio = c.testo || 'Nessun messaggio';
