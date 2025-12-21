@@ -189,11 +189,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             {getNotificaMessage(notifica.messaggio)}
           </p>
 
-          {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos che non ha informazioni aggiuntive) */}
+          {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos e Avvistamento che non hanno informazioni aggiuntive) */}
           {(notifica.tipo_notifica === 'comunicazione' || 
             notifica.tipo_notifica === 'voto_comune' || 
-            notifica.tipo_notifica === 'comunale' ||
-            notifica.tipo_notifica === 'avvistamento') && (
+            notifica.tipo_notifica === 'comunale') && (
             <div className={`mb-3 p-3 rounded-lg ${style.bgColor} border ${style.textColor} opacity-80`}>
               {/* Mostra autore solo se presente */}
               {notifica.autore && (
