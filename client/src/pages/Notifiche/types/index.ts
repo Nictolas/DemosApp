@@ -20,6 +20,9 @@ export interface Notifica {
   data?: string;
   comune_residenza?: string;
   politico?: string;
+  politico_avatar_config?: any;
+  politico_nome?: string;
+  politico_cognome?: string;
   likes?: number;
   dislikes?: number;
   tabella_origine?: string;

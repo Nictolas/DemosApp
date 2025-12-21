@@ -114,10 +114,10 @@ router.post('/', async (req, res) => {
         );
 
         if (utenteResult.rows.length === 0) {
-          console.log(`⚠️ Utente non trovato per: ${voto.nome}`);
+          console.log(`⚠️ Utente con ruolo "P" non trovato per: ${voto.nome}`);
           return res.status(400).json({
             success: false,
-            error: `Utente "${voto.nome}" non trovato. Assicurati che sia un utente registrato.`
+            error: `Utente "${voto.nome}" non trovato o non ha il ruolo "P" (Politico). Assicurati che sia un utente registrato con ruolo "P".`
           });
         }
 
@@ -141,7 +141,7 @@ router.post('/', async (req, res) => {
           ) VALUES (
             gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE
           ) RETURNING *`,
-          [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenza, `${utentePolitico.nome} ${utentePolitico.cognome}`]
+          [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenza, utentePolitico.id.toString()]
         );
 
         comunicazioni.push(result.rows[0]);
