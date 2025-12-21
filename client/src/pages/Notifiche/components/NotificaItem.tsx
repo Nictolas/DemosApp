@@ -185,9 +185,11 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </h3>
           </div>
           
-          <p className={`${style.textColor} opacity-90 mb-3`}>
-            {getNotificaMessage(notifica.messaggio)}
-          </p>
+          {getNotificaMessage(notifica.messaggio) && (
+            <p className={`${style.textColor} opacity-90 mb-3`}>
+              {getNotificaMessage(notifica.messaggio)}
+            </p>
+          )}
 
           {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos e Avvistamento che non hanno informazioni aggiuntive) */}
           {(notifica.tipo_notifica === 'comunicazione' || 
