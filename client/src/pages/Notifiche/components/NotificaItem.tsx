@@ -189,7 +189,19 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">{style.emoji}</span>
+            {/* Mostra avatar del politico per voti comuni, altrimenti emoji */}
+            {notifica.tipo_notifica === 'voto_comune' && notifica.politico_avatar_config ? (
+              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-300">
+                <CustomAvatar 
+                  config={typeof notifica.politico_avatar_config === 'string' 
+                    ? JSON.parse(notifica.politico_avatar_config) 
+                    : notifica.politico_avatar_config} 
+                  size={40} 
+                />
+              </div>
+            ) : (
+              <span className="text-2xl">{style.emoji}</span>
+            )}
             <h3 className={`font-semibold ${style.textColor}`}>
               {getNotificaTitle(notifica.titolo)}
             </h3>
