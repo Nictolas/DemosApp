@@ -24,7 +24,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const [dislikes, setDislikes] = useState(notifica.dislikes || 0);
 
   // Carica reazioni e reazione utente per voto_comune e comunicazione
-  const shouldLoadReactions = (notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && user?.id;
+  const shouldLoadReactions = Boolean((notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && user?.id);
 
   const { data: reactionsData } = useQuery({
     queryKey: ['reazioni', notifica.id],
