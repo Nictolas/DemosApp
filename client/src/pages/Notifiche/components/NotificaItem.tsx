@@ -189,10 +189,9 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             {getNotificaMessage(notifica.messaggio)}
           </p>
 
-          {/* Informazioni aggiuntive per tutti i tipi di notifiche */}
+          {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos che non ha informazioni aggiuntive) */}
           {(notifica.tipo_notifica === 'comunicazione' || 
             notifica.tipo_notifica === 'voto_comune' || 
-            notifica.tipo_notifica === 'demos' || 
             notifica.tipo_notifica === 'comunale' ||
             notifica.tipo_notifica === 'avvistamento') && (
             <div className={`mb-3 p-3 rounded-lg ${style.bgColor} border ${style.textColor} opacity-80`}>
@@ -242,22 +241,15 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 </div>
               )}
               
-              {/* Mostra data se presente (non per Demos, l'orario è mostrato in basso) */}
-              {notifica.data && notifica.tipo_notifica !== 'demos' && (
+              {/* Mostra data se presente (non per Demos e Avvistamento, l'orario è mostrato in basso) */}
+              {notifica.data && notifica.tipo_notifica !== 'demos' && notifica.tipo_notifica !== 'avvistamento' && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
                 </div>
               )}
               
-              {/* Mostra tipo avvistamento per notifiche avvistamento */}
-              {notifica.tipo_avvistamento && notifica.tipo_notifica === 'avvistamento' && (
-                <div className={`text-sm ${style.textColor} mt-1`}>
-                  <strong>Tipo:</strong> {notifica.tipo_avvistamento}
-                </div>
-              )}
-              
-              {/* Mostra comune se presente (non per notifiche Demos) */}
-              {notifica.comune_residenza && notifica.tipo_notifica !== 'demos' && (
+              {/* Mostra comune se presente (non per notifiche Demos e Avvistamento) */}
+              {notifica.comune_residenza && notifica.tipo_notifica !== 'demos' && notifica.tipo_notifica !== 'avvistamento' && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Comune:</strong> {notifica.comune_residenza}
                 </div>
