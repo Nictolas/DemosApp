@@ -220,9 +220,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </p>
           )}
 
-          {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos e Avvistamento che non hanno informazioni aggiuntive) */}
+          {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos, Avvistamento e Voto Comune che non hanno informazioni aggiuntive) */}
           {(notifica.tipo_notifica === 'comunicazione' || 
-            notifica.tipo_notifica === 'voto_comune' || 
             notifica.tipo_notifica === 'comunale') && (
             <div className={`mb-3 p-3 rounded-lg ${style.bgColor} border ${style.textColor} opacity-80`}>
               {/* Mostra autore solo se presente */}
@@ -235,8 +234,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 </div>
               )}
               
-              {/* Mostra voto per voti comuni */}
-              {notifica.voto && (notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && (
+              {/* Mostra voto per comunicazioni (non per voto_comune) */}
+              {notifica.voto && notifica.tipo_notifica === 'comunicazione' && (
                 <div className={`text-sm ${style.textColor}`}>
                   <strong>Voto:</strong> 
                   <span className={`ml-2 px-2 py-1 rounded text-xs ${
@@ -245,28 +244,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                     'bg-gray-100 text-gray-800'
                   }`}>
                     {notifica.voto}
-                  </span>
-                </div>
-              )}
-              
-              {/* Mostra politico per voti comuni con avatar */}
-              {notifica.politico && notifica.tipo_notifica === 'voto_comune' && (
-                <div className={`text-sm ${style.textColor} mt-1 flex items-center gap-2`}>
-                  <strong>Politico:</strong>
-                  {notifica.politico_avatar_config && (
-                    <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
-                      <CustomAvatar 
-                        config={typeof notifica.politico_avatar_config === 'string' 
-                          ? JSON.parse(notifica.politico_avatar_config) 
-                          : notifica.politico_avatar_config} 
-                        size={24} 
-                      />
-                    </div>
-                  )}
-                  <span>
-                    {notifica.politico_nome && notifica.politico_cognome 
-                      ? `${notifica.politico_nome} ${notifica.politico_cognome}`
-                      : notifica.politico}
                   </span>
                 </div>
               )}
