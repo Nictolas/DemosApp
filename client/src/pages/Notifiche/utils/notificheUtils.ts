@@ -29,6 +29,6 @@ export const getNotificaTitle = (titolo?: string): string => {
 };
 
 export const getNotificaMessage = (messaggio?: string): string => {
-  return messaggio || 'Nessun messaggio disponibile';
+  return messaggio || '';
 };
 
