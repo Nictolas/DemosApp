@@ -281,6 +281,27 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
     
+    // Gestisci avatar_config - può essere un oggetto JSONB o una stringa JSON
+    let avatarConfig = null;
+    if (user.avatar_config) {
+      try {
+        // Se è già un oggetto (JSONB dal database), convertilo in stringa JSON
+        if (typeof user.avatar_config === 'object' && user.avatar_config !== null) {
+          avatarConfig = JSON.stringify(user.avatar_config);
+        } 
+        // Se è una stringa, verifica che sia JSON valido
+        else if (typeof user.avatar_config === 'string') {
+          // Verifica se è già un JSON valido
+          JSON.parse(user.avatar_config);
+          avatarConfig = user.avatar_config;
+        }
+      } catch (e) {
+        console.warn('⚠️ Errore nella gestione avatar_config:', e);
+        // Se non è JSON valido, imposta null
+        avatarConfig = null;
+      }
+    }
+    
     // Applica decompressione per i dati geografici
     const decompressedUser = decompressUserLocation(user);
     
@@ -290,7 +311,8 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
         genere: decompressGender(user.genere),
-        ruolo: ruoloDecompressionMapping[user.ruolo] || user.ruolo
+        ruolo: ruoloDecompressionMapping[user.ruolo] || user.ruolo,
+        avatar_config: avatarConfig
       }
     };
     
