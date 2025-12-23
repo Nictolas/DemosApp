@@ -7,17 +7,24 @@ import { MenuButtonProps } from "../types";
 interface MenuGridProps {
   hasAdvancedAccess: boolean;
   hasLimitedAccess: boolean;
+  userRole?: string;
   onNavigate: (path: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const MenuGrid: React.FC<MenuGridProps> = ({
   hasAdvancedAccess,
   hasLimitedAccess,
+  userRole,
   onNavigate
 }) => {
-  const visibleItems = menuItems.filter(item => 
-    !item.requiresAdvancedAccess || hasAdvancedAccess || hasLimitedAccess
-  );
+  const visibleItems = menuItems.filter(item => {
+    // Se l'utente è Istituzione, nascondi Opinioni, Firma e Vota
+    if (userRole === "I") {
+      return item.id === "profilo";
+    }
+    // Altrimenti usa la logica esistente
+    return !item.requiresAdvancedAccess || hasAdvancedAccess || hasLimitedAccess;
+  });
 
   // Debug logging rimosso per evitare re-render
 
