@@ -193,12 +193,29 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       'Admin': 'AD'
     };
     
+    // Normalizza i gradi di elezione e candidatura (tutto maiuscolo)
+    const normalizeGrado = (grado) => {
+      // Se è null o undefined, restituisci null (per permettere la cancellazione)
+      if (grado === null || grado === undefined) return null;
+      // Se non è una stringa, restituisci il valore originale
+      if (typeof grado !== 'string') return grado;
+      // Se è una stringa vuota, restituisci null
+      if (grado.trim() === '') return null;
+      // I valori validi sono: CO, P, R, N, C, S, E (tutti maiuscoli)
+      return grado.toUpperCase();
+    };
+    
     // Filtra solo i campi consentiti e applica compressione per i dati geografici e ruolo
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
+        // Normalizza i gradi di elezione e candidatura
+        if (key === 'grado_elezione' || key === 'grado_candidatura') {
+          filteredData[key] = normalizeGrado(updateData[key]);
+          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+        }
         // Applica compressione per i campi paese
-        if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
+        else if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
           const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
           filteredData[key] = compressedValue;
         } 
