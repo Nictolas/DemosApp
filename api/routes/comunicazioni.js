@@ -155,6 +155,7 @@ router.post('/', async (req, res) => {
               testo = $3,
               voto = $4,
               data = CURRENT_DATE,
+              data_creazione = CURRENT_TIMESTAMP,
               likes = 0,
               dislikes = 0
             WHERE comune_residenza = $5 AND politico = $6
@@ -166,9 +167,9 @@ router.post('/', async (req, res) => {
           // Inserisci nuova riga
           result = await pool.query(
             `INSERT INTO notifiche_voti_comuni (
-              id, id_utente, titolo, testo, voto, comune_residenza, politico, likes, dislikes, data
+              id, id_utente, titolo, testo, voto, comune_residenza, politico, likes, dislikes, data, data_creazione
             ) VALUES (
-              gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE
+              gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE, CURRENT_TIMESTAMP
             ) RETURNING *`,
             [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenzaOperante, nomeCompletoPolitico]
           );
