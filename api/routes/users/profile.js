@@ -198,6 +198,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       'Candidato': 'C',
       'Candidato Politico': 'CP',
       'Attivista': 'A',
+      'Istituzione': 'I',
       'Admin': 'AD'
     };
     

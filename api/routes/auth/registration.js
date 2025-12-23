@@ -251,6 +251,7 @@ router.post('/register',
       'Candidato': 'C',
       'Candidato Politico': 'CP',
       'Attivista': 'A',
+      'Istituzione': 'I',
       'Admin': 'AD'
     };
     // Se il ruolo non è fornito o è vuoto, imposta automaticamente "Elettore"
