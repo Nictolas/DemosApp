@@ -13,6 +13,7 @@ const ruoloCompressionMapping = {
   'Candidato': 'C',
   'Candidato Politico': 'CP',
   'Attivista': 'A',
+  'Istituzione': 'I',
   'Admin': 'AD'
 };
 
@@ -23,6 +24,7 @@ const ruoloDecompressionMapping = {
   'C': 'Candidato',
   'CP': 'Candidato Politico',
   'A': 'Attivista',
+  'I': 'Istituzione',
   'AD': 'Admin'
 };
 

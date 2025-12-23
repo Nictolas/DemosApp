@@ -87,6 +87,7 @@ export function PersonalDataSection({ formData, onFieldChange, isAdmin = false }
                 <SelectItem value="Candidato">Candidato</SelectItem>
                 <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
                 <SelectItem value="Attivista">Attivista</SelectItem>
+                <SelectItem value="Istituzione">Istituzione</SelectItem>
                 <SelectItem value="Admin">Admin</SelectItem>
               </SelectContent>
             </Select>
