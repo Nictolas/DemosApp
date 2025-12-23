@@ -399,7 +399,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {notifica.tipo_notifica === 'demos' && notifica.data ? (
                 new Date(notifica.data).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
               ) : (
-                formatDate(notifica.data || notifica.created_at || notifica.data_creazione || '')
+                formatDate(notifica.data_creazione || notifica.created_at || notifica.data || '')
               )}
             </span>
           </div>

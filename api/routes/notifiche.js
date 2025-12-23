@@ -48,6 +48,7 @@ router.get('/', async (req, res) => {
           titolo,
           testo,
           COALESCE(data, CURRENT_DATE) as data,
+          COALESCE(data_creazione, CURRENT_TIMESTAMP) as data_creazione,
           voto,
           comune_residenza,
           politico,
@@ -55,7 +56,7 @@ router.get('/', async (req, res) => {
           COALESCE(dislikes, 0) as dislikes,
           'notifiche_voti_comuni' as tabella_origine
         FROM notifiche_voti_comuni
-        ORDER BY COALESCE(data, CURRENT_DATE) DESC
+        ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC
         LIMIT 50
       `;
       
