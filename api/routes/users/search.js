@@ -87,6 +87,74 @@ router.get('/search', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/users/consiglieri-comunali - Cerca consiglieri comunali per comune_residenza dell'utente operante
+router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Recupera comune_residenza dell'utente operante
+    const userResult = await pool.query(
+      'SELECT comune_residenza FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const comuneResidenza = userResult.rows[0].comune_residenza;
+    
+    if (!comuneResidenza) {
+      return res.json({
+        success: true,
+        consiglieri: []
+      });
+    }
+    
+    console.log('🔍 GET /api/users/consiglieri-comunali - Comune residenza:', comuneResidenza);
+    
+    // Cerca consiglieri comunali con ruolo P, grado_elezione CO e comune_elezione = comune_residenza
+    const searchQuery = `
+      SELECT id, nome, cognome, email, comune_elezione
+      FROM users 
+      WHERE (ruolo = 'P' OR ruolo = 'Politico')
+        AND grado_elezione = 'CO'
+        AND comune_elezione = $1
+        AND status IN ('v', 'a')
+      ORDER BY cognome, nome
+    `;
+    
+    const result = await pool.query(searchQuery, [comuneResidenza]);
+    
+    const consiglieri = result.rows.map(user => ({
+      id: user.id,
+      nome: user.nome,
+      cognome: user.cognome,
+      email: user.email,
+      displayName: `${user.nome} ${user.cognome}`.trim(),
+      comune_elezione: user.comune_elezione
+    }));
+    
+    console.log(`✅ Trovati ${consiglieri.length} consiglieri comunali per il comune ${comuneResidenza}`);
+    
+    res.json({
+      success: true,
+      consiglieri
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella ricerca consiglieri comunali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile cercare i consiglieri comunali'
+    });
+  }
+});
+
 // GET /api/users/ - Lista tutti gli utenti (solo admin)
 router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
