@@ -5,6 +5,7 @@ import { Edit, Image, Globe, Heart } from "lucide-react";
 import { useLocation } from "wouter";
 import { UserInfo } from "@/types/profile";
 import { TIPOLOGIE_ATTIVISMO } from "@/constants/attivismo-types";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 interface ProfileInfoProps {
   userInfo: UserInfo;
@@ -13,6 +14,7 @@ interface ProfileInfoProps {
   onModificaImmagine: () => void;
   onModificaSiti?: () => void;
   canEdit?: boolean;
+  avatarConfig?: any;
 }
 
 export const ProfileInfo = ({ 
@@ -21,9 +23,48 @@ export const ProfileInfo = ({
   onEditClick, 
   onModificaImmagine,
   onModificaSiti,
-  canEdit = true
+  canEdit = true,
+  avatarConfig
 }: ProfileInfoProps) => {
   const [, setLocation] = useLocation();
+
+  // Funzione per verificare se l'utente ha uno dei ruoli che possono avere l'avatar
+  const canShowAvatar = () => {
+    const ruolo = userInfo.ruolo;
+    // Verifica sia i codici abbreviati che i nomi completi
+    return (
+      ruolo === "P" || ruolo === "Politico" ||
+      ruolo === "C" || ruolo === "Candidato" || ruolo === "CP" || ruolo === "Candidato Politico" ||
+      ruolo === "AD" || ruolo === "Admin"
+    );
+  };
+
+  // Funzione per ottenere la configurazione avatar parsata
+  const getAvatarConfig = () => {
+    if (!avatarConfig) return null;
+    
+    // Se è già un oggetto, restituiscilo
+    if (typeof avatarConfig === 'object') {
+      return avatarConfig;
+    }
+    
+    // Se è una stringa, prova a parsarla
+    if (typeof avatarConfig === 'string') {
+      try {
+        let parsed = JSON.parse(avatarConfig);
+        // Se il risultato è ancora una stringa, fai un secondo parse (caso doppia serializzazione)
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+        return parsed;
+      } catch (e) {
+        console.warn('Errore nel parsing avatar config:', e);
+        return null;
+      }
+    }
+    
+    return null;
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Non specificata';
@@ -76,6 +117,18 @@ export const ProfileInfo = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="relative">
+          {/* Avatar - Solo per Politico, Candidato e Admin */}
+          {canShowAvatar() && getAvatarConfig() && (
+            <div className="mb-8 flex justify-center">
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg">
+                <CustomAvatar 
+                  config={getAvatarConfig()} 
+                  size={120} 
+                  className="rounded-full"
+                />
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">

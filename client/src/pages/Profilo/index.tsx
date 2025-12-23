@@ -162,6 +162,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 onModificaImmagine={handleModificaImmagine}
                 onModificaSiti={handleModificaSiti}
                 canEdit={isViewingOwnProfile}
+                avatarConfig={avatarConfig}
               />
             )}
 
