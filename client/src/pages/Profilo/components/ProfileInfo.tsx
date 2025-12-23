@@ -31,20 +31,30 @@ export const ProfileInfo = ({
   // Funzione per verificare se l'utente ha uno dei ruoli che possono avere l'avatar
   const canShowAvatar = () => {
     const ruolo = userInfo.ruolo;
+    console.log('🔍 DEBUG ProfileInfo - Ruolo utente:', ruolo);
     // Verifica sia i codici abbreviati che i nomi completi
-    return (
+    const canShow = (
       ruolo === "P" || ruolo === "Politico" ||
       ruolo === "C" || ruolo === "Candidato" || ruolo === "CP" || ruolo === "Candidato Politico" ||
       ruolo === "AD" || ruolo === "Admin"
     );
+    console.log('🔍 DEBUG ProfileInfo - canShowAvatar:', canShow);
+    return canShow;
   };
 
   // Funzione per ottenere la configurazione avatar parsata
   const getAvatarConfig = () => {
-    if (!avatarConfig) return null;
+    console.log('🔍 DEBUG ProfileInfo - avatarConfig ricevuto:', avatarConfig);
+    console.log('🔍 DEBUG ProfileInfo - avatarConfig type:', typeof avatarConfig);
+    
+    if (!avatarConfig) {
+      console.log('⚠️ DEBUG ProfileInfo - avatarConfig è null o undefined');
+      return null;
+    }
     
     // Se è già un oggetto, restituiscilo
-    if (typeof avatarConfig === 'object') {
+    if (typeof avatarConfig === 'object' && avatarConfig !== null) {
+      console.log('✅ DEBUG ProfileInfo - avatarConfig è già un oggetto');
       return avatarConfig;
     }
     
@@ -56,13 +66,15 @@ export const ProfileInfo = ({
         if (typeof parsed === 'string') {
           parsed = JSON.parse(parsed);
         }
+        console.log('✅ DEBUG ProfileInfo - avatarConfig parsato da stringa');
         return parsed;
       } catch (e) {
-        console.warn('Errore nel parsing avatar config:', e);
+        console.warn('❌ DEBUG ProfileInfo - Errore nel parsing avatar config:', e);
         return null;
       }
     }
     
+    console.warn('⚠️ DEBUG ProfileInfo - avatarConfig ha un tipo non gestito:', typeof avatarConfig);
     return null;
   };
 
@@ -118,17 +130,23 @@ export const ProfileInfo = ({
         </CardHeader>
         <CardContent className="relative">
           {/* Avatar - Solo per Politico, Candidato e Admin */}
-          {canShowAvatar() && getAvatarConfig() && (
-            <div className="mb-8 flex justify-center">
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg">
-                <CustomAvatar 
-                  config={getAvatarConfig()} 
-                  size={120} 
-                  className="rounded-full"
-                />
+          {(() => {
+            const showAvatar = canShowAvatar();
+            const config = getAvatarConfig();
+            console.log('🔍 DEBUG ProfileInfo - Render avatar - showAvatar:', showAvatar, 'config:', config);
+            
+            return showAvatar && config ? (
+              <div className="mb-8 flex justify-center">
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg">
+                  <CustomAvatar 
+                    config={config} 
+                    size={120} 
+                    className="rounded-full"
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            ) : null;
+          })()}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
