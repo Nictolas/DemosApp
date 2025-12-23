@@ -172,8 +172,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               opinionQuestions={opinionQuestions}
             />
 
-            {/* Sezione rappresentanti */}
-            {userInfo && (
+            {/* Sezione rappresentanti - Non visibile per Istituzione */}
+            {userInfo && userInfo.ruolo !== "I" && (
               <div className="transform hover:scale-[1.02] transition-all duration-300">
                 <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
@@ -188,8 +188,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               </div>
             )}
 
-            {/* Sezione candidati */}
-            {userInfo && (
+            {/* Sezione candidati - Non visibile per Istituzione */}
+            {userInfo && userInfo.ruolo !== "I" && (
               <div className="transform hover:scale-[1.02] transition-all duration-300">
                 <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
