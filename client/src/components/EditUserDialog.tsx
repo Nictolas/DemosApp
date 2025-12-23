@@ -76,10 +76,12 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
           regione_elezione: data.user.regione_elezione,
           provincia_elezione: data.user.provincia_elezione,
           comune_elezione: data.user.comune_elezione,
+          grado_elezione: data.user.grado_elezione,
           paese_candidatura: data.user.paese_candidatura,
           regione_candidatura: data.user.regione_candidatura,
           provincia_candidatura: data.user.provincia_candidatura,
-          comune_candidatura: data.user.comune_candidatura
+          comune_candidatura: data.user.comune_candidatura,
+          grado_candidatura: data.user.grado_candidatura
         });
         
         setUserData({ ...data.user, email: userEmail, uid: userUid });
