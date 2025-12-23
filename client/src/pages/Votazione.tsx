@@ -170,9 +170,19 @@ const InformaCittadiniCard = React.memo(({
       setDalGiorno("");
       setAlGiorno("");
       setTuttoComune(false);
+      setTematicheSelezionata(null);
       setIsDialogOpen(false);
     }
   }, [submitInformaCittadini.isSuccess]);
+
+  // Reset tematica quando si chiude il dialog senza inviare
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open && !tipologia) {
+      // Se il dialog viene chiuso senza aver selezionato una tipologia, resetta anche la tematica
+      setTematicheSelezionata(null);
+    }
+  };
 
   const tematicaSelezionata = tematicheSelezionata 
     ? INFORMA_TEMATICHE.find(t => t.id === tematicheSelezionata)

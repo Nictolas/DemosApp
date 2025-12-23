@@ -55,3 +55,4 @@ AND column_name IN ('preferenze_notifiche', 'notifiche_preferenze', 'fcm_tokens'
 ORDER BY column_name;
 
 
+
