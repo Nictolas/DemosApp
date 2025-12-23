@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { UserAutocomplete } from "@/components/UserAutocomplete";
+import { ConsiglieriComunaliAutocomplete } from "@/components/ConsiglieriComunaliAutocomplete";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -122,7 +123,7 @@ const INFORMA_TIPOLOGIE = INFORMA_TEMATICHE.flatMap(tematica =>
     value: tipologia.value,
     emoji: tipologia.emoji
   }))
-) as const;
+);
 
 interface ExistingComunicazione {
   titolo: string;
@@ -348,7 +349,7 @@ const ComunicaVotiCard = React.memo(({
   setTitoloVotazione: (value: string) => void;
   votiEntries: Array<{ id: string; nome: string; voto: string }>;
   addVotoEntry: () => void;
-  updateVotoEntry: (id: string, field: string, value: string) => void;
+  updateVotoEntry: (id: string, field: keyof VotoEntry, value: string) => void;
   removeVotoEntry: (id: string) => void;
   submitComunicaVoti: any;
 }) => (
@@ -389,18 +390,25 @@ const ComunicaVotiCard = React.memo(({
           </button>
         </div>
 
-        {votiEntries.map((entry, index) => (
-          <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-600">Nome</label>
-                  <UserAutocomplete
-                    value={entry.nome}
-                    onChange={(value) => updateVotoEntry(entry.id, "nome", value)}
-                    placeholder="Inserisci nome utente"
-                    className="w-full"
-                  />
-                </div>
+        {votiEntries.map((entry, index) => {
+          // Calcola i nomi esclusi (tutti gli altri nomi già selezionati)
+          const excludedNames = votiEntries
+            .filter(e => e.id !== entry.id && e.nome.trim())
+            .map(e => e.nome.trim());
+          
+          return (
+            <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-600">Nome</label>
+                    <ConsiglieriComunaliAutocomplete
+                      value={entry.nome}
+                      onChange={(value) => updateVotoEntry(entry.id, "nome", value)}
+                      placeholder="Seleziona consigliere comunale"
+                      className="w-full"
+                      excludedNames={excludedNames}
+                    />
+                  </div>
                 <div>
                   <label className="text-xs text-gray-600">Voto</label>
                   <div className="flex justify-center mt-1">
@@ -441,7 +449,8 @@ const ComunicaVotiCard = React.memo(({
               </button>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Pulsante salva */}
@@ -568,23 +577,30 @@ const Votazione = React.memo(function Votazione() {
         throw new Error("Titolo e almeno un voto sono obbligatori");
       }
 
-      // Validazione che tutti i nomi siano di utenti esistenti
-      for (const entry of validVoti) {
-        try {
-          const response = await apiRequest("GET", `/api/users/search?q=${encodeURIComponent(entry.nome)}`);
-          if (!response.ok) {
-            throw new Error(`Errore nella validazione di "${entry.nome}"`);
-          }
-          
-          const data = await response.json();
-          const userExists = data.users.some((user: any) => user.displayName === entry.nome);
-          
-          if (!userExists) {
-            throw new Error(`"${entry.nome}" non è un utente registrato. Seleziona un nome dalla lista suggerita.`);
-          }
-        } catch (error) {
-          throw new Error(`Errore nella validazione di "${entry.nome}": ${error.message}`);
+      // Validazione duplicati nella stessa votazione
+      const nomi = validVoti.map(entry => entry.nome.trim());
+      const nomiUnici = new Set(nomi);
+      if (nomi.length !== nomiUnici.size) {
+        throw new Error("Un consigliere comunale non può essere inserito due volte nella stessa votazione");
+      }
+
+      // Validazione che tutti i nomi siano consiglieri comunali validi
+      try {
+        const consiglieriResponse = await apiRequest("GET", `/api/users/consiglieri-comunali`);
+        if (!consiglieriResponse.ok) {
+          throw new Error("Errore nel recupero dei consiglieri comunali");
         }
+        
+        const consiglieriData = await consiglieriResponse.json();
+        const consiglieriNames = consiglieriData.consiglieri.map((c: any) => c.displayName);
+        
+        for (const entry of validVoti) {
+          if (!consiglieriNames.includes(entry.nome.trim())) {
+            throw new Error(`"${entry.nome}" non è un consigliere comunale valido per il tuo comune. Seleziona un nome dalla lista suggerita.`);
+          }
+        }
+      } catch (error: any) {
+        throw new Error(error.message || "Errore nella validazione dei consiglieri comunali");
       }
 
       const comunicazioneData = {

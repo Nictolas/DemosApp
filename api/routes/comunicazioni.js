@@ -86,14 +86,29 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Gestione speciale per "Istituzione" - crea più righe (una per voto) e cancella quelle precedenti della stessa votazione
+    // Gestione speciale per "Istituzione" - crea più righe (una per voto) con upsert
     if (tipo === 'istituzione' && voti && Array.isArray(voti) && voti.length > 0) {
-      // Cancella tutte le comunicazioni precedenti con lo stesso titolo e tipo 'istituzione'
-      await pool.query(
-        'DELETE FROM notifiche_voti_comuni WHERE titolo = $1',
-        [titolo]
+      // Recupera comune_residenza dell'utente operante (Istituzione)
+      const utenteOperanteResult = await pool.query(
+        'SELECT comune_residenza FROM users WHERE id = $1',
+        [id_utente]
       );
-      console.log(`🗑️ Cancellate comunicazioni precedenti per votazione "${titolo}"`);
+      
+      if (utenteOperanteResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Utente operante non trovato'
+        });
+      }
+      
+      const comuneResidenzaOperante = utenteOperanteResult.rows[0].comune_residenza;
+      
+      if (!comuneResidenzaOperante) {
+        return res.status(400).json({
+          success: false,
+          error: 'Comune residenza dell\'utente operante non trovato. Imposta il comune residenza nel tuo profilo.'
+        });
+      }
 
       const comunicazioni = [];
       const { getFirebaseAdmin } = require('../services/firebaseAdmin');
@@ -102,47 +117,63 @@ router.post('/', async (req, res) => {
       for (const voto of voti) {
         if (!voto.nome || !voto.voto) continue;
 
-        // Cerca l'utente per nome (deve essere un utente reale registrato)
-        // Il nome può essere "Nome Cognome" o solo "Nome" o "Cognome"
+        // Cerca l'utente per nome completo (deve essere "Nome Cognome")
         const utenteResult = await pool.query(
           `SELECT id, nome, cognome, ruolo FROM users 
-           WHERE CONCAT(nome, ' ', cognome) ILIKE $1 
-              OR nome ILIKE $1 
-              OR cognome ILIKE $1
+           WHERE CONCAT(nome, ' ', cognome) = $1
            LIMIT 1`,
           [voto.nome.trim()]
         );
 
         if (utenteResult.rows.length === 0) {
-          console.log(`⚠️ Utente con ruolo "P" non trovato per: ${voto.nome}`);
+          console.log(`⚠️ Consigliere comunale non trovato per: ${voto.nome}`);
           return res.status(400).json({
             success: false,
-            error: `Utente "${voto.nome}" non trovato o non ha il ruolo "P" (Politico). Assicurati che sia un utente registrato con ruolo "P".`
+            error: `Consigliere comunale "${voto.nome}" non trovato. Assicurati di selezionare un consigliere dalla lista suggerita.`
           });
         }
 
         const utentePolitico = utenteResult.rows[0];
-        const testo = `Il voto di ${utentePolitico.nome} ${utentePolitico.cognome}: ${voto.voto}`;
-        const titoloCompleto = `${titolo} - ${utentePolitico.nome} ${utentePolitico.cognome}`;
+        const nomeCompletoPolitico = `${utentePolitico.nome} ${utentePolitico.cognome}`;
+        const testo = `Il voto di ${nomeCompletoPolitico}: ${voto.voto}`;
+        const titoloCompleto = `${titolo} - ${nomeCompletoPolitico}`;
 
-        // Crea nuova comunicazione per questo voto in notifiche_voti_comuni
-        // Recupera comune_residenza dall'utente politico se disponibile
-        const utenteComuneResult = await pool.query(
-          'SELECT comune_residenza FROM users WHERE id = $1',
-          [utentePolitico.id]
+        // Upsert: se esiste già una riga con stesso comune_residenza e politico, la sovrascrive
+        const existingResult = await pool.query(
+          `SELECT id FROM notifiche_voti_comuni 
+           WHERE comune_residenza = $1 AND politico = $2`,
+          [comuneResidenzaOperante, nomeCompletoPolitico]
         );
-        const comuneResidenza = utenteComuneResult.rows.length > 0 
-          ? utenteComuneResult.rows[0].comune_residenza 
-          : null;
 
-        const result = await pool.query(
-          `INSERT INTO notifiche_voti_comuni (
-            id, id_utente, titolo, testo, voto, comune_residenza, politico, likes, dislikes, data
-          ) VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE
-          ) RETURNING *`,
-          [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenza, utentePolitico.id.toString()]
-        );
+        let result;
+        if (existingResult.rows.length > 0) {
+          // Aggiorna riga esistente
+          result = await pool.query(
+            `UPDATE notifiche_voti_comuni SET
+              id_utente = $1,
+              titolo = $2,
+              testo = $3,
+              voto = $4,
+              data = CURRENT_DATE,
+              likes = 0,
+              dislikes = 0
+            WHERE comune_residenza = $5 AND politico = $6
+            RETURNING *`,
+            [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenzaOperante, nomeCompletoPolitico]
+          );
+          console.log(`🔄 Aggiornata riga esistente per ${nomeCompletoPolitico} nel comune ${comuneResidenzaOperante}`);
+        } else {
+          // Inserisci nuova riga
+          result = await pool.query(
+            `INSERT INTO notifiche_voti_comuni (
+              id, id_utente, titolo, testo, voto, comune_residenza, politico, likes, dislikes, data
+            ) VALUES (
+              gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE
+            ) RETURNING *`,
+            [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenzaOperante, nomeCompletoPolitico]
+          );
+          console.log(`✅ Inserita nuova riga per ${nomeCompletoPolitico} nel comune ${comuneResidenzaOperante}`);
+        }
 
         comunicazioni.push(result.rows[0]);
 
