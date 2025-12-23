@@ -296,8 +296,8 @@ export default function Strumenti() {
 
         {/* Pulsanti Navigazione - Nuova estetica */}
         <div className="flex-1 grid grid-cols-2 gap-1 min-h-0">
-          {/* Votazione (ora su /comunica) - solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione */}
-          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
+          {/* Comunica - solo per Istituzione e Admin, NON per Politico/Candidato/Candidato Politico */}
+          {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
