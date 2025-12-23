@@ -101,6 +101,7 @@ export default function Menu() {
               key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
               hasAdvancedAccess={hasAdvancedAccess}
               hasLimitedAccess={hasLimitedAccess}
+              userRole={user?.ruolo}
               onNavigate={navigateWithButtonReset}
             />
           </div>
