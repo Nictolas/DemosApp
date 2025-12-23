@@ -220,12 +220,14 @@ export default function Strumenti() {
   // Check if user has the right role for advanced features
   // Use the user object from useAuth() which should contain the ruolo field
   const userRole = user?.ruolo;
-  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
+  // Permetti l'accesso anche agli utenti Istituzione (I), Attivista (A) e Organizzazione (O)
+  // anche se vedranno solo alcuni pulsanti
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD" || userRole === "I" || userRole === "A" || userRole === "O";
 
   // Debug logging
   // Debug logging rimosso per evitare re-render
 
-  // Blocca completamente l'accesso per utenti "Elettore"
+  // Blocca completamente l'accesso solo per utenti "Elettore" e altri ruoli non autorizzati
   if (!hasAdvancedAccess) {
     return (
       <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
@@ -248,7 +250,7 @@ export default function Strumenti() {
                 Accesso Negato
               </CardTitle>
               <CardDescription>
-                Questa pagina è riservata a Politici, Candidati, Candidati Politici e Admin
+                Questa pagina è riservata a Politici, Candidati, Candidati Politici, Admin, Istituzioni, Attivisti e Organizzazioni
               </CardDescription>
             </CardHeader>
           </Card>
