@@ -355,8 +355,8 @@ export default function Strumenti() {
               </div>
             </button>
           ) : null}
-          {/* Sostenitori (Politico/Candidato/Admin/Attivista/Organizzazione) */}
-          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
+          {/* Sostenitori (Politico/Candidato/Admin/Attivista/Organizzazione, NON Istituzione) */}
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && user?.ruolo !== "I" && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"

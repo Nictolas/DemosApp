@@ -43,10 +43,12 @@ export default function Navbar() {
           <Calendar className={`h-7 w-7 mb-1 ${isActive("/eventi") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/eventi") ? "text-blue-600 font-semibold" : ""}`}>Eventi</span>
         </Link>
-        <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
-          <Heart className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
-          <span className={`text-xs hidden md:block ${isActive("/preferiti") ? "text-blue-600 font-semibold" : ""}`}>Preferiti</span>
-        </Link>
+        {userRole !== "I" && (
+          <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
+            <Heart className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
+            <span className={`text-xs hidden md:block ${isActive("/preferiti") ? "text-blue-600 font-semibold" : ""}`}>Preferiti</span>
+          </Link>
+        )}
         <Link href="/notifiche" className={getLinkClasses("/notifiche")} style={{marginTop: 0}}>
           <div className="relative">
             <Bell className={`h-7 w-7 mb-1 ${isActive("/notifiche") ? "drop-shadow-lg text-blue-600" : ""}`} />
