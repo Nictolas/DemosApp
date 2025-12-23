@@ -372,10 +372,16 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url'
     ];
     
-    // Normalizza i gradi di elezione e candidatura (prima lettera maiuscola)
+    // Normalizza i gradi di elezione e candidatura (tutto maiuscolo)
     const normalizeGrado = (grado) => {
-      if (!grado || typeof grado !== 'string') return grado;
-      return grado.charAt(0).toUpperCase() + grado.slice(1).toLowerCase();
+      // Se è null o undefined, restituisci null (per permettere la cancellazione)
+      if (grado === null || grado === undefined) return null;
+      // Se non è una stringa, restituisci il valore originale
+      if (typeof grado !== 'string') return grado;
+      // Se è una stringa vuota, restituisci null
+      if (grado.trim() === '') return null;
+      // I valori validi sono: CO, P, R, N, C, S, E (tutti maiuscoli)
+      return grado.toUpperCase();
     };
     
     // Filtra solo i campi consentiti e applica compressione/trasformazioni necessarie
@@ -477,9 +483,11 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
