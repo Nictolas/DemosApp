@@ -119,9 +119,6 @@ export const useProfileData = (userId?: string) => {
       }
       
       // 5. Carica configurazione avatar
-      console.log('🔍 DEBUG Profilo - avatar_config raw:', userData.avatar_config);
-      console.log('🔍 DEBUG Profilo - avatar_config type:', typeof userData.avatar_config);
-      
       if (userData.avatar_config) {
         try {
           let parsedConfig;
@@ -129,7 +126,6 @@ export const useProfileData = (userId?: string) => {
           // Se è già un oggetto, usalo direttamente
           if (typeof userData.avatar_config === 'object') {
             parsedConfig = userData.avatar_config;
-            console.log('✅ DEBUG Profilo - avatar_config è già un oggetto');
           } 
           // Se è una stringa, prova a parsarla
           else if (typeof userData.avatar_config === 'string') {
@@ -138,22 +134,18 @@ export const useProfileData = (userId?: string) => {
             if (typeof parsedConfig === 'string') {
               parsedConfig = JSON.parse(parsedConfig);
             }
-            console.log('✅ DEBUG Profilo - avatar_config parsato da stringa');
           } else {
-            console.warn('⚠️ DEBUG Profilo - avatar_config ha un tipo non gestito:', typeof userData.avatar_config);
             setAvatarConfig(null);
             return;
           }
           
-          console.log('✅ DEBUG Profilo - avatar_config parsato:', parsedConfig);
           setAvatarConfig(parsedConfig);
         } catch (avatarError) {
-          console.warn('⚠️ DEBUG Profilo - Errore nel parsing avatar config:', avatarError);
+          console.warn('⚠️ Errore nel parsing avatar config:', avatarError);
           // Se l'avatar_config non è JSON valido, imposta null
           setAvatarConfig(null);
         }
       } else {
-        console.log('⚠️ DEBUG Profilo - Nessun avatar_config trovato');
         setAvatarConfig(null);
       }
       

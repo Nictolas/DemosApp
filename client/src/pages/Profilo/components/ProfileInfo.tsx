@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Image, Globe, Heart } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Edit, Image, Globe, Heart, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { UserInfo } from "@/types/profile";
 import { TIPOLOGIE_ATTIVISMO } from "@/constants/attivismo-types";
@@ -27,34 +29,28 @@ export const ProfileInfo = ({
   avatarConfig
 }: ProfileInfoProps) => {
   const [, setLocation] = useLocation();
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
 
-  // Funzione per verificare se l'utente ha uno dei ruoli che possono avere l'avatar
+  // Funzione per verificare se l'utente di cui si sta visualizzando il profilo ha uno dei ruoli che possono avere l'avatar
+  // IMPORTANTE: controlla il ruolo dell'utente di cui si sta visualizzando il profilo (userInfo.ruolo), non di chi guarda
   const canShowAvatar = () => {
     const ruolo = userInfo.ruolo;
-    console.log('🔍 DEBUG ProfileInfo - Ruolo utente:', ruolo);
     // Verifica sia i codici abbreviati che i nomi completi
-    const canShow = (
+    return (
       ruolo === "P" || ruolo === "Politico" ||
       ruolo === "C" || ruolo === "Candidato" || ruolo === "CP" || ruolo === "Candidato Politico" ||
       ruolo === "AD" || ruolo === "Admin"
     );
-    console.log('🔍 DEBUG ProfileInfo - canShowAvatar:', canShow);
-    return canShow;
   };
 
   // Funzione per ottenere la configurazione avatar parsata
   const getAvatarConfig = () => {
-    console.log('🔍 DEBUG ProfileInfo - avatarConfig ricevuto:', avatarConfig);
-    console.log('🔍 DEBUG ProfileInfo - avatarConfig type:', typeof avatarConfig);
-    
     if (!avatarConfig) {
-      console.log('⚠️ DEBUG ProfileInfo - avatarConfig è null o undefined');
       return null;
     }
     
     // Se è già un oggetto, restituiscilo
     if (typeof avatarConfig === 'object' && avatarConfig !== null) {
-      console.log('✅ DEBUG ProfileInfo - avatarConfig è già un oggetto');
       return avatarConfig;
     }
     
@@ -66,17 +62,25 @@ export const ProfileInfo = ({
         if (typeof parsed === 'string') {
           parsed = JSON.parse(parsed);
         }
-        console.log('✅ DEBUG ProfileInfo - avatarConfig parsato da stringa');
         return parsed;
       } catch (e) {
-        console.warn('❌ DEBUG ProfileInfo - Errore nel parsing avatar config:', e);
+        console.warn('Errore nel parsing avatar config:', e);
         return null;
       }
     }
     
-    console.warn('⚠️ DEBUG ProfileInfo - avatarConfig ha un tipo non gestito:', typeof avatarConfig);
     return null;
   };
+
+  // Componente placeholder grigio per avatar vuoto
+  const AvatarPlaceholder = ({ size = 120 }: { size?: number }) => (
+    <div 
+      className="rounded-full bg-gray-300 flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <User className="text-gray-500" size={size * 0.5} />
+    </div>
+  );
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Non specificata';
@@ -130,23 +134,26 @@ export const ProfileInfo = ({
         </CardHeader>
         <CardContent className="relative">
           {/* Avatar - Solo per Politico, Candidato e Admin */}
-          {(() => {
-            const showAvatar = canShowAvatar();
-            const config = getAvatarConfig();
-            console.log('🔍 DEBUG ProfileInfo - Render avatar - showAvatar:', showAvatar, 'config:', config);
-            
-            return showAvatar && config ? (
-              <div className="mb-8 flex justify-center">
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg">
+          {/* Mostra sempre l'avatar se l'utente di cui si sta visualizzando il profilo ha uno dei ruoli richiesti */}
+          {canShowAvatar() && (
+            <div className="mb-8 flex justify-center">
+              <div 
+                className={`p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg ${canEdit ? 'cursor-pointer hover:shadow-xl transition-shadow duration-300' : ''}`}
+                onClick={canEdit ? () => setShowAvatarDialog(true) : undefined}
+                title={canEdit ? "Clicca per modificare l'avatar" : undefined}
+              >
+                {getAvatarConfig() ? (
                   <CustomAvatar 
-                    config={config} 
+                    config={getAvatarConfig()} 
                     size={120} 
                     className="rounded-full"
                   />
-                </div>
+                ) : (
+                  <AvatarPlaceholder size={120} />
+                )}
               </div>
-            ) : null;
-          })()}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
@@ -269,16 +276,6 @@ export const ProfileInfo = ({
         <CardFooter className="relative flex gap-3 pt-6">
           {canEdit && (
             <>
-              <Button 
-                onClick={onModificaImmagine} 
-                variant="outline"
-                className="flex-1 h-12 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group"
-              >
-                <div className="h-6 w-6 rounded-md bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                  <Image className="h-3 w-3 text-white" />
-                </div>
-                <span className="font-semibold">Modifica Immagine</span>
-              </Button>
               {(userInfo.ruolo === "A" || userInfo.ruolo === "AD") && onModificaSiti && (
                 <Button 
                   onClick={onModificaSiti} 
@@ -306,6 +303,29 @@ export const ProfileInfo = ({
           )}
         </CardFooter>
       </Card>
+
+      {/* Dialog di conferma per modificare l'avatar */}
+      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Modifica Avatar</DialogTitle>
+            <DialogDescription>
+              Vuoi modificare il tuo avatar?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAvatarDialog(false)}>
+              Annulla
+            </Button>
+            <Button onClick={() => {
+              setShowAvatarDialog(false);
+              onModificaImmagine();
+            }}>
+              Conferma
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
