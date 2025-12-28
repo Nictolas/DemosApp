@@ -10,6 +10,7 @@ import { useConsensoGovernoData } from "./hooks/useConsensoGovernoData";
 import { MinisteroCard } from "./components/MinisteroCard";
 import { MinisteroModal } from "./components/MinisteroModal";
 import { ConsensoGovernoSection } from "./components/ConsensoGovernoSection";
+import { GovernoAttualeSection } from "./components/GovernoAttualeSection";
 import { LoadingState } from "./components/LoadingState";
 import { ErrorState } from "./components/ErrorState";
 import { ministeri, colorMap } from "./constants/ministeri";
@@ -68,6 +69,9 @@ export default function Governo() {
               isVoting={isVotingConsenso}
             />
           )}
+
+          {/* Sezione Governo Attuale */}
+          <GovernoAttualeSection />
 
           {/* Griglia Ministeri */}
           {isLoading || isLoadingConsenso ? (
