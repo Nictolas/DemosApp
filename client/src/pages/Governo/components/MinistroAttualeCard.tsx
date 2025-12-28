@@ -3,6 +3,7 @@ import { Edit3, User } from "lucide-react";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { colorMap } from "../constants/ministeri";
 import { ruoloToCategoria, ruoloToColor } from "../constants/ruolo-to-categoria";
+import { ruoloToEmoji } from "../constants/ministri-attuali";
 import { Ministero } from "../types";
 import { ministeri } from "../constants/ministeri";
 
@@ -57,10 +58,11 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
     }
   }
 
-  // Ottieni categoria e colore per questo ruolo
+  // Ottieni categoria, colore e emoji per questo ruolo
   const categoria = ruoloToCategoria[ruoloMinistro] || "";
   const colorKey = ruoloToColor[ruoloMinistro] || "blue";
   const color = colorMap[colorKey as keyof typeof colorMap] || colorMap.blue;
+  const emoji = ruoloToEmoji[ruoloMinistro] || "🏛️";
 
   // Ottieni i dati dei voti per questo ministero
   const classifiche = votiData?.classifiche?.[categoria] || [];
@@ -99,8 +101,9 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
         className="relative -m-4 mb-4 p-4 text-white rounded-t-xl"
         style={{ background: `linear-gradient(135deg, ${color.bg} 0%, ${color.bg}dd 100%)` }}
       >
-        <h3 className="text-sm font-semibold">
-          {ruoloMinistro}
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <span className="text-lg">{emoji}</span>
+          <span>{ruoloMinistro}</span>
         </h3>
       </div>
 
