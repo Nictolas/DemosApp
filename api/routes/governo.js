@@ -681,17 +681,15 @@ router.put('/attuale/:ruolo', verifyToken, async (req, res) => {
         data: updateResult.rows[0]
       });
     } else {
-      // Crea un nuovo record
-      const insertId = `gov_att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Crea un nuovo record (l'ID viene generato automaticamente dal database)
       const insertQuery = `
         INSERT INTO governo_attuale (
-          id, ruolo_ministro, user_id, nome_utente, cognome_utente, email_utente, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          ruolo_ministro, user_id, nome_utente, cognome_utente, email_utente, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
         RETURNING *
       `;
       
       const insertResult = await pool.query(insertQuery, [
-        insertId,
         ruoloDecoded,
         userData?.id || null,
         userData?.nome || null,

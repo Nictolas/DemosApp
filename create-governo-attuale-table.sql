@@ -1,8 +1,8 @@
 -- Tabella per memorizzare i ministri attuali del governo
 CREATE TABLE IF NOT EXISTS governo_attuale (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ruolo_ministro VARCHAR(255) UNIQUE NOT NULL,
-    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     nome_utente VARCHAR(255),
     cognome_utente VARCHAR(255),
     email_utente VARCHAR(255),
