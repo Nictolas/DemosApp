@@ -130,11 +130,6 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
               <p className="text-sm font-medium text-gray-900 truncate">
                 {nomeCompleto}
               </p>
-              {ministro.email_utente && (
-                <p className="text-xs text-gray-500 mt-1 truncate">
-                  {ministro.email_utente}
-                </p>
-              )}
             </div>
             {isAdmin && (
               <button
@@ -147,8 +142,19 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
             )}
           </div>
         ) : (
-          <div className="text-sm text-gray-400 italic">
-            Nessun ministro assegnato
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-400 italic">
+              Nessun ministro assegnato
+            </div>
+            {isAdmin && (
+              <button
+                onClick={onEdit}
+                className="flex-shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Aggiungi ministro"
+              >
+                <Edit3 className="h-5 w-5" />
+              </button>
+            )}
           </div>
         )}
 
@@ -173,30 +179,29 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
           <div className="text-gray-600">
             {mioVoto ? (
               <div>
-                <div className="text-sm font-medium text-gray-900">{mioVoto}</div>
-                <div className="text-xs text-gray-500">Voto registrato</div>
+                <div className="text-sm font-medium text-gray-900 mb-2">{mioVoto}</div>
+                <div className="text-xs text-gray-500 mb-3">Voto registrato</div>
               </div>
             ) : (
-              <div className="text-xs text-gray-500">Non hai ancora votato</div>
+              <div className="text-xs text-gray-500 mb-3">Non hai ancora votato</div>
             )}
           </div>
+          {/* Pulsante Modifica Voto dentro Il Tuo Voto */}
+          <button
+            onClick={handleModificaVoto}
+            className="w-full text-white font-semibold py-2 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm"
+            style={{ backgroundColor: color.bg }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+          >
+            <Edit3 className="h-4 w-4" />
+            <span>Modifica Voto</span>
+          </button>
         </div>
-
-        {/* Pulsante Modifica Voto */}
-        <button
-          onClick={handleModificaVoto}
-          className="w-full text-white font-semibold py-2 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm"
-          style={{ backgroundColor: color.bg }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.9';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1';
-          }}
-        >
-          <Edit3 className="h-4 w-4" />
-          <span>Modifica Voto</span>
-        </button>
       </div>
     </div>
   );
