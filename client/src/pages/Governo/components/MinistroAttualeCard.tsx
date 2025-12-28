@@ -163,10 +163,7 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
           <h4 className="text-xs font-semibold text-gray-800 mb-2">Il Più Votato</h4>
           <div className="text-gray-600">
             {piuVotato ? (
-              <div>
-                <div className="text-sm font-medium text-gray-900">{piuVotato.nome}</div>
-                <div className="text-xs text-gray-500">{piuVotato.voti} voti</div>
-              </div>
+              <div className="text-sm font-medium text-gray-900">{piuVotato.nome}</div>
             ) : (
               <div className="text-xs text-gray-500">Nessun voto ancora</div>
             )}
@@ -176,14 +173,11 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
         {/* Il Tuo Voto */}
         <div className="bg-blue-50 rounded-xl p-3">
           <h4 className="text-xs font-semibold text-gray-800 mb-2">Il Tuo Voto</h4>
-          <div className="text-gray-600">
+          <div className="text-gray-600 mb-3">
             {mioVoto ? (
-              <div>
-                <div className="text-sm font-medium text-gray-900 mb-2">{mioVoto}</div>
-                <div className="text-xs text-gray-500 mb-3">Voto registrato</div>
-              </div>
+              <div className="text-sm font-medium text-gray-900">{mioVoto}</div>
             ) : (
-              <div className="text-xs text-gray-500 mb-3">Non hai ancora votato</div>
+              <div className="text-xs text-gray-500">Non hai ancora votato</div>
             )}
           </div>
           {/* Pulsante Modifica Voto dentro Il Tuo Voto */}
