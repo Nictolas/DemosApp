@@ -531,4 +531,128 @@ router.post('/consenso', verifyToken, async (req, res) => {
   }
 });
 
+// ===== ENDPOINTS PER GOVERNO ATTUALE =====
+
+// GET /api/governo/attuale - Ottieni i ministri attuali del governo
+router.get('/attuale', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM governo_attuale ORDER BY ruolo_ministro'
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero governo attuale:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/governo/attuale/:ruolo - Aggiorna o crea un ministro attuale
+router.put('/attuale/:ruolo', verifyToken, async (req, res) => {
+  try {
+    const { ruolo } = req.params;
+    const { user_id } = req.body;
+    const userId = req.userId;
+
+    // Verifica che l'utente sia admin
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+
+    if (userRole !== 'A' && userRole !== 'AD' && userRole !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo gli amministratori possono modificare il governo attuale.'
+      });
+    }
+
+    // Se user_id è fornito, verifica che l'utente esista
+    let userData = null;
+    if (user_id) {
+      const userCheckQuery = `SELECT id, nome, cognome, email FROM users WHERE id = $1`;
+      const userCheckResult = await pool.query(userCheckQuery, [user_id]);
+      
+      if (userCheckResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Utente non trovato'
+        });
+      }
+      
+      userData = userCheckResult.rows[0];
+    }
+
+    // Decodifica il ruolo dal parametro URL
+    const ruoloDecoded = decodeURIComponent(ruolo);
+
+    // Verifica se esiste già un record per questo ruolo
+    const existingQuery = `SELECT id FROM governo_attuale WHERE ruolo_ministro = $1`;
+    const existingResult = await pool.query(existingQuery, [ruoloDecoded]);
+
+    if (existingResult.rows.length > 0) {
+      // Aggiorna il record esistente
+      const updateQuery = `
+        UPDATE governo_attuale 
+        SET user_id = $1, 
+            nome_utente = $2, 
+            cognome_utente = $3, 
+            email_utente = $4,
+            updated_at = NOW()
+        WHERE ruolo_ministro = $5
+        RETURNING *
+      `;
+      
+      const updateResult = await pool.query(updateQuery, [
+        userData?.id || null,
+        userData?.nome || null,
+        userData?.cognome || null,
+        userData?.email || null,
+        ruoloDecoded
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Ministro aggiornato con successo',
+        data: updateResult.rows[0]
+      });
+    } else {
+      // Crea un nuovo record
+      const insertId = `gov_att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const insertQuery = `
+        INSERT INTO governo_attuale (
+          id, ruolo_ministro, user_id, nome_utente, cognome_utente, email_utente, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING *
+      `;
+      
+      const insertResult = await pool.query(insertQuery, [
+        insertId,
+        ruoloDecoded,
+        userData?.id || null,
+        userData?.nome || null,
+        userData?.cognome || null,
+        userData?.email || null
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Ministro aggiunto con successo',
+        data: insertResult.rows[0]
+      });
+    }
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento governo attuale:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;
