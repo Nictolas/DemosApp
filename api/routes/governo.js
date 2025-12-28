@@ -567,9 +567,15 @@ router.get('/attuale', async (req, res) => {
       });
     }
     
-    const result = await pool.query(
-      'SELECT * FROM governo_attuale ORDER BY ruolo_ministro'
-    );
+    // Recupera i ministri con i dati dell'utente incluso avatar_config
+    const result = await pool.query(`
+      SELECT 
+        ga.*,
+        u.avatar_config
+      FROM governo_attuale ga
+      LEFT JOIN users u ON ga.user_id = u.id
+      ORDER BY ga.ruolo_ministro
+    `);
     
     res.json({
       success: true,
