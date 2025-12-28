@@ -58,40 +58,50 @@ router.get('/voti', verifyToken, async (req, res) => {
       }
 
       // Voti dell'utente per questo ministero
-      const mieiVotiQuery = `
-        SELECT nome_display as nome
-        FROM ${tableName}
-        WHERE userid = $1
-        LIMIT 1
-      `;
+      try {
+        const mieiVotiQuery = `
+          SELECT nome_display as nome
+          FROM ${tableName}
+          WHERE userid = $1
+          LIMIT 1
+        `;
 
-      const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-      if (mieiVotiResult.rows.length > 0) {
-        mieiVoti[ministero] = mieiVotiResult.rows[0].nome;
+        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
+        if (mieiVotiResult.rows.length > 0) {
+          mieiVoti[ministero] = mieiVotiResult.rows[0].nome;
+        }
+      } catch (error) {
+        console.error(`❌ DEBUG - Errore nel recupero voti utente per ${ministero}:`, error.message);
+        // Continua senza aggiungere voti per questo ministero
       }
 
       // Controlla blocco settimanale per questo ministero (Admin può sempre votare)
-      const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-      const userResult = await pool.query(userQuery, [userId]);
-      const userRole = userResult.rows[0]?.ruolo;
+      try {
+        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+        const userResult = await pool.query(userQuery, [userId]);
+        const userRole = userResult.rows[0]?.ruolo;
 
-      if (userRole !== 'Admin') {
-        const bloccoQuery = `
-          SELECT 
-            CASE 
-              WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-              ELSE false
-            END as is_blocked,
-            MAX(timestamp) + INTERVAL '7 days' as unlock_date
-          FROM ${tableName}
-          WHERE userid = $1
-        `;
+        if (userRole !== 'Admin') {
+          const bloccoQuery = `
+            SELECT 
+              CASE 
+                WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+                ELSE false
+              END as is_blocked,
+              MAX(timestamp) + INTERVAL '7 days' as unlock_date
+            FROM ${tableName}
+            WHERE userid = $1
+          `;
 
-        const bloccoResult = await pool.query(bloccoQuery, [userId]);
-        if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
-          isBlocked = true;
-          unlockDate = bloccoResult.rows[0].unlock_date;
+          const bloccoResult = await pool.query(bloccoQuery, [userId]);
+          if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+            isBlocked = true;
+            unlockDate = bloccoResult.rows[0].unlock_date;
+          }
         }
+      } catch (error) {
+        console.error(`❌ DEBUG - Errore nel controllo blocco per ${ministero}:`, error.message);
+        // Continua senza bloccare
       }
     }
 
@@ -536,6 +546,27 @@ router.post('/consenso', verifyToken, async (req, res) => {
 // GET /api/governo/attuale - Ottieni i ministri attuali del governo
 router.get('/attuale', async (req, res) => {
   try {
+    // Verifica se la tabella esiste prima di fare la query
+    const tableCheckQuery = `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'governo_attuale'
+      );
+    `;
+    
+    const tableCheckResult = await pool.query(tableCheckQuery);
+    const tableExists = tableCheckResult.rows[0]?.exists;
+    
+    if (!tableExists) {
+      // Se la tabella non esiste, restituisci un array vuoto
+      console.log('⚠️ Tabella governo_attuale non esiste ancora, restituisco array vuoto');
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
     const result = await pool.query(
       'SELECT * FROM governo_attuale ORDER BY ruolo_ministro'
     );
@@ -545,6 +576,15 @@ router.get('/attuale', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
+    // Se l'errore è "relation does not exist", restituisci array vuoto
+    if (error.code === '42P01') {
+      console.log('⚠️ Tabella governo_attuale non esiste, restituisco array vuoto');
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
     console.error('❌ Errore nel recupero governo attuale:', error);
     res.status(500).json({
       success: false,
@@ -569,6 +609,25 @@ router.put('/attuale/:ruolo', verifyToken, async (req, res) => {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato. Solo gli amministratori possono modificare il governo attuale.'
+      });
+    }
+
+    // Verifica se la tabella esiste, altrimenti restituisci errore
+    const tableCheckQuery = `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'governo_attuale'
+      );
+    `;
+    
+    const tableCheckResult = await pool.query(tableCheckQuery);
+    const tableExists = tableCheckResult.rows[0]?.exists;
+    
+    if (!tableExists) {
+      return res.status(500).json({
+        success: false,
+        error: 'Tabella governo_attuale non esiste. Esegui lo script SQL per crearla.'
       });
     }
 
