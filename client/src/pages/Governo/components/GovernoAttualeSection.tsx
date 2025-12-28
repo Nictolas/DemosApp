@@ -6,6 +6,8 @@ import { Loader2 } from "lucide-react";
 import { MinistroAttualeCard } from "./MinistroAttualeCard";
 import { ModificaMinistroDialog } from "./ModificaMinistroDialog";
 import { ministriAttuali } from "../constants/ministri-attuali";
+import { useGovernoData } from "../hooks/useGovernoData";
+import { useGovernoActions } from "../hooks/useGovernoActions";
 
 export const GovernoAttualeSection: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +27,10 @@ export const GovernoAttualeSection: React.FC = () => {
     },
     staleTime: 30000, // Cache per 30 secondi
   });
+
+  // Dati dei voti per i ministeri
+  const { data: votiData } = useGovernoData(user);
+  const { handleNavigateToMinistero } = useGovernoActions();
 
   const handleEdit = (ruolo: string) => {
     setEditingRuolo(ruolo);
@@ -70,8 +76,10 @@ export const GovernoAttualeSection: React.FC = () => {
               key={ruolo}
               ruoloMinistro={ruolo}
               ministro={ministro}
+              votiData={votiData}
               isAdmin={isAdmin}
               onEdit={() => handleEdit(ruolo)}
+              onNavigate={handleNavigateToMinistero}
             />
           );
         })}

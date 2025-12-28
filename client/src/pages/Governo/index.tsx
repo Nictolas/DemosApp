@@ -72,30 +72,6 @@ export default function Governo() {
 
           {/* Sezione Governo Attuale */}
           <GovernoAttualeSection />
-
-          {/* Griglia Ministeri */}
-          {isLoading || isLoadingConsenso ? (
-            <div className="flex items-center justify-center py-8">
-              <LoadingState />
-            </div>
-          ) : isError ? (
-            <div className="flex items-center justify-center py-8">
-              <ErrorState />
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2 auto-rows-[minmax(120px,1fr)]">
-              {ministeri.map((ministero) => (
-                <MinisteroCard
-                  key={ministero.id}
-                  ministero={ministero}
-                  data={data}
-                  onNavigate={handleNavigateToMinistero}
-                  onOpenModal={handleOpenModal}
-                  isWide={ministero.id === "primo_ministro"}
-                />
-              ))}
-            </div>
-          )}
           
           {/* Modal */}
           {selectedMinistero && (
