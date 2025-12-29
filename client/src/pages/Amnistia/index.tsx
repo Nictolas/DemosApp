@@ -2,12 +2,12 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
+import { Loader2 } from "lucide-react";
 import { useAmnistiaData } from "./hooks/useAmnistiaData";
 import { useAmnistiaVoting } from "./hooks/useAmnistiaVoting";
 import { Header } from "./components/Header";
 import { AmnistiaForm } from "./components/AmnistiaForm";
 import { ClassificaLeggi } from "./components/ClassificaLeggi";
-import { LoadingStates } from "./components/LoadingStates";
 import { CreateButton } from "./components/CreateButton";
 import { CarceratoForm } from "./components/CarceratoForm";
 import { getSuggestions } from "./utils/amnistiaUtils";
@@ -52,6 +52,14 @@ export default function Amnistia() {
     }
   };
 
+  if (!authReady || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (!user) {
     return <Redirect to="/auth" />;
   }
@@ -59,52 +67,52 @@ export default function Amnistia() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
-        <LoadingStates 
-          authReady={authReady} 
-          isLoading={isLoading} 
-          isLoadingData={isLoadingData} 
-        />
-        
         <Header />
 
-        <div className="space-y-6">
-          <div className="flex justify-start items-center mb-4">
-            <CreateButton onClick={showForm} />
+        {isLoadingData ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-          
-          {votingState.showForm && (
-            <CarceratoForm
-              onSubmit={handleCreateAmnistia}
-              onCancel={hideForm}
-              isLoading={false}
+        ) : (
+          <div className="space-y-6">
+            <div className="flex justify-start items-center mb-4">
+              <CreateButton onClick={showForm} />
+            </div>
+            
+            {votingState.showForm && (
+              <CarceratoForm
+                onSubmit={handleCreateAmnistia}
+                onCancel={hideForm}
+                isLoading={false}
+              />
+            )}
+
+            <AmnistiaForm
+              leggeInput={votingState.leggeInput}
+              showSuggestions={votingState.showSuggestions}
+              mieiVoti={data?.mieiVoti || []}
+              suggestions={suggestions}
+              isPending={addVoteMutation.isPending}
+              onUpdateField={updateField}
+              onSubmit={onSubmit}
+              onRemoveVote={(legge) => handleRemoveVote(legge, removeVoteMutation)}
+              onSelectSuggestion={selectSuggestion}
+              onShowSuggestions={showSuggestions}
+              onHideSuggestions={hideSuggestions}
+              hasReachedLimit={hasReachedLimit}
             />
-          )}
 
-          <AmnistiaForm
-            leggeInput={votingState.leggeInput}
-            showSuggestions={votingState.showSuggestions}
-            mieiVoti={data?.mieiVoti || []}
-            suggestions={suggestions}
-            isPending={addVoteMutation.isPending}
-            onUpdateField={updateField}
-            onSubmit={onSubmit}
-            onRemoveVote={(legge) => handleRemoveVote(legge, removeVoteMutation)}
-            onSelectSuggestion={selectSuggestion}
-            onShowSuggestions={showSuggestions}
-            onHideSuggestions={hideSuggestions}
-            hasReachedLimit={hasReachedLimit}
-          />
-
-          <ClassificaLeggi
-            classifica={data?.classifica || []}
-            showAllClassifica={votingState.showAllClassifica}
-            isPending={addVoteMutation.isPending}
-            onVote={onVote}
-            onShowClassifica={showClassifica}
-            hasReachedLimit={hasReachedLimit}
-            mieiVoti={data?.mieiVoti || []}
-          />
-        </div>
+            <ClassificaLeggi
+              classifica={data?.classifica || []}
+              showAllClassifica={votingState.showAllClassifica}
+              isPending={addVoteMutation.isPending}
+              onVote={onVote}
+              onShowClassifica={showClassifica}
+              hasReachedLimit={hasReachedLimit}
+              mieiVoti={data?.mieiVoti || []}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
