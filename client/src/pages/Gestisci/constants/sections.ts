@@ -103,4 +103,14 @@ export const gestisciSections: GestisciSection[] = [
       route: "/notifiche-totali",
       buttonText: "Notifiche Totali"
     },
+    {
+      id: "notifiche-demos",
+      title: "Notifiche Demos",
+      description: "Invia notifiche push a tutti gli utenti con preferenze Demos attivate",
+      icon: Bell,
+      color: "text-indigo-600 group-hover:text-indigo-800",
+      buttonColor: "bg-indigo-500 hover:bg-indigo-600",
+      route: "/gestisci/notifiche-demos",
+      buttonText: "Notifiche Demos"
+    },
 ];

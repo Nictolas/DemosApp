@@ -1,9 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
-import { useFCM } from "@/hooks/useFCM";
 import { useNotificheData } from "./hooks/useNotificheData";
-import { useNotifichePrefs } from "./hooks/useNotifichePrefs";
 import { Header } from "./components/Header";
 import { ListaNotifiche } from "./components/ListaNotifiche";
 import { LoadingStates } from "./components/LoadingStates";
@@ -11,9 +9,7 @@ import { PageContainer } from "@/components/PageContainer";
 
 export default function Notifiche() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { token: fcmToken, error: fcmError, permission } = useFCM();
   const { data, isLoading, error, deleteSegnalazioneMutation } = useNotificheData(user);
-  const { handleSwitch } = useNotifichePrefs();
 
   
   if (!user) {
@@ -26,12 +22,7 @@ export default function Notifiche() {
         <LoadingStates isAuthLoading={isAuthLoading} />
         
         <div className="flex-shrink-0">
-          <Header
-            fcmToken={fcmToken}
-            fcmError={fcmError}
-            permission={permission}
-            onSwitch={handleSwitch}
-          />
+          <Header />
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">

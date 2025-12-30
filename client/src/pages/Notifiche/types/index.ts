@@ -59,20 +59,3 @@ export interface NotificaItemProps {
   notifica: Notifica;
   deleteSegnalazioneMutation?: any;
 }
-
-export interface PreferenzeNotificheProps {
-  fcmToken: string | null;
-  fcmError: string | null;
-  permission: string;
-  onSwitch: (key: string, value: boolean) => void;
-}
-
-export interface PreferenzeRappresentanti {
-  eurodeputato: boolean;
-  senatore: boolean;
-  deputato: boolean;
-  consigliere_regionale: boolean;
-  consigliere_comunale: boolean;
-  attivisti: boolean;
-  demos: boolean;
-}

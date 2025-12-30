@@ -51,6 +51,7 @@ import Siti from "./pages/Siti";
 import Organizzazioni from "./pages/Organizzazioni";
 import Notifiche from "./pages/Notifiche";
 import NotifichePreferenze from "./pages/NotifichePreferenze";
+import NotificheDemos from "./pages/NotificheDemos";
 import NotificheTotali from "./pages/NotificheTotali";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
@@ -86,6 +87,7 @@ import Sostenitori from "./pages/Sostenitori";
 import Comunica from "./pages/Comunica";
 import Evento from "./pages/Evento";
 import Programma from "./pages/Programma";
+import InformaCittadini from "./pages/InformaCittadini";
 import Riscontro from "./pages/Riscontro";
 import OpinioniEuropee from "./pages/OpinioniEuropee";
 import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
@@ -644,6 +646,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route notifiche demos */}
+              <Route path="/gestisci/notifiche-demos">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci/notifiche-demos" component={NotificheDemos} />
+                </PageTransition>
+              </Route>
+
               {/* Route impostazioni */}
               <Route path="/impostazioni">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
@@ -932,6 +941,13 @@ export default function App() {
               <Route path="/evento">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/evento" component={Evento} />
+                </PageTransition>
+              </Route>
+
+              {/* Route informa cittadini */}
+              <Route path="/informa-cittadini">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/informa-cittadini" component={InformaCittadini} />
                 </PageTransition>
               </Route>
 

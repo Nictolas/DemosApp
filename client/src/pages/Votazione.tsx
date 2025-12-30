@@ -8,11 +8,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell, ChevronDown } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,90 +39,8 @@ const comunicaVotiSchema = z.object({
   })).min(1, "Deve essere presente almeno un voto"),
 });
 
-const demosNotificationSchema = z.object({
-  titolo: z.string().min(1, "Il titolo è obbligatorio"),
-  commento: z.string().min(1, "Il commento è obbligatorio"),
-});
-
 type ComunicaFormData = z.infer<typeof comunicaSchema>;
 type ComunicaVotiFormData = z.infer<typeof comunicaVotiSchema>;
-type DemosNotificationFormData = z.infer<typeof demosNotificationSchema>;
-
-// Tematiche e tipologie per la sezione "Informa Cittadini"
-const INFORMA_TEMATICHE = [
-  {
-    id: "servizi-pubblici",
-    nome: "Servizi Pubblici",
-    emoji: "🏢",
-    bgColor: "from-blue-500 to-cyan-600",
-    tipologie: [
-      { value: "Interruzione erogazione acqua", emoji: "💧" },
-      { value: "Acqua non potabile", emoji: "🚱" },
-      { value: "Interruzione energia elettrica programmata", emoji: "⚡" },
-      { value: "Variazioni calendario raccolta rifiuti (es. Festività)", emoji: "🗑️" },
-      { value: "Sciopero servizio raccolta rifiuti", emoji: "🚛" },
-      { value: "Pulizia strade (Divieto di sosta temporaneo)", emoji: "🧹" },
-    ]
-  },
-  {
-    id: "viabilita",
-    nome: "Viabilità",
-    emoji: "🛣️",
-    bgColor: "from-orange-500 to-red-500",
-    tipologie: [
-      { value: "Chiusura strade per lavori", emoji: "🚧" },
-      { value: "Modifiche alla viabilità per eventi o manifestazioni", emoji: "🎪" },
-      { value: "Blocco del traffico per inquinamento (PM10)", emoji: "🌫️" },
-    ]
-  },
-  {
-    id: "scuola",
-    nome: "Scuola",
-    emoji: "🏫",
-    bgColor: "from-teal-500 to-emerald-600",
-    tipologie: [
-      { value: "Scuole Chiuse", emoji: "🏫" },
-      { value: "Scadenza iscrizione Scuolabus", emoji: "🚌" },
-      { value: "Scadenza iscrizione Mensa", emoji: "🍽️" },
-    ]
-  },
-  {
-    id: "tasse-amministrazione",
-    nome: "Tasse e Amministrazione",
-    emoji: "📋",
-    bgColor: "from-indigo-500 to-purple-600",
-    tipologie: [
-      { value: "Scadenza IMU", emoji: "🏠" },
-      { value: "Scadenza TARI", emoji: "🧾" },
-      { value: "Pubblicazione Bandi e Concorsi", emoji: "📢" },
-      { value: "Variazione orari uffici comunali", emoji: "🏛️" },
-    ]
-  },
-  {
-    id: "sicurezza-ambiente",
-    nome: "Sicurezza e Ambiente",
-    emoji: "🛡️",
-    bgColor: "from-red-600 to-orange-600",
-    tipologie: [
-      { value: "Disinfestazione zanzare", emoji: "🦟" },
-      { value: "Derattizzazione", emoji: "🐀" },
-      { value: "Chiusura parchi pubblici per vento forte", emoji: "🌳" },
-      { value: "Divieto Botti", emoji: "🎆" },
-      { value: "Divieto vendita alcolici", emoji: "🚫🍺" },
-      { value: "Avvisi di Protezione Civile (es. rischio incendi, esondazioni)", emoji: "🚨" },
-      { value: "Ritrovamento ordigni bellici (Evacuazione)", emoji: "⚠️" },
-      { value: "Allerta Meteo", emoji: "🌦️" },
-    ]
-  },
-] as const;
-
-// Array flat di tutte le tipologie per compatibilità con il codice esistente
-const INFORMA_TIPOLOGIE = INFORMA_TEMATICHE.flatMap(tematica => 
-  tematica.tipologie.map(tipologia => ({
-    value: tipologia.value,
-    emoji: tipologia.emoji
-  }))
-);
 
 interface ExistingComunicazione {
   titolo: string;
@@ -136,204 +53,6 @@ interface VotoEntry {
   nome: string;
   voto: "Favorevole" | "Contrario" | "Astenuto";
 }
-
-// Card per la sezione "Informa Cittadini"
-const InformaCittadiniCard = React.memo(({
-  submitInformaCittadini
-}: {
-  submitInformaCittadini: any;
-}) => {
-  const [tematicheSelezionata, setTematicheSelezionata] = useState<string | null>(null);
-  const [tipologia, setTipologia] = useState<string>("");
-  const [dove, setDove] = useState("");
-  const [dalGiorno, setDalGiorno] = useState("");
-  const [alGiorno, setAlGiorno] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [tuttoComune, setTuttoComune] = useState(false);
-
-  const handleSubmit = () => {
-    if (!tipologia || (!tuttoComune && !dove.trim()) || !dalGiorno || !alGiorno) {
-      return;
-    }
-
-    submitInformaCittadini.mutate({
-      tipologia,
-      dove: tuttoComune ? "Tutto il comune" : dove.trim(),
-      dalGiorno,
-      alGiorno,
-    });
-  };
-
-  React.useEffect(() => {
-    if (submitInformaCittadini.isSuccess) {
-      setTipologia("");
-      setDove("");
-      setDalGiorno("");
-      setAlGiorno("");
-      setTuttoComune(false);
-      setTematicheSelezionata(null);
-      setIsDialogOpen(false);
-    }
-  }, [submitInformaCittadini.isSuccess]);
-
-  // Reset tematica quando si chiude il dialog senza inviare
-  const handleDialogClose = (open: boolean) => {
-    setIsDialogOpen(open);
-    if (!open && !tipologia) {
-      // Se il dialog viene chiuso senza aver selezionato una tipologia, resetta anche la tematica
-      setTematicheSelezionata(null);
-    }
-  };
-
-  const tematicaSelezionata = tematicheSelezionata 
-    ? INFORMA_TEMATICHE.find(t => t.id === tematicheSelezionata)
-    : null;
-
-  return (
-    <>
-      <div className="space-y-4">
-        {!tematicheSelezionata ? (
-          <>
-            <label className="text-sm font-medium">Tematica *</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {INFORMA_TEMATICHE.map((tematica) => (
-                <Button
-                  key={tematica.id}
-                  type="button"
-                  variant="outline"
-                  className={`min-h-[6rem] rounded-2xl border-0 bg-gradient-to-br ${tematica.bgColor} text-white text-sm px-3 py-3 flex flex-col items-center justify-center gap-2 transition-all duration-200 opacity-90 hover:opacity-100 hover:scale-105`}
-                  onClick={() => setTematicheSelezionata(tematica.id)}
-                >
-                  <span className="text-4xl leading-none">{tematica.emoji}</span>
-                  <span className="text-xs text-center leading-snug font-semibold">
-                    {tematica.nome}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 mb-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setTematicheSelezionata(null);
-                  setTipologia("");
-                }}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                ← Torna alle tematiche
-              </Button>
-            </div>
-            <label className="text-sm font-medium">Tipologia *</label>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {tematicaSelezionata?.tipologie.map((tipo) => (
-                <Button
-                  key={tipo.value}
-                  type="button"
-                  variant="outline"
-                  className={`min-h-[6.5rem] rounded-2xl border-0 bg-gradient-to-br ${tematicaSelezionata.bgColor} text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
-                    ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}`}
-                  onClick={() => {
-                    setTipologia(tipo.value);
-                    setIsDialogOpen(true);
-                  }}
-                >
-                  <span className="text-3xl leading-none">{tipo.emoji}</span>
-                  <span className="text-[11px] text-center leading-snug break-words whitespace-normal">
-                    {tipo.value}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-              <span>
-                {INFORMA_TIPOLOGIE.find(t => t.value === tipologia)?.emoji}
-              </span>
-              <span>{tipologia || "Informa Cittadini"}</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Dove *</label>
-              <Input
-                type="text"
-                placeholder="Es: Via Roma, quartiere Centro Storico"
-                value={dove}
-                onChange={(e) => setDove(e.target.value)}
-                disabled={tuttoComune}
-              />
-              <div className="flex items-center gap-2 pt-1">
-                <Checkbox
-                  id="tutto-comune"
-                  checked={tuttoComune}
-                  onCheckedChange={(checked) => {
-                    const value = Boolean(checked);
-                    setTuttoComune(value);
-                    if (value) {
-                      setDove("");
-                    }
-                  }}
-                />
-                <label
-                  htmlFor="tutto-comune"
-                  className="text-xs text-gray-700 leading-none cursor-pointer"
-                >
-                  Tutto il comune
-                </label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Dal giorno *</label>
-                <Input
-                  type="date"
-                  value={dalGiorno}
-                  onChange={(e) => setDalGiorno(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Al giorno *</label>
-                <Input
-                  type="date"
-                  value={alGiorno}
-                  onChange={(e) => setAlGiorno(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              className="w-full"
-              disabled={
-                submitInformaCittadini.isPending ||
-                !tipologia ||
-                (!tuttoComune && !dove.trim()) ||
-                !dalGiorno ||
-                !alGiorno
-              }
-              onClick={handleSubmit}
-            >
-              {submitInformaCittadini.isPending ? "Invio in corso..." : "Invia Comunicazione"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-});
 
 // Componente per Comunica Voti - spostato fuori dal componente principale
 const ComunicaVotiCard = React.memo(({ 
@@ -480,51 +199,6 @@ const Votazione = React.memo(function Votazione() {
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
 
-  // Mutation per la sezione "Informa Cittadini"
-  const submitInformaCittadini = useMutation({
-    mutationFn: async (data: {
-      tipologia: string;
-      dove: string;
-      dalGiorno: string;
-      alGiorno: string;
-    }) => {
-      if (!user?.id) {
-        throw new Error('ID utente non disponibile. Riprova tra qualche secondo.');
-      }
-
-      const payload = {
-        tipologia: data.tipologia,
-        dove: data.dove,
-        dal_giorno: data.dalGiorno,
-        al_giorno: data.alGiorno,
-        zona: "Generale",
-        id_utente: user.id,
-      };
-
-      const response = await apiRequest("POST", "/api/informa-cittadini", payload);
-      if (!response.ok) {
-        throw new Error("Errore nell'invio della comunicazione ai cittadini");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Comunicazione inviata",
-        description: "L'avviso ai cittadini è stato registrato con successo.",
-      });
-      console.log('🔄 Invalidando notificationBadge dopo invio Informa Cittadini');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Errore",
-        description: error.message || "Si è verificato un errore nell'invio della comunicazione.",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  const [isInformaOpen, setIsInformaOpen] = useState(false);
   const [isComunicaVotiOpen, setIsComunicaVotiOpen] = useState(false);
 
   const form = useForm<ComunicaFormData>({
@@ -532,10 +206,6 @@ const Votazione = React.memo(function Votazione() {
     defaultValues: { titolo: "", voto_dato: "Favorevole", commento: "", vincitore: "Approvata" },
   });
 
-  const demosForm = useForm<DemosNotificationFormData>({
-    resolver: zodResolver(demosNotificationSchema),
-    defaultValues: { titolo: "", commento: "" },
-  });
 
   // Funzione per controllare duplicati solo al blur (temporaneamente disabilitata per debug)
   const handleTitoloBlur = useCallback((value: string) => {
@@ -640,40 +310,6 @@ const Votazione = React.memo(function Votazione() {
     },
   });
 
-  // Mutazione per le notifiche di Demos
-  const submitDemosNotification = useMutation({
-    mutationFn: (data: DemosNotificationFormData) => {
-      if (!user?.id) {
-        throw new Error('ID utente non disponibile. Riprova tra qualche secondo.');
-      }
-      
-      const comunicazioneData = {
-        titolo: data.titolo,
-        commento: data.commento,
-        zona: "Generale",
-        id_utente: user.id,
-        tipo: "demos_notification"
-      };
-      
-      return apiRequest("POST", "/api/comunicazioni", comunicazioneData);
-    },
-    onSuccess: () => {
-      toast({ 
-        title: "Notifica inviata", 
-        description: "La notifica di Demos è stata inviata a tutti gli utenti." 
-      });
-      demosForm.reset();
-      console.log('🔄 Invalidando notificationBadge dopo invio notifica Demos');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Errore", 
-        description: error.message || "Invio fallito.", 
-        variant: "destructive" 
-      });
-    },
-  });
 
 
   // 1. Caricamento dati utente con React Query (temporaneamente disabilitato per debug)
@@ -744,7 +380,6 @@ const Votazione = React.memo(function Votazione() {
   const userRole = userData?.ruolo || user?.ruolo;
   const isAllowed = userRole === "P" || userRole === "CP" || userRole === "AD";
   const canComunicaVoti = userRole === "AD" || userRole === "I";
-  const canSendDemosNotifications = userRole === "AD";
   const isAdmin = userRole === "AD";
   
   if (userData && !isAllowed) {
@@ -933,154 +568,49 @@ const Votazione = React.memo(function Votazione() {
   });
 
 
-  // Componente per Notifiche di Demos - memoizzato
-  const NotificheDemosCard = React.memo(() => (
-    <Card className="w-full bg-white">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-          <Bell className="h-6 w-6" />
-          Notifiche di Demos
-        </CardTitle>
-        <CardDescription className="text-center">
-          Invia notifiche a tutti gli utenti dell'applicazione.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <Form {...demosForm}>
-          <form onSubmit={demosForm.handleSubmit((data) => submitDemosNotification.mutate(data))} className="space-y-4">
-            {/* Input semplificati per test */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Titolo della notifica *</label>
-              <input
-                type="text"
-                placeholder="Es: Aggiornamento importante..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                {...demosForm.register("titolo")}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Commento *</label>
-              <textarea
-                rows={5}
-                placeholder="Inserisci il messaggio per tutti gli utenti..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px]"
-                {...demosForm.register("commento")}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={submitDemosNotification.isPending}>
-              {submitDemosNotification.isPending ? "Invio in corso..." : "Invia Notifica a Tutti"}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  ));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
       <div className="container mx-auto px-4 py-8 pb-24">
         {isAdmin ? (
-          // Admin vede le 2 schede (Istituzione e Notifiche Demos)
-          <Tabs defaultValue="comunica-voti" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="comunica-voti" className="flex items-center gap-2">
-                <Calculator className="h-4 w-4" />
-                Istituzione
-              </TabsTrigger>
-              <TabsTrigger value="notifiche-demos" className="flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                Notifiche Demos
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="comunica-voti" className="mt-6 space-y-4">
-              {/* Sezione Informa Cittadini (collassabile) */}
-              <Card className="w-full bg-white">
-                <CardHeader 
-                  className="flex flex-row items-center justify-between cursor-pointer"
-                  onClick={() => setIsInformaOpen(prev => !prev)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-emerald-600" />
-                    <CardTitle className="text-lg font-semibold">
-                      Informa Cittadini
-                    </CardTitle>
-                  </div>
-                  <ChevronDown
-                    className={`h-5 w-5 text-gray-500 transition-transform ${isInformaOpen ? "rotate-180" : ""}`}
+          // Admin vede solo le sezioni Istituzione
+          <div className="space-y-4">
+            {/* Sezione Comunica Voti (collassabile) */}
+            <Card className="w-full bg-white">
+              <CardHeader 
+                className="flex flex-row items-center justify-between cursor-pointer"
+                onClick={() => setIsComunicaVotiOpen(prev => !prev)}
+              >
+                <div className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5 text-blue-600" />
+                  <CardTitle className="text-lg font-semibold">
+                    Comunica Voti
+                  </CardTitle>
+                </div>
+                <ChevronDown
+                  className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
+                />
+              </CardHeader>
+              {isComunicaVotiOpen && (
+                <CardContent className="pt-0 pb-6">
+                  <ComunicaVotiCard 
+                    titoloVotazione={titoloVotazione}
+                    setTitoloVotazione={setTitoloVotazione}
+                    votiEntries={votiEntries}
+                    addVotoEntry={addVotoEntry}
+                    updateVotoEntry={updateVotoEntry}
+                    removeVotoEntry={removeVotoEntry}
+                    submitComunicaVoti={submitComunicaVoti}
                   />
-                </CardHeader>
-                {isInformaOpen && (
-                  <CardContent className="pt-0 pb-6">
-                    <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
-                  </CardContent>
-                )}
-              </Card>
-              
-              {/* Sezione Comunica Voti (collassabile) */}
-              <Card className="w-full bg-white">
-                <CardHeader 
-                  className="flex flex-row items-center justify-between cursor-pointer"
-                  onClick={() => setIsComunicaVotiOpen(prev => !prev)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Calculator className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-lg font-semibold">
-                      Comunica Voti
-                    </CardTitle>
-                  </div>
-                  <ChevronDown
-                    className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
-                  />
-                </CardHeader>
-                {isComunicaVotiOpen && (
-                  <CardContent className="pt-0 pb-6">
-                    <ComunicaVotiCard 
-                      titoloVotazione={titoloVotazione}
-                      setTitoloVotazione={setTitoloVotazione}
-                      votiEntries={votiEntries}
-                      addVotoEntry={addVotoEntry}
-                      updateVotoEntry={updateVotoEntry}
-                      removeVotoEntry={removeVotoEntry}
-                      submitComunicaVoti={submitComunicaVoti}
-                    />
-                  </CardContent>
-                )}
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="notifiche-demos" className="mt-6">
-              <NotificheDemosCard />
-            </TabsContent>
-          </Tabs>
+                </CardContent>
+              )}
+            </Card>
+          </div>
         ) : (
           // Altri utenti vedono solo i riquadri che possono usare
           <div className="space-y-6">
             {canComunicaVoti && (
-              <>
-                <Card className="w-full bg-white">
-                  <CardHeader 
-                    className="flex flex-row items-center justify-between cursor-pointer"
-                    onClick={() => setIsInformaOpen(prev => !prev)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Bell className="h-5 w-5 text-emerald-600" />
-                      <CardTitle className="text-lg font-semibold">
-                        Informa Cittadini
-                      </CardTitle>
-                    </div>
-                    <ChevronDown
-                      className={`h-5 w-5 text-gray-500 transition-transform ${isInformaOpen ? "rotate-180" : ""}`}
-                    />
-                  </CardHeader>
-                  {isInformaOpen && (
-                    <CardContent className="pt-0 pb-6">
-                      <InformaCittadiniCard submitInformaCittadini={submitInformaCittadini} />
-                    </CardContent>
-                  )}
-                </Card>
-
-                <Card className="w-full bg-white">
+              <Card className="w-full bg-white">
                   <CardHeader 
                     className="flex flex-row items-center justify-between cursor-pointer"
                     onClick={() => setIsComunicaVotiOpen(prev => !prev)}
@@ -1111,7 +641,6 @@ const Votazione = React.memo(function Votazione() {
                 </Card>
               </>
             )}
-            {canSendDemosNotifications && <NotificheDemosCard />}
           </div>
         )}
       </div>
