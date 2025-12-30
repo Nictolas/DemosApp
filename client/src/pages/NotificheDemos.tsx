@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Bell, ArrowLeft, Loader2, Send, TestTube } from "lucide-react";
+import { Bell, ArrowLeft, Loader2, Send, TestTube, AlertCircle } from "lucide-react";
 
 const demosNotificationSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -28,6 +28,21 @@ export default function NotificheDemos() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Verifica lo stato delle preferenze dell'utente corrente
+  const { data: debugData, isLoading: isLoadingDebug } = useQuery({
+    queryKey: ['/api/comunicazioni/debug-notifiche-demos', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const response = await apiRequest("GET", "/api/comunicazioni/debug-notifiche-demos");
+      if (!response.ok) {
+        throw new Error('Errore nel recupero dello stato');
+      }
+      return response.json();
+    },
+    enabled: !!user?.id,
+    retry: false,
+  });
 
   const demosForm = useForm<DemosNotificationFormData>({
     resolver: zodResolver(demosNotificationSchema),
@@ -185,6 +200,36 @@ export default function NotificheDemos() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Mostra stato utente corrente */}
+            {!isLoadingDebug && debugData?.data && (
+              <Alert 
+                variant={debugData.data.preferenze.ricevera_notifiche ? "default" : "destructive"}
+                className="mb-4"
+              >
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Il tuo stato:</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                    <li>Preferenza "Demos": {debugData.data.preferenze.demos_attivo ? "✅ Attiva" : "❌ Non attiva"}</li>
+                    <li>Token FCM: {debugData.data.preferenze.ha_fcm_tokens ? `✅ Presente (${debugData.data.preferenze.numero_token_fcm})` : "❌ Non presente"}</li>
+                    <li>Riceverai notifiche: {debugData.data.preferenze.ricevera_notifiche ? "✅ Sì" : "❌ No"}</li>
+                  </ul>
+                  {!debugData.data.preferenze.ricevera_notifiche && (
+                    <div className="mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocation("/notifiche/preferenze")}
+                        className="mt-2"
+                      >
+                        Attiva Preferenze "Demos"
+                      </Button>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Button
               type="button"
               variant="outline"
