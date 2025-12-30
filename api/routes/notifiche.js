@@ -554,6 +554,66 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/notifiche/preferenze - Ottieni preferenze notifiche utente
+router.get('/preferenze', verifyToken, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    
+    // Recupera le preferenze dalla nuova tabella notifiche_preferenze
+    const result = await pool.query(
+      `SELECT demos, istituzione, avvistamenti, updated_at
+       FROM notifiche_preferenze
+       WHERE user_id = $1`,
+      [user_id]
+    );
+    
+    if (result.rows.length === 0) {
+      // Se non esistono preferenze, crea record con valori di default
+      const defaultResult = await pool.query(
+        `INSERT INTO notifiche_preferenze (user_id, demos, istituzione, avvistamenti)
+         VALUES ($1, false, false, true)
+         RETURNING demos, istituzione, avvistamenti, updated_at`,
+        [user_id]
+      );
+      
+      return res.json({
+        success: true,
+        data: {
+          user_id,
+          preferenze: {
+            demos: defaultResult.rows[0].demos,
+            istituzione: defaultResult.rows[0].istituzione,
+            avvistamenti: defaultResult.rows[0].avvistamenti
+          },
+          updated_at: defaultResult.rows[0].updated_at
+        }
+      });
+    }
+    
+    const prefs = result.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        user_id,
+        preferenze: {
+          demos: prefs.demos,
+          istituzione: prefs.istituzione,
+          avvistamenti: prefs.avvistamenti
+        },
+        updated_at: prefs.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero preferenze notifiche:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // POST /api/notifiche/preferenze - Salva preferenze notifiche utente
 router.post('/preferenze', verifyToken, async (req, res) => {
   try {
@@ -567,31 +627,51 @@ router.post('/preferenze', verifyToken, async (req, res) => {
       });
     }
     
-    // Aggiorna le preferenze notifiche nella tabella users
-    // La colonna si chiama notifiche_preferenze
+    // Estrai i valori (gestisci sia booleani che stringhe)
+    const demos = preferenze.demos === true || preferenze.demos === 'true';
+    const istituzione = preferenze.istituzione === true || preferenze.istituzione === 'true';
+    const avvistamenti = preferenze.avvistamenti !== false && preferenze.avvistamenti !== 'false';
+    
+    // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
     const result = await pool.query(
-      `UPDATE users 
-       SET notifiche_preferenze = $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING id, notifiche_preferenze`,
-      [JSON.stringify(preferenze), user_id]
+      `INSERT INTO notifiche_preferenze (user_id, demos, istituzione, avvistamenti)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET 
+         demos = EXCLUDED.demos,
+         istituzione = EXCLUDED.istituzione,
+         avvistamenti = EXCLUDED.avvistamenti,
+         updated_at = NOW()
+       RETURNING user_id, demos, istituzione, avvistamenti, updated_at`,
+      [user_id, demos, istituzione, avvistamenti]
     );
     
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        error: 'Utente non trovato'
+        error: 'Errore nel salvataggio delle preferenze'
       });
     }
     
-    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, preferenze);
+    const savedPrefs = result.rows[0];
+    
+    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
+      demos: savedPrefs.demos,
+      istituzione: savedPrefs.istituzione,
+      avvistamenti: savedPrefs.avvistamenti
+    });
     
     res.json({
       success: true,
       message: 'Preferenze salvate con successo',
       data: {
-        user_id: result.rows[0].id,
-        preferenze: result.rows[0].notifiche_preferenze
+        user_id: savedPrefs.user_id,
+        preferenze: {
+          demos: savedPrefs.demos,
+          istituzione: savedPrefs.istituzione,
+          avvistamenti: savedPrefs.avvistamenti
+        },
+        updated_at: savedPrefs.updated_at
       }
     });
   } catch (error) {
