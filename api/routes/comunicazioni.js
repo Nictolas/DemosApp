@@ -642,6 +642,25 @@ router.post('/send-demos-notification', async (req, res) => {
     const commento = messaggio || titolo;
     console.log('🚀 Avvio invio notifiche...');
 
+    // Prima di inviare, verifica quanti utenti sono idonei
+    const checkResult = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT u.id) as totale_utenti,
+        COUNT(DISTINCT CASE WHEN np.demos = true THEN u.id END) as utenti_con_demos_attivo,
+        COUNT(DISTINCT CASE WHEN u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_con_fcm_tokens,
+        COUNT(DISTINCT CASE WHEN np.demos = true AND u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_idonei
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE (u.status = 'active' OR u.status IS NULL)
+    `);
+
+    const stats = checkResult.rows[0];
+    console.log('📊 Statistiche utenti:');
+    console.log(`   - Totale utenti: ${stats.totale_utenti}`);
+    console.log(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
+    console.log(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
+    console.log(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
+
     // Invia la notifica a tutti gli utenti con demos: true
     await notifyAllUsers(titolo, commento);
 
@@ -653,12 +672,88 @@ router.post('/send-demos-notification', async (req, res) => {
       data: {
         titolo,
         messaggio: commento,
-        destinatari: 'Tutti gli utenti con notifiche Demos attivate'
+        destinatari: 'Tutti gli utenti con notifiche Demos attivate',
+        statistiche: {
+          totale_utenti: parseInt(stats.totale_utenti),
+          utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
+          utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
+          utenti_idonei: parseInt(stats.utenti_idonei)
+        }
       }
     });
   } catch (error) {
     console.error('❌ Errore nell\'invio notifica Demos:', error);
     console.error('❌ Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/comunicazioni/debug-notifiche-demos - Debug per verificare lo stato delle notifiche Demos
+router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Verifica lo stato dell'utente corrente
+    const userResult = await pool.query(`
+      SELECT 
+        u.id,
+        u.email,
+        u.nome,
+        u.cognome,
+        u.status,
+        u.fcm_tokens,
+        np.demos as demos_preferenza,
+        CASE 
+          WHEN u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN true 
+          ELSE false 
+        END as ha_fcm_tokens,
+        CASE 
+          WHEN np.demos = true AND u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN true 
+          ELSE false 
+        END as ricevera_notifiche
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE u.id = $1
+    `, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    const fcmTokens = user.fcm_tokens || [];
+    
+    res.json({
+      success: true,
+      data: {
+        utente: {
+          id: user.id,
+          email: user.email,
+          nome: user.nome,
+          cognome: user.cognome,
+          status: user.status
+        },
+        preferenze: {
+          demos_attivo: user.demos_preferenza === true,
+          ha_fcm_tokens: user.ha_fcm_tokens,
+          numero_token_fcm: fcmTokens.length,
+          ricevera_notifiche: user.ricevera_notifiche
+        },
+        token_fcm: fcmTokens.length > 0 ? fcmTokens.map(t => ({
+          preview: t ? `${t.substring(0, 30)}...` : null,
+          length: t ? t.length : 0
+        })) : []
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel debug notifiche Demos:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
