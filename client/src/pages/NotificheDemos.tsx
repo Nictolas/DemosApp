@@ -55,9 +55,15 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
+      const stats = data.data?.statistiche;
+      const message = stats 
+        ? `Notifica inviata a ${stats.utenti_idonei} utente/i (${stats.utenti_con_demos_attivo} con preferenze attive, ${stats.utenti_con_fcm_tokens} con token FCM)`
+        : "La notifica di test è stata inviata a tutti gli utenti con le preferenze 'Demos' attivate.";
+      
       toast({ 
         title: "Notifica di test inviata", 
-        description: "La notifica di test è stata inviata a tutti gli utenti con le preferenze 'Demos' attivate." 
+        description: message,
+        duration: 5000
       });
       console.log('🔄 Invalidando notificationBadge dopo invio notifica di test');
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
@@ -204,6 +210,15 @@ export default function NotificheDemos() {
               <AlertDescription>
                 <strong>Nota:</strong> La notifica di test verrà inviata solo agli utenti che hanno attivato 
                 le notifiche "Demos" nelle loro preferenze e che hanno un token FCM valido.
+                <br />
+                <br />
+                <strong>Se non ricevi la notifica:</strong>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                  <li>Verifica di aver attivato le notifiche "Demos" in <a href="/notifiche/preferenze" className="text-blue-600 underline">Preferenze Notifiche</a></li>
+                  <li>Assicurati di aver concesso i permessi per le notifiche push nel browser/app</li>
+                  <li>Controlla che il dispositivo sia connesso a internet</li>
+                  <li>Verifica che l'app sia aperta o in background (non chiusa completamente)</li>
+                </ul>
               </AlertDescription>
             </Alert>
           </CardContent>
