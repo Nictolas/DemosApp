@@ -126,6 +126,60 @@ export default function NotificheDemos() {
     },
   });
 
+  // Query per debug Firebase Admin - auto-verifica all'apertura della pagina
+  const { data: firebaseDebugData, refetch: refetchFirebaseDebug, isLoading: isLoadingFirebaseDebug } = useQuery({
+    queryKey: ['/api/comunicazioni/debug-firebase-admin'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/comunicazioni/debug-firebase-admin");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Errore nel recupero dello stato Firebase Admin');
+      }
+      return response.json();
+    },
+    enabled: !!user?.id && isAdmin, // Auto-verifica quando la pagina si carica
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // Test diretto: invia notifica a se stesso
+  const testSelfNotification = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) {
+        throw new Error('Utente non autenticato');
+      }
+      
+      const response = await apiRequest("POST", "/api/comunicazioni/send-user-notification", {
+        userId: user.id,
+        titolo: "Test Firebase Admin",
+        messaggio: "Questa è una notifica di test per verificare che Firebase Admin funzioni correttamente."
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Errore nell'invio della notifica di test");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "✅ Test riuscito!",
+        description: data.message || "Notifica di test inviata con successo. Controlla il tuo dispositivo.",
+        duration: 5000
+      });
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Test fallito",
+        description: error.message || "Invio fallito. Verifica la configurazione di Firebase Admin.",
+        variant: "destructive",
+        duration: 8000
+      });
+    },
+  });
+
   // Mutazione per inviare notifica a un utente specifico
   const submitUserNotification = useMutation({
     mutationFn: async (data: UserNotificationFormData) => {
@@ -269,6 +323,200 @@ export default function NotificheDemos() {
             </p>
           </div>
         </div>
+
+        {/* Debug Firebase Admin */}
+        <Card className="bg-white shadow-sm mb-4 border-2 border-purple-300">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-purple-600" />
+              Diagnostica Firebase Admin
+            </CardTitle>
+            <CardDescription>
+              Verifica la configurazione di Firebase Admin e diagnostica eventuali problemi
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => refetchFirebaseDebug()}
+                disabled={isLoadingFirebaseDebug}
+              >
+                {isLoadingFirebaseDebug ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifica...
+                  </>
+                ) : (
+                  <>
+                    <TestTube className="mr-2 h-4 w-4" />
+                    Ricarica Stato
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                className="flex-1"
+                onClick={() => testSelfNotification.mutate()}
+                disabled={testSelfNotification.isPending || !firebaseDebugData?.data?.stato_inizializzazione?.admin_disponibile}
+              >
+                {testSelfNotification.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Invio test...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Test Invio
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {isLoadingFirebaseDebug && (
+              <div className="text-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-purple-600" />
+                <p className="text-sm text-gray-600 mt-2">Verifica configurazione in corso...</p>
+              </div>
+            )}
+            
+            {firebaseDebugData?.data && (
+              <div className="space-y-3">
+                {/* Stato generale */}
+                <Alert variant={firebaseDebugData.data.stato_inizializzazione.admin_disponibile ? "default" : "destructive"}>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-2xl">
+                        {firebaseDebugData.data.stato_inizializzazione.admin_disponibile ? "✅" : "❌"}
+                      </span>
+                      <div>
+                        <div className="font-semibold text-base">
+                          {firebaseDebugData.data.stato_inizializzazione.admin_disponibile 
+                            ? "Firebase Admin Configurato e Funzionante" 
+                            : "Firebase Admin Non Configurato"}
+                        </div>
+                        {firebaseDebugData.data.stato_inizializzazione.admin_disponibile ? (
+                          <div className="text-sm text-green-700 mt-1">
+                            Puoi inviare notifiche push. Usa il pulsante "Test Invio" per verificare.
+                          </div>
+                        ) : (
+                          <div className="text-sm mt-1">
+                            <strong>Problema rilevato:</strong> Firebase Admin non può essere inizializzato. Verifica le variabili d'ambiente su Render.com.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                {/* Variabili d'ambiente */}
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="font-semibold mb-2 text-sm">Variabili d'ambiente:</div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={firebaseDebugData.data.environment.FIREBASE_PROJECT_ID.presente ? "text-green-600" : "text-red-600"}>
+                        {firebaseDebugData.data.environment.FIREBASE_PROJECT_ID.presente ? "✅" : "❌"}
+                      </span>
+                      <span className="font-mono">FIREBASE_PROJECT_ID:</span>
+                      <span className={firebaseDebugData.data.environment.FIREBASE_PROJECT_ID.presente ? "text-green-600" : "text-red-600"}>
+                        {firebaseDebugData.data.environment.FIREBASE_PROJECT_ID.presente 
+                          ? `Presente (${firebaseDebugData.data.environment.FIREBASE_PROJECT_ID.valore})` 
+                          : "Mancante"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente ? "text-green-600" : "text-red-600"}>
+                        {firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente ? "✅" : "❌"}
+                      </span>
+                      <span className="font-mono">FIREBASE_CLIENT_EMAIL:</span>
+                      <span className={firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente ? "text-green-600" : "text-red-600"}>
+                        {firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente 
+                          ? `Presente (${firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore})` 
+                          : "Mancante"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente ? "text-green-600" : "text-red-600"}>
+                        {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente ? "✅" : "❌"}
+                      </span>
+                      <span className="font-mono">FIREBASE_PRIVATE_KEY:</span>
+                      <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente ? "text-green-600" : "text-red-600"}>
+                        {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente 
+                          ? `Presente (${firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.lunghezza} caratteri)` 
+                          : "Mancante"}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente && (
+                    <div className="mt-3 pt-3 border-t border-gray-300 text-xs">
+                      <div className="font-semibold mb-1">Analisi chiave privata:</div>
+                      <div className="space-y-1">
+                        <div>Inizia con: <code className="bg-gray-200 px-1 rounded">{firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.inizia_con || 'N/A'}</code></div>
+                        <div>Finisce con: <code className="bg-gray-200 px-1 rounded">{firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.finisce_con || 'N/A'}</code></div>
+                        <div className="flex items-center gap-2">
+                          <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_begin ? "text-green-600" : "text-red-600"}>
+                            {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_begin ? "✅" : "❌"}
+                          </span>
+                          <span>Contiene "BEGIN PRIVATE KEY"</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_end ? "text-green-600" : "text-red-600"}>
+                            {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_end ? "✅" : "❌"}
+                          </span>
+                          <span>Contiene "END PRIVATE KEY"</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_backslash_n ? "text-yellow-600" : "text-green-600"}>
+                            {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_backslash_n ? "⚠️" : "✅"}
+                          </span>
+                          <span>Contiene "\n" letterali: {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_backslash_n ? "Sì (verranno convertiti automaticamente)" : "No"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Errori */}
+                {firebaseDebugData.data.stato_inizializzazione.errore && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-semibold mb-2">Errore durante l'inizializzazione:</div>
+                      <div className="text-sm font-mono bg-red-50 p-2 rounded">
+                        <div><strong>Messaggio:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.message}</div>
+                        {firebaseDebugData.data.stato_inizializzazione.errore.code && (
+                          <div><strong>Codice:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.code}</div>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Suggerimenti */}
+                {!firebaseDebugData.data.stato_inizializzazione.admin_disponibile && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-semibold mb-2">Cosa fare:</div>
+                      <ol className="list-decimal list-inside space-y-1 text-sm">
+                        <li>Vai su Render.com → demos-backend → Environment Variables</li>
+                        <li>Verifica che FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY siano presenti</li>
+                        <li>Assicurati che FIREBASE_PRIVATE_KEY sia la chiave completa senza virgolette iniziali/finali</li>
+                        <li>Riavvia il servizio dopo aver modificato le variabili</li>
+                      </ol>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Pulsante Test Notifica */}
         <Card className="bg-white shadow-sm mb-4">

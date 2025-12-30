@@ -1137,6 +1137,82 @@ async function notifyAllUsers(titolo, commento) {
   }
 }
 
+// GET /api/comunicazioni/debug-firebase-admin - Debug per verificare lo stato di Firebase Admin
+router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 ========== DEBUG FIREBASE ADMIN ==========');
+    
+    const { getFirebaseAdmin, initializeFirebaseAdmin, isInitialized } = require('../services/firebaseAdmin');
+    
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        FIREBASE_PROJECT_ID: {
+          presente: !!process.env.FIREBASE_PROJECT_ID,
+          valore: process.env.FIREBASE_PROJECT_ID ? process.env.FIREBASE_PROJECT_ID.substring(0, 20) + '...' : null,
+          lunghezza: process.env.FIREBASE_PROJECT_ID ? process.env.FIREBASE_PROJECT_ID.length : 0
+        },
+        FIREBASE_CLIENT_EMAIL: {
+          presente: !!process.env.FIREBASE_CLIENT_EMAIL,
+          valore: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.substring(0, 30) + '...' : null,
+          lunghezza: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.length : 0
+        },
+        FIREBASE_PRIVATE_KEY: {
+          presente: !!process.env.FIREBASE_PRIVATE_KEY,
+          valore: process.env.FIREBASE_PRIVATE_KEY ? 'Presente (nascosto)' : null,
+          lunghezza: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.length : 0,
+          inizia_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(0, 30) : null,
+          finisce_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(process.env.FIREBASE_PRIVATE_KEY.length - 30) : null,
+          contiene_begin: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('BEGIN PRIVATE KEY') : false,
+          contiene_end: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('END PRIVATE KEY') : false,
+          contiene_backslash_n: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('\\n') : false
+        }
+      },
+      stato_inizializzazione: {
+        isInitialized: isInitialized(),
+        admin_disponibile: null,
+        errore: null
+      }
+    };
+    
+    console.log('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
+    
+    // Prova a inizializzare Firebase Admin
+    try {
+      console.log('🔍 Tentativo di inizializzazione Firebase Admin...');
+      const admin = initializeFirebaseAdmin();
+      debugInfo.stato_inizializzazione.admin_disponibile = !!admin;
+      
+      if (admin) {
+        console.log('✅ Firebase Admin inizializzato con successo');
+        debugInfo.stato_inizializzazione.admin_disponibile = true;
+      } else {
+        console.log('❌ Firebase Admin non inizializzato');
+        debugInfo.stato_inizializzazione.admin_disponibile = false;
+      }
+    } catch (error) {
+      console.error('❌ Errore durante inizializzazione:', error);
+      debugInfo.stato_inizializzazione.errore = {
+        message: error.message,
+        code: error.code || 'N/A',
+        stack: error.stack ? error.stack.substring(0, 500) : 'N/A'
+      };
+    }
+    
+    res.json({
+      success: true,
+      data: debugInfo
+    });
+  } catch (error) {
+    console.error('❌ Errore nel debug Firebase Admin:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // GET /api/comunicazioni/debug-notifiche-demos - Debug per verificare lo stato delle notifiche Demos
 router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
   try {
