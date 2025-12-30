@@ -558,17 +558,15 @@ async function notifyAllUsers(titolo, commento) {
     console.log(`   - demos = NULL: ${prefStats.demos_null}`);
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
-    // SOLO gli utenti con demos: true (non NULL o undefined)
-    // Usa CAST per assicurarsi che il confronto funzioni correttamente
+    // Usa INNER JOIN per assicurarsi che esista un record in notifiche_preferenze
     const utentiConPushResult = await pool.query(`
       SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
-             COALESCE(np.demos, false) as demos,
-             np.demos as demos_raw,
+             np.demos as demos,
              pg_typeof(np.demos) as demos_type
       FROM users u
-      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      INNER JOIN notifiche_preferenze np ON u.id = np.user_id
       WHERE (u.status = $1 OR u.status IS NULL)
-        AND (np.demos = true OR np.demos = 'true'::boolean)
+        AND np.demos = true
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
     `, ['active']);
@@ -742,6 +740,40 @@ router.post('/send-demos-notification', async (req, res) => {
     console.log(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
     console.log(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
     console.log(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
+
+    // DEBUG: Verifica tutti gli utenti con FCM tokens e le loro preferenze
+    const debugAllUsers = await pool.query(`
+      SELECT 
+        u.id,
+        u.email,
+        u.status,
+        u.fcm_tokens,
+        array_length(u.fcm_tokens, 1) as num_tokens,
+        np.demos,
+        np.user_id as pref_user_id,
+        pg_typeof(np.demos) as demos_type,
+        CASE 
+          WHEN np.demos IS NULL THEN 'NULL'
+          WHEN np.demos = true THEN 'true'
+          WHEN np.demos = false THEN 'false'
+          ELSE 'unknown'
+        END as demos_status
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE u.fcm_tokens IS NOT NULL 
+        AND array_length(u.fcm_tokens, 1) > 0
+      ORDER BY u.email
+      LIMIT 10
+    `);
+    
+    console.log('🔍 DEBUG: Primi 10 utenti con FCM tokens:');
+    debugAllUsers.rows.forEach((user, index) => {
+      console.log(`   ${index + 1}. ${user.email || user.id}:`);
+      console.log(`      - Status: ${user.status}`);
+      console.log(`      - FCM tokens: ${user.num_tokens}`);
+      console.log(`      - demos: ${user.demos} (tipo: ${user.demos_type}, status: ${user.demos_status})`);
+      console.log(`      - pref_user_id: ${user.pref_user_id || 'NULL'}`);
+    });
 
     // Invia la notifica a tutti gli utenti con demos: true
     await notifyAllUsers(titolo, commento);
