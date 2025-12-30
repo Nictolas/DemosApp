@@ -227,6 +227,16 @@ app.use((req, res, next) => {
     console.log(`🔴 Path: ${req.path}`);
     console.log(`🔴 Headers: ${JSON.stringify(req.headers)}`);
   }
+  // Log specifico per send-user-notification
+  if (req.originalUrl.includes('send-user-notification')) {
+    console.log(`🟣 ========== UNIVERSAL LOG: RICHIESTA send-user-notification ==========`);
+    console.log(`🟣 Method: ${req.method}`);
+    console.log(`🟣 URL: ${req.originalUrl}`);
+    console.log(`🟣 Path: ${req.path}`);
+    console.log(`🟣 Base URL: ${req.baseUrl}`);
+    console.log(`🟣 Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
+    console.log(`🟣 Body: ${JSON.stringify(req.body)}`);
+  }
   next();
 });
 
