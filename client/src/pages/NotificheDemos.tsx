@@ -64,9 +64,16 @@ export default function NotificheDemos() {
       console.log('🔵 FRONTEND: Dati:', testData);
       console.log('🔵 FRONTEND: Token presente:', !!localStorage.getItem('auth_token'));
       
+      // Importa getApiUrl per vedere l'URL completo
+      const { getApiUrl } = await import("@/lib/api-config");
+      const fullUrl = getApiUrl("/api/comunicazioni/send-demos-notification");
+      console.log('🔵 FRONTEND: URL completo:', fullUrl);
+      
       const response = await apiRequest("POST", "/api/comunicazioni/send-demos-notification", testData);
       
       console.log('🔵 FRONTEND: Risposta ricevuta, status:', response.status, 'ok:', response.ok);
+      const responseData = await response.json().catch(() => ({}));
+      console.log('🔵 FRONTEND: Response body:', JSON.stringify(responseData));
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
