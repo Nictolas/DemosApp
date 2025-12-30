@@ -142,6 +142,214 @@ router.post('/send-demos-notification', (req, res, next) => {
   }
 });
 
+// POST /api/comunicazioni/send-user-notification - Invia notifica push a un utente specifico
+// IMPORTANTE: Questa route deve essere definita PRIMA di router.post('/') per evitare conflitti
+router.post('/send-user-notification', (req, res, next) => {
+  console.log('🔵 ========== ROUTE HIT: /send-user-notification ==========');
+  console.log('🔵 Method:', req.method);
+  console.log('🔵 Path:', req.path);
+  console.log('🔵 Original URL:', req.originalUrl);
+  console.log('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
+  next();
+}, verifyToken, async (req, res) => {
+  try {
+    const { userId, titolo, messaggio } = req.body;
+    
+    console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA A UTENTE SPECIFICO ==========');
+    console.log('📢 Timestamp:', new Date().toISOString());
+    console.log('📢 User ID richiedente:', req.user?.id);
+    console.log('📢 User ID destinatario:', userId);
+    console.log('📢 Request body:', JSON.stringify(req.body));
+    
+    // Verifica Firebase Admin all'inizio
+    const { getFirebaseAdmin } = require('../services/firebaseAdmin');
+    const admin = getFirebaseAdmin();
+    console.log(`🔥 Firebase Admin disponibile: ${admin ? '✅ Sì' : '❌ No'}`);
+    if (!admin) {
+      console.error('❌ Firebase Admin non configurato. Impossibile inviare notifiche push.');
+      return res.status(500).json({
+        success: false,
+        error: 'Firebase Admin non configurato. Verifica le variabili d\'ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.',
+        firebase_admin_configurato: false
+      });
+    }
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente destinatario richiesto'
+      });
+    }
+    
+    if (!titolo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Titolo richiesto'
+      });
+    }
+
+    // Verifica che l'utente destinatario esista
+    const userResult = await pool.query(
+      'SELECT id, email, nome, cognome, fcm_tokens, status FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente destinatario non trovato'
+      });
+    }
+
+    const destinatario = userResult.rows[0];
+    const fcmTokens = destinatario.fcm_tokens || [];
+
+    if (fcmTokens.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'L\'utente destinatario non ha token FCM registrati. Non è possibile inviare notifiche push.',
+        data: {
+          userId: destinatario.id,
+          email: destinatario.email,
+          nome: destinatario.nome,
+          cognome: destinatario.cognome
+        }
+      });
+    }
+
+    console.log(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
+    console.log(`   Token FCM disponibili: ${fcmTokens.length}`);
+
+    const commento = messaggio || titolo;
+    let successCount = 0;
+    let failureCount = 0;
+    const invalidTokens = [];
+
+    // Invia notifica a tutti i token FCM dell'utente
+    for (const token of fcmTokens) {
+      if (token && token.trim()) {
+        console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
+        
+        try {
+          const result = await sendPushNotification(
+            token,
+            titolo,
+            commento,
+            {
+              type: 'user_notification',
+              titolo: titolo,
+              messaggio: commento,
+              userId: userId,
+              url: '/notifiche',
+              link: 'https://www.demos.community/notifiche'
+            }
+          );
+          
+          if (result && result.success) {
+            successCount++;
+            console.log(`    ✅ Notifica inviata con successo a Firebase`);
+            if (result.messageId) {
+              console.log(`    📨 Message ID: ${result.messageId}`);
+            }
+          } else {
+            failureCount++;
+            const errorMsg = result?.error || 'Errore sconosciuto';
+            console.log(`    ❌ Errore invio notifica: ${errorMsg}`);
+            if (result?.code) {
+              console.log(`    📋 Error code: ${result.code}`);
+            }
+            if (result?.shouldRemoveToken) {
+              invalidTokens.push(token);
+              console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
+            }
+          }
+        } catch (error) {
+          failureCount++;
+          console.error(`    ❌ Eccezione durante invio notifica:`, error);
+          console.error(`    ❌ Error message: ${error.message}`);
+          console.error(`    ❌ Error stack: ${error.stack}`);
+          // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
+          if (error.message && error.message.includes('Firebase Admin')) {
+            console.log(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
+          } else {
+            invalidTokens.push(token);
+            console.log(`    🗑️ Token marcato per rimozione a causa di eccezione`);
+          }
+        }
+      }
+    }
+
+    // Rimuovi token non validi dal database
+    if (invalidTokens.length > 0) {
+      const updatedTokens = fcmTokens.filter(t => !invalidTokens.includes(t));
+      await pool.query(
+        'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
+        [updatedTokens, userId]
+      );
+      console.log(`🧹 Rimossi ${invalidTokens.length} token FCM non validi per utente ${userId}`);
+    }
+
+    console.log(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
+
+    if (successCount === 0) {
+      // Verifica se il problema è Firebase Admin non configurato
+      const adminCheck = getFirebaseAdmin();
+      
+      let errorMessage = 'Nessuna notifica inviata. Tutti i tentativi sono falliti.';
+      if (!adminCheck) {
+        errorMessage = 'Firebase Admin non configurato. Verifica le variabili d\'ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.';
+      }
+      
+      console.error(`❌ ${errorMessage}`);
+      console.error(`❌ Token FCM tentati: ${fcmTokens.length}`);
+      console.error(`❌ Successi: ${successCount}, Fallimenti: ${failureCount}`);
+      
+      return res.status(500).json({
+        success: false,
+        error: errorMessage,
+        data: {
+          destinatario: {
+            id: destinatario.id,
+            email: destinatario.email,
+            nome: destinatario.nome,
+            cognome: destinatario.cognome
+          },
+          notifiche_inviate: successCount,
+          notifiche_fallite: failureCount,
+          token_rimossi: invalidTokens.length,
+          firebase_admin_configurato: !!adminCheck
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`,
+      data: {
+        destinatario: {
+          id: destinatario.id,
+          email: destinatario.email,
+          nome: destinatario.nome,
+          cognome: destinatario.cognome
+        },
+        titolo,
+        messaggio: commento,
+        notifiche_inviate: successCount,
+        notifiche_fallite: failureCount,
+        token_rimossi: invalidTokens.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'invio notifica a utente specifico:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // GET /api/comunicazioni - Lista comunicazioni
 router.get('/', async (req, res) => {
   try {
@@ -918,215 +1126,6 @@ async function notifyAllUsers(titolo, commento) {
     console.error('❌ Errore nell\'invio notifiche Demos:', error);
   }
 }
-
-// POST /api/comunicazioni/send-user-notification - Invia notifica push a un utente specifico
-// IMPORTANTE: Questa route deve essere definita PRIMA di router.post('/') per evitare conflitti
-router.post('/send-user-notification', (req, res, next) => {
-  console.log('🔵 ========== ROUTE HIT: /send-user-notification ==========');
-  console.log('🔵 Method:', req.method);
-  console.log('🔵 Path:', req.path);
-  console.log('🔵 Original URL:', req.originalUrl);
-  console.log('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
-  next();
-}, verifyToken, async (req, res) => {
-  try {
-    const { userId, titolo, messaggio } = req.body;
-    
-    console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA A UTENTE SPECIFICO ==========');
-    console.log('📢 Timestamp:', new Date().toISOString());
-    console.log('📢 User ID richiedente:', req.user?.id);
-    console.log('📢 User ID destinatario:', userId);
-    console.log('📢 Request body:', JSON.stringify(req.body));
-    
-    // Verifica Firebase Admin all'inizio
-    const { getFirebaseAdmin } = require('../services/firebaseAdmin');
-    const admin = getFirebaseAdmin();
-    console.log(`🔥 Firebase Admin disponibile: ${admin ? '✅ Sì' : '❌ No'}`);
-    if (!admin) {
-      console.error('❌ Firebase Admin non configurato. Impossibile inviare notifiche push.');
-      return res.status(500).json({
-        success: false,
-        error: 'Firebase Admin non configurato. Verifica le variabili d\'ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.',
-        firebase_admin_configurato: false
-      });
-    }
-    
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID utente destinatario richiesto'
-      });
-    }
-    
-    if (!titolo) {
-      return res.status(400).json({
-        success: false,
-        error: 'Titolo richiesto'
-      });
-    }
-
-    // Verifica che l'utente destinatario esista
-    const userResult = await pool.query(
-      'SELECT id, email, nome, cognome, fcm_tokens, status FROM users WHERE id = $1',
-      [userId]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente destinatario non trovato'
-      });
-    }
-
-    const destinatario = userResult.rows[0];
-    const fcmTokens = destinatario.fcm_tokens || [];
-
-    if (fcmTokens.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'L\'utente destinatario non ha token FCM registrati. Non è possibile inviare notifiche push.',
-        data: {
-          userId: destinatario.id,
-          email: destinatario.email,
-          nome: destinatario.nome,
-          cognome: destinatario.cognome
-        }
-      });
-    }
-
-    console.log(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
-    console.log(`   Token FCM disponibili: ${fcmTokens.length}`);
-
-    const commento = messaggio || titolo;
-    let successCount = 0;
-    let failureCount = 0;
-    const invalidTokens = [];
-
-    // Invia notifica a tutti i token FCM dell'utente
-    for (const token of fcmTokens) {
-      if (token && token.trim()) {
-        console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
-        
-        try {
-          const result = await sendPushNotification(
-            token,
-            titolo,
-            commento,
-            {
-              type: 'user_notification',
-              titolo: titolo,
-              messaggio: commento,
-              userId: userId,
-              url: '/notifiche',
-              link: 'https://www.demos.community/notifiche'
-            }
-          );
-          
-          if (result && result.success) {
-            successCount++;
-            console.log(`    ✅ Notifica inviata con successo a Firebase`);
-            if (result.messageId) {
-              console.log(`    📨 Message ID: ${result.messageId}`);
-            }
-          } else {
-            failureCount++;
-            const errorMsg = result?.error || 'Errore sconosciuto';
-            console.log(`    ❌ Errore invio notifica: ${errorMsg}`);
-            if (result?.code) {
-              console.log(`    📋 Error code: ${result.code}`);
-            }
-            if (result?.shouldRemoveToken) {
-              invalidTokens.push(token);
-              console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
-            }
-          }
-        } catch (error) {
-          failureCount++;
-          console.error(`    ❌ Eccezione durante invio notifica:`, error);
-          console.error(`    ❌ Error message: ${error.message}`);
-          console.error(`    ❌ Error stack: ${error.stack}`);
-          // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
-          if (error.message && error.message.includes('Firebase Admin')) {
-            console.log(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
-          } else {
-            invalidTokens.push(token);
-            console.log(`    🗑️ Token marcato per rimozione a causa di eccezione`);
-          }
-        }
-      }
-    }
-
-    // Rimuovi token non validi dal database
-    if (invalidTokens.length > 0) {
-      const updatedTokens = fcmTokens.filter(t => !invalidTokens.includes(t));
-      await pool.query(
-        'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
-        [updatedTokens, userId]
-      );
-      console.log(`🧹 Rimossi ${invalidTokens.length} token FCM non validi per utente ${userId}`);
-    }
-
-    console.log(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
-
-    if (successCount === 0) {
-      // Verifica se il problema è Firebase Admin non configurato
-      const { getFirebaseAdmin } = require('../services/firebaseAdmin');
-      const admin = getFirebaseAdmin();
-      
-      let errorMessage = 'Nessuna notifica inviata. Tutti i tentativi sono falliti.';
-      if (!admin) {
-        errorMessage = 'Firebase Admin non configurato. Verifica le variabili d\'ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.';
-      }
-      
-      console.error(`❌ ${errorMessage}`);
-      console.error(`❌ Token FCM tentati: ${fcmTokens.length}`);
-      console.error(`❌ Successi: ${successCount}, Fallimenti: ${failureCount}`);
-      
-      return res.status(500).json({
-        success: false,
-        error: errorMessage,
-        data: {
-          destinatario: {
-            id: destinatario.id,
-            email: destinatario.email,
-            nome: destinatario.nome,
-            cognome: destinatario.cognome
-          },
-          notifiche_inviate: successCount,
-          notifiche_fallite: failureCount,
-          token_rimossi: invalidTokens.length,
-          firebase_admin_configurato: !!admin
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      message: `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`,
-      data: {
-        destinatario: {
-          id: destinatario.id,
-          email: destinatario.email,
-          nome: destinatario.nome,
-          cognome: destinatario.cognome
-        },
-        titolo,
-        messaggio: commento,
-        notifiche_inviate: successCount,
-        notifiche_fallite: failureCount,
-        token_rimossi: invalidTokens.length
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nell\'invio notifica a utente specifico:', error);
-    console.error('❌ Stack:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      details: error.message
-    });
-  }
-});
 
 // GET /api/comunicazioni/debug-notifiche-demos - Debug per verificare lo stato delle notifiche Demos
 router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
