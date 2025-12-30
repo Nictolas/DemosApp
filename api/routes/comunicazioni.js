@@ -199,7 +199,7 @@ router.post('/', async (req, res) => {
                FROM users u
                LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
                WHERE u.rappresentante_comune = $1::uuid
-                 AND (u.status = 'active' OR u.status IS NULL)
+                 AND (u.status = 'a' OR u.status IS NULL)
                  AND u.fcm_tokens IS NOT NULL 
                  AND array_length(u.fcm_tokens, 1) > 0
                  AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
@@ -211,7 +211,7 @@ router.post('/', async (req, res) => {
                FROM users u
                LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
                WHERE u.rappresentante_comune::text = $1::text
-                 AND (u.status = 'active' OR u.status IS NULL)
+                 AND (u.status = 'a' OR u.status IS NULL)
                  AND u.fcm_tokens IS NOT NULL 
                  AND array_length(u.fcm_tokens, 1) > 0
                  AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
@@ -472,7 +472,7 @@ async function notifyAllUsers(titolo, commento) {
     // Usa un id_utente valido (non può essere NULL)
     // Prendi il primo utente attivo come mittente sistema
     const systemUserResult = await pool.query(`
-      SELECT id FROM users WHERE status = 'active' LIMIT 1
+      SELECT id FROM users WHERE status = 'a' LIMIT 1
     `);
     const systemUserId = systemUserResult.rows.length > 0 ? systemUserResult.rows[0].id : null;
     
@@ -536,7 +536,7 @@ async function notifyAllUsers(titolo, commento) {
       WHERE (u.status = $1 OR u.status IS NULL)
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
-    `, ['active']);
+    `, ['a']);
     console.log(`📊 Utenti con FCM tokens: ${utentiConFCMResult.rows[0].count}`);
 
     // Verifica quanti utenti hanno preferenze
@@ -549,7 +549,7 @@ async function notifyAllUsers(titolo, commento) {
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       WHERE (u.status = $1 OR u.status IS NULL)
-    `, ['active']);
+    `, ['a']);
     const prefStats = utentiConPreferenzeResult.rows[0];
     console.log(`📊 Statistiche preferenze Demos:`);
     console.log(`   - Totale utenti con preferenze: ${prefStats.totale}`);
@@ -558,18 +558,64 @@ async function notifyAllUsers(titolo, commento) {
     console.log(`   - demos = NULL: ${prefStats.demos_null}`);
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
-    // Usa INNER JOIN per assicurarsi che esista un record in notifiche_preferenze
+    // Prova prima senza filtro status per vedere se è quello il problema
+    console.log('🔍 Eseguendo query per utenti con demos=true e FCM tokens...');
     const utentiConPushResult = await pool.query(`
       SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
              np.demos as demos,
+             u.status,
              pg_typeof(np.demos) as demos_type
       FROM users u
       INNER JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE (u.status = $1 OR u.status IS NULL)
-        AND np.demos = true
+      WHERE np.demos = true
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
-    `, ['active']);
+    `);
+    
+    console.log(`🔍 Query senza filtro status: trovati ${utentiConPushResult.rows.length} utenti`);
+    
+    // Se non trova utenti, prova anche con LEFT JOIN e COALESCE
+    if (utentiConPushResult.rows.length === 0) {
+      console.log('⚠️ Nessun utente trovato con INNER JOIN, provo con LEFT JOIN...');
+      const utentiConPushResult2 = await pool.query(`
+        SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+               np.demos as demos,
+               u.status,
+               pg_typeof(np.demos) as demos_type
+        FROM users u
+        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+        WHERE COALESCE(np.demos, false) = true
+          AND u.fcm_tokens IS NOT NULL 
+          AND array_length(u.fcm_tokens, 1) > 0
+      `);
+      
+      console.log(`🔍 Query con LEFT JOIN e COALESCE: trovati ${utentiConPushResult2.rows.length} utenti`);
+      
+      if (utentiConPushResult2.rows.length > 0) {
+        utentiConPushResult.rows = utentiConPushResult2.rows;
+      }
+    }
+    
+    // Se ancora non trova, prova una query ancora più semplice
+    if (utentiConPushResult.rows.length === 0) {
+      console.log('⚠️ Ancora nessun utente trovato, provo query semplificata...');
+      const utentiConPushResult3 = await pool.query(`
+        SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+               np.demos as demos,
+               u.status
+        FROM users u, notifiche_preferenze np
+        WHERE u.id = np.user_id
+          AND np.demos IS TRUE
+          AND u.fcm_tokens IS NOT NULL 
+          AND array_length(u.fcm_tokens, 1) > 0
+      `);
+      
+      console.log(`🔍 Query semplificata: trovati ${utentiConPushResult3.rows.length} utenti`);
+      
+      if (utentiConPushResult3.rows.length > 0) {
+        utentiConPushResult.rows = utentiConPushResult3.rows;
+      }
+    }
 
     console.log(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
     
@@ -583,7 +629,7 @@ async function notifyAllUsers(titolo, commento) {
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
       LIMIT 5
-    `, ['active']);
+    `, ['a']);
     console.log(`🔍 Esempi utenti con FCM tokens (primi 5):`);
     debugUtentiResult.rows.forEach((utente, index) => {
       console.log(`   ${index + 1}. ${utente.email || utente.id}: demos=${utente.demos} (${typeof utente.demos}), tokens=${utente.num_tokens}`);
@@ -620,7 +666,7 @@ async function notifyAllUsers(titolo, commento) {
           AND u.fcm_tokens IS NOT NULL 
           AND array_length(u.fcm_tokens, 1) > 0
           AND (np.demos IS NULL OR np.demos = false)
-      `, ['active']);
+      `, ['a']);
       
       const debug = debugResult.rows[0];
       console.log('🔍 Debug utenti con FCM ma senza demos=true:');
@@ -731,7 +777,7 @@ router.post('/send-demos-notification', async (req, res) => {
         COUNT(DISTINCT CASE WHEN np.demos = true AND u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_idonei
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE (u.status = 'active' OR u.status IS NULL)
+      WHERE (u.status = 'a' OR u.status IS NULL)
     `);
 
     const stats = checkResult.rows[0];
