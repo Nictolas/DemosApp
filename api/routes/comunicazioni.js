@@ -533,7 +533,8 @@ async function notifyAllUsers(titolo, commento) {
     // SOLO gli utenti con demos: true (non NULL o undefined)
     const utentiConPushResult = await pool.query(`
       SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
-             COALESCE(np.demos, false) as demos
+             COALESCE(np.demos, false) as demos,
+             np.demos as demos_raw
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       WHERE (u.status = $1 OR u.status IS NULL)
@@ -544,11 +545,45 @@ async function notifyAllUsers(titolo, commento) {
 
     console.log(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
     
+    // Log dettagliato per debug
+    if (utentiConPushResult.rows.length > 0) {
+      console.log('📋 Dettagli utenti che riceveranno la notifica:');
+      utentiConPushResult.rows.forEach((utente, index) => {
+        console.log(`   ${index + 1}. ${utente.email || utente.id} - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
+        if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
+          utente.fcm_tokens.forEach((token, tokenIndex) => {
+            console.log(`      Token ${tokenIndex + 1}: ${token.substring(0, 30)}...`);
+          });
+        }
+      });
+    }
+    
     if (utentiConPushResult.rows.length === 0) {
       console.log('ℹ️ Nessun utente con push notifications attive per Demos');
       console.log('💡 Verifica che gli utenti abbiano:');
       console.log('   1. notifiche_preferenze.demos = true');
       console.log('   2. fcm_tokens non vuoto');
+      
+      // Query di debug per vedere quanti utenti hanno FCM tokens ma non demos=true
+      const debugResult = await pool.query(`
+        SELECT 
+          COUNT(DISTINCT u.id) as utenti_con_fcm_senza_demos,
+          COUNT(DISTINCT CASE WHEN np.demos IS NULL THEN u.id END) as utenti_senza_preferenze,
+          COUNT(DISTINCT CASE WHEN np.demos = false THEN u.id END) as utenti_con_demos_false
+        FROM users u
+        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+        WHERE (u.status = $1 OR u.status IS NULL)
+          AND u.fcm_tokens IS NOT NULL 
+          AND array_length(u.fcm_tokens, 1) > 0
+          AND (np.demos IS NULL OR np.demos = false)
+      `, ['active']);
+      
+      const debug = debugResult.rows[0];
+      console.log('🔍 Debug utenti con FCM ma senza demos=true:');
+      console.log(`   - Utenti con FCM ma demos non attivo: ${debug.utenti_con_fcm_senza_demos}`);
+      console.log(`   - Utenti senza record preferenze: ${debug.utenti_senza_preferenze}`);
+      console.log(`   - Utenti con demos=false: ${debug.utenti_con_demos_false}`);
+      
       return;
     }
 
