@@ -448,8 +448,15 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     };
 
     // Invia la notifica push
+    console.log(`📤 Invio notifica push a Firebase...`);
+    console.log(`   Token: ${fcmToken.substring(0, 30)}...`);
+    console.log(`   Titolo: ${title}`);
+    console.log(`   Body: ${body}`);
+    console.log(`   Data:`, JSON.stringify(data));
+    
     const response = await admin.messaging().send(message);
-    console.log(`✅ Push notification inviata con successo. Message ID: ${response}`);
+    console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
+    console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
     
     return { success: true, messageId: response };
   } catch (error) {
