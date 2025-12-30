@@ -919,6 +919,165 @@ async function notifyAllUsers(titolo, commento) {
   }
 }
 
+// POST /api/comunicazioni/send-user-notification - Invia notifica push a un utente specifico
+router.post('/send-user-notification', verifyToken, async (req, res) => {
+  try {
+    const { userId, titolo, messaggio } = req.body;
+    
+    console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA A UTENTE SPECIFICO ==========');
+    console.log('📢 Timestamp:', new Date().toISOString());
+    console.log('📢 User ID richiedente:', req.user?.id);
+    console.log('📢 User ID destinatario:', userId);
+    console.log('📢 Request body:', JSON.stringify(req.body));
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente destinatario richiesto'
+      });
+    }
+    
+    if (!titolo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Titolo richiesto'
+      });
+    }
+
+    // Verifica che l'utente destinatario esista
+    const userResult = await pool.query(
+      'SELECT id, email, nome, cognome, fcm_tokens, status FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente destinatario non trovato'
+      });
+    }
+
+    const destinatario = userResult.rows[0];
+    const fcmTokens = destinatario.fcm_tokens || [];
+
+    if (fcmTokens.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'L\'utente destinatario non ha token FCM registrati. Non è possibile inviare notifiche push.',
+        data: {
+          userId: destinatario.id,
+          email: destinatario.email,
+          nome: destinatario.nome,
+          cognome: destinatario.cognome
+        }
+      });
+    }
+
+    console.log(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
+    console.log(`   Token FCM disponibili: ${fcmTokens.length}`);
+
+    const commento = messaggio || titolo;
+    let successCount = 0;
+    let failureCount = 0;
+    const invalidTokens = [];
+
+    // Invia notifica a tutti i token FCM dell'utente
+    for (const token of fcmTokens) {
+      if (token && token.trim()) {
+        console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
+        
+        const result = await sendPushNotification(
+          token,
+          titolo,
+          commento,
+          {
+            type: 'user_notification',
+            titolo: titolo,
+            messaggio: commento,
+            userId: userId,
+            url: '/notifiche',
+            link: 'https://www.demos.community/notifiche'
+          }
+        );
+        
+        if (result.success) {
+          successCount++;
+          console.log(`    ✅ Notifica inviata con successo a Firebase`);
+          if (result.messageId) {
+            console.log(`    📨 Message ID: ${result.messageId}`);
+          }
+        } else {
+          failureCount++;
+          console.log(`    ❌ Errore invio notifica: ${result.error}`);
+          if (result.code) {
+            console.log(`    📋 Error code: ${result.code}`);
+          }
+          if (result.shouldRemoveToken) {
+            invalidTokens.push(token);
+            console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
+          }
+        }
+      }
+    }
+
+    // Rimuovi token non validi dal database
+    if (invalidTokens.length > 0) {
+      const updatedTokens = fcmTokens.filter(t => !invalidTokens.includes(t));
+      await pool.query(
+        'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
+        [updatedTokens, userId]
+      );
+      console.log(`🧹 Rimossi ${invalidTokens.length} token FCM non validi per utente ${userId}`);
+    }
+
+    console.log(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
+
+    if (successCount === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Nessuna notifica inviata. Tutti i tentativi sono falliti.',
+        data: {
+          destinatario: {
+            id: destinatario.id,
+            email: destinatario.email,
+            nome: destinatario.nome,
+            cognome: destinatario.cognome
+          },
+          notifiche_inviate: successCount,
+          notifiche_fallite: failureCount,
+          token_rimossi: invalidTokens.length
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`,
+      data: {
+        destinatario: {
+          id: destinatario.id,
+          email: destinatario.email,
+          nome: destinatario.nome,
+          cognome: destinatario.cognome
+        },
+        titolo,
+        messaggio: commento,
+        notifiche_inviate: successCount,
+        notifiche_fallite: failureCount,
+        token_rimossi: invalidTokens.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'invio notifica a utente specifico:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // GET /api/comunicazioni/debug-notifiche-demos - Debug per verificare lo stato delle notifiche Demos
 router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
   try {

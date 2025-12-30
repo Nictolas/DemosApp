@@ -14,14 +14,22 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Bell, ArrowLeft, Loader2, Send, TestTube, AlertCircle } from "lucide-react";
+import { Bell, ArrowLeft, Loader2, Send, TestTube, AlertCircle, User } from "lucide-react";
+import { UserAutocomplete } from "@/components/UserAutocomplete";
 
 const demosNotificationSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
   commento: z.string().min(1, "Il commento è obbligatorio"),
 });
 
+const userNotificationSchema = z.object({
+  userId: z.string().min(1, "Seleziona un utente"),
+  titolo: z.string().min(1, "Il titolo è obbligatorio"),
+  messaggio: z.string().min(1, "Il messaggio è obbligatorio"),
+});
+
 type DemosNotificationFormData = z.infer<typeof demosNotificationSchema>;
+type UserNotificationFormData = z.infer<typeof userNotificationSchema>;
 
 export default function NotificheDemos() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -49,6 +57,18 @@ export default function NotificheDemos() {
     defaultValues: {
       titolo: "",
       commento: "",
+    },
+  });
+
+  const [selectedUser, setSelectedUser] = useState<{ id: string; displayName: string } | null>(null);
+  const [userSearchValue, setUserSearchValue] = useState("");
+
+  const userNotificationForm = useForm<UserNotificationFormData>({
+    resolver: zodResolver(userNotificationSchema),
+    defaultValues: {
+      userId: "",
+      titolo: "",
+      messaggio: "",
     },
   });
 
@@ -98,6 +118,52 @@ export default function NotificheDemos() {
     },
     onError: (error: any) => {
       console.error("Errore nell'invio notifica di test:", error);
+      toast({ 
+        title: "Errore", 
+        description: error.message || "Invio fallito. Riprova più tardi.", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Mutazione per inviare notifica a un utente specifico
+  const submitUserNotification = useMutation({
+    mutationFn: async (data: UserNotificationFormData) => {
+      if (!data.userId) {
+        throw new Error('Seleziona un utente');
+      }
+      
+      const response = await apiRequest("POST", "/api/comunicazioni/send-user-notification", {
+        userId: data.userId,
+        titolo: data.titolo,
+        messaggio: data.messaggio,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Errore nell'invio della notifica");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const destinatario = data.data?.destinatario;
+      const message = destinatario 
+        ? `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`
+        : "Notifica inviata con successo";
+      
+      toast({ 
+        title: "Notifica inviata", 
+        description: message,
+        duration: 5000
+      });
+      userNotificationForm.reset();
+      setSelectedUser(null);
+      setUserSearchValue("");
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+    },
+    onError: (error: any) => {
+      console.error("Errore nell'invio notifica utente:", error);
       toast({ 
         title: "Errore", 
         description: error.message || "Invio fallito. Riprova più tardi.", 
@@ -179,7 +245,10 @@ export default function NotificheDemos() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Colonna principale */}
+          <div className="lg:col-span-2 space-y-6">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Button
@@ -382,6 +451,126 @@ export default function NotificheDemos() {
             </Form>
           </CardContent>
         </Card>
+          </div>
+
+          {/* Sezione laterale - Notifica a utente specifico */}
+          <div className="lg:col-span-1">
+            <Card className="bg-white shadow-sm sticky top-4">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <User className="h-5 w-5 text-purple-600" />
+                  Notifica a Utente
+                </CardTitle>
+                <CardDescription>
+                  Invia una notifica push a un utente specifico selezionato dalla tabella users.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...userNotificationForm}>
+                  <form 
+                    onSubmit={userNotificationForm.handleSubmit((data) => submitUserNotification.mutate(data))} 
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={userNotificationForm.control}
+                      name="userId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Seleziona Utente *</FormLabel>
+                          <FormControl>
+                            <UserAutocomplete
+                              value={userSearchValue}
+                              onChange={(value) => {
+                                setUserSearchValue(value);
+                                if (!selectedUser) {
+                                  field.onChange("");
+                                }
+                              }}
+                              onUserSelect={(user) => {
+                                setSelectedUser({ id: user.id, displayName: user.displayName });
+                                field.onChange(user.id);
+                                setUserSearchValue(user.displayName);
+                              }}
+                              placeholder="Cerca utente per nome o email..."
+                              className="w-full"
+                            />
+                          </FormControl>
+                          {selectedUser && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Selezionato: <strong>{selectedUser.displayName}</strong>
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={userNotificationForm.control}
+                      name="titolo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Titolo *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Titolo della notifica"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={userNotificationForm.control}
+                      name="messaggio"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Messaggio *</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Messaggio della notifica"
+                              rows={4}
+                              className="resize-y"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Alert>
+                      <Bell className="h-4 w-4" />
+                      <AlertDescription className="text-xs">
+                        La notifica verrà inviata solo se l'utente ha token FCM registrati.
+                      </AlertDescription>
+                    </Alert>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={submitUserNotification.isPending || !selectedUser}
+                    >
+                      {submitUserNotification.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Invio in corso...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Invia Notifica
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </PageContainer>
   );
