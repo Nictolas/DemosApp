@@ -214,6 +214,22 @@ export default function NotificheDemos() {
                     <li>Token FCM: {debugData.data.preferenze.ha_fcm_tokens ? `✅ Presente (${debugData.data.preferenze.numero_token_fcm})` : "❌ Non presente"}</li>
                     <li>Riceverai notifiche: {debugData.data.preferenze.ricevera_notifiche ? "✅ Sì" : "❌ No"}</li>
                   </ul>
+                  {debugData.data.preferenze.demos_status && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      <strong>Debug:</strong> demos_value={String(debugData.data.preferenze.demos_value)}, 
+                      demos_type={debugData.data.preferenze.demos_type}, 
+                      status={debugData.data.preferenze.demos_status}
+                      {debugData.data.statistiche_globali && (
+                        <>
+                          <br />
+                          <strong>Globali:</strong> {debugData.data.statistiche_globali.totale_utenti_fcm} utenti con FCM, 
+                          {debugData.data.statistiche_globali.utenti_demos_true} con demos=true, 
+                          {debugData.data.statistiche_globali.utenti_demos_false} con demos=false, 
+                          {debugData.data.statistiche_globali.utenti_demos_null} con demos=NULL
+                        </>
+                      )}
+                    </div>
+                  )}
                   {!debugData.data.preferenze.ricevera_notifiche && (
                     <div className="mt-2">
                       <Button
