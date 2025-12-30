@@ -185,3 +185,4 @@ Future<void> saveNotificationPreferences(Map<String, bool> preferences) async {
 - Feedback visivo dopo il salvataggio (toast/snackbar)
 - Loading state durante il salvataggio
 
+

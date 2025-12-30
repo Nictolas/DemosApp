@@ -300,3 +300,4 @@ class _NotificationPreferencesPageState
 5. **Accessibilità**: Usa label descrittive e supporta screen reader
 6. **Responsive**: Assicurati che funzioni bene su mobile e desktop
 
+

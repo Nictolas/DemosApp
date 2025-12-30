@@ -639,7 +639,6 @@ const Votazione = React.memo(function Votazione() {
                     </CardContent>
                   )}
                 </Card>
-              </>
             )}
           </div>
         )}

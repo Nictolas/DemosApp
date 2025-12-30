@@ -38,3 +38,4 @@ COMMENT ON COLUMN notifiche_preferenze.demos IS 'Notifiche da Demos (annunci gen
 COMMENT ON COLUMN notifiche_preferenze.istituzione IS 'Notifiche sui voti dei rappresentanti istituzionali';
 COMMENT ON COLUMN notifiche_preferenze.avvistamenti IS 'Notifiche su avvistamenti animali nel comune';
 
+

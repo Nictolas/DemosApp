@@ -67,3 +67,4 @@ SET
   consigliere_comunale = COALESCE(consigliere_comunale, istituzione)
 WHERE istituzione = true;
 
+

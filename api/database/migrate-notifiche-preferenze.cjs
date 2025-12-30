@@ -204,3 +204,4 @@ migrateNotifichePreferenze()
     process.exit(1);
   });
 
+
