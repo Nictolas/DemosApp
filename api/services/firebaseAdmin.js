@@ -39,15 +39,33 @@ function initializeFirebaseAdmin() {
         // Pulisci la chiave privata: rimuovi virgolette iniziali/finali e converti \n
         let privateKey = process.env.FIREBASE_PRIVATE_KEY;
         
-        // Rimuovi virgolette iniziali e finali se presenti
-        privateKey = privateKey.replace(/^["']|["']$/g, '');
+        console.log(`   Chiave privata RAW (primi 50 caratteri): ${privateKey.substring(0, 50)}...`);
+        console.log(`   Chiave privata RAW (ultimi 50 caratteri): ...${privateKey.substring(privateKey.length - 50)}`);
+        console.log(`   Chiave privata RAW contiene \\n letterali: ${privateKey.includes('\\n')}`);
+        console.log(`   Chiave privata RAW inizia con ": ${privateKey.startsWith('"')}`);
+        console.log(`   Chiave privata RAW finisce con ": ${privateKey.endsWith('"')}`);
         
-        // Converti \n letterali in newline reali
+        // Rimuovi virgolette iniziali e finali se presenti (sia singole che doppie)
+        privateKey = privateKey.trim();
+        if ((privateKey.startsWith('"') && privateKey.endsWith('"')) || 
+            (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+          privateKey = privateKey.slice(1, -1);
+          console.log(`   ✅ Rimosse virgolette iniziali/finali`);
+        }
+        
+        // Converti \n letterali in newline reali (gestisci sia \\n che \n)
+        const beforeReplace = privateKey;
         privateKey = privateKey.replace(/\\n/g, '\n');
+        if (beforeReplace !== privateKey) {
+          console.log(`   ✅ Convertiti \\n letterali in newline reali`);
+        }
         
         // Verifica che la chiave inizi e finisca correttamente
         if (!privateKey.includes('BEGIN PRIVATE KEY')) {
           console.warn('⚠️ La chiave privata potrebbe non essere formattata correttamente (manca BEGIN PRIVATE KEY)');
+        }
+        if (!privateKey.includes('END PRIVATE KEY')) {
+          console.warn('⚠️ La chiave privata potrebbe non essere formattata correttamente (manca END PRIVATE KEY)');
         }
         
         console.log(`   Chiave privata pulita: ${privateKey.length} caratteri`);
