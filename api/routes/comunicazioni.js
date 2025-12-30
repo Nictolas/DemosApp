@@ -24,6 +24,16 @@ router.use((req, res, next) => {
     console.log('🔴 Base URL:', req.baseUrl);
     console.log('🔴 Full URL:', req.originalUrl);
   }
+  if (req.path.includes('send-user-notification') || req.originalUrl.includes('send-user-notification')) {
+    console.log('🟢 ========== ROUTER MIDDLEWARE: RICHIESTA send-user-notification ==========');
+    console.log('🟢 Method:', req.method);
+    console.log('🟢 Path:', req.path);
+    console.log('🟢 Original URL:', req.originalUrl);
+    console.log('🟢 Base URL:', req.baseUrl);
+    console.log('🟢 Full URL:', req.originalUrl);
+    console.log('🟢 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
+    console.log('🟢 Body:', JSON.stringify(req.body));
+  }
   next();
 });
 
