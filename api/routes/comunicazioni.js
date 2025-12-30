@@ -710,6 +710,16 @@ async function notifyAllUsers(titolo, commento) {
     const invalidTokens = []; // Raccogli token non validi da rimuovere
     
     console.log(`📤 Invio push notifications a ${utentiConPushResult.rows.length} utenti...`);
+    console.log(`📋 Dettagli utenti che riceveranno la notifica:`);
+    utentiConPushResult.rows.forEach((utente, index) => {
+      console.log(`   ${index + 1}. ${utente.email || utente.id}:`);
+      console.log(`      - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
+      if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
+        utente.fcm_tokens.forEach((token, tokenIndex) => {
+          console.log(`         Token ${tokenIndex + 1}: ${token.substring(0, 50)}...`);
+        });
+      }
+    });
     
     for (const utente of utentiConPushResult.rows) {
       const fcmTokens = utente.fcm_tokens || [];
@@ -720,7 +730,7 @@ async function notifyAllUsers(titolo, commento) {
       // Invia push notification a tutti i token FCM dell'utente
       for (const token of fcmTokens) {
         if (token && token.trim()) {
-          console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 20)}...`);
+          console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
           
           const result = await sendPushNotification(
             token,
