@@ -561,7 +561,8 @@ router.get('/preferenze', verifyToken, async (req, res) => {
     
     // Recupera le preferenze dalla nuova tabella notifiche_preferenze
     const result = await pool.query(
-      `SELECT demos, istituzione, avvistamenti, updated_at
+      `SELECT eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
+              attivisti, demos, scuola, animali, organizzazioni, updated_at
        FROM notifiche_preferenze
        WHERE user_id = $1`,
       [user_id]
@@ -570,22 +571,33 @@ router.get('/preferenze', verifyToken, async (req, res) => {
     if (result.rows.length === 0) {
       // Se non esistono preferenze, crea record con valori di default
       const defaultResult = await pool.query(
-        `INSERT INTO notifiche_preferenze (user_id, demos, istituzione, avvistamenti)
-         VALUES ($1, false, false, true)
-         RETURNING demos, istituzione, avvistamenti, updated_at`,
+        `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
+                                          consigliere_regionale, consigliere_comunale, 
+                                          attivisti, demos, scuola, animali, organizzazioni)
+         VALUES ($1, false, false, false, false, false, false, false, false, true, false)
+         RETURNING eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
+                   attivisti, demos, scuola, animali, organizzazioni, updated_at`,
         [user_id]
       );
       
+      const prefs = defaultResult.rows[0];
       return res.json({
         success: true,
         data: {
           user_id,
           preferenze: {
-            demos: defaultResult.rows[0].demos,
-            istituzione: defaultResult.rows[0].istituzione,
-            avvistamenti: defaultResult.rows[0].avvistamenti
+            eurodeputato: prefs.eurodeputato,
+            senatore: prefs.senatore,
+            deputato: prefs.deputato,
+            consigliere_regionale: prefs.consigliere_regionale,
+            consigliere_comunale: prefs.consigliere_comunale,
+            attivisti: prefs.attivisti,
+            demos: prefs.demos,
+            scuola: prefs.scuola,
+            animali: prefs.animali,
+            organizzazioni: prefs.organizzazioni
           },
-          updated_at: defaultResult.rows[0].updated_at
+          updated_at: prefs.updated_at
         }
       });
     }
@@ -597,9 +609,16 @@ router.get('/preferenze', verifyToken, async (req, res) => {
       data: {
         user_id,
         preferenze: {
-          demos: prefs.demos,
-          istituzione: prefs.istituzione,
-          avvistamenti: prefs.avvistamenti
+          eurodeputato: prefs.eurodeputato ?? false,
+          senatore: prefs.senatore ?? false,
+          deputato: prefs.deputato ?? false,
+          consigliere_regionale: prefs.consigliere_regionale ?? false,
+          consigliere_comunale: prefs.consigliere_comunale ?? false,
+          attivisti: prefs.attivisti ?? false,
+          demos: prefs.demos ?? false,
+          scuola: prefs.scuola ?? false,
+          animali: prefs.animali ?? true,
+          organizzazioni: prefs.organizzazioni ?? false
         },
         updated_at: prefs.updated_at
       }
@@ -628,22 +647,40 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     }
     
     // Estrai i valori (gestisci sia booleani che stringhe)
+    const eurodeputato = preferenze.eurodeputato === true || preferenze.eurodeputato === 'true';
+    const senatore = preferenze.senatore === true || preferenze.senatore === 'true';
+    const deputato = preferenze.deputato === true || preferenze.deputato === 'true';
+    const consigliere_regionale = preferenze.consigliere_regionale === true || preferenze.consigliere_regionale === 'true';
+    const consigliere_comunale = preferenze.consigliere_comunale === true || preferenze.consigliere_comunale === 'true';
+    const attivisti = preferenze.attivisti === true || preferenze.attivisti === 'true';
     const demos = preferenze.demos === true || preferenze.demos === 'true';
-    const istituzione = preferenze.istituzione === true || preferenze.istituzione === 'true';
-    const avvistamenti = preferenze.avvistamenti !== false && preferenze.avvistamenti !== 'false';
+    const scuola = preferenze.scuola === true || preferenze.scuola === 'true';
+    const animali = preferenze.animali !== false && preferenze.animali !== 'false';
+    const organizzazioni = preferenze.organizzazioni === true || preferenze.organizzazioni === 'true';
     
     // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
     const result = await pool.query(
-      `INSERT INTO notifiche_preferenze (user_id, demos, istituzione, avvistamenti)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
+                                         consigliere_regionale, consigliere_comunale, 
+                                         attivisti, demos, scuola, animali, organizzazioni)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (user_id) 
        DO UPDATE SET 
+         eurodeputato = EXCLUDED.eurodeputato,
+         senatore = EXCLUDED.senatore,
+         deputato = EXCLUDED.deputato,
+         consigliere_regionale = EXCLUDED.consigliere_regionale,
+         consigliere_comunale = EXCLUDED.consigliere_comunale,
+         attivisti = EXCLUDED.attivisti,
          demos = EXCLUDED.demos,
-         istituzione = EXCLUDED.istituzione,
-         avvistamenti = EXCLUDED.avvistamenti,
+         scuola = EXCLUDED.scuola,
+         animali = EXCLUDED.animali,
+         organizzazioni = EXCLUDED.organizzazioni,
          updated_at = NOW()
-       RETURNING user_id, demos, istituzione, avvistamenti, updated_at`,
-      [user_id, demos, istituzione, avvistamenti]
+       RETURNING user_id, eurodeputato, senatore, deputato, consigliere_regionale, 
+                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni, updated_at`,
+      [user_id, eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale, 
+       attivisti, demos, scuola, animali, organizzazioni]
     );
     
     if (result.rows.length === 0) {
@@ -656,9 +693,16 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     const savedPrefs = result.rows[0];
     
     console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
+      eurodeputato: savedPrefs.eurodeputato,
+      senatore: savedPrefs.senatore,
+      deputato: savedPrefs.deputato,
+      consigliere_regionale: savedPrefs.consigliere_regionale,
+      consigliere_comunale: savedPrefs.consigliere_comunale,
+      attivisti: savedPrefs.attivisti,
       demos: savedPrefs.demos,
-      istituzione: savedPrefs.istituzione,
-      avvistamenti: savedPrefs.avvistamenti
+      scuola: savedPrefs.scuola,
+      animali: savedPrefs.animali,
+      organizzazioni: savedPrefs.organizzazioni
     });
     
     res.json({
@@ -667,9 +711,16 @@ router.post('/preferenze', verifyToken, async (req, res) => {
       data: {
         user_id: savedPrefs.user_id,
         preferenze: {
+          eurodeputato: savedPrefs.eurodeputato,
+          senatore: savedPrefs.senatore,
+          deputato: savedPrefs.deputato,
+          consigliere_regionale: savedPrefs.consigliere_regionale,
+          consigliere_comunale: savedPrefs.consigliere_comunale,
+          attivisti: savedPrefs.attivisti,
           demos: savedPrefs.demos,
-          istituzione: savedPrefs.istituzione,
-          avvistamenti: savedPrefs.avvistamenti
+          scuola: savedPrefs.scuola,
+          animali: savedPrefs.animali,
+          organizzazioni: savedPrefs.organizzazioni
         },
         updated_at: savedPrefs.updated_at
       }

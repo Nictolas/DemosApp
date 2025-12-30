@@ -190,29 +190,30 @@ router.post('/', async (req, res) => {
                        (rappresentanteComuneType.rows[0].udt_name === 'uuid' || 
                         rappresentanteComuneType.rows[0].data_type === 'uuid');
         
+        // Usa la preferenza specifica per consigliere_comunale
         const utentiConRappresentante = isUUID
           ? await pool.query(
               `SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome, 
-                      COALESCE(np.istituzione, false) as istituzione
+                      COALESCE(np.consigliere_comunale, false) as consigliere_comunale
                FROM users u
                LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
                WHERE u.rappresentante_comune = $1::uuid
                  AND (u.status = 'active' OR u.status IS NULL)
                  AND u.fcm_tokens IS NOT NULL 
                  AND array_length(u.fcm_tokens, 1) > 0
-                 AND (np.istituzione = true OR np.istituzione IS NULL)`,
+                 AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
               [utentePolitico.id]
             )
           : await pool.query(
               `SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
-                      COALESCE(np.istituzione, false) as istituzione
+                      COALESCE(np.consigliere_comunale, false) as consigliere_comunale
                FROM users u
                LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
                WHERE u.rappresentante_comune::text = $1::text
                  AND (u.status = 'active' OR u.status IS NULL)
                  AND u.fcm_tokens IS NOT NULL 
                  AND array_length(u.fcm_tokens, 1) > 0
-                 AND (np.istituzione = true OR np.istituzione IS NULL)`,
+                 AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
               [utentePolitico.id]
             );
 

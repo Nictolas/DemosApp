@@ -1,6 +1,7 @@
 import React from "react";
-import { Bell } from "lucide-react";
-import { PreferenzeModal } from "./PreferenzeModal";
+import { Bell, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 interface HeaderProps {
   fcmToken: string | null;
@@ -15,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   permission,
   onSwitch
 }) => {
+  const [, setLocation] = useLocation();
+
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between">
@@ -22,12 +25,15 @@ export const Header: React.FC<HeaderProps> = ({
           <Bell className="h-8 w-8 text-blue-600" />
           Notifiche
         </h1>
-        <PreferenzeModal
-          fcmToken={fcmToken}
-          fcmError={fcmError}
-          permission={permission}
-          onSwitch={onSwitch}
-        />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-2"
+          onClick={() => setLocation("/notifiche/preferenze")}
+        >
+          <Settings className="h-4 w-4" />
+          Preferenze
+        </Button>
       </div>
     </div>
   );
