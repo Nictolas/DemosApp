@@ -37,6 +37,10 @@ export default function NotificheDemos() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Verifica che l'utente sia admin (prima delle query che lo usano)
+  const userRole = user?.ruolo;
+  const isAdmin = userRole === "AD";
+
   // Verifica lo stato delle preferenze dell'utente corrente
   const { data: debugData, isLoading: isLoadingDebug } = useQuery({
     queryKey: ['/api/comunicazioni/debug-notifiche-demos', user?.id],
@@ -280,10 +284,6 @@ export default function NotificheDemos() {
   if (!user) {
     return <Redirect to="/auth" />;
   }
-
-  // Verifica che l'utente sia admin
-  const userRole = user?.ruolo;
-  const isAdmin = userRole === "AD";
 
   if (!isAdmin) {
     return (
