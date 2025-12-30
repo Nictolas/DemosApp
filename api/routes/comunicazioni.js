@@ -447,14 +447,9 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       }
     };
 
-    // Verifica se il token è web o mobile
-    const isWebToken = fcmToken.startsWith('fz8') || fcmToken.includes(':APA91b');
-    const tokenType = isWebToken ? 'WEB' : 'MOBILE';
-    
     // Invia la notifica push
     console.log(`📤 Invio notifica push a Firebase...`);
     console.log(`   Token: ${fcmToken.substring(0, 30)}...`);
-    console.log(`   Tipo token: ${tokenType} ${isWebToken ? '(dal browser web)' : '(da app mobile)'}`);
     console.log(`   Titolo: ${title}`);
     console.log(`   Body: ${body}`);
     console.log(`   Data:`, JSON.stringify(data));
@@ -463,24 +458,34 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       const response = await admin.messaging().send(message);
       console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
       console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
-      console.log(`   ${tokenType === 'WEB' ? '⚠️ NOTA: Questo è un token WEB. Le notifiche arriveranno solo sul browser, NON sul cellulare mobile.' : '✅ Token mobile: la notifica arriverà sul dispositivo mobile'}`);
       
-      return { success: true, messageId: response, tokenType };
+      return { success: true, messageId: response };
     } catch (sendError) {
-      console.error(`❌ Errore durante l'invio a Firebase:`, sendError.message);
-      console.error(`   Error code:`, sendError.code);
+      console.error(`❌ Errore durante l'invio a Firebase:`);
+      console.error(`   Message: ${sendError.message}`);
+      console.error(`   Error code: ${sendError.code || 'N/A'}`);
+      console.error(`   Token: ${fcmToken?.substring(0, 30)}...`);
+      
+      // Gestisci errori specifici di FCM
+      if (sendError.code === 'messaging/invalid-registration-token' || 
+          sendError.code === 'messaging/registration-token-not-registered') {
+        console.warn(`⚠️ Token FCM non valido o non registrato - verrà rimosso dal database`);
+        return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: sendError.code };
+      }
+      
       throw sendError;
     }
   } catch (error) {
-    // Gestisci errori specifici di FCM
+    // Gestisci altri errori
+    console.error('❌ Errore invio push notification:', error.message);
+    console.error('❌ Error code:', error.code || 'N/A');
+    console.error('❌ Token:', fcmToken?.substring(0, 30) || 'N/A');
+    
     if (error.code === 'messaging/invalid-registration-token' || 
         error.code === 'messaging/registration-token-not-registered') {
-      console.warn(`⚠️ Token FCM non valido o non registrato: ${fcmToken?.substring(0, 20)}...`);
-      return { success: false, error: 'Token non valido', shouldRemoveToken: true };
+      return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: error.code };
     }
     
-    console.error('❌ Errore invio push notification:', error.message);
-    console.error('❌ Error code:', error.code);
     return { success: false, error: error.message, code: error.code };
   }
 }
@@ -734,21 +739,22 @@ async function notifyAllUsers(titolo, commento) {
             pushSuccessCount++;
             validTokens.push(token); // Mantieni solo i token validi
             console.log(`    ✅ Notifica inviata con successo a Firebase`);
-            if (result.tokenType === 'WEB') {
-              console.log(`    ⚠️ ATTENZIONE: Token WEB - la notifica arriverà solo sul browser, NON sul cellulare mobile`);
-              console.log(`    💡 Per ricevere notifiche sul cellulare, l'utente deve aprire l'app mobile e concedere i permessi`);
-            } else {
-              console.log(`    ✅ Token MOBILE - la notifica arriverà sul dispositivo mobile`);
+            if (result.messageId) {
+              console.log(`    📨 Message ID: ${result.messageId}`);
             }
           } else {
             pushFailureCount++;
             console.log(`    ❌ Errore invio notifica: ${result.error}`);
+            if (result.code) {
+              console.log(`    📋 Error code: ${result.code}`);
+            }
             // Se il token non è valido, segnalo per rimozione
             if (result.shouldRemoveToken) {
               invalidTokens.push({ userId: utente.id, token });
-              console.log(`    🗑️ Token marcato per rimozione`);
+              console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
             } else {
               validTokens.push(token); // Mantieni il token se l'errore è temporaneo
+              console.log(`    ⚠️ Errore temporaneo, token mantenuto`);
             }
           }
         }
