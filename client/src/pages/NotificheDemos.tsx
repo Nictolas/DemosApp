@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Bell, ArrowLeft, Loader2, Send } from "lucide-react";
+import { Bell, ArrowLeft, Loader2, Send, TestTube } from "lucide-react";
 
 const demosNotificationSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -34,6 +34,41 @@ export default function NotificheDemos() {
     defaultValues: {
       titolo: "",
       commento: "",
+    },
+  });
+
+  // Mutazione per testare le notifiche push
+  const testPushNotification = useMutation({
+    mutationFn: async () => {
+      const testData = {
+        titolo: "Notifica di Test",
+        messaggio: "Questa è una notifica di test per verificare il funzionamento delle notifiche push. Se ricevi questa notifica, significa che le tue preferenze sono configurate correttamente!"
+      };
+      
+      const response = await apiRequest("POST", "/api/comunicazioni/send-demos-notification", testData);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Errore nell'invio della notifica di test");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Notifica di test inviata", 
+        description: "La notifica di test è stata inviata a tutti gli utenti con le preferenze 'Demos' attivate." 
+      });
+      console.log('🔄 Invalidando notificationBadge dopo invio notifica di test');
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+    },
+    onError: (error: any) => {
+      console.error("Errore nell'invio notifica di test:", error);
+      toast({ 
+        title: "Errore", 
+        description: error.message || "Invio fallito. Riprova più tardi.", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -131,6 +166,48 @@ export default function NotificheDemos() {
             </p>
           </div>
         </div>
+
+        {/* Pulsante Test Notifica */}
+        <Card className="bg-white shadow-sm mb-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <TestTube className="h-5 w-5 text-emerald-600" />
+              Test Notifiche Push
+            </CardTitle>
+            <CardDescription>
+              Invia una notifica di test a tutti gli utenti con le preferenze "Demos" attivate per verificare il funzionamento delle notifiche push.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              size="lg"
+              onClick={() => testPushNotification.mutate()}
+              disabled={testPushNotification.isPending}
+            >
+              {testPushNotification.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Invio test in corso...
+                </>
+              ) : (
+                <>
+                  <TestTube className="mr-2 h-4 w-4" />
+                  Invia Notifica di Test
+                </>
+              )}
+            </Button>
+            <Alert className="mt-4">
+              <Bell className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Nota:</strong> La notifica di test verrà inviata solo agli utenti che hanno attivato 
+                le notifiche "Demos" nelle loro preferenze e che hanno un token FCM valido.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
 
         {/* Form */}
         <Card className="bg-white shadow-sm">
