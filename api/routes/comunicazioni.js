@@ -1165,7 +1165,9 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
           finisce_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(process.env.FIREBASE_PRIVATE_KEY.length - 30) : null,
           contiene_begin: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('BEGIN PRIVATE KEY') : false,
           contiene_end: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('END PRIVATE KEY') : false,
-          contiene_backslash_n: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('\\n') : false
+          contiene_backslash_n: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('\\n') : false,
+          lunghezza_attesa: 'Una chiave privata RSA completa dovrebbe essere ~1600-1700 caratteri. Se è molto più corta, potrebbe essere troncata.',
+          sembra_completa: process.env.FIREBASE_PRIVATE_KEY ? (process.env.FIREBASE_PRIVATE_KEY.length > 1000) : false
         }
       },
       stato_inizializzazione: {
@@ -1180,22 +1182,47 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
     // Prova a inizializzare Firebase Admin
     try {
       console.log('🔍 Tentativo di inizializzazione Firebase Admin...');
+      console.log('🔍 Chiamata a initializeFirebaseAdmin()...');
       const admin = initializeFirebaseAdmin();
+      console.log('🔍 Risultato initializeFirebaseAdmin():', admin ? 'Admin disponibile' : 'Admin null');
       debugInfo.stato_inizializzazione.admin_disponibile = !!admin;
       
       if (admin) {
         console.log('✅ Firebase Admin inizializzato con successo');
         debugInfo.stato_inizializzazione.admin_disponibile = true;
+        // Verifica che admin.messaging() sia disponibile
+        try {
+          const messaging = admin.messaging();
+          console.log('✅ admin.messaging() disponibile');
+          debugInfo.stato_inizializzazione.messaging_disponibile = true;
+        } catch (messagingError) {
+          console.error('❌ admin.messaging() non disponibile:', messagingError.message);
+          debugInfo.stato_inizializzazione.messaging_disponibile = false;
+          debugInfo.stato_inizializzazione.errore = {
+            message: `Messaging non disponibile: ${messagingError.message}`,
+            code: messagingError.code || 'N/A'
+          };
+        }
       } else {
-        console.log('❌ Firebase Admin non inizializzato');
+        console.log('❌ Firebase Admin non inizializzato - initializeFirebaseAdmin() ha restituito null');
         debugInfo.stato_inizializzazione.admin_disponibile = false;
+        debugInfo.stato_inizializzazione.errore = {
+          message: 'initializeFirebaseAdmin() ha restituito null. Verifica i log del server per dettagli.',
+          code: 'INIT_FAILED'
+        };
       }
     } catch (error) {
       console.error('❌ Errore durante inizializzazione:', error);
+      console.error('❌ Error name:', error.name);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error stack:', error.stack);
+      debugInfo.stato_inizializzazione.admin_disponibile = false;
       debugInfo.stato_inizializzazione.errore = {
         message: error.message,
         code: error.code || 'N/A',
-        stack: error.stack ? error.stack.substring(0, 500) : 'N/A'
+        name: error.name || 'N/A',
+        stack: error.stack ? error.stack.substring(0, 1000) : 'N/A'
       };
     }
     
