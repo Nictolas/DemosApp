@@ -529,21 +529,67 @@ async function notifyAllUsers(titolo, commento) {
       console.log(`✅ Notifica Demos creata con ID: ${comunicazioneId}`);
     }
 
-    // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
-    // SOLO gli utenti con demos: true (non NULL o undefined)
-    const utentiConPushResult = await pool.query(`
-      SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
-             COALESCE(np.demos, false) as demos,
-             np.demos as demos_raw
+    // Prima verifica quanti utenti hanno FCM tokens
+    const utentiConFCMResult = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM users u
+      WHERE (u.status = $1 OR u.status IS NULL)
+        AND u.fcm_tokens IS NOT NULL 
+        AND array_length(u.fcm_tokens, 1) > 0
+    `, ['active']);
+    console.log(`📊 Utenti con FCM tokens: ${utentiConFCMResult.rows[0].count}`);
+
+    // Verifica quanti utenti hanno preferenze
+    const utentiConPreferenzeResult = await pool.query(`
+      SELECT 
+        COUNT(*) as totale,
+        COUNT(CASE WHEN np.demos = true THEN 1 END) as demos_true,
+        COUNT(CASE WHEN np.demos = false THEN 1 END) as demos_false,
+        COUNT(CASE WHEN np.demos IS NULL THEN 1 END) as demos_null
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       WHERE (u.status = $1 OR u.status IS NULL)
-        AND np.demos = true
+    `, ['active']);
+    const prefStats = utentiConPreferenzeResult.rows[0];
+    console.log(`📊 Statistiche preferenze Demos:`);
+    console.log(`   - Totale utenti con preferenze: ${prefStats.totale}`);
+    console.log(`   - demos = true: ${prefStats.demos_true}`);
+    console.log(`   - demos = false: ${prefStats.demos_false}`);
+    console.log(`   - demos = NULL: ${prefStats.demos_null}`);
+
+    // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
+    // SOLO gli utenti con demos: true (non NULL o undefined)
+    // Usa CAST per assicurarsi che il confronto funzioni correttamente
+    const utentiConPushResult = await pool.query(`
+      SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+             COALESCE(np.demos, false) as demos,
+             np.demos as demos_raw,
+             pg_typeof(np.demos) as demos_type
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE (u.status = $1 OR u.status IS NULL)
+        AND (np.demos = true OR np.demos = 'true'::boolean)
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
     `, ['active']);
 
     console.log(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
+    
+    // Debug: verifica utenti specifici con FCM ma senza demos=true
+    const debugUtentiResult = await pool.query(`
+      SELECT u.id, u.email, u.fcm_tokens, np.demos, 
+             array_length(u.fcm_tokens, 1) as num_tokens
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE (u.status = $1 OR u.status IS NULL)
+        AND u.fcm_tokens IS NOT NULL 
+        AND array_length(u.fcm_tokens, 1) > 0
+      LIMIT 5
+    `, ['active']);
+    console.log(`🔍 Esempi utenti con FCM tokens (primi 5):`);
+    debugUtentiResult.rows.forEach((utente, index) => {
+      console.log(`   ${index + 1}. ${utente.email || utente.id}: demos=${utente.demos} (${typeof utente.demos}), tokens=${utente.num_tokens}`);
+    });
     
     // Log dettagliato per debug
     if (utentiConPushResult.rows.length > 0) {
