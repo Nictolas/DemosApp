@@ -3,19 +3,7 @@ import { Bell, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 
-interface HeaderProps {
-  fcmToken: string | null;
-  fcmError: Error | null;
-  permission: NotificationPermission | null;
-  onSwitch: (key: string, value: boolean) => void;
-}
-
-export const Header: React.FC<HeaderProps> = ({
-  fcmToken,
-  fcmError,
-  permission,
-  onSwitch
-}) => {
+export const Header: React.FC = () => {
   const [, setLocation] = useLocation();
 
   return (
