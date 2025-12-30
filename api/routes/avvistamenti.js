@@ -74,15 +74,15 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     console.log(`✅ Notifica avvistamento creata con ID: ${notificaId}`);
 
     // Trova tutti gli utenti con lo stesso comune_residenza (escludendo chi ha inviato la notifica)
-    // Filtra direttamente nella query per utenti con avvistamenti attivi (default true se non specificato)
+    // Filtra direttamente nella query per utenti con animali attivi (default true se non specificato)
     const usersResult = await pool.query(
-      `SELECT u.id, u.fcm_tokens, COALESCE(np.avvistamenti, true) as avvistamenti
+      `SELECT u.id, u.fcm_tokens, COALESCE(np.animali, true) as animali
        FROM users u
        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
        WHERE u.comune_residenza = $1 
          AND u.id != $2 
          AND u.comune_residenza IS NOT NULL
-         AND (np.avvistamenti = true OR np.avvistamenti IS NULL)`,
+         AND (np.animali = true OR np.animali IS NULL)`,
       [comuneResidenza, userId]
     );
 

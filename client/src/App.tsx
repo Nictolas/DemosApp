@@ -50,6 +50,7 @@ import Attivisti from "./pages/Attivisti";
 import Siti from "./pages/Siti";
 import Organizzazioni from "./pages/Organizzazioni";
 import Notifiche from "./pages/Notifiche";
+import NotifichePreferenze from "./pages/NotifichePreferenze";
 import NotificheTotali from "./pages/NotificheTotali";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
@@ -597,6 +598,13 @@ export default function App() {
               <Route path="/notifiche">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/notifiche" component={Notifiche} />
+                </PageTransition>
+              </Route>
+
+              {/* Route preferenze notifiche */}
+              <Route path="/notifiche/preferenze">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/notifiche/preferenze" component={NotifichePreferenze} />
                 </PageTransition>
               </Route>
 
