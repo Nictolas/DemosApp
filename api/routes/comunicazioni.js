@@ -192,23 +192,27 @@ router.post('/', async (req, res) => {
         
         const utentiConRappresentante = isUUID
           ? await pool.query(
-              `SELECT id, fcm_tokens, notifiche_preferenze, email, nome, cognome
-               FROM users 
-               WHERE rappresentante_comune = $1::uuid
-                 AND (status = 'active' OR status IS NULL)
-                 AND fcm_tokens IS NOT NULL 
-                 AND array_length(fcm_tokens, 1) > 0
-                 AND (notifiche_preferenze->>'istituzione' = 'true' OR notifiche_preferenze->>'istituzione' IS NULL)`,
+              `SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome, 
+                      COALESCE(np.istituzione, false) as istituzione
+               FROM users u
+               LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+               WHERE u.rappresentante_comune = $1::uuid
+                 AND (u.status = 'active' OR u.status IS NULL)
+                 AND u.fcm_tokens IS NOT NULL 
+                 AND array_length(u.fcm_tokens, 1) > 0
+                 AND (np.istituzione = true OR np.istituzione IS NULL)`,
               [utentePolitico.id]
             )
           : await pool.query(
-              `SELECT id, fcm_tokens, notifiche_preferenze, email, nome, cognome
-               FROM users 
-               WHERE rappresentante_comune::text = $1::text
-                 AND (status = 'active' OR status IS NULL)
-                 AND fcm_tokens IS NOT NULL 
-                 AND array_length(fcm_tokens, 1) > 0
-                 AND (notifiche_preferenze->>'istituzione' = 'true' OR notifiche_preferenze->>'istituzione' IS NULL)`,
+              `SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+                      COALESCE(np.istituzione, false) as istituzione
+               FROM users u
+               LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+               WHERE u.rappresentante_comune::text = $1::text
+                 AND (u.status = 'active' OR u.status IS NULL)
+                 AND u.fcm_tokens IS NOT NULL 
+                 AND array_length(u.fcm_tokens, 1) > 0
+                 AND (np.istituzione = true OR np.istituzione IS NULL)`,
               [utentePolitico.id]
             );
 
@@ -526,12 +530,14 @@ async function notifyAllUsers(titolo, commento) {
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
     // SOLO gli utenti con demos: true (non NULL o undefined)
     const utentiConPushResult = await pool.query(`
-      SELECT id, fcm_tokens, notifiche_preferenze, email, nome, cognome
-      FROM users 
-      WHERE (status = $1 OR status IS NULL)
-        AND notifiche_preferenze->>'demos' = 'true'
-        AND fcm_tokens IS NOT NULL 
-        AND array_length(fcm_tokens, 1) > 0
+      SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+             COALESCE(np.demos, false) as demos
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE (u.status = $1 OR u.status IS NULL)
+        AND np.demos = true
+        AND u.fcm_tokens IS NOT NULL 
+        AND array_length(u.fcm_tokens, 1) > 0
     `, ['active']);
 
     console.log(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
@@ -539,7 +545,7 @@ async function notifyAllUsers(titolo, commento) {
     if (utentiConPushResult.rows.length === 0) {
       console.log('ℹ️ Nessun utente con push notifications attive per Demos');
       console.log('💡 Verifica che gli utenti abbiano:');
-      console.log('   1. notifiche_preferenze->>\'demos\' = \'true\'');
+      console.log('   1. notifiche_preferenze.demos = true');
       console.log('   2. fcm_tokens non vuoto');
       return;
     }

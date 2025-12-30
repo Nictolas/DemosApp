@@ -74,12 +74,15 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     console.log(`✅ Notifica avvistamento creata con ID: ${notificaId}`);
 
     // Trova tutti gli utenti con lo stesso comune_residenza (escludendo chi ha inviato la notifica)
+    // Filtra direttamente nella query per utenti con avvistamenti attivi (default true se non specificato)
     const usersResult = await pool.query(
-      `SELECT id, fcm_tokens, notifiche_preferenze 
-       FROM users 
-       WHERE comune_residenza = $1 
-         AND id != $2 
-         AND comune_residenza IS NOT NULL`,
+      `SELECT u.id, u.fcm_tokens, COALESCE(np.avvistamenti, true) as avvistamenti
+       FROM users u
+       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+       WHERE u.comune_residenza = $1 
+         AND u.id != $2 
+         AND u.comune_residenza IS NOT NULL
+         AND (np.avvistamenti = true OR np.avvistamenti IS NULL)`,
       [comuneResidenza, userId]
     );
 
@@ -94,15 +97,8 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     let errors = 0;
 
     // Invia push notification a tutti gli utenti target
+    // (già filtrati nella query per avere avvistamenti = true)
     for (const targetUser of targetUsers) {
-      // Verifica se l'utente ha attivato le notifiche per avvistamenti
-      const preferenze = targetUser.notifiche_preferenze || {};
-      const notificheAttive = preferenze.avvistamenti !== false; // Default: true se non specificato
-
-      if (!notificheAttive) {
-        console.log(`⏭️ Utente ${targetUser.id} ha disattivato le notifiche per avvistamenti`);
-        continue;
-      }
 
       // Ottieni i token FCM dell'utente
       const fcmTokens = targetUser.fcm_tokens || [];
