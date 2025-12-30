@@ -811,7 +811,7 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Verifica lo stato dell'utente corrente
+    // Verifica lo stato dell'utente corrente con query più dettagliate
     const userResult = await pool.query(`
       SELECT 
         u.id,
@@ -820,7 +820,16 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
         u.cognome,
         u.status,
         u.fcm_tokens,
+        array_length(u.fcm_tokens, 1) as num_tokens,
         np.demos as demos_preferenza,
+        pg_typeof(np.demos) as demos_type,
+        np.user_id as pref_user_id,
+        CASE 
+          WHEN np.demos IS NULL THEN 'NULL'
+          WHEN np.demos = true THEN 'true'
+          WHEN np.demos = false THEN 'false'
+          ELSE 'unknown'
+        END as demos_status,
         CASE 
           WHEN u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN true 
           ELSE false 
@@ -844,6 +853,19 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
     const user = userResult.rows[0];
     const fcmTokens = user.fcm_tokens || [];
     
+    // Query aggiuntiva per vedere tutti gli utenti con FCM e demos
+    const allUsersResult = await pool.query(`
+      SELECT 
+        COUNT(*) as totale_utenti_fcm,
+        COUNT(CASE WHEN np.demos = true THEN 1 END) as utenti_demos_true,
+        COUNT(CASE WHEN np.demos = false THEN 1 END) as utenti_demos_false,
+        COUNT(CASE WHEN np.demos IS NULL THEN 1 END) as utenti_demos_null
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE u.fcm_tokens IS NOT NULL 
+        AND array_length(u.fcm_tokens, 1) > 0
+    `);
+    
     res.json({
       success: true,
       data: {
@@ -856,6 +878,10 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
         },
         preferenze: {
           demos_attivo: user.demos_preferenza === true,
+          demos_value: user.demos_preferenza,
+          demos_type: user.demos_type,
+          demos_status: user.demos_status,
+          pref_user_id: user.pref_user_id,
           ha_fcm_tokens: user.ha_fcm_tokens,
           numero_token_fcm: fcmTokens.length,
           ricevera_notifiche: user.ricevera_notifiche
@@ -863,7 +889,8 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
         token_fcm: fcmTokens.length > 0 ? fcmTokens.map(t => ({
           preview: t ? `${t.substring(0, 30)}...` : null,
           length: t ? t.length : 0
-        })) : []
+        })) : [],
+        statistiche_globali: allUsersResult.rows[0]
       }
     });
   } catch (error) {
