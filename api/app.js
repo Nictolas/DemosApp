@@ -219,6 +219,14 @@ app.use(cors(corsOptions));
 // DEBUG: Middleware di logging universale per catturare TUTTE le richieste
 app.use((req, res, next) => {
   console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+  // Log specifico per send-demos-notification
+  if (req.originalUrl.includes('send-demos-notification')) {
+    console.log(`🔴 ========== UNIVERSAL LOG: RICHIESTA send-demos-notification ==========`);
+    console.log(`🔴 Method: ${req.method}`);
+    console.log(`🔴 URL: ${req.originalUrl}`);
+    console.log(`🔴 Path: ${req.path}`);
+    console.log(`🔴 Headers: ${JSON.stringify(req.headers)}`);
+  }
   next();
 });
 

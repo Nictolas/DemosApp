@@ -13,6 +13,135 @@ const pool = getPool();
 
 // ===== ENDPOINTS PER COMUNICAZIONI =====
 
+// MIDDLEWARE DI DEBUG PER TUTTE LE RICHIESTE A QUESTO ROUTER
+router.use((req, res, next) => {
+  console.log(`🟡 ROUTER COMUNICAZIONI: ${req.method} ${req.path} - ${req.originalUrl}`);
+  if (req.path.includes('send-demos-notification') || req.originalUrl.includes('send-demos-notification')) {
+    console.log('🔴 ========== ROUTER MIDDLEWARE: RICHIESTA A COMUNICAZIONI ==========');
+    console.log('🔴 Method:', req.method);
+    console.log('🔴 Path:', req.path);
+    console.log('🔴 Original URL:', req.originalUrl);
+    console.log('🔴 Base URL:', req.baseUrl);
+    console.log('🔴 Full URL:', req.originalUrl);
+  }
+  next();
+});
+
+// POST /api/comunicazioni/send-demos-notification - Invia notifica "Notifiche Demos" manualmente
+// IMPORTANTE: Questa route deve essere definita PRIMA di router.post('/') per evitare conflitti
+router.post('/send-demos-notification', (req, res, next) => {
+  console.log('🔵 ========== ROUTE HIT: /send-demos-notification ==========');
+  console.log('🔵 Method:', req.method);
+  console.log('🔵 Path:', req.path);
+  console.log('🔵 Original URL:', req.originalUrl);
+  console.log('🔵 Base URL:', req.baseUrl);
+  console.log('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
+  next();
+}, verifyToken, async (req, res) => {
+  try {
+    console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
+    console.log('📢 Timestamp:', new Date().toISOString());
+    console.log('📢 User ID:', req.user?.id);
+    console.log('📢 Request body:', JSON.stringify(req.body));
+    const { titolo, messaggio } = req.body;
+    
+    console.log('📝 Dati ricevuti:', { titolo, messaggio });
+    
+    if (!titolo) {
+      console.log('❌ Titolo mancante');
+      return res.status(400).json({
+        success: false,
+        error: 'Titolo richiesto'
+      });
+    }
+
+    const commento = messaggio || titolo;
+    console.log('🚀 Avvio invio notifiche...');
+
+    // Prima di inviare, verifica quanti utenti sono idonei
+    const checkResult = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT u.id) as totale_utenti,
+        COUNT(DISTINCT CASE WHEN np.demos = true THEN u.id END) as utenti_con_demos_attivo,
+        COUNT(DISTINCT CASE WHEN u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_con_fcm_tokens,
+        COUNT(DISTINCT CASE WHEN np.demos = true AND u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_idonei
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE (u.status = 'a' OR u.status IS NULL)
+    `);
+
+    const stats = checkResult.rows[0];
+    console.log('📊 Statistiche utenti:');
+    console.log(`   - Totale utenti: ${stats.totale_utenti}`);
+    console.log(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
+    console.log(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
+    console.log(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
+
+    // DEBUG: Verifica tutti gli utenti con FCM tokens e le loro preferenze
+    const debugAllUsers = await pool.query(`
+      SELECT 
+        u.id,
+        u.email,
+        u.status,
+        u.fcm_tokens,
+        array_length(u.fcm_tokens, 1) as num_tokens,
+        np.demos,
+        np.user_id as pref_user_id,
+        pg_typeof(np.demos) as demos_type,
+        CASE 
+          WHEN np.demos IS NULL THEN 'NULL'
+          WHEN np.demos = true THEN 'true'
+          WHEN np.demos = false THEN 'false'
+          ELSE 'unknown'
+        END as demos_status
+      FROM users u
+      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      WHERE u.fcm_tokens IS NOT NULL 
+        AND array_length(u.fcm_tokens, 1) > 0
+      ORDER BY u.email
+      LIMIT 10
+    `);
+    
+    console.log('🔍 DEBUG: Primi 10 utenti con FCM tokens:');
+    debugAllUsers.rows.forEach((user, index) => {
+      console.log(`   ${index + 1}. ${user.email || user.id}:`);
+      console.log(`      - Status: ${user.status}`);
+      console.log(`      - FCM tokens: ${user.num_tokens}`);
+      console.log(`      - demos: ${user.demos} (tipo: ${user.demos_type}, status: ${user.demos_status})`);
+      console.log(`      - pref_user_id: ${user.pref_user_id || 'NULL'}`);
+    });
+
+    // Invia la notifica a tutti gli utenti con demos: true
+    await notifyAllUsers(titolo, commento);
+
+    console.log('✅ Invio notifiche completato');
+
+    res.json({
+      success: true,
+      message: 'Notifica "Notifiche Demos" inviata con successo',
+      data: {
+        titolo,
+        messaggio: commento,
+        destinatari: 'Tutti gli utenti con notifiche Demos attivate',
+        statistiche: {
+          totale_utenti: parseInt(stats.totale_utenti),
+          utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
+          utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
+          utenti_idonei: parseInt(stats.utenti_idonei)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'invio notifica Demos:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // GET /api/comunicazioni - Lista comunicazioni
 router.get('/', async (req, res) => {
   try {
@@ -789,119 +918,6 @@ async function notifyAllUsers(titolo, commento) {
     console.error('❌ Errore nell\'invio notifiche Demos:', error);
   }
 }
-
-// POST /api/comunicazioni/send-demos-notification - Invia notifica "Notifiche Demos" manualmente
-router.post('/send-demos-notification', (req, res, next) => {
-  console.log('🔵 ========== ROUTE HIT: /send-demos-notification ==========');
-  console.log('🔵 Method:', req.method);
-  console.log('🔵 Path:', req.path);
-  console.log('🔵 Original URL:', req.originalUrl);
-  console.log('🔵 Headers:', JSON.stringify(req.headers));
-  next();
-}, verifyToken, async (req, res) => {
-  try {
-    console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
-    console.log('📢 Timestamp:', new Date().toISOString());
-    console.log('📢 User ID:', req.user?.id);
-    console.log('📢 Request body:', JSON.stringify(req.body));
-    const { titolo, messaggio } = req.body;
-    
-    console.log('📝 Dati ricevuti:', { titolo, messaggio });
-    
-    if (!titolo) {
-      console.log('❌ Titolo mancante');
-      return res.status(400).json({
-        success: false,
-        error: 'Titolo richiesto'
-      });
-    }
-
-    const commento = messaggio || titolo;
-    console.log('🚀 Avvio invio notifiche...');
-
-    // Prima di inviare, verifica quanti utenti sono idonei
-    const checkResult = await pool.query(`
-      SELECT 
-        COUNT(DISTINCT u.id) as totale_utenti,
-        COUNT(DISTINCT CASE WHEN np.demos = true THEN u.id END) as utenti_con_demos_attivo,
-        COUNT(DISTINCT CASE WHEN u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_con_fcm_tokens,
-        COUNT(DISTINCT CASE WHEN np.demos = true AND u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN u.id END) as utenti_idonei
-      FROM users u
-      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE (u.status = 'a' OR u.status IS NULL)
-    `);
-
-    const stats = checkResult.rows[0];
-    console.log('📊 Statistiche utenti:');
-    console.log(`   - Totale utenti: ${stats.totale_utenti}`);
-    console.log(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
-    console.log(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
-    console.log(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
-
-    // DEBUG: Verifica tutti gli utenti con FCM tokens e le loro preferenze
-    const debugAllUsers = await pool.query(`
-      SELECT 
-        u.id,
-        u.email,
-        u.status,
-        u.fcm_tokens,
-        array_length(u.fcm_tokens, 1) as num_tokens,
-        np.demos,
-        np.user_id as pref_user_id,
-        pg_typeof(np.demos) as demos_type,
-        CASE 
-          WHEN np.demos IS NULL THEN 'NULL'
-          WHEN np.demos = true THEN 'true'
-          WHEN np.demos = false THEN 'false'
-          ELSE 'unknown'
-        END as demos_status
-      FROM users u
-      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE u.fcm_tokens IS NOT NULL 
-        AND array_length(u.fcm_tokens, 1) > 0
-      ORDER BY u.email
-      LIMIT 10
-    `);
-    
-    console.log('🔍 DEBUG: Primi 10 utenti con FCM tokens:');
-    debugAllUsers.rows.forEach((user, index) => {
-      console.log(`   ${index + 1}. ${user.email || user.id}:`);
-      console.log(`      - Status: ${user.status}`);
-      console.log(`      - FCM tokens: ${user.num_tokens}`);
-      console.log(`      - demos: ${user.demos} (tipo: ${user.demos_type}, status: ${user.demos_status})`);
-      console.log(`      - pref_user_id: ${user.pref_user_id || 'NULL'}`);
-    });
-
-    // Invia la notifica a tutti gli utenti con demos: true
-    await notifyAllUsers(titolo, commento);
-
-    console.log('✅ Invio notifiche completato');
-
-    res.json({
-      success: true,
-      message: 'Notifica "Notifiche Demos" inviata con successo',
-      data: {
-        titolo,
-        messaggio: commento,
-        destinatari: 'Tutti gli utenti con notifiche Demos attivate',
-        statistiche: {
-          totale_utenti: parseInt(stats.totale_utenti),
-          utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
-          utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
-          utenti_idonei: parseInt(stats.utenti_idonei)
-        }
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nell\'invio notifica Demos:', error);
-    console.error('❌ Stack:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      details: error.message
-    });
-  }
-});
 
 // GET /api/comunicazioni/debug-notifiche-demos - Debug per verificare lo stato delle notifiche Demos
 router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
