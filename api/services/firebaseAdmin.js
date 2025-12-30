@@ -28,15 +28,31 @@ function initializeFirebaseAdmin() {
     const hasPrivateKey = !!process.env.FIREBASE_PRIVATE_KEY;
     
     console.log('🔍 Verifica variabili d\'ambiente Firebase:');
-    console.log(`   FIREBASE_PROJECT_ID: ${hasProjectId ? '✅ Presente' : '❌ Mancante'}`);
-    console.log(`   FIREBASE_CLIENT_EMAIL: ${hasClientEmail ? '✅ Presente' : '❌ Mancante'}`);
-    console.log(`   FIREBASE_PRIVATE_KEY: ${hasPrivateKey ? '✅ Presente' : '❌ Mancante'}`);
+    console.log(`   FIREBASE_PROJECT_ID: ${hasProjectId ? '✅ Presente' : '❌ Mancante'}${hasProjectId ? ` (${process.env.FIREBASE_PROJECT_ID})` : ''}`);
+    console.log(`   FIREBASE_CLIENT_EMAIL: ${hasClientEmail ? '✅ Presente' : '❌ Mancante'}${hasClientEmail ? ` (${process.env.FIREBASE_CLIENT_EMAIL.substring(0, 30)}...)` : ''}`);
+    console.log(`   FIREBASE_PRIVATE_KEY: ${hasPrivateKey ? '✅ Presente' : '❌ Mancante'}${hasPrivateKey ? ` (lunghezza: ${process.env.FIREBASE_PRIVATE_KEY.length} caratteri)` : ''}`);
     
     if (hasProjectId && hasClientEmail && hasPrivateKey) {
       console.log('📝 Inizializzazione Firebase Admin con variabili d\'ambiente...');
       
       try {
-        const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+        // Pulisci la chiave privata: rimuovi virgolette iniziali/finali e converti \n
+        let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+        
+        // Rimuovi virgolette iniziali e finali se presenti
+        privateKey = privateKey.replace(/^["']|["']$/g, '');
+        
+        // Converti \n letterali in newline reali
+        privateKey = privateKey.replace(/\\n/g, '\n');
+        
+        // Verifica che la chiave inizi e finisca correttamente
+        if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+          console.warn('⚠️ La chiave privata potrebbe non essere formattata correttamente (manca BEGIN PRIVATE KEY)');
+        }
+        
+        console.log(`   Chiave privata pulita: ${privateKey.length} caratteri`);
+        console.log(`   Inizia con: ${privateKey.substring(0, 30)}...`);
+        console.log(`   Finisce con: ...${privateKey.substring(privateKey.length - 30)}`);
         
         admin.initializeApp({
           credential: admin.credential.cert({
@@ -49,11 +65,14 @@ function initializeFirebaseAdmin() {
         isInitialized = true;
         console.log('✅ Firebase Admin inizializzato con successo (variabili d\'ambiente)');
         console.log(`   Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
-        console.log(`   Client Email: ${process.env.FIREBASE_CLIENT_EMAIL}`);
         return admin;
       } catch (initError) {
-        console.error('❌ Errore durante l\'inizializzazione Firebase Admin:', initError.message);
-        console.error('❌ Stack:', initError.stack);
+        console.error('❌ Errore durante l\'inizializzazione Firebase Admin:');
+        console.error(`   Message: ${initError.message}`);
+        console.error(`   Code: ${initError.code || 'N/A'}`);
+        if (initError.stack) {
+          console.error(`   Stack: ${initError.stack}`);
+        }
         return null;
       }
     }
@@ -109,7 +128,10 @@ function getFirebaseAdmin() {
     const result = initializeFirebaseAdmin();
     if (!result) {
       console.error('❌ getFirebaseAdmin: Firebase Admin non disponibile dopo tentativo di inizializzazione');
-      console.error('❌ Verifica le variabili d\'ambiente: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY');
+      console.error('❌ Verifica le variabili d\'ambiente su Render.com:');
+      console.error('   - FIREBASE_PROJECT_ID');
+      console.error('   - FIREBASE_CLIENT_EMAIL');
+      console.error('   - FIREBASE_PRIVATE_KEY (deve essere la chiave completa senza virgolette)');
     }
     return result;
   }

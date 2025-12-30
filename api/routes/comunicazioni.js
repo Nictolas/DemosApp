@@ -36,10 +36,8 @@ router.post('/send-demos-notification', (req, res, next) => {
   console.log('🔵 Original URL:', req.originalUrl);
   console.log('🔵 Base URL:', req.baseUrl);
   console.log('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
-  console.log('🔵 Timestamp richiesta:', new Date().toISOString());
   next();
 }, verifyToken, async (req, res) => {
-  const requestStartTime = Date.now();
   try {
     console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
     console.log('📢 Timestamp:', new Date().toISOString());
@@ -73,11 +71,11 @@ router.post('/send-demos-notification', (req, res, next) => {
     `);
 
     const stats = checkResult.rows[0];
-    console.log('📊 Statistiche utenti (query iniziale):');
+    console.log('📊 Statistiche utenti:');
     console.log(`   - Totale utenti: ${stats.totale_utenti}`);
     console.log(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
     console.log(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
-    console.log(`   - Utenti idonei (demos=true + FCM tokens + status="a"): ${stats.utenti_idonei}`);
+    console.log(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
 
     // DEBUG: Verifica tutti gli utenti con FCM tokens e le loro preferenze
     const debugAllUsers = await pool.query(`
@@ -114,87 +112,13 @@ router.post('/send-demos-notification', (req, res, next) => {
     });
 
     // Invia la notifica a tutti gli utenti con demos: true
-    console.log('📤 Chiamata a notifyAllUsers...');
-    const notifyResult = await notifyAllUsers(titolo, commento);
-    
-    console.log('📊 Risultato notifyAllUsers:', {
-      success: notifyResult.success,
-      inviati: notifyResult.inviati,
-      errori: notifyResult.errori,
-      utenti: notifyResult.utenti,
-      hasError: !!notifyResult.error
-    });
+    await notifyAllUsers(titolo, commento);
 
-    // Verifica il risultato prima di rispondere
-    if (notifyResult.error) {
-      console.error('❌ notifyAllUsers ha generato un errore:', notifyResult.error.message);
-      return res.status(500).json({
-        success: false,
-        error: 'Errore nell\'invio delle notifiche push',
-        details: notifyResult.error.message,
-        data: {
-          titolo,
-          messaggio: commento,
-          statistiche: {
-            totale_utenti: parseInt(stats.totale_utenti),
-            utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
-            utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
-            utenti_idonei: parseInt(stats.utenti_idonei),
-            notifiche_inviate: notifyResult.inviati,
-            notifiche_fallite: notifyResult.errori
-          }
-        }
-      });
-    }
-
-    if (notifyResult.utenti === 0) {
-      console.warn('⚠️ Nessun utente idoneo trovato per l\'invio delle notifiche');
-      return res.status(200).json({
-        success: true,
-        message: 'Nessun utente idoneo trovato per l\'invio delle notifiche',
-        warning: 'Nessun utente con preferenze Demos attivate e token FCM valido',
-        data: {
-          titolo,
-          messaggio: commento,
-          statistiche: {
-            totale_utenti: parseInt(stats.totale_utenti),
-            utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
-            utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
-            utenti_idonei: parseInt(stats.utenti_idonei),
-            notifiche_inviate: 0,
-            notifiche_fallite: 0
-          }
-        }
-      });
-    }
-
-    if (notifyResult.inviati === 0 && notifyResult.errori > 0) {
-      console.error('❌ Tutte le notifiche sono fallite');
-      return res.status(500).json({
-        success: false,
-        error: 'Tutte le notifiche push sono fallite',
-        data: {
-          titolo,
-          messaggio: commento,
-          statistiche: {
-            totale_utenti: parseInt(stats.totale_utenti),
-            utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
-            utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
-            utenti_idonei: parseInt(stats.utenti_idonei),
-            notifiche_inviate: notifyResult.inviati,
-            notifiche_fallite: notifyResult.errori
-          }
-        }
-      });
-    }
-
-    console.log('✅ Invio notifiche completato con successo');
+    console.log('✅ Invio notifiche completato');
 
     res.json({
       success: true,
-      message: notifyResult.errori > 0 
-        ? `Notifica "Notifiche Demos" inviata con successo (${notifyResult.inviati} inviate, ${notifyResult.errori} fallite)`
-        : 'Notifica "Notifiche Demos" inviata con successo',
+      message: 'Notifica "Notifiche Demos" inviata con successo',
       data: {
         titolo,
         messaggio: commento,
@@ -203,21 +127,13 @@ router.post('/send-demos-notification', (req, res, next) => {
           totale_utenti: parseInt(stats.totale_utenti),
           utenti_con_demos_attivo: parseInt(stats.utenti_con_demos_attivo),
           utenti_con_fcm_tokens: parseInt(stats.utenti_con_fcm_tokens),
-          utenti_idonei: parseInt(stats.utenti_idonei),
-          notifiche_inviate: notifyResult.inviati,
-          notifiche_fallite: notifyResult.errori,
-          utenti_notificati: notifyResult.utenti
+          utenti_idonei: parseInt(stats.utenti_idonei)
         }
       }
     });
   } catch (error) {
-    const requestDuration = Date.now() - requestStartTime;
-    console.error('❌ ========== ERRORE NELL\'INVIO NOTIFICA DEMOS ==========');
-    console.error('❌ Timestamp:', new Date().toISOString());
-    console.error('❌ User ID:', req.user?.id);
-    console.error('❌ Errore:', error.message);
+    console.error('❌ Errore nell\'invio notifica Demos:', error);
     console.error('❌ Stack:', error.stack);
-    console.error('❌ Durata richiesta:', `${requestDuration}ms`);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -588,7 +504,6 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
 async function sendPushNotification(fcmToken, title, body, data = {}) {
   try {
     if (!fcmToken || !fcmToken.trim()) {
-      console.error('❌ sendPushNotification: Token FCM vuoto o non valido');
       return { success: false, error: 'Token FCM non valido' };
     }
 
@@ -597,12 +512,9 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     const admin = getFirebaseAdmin();
     
     if (!admin) {
-      console.error('❌ sendPushNotification: Firebase Admin non disponibile');
-      console.error('❌ Verifica la configurazione di Firebase Admin (variabili d\'ambiente o serviceAccountKey.json)');
+      console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
       return { success: false, error: 'Firebase Admin non configurato' };
     }
-    
-    console.log('✅ sendPushNotification: Firebase Admin disponibile');
 
     // Prepara il messaggio FCM
     const message = {
@@ -665,75 +577,51 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     };
 
     // Invia la notifica push
-    console.log(`📤 sendPushNotification: Invio notifica push a Firebase...`);
-    console.log(`   Token (primi 50 caratteri): ${fcmToken.substring(0, 50)}...`);
+    console.log(`📤 Invio notifica push a Firebase...`);
+    console.log(`   Token: ${fcmToken.substring(0, 30)}...`);
     console.log(`   Titolo: ${title}`);
     console.log(`   Body: ${body}`);
     console.log(`   Data:`, JSON.stringify(data));
-    console.log(`   Message completo:`, JSON.stringify(message, null, 2));
     
     try {
-      console.log('📤 sendPushNotification: Chiamata a admin.messaging().send()...');
       const response = await admin.messaging().send(message);
-      console.log(`✅ sendPushNotification: Push notification inviata con successo a Firebase`);
-      console.log(`   Message ID: ${response}`);
+      console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
       console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
       
       return { success: true, messageId: response };
     } catch (sendError) {
-      console.error(`❌ sendPushNotification: Errore durante l'invio a Firebase`);
-      console.error(`   Error name: ${sendError.name || 'N/A'}`);
-      console.error(`   Error message: ${sendError.message || 'N/A'}`);
+      console.error(`❌ Errore durante l'invio a Firebase:`);
+      console.error(`   Message: ${sendError.message}`);
       console.error(`   Error code: ${sendError.code || 'N/A'}`);
-      console.error(`   Error stack: ${sendError.stack || 'N/A'}`);
-      console.error(`   Token (primi 50 caratteri): ${fcmToken?.substring(0, 50) || 'N/A'}...`);
+      console.error(`   Token: ${fcmToken?.substring(0, 30)}...`);
       
       // Gestisci errori specifici di FCM
       if (sendError.code === 'messaging/invalid-registration-token' || 
           sendError.code === 'messaging/registration-token-not-registered') {
-        console.warn(`⚠️ sendPushNotification: Token FCM non valido o non registrato - verrà rimosso dal database`);
+        console.warn(`⚠️ Token FCM non valido o non registrato - verrà rimosso dal database`);
         return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: sendError.code };
-      }
-      
-      // Se è un errore di autenticazione/configurazione Firebase
-      if (sendError.code === 'app/invalid-credential' || 
-          sendError.code === 'auth/invalid-credential' ||
-          sendError.message?.includes('credential') ||
-          sendError.message?.includes('authentication')) {
-        console.error(`❌ sendPushNotification: Errore di autenticazione Firebase - verifica le credenziali`);
-        return { success: false, error: 'Errore di autenticazione Firebase', code: sendError.code };
       }
       
       throw sendError;
     }
   } catch (error) {
     // Gestisci altri errori
-    console.error('❌ sendPushNotification: Errore generale nell\'invio push notification');
-    console.error('   Error name:', error.name || 'N/A');
-    console.error('   Error message:', error.message || 'N/A');
-    console.error('   Error code:', error.code || 'N/A');
-    console.error('   Error stack:', error.stack || 'N/A');
-    console.error('   Token (primi 50 caratteri):', fcmToken?.substring(0, 50) || 'N/A');
+    console.error('❌ Errore invio push notification:', error.message);
+    console.error('❌ Error code:', error.code || 'N/A');
+    console.error('❌ Token:', fcmToken?.substring(0, 30) || 'N/A');
     
     if (error.code === 'messaging/invalid-registration-token' || 
         error.code === 'messaging/registration-token-not-registered') {
       return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: error.code };
     }
     
-    return { success: false, error: error.message || 'Errore sconosciuto', code: error.code };
+    return { success: false, error: error.message, code: error.code };
   }
 }
 
 // Funzione per notificare tutti gli utenti (per notifiche Demos)
-// Restituisce: { success: boolean, inviati: number, errori: number, utenti: number, error?: Error }
 async function notifyAllUsers(titolo, commento) {
-  let pushSuccessCount = 0;
-  let pushFailureCount = 0;
-  let utentiTrovati = 0;
-  
   try {
-    console.log('🚀 notifyAllUsers: Inizio invio notifiche Demos');
-    
     // Usa un id_utente valido (non può essere NULL)
     // Prendi il primo utente attivo come mittente sistema
     const systemUserResult = await pool.query(`
@@ -742,9 +630,7 @@ async function notifyAllUsers(titolo, commento) {
     const systemUserId = systemUserResult.rows.length > 0 ? systemUserResult.rows[0].id : null;
     
     if (!systemUserId) {
-      const error = new Error('Nessun utente attivo trovato per creare la comunicazione');
-      console.error('❌ notifyAllUsers:', error.message);
-      return { success: false, inviati: 0, errori: 0, utenti: 0, error };
+      throw new Error('Nessun utente attivo trovato per creare la comunicazione');
     }
     
     // Controlla se esiste già una notifica Demos e la sovrascrivi
@@ -825,8 +711,8 @@ async function notifyAllUsers(titolo, commento) {
     console.log(`   - demos = NULL: ${prefStats.demos_null}`);
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
-    // IMPORTANTE: Filtra per u.status = 'a' per allinearsi con la query iniziale
-    console.log('🔍 Eseguendo query per utenti con demos=true, FCM tokens e status="a"...');
+    // Prova prima senza filtro status per vedere se è quello il problema
+    console.log('🔍 Eseguendo query per utenti con demos=true e FCM tokens...');
     const utentiConPushResult = await pool.query(`
       SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
              np.demos as demos,
@@ -835,12 +721,11 @@ async function notifyAllUsers(titolo, commento) {
       FROM users u
       INNER JOIN notifiche_preferenze np ON u.id = np.user_id
       WHERE np.demos = true
-        AND (u.status = 'a' OR u.status IS NULL)
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
     `);
     
-    console.log(`🔍 Query con filtro status: trovati ${utentiConPushResult.rows.length} utenti`);
+    console.log(`🔍 Query senza filtro status: trovati ${utentiConPushResult.rows.length} utenti`);
     
     // Se non trova utenti, prova anche con LEFT JOIN e COALESCE
     if (utentiConPushResult.rows.length === 0) {
@@ -853,7 +738,6 @@ async function notifyAllUsers(titolo, commento) {
         FROM users u
         LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
         WHERE COALESCE(np.demos, false) = true
-          AND (u.status = 'a' OR u.status IS NULL)
           AND u.fcm_tokens IS NOT NULL 
           AND array_length(u.fcm_tokens, 1) > 0
       `);
@@ -875,7 +759,6 @@ async function notifyAllUsers(titolo, commento) {
         FROM users u, notifiche_preferenze np
         WHERE u.id = np.user_id
           AND np.demos IS TRUE
-          AND (u.status = 'a' OR u.status IS NULL)
           AND u.fcm_tokens IS NOT NULL 
           AND array_length(u.fcm_tokens, 1) > 0
       `);
@@ -918,14 +801,11 @@ async function notifyAllUsers(titolo, commento) {
       });
     }
     
-    utentiTrovati = utentiConPushResult.rows.length;
-    
-    if (utentiTrovati === 0) {
+    if (utentiConPushResult.rows.length === 0) {
       console.log('ℹ️ Nessun utente con push notifications attive per Demos');
       console.log('💡 Verifica che gli utenti abbiano:');
       console.log('   1. notifiche_preferenze.demos = true');
       console.log('   2. fcm_tokens non vuoto');
-      console.log('   3. status = "a" (attivo)');
       
       // Query di debug per vedere quanti utenti hanno FCM tokens ma non demos=true
       const debugResult = await pool.query(`
@@ -947,13 +827,14 @@ async function notifyAllUsers(titolo, commento) {
       console.log(`   - Utenti senza record preferenze: ${debug.utenti_senza_preferenze}`);
       console.log(`   - Utenti con demos=false: ${debug.utenti_con_demos_false}`);
       
-      console.log('✅ notifyAllUsers: Completato (nessun utente idoneo)');
-      return { success: true, inviati: 0, errori: 0, utenti: 0 };
+      return;
     }
 
     // Invia push notifications solo agli utenti con preferenza attiva
     const pushTitle = `Notifica Demos: ${titolo}`;
     const pushBody = commento || titolo;
+    let pushSuccessCount = 0;
+    let pushFailureCount = 0;
 
     const invalidTokens = []; // Raccogli token non validi da rimuovere
     
@@ -1032,27 +913,9 @@ async function notifyAllUsers(titolo, commento) {
       }
     }
 
-    console.log(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiTrovati} utenti`);
-    console.log('✅ notifyAllUsers: Completato con successo');
-    
-    return {
-      success: pushFailureCount === 0 || pushSuccessCount > 0,
-      inviati: pushSuccessCount,
-      errori: pushFailureCount,
-      utenti: utentiTrovati
-    };
+    console.log(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiConPushResult.rows.length} utenti`);
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche Demos:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.log('❌ notifyAllUsers: Completato con errori');
-    
-    return {
-      success: false,
-      inviati: pushSuccessCount,
-      errori: pushFailureCount,
-      utenti: utentiTrovati,
-      error: error
-    };
   }
 }
 

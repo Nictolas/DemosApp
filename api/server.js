@@ -9,7 +9,7 @@ try {
   process.exit(1);
 }
 
-// Inizializza Firebase Admin all'avvio
+// Inizializza Firebase Admin all'avvio per verificare la configurazione
 try {
   console.log('🔥 Inizializzazione Firebase Admin all\'avvio...');
   const { initializeFirebaseAdmin } = require('./services/firebaseAdmin');
@@ -17,11 +17,7 @@ try {
   if (admin) {
     console.log('✅ Firebase Admin inizializzato correttamente all\'avvio');
   } else {
-    console.warn('⚠️ Firebase Admin non inizializzato - verifica le variabili d\'ambiente');
-    console.warn('⚠️ Variabili richieste: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY');
-    console.warn('⚠️ FIREBASE_PROJECT_ID presente:', !!process.env.FIREBASE_PROJECT_ID);
-    console.warn('⚠️ FIREBASE_CLIENT_EMAIL presente:', !!process.env.FIREBASE_CLIENT_EMAIL);
-    console.warn('⚠️ FIREBASE_PRIVATE_KEY presente:', !!process.env.FIREBASE_PRIVATE_KEY);
+    console.warn('⚠️ Firebase Admin non inizializzato - verifica le variabili d\'ambiente su Render.com');
   }
 } catch (error) {
   console.error('❌ Errore nell\'inizializzazione Firebase Admin all\'avvio:', error.message);
