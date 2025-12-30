@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
