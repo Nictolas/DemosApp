@@ -791,7 +791,14 @@ async function notifyAllUsers(titolo, commento) {
 }
 
 // POST /api/comunicazioni/send-demos-notification - Invia notifica "Notifiche Demos" manualmente
-router.post('/send-demos-notification', verifyToken, async (req, res) => {
+router.post('/send-demos-notification', (req, res, next) => {
+  console.log('🔵 ========== ROUTE HIT: /send-demos-notification ==========');
+  console.log('🔵 Method:', req.method);
+  console.log('🔵 Path:', req.path);
+  console.log('🔵 Original URL:', req.originalUrl);
+  console.log('🔵 Headers:', JSON.stringify(req.headers));
+  next();
+}, verifyToken, async (req, res) => {
   try {
     console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
     console.log('📢 Timestamp:', new Date().toISOString());

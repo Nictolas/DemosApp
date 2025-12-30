@@ -60,7 +60,13 @@ export default function NotificheDemos() {
         messaggio: "Questa è una notifica di test per verificare il funzionamento delle notifiche push. Se ricevi questa notifica, significa che le tue preferenze sono configurate correttamente!"
       };
       
+      console.log('🔵 FRONTEND: Invio richiesta POST /api/comunicazioni/send-demos-notification');
+      console.log('🔵 FRONTEND: Dati:', testData);
+      console.log('🔵 FRONTEND: Token presente:', !!localStorage.getItem('auth_token'));
+      
       const response = await apiRequest("POST", "/api/comunicazioni/send-demos-notification", testData);
+      
+      console.log('🔵 FRONTEND: Risposta ricevuta, status:', response.status, 'ok:', response.ok);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
