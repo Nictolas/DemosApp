@@ -23,20 +23,39 @@ function initializeFirebaseAdmin() {
     }
 
     // PRIORITÀ 1: Usa variabili d'ambiente (come configurato su Render.com)
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    const hasProjectId = !!process.env.FIREBASE_PROJECT_ID;
+    const hasClientEmail = !!process.env.FIREBASE_CLIENT_EMAIL;
+    const hasPrivateKey = !!process.env.FIREBASE_PRIVATE_KEY;
+    
+    console.log('🔍 Verifica variabili d\'ambiente Firebase:');
+    console.log(`   FIREBASE_PROJECT_ID: ${hasProjectId ? '✅ Presente' : '❌ Mancante'}`);
+    console.log(`   FIREBASE_CLIENT_EMAIL: ${hasClientEmail ? '✅ Presente' : '❌ Mancante'}`);
+    console.log(`   FIREBASE_PRIVATE_KEY: ${hasPrivateKey ? '✅ Presente' : '❌ Mancante'}`);
+    
+    if (hasProjectId && hasClientEmail && hasPrivateKey) {
       console.log('📝 Inizializzazione Firebase Admin con variabili d\'ambiente...');
       
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        })
-      });
+      try {
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+        
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: privateKey,
+          })
+        });
 
-      isInitialized = true;
-      console.log('✅ Firebase Admin inizializzato con successo (variabili d\'ambiente)');
-      return admin;
+        isInitialized = true;
+        console.log('✅ Firebase Admin inizializzato con successo (variabili d\'ambiente)');
+        console.log(`   Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
+        console.log(`   Client Email: ${process.env.FIREBASE_CLIENT_EMAIL}`);
+        return admin;
+      } catch (initError) {
+        console.error('❌ Errore durante l\'inizializzazione Firebase Admin:', initError.message);
+        console.error('❌ Stack:', initError.stack);
+        return null;
+      }
     }
 
     // PRIORITÀ 2: Fallback al file serviceAccountKey.json
@@ -84,8 +103,15 @@ function initializeFirebaseAdmin() {
 }
 
 function getFirebaseAdmin() {
+  // Se non è inizializzato, prova a inizializzarlo
   if (!isInitialized || !admin) {
-    return initializeFirebaseAdmin();
+    console.log('🔄 getFirebaseAdmin: Firebase Admin non inizializzato, tentativo di inizializzazione...');
+    const result = initializeFirebaseAdmin();
+    if (!result) {
+      console.error('❌ getFirebaseAdmin: Firebase Admin non disponibile dopo tentativo di inizializzazione');
+      console.error('❌ Verifica le variabili d\'ambiente: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY');
+    }
+    return result;
   }
   return admin;
 }
