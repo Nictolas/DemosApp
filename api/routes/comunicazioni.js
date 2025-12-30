@@ -447,18 +447,30 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       }
     };
 
+    // Verifica se il token è web o mobile
+    const isWebToken = fcmToken.startsWith('fz8') || fcmToken.includes(':APA91b');
+    const tokenType = isWebToken ? 'WEB' : 'MOBILE';
+    
     // Invia la notifica push
     console.log(`📤 Invio notifica push a Firebase...`);
     console.log(`   Token: ${fcmToken.substring(0, 30)}...`);
+    console.log(`   Tipo token: ${tokenType} ${isWebToken ? '(dal browser web)' : '(da app mobile)'}`);
     console.log(`   Titolo: ${title}`);
     console.log(`   Body: ${body}`);
     console.log(`   Data:`, JSON.stringify(data));
     
-    const response = await admin.messaging().send(message);
-    console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
-    console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
-    
-    return { success: true, messageId: response };
+    try {
+      const response = await admin.messaging().send(message);
+      console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
+      console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
+      console.log(`   ${tokenType === 'WEB' ? '⚠️ NOTA: Questo è un token WEB. Le notifiche arriveranno solo sul browser, NON sul cellulare mobile.' : '✅ Token mobile: la notifica arriverà sul dispositivo mobile'}`);
+      
+      return { success: true, messageId: response, tokenType };
+    } catch (sendError) {
+      console.error(`❌ Errore durante l'invio a Firebase:`, sendError.message);
+      console.error(`   Error code:`, sendError.code);
+      throw sendError;
+    }
   } catch (error) {
     // Gestisci errori specifici di FCM
     if (error.code === 'messaging/invalid-registration-token' || 
@@ -718,10 +730,16 @@ async function notifyAllUsers(titolo, commento) {
             }
           );
           
-          if (result.success) {
+            if (result.success) {
             pushSuccessCount++;
             validTokens.push(token); // Mantieni solo i token validi
-            console.log(`    ✅ Notifica inviata con successo`);
+            console.log(`    ✅ Notifica inviata con successo a Firebase`);
+            if (result.tokenType === 'WEB') {
+              console.log(`    ⚠️ ATTENZIONE: Token WEB - la notifica arriverà solo sul browser, NON sul cellulare mobile`);
+              console.log(`    💡 Per ricevere notifiche sul cellulare, l'utente deve aprire l'app mobile e concedere i permessi`);
+            } else {
+              console.log(`    ✅ Token MOBILE - la notifica arriverà sul dispositivo mobile`);
+            }
           } else {
             pushFailureCount++;
             console.log(`    ❌ Errore invio notifica: ${result.error}`);
