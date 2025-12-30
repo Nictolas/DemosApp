@@ -94,3 +94,4 @@ Il codice è stato aggiornato per:
 - Gli utenti senza preferenze riceveranno valori di default
 - Le query usano `LEFT JOIN` per garantire compatibilità con utenti senza preferenze
 
+
