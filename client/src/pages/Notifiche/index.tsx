@@ -4,6 +4,7 @@ import { Redirect } from "wouter";
 import { useNotificheData } from "./hooks/useNotificheData";
 import { Header } from "./components/Header";
 import { ListaNotifiche } from "./components/ListaNotifiche";
+import { TestNotifica } from "./components/TestNotifica";
 import { LoadingStates } from "./components/LoadingStates";
 import { PageContainer } from "@/components/PageContainer";
 
@@ -26,6 +27,7 @@ export default function Notifiche() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
+          <TestNotifica />
           <ListaNotifiche
             data={data}
             isLoading={isLoading}
