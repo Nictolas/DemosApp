@@ -450,6 +450,12 @@ export default function NotificheDemos() {
                           ? `Presente (${firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.lunghezza} caratteri)` 
                           : "Mancante"}
                       </span>
+                      {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente && 
+                       firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.lunghezza < 1000 && (
+                        <span className="text-red-600 font-semibold text-xs">
+                          ⚠️ TROPPO CORTA! (dovrebbe essere ~1600+ caratteri)
+                        </span>
+                      )}
                     </div>
                   </div>
                   
