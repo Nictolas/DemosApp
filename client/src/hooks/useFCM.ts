@@ -217,16 +217,40 @@ export function useFCM() {
       
       // Mostra notifica se l'app è in foreground
       if (Notification.permission === 'granted') {
-        const notificationTitle = payload.notification?.title || 'Nuova notifica';
-        const notificationOptions = {
-          body: payload.notification?.body || '',
+        const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
+        const notificationBody = payload.notification?.body || payload.data?.messaggio || '';
+        
+        // Usa il tag dal payload se disponibile, altrimenti usa un default
+        const notificationTag = payload.data?.notificationTag || payload.notification?.tag || 'demos-notification';
+        
+        const notificationOptions: NotificationOptions = {
+          body: notificationBody,
           icon: payload.notification?.icon || '/icona.png',
           badge: '/icona.png',
-          tag: 'demos-notification',
-          data: payload.data
+          tag: notificationTag, // Usa il tag dal backend per evitare duplicati
+          requireInteraction: true,
+          data: {
+            ...payload.data,
+            url: payload.data?.url || '/notifiche',
+            link: payload.data?.link || 'https://www.demos.community/notifiche'
+          }
         };
         
-        new Notification(notificationTitle, notificationOptions);
+        // Mostra la notifica
+        const notification = new Notification(notificationTitle, notificationOptions);
+        
+        // Gestisci il click sulla notifica
+        notification.onclick = (event) => {
+          event.preventDefault();
+          window.focus();
+          const url = payload.data?.link || payload.data?.url || '/notifiche';
+          if (url.startsWith('http')) {
+            window.open(url, '_blank');
+          } else {
+            window.location.href = url;
+          }
+          notification.close();
+        };
       }
     });
 

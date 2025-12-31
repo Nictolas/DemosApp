@@ -396,11 +396,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
 
           <div className={`flex items-center gap-4 text-sm ${style.textColor} opacity-70`}>
             <span>
-              {notifica.tipo_notifica === 'demos' && notifica.data ? (
-                new Date(notifica.data).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-              ) : (
-                formatDate(notifica.data_creazione || notifica.created_at || notifica.data || '')
-              )}
+              {formatDate(notifica.data_creazione || notifica.created_at || notifica.data || '')}
             </span>
           </div>
 
