@@ -40,7 +40,16 @@ export function useSyncFcmToken() {
     }
 
     // Se abbiamo un token FCM e l'utente è loggato, salvalo sul server
+    // IMPORTANTE: Sincronizza SOLO se il dispositivo è mobile (non desktop)
     if (fcmToken && user.id) {
+      // Verifica se il dispositivo è mobile
+      const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (!isMobile) {
+        console.log('⚠️ Token FCM da desktop ignorato (solo token mobile vengono salvati)');
+        return;
+      }
+      
       const saveToken = async () => {
         try {
           const response = await apiRequest('POST', '/api/fcm-tokens', {
