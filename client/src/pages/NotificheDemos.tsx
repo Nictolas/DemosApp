@@ -327,10 +327,7 @@ export default function NotificheDemos() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Colonna principale */}
-          <div className="lg:col-span-2 space-y-6">
+      <div className="max-w-[1800px] mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Button
@@ -352,8 +349,11 @@ export default function NotificheDemos() {
           </div>
         </div>
 
-        {/* Debug Firebase Admin */}
-        <Card className="bg-white shadow-sm mb-4 border-2 border-purple-300">
+        {/* Grid orizzontale per le sezioni */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {/* Sezione 1: Diagnostica Firebase Admin */}
+          <div className="flex flex-col">
+            <Card className="bg-white shadow-sm border-2 border-purple-300 h-full flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-purple-600" />
@@ -363,7 +363,7 @@ export default function NotificheDemos() {
               Verifica la configurazione di Firebase Admin e diagnostica eventuali problemi
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 flex-1 overflow-y-auto">
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -787,9 +787,12 @@ export default function NotificheDemos() {
             )}
           </CardContent>
         </Card>
+          </div>
+          </div>
 
-        {/* Pulsante Test Notifica */}
-        <Card className="bg-white shadow-sm mb-4">
+          {/* Sezione 2: Test Notifiche Push */}
+          <div className="flex flex-col">
+        <Card className="bg-white shadow-sm h-full flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <TestTube className="h-5 w-5 text-emerald-600" />
@@ -799,7 +802,7 @@ export default function NotificheDemos() {
               Invia una notifica di test a tutti gli utenti con le preferenze "Demos" attivate per verificare il funzionamento delle notifiche push.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto">
             {/* Mostra stato utente corrente */}
             {!isLoadingDebug && debugData?.data && (
               <Alert 
@@ -971,9 +974,9 @@ export default function NotificheDemos() {
         </Card>
           </div>
 
-          {/* Sezione laterale - Notifica a utente specifico */}
-          <div className="lg:col-span-1">
-            <Card className="bg-white shadow-sm sticky top-4">
+          {/* Sezione 3: Notifica a Utente */}
+          <div className="flex flex-col">
+            <Card className="bg-white shadow-sm h-full flex flex-col sticky top-4">
               <CardHeader>
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <User className="h-5 w-5 text-purple-600" />
@@ -983,7 +986,7 @@ export default function NotificheDemos() {
                   Invia una notifica push a un utente specifico selezionato dalla tabella users.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 <Form {...userNotificationForm}>
                   <form 
                     onSubmit={userNotificationForm.handleSubmit((data) => submitUserNotification.mutate(data))} 
