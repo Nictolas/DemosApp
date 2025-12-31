@@ -1190,7 +1190,9 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
         FIREBASE_CLIENT_EMAIL: {
           presente: !!process.env.FIREBASE_CLIENT_EMAIL,
           valore: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.substring(0, 30) + '...' : null,
-          lunghezza: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.length : 0
+          valore_completo: process.env.FIREBASE_CLIENT_EMAIL || null, // Per debug - mostra l'email completa
+          lunghezza: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.length : 0,
+          formato_corretto: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.includes('@') && process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk') : false
         },
         FIREBASE_PRIVATE_KEY: {
           presente: !!process.env.FIREBASE_PRIVATE_KEY,

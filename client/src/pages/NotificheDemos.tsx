@@ -467,6 +467,18 @@ export default function NotificheDemos() {
                           ? `Presente (${firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore})` 
                           : "Mancante"}
                       </span>
+                      {firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente && 
+                       firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore_completo && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          Email completa: <code className="bg-gray-100 px-1 rounded">{firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore_completo}</code>
+                        </div>
+                      )}
+                      {firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente && 
+                       firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.formato_corretto === false && (
+                        <span className="text-red-600 font-semibold text-xs ml-2">
+                          ⚠️ Formato non valido (deve contenere @ e firebase-adminsdk)
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.presente ? "text-green-600" : "text-red-600"}>
@@ -609,11 +621,15 @@ export default function NotificheDemos() {
                           )}
                           {firebaseDebugData.data.stato_inizializzazione.test_invio.errore.includes('invalid_grant') && (
                             <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                              <strong>💡 Suggerimenti per invalid_grant:</strong>
+                              <strong>💡 Suggerimenti per invalid_grant (account not found):</strong>
                               <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                                <li><strong>VERIFICA CRITICA:</strong> Il FIREBASE_CLIENT_EMAIL su Render.com deve corrispondere ESATTAMENTE all'email nel file JSON scaricato</li>
+                                <li>Nel file JSON, cerca il campo "client_email" e copia quel valore esatto su Render.com</li>
+                                <li>L'email dovrebbe essere: <code>firebase-adminsdk-xxxxx@demos-finale.iam.gserviceaccount.com</code></li>
+                                <li>Assicurati che la chiave privata e il client_email provengano dallo stesso file JSON</li>
+                                <li>Se hai generato una nuova chiave, usa il client_email di quella nuova chiave</li>
                                 <li>La chiave potrebbe essere stata revocata o eliminata su Firebase</li>
                                 <li>Il service account potrebbe non esistere più</li>
-                                <li>Genera una nuova chiave dal service account su Firebase Console</li>
                                 <li>Verifica che il tempo del server su Render.com sia sincronizzato</li>
                               </ul>
                             </div>
