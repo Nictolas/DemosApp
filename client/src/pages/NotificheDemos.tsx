@@ -666,32 +666,109 @@ export default function NotificheDemos() {
                 )}
 
                 {/* Suggerimenti */}
-                {!firebaseDebugData.data.stato_inizializzazione.admin_disponibile && (
-                  <Alert>
+                {(!firebaseDebugData.data.stato_inizializzazione.admin_disponibile || 
+                  firebaseDebugData.data.verifica_corrispondenza?.client_email_matches === false) && (
+                  <Alert variant={firebaseDebugData.data.verifica_corrispondenza?.client_email_matches === false ? "destructive" : "default"}>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <div className="font-semibold mb-2">Cosa fare:</div>
-                      <ol className="list-decimal list-inside space-y-1 text-sm">
-                        <li>Vai su Render.com → demos-backend → Environment Variables</li>
-                        <li>Verifica che FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY siano presenti</li>
-                        <li>Assicurati che FIREBASE_PRIVATE_KEY sia la chiave completa senza virgolette iniziali/finali</li>
-                        <li>La chiave deve essere lunga ~1600-1700 caratteri (non 168 o meno)</li>
-                        <li>Riavvia il servizio dopo aver modificato le variabili</li>
-                      </ol>
-                      {firebaseDebugData.data.stato_inizializzazione.errore?.code === 'app/invalid-credential' && (
-                        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                          <strong>⚠️ Errore invalid-credential specifico:</strong>
-                          <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
-                            <li>Genera una nuova chiave dal service account su Firebase Console</li>
-                            <li>Verifica che FIREBASE_CLIENT_EMAIL corrisponda esattamente all'email del service account</li>
-                            <li>Controlla che la chiave non sia stata revocata o eliminata</li>
-                          </ul>
-                        </div>
+                      {firebaseDebugData.data.verifica_corrispondenza?.client_email_matches === false ? (
+                        <>
+                          <div className="font-semibold mb-2 text-red-600">⚠️ PROBLEMA CRITICO: Client Email non corrisponde!</div>
+                          <div className="text-sm mb-2">
+                            Il <code>FIREBASE_CLIENT_EMAIL</code> su Render.com non corrisponde all'email del service account per cui è stata generata la chiave privata.
+                            Questo causa l'errore <code>invalid_grant (account not found)</code>.
+                          </div>
+                          <div className="font-semibold mb-2">Cosa fare:</div>
+                          <ol className="list-decimal list-inside space-y-1 text-sm">
+                            <li>Vai su Render.com → demos-backend → Environment Variables</li>
+                            <li>Trova <code>FIREBASE_CLIENT_EMAIL</code></li>
+                            <li>Aggiorna il valore con: <code className="bg-gray-100 px-1 rounded">firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com</code></li>
+                            <li>Assicurati che corrisponda ESATTAMENTE all'email nel file JSON scaricato (campo <code>"client_email"</code>)</li>
+                            <li>Salva e riavvia il servizio</li>
+                          </ol>
+                        </>
+                      ) : (
+                        <>
+                          <div className="font-semibold mb-2">Cosa fare:</div>
+                          <ol className="list-decimal list-inside space-y-1 text-sm">
+                            <li>Vai su Render.com → demos-backend → Environment Variables</li>
+                            <li>Verifica che FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY siano presenti</li>
+                            <li>Assicurati che FIREBASE_PRIVATE_KEY sia la chiave completa senza virgolette iniziali/finali</li>
+                            <li>La chiave deve essere lunga ~1600-1700 caratteri (non 168 o meno)</li>
+                            <li>Riavvia il servizio dopo aver modificato le variabili</li>
+                          </ol>
+                          {firebaseDebugData.data.stato_inizializzazione.errore?.code === 'app/invalid-credential' && (
+                            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                              <strong>⚠️ Errore invalid-credential specifico:</strong>
+                              <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                                <li>Genera una nuova chiave dal service account su Firebase Console</li>
+                                <li>Verifica che FIREBASE_CLIENT_EMAIL corrisponda esattamente all'email del service account</li>
+                                <li>Controlla che la chiave non sia stata revocata o eliminata</li>
+                              </ul>
+                            </div>
+                          )}
+                        </>
                       )}
                     </AlertDescription>
                   </Alert>
                 )}
                 
+                {/* Verifica Corrispondenza Variabili */}
+                {firebaseDebugData.data.verifica_corrispondenza && (
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <div className="font-semibold mb-2 text-xs">Verifica Corrispondenza:</div>
+                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.verifica_corrispondenza.project_id_match ? "text-green-600" : "text-red-600"}>
+                          {firebaseDebugData.data.verifica_corrispondenza.project_id_match ? "✅" : "❌"}
+                        </span>
+                        <span>Project ID corrisponde: {firebaseDebugData.data.verifica_corrispondenza.project_id_match ? "Sì (demos-finale)" : "No"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.verifica_corrispondenza.client_email_format ? "text-green-600" : "text-red-600"}>
+                          {firebaseDebugData.data.verifica_corrispondenza.client_email_format ? "✅" : "❌"}
+                        </span>
+                        <span>Formato client_email corretto</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.verifica_corrispondenza.client_email_matches ? "text-green-600" : "text-red-600"}>
+                          {firebaseDebugData.data.verifica_corrispondenza.client_email_matches ? "✅" : "❌"}
+                        </span>
+                        <span>Client Email corrisponde esattamente</span>
+                      </div>
+                      {!firebaseDebugData.data.verifica_corrispondenza.client_email_matches && (
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                          <div><strong>Atteso:</strong> <code>{firebaseDebugData.data.verifica_corrispondenza.client_email_expected}</code></div>
+                          <div><strong>Attuale:</strong> <code>{firebaseDebugData.data.verifica_corrispondenza.client_email_actual}</code></div>
+                          <div className="mt-1 text-red-600 font-semibold">⚠️ I valori non corrispondono! Aggiorna FIREBASE_CLIENT_EMAIL su Render.com</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Verifica Tempo Server */}
+                {firebaseDebugData.data.tempo_server && (
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <div className="font-semibold mb-2 text-xs">Tempo Server:</div>
+                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.tempo_server.sincronizzato ? "text-green-600" : "text-yellow-600"}>
+                          {firebaseDebugData.data.tempo_server.sincronizzato ? "✅" : "⚠️"}
+                        </span>
+                        <span>Tempo sincronizzato: {firebaseDebugData.data.tempo_server.sincronizzato ? "Sì" : "Possibile problema"}</span>
+                      </div>
+                      <div>Differenza: {firebaseDebugData.data.tempo_server.differenza_secondi} secondi</div>
+                      <div>Timestamp: {firebaseDebugData.data.tempo_server.timestamp}</div>
+                      {firebaseDebugData.data.tempo_server.avviso && (
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                          {firebaseDebugData.data.tempo_server.avviso}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Informazioni aggiuntive se tutto è OK ma test fallisce */}
                 {firebaseDebugData.data.stato_inizializzazione.admin_disponibile && 
                  firebaseDebugData.data.stato_inizializzazione.test_invio?.successo === false && (
