@@ -116,7 +116,7 @@ router.get('/', verifyToken, async (req, res) => {
             titolo,
             testo,
             COALESCE(data, CURRENT_DATE) as data,
-            COALESCE(data_creazione, NOW()) as data_creazione,
+            COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) as data_creazione,
             NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine,
             NULL::TEXT as voto,
@@ -124,7 +124,7 @@ router.get('/', verifyToken, async (req, res) => {
             0::INTEGER as likes,
             0::INTEGER as dislikes
           FROM notifiche_demos
-          ORDER BY COALESCE(data_creazione, NOW()) DESC
+          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_demos:', err);
