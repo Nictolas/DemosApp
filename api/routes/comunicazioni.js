@@ -733,6 +733,19 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
       return { success: false, error: 'Firebase Admin non configurato' };
     }
+    
+    // Verifica che admin.messaging() sia disponibile
+    try {
+      const messaging = admin.messaging();
+      if (!messaging) {
+        console.error('❌ admin.messaging() non disponibile');
+        return { success: false, error: 'Firebase Admin messaging non disponibile' };
+      }
+      console.log('✅ admin.messaging() verificato e disponibile');
+    } catch (messagingError) {
+      console.error('❌ Errore nell\'accesso a admin.messaging():', messagingError.message);
+      return { success: false, error: `Errore Firebase messaging: ${messagingError.message}` };
+    }
 
     // Prepara il messaggio FCM
     const message = {
@@ -802,16 +815,37 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     console.log(`   Data:`, JSON.stringify(data));
     
     try {
-      const response = await admin.messaging().send(message);
+      console.log(`🔧 Verifica admin.messaging() disponibile...`);
+      const messaging = admin.messaging();
+      console.log(`✅ admin.messaging() disponibile`);
+      
+      console.log(`📤 Chiamata a messaging.send()...`);
+      const response = await messaging.send(message);
       console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
       console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
       
       return { success: true, messageId: response };
     } catch (sendError) {
       console.error(`❌ Errore durante l'invio a Firebase:`);
-      console.error(`   Message: ${sendError.message}`);
+      console.error(`   Error name: ${sendError.name || 'N/A'}`);
+      console.error(`   Error message: ${sendError.message}`);
       console.error(`   Error code: ${sendError.code || 'N/A'}`);
+      console.error(`   Error stack: ${sendError.stack ? sendError.stack.substring(0, 500) : 'N/A'}`);
       console.error(`   Token: ${fcmToken?.substring(0, 30)}...`);
+      
+      // Log dettagliato per errori comuni
+      if (sendError.code) {
+        console.error(`   📋 Error code specifico: ${sendError.code}`);
+        if (sendError.code.includes('invalid')) {
+          console.error(`   ⚠️ Errore di validazione - verifica il formato del token o del messaggio`);
+        }
+        if (sendError.code.includes('permission') || sendError.code.includes('auth')) {
+          console.error(`   ⚠️ Errore di autenticazione/autorizzazione - verifica le credenziali Firebase`);
+        }
+        if (sendError.code.includes('quota') || sendError.code.includes('limit')) {
+          console.error(`   ⚠️ Errore di quota/limite - verifica i limiti del progetto Firebase`);
+        }
+      }
       
       // Gestisci errori specifici di FCM
       if (sendError.code === 'messaging/invalid-registration-token' || 
@@ -820,6 +854,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
         return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: sendError.code };
       }
       
+      // Rilancia l'errore per essere gestito dal catch esterno
       throw sendError;
     }
   } catch (error) {
