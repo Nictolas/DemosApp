@@ -7,10 +7,38 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Bell, Vote, Building2 } from "lucide-react";
+import { Loader2, Bell, Vote, Building2, Trash2, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 // Componente per la tabella delle notifiche
 function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string }) {
+  const queryClient = useQueryClient();
+  
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, tabella }: { id: string; tabella: string }) => {
+      const response = await apiRequest("DELETE", `/api/notifiche-totali/${tabella}/${id}`);
+      if (!response?.ok) {
+        throw new Error("Errore nella cancellazione della notifica");
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifiche-totali'] });
+      toast.success("Notifica cancellata con successo");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Errore nella cancellazione della notifica");
+    }
+  });
+  
+  const handleDelete = (id: string, tabella: string) => {
+    if (window.confirm("Sei sicuro di voler cancellare questa notifica?")) {
+      deleteMutation.mutate({ id, tabella });
+    }
+  };
+  
   if (notifiche.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -33,6 +61,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
           <TableHead>Comune</TableHead>
           <TableHead>Likes</TableHead>
           <TableHead>Dislikes</TableHead>
+          <TableHead>Azioni</TableHead>
         </>
       );
     } else if (tipo === 'demos') {
@@ -42,6 +71,17 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
           <TableHead>Titolo</TableHead>
           <TableHead>Testo</TableHead>
           <TableHead>Data</TableHead>
+          <TableHead>Azioni</TableHead>
+        </>
+      );
+    } else if (tipo === 'avvistamenti') {
+      return (
+        <>
+          <TableHead>ID</TableHead>
+          <TableHead>Tipo Avvistamento</TableHead>
+          <TableHead>Comune</TableHead>
+          <TableHead>Data</TableHead>
+          <TableHead>Azioni</TableHead>
         </>
       );
     } else {
@@ -53,6 +93,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
           <TableHead>Testo</TableHead>
           <TableHead>Data</TableHead>
           <TableHead>Comune</TableHead>
+          <TableHead>Azioni</TableHead>
         </>
       );
     }
@@ -72,19 +113,37 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
               <TableCell className="font-mono text-xs">
                 {notifica.id?.substring(0, 8)}...
               </TableCell>
-              <TableCell className="font-medium">
-                {notifica.titolo || 'Nessun titolo'}
-              </TableCell>
-              <TableCell className="max-w-md">
-                <p className="text-sm text-gray-600 truncate">
-                  {notifica.testo || notifica.messaggio || 'Nessun messaggio'}
-                </p>
-              </TableCell>
-              <TableCell>
-                {notifica.data 
-                  ? new Date(notifica.data).toLocaleDateString('it-IT')
-                  : 'N/A'}
-              </TableCell>
+              {tipo === 'avvistamenti' ? (
+                <>
+                  <TableCell className="font-medium">
+                    {notifica.titolo || notifica.tipo_avvistamento || 'Nessun tipo'}
+                  </TableCell>
+                  <TableCell>
+                    {notifica.comune_residenza || '-'}
+                  </TableCell>
+                  <TableCell>
+                    {notifica.data || notifica.data_creazione
+                      ? new Date(notifica.data || notifica.data_creazione).toLocaleDateString('it-IT')
+                      : 'N/A'}
+                  </TableCell>
+                </>
+              ) : (
+                <>
+                  <TableCell className="font-medium">
+                    {notifica.titolo || 'Nessun titolo'}
+                  </TableCell>
+                  <TableCell className="max-w-md">
+                    <p className="text-sm text-gray-600 truncate">
+                      {notifica.testo || notifica.messaggio || 'Nessun messaggio'}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    {notifica.data 
+                      ? new Date(notifica.data).toLocaleDateString('it-IT')
+                      : 'N/A'}
+                  </TableCell>
+                </>
+              )}
               {tipo === 'voti_comuni' && (
                 <>
                   <TableCell>
@@ -110,6 +169,16 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
                   <TableCell>{notifica.dislikes || 0}</TableCell>
                 </>
               )}
+              <TableCell>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(notifica.id, tipo)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -194,7 +263,7 @@ export default function NotificheTotali() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <Card className="bg-blue-50">
                     <CardContent className="pt-6">
                       <div className="text-2xl font-bold text-blue-600">
@@ -219,10 +288,18 @@ export default function NotificheTotali() {
                       <div className="text-sm text-gray-600">Notifiche Comunali</div>
                     </CardContent>
                   </Card>
+                  <Card className="bg-purple-50">
+                    <CardContent className="pt-6">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {data.stats?.avvistamenti || 0}
+                      </div>
+                      <div className="text-sm text-gray-600">Notifiche Avvistamenti</div>
+                    </CardContent>
+                  </Card>
                 </div>
                 
                 <Tabs defaultValue="voti-comuni" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="voti-comuni" className="flex items-center gap-2">
                       <Vote className="h-4 w-4" />
                       Voti Comuni ({data.stats?.voti_comuni || 0})
@@ -234,6 +311,10 @@ export default function NotificheTotali() {
                     <TabsTrigger value="comunali" className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       Comunali ({data.stats?.comunali || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="avvistamenti" className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Avvistamenti ({data.stats?.avvistamenti || 0})
                     </TabsTrigger>
                   </TabsList>
                   
@@ -255,6 +336,13 @@ export default function NotificheTotali() {
                     <NotificheTable 
                       notifiche={data.notifiche?.comunali || []} 
                       tipo="comunali"
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="avvistamenti" className="mt-6">
+                    <NotificheTable 
+                      notifiche={data.notifiche?.avvistamenti || []} 
+                      tipo="avvistamenti"
                     />
                   </TabsContent>
                 </Tabs>

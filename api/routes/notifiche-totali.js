@@ -60,7 +60,7 @@ router.get('/', verifyToken, async (req, res) => {
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('notifiche_voti_comuni', 'notifiche_demos', 'notifiche_comunali')
+        AND table_name IN ('notifiche_voti_comuni', 'notifiche_demos', 'notifiche_comunali', 'notifiche_avvistamenti')
       `);
       console.log('📋 Query tabelle eseguita con successo');
     } catch (tableError) {
@@ -190,13 +190,48 @@ router.get('/', verifyToken, async (req, res) => {
       queries.push(Promise.resolve({ rows: [] }));
     }
     
+    if (existingTables.includes('notifiche_avvistamenti')) {
+      queries.push(
+        pool.query(`
+          SELECT 
+            id,
+            id_utente,
+            tipo_avvistamento as titolo,
+            comune_residenza,
+            COALESCE(data, data_creazione, CURRENT_DATE) as data,
+            COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) as data_creazione,
+            metadata,
+            'notifiche_avvistamenti' as tabella_origine,
+            NULL::TEXT as testo,
+            NULL::TEXT as voto,
+            NULL::TEXT as politico,
+            0::INTEGER as likes,
+            0::INTEGER as dislikes
+          FROM notifiche_avvistamenti
+          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+          LIMIT 100
+        `).catch(err => {
+          console.error('❌ Errore query notifiche_avvistamenti:', err);
+          console.error('❌ Error details:', {
+            message: err.message,
+            code: err.code,
+            detail: err.detail
+          });
+          return { rows: [] };
+        })
+      );
+    } else {
+      console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
+      queries.push(Promise.resolve({ rows: [] }));
+    }
+    
     console.log('🔍 Esecuzione query per recuperare notifiche...');
-    let votiComuni, demos, comunali;
+    let votiComuni, demos, comunali, avvistamenti;
     
     try {
-      [votiComuni, demos, comunali] = await Promise.all(queries);
+      [votiComuni, demos, comunali, avvistamenti] = await Promise.all(queries);
       console.log('✅ Query eseguite con successo');
-      console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuni.rows.length}, demos=${demos.rows.length}, comunali=${comunali.rows.length}`);
+      console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuni.rows.length}, demos=${demos.rows.length}, comunali=${comunali.rows.length}, avvistamenti=${avvistamenti?.rows?.length || 0}`);
     } catch (queryError) {
       console.error('❌ Errore durante esecuzione query:', queryError);
       console.error('❌ Stack trace:', queryError.stack);
@@ -207,10 +242,11 @@ router.get('/', verifyToken, async (req, res) => {
     const allNotifiche = [
       ...(votiComuni?.rows || []),
       ...(demos?.rows || []),
-      ...(comunali?.rows || [])
+      ...(comunali?.rows || []),
+      ...(avvistamenti?.rows || [])
     ].sort((a, b) => {
-      const dateA = a.data ? new Date(a.data) : new Date(0);
-      const dateB = b.data ? new Date(b.data) : new Date(0);
+      const dateA = a.data ? new Date(a.data) : (a.data_creazione ? new Date(a.data_creazione) : new Date(0));
+      const dateB = b.data ? new Date(b.data) : (b.data_creazione ? new Date(b.data_creazione) : new Date(0));
       return dateB.getTime() - dateA.getTime();
     });
 
@@ -221,12 +257,14 @@ router.get('/', verifyToken, async (req, res) => {
       notifiche: {
         voti_comuni: votiComuni?.rows || [],
         demos: demos?.rows || [],
-        comunali: comunali?.rows || []
+        comunali: comunali?.rows || [],
+        avvistamenti: avvistamenti?.rows || []
       },
       stats: {
         voti_comuni: votiComuni?.rows?.length || 0,
         demos: demos?.rows?.length || 0,
         comunali: comunali?.rows?.length || 0,
+        avvistamenti: avvistamenti?.rows?.length || 0,
         totali: allNotifiche.length
       }
     });
@@ -247,6 +285,7 @@ router.get('/', verifyToken, async (req, res) => {
           voti_comuni: 0,
           demos: 0,
           comunali: 0,
+          avvistamenti: 0,
           totali: 0
         },
         error: error.message,
@@ -258,6 +297,107 @@ router.get('/', verifyToken, async (req, res) => {
     } else {
       console.error('❌ Headers già inviati, impossibile inviare risposta di errore');
     }
+  }
+});
+
+// DELETE /api/notifiche-totali/:tabella/:id - Cancella una notifica (solo admin)
+router.delete('/:tabella/:id', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.userId;
+    const { tabella, id } = req.params;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
+    
+    // Verifica se l'utente è admin
+    const userResult = await pool.query(
+      'SELECT is_admin, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isAdmin = userResult.rows[0].is_admin === true || userResult.rows[0].ruolo === 'AD';
+    
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo gli amministratori possono cancellare le notifiche.'
+      });
+    }
+    
+    // Mappa i nomi delle tabelle
+    const tableMap = {
+      'voti_comuni': 'notifiche_voti_comuni',
+      'demos': 'notifiche_demos',
+      'comunali': 'notifiche_comunali',
+      'avvistamenti': 'notifiche_avvistamenti'
+    };
+    
+    const tableName = tableMap[tabella];
+    
+    if (!tableName) {
+      return res.status(400).json({
+        success: false,
+        error: `Tabella non valida: ${tabella}. Tabelle valide: ${Object.keys(tableMap).join(', ')}`
+      });
+    }
+    
+    // Verifica che la tabella esista
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = $1
+    `, [tableName]);
+    
+    if (tableCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `Tabella ${tableName} non trovata`
+      });
+    }
+    
+    // Cancella la notifica
+    const result = await pool.query(
+      `DELETE FROM ${tableName} WHERE id = $1`,
+      [id]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Notifica non trovata'
+      });
+    }
+    
+    console.log(`✅ Notifica ${id} cancellata da ${tableName} da admin ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'Notifica cancellata con successo',
+      data: {
+        id,
+        tabella: tableName
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella cancellazione notifica:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
   }
 });
 
