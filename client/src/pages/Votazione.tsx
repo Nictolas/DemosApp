@@ -575,42 +575,42 @@ const Votazione = React.memo(function Votazione() {
         {isAdmin ? (
           // Admin vede solo le sezioni Istituzione
           <div className="space-y-4">
-            {/* Sezione Comunica Voti (collassabile) */}
-            <Card className="w-full bg-white">
-              <CardHeader 
-                className="flex flex-row items-center justify-between cursor-pointer"
-                onClick={() => setIsComunicaVotiOpen(prev => !prev)}
-              >
-                <div className="flex items-center gap-2">
-                  <Calculator className="h-5 w-5 text-blue-600" />
-                  <CardTitle className="text-lg font-semibold">
-                    Comunica Voti
-                  </CardTitle>
-                </div>
-                <ChevronDown
-                  className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
-                />
-              </CardHeader>
-              {isComunicaVotiOpen && (
-                <CardContent className="pt-0 pb-6">
-                  <ComunicaVotiCard 
-                    titoloVotazione={titoloVotazione}
-                    setTitoloVotazione={setTitoloVotazione}
-                    votiEntries={votiEntries}
-                    addVotoEntry={addVotoEntry}
-                    updateVotoEntry={updateVotoEntry}
-                    removeVotoEntry={removeVotoEntry}
-                    submitComunicaVoti={submitComunicaVoti}
+              {/* Sezione Comunica Voti (collassabile) */}
+              <Card className="w-full bg-white">
+                <CardHeader 
+                  className="flex flex-row items-center justify-between cursor-pointer"
+                  onClick={() => setIsComunicaVotiOpen(prev => !prev)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg font-semibold">
+                      Comunica Voti
+                    </CardTitle>
+                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
                   />
-                </CardContent>
-              )}
-            </Card>
+                </CardHeader>
+                {isComunicaVotiOpen && (
+                  <CardContent className="pt-0 pb-6">
+                    <ComunicaVotiCard 
+                      titoloVotazione={titoloVotazione}
+                      setTitoloVotazione={setTitoloVotazione}
+                      votiEntries={votiEntries}
+                      addVotoEntry={addVotoEntry}
+                      updateVotoEntry={updateVotoEntry}
+                      removeVotoEntry={removeVotoEntry}
+                      submitComunicaVoti={submitComunicaVoti}
+                    />
+                  </CardContent>
+                )}
+              </Card>
           </div>
         ) : (
           // Altri utenti vedono solo i riquadri che possono usare
           <div className="space-y-6">
             {canComunicaVoti && (
-              <Card className="w-full bg-white">
+                <Card className="w-full bg-white">
                   <CardHeader 
                     className="flex flex-row items-center justify-between cursor-pointer"
                     onClick={() => setIsComunicaVotiOpen(prev => !prev)}

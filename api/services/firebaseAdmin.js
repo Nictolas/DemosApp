@@ -130,8 +130,8 @@ function initializeFirebaseAdmin() {
         
         try {
           const credential = admin.credential.cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey: privateKey,
           });
           console.log('✅ Credential creata con successo');
@@ -150,9 +150,9 @@ function initializeFirebaseAdmin() {
           console.log(`✅ Firebase Admin inizializzato con successo (variabili d'ambiente)`);
           console.log(`   Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
           console.log(`   App name: ${admin.apps[0].name}`);
-          
-          isInitialized = true;
-          return admin;
+
+      isInitialized = true;
+      return admin;
         } catch (certError) {
           console.error('❌ Errore durante credential.cert() o initializeApp():');
           console.error(`   Error name: ${certError.name}`);
