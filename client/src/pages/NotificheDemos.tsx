@@ -516,6 +516,48 @@ export default function NotificheDemos() {
                   )}
                 </div>
 
+                {/* Dettagli Parsing Chiave Privata */}
+                {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing && (
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <div className="font-semibold mb-2 text-xs">Dettagli Parsing Chiave Privata:</div>
+                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                      <div>Lunghezza RAW: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.lunghezza_raw} caratteri</div>
+                      <div>Lunghezza dopo pulizia: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.lunghezza_dopo_pulizia} caratteri</div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.aveva_virgolette ? "text-yellow-600" : "text-green-600"}>
+                          {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.aveva_virgolette ? "⚠️" : "✅"}
+                        </span>
+                        <span>Aveva virgolette: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.aveva_virgolette ? "Sì (rimosse)" : "No"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.aveva_backslash_n ? "text-yellow-600" : "text-green-600"}>
+                          {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.aveva_backslash_n ? "⚠️" : "✅"}
+                        </span>
+                        <span>Conteneva \n letterali: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.aveva_backslash_n ? "Sì" : "No"}</span>
+                      </div>
+                      <div>Newline reali dopo parsing: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.newline_reali_dopo_parsing}</div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.inizia_correttamente ? "text-green-600" : "text-red-600"}>
+                          {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.inizia_correttamente ? "✅" : "❌"}
+                        </span>
+                        <span>Inizia correttamente</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.finisce_correttamente ? "text-green-600" : "text-red-600"}>
+                          {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.finisce_correttamente ? "✅" : "❌"}
+                        </span>
+                        <span>Finisce correttamente</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.sembra_completa ? "text-green-600" : "text-red-600"}>
+                          {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.sembra_completa ? "✅" : "❌"}
+                        </span>
+                        <span>Sembra completa ({firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.lunghezza_dopo_pulizia > 1000 ? "OK" : "TROPPO CORTA"})</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Test Invio Reale */}
                 {firebaseDebugData.data.stato_inizializzazione.test_invio && (
                   <div className="mt-4 p-3 rounded-lg border-2">
@@ -551,6 +593,30 @@ export default function NotificheDemos() {
                           <div><strong>Errore:</strong> {firebaseDebugData.data.stato_inizializzazione.test_invio.errore}</div>
                           {firebaseDebugData.data.stato_inizializzazione.test_invio.codice && (
                             <div><strong>Codice:</strong> {firebaseDebugData.data.stato_inizializzazione.test_invio.codice}</div>
+                          )}
+                          {/* Suggerimenti specifici basati sul codice errore */}
+                          {firebaseDebugData.data.stato_inizializzazione.test_invio.codice === 'app/invalid-credential' && (
+                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                              <strong>💡 Suggerimenti per invalid-credential:</strong>
+                              <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                                <li>Verifica che la chiave privata corrisponda al service account corretto</li>
+                                <li>Assicurati che il service account non sia stato eliminato su Firebase</li>
+                                <li>Verifica che FIREBASE_CLIENT_EMAIL corrisponda esattamente all'email del service account</li>
+                                <li>Se hai appena generato una nuova chiave, assicurati di averla copiata completamente</li>
+                                <li>Controlla che non ci siano spazi o caratteri extra quando incolli la chiave su Render.com</li>
+                              </ul>
+                            </div>
+                          )}
+                          {firebaseDebugData.data.stato_inizializzazione.test_invio.errore.includes('invalid_grant') && (
+                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                              <strong>💡 Suggerimenti per invalid_grant:</strong>
+                              <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                                <li>La chiave potrebbe essere stata revocata o eliminata su Firebase</li>
+                                <li>Il service account potrebbe non esistere più</li>
+                                <li>Genera una nuova chiave dal service account su Firebase Console</li>
+                                <li>Verifica che il tempo del server su Render.com sia sincronizzato</li>
+                              </ul>
+                            </div>
                           )}
                         </div>
                       )}
@@ -593,8 +659,34 @@ export default function NotificheDemos() {
                         <li>Vai su Render.com → demos-backend → Environment Variables</li>
                         <li>Verifica che FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY siano presenti</li>
                         <li>Assicurati che FIREBASE_PRIVATE_KEY sia la chiave completa senza virgolette iniziali/finali</li>
+                        <li>La chiave deve essere lunga ~1600-1700 caratteri (non 168 o meno)</li>
                         <li>Riavvia il servizio dopo aver modificato le variabili</li>
                       </ol>
+                      {firebaseDebugData.data.stato_inizializzazione.errore?.code === 'app/invalid-credential' && (
+                        <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                          <strong>⚠️ Errore invalid-credential specifico:</strong>
+                          <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                            <li>Genera una nuova chiave dal service account su Firebase Console</li>
+                            <li>Verifica che FIREBASE_CLIENT_EMAIL corrisponda esattamente all'email del service account</li>
+                            <li>Controlla che la chiave non sia stata revocata o eliminata</li>
+                          </ul>
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {/* Informazioni aggiuntive se tutto è OK ma test fallisce */}
+                {firebaseDebugData.data.stato_inizializzazione.admin_disponibile && 
+                 firebaseDebugData.data.stato_inizializzazione.test_invio?.successo === false && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-semibold mb-2">⚠️ Firebase Admin è configurato ma il test di invio fallisce</div>
+                      <div className="text-sm">
+                        Questo significa che Firebase Admin si inizializza correttamente, ma c'è un problema durante l'invio effettivo delle notifiche.
+                        Controlla i log del backend su Render.com per vedere l'errore specifico di Firebase.
+                      </div>
                     </AlertDescription>
                   </Alert>
                 )}
