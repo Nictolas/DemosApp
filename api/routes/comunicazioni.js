@@ -1230,6 +1230,65 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
           const messaging = admin.messaging();
           console.log('✅ admin.messaging() disponibile');
           debugInfo.stato_inizializzazione.messaging_disponibile = true;
+          
+          // Test reale: prova a inviare una notifica di test (se l'utente ha un token FCM)
+          try {
+            const userId = req.user?.id;
+            if (userId) {
+              const userResult = await pool.query(
+                'SELECT fcm_tokens FROM users WHERE id = $1 AND fcm_tokens IS NOT NULL AND array_length(fcm_tokens, 1) > 0',
+                [userId]
+              );
+              
+              if (userResult.rows.length > 0 && userResult.rows[0].fcm_tokens && userResult.rows[0].fcm_tokens.length > 0) {
+                const testToken = userResult.rows[0].fcm_tokens[0];
+                console.log('🧪 Test invio notifica reale a token:', testToken.substring(0, 30) + '...');
+                
+                const testMessage = {
+                  token: testToken,
+                  notification: {
+                    title: 'Test Diagnostica',
+                    body: 'Notifica di test dalla diagnostica Firebase Admin'
+                  },
+                  data: {
+                    type: 'diagnostic_test',
+                    timestamp: new Date().toISOString()
+                  }
+                };
+                
+                try {
+                  const testResponse = await messaging.send(testMessage);
+                  console.log('✅ Test invio notifica riuscito. Message ID:', testResponse);
+                  debugInfo.stato_inizializzazione.test_invio = {
+                    successo: true,
+                    message_id: testResponse,
+                    messaggio: 'Notifica di test inviata con successo'
+                  };
+                } catch (testError) {
+                  console.error('❌ Test invio notifica fallito:', testError.message);
+                  debugInfo.stato_inizializzazione.test_invio = {
+                    successo: false,
+                    errore: testError.message,
+                    codice: testError.code || 'N/A',
+                    messaggio: `Errore durante test invio: ${testError.message}`
+                  };
+                }
+              } else {
+                console.log('ℹ️ Utente corrente non ha token FCM per test reale');
+                debugInfo.stato_inizializzazione.test_invio = {
+                  successo: null,
+                  messaggio: 'Utente corrente non ha token FCM registrati per il test'
+                };
+              }
+            }
+          } catch (testError) {
+            console.error('❌ Errore durante preparazione test invio:', testError.message);
+            debugInfo.stato_inizializzazione.test_invio = {
+              successo: false,
+              errore: testError.message,
+              messaggio: `Errore durante preparazione test: ${testError.message}`
+            };
+          }
         } catch (messagingError) {
           console.error('❌ admin.messaging() non disponibile:', messagingError.message);
           debugInfo.stato_inizializzazione.messaging_disponibile = false;
