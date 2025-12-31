@@ -76,14 +76,26 @@ router.post('/', verifyToken, async (req, res) => {
     } else {
       // Aggiungi il nuovo token e mantieni solo i token validi
       updatedTokens = [...validExistingTokens, token];
-      // Rimuovi duplicati
+      // Rimuovi duplicati esatti
       updatedTokens = [...new Set(updatedTokens)];
-      console.log(`   ✅ Token aggiunto. Totale token validi: ${updatedTokens.length}`);
       
-      // Se abbiamo rimosso token vecchi, loggalo
-      const removedCount = existingTokens.length - validExistingTokens.length;
-      if (removedCount > 0) {
-        console.log(`   🧹 Rimossi ${removedCount} token non validi o duplicati`);
+      // LIMITAZIONE: Massimo 2 token per utente (uno desktop, uno mobile)
+      // Se ci sono più di 2 token, mantieni solo gli ultimi 2 (i più recenti)
+      // Questo evita notifiche duplicate quando ci sono più token dello stesso dispositivo
+      const MAX_TOKENS = 2;
+      if (updatedTokens.length > MAX_TOKENS) {
+        const removedTokens = updatedTokens.slice(0, updatedTokens.length - MAX_TOKENS);
+        updatedTokens = updatedTokens.slice(-MAX_TOKENS); // Mantieni solo gli ultimi 2
+        console.log(`   🧹 Rimossi ${removedTokens.length} token vecchi (limite max ${MAX_TOKENS} token per utente)`);
+        console.log(`   📋 Token rimossi: ${removedTokens.map(t => t.substring(0, 30) + '...').join(', ')}`);
+      }
+      
+      console.log(`   ✅ Token aggiunto. Totale token validi: ${updatedTokens.length} (max ${MAX_TOKENS})`);
+      
+      // Se abbiamo rimosso token vecchi non validi, loggalo
+      const removedInvalidCount = existingTokens.length - validExistingTokens.length;
+      if (removedInvalidCount > 0) {
+        console.log(`   🧹 Rimossi ${removedInvalidCount} token non validi o duplicati`);
       }
     }
     
