@@ -155,34 +155,31 @@ router.get('/', verifyToken, async (req, res) => {
             n.id_utente,
             u.nome as utente_nome,
             u.cognome as utente_cognome,
-            COALESCE(n.titolo, 
-              CASE 
-                WHEN n.tipologia IS NOT NULL AND n.dove IS NOT NULL THEN n.tipologia || ' - ' || n.dove
-                WHEN n.tipologia IS NOT NULL THEN n.tipologia
-                WHEN n.dove IS NOT NULL THEN n.dove
-                ELSE 'Notifica Comunale'
-              END
-            ) as titolo,
-            COALESCE(n.testo,
-              CASE 
-                WHEN n.tipologia IS NOT NULL OR n.dove IS NOT NULL OR n.dal_giorno IS NOT NULL OR n.al_giorno IS NOT NULL THEN
-                  COALESCE('Tipologia: ' || n.tipologia, '') ||
-                  CASE WHEN n.tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
-                  COALESCE('Dove: ' || n.dove, '') ||
-                  CASE WHEN n.dove IS NOT NULL THEN E'\\n' ELSE '' END ||
-                  COALESCE('Dal: ' || n.dal_giorno::text, '') ||
-                  CASE WHEN n.dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
-                  COALESCE('Al: ' || n.al_giorno::text, '')
-                ELSE 'Notifica comunale'
-              END
-            ) as testo,
-            COALESCE(n.data, n.dal_giorno, CURRENT_DATE) as data,
-            COALESCE(n.comune_residenza, n.dove, n.zona) as comune_residenza,
+            CASE 
+              WHEN n.tipologia IS NOT NULL AND n.dove IS NOT NULL THEN n.tipologia || ' - ' || n.dove
+              WHEN n.tipologia IS NOT NULL THEN n.tipologia
+              WHEN n.dove IS NOT NULL THEN n.dove
+              ELSE 'Notifica Comunale'
+            END as titolo,
+            CASE 
+              WHEN n.tipologia IS NOT NULL OR n.dove IS NOT NULL OR n.dal_giorno IS NOT NULL OR n.al_giorno IS NOT NULL THEN
+                COALESCE('Tipologia: ' || n.tipologia, '') ||
+                CASE WHEN n.tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
+                COALESCE('Dove: ' || n.dove, '') ||
+                CASE WHEN n.dove IS NOT NULL THEN E'\\n' ELSE '' END ||
+                COALESCE('Dal: ' || n.dal_giorno::text, '') ||
+                CASE WHEN n.dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
+                COALESCE('Al: ' || n.al_giorno::text, '')
+              ELSE 'Notifica comunale'
+            END as testo,
+            COALESCE(n.dal_giorno, n.data_creazione::date, CURRENT_DATE) as data,
+            COALESCE(n.zona, n.dove) as comune_residenza,
+            'notifiche_comunali' as tabella_origine,
             NULL::INTEGER as likes,
             NULL::INTEGER as dislikes
           FROM notifiche_comunali n
           LEFT JOIN users u ON n.id_utente = u.id
-          ORDER BY COALESCE(n.data, n.dal_giorno, CURRENT_DATE) DESC
+          ORDER BY COALESCE(n.data_creazione, n.dal_giorno::timestamp, CURRENT_TIMESTAMP) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_comunali:', err);
