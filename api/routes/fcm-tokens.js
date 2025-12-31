@@ -74,23 +74,17 @@ router.post('/', verifyToken, async (req, res) => {
       updatedTokens = validExistingTokens;
       console.log('   ℹ️ Token già presente, nessuna modifica');
     } else {
-      // Aggiungi il nuovo token e mantieni solo i token validi
-      updatedTokens = [...validExistingTokens, token];
-      // Rimuovi duplicati esatti
-      updatedTokens = [...new Set(updatedTokens)];
+      // TOKEN SOLO PER MOBILE: Mantieni sempre solo 1 token (il più recente)
+      // Quando viene aggiunto un nuovo token, rimuovi tutti i vecchi
+      // Questo garantisce che ci sia sempre solo il token mobile più recente
+      updatedTokens = [token]; // Solo il nuovo token, rimuovi tutti i vecchi
       
-      // LIMITAZIONE: Massimo 2 token per utente (uno desktop, uno mobile)
-      // Se ci sono più di 2 token, mantieni solo gli ultimi 2 (i più recenti)
-      // Questo evita notifiche duplicate quando ci sono più token dello stesso dispositivo
-      const MAX_TOKENS = 2;
-      if (updatedTokens.length > MAX_TOKENS) {
-        const removedTokens = updatedTokens.slice(0, updatedTokens.length - MAX_TOKENS);
-        updatedTokens = updatedTokens.slice(-MAX_TOKENS); // Mantieni solo gli ultimi 2
-        console.log(`   🧹 Rimossi ${removedTokens.length} token vecchi (limite max ${MAX_TOKENS} token per utente)`);
-        console.log(`   📋 Token rimossi: ${removedTokens.map(t => t.substring(0, 30) + '...').join(', ')}`);
+      if (validExistingTokens.length > 0) {
+        console.log(`   🧹 Rimossi ${validExistingTokens.length} token vecchi (manteniamo solo 1 token mobile)`);
+        console.log(`   📋 Token rimossi: ${validExistingTokens.map(t => t.substring(0, 30) + '...').join(', ')}`);
       }
       
-      console.log(`   ✅ Token aggiunto. Totale token validi: ${updatedTokens.length} (max ${MAX_TOKENS})`);
+      console.log(`   ✅ Token mobile aggiunto. Totale token: 1 (solo mobile)`);
       
       // Se abbiamo rimosso token vecchi non validi, loggalo
       const removedInvalidCount = existingTokens.length - validExistingTokens.length;
