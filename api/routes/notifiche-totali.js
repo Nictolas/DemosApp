@@ -78,19 +78,22 @@ router.get('/', verifyToken, async (req, res) => {
       queries.push(
         pool.query(`
           SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            voto,
-            comune_residenza,
-            politico,
-            COALESCE(likes, 0) as likes,
-            COALESCE(dislikes, 0) as dislikes,
+            n.id,
+            n.id_utente,
+            u.nome as utente_nome,
+            u.cognome as utente_cognome,
+            n.titolo,
+            n.testo,
+            COALESCE(n.data, CURRENT_DATE) as data,
+            n.voto,
+            n.comune_residenza,
+            n.politico,
+            COALESCE(n.likes, 0) as likes,
+            COALESCE(n.dislikes, 0) as dislikes,
             'notifiche_voti_comuni' as tabella_origine
-          FROM notifiche_voti_comuni
-          ORDER BY COALESCE(data, CURRENT_DATE) DESC
+          FROM notifiche_voti_comuni n
+          LEFT JOIN users u ON n.id_utente = u.id
+          ORDER BY COALESCE(n.data, CURRENT_DATE) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_voti_comuni:', err);
@@ -111,20 +114,23 @@ router.get('/', verifyToken, async (req, res) => {
       queries.push(
         pool.query(`
           SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) as data_creazione,
+            n.id,
+            n.id_utente,
+            u.nome as utente_nome,
+            u.cognome as utente_cognome,
+            n.titolo,
+            n.testo,
+            COALESCE(n.data, CURRENT_DATE) as data,
+            COALESCE(n.data_creazione, (COALESCE(n.data, CURRENT_DATE)::timestamp)) as data_creazione,
             NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine,
             NULL::TEXT as voto,
             NULL::TEXT as politico,
             0::INTEGER as likes,
             0::INTEGER as dislikes
-          FROM notifiche_demos
-          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+          FROM notifiche_demos n
+          LEFT JOIN users u ON n.id_utente = u.id
+          ORDER BY COALESCE(n.data_creazione, (COALESCE(n.data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_demos:', err);
@@ -145,35 +151,38 @@ router.get('/', verifyToken, async (req, res) => {
       queries.push(
         pool.query(`
           SELECT 
-            id,
-            id_utente,
-            COALESCE(titolo, 
+            n.id,
+            n.id_utente,
+            u.nome as utente_nome,
+            u.cognome as utente_cognome,
+            COALESCE(n.titolo, 
               CASE 
-                WHEN tipologia IS NOT NULL AND dove IS NOT NULL THEN tipologia || ' - ' || dove
-                WHEN tipologia IS NOT NULL THEN tipologia
-                WHEN dove IS NOT NULL THEN dove
+                WHEN n.tipologia IS NOT NULL AND n.dove IS NOT NULL THEN n.tipologia || ' - ' || n.dove
+                WHEN n.tipologia IS NOT NULL THEN n.tipologia
+                WHEN n.dove IS NOT NULL THEN n.dove
                 ELSE 'Notifica Comunale'
               END
             ) as titolo,
-            COALESCE(testo,
+            COALESCE(n.testo,
               CASE 
-                WHEN tipologia IS NOT NULL OR dove IS NOT NULL OR dal_giorno IS NOT NULL OR al_giorno IS NOT NULL THEN
-                  COALESCE('Tipologia: ' || tipologia, '') ||
-                  CASE WHEN tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
-                  COALESCE('Dove: ' || dove, '') ||
-                  CASE WHEN dove IS NOT NULL THEN E'\\n' ELSE '' END ||
-                  COALESCE('Dal: ' || dal_giorno::text, '') ||
-                  CASE WHEN dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
-                  COALESCE('Al: ' || al_giorno::text, '')
+                WHEN n.tipologia IS NOT NULL OR n.dove IS NOT NULL OR n.dal_giorno IS NOT NULL OR n.al_giorno IS NOT NULL THEN
+                  COALESCE('Tipologia: ' || n.tipologia, '') ||
+                  CASE WHEN n.tipologia IS NOT NULL THEN E'\\n' ELSE '' END ||
+                  COALESCE('Dove: ' || n.dove, '') ||
+                  CASE WHEN n.dove IS NOT NULL THEN E'\\n' ELSE '' END ||
+                  COALESCE('Dal: ' || n.dal_giorno::text, '') ||
+                  CASE WHEN n.dal_giorno IS NOT NULL THEN E'\\n' ELSE '' END ||
+                  COALESCE('Al: ' || n.al_giorno::text, '')
                 ELSE 'Notifica comunale'
               END
             ) as testo,
-            COALESCE(data, dal_giorno, CURRENT_DATE) as data,
-            COALESCE(comune_residenza, dove, zona) as comune_residenza,
+            COALESCE(n.data, n.dal_giorno, CURRENT_DATE) as data,
+            COALESCE(n.comune_residenza, n.dove, n.zona) as comune_residenza,
             NULL::INTEGER as likes,
             NULL::INTEGER as dislikes
-          FROM notifiche_comunali
-          ORDER BY COALESCE(data, dal_giorno, CURRENT_DATE) DESC
+          FROM notifiche_comunali n
+          LEFT JOIN users u ON n.id_utente = u.id
+          ORDER BY COALESCE(n.data, n.dal_giorno, CURRENT_DATE) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_comunali:', err);
@@ -194,21 +203,24 @@ router.get('/', verifyToken, async (req, res) => {
       queries.push(
         pool.query(`
           SELECT 
-            id,
-            id_utente,
-            tipo_avvistamento as titolo,
-            comune_residenza,
-            COALESCE(data, data_creazione, CURRENT_DATE) as data,
-            COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) as data_creazione,
-            metadata,
+            n.id,
+            n.id_utente,
+            u.nome as utente_nome,
+            u.cognome as utente_cognome,
+            n.tipo_avvistamento as titolo,
+            n.comune_residenza,
+            COALESCE(n.data, n.data_creazione, CURRENT_DATE) as data,
+            COALESCE(n.data_creazione, (COALESCE(n.data, CURRENT_DATE)::timestamp)) as data_creazione,
+            n.metadata,
             'notifiche_avvistamenti' as tabella_origine,
             NULL::TEXT as testo,
             NULL::TEXT as voto,
             NULL::TEXT as politico,
             0::INTEGER as likes,
             0::INTEGER as dislikes
-          FROM notifiche_avvistamenti
-          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+          FROM notifiche_avvistamenti n
+          LEFT JOIN users u ON n.id_utente = u.id
+          ORDER BY COALESCE(n.data_creazione, (COALESCE(n.data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 100
         `).catch(err => {
           console.error('❌ Errore query notifiche_avvistamenti:', err);
