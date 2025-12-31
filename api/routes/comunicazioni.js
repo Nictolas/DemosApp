@@ -326,6 +326,35 @@ router.post('/send-user-notification', (req, res, next) => {
     console.log(`📊 ========== RISULTATO INVIO NOTIFICA ==========`);
     console.log(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
     console.log(`📋 Token totali: ${fcmTokens.length}, Token validi usati: ${successCount}, Token rimossi: ${invalidTokens.length}`);
+    
+    // Salva la notifica nella tabella notifiche_demos se almeno una notifica è stata inviata con successo
+    if (successCount > 0) {
+      try {
+        console.log(`💾 Salvataggio notifica in notifiche_demos per utente ${userId}...`);
+        const saveResult = await pool.query(`
+          INSERT INTO notifiche_demos (
+            id, id_utente, titolo, testo, data, data_creazione
+          ) VALUES (
+            gen_random_uuid(), $1, $2, $3, CURRENT_DATE, NOW()
+          ) RETURNING id
+        `, [
+          userId,
+          titolo,
+          commento
+        ]);
+        
+        const notificaId = saveResult.rows[0].id;
+        console.log(`✅ Notifica salvata in notifiche_demos con ID: ${notificaId}`);
+      } catch (saveError) {
+        console.error(`❌ Errore nel salvataggio notifica in notifiche_demos:`, saveError);
+        console.error(`❌ Error message: ${saveError.message}`);
+        console.error(`❌ Error stack: ${saveError.stack}`);
+        // Non bloccare la risposta se il salvataggio fallisce
+      }
+    } else {
+      console.log(`⚠️ Notifica non salvata in notifiche_demos (nessuna notifica inviata con successo)`);
+    }
+    
     console.log(`🚨🚨🚨 ========== FINE INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨`);
     console.log('\n\n');
 
