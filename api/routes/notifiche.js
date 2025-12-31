@@ -140,7 +140,7 @@ router.get('/', async (req, res) => {
             titolo,
             testo,
             COALESCE(data, CURRENT_DATE) as data,
-            COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) as data_creazione,
+            data_creazione,
             NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine
           FROM notifiche_demos
@@ -148,6 +148,11 @@ router.get('/', async (req, res) => {
           LIMIT 50
         `);
         console.log(`✅ Notifiche demos recuperate: ${demosResult.rows.length}`);
+        // Log di debug per verificare data_creazione
+        if (demosResult.rows.length > 0) {
+          console.log(`📅 Esempio data_creazione (prima notifica): ${demosResult.rows[0].data_creazione}`);
+          console.log(`📅 Esempio data (prima notifica): ${demosResult.rows[0].data}`);
+        }
       }
     } catch (err) {
       console.error('❌ Errore query notifiche_demos:', err);
@@ -406,7 +411,7 @@ router.get('/', async (req, res) => {
         id: c.id,
         titolo: titolo,
         messaggio: messaggio,
-        data_creazione: c.data_creazione || c.data, // Usa data_creazione se disponibile, altrimenti data
+        data_creazione: c.data_creazione || (c.data ? new Date(c.data).toISOString() : new Date().toISOString()), // Usa data_creazione se disponibile, altrimenti converte data in ISO string
         data: c.data,
         tipo_notifica: c.tipo_notifica,
         voto: c.voto || null,
