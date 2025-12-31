@@ -10,11 +10,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Bell, Vote, Building2, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 // Componente per la tabella delle notifiche
 function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const deleteMutation = useMutation({
     mutationFn: async ({ id, tabella }: { id: string; tabella: string }) => {
@@ -26,10 +27,17 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifiche-totali'] });
-      toast.success("Notifica cancellata con successo");
+      toast({
+        title: "Successo",
+        description: "Notifica cancellata con successo",
+      });
     },
     onError: (error: any) => {
-      toast.error(error.message || "Errore nella cancellazione della notifica");
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nella cancellazione della notifica",
+        variant: "destructive",
+      });
     }
   });
   
