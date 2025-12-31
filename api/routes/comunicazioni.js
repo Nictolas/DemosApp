@@ -1219,6 +1219,39 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
     
     console.log('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
     
+    // Verifica corrispondenza tra variabili d'ambiente
+    const envCheck = {
+      project_id_match: process.env.FIREBASE_PROJECT_ID === 'demos-finale',
+      client_email_format: process.env.FIREBASE_CLIENT_EMAIL ? 
+        process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk') && 
+        process.env.FIREBASE_CLIENT_EMAIL.includes('@demos-finale.iam.gserviceaccount.com') : false,
+      client_email_expected: 'firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com',
+      client_email_actual: process.env.FIREBASE_CLIENT_EMAIL || null,
+      client_email_matches: process.env.FIREBASE_CLIENT_EMAIL === 'firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com'
+    };
+    
+    debugInfo.verifica_corrispondenza = envCheck;
+    
+    // Verifica tempo del server (importante per invalid_grant)
+    const serverTime = new Date();
+    const serverTimeISO = serverTime.toISOString();
+    const serverTimeUTC = serverTime.getTime();
+    const nowUTC = Date.now();
+    const timeDiff = Math.abs(serverTimeUTC - nowUTC);
+    const timeDiffSeconds = Math.floor(timeDiff / 1000);
+    
+    debugInfo.tempo_server = {
+      timestamp: serverTimeISO,
+      timestamp_utc: serverTimeUTC,
+      differenza_secondi: timeDiffSeconds,
+      sincronizzato: timeDiffSeconds < 60, // Considera sincronizzato se differenza < 60 secondi
+      avviso: timeDiffSeconds >= 60 ? 'Il tempo del server potrebbe non essere sincronizzato. Questo può causare errori invalid_grant.' : null
+    };
+    
+    if (timeDiffSeconds >= 60) {
+      console.warn(`⚠️ Possibile problema di sincronizzazione tempo: differenza di ${timeDiffSeconds} secondi`);
+    }
+    
     // Raccogli informazioni sul parsing della chiave privata
     let parsingDetails = null;
     if (process.env.FIREBASE_PRIVATE_KEY) {
