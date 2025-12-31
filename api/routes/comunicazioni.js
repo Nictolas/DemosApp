@@ -218,6 +218,17 @@ router.post('/send-user-notification', (req, res, next) => {
 
     const destinatario = userResult.rows[0];
     const fcmTokens = destinatario.fcm_tokens || [];
+    
+    // Log dettagliato per debug
+    console.log(`   📊 Token FCM nel database per ${destinatario.email}:`);
+    console.log(`      - Numero token: ${fcmTokens.length}`);
+    if (fcmTokens.length > 0) {
+      fcmTokens.forEach((token, idx) => {
+        console.log(`      - Token ${idx + 1}: ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
+      });
+    } else {
+      console.log(`      - ⚠️ Nessun token FCM trovato nel database`);
+    }
 
     if (fcmTokens.length === 0) {
       return res.status(400).json({
@@ -250,18 +261,25 @@ router.post('/send-user-notification', (req, res, next) => {
     const notificationTag = `user-notification-${userId}-${Date.now()}`;
     
     // TOKEN SOLO PER MOBILE: Dovrebbe esserci sempre solo 1 token
-    // Usa sempre l'ULTIMO token (più recente) perché quando l'utente apre l'app sul cellulare,
-    // viene aggiunto un nuovo token che diventa l'ultimo nell'array
+    // IMPORTANTE: Usa SEMPRE solo l'ULTIMO token (più recente) per evitare duplicati
+    // Se ci sono più token, significa che c'è un token desktop vecchio che deve essere rimosso
     const tokensToSend = fcmTokens.length > 0 ? [fcmTokens[fcmTokens.length - 1]] : [];
     
-    console.log(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili (tag: ${notificationTag})...`);
+    console.log(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili nel database (tag: ${notificationTag})...`);
+    console.log(`    📊 Strategia: Userò SOLO l'ULTIMO token (${tokensToSend.length} token selezionato)`);
+    
     if (fcmTokens.length > 1) {
-      console.log(`    ⚠️ ATTENZIONE: Trovati ${fcmTokens.length} token (dovrebbe esserci solo 1 token mobile).`);
-      console.log(`    📋 Userò solo l'ULTIMO token (più recente): ${tokensToSend[0].substring(0, 50)}...`);
-      console.log(`    📋 Token saltati: ${fcmTokens.slice(0, -1).map(t => t.substring(0, 30) + '...').join(', ')}`);
-      console.log(`    💡 Suggerimento: I token extra verranno rimossi automaticamente al prossimo salvataggio token.`);
+      console.log(`    ⚠️ ATTENZIONE: Trovati ${fcmTokens.length} token nel database (dovrebbe esserci solo 1 token mobile).`);
+      console.log(`    📋 Token che verrà usato (ultimo): ${tokensToSend[0]?.substring(0, 50)}...`);
+      console.log(`    📋 Token che verranno IGNORATI (${fcmTokens.length - 1} token):`);
+      fcmTokens.slice(0, -1).forEach((token, idx) => {
+        console.log(`       - Token ${idx + 1}: ${token.substring(0, 50)}...`);
+      });
+      console.log(`    💡 Suggerimento: I token extra verranno rimossi automaticamente al prossimo salvataggio token mobile.`);
     } else if (fcmTokens.length === 1) {
       console.log(`    ✅ Token mobile trovato: ${tokensToSend[0].substring(0, 50)}...`);
+    } else {
+      console.log(`    ⚠️ Nessun token FCM disponibile per l'invio.`);
     }
     
     // Invia notifica al token mobile
