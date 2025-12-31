@@ -788,7 +788,6 @@ export default function NotificheDemos() {
           </CardContent>
         </Card>
           </div>
-          </div>
 
           {/* Sezione 2: Test Notifiche Push */}
           <div className="flex flex-col">
