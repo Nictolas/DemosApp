@@ -212,46 +212,19 @@ export function useFCM() {
     if (!messaging) return;
 
     const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('📨 Messaggio push ricevuto:', payload);
+      console.log('📨 Messaggio push ricevuto in foreground:', payload);
       setMessage(payload);
       
-      // Mostra notifica se l'app è in foreground
-      if (Notification.permission === 'granted') {
-        const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
-        const notificationBody = payload.notification?.body || payload.data?.messaggio || '';
-        
-        // Usa il tag dal payload se disponibile, altrimenti usa un default
-        const notificationTag = payload.data?.notificationTag || payload.notification?.tag || 'demos-notification';
-        
-        const notificationOptions: NotificationOptions = {
-          body: notificationBody,
-          icon: payload.notification?.icon || '/icona.png',
-          badge: '/icona.png',
-          tag: notificationTag, // Usa il tag dal backend per evitare duplicati
-          requireInteraction: true,
-          data: {
-            ...payload.data,
-            url: payload.data?.url || '/notifiche',
-            link: payload.data?.link || 'https://www.demos.community/notifiche'
-          }
-        };
-        
-        // Mostra la notifica
-        const notification = new Notification(notificationTitle, notificationOptions);
-        
-        // Gestisci il click sulla notifica
-        notification.onclick = (event) => {
-          event.preventDefault();
-          window.focus();
-          const url = payload.data?.link || payload.data?.url || '/notifiche';
-          if (url.startsWith('http')) {
-            window.open(url, '_blank');
-          } else {
-            window.location.href = url;
-          }
-          notification.close();
-        };
-      }
+      // IMPORTANTE: NON mostrare la notifica quando l'app è in foreground
+      // Il service worker gestirà la notifica quando l'app è in background/chiusa
+      // Mostrare la notifica qui causerebbe duplicati perché il service worker
+      // potrebbe mostrarla anche quando l'app è in background ma non completamente chiusa
+      // 
+      // Se vuoi mostrare qualcosa quando l'app è in foreground, usa un toast/banner
+      // invece di una notifica del browser
+      
+      // Log per debug
+      console.log('ℹ️ App in foreground - notifica gestita dal service worker per evitare duplicati');
     });
 
     return () => {
