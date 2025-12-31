@@ -236,69 +236,73 @@ router.post('/send-user-notification', (req, res, next) => {
     const invalidTokens = [];
 
     // Invia notifica solo al primo token FCM valido dell'utente (per evitare notifiche duplicate)
-    const firstValidToken = fcmTokens.find(token => token && token.trim());
+    // Prova i token in ordine fino a trovarne uno valido
+    let tokenInviato = false;
     
-    if (!firstValidToken) {
-      return res.status(400).json({
-        success: false,
-        error: 'Nessun token FCM valido trovato per l\'utente destinatario.',
-        data: {
-          userId: destinatario.id,
-          email: destinatario.email,
-          nome: destinatario.nome,
-          cognome: destinatario.cognome
+    for (const token of fcmTokens) {
+      if (token && token.trim() && !tokenInviato) {
+        console.log(`    🔔 Tentativo invio notifica push a token: ${token.substring(0, 50)}...`);
+        
+        try {
+          const result = await sendPushNotification(
+            token,
+            titolo,
+            commento,
+            {
+              type: 'user_notification',
+              titolo: titolo,
+              messaggio: commento,
+              userId: userId,
+              url: '/notifiche',
+              link: 'https://www.demos.community/notifiche'
+            }
+          );
+          
+          if (result && result.success) {
+            successCount++;
+            tokenInviato = true; // Marca come inviato per fermare il loop
+            console.log(`    ✅ Notifica inviata con successo a Firebase`);
+            if (result.messageId) {
+              console.log(`    📨 Message ID: ${result.messageId}`);
+            }
+            console.log(`    ℹ️ Nota: Invio interrotto dopo il primo successo per evitare notifiche duplicate`);
+            break; // Esci dal loop dopo il primo successo
+          } else {
+            failureCount++;
+            const errorMsg = result?.error || 'Errore sconosciuto';
+            console.log(`    ❌ Errore invio notifica: ${errorMsg}`);
+            if (result?.code) {
+              console.log(`    📋 Error code: ${result.code}`);
+            }
+            if (result?.shouldRemoveToken) {
+              invalidTokens.push(token);
+              console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
+            }
+            // Continua con il prossimo token se questo fallisce
+            console.log(`    ⏭️ Tentativo con il prossimo token...`);
+          }
+        } catch (error) {
+          failureCount++;
+          console.error(`    ❌ Eccezione durante invio notifica:`, error);
+          console.error(`    ❌ Error message: ${error.message}`);
+          console.error(`    ❌ Error stack: ${error.stack}`);
+          // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
+          if (error.message && error.message.includes('Firebase Admin')) {
+            console.log(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
+            // Se è un errore di configurazione, non provare altri token
+            break;
+          } else {
+            invalidTokens.push(token);
+            console.log(`    🗑️ Token marcato per rimozione a causa di eccezione`);
+            // Continua con il prossimo token se questo fallisce
+            console.log(`    ⏭️ Tentativo con il prossimo token...`);
+          }
         }
-      });
+      }
     }
-
-    console.log(`    🔔 Invio notifica push al primo token valido: ${firstValidToken.substring(0, 50)}...`);
-    console.log(`    ℹ️ Nota: Viene inviata una sola notifica anche se l'utente ha ${fcmTokens.length} token registrati`);
     
-    try {
-      const result = await sendPushNotification(
-        firstValidToken,
-        titolo,
-        commento,
-        {
-          type: 'user_notification',
-          titolo: titolo,
-          messaggio: commento,
-          userId: userId,
-          url: '/notifiche',
-          link: 'https://www.demos.community/notifiche'
-        }
-      );
-      
-      if (result && result.success) {
-        successCount++;
-        console.log(`    ✅ Notifica inviata con successo a Firebase`);
-        if (result.messageId) {
-          console.log(`    📨 Message ID: ${result.messageId}`);
-        }
-      } else {
-        failureCount++;
-        const errorMsg = result?.error || 'Errore sconosciuto';
-        console.log(`    ❌ Errore invio notifica: ${errorMsg}`);
-        if (result?.code) {
-          console.log(`    📋 Error code: ${result.code}`);
-        }
-        if (result?.shouldRemoveToken) {
-          invalidTokens.push(firstValidToken);
-          console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
-        }
-      }
-    } catch (error) {
-      failureCount++;
-      console.error(`    ❌ Eccezione durante invio notifica:`, error);
-      console.error(`    ❌ Error message: ${error.message}`);
-      console.error(`    ❌ Error stack: ${error.stack}`);
-      // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
-      if (error.message && error.message.includes('Firebase Admin')) {
-        console.log(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
-      } else {
-        invalidTokens.push(firstValidToken);
-        console.log(`    🗑️ Token marcato per rimozione a causa di eccezione`);
-      }
+    if (!tokenInviato && fcmTokens.length > 0) {
+      console.log(`    ⚠️ Nessun token valido trovato tra ${fcmTokens.length} token disponibili`);
     }
 
     // Rimuovi token non validi dal database
