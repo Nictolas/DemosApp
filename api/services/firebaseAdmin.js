@@ -71,25 +71,88 @@ function initializeFirebaseAdmin() {
         console.log(`   Chiave privata pulita: ${privateKey.length} caratteri`);
         console.log(`   Inizia con: ${privateKey.substring(0, 30)}...`);
         console.log(`   Finisce con: ...${privateKey.substring(privateKey.length - 30)}`);
+        console.log(`   Contiene newline reali: ${privateKey.includes('\n')}`);
+        console.log(`   Numero di newline: ${(privateKey.match(/\n/g) || []).length}`);
         
-        admin.initializeApp({
-          credential: admin.credential.cert({
+        // Verifica che la chiave sia completa (dovrebbe essere ~1600+ caratteri)
+        if (privateKey.length < 1000) {
+          const errorMsg = `La chiave privata è troppo corta (${privateKey.length} caratteri). Una chiave RSA completa dovrebbe essere ~1600-1700 caratteri. La chiave potrebbe essere troncata su Render.com.`;
+          console.error(`❌ ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+        
+        // Verifica che la chiave contenga almeno BEGIN e END
+        if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
+          const errorMsg = `La chiave privata non contiene BEGIN PRIVATE KEY o END PRIVATE KEY. Formato non valido.`;
+          console.error(`❌ ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+        
+        console.log('🔧 Tentativo di inizializzazione Firebase Admin con credential.cert()...');
+        try {
+          const credential = admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey: privateKey,
-          })
-        });
-
-        isInitialized = true;
-        console.log('✅ Firebase Admin inizializzato con successo (variabili d\'ambiente)');
-        console.log(`   Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
-        return admin;
+          });
+          console.log('✅ Credential creata con successo');
+          
+          admin.initializeApp({
+            credential: credential
+          });
+          
+          console.log('✅ admin.initializeApp() completato');
+          
+          // Verifica che l'app sia stata inizializzata
+          if (admin.apps.length === 0) {
+            throw new Error('admin.apps.length è 0 dopo initializeApp()');
+          }
+          
+          console.log(`✅ Firebase Admin inizializzato con successo (variabili d'ambiente)`);
+          console.log(`   Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
+          console.log(`   App name: ${admin.apps[0].name}`);
+          
+          isInitialized = true;
+          return admin;
+        } catch (certError) {
+          console.error('❌ Errore durante credential.cert() o initializeApp():');
+          console.error(`   Error name: ${certError.name}`);
+          console.error(`   Error message: ${certError.message}`);
+          console.error(`   Error code: ${certError.code || 'N/A'}`);
+          if (certError.stack) {
+            console.error(`   Stack (primi 500 caratteri): ${certError.stack.substring(0, 500)}`);
+          }
+          
+          // Crea un errore più descrittivo
+          const detailedError = new Error(`Errore inizializzazione Firebase Admin: ${certError.message}`);
+          detailedError.name = certError.name || 'FirebaseAdminInitError';
+          detailedError.code = certError.code || 'INIT_ERROR';
+          detailedError.originalError = certError.message;
+          detailedError.privateKeyLength = privateKey.length;
+          detailedError.privateKeyStartsWithBegin = privateKey.includes('BEGIN PRIVATE KEY');
+          detailedError.privateKeyEndsWithEnd = privateKey.includes('END PRIVATE KEY');
+          
+          throw detailedError; // Rilancia per essere catturato dal catch esterno
+        }
       } catch (initError) {
         console.error('❌ Errore durante l\'inizializzazione Firebase Admin:');
-        console.error(`   Message: ${initError.message}`);
-        console.error(`   Code: ${initError.code || 'N/A'}`);
+        console.error(`   Error name: ${initError.name || 'N/A'}`);
+        console.error(`   Error message: ${initError.message}`);
+        console.error(`   Error code: ${initError.code || 'N/A'}`);
+        
+        // Controlli specifici per errori comuni
+        if (initError.message && initError.message.includes('private_key')) {
+          console.error('   ⚠️ Errore relativo alla chiave privata - verifica il formato');
+        }
+        if (initError.message && initError.message.includes('PEM')) {
+          console.error('   ⚠️ Errore formato PEM - la chiave potrebbe essere malformata o troncata');
+        }
+        if (initError.message && initError.message.includes('certificate')) {
+          console.error('   ⚠️ Errore certificato - verifica projectId, clientEmail e privateKey');
+        }
+        
         if (initError.stack) {
-          console.error(`   Stack: ${initError.stack}`);
+          console.error(`   Stack (primi 800 caratteri): ${initError.stack.substring(0, 800)}`);
         }
         return null;
       }
