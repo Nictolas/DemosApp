@@ -240,27 +240,22 @@ router.post('/send-user-notification', (req, res, next) => {
     let failureCount = 0;
     const invalidTokens = [];
 
-    // Usa un tag univoco per questa notifica per evitare duplicati
+    // Usa un tag univoco per questa notifica per evitare duplicati sullo stesso dispositivo
+    // IMPORTANTE: Il tag funziona solo per lo stesso browser/device, quindi se ci sono
+    // token di dispositivi diversi (PC e mobile), entrambi riceveranno la notifica
+    // ma non ci saranno duplicati sullo stesso dispositivo
     const notificationTag = `user-notification-${userId}-${Date.now()}`;
     
     console.log(`    🔍 Invio notifica a ${fcmTokens.length} token FCM (tag: ${notificationTag})...`);
-    console.log(`    ℹ️ Nota: Verrà inviata SOLO al primo token valido per evitare notifiche duplicate`);
+    console.log(`    ℹ️ Nota: Verrà inviata a TUTTI i token validi (PC e mobile). Il tag evita duplicati sullo stesso dispositivo.`);
     
-    // Invia notifica SOLO al primo token valido per evitare duplicati
-    // Prova i token in ordine fino a trovarne uno valido, poi si ferma
-    let tokenInviato = false;
-    
+    // Invia notifica a TUTTI i token validi (PC e mobile)
+    // Il tag univoco evita duplicati sullo stesso dispositivo
     for (let i = 0; i < fcmTokens.length; i++) {
       const token = fcmTokens[i];
       
       if (!token || !token.trim()) {
         console.log(`    ⚠️ Token ${i + 1}/${fcmTokens.length}: vuoto o non valido, saltato`);
-        continue;
-      }
-      
-      // Se abbiamo già inviato con successo, fermati
-      if (tokenInviato) {
-        console.log(`    ⏹️ Token ${i + 1}/${fcmTokens.length}: saltato (notifica già inviata con successo)`);
         continue;
       }
       
@@ -278,19 +273,16 @@ router.post('/send-user-notification', (req, res, next) => {
             userId: userId,
             url: '/notifiche',
             link: 'https://www.demos.community/notifiche',
-            notificationTag: notificationTag
+            notificationTag: notificationTag // Stesso tag per tutti i token
           }
         );
         
         if (result && result.success) {
           successCount++;
-          tokenInviato = true; // Marca come inviato per fermare il loop
           console.log(`    ✅ Notifica inviata con successo a Firebase (token ${i + 1}/${fcmTokens.length})`);
           if (result.messageId) {
             console.log(`    📨 Message ID: ${result.messageId}`);
           }
-          console.log(`    ℹ️ Invio interrotto dopo il primo successo per evitare notifiche duplicate`);
-          break; // Esci dal loop dopo il primo successo
         } else {
           failureCount++;
           const errorMsg = result?.error || 'Errore sconosciuto';
@@ -302,10 +294,6 @@ router.post('/send-user-notification', (req, res, next) => {
             invalidTokens.push(token);
             console.log(`    🗑️ Token ${i + 1} marcato per rimozione (non valido o scaduto)`);
           }
-          // Continua con il prossimo token se questo fallisce
-          if (i < fcmTokens.length - 1) {
-            console.log(`    ⏭️ Tentativo con il prossimo token...`);
-          }
         }
       } catch (error) {
         failureCount++;
@@ -315,20 +303,14 @@ router.post('/send-user-notification', (req, res, next) => {
         // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
         if (error.message && error.message.includes('Firebase Admin')) {
           console.log(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
-          // Se è un errore di configurazione, non provare altri token
-          break;
         } else {
           invalidTokens.push(token);
           console.log(`    🗑️ Token ${i + 1} marcato per rimozione a causa di eccezione`);
-          // Continua con il prossimo token se questo fallisce
-          if (i < fcmTokens.length - 1) {
-            console.log(`    ⏭️ Tentativo con il prossimo token...`);
-          }
         }
       }
     }
     
-    if (!tokenInviato && fcmTokens.length > 0) {
+    if (successCount === 0 && fcmTokens.length > 0) {
       console.log(`    ⚠️ Nessun token valido trovato tra ${fcmTokens.length} token disponibili`);
     }
 
