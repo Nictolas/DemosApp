@@ -222,10 +222,26 @@ export default function NotificheDemos() {
     },
     onError: (error: any) => {
       console.error("Errore nell'invio notifica utente:", error);
+      
+      // Estrai dettagli aggiuntivi dall'errore se disponibili
+      let errorMessage = error.message || "Invio fallito. Riprova più tardi.";
+      let errorDetails = null;
+      
+      if (error.response?.data || error.data) {
+        const errorData = error.response?.data || error.data;
+        if (errorData.data?.firebase_admin_configurato === false) {
+          errorMessage = "Firebase Admin non configurato. Verifica le variabili d'ambiente.";
+        }
+        if (errorData.data?.notifiche_fallite !== undefined) {
+          errorDetails = `Tentativi: ${errorData.data.notifiche_inviate + errorData.data.notifiche_fallite}, Successi: ${errorData.data.notifiche_inviate}, Fallimenti: ${errorData.data.notifiche_fallite}`;
+        }
+      }
+      
       toast({ 
         title: "Errore", 
-        description: error.message || "Invio fallito. Riprova più tardi.", 
-        variant: "destructive" 
+        description: errorDetails ? `${errorMessage}\n${errorDetails}` : errorMessage, 
+        variant: "destructive",
+        duration: 8000
       });
     },
   });
@@ -265,10 +281,22 @@ export default function NotificheDemos() {
     },
     onError: (error: any) => {
       console.error("Errore nell'invio notifica Demos:", error);
+      
+      // Estrai dettagli aggiuntivi dall'errore se disponibili
+      let errorMessage = error.message || "Invio fallito. Riprova più tardi.";
+      
+      if (error.response?.data || error.data) {
+        const errorData = error.response?.data || error.data;
+        if (errorData.details) {
+          errorMessage = `${errorMessage}\nDettagli: ${errorData.details}`;
+        }
+      }
+      
       toast({ 
         title: "Errore", 
-        description: error.message || "Invio fallito. Riprova più tardi.", 
-        variant: "destructive" 
+        description: errorMessage, 
+        variant: "destructive",
+        duration: 8000
       });
     },
   });
@@ -488,6 +516,48 @@ export default function NotificheDemos() {
                   )}
                 </div>
 
+                {/* Test Invio Reale */}
+                {firebaseDebugData.data.stato_inizializzazione.test_invio && (
+                  <div className="mt-4 p-3 rounded-lg border-2">
+                    <div className="font-semibold mb-2 flex items-center gap-2">
+                      {firebaseDebugData.data.stato_inizializzazione.test_invio.successo === true ? (
+                        <>
+                          <span className="text-green-600">✅</span>
+                          <span>Test Invio Reale: Successo</span>
+                        </>
+                      ) : firebaseDebugData.data.stato_inizializzazione.test_invio.successo === false ? (
+                        <>
+                          <span className="text-red-600">❌</span>
+                          <span>Test Invio Reale: Fallito</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-gray-600">ℹ️</span>
+                          <span>Test Invio Reale: Non disponibile</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-sm">
+                      {firebaseDebugData.data.stato_inizializzazione.test_invio.messaggio && (
+                        <div className="mb-2">{firebaseDebugData.data.stato_inizializzazione.test_invio.messaggio}</div>
+                      )}
+                      {firebaseDebugData.data.stato_inizializzazione.test_invio.message_id && (
+                        <div className="text-xs text-gray-600 font-mono bg-green-50 p-2 rounded">
+                          Message ID: {firebaseDebugData.data.stato_inizializzazione.test_invio.message_id}
+                        </div>
+                      )}
+                      {firebaseDebugData.data.stato_inizializzazione.test_invio.errore && (
+                        <div className="text-xs text-red-600 font-mono bg-red-50 p-2 rounded mt-2">
+                          <div><strong>Errore:</strong> {firebaseDebugData.data.stato_inizializzazione.test_invio.errore}</div>
+                          {firebaseDebugData.data.stato_inizializzazione.test_invio.codice && (
+                            <div><strong>Codice:</strong> {firebaseDebugData.data.stato_inizializzazione.test_invio.codice}</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Errori */}
                 {firebaseDebugData.data.stato_inizializzazione.errore && (
                   <Alert variant="destructive">
@@ -498,6 +568,15 @@ export default function NotificheDemos() {
                         <div><strong>Messaggio:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.message}</div>
                         {firebaseDebugData.data.stato_inizializzazione.errore.code && (
                           <div><strong>Codice:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.code}</div>
+                        )}
+                        {firebaseDebugData.data.stato_inizializzazione.errore.name && (
+                          <div><strong>Nome errore:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.name}</div>
+                        )}
+                        {firebaseDebugData.data.stato_inizializzazione.errore.stack && (
+                          <div className="mt-2 text-xs overflow-auto max-h-32">
+                            <strong>Stack:</strong>
+                            <pre className="whitespace-pre-wrap">{firebaseDebugData.data.stato_inizializzazione.errore.stack}</pre>
+                          </div>
                         )}
                       </div>
                     </AlertDescription>
