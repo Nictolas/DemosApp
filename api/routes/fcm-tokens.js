@@ -30,6 +30,29 @@ router.post('/', verifyToken, async (req, res) => {
     console.log(`📱 Salvataggio token FCM per utente: ${userId}`);
     console.log(`   Token: ${token.substring(0, 30)}...`);
     
+    // Verifica se la richiesta viene da un dispositivo mobile
+    // TOKEN SOLO PER MOBILE: Ignora i token da desktop/browser
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    
+    console.log(`   📱 User-Agent: ${userAgent.substring(0, 100)}...`);
+    console.log(`   📱 Dispositivo rilevato: ${isMobile ? 'Mobile ✅' : 'Desktop ❌ (ignorato)'}`);
+    
+    // Se non è mobile, ignora il token (non salvarlo)
+    if (!isMobile) {
+      console.log(`   ⚠️ Token da desktop ignorato. Solo token mobile vengono salvati.`);
+      return res.json({
+        success: true,
+        message: 'Token desktop ignorato (solo token mobile vengono salvati)',
+        data: {
+          userId,
+          tokenCount: 0,
+          ignored: true,
+          reason: 'desktop_device'
+        }
+      });
+    }
+    
     // Verifica se la colonna fcm_tokens esiste, altrimenti la crea
     try {
       await pool.query(`
@@ -67,16 +90,21 @@ router.post('/', verifyToken, async (req, res) => {
       t && t.length > 100 && !t.startsWith('web_')
     );
     
-    // Aggiungi il nuovo token se non è già presente
+    // TOKEN SOLO PER MOBILE: Mantieni sempre solo 1 token (il più recente)
+    // Quando viene aggiunto un nuovo token mobile, rimuovi tutti i vecchi
+    // Questo garantisce che ci sia sempre solo il token mobile più recente
     let updatedTokens;
     if (validExistingTokens.includes(token)) {
-      // Token già presente, mantieni solo i token validi
-      updatedTokens = validExistingTokens;
-      console.log('   ℹ️ Token già presente, nessuna modifica');
+      // Token già presente, mantieni solo questo token (rimuovi eventuali altri)
+      updatedTokens = [token];
+      if (validExistingTokens.length > 1) {
+        console.log(`   🧹 Rimossi ${validExistingTokens.length - 1} token extra (manteniamo solo questo token mobile)`);
+        console.log(`   📋 Token rimossi: ${validExistingTokens.filter(t => t !== token).map(t => t.substring(0, 30) + '...').join(', ')}`);
+      } else {
+        console.log('   ℹ️ Token già presente, nessuna modifica');
+      }
     } else {
-      // TOKEN SOLO PER MOBILE: Mantieni sempre solo 1 token (il più recente)
-      // Quando viene aggiunto un nuovo token, rimuovi tutti i vecchi
-      // Questo garantisce che ci sia sempre solo il token mobile più recente
+      // Nuovo token mobile: rimuovi tutti i vecchi
       updatedTokens = [token]; // Solo il nuovo token, rimuovi tutti i vecchi
       
       if (validExistingTokens.length > 0) {
