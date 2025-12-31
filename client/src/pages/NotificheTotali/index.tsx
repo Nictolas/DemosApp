@@ -61,6 +61,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
       return (
         <>
           <TableHead>ID</TableHead>
+          <TableHead>Utente</TableHead>
           <TableHead>Titolo</TableHead>
           <TableHead>Testo</TableHead>
           <TableHead>Data</TableHead>
@@ -76,6 +77,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
       return (
         <>
           <TableHead>ID</TableHead>
+          <TableHead>Utente</TableHead>
           <TableHead>Titolo</TableHead>
           <TableHead>Testo</TableHead>
           <TableHead>Data</TableHead>
@@ -86,6 +88,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
       return (
         <>
           <TableHead>ID</TableHead>
+          <TableHead>Utente</TableHead>
           <TableHead>Tipo Avvistamento</TableHead>
           <TableHead>Comune</TableHead>
           <TableHead>Data</TableHead>
@@ -97,6 +100,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
       return (
         <>
           <TableHead>ID</TableHead>
+          <TableHead>Utente</TableHead>
           <TableHead>Titolo</TableHead>
           <TableHead>Testo</TableHead>
           <TableHead>Data</TableHead>
@@ -120,6 +124,11 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
             <TableRow key={notifica.id}>
               <TableCell className="font-mono text-xs">
                 {notifica.id?.substring(0, 8)}...
+              </TableCell>
+              <TableCell>
+                {notifica.utente_nome && notifica.utente_cognome 
+                  ? `${notifica.utente_nome} ${notifica.utente_cognome}`
+                  : notifica.utente_nome || notifica.utente_cognome || '-'}
               </TableCell>
               {tipo === 'avvistamenti' ? (
                 <>
