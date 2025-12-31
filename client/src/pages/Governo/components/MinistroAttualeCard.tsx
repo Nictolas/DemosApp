@@ -22,7 +22,9 @@ interface MinistroAttualeCardProps {
     mieiVoti?: Record<string, string>;
   };
   isAdmin: boolean;
+  isAdminAD?: boolean;
   onEdit: () => void;
+  onEditAvatar?: () => void;
   onNavigate: (ministero: Ministero) => void;
 }
 
@@ -31,7 +33,9 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
   ministro,
   votiData,
   isAdmin,
+  isAdminAD = false,
   onEdit,
+  onEditAvatar,
   onNavigate
 }) => {
   const hasMinistro = ministro && ministro.user_id;
@@ -114,13 +118,23 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
             {/* Avatar */}
             <div className="flex-shrink-0">
               {avatarConfig ? (
-                <CustomAvatar 
-                  config={avatarConfig} 
-                  size={48} 
-                  className="rounded-full"
-                />
+                <div
+                  className={`rounded-full ${isAdminAD ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                  onClick={isAdminAD ? onEditAvatar : undefined}
+                  title={isAdminAD ? "Clicca per modificare l'avatar" : undefined}
+                >
+                  <CustomAvatar 
+                    config={avatarConfig} 
+                    size={48} 
+                    className="rounded-full"
+                  />
+                </div>
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                <div 
+                  className={`w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center ${isAdminAD ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                  onClick={isAdminAD ? onEditAvatar : undefined}
+                  title={isAdminAD ? "Clicca per modificare l'avatar" : undefined}
+                >
                   <User className="h-6 w-6 text-gray-400" />
                 </div>
               )}

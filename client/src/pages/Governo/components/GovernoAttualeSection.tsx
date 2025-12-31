@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Loader2 } from "lucide-react";
 import { MinistroAttualeCard } from "./MinistroAttualeCard";
 import { ModificaMinistroDialog } from "./ModificaMinistroDialog";
+import { EditUserAvatarDialog } from "@/components/EditUserAvatarDialog";
 import { ministriAttuali } from "../constants/ministri-attuali";
 import { useGovernoData } from "../hooks/useGovernoData";
 import { useGovernoActions } from "../hooks/useGovernoActions";
@@ -13,8 +14,16 @@ export const GovernoAttualeSection: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingRuolo, setEditingRuolo] = useState<string | null>(null);
+  const [showEditAvatarDialog, setShowEditAvatarDialog] = useState(false);
+  const [userForAvatarEdit, setUserForAvatarEdit] = useState<{
+    id: string;
+    nome: string;
+    cognome: string;
+    avatar_config?: any;
+  } | null>(null);
 
   const isAdmin = user?.ruolo === "A" || user?.ruolo === "AD" || user?.ruolo === "Admin";
+  const isAdminAD = user?.ruolo === "AD";
 
   // Query per ottenere i ministri attuali
   const { data, isLoading, isError } = useQuery({
@@ -42,6 +51,23 @@ export const GovernoAttualeSection: React.FC = () => {
 
   const handleSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["governo-attuale"] });
+  };
+
+  const handleEditAvatar = (ministro: any) => {
+    if (ministro && ministro.user_id) {
+      setUserForAvatarEdit({
+        id: ministro.user_id,
+        nome: ministro.nome_utente || "",
+        cognome: ministro.cognome_utente || "",
+        avatar_config: ministro.avatar_config
+      });
+      setShowEditAvatarDialog(true);
+    }
+  };
+
+  const handleAvatarUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: ["governo-attuale"] });
+    setUserForAvatarEdit(null);
   };
 
   // Crea una mappa per accesso rapido ai ministri per ruolo
@@ -78,7 +104,9 @@ export const GovernoAttualeSection: React.FC = () => {
               ministro={ministro}
               votiData={votiData}
               isAdmin={isAdmin}
+              isAdminAD={isAdminAD}
               onEdit={() => handleEdit(ruolo)}
+              onEditAvatar={() => ministro && handleEditAvatar(ministro)}
               onNavigate={handleNavigateToMinistero}
             />
           );
@@ -102,6 +130,18 @@ export const GovernoAttualeSection: React.FC = () => {
               : null
           }
           onSuccess={handleSuccess}
+        />
+      )}
+
+      {/* Dialog per modifica avatar */}
+      {userForAvatarEdit && (
+        <EditUserAvatarDialog
+          open={showEditAvatarDialog}
+          onOpenChange={setShowEditAvatarDialog}
+          userId={userForAvatarEdit.id}
+          userName={[userForAvatarEdit.nome, userForAvatarEdit.cognome].filter(Boolean).join(' ') || 'N/A'}
+          currentAvatarConfig={userForAvatarEdit.avatar_config}
+          onAvatarUpdated={handleAvatarUpdated}
         />
       )}
     </div>
