@@ -39,11 +39,14 @@ function initializeFirebaseAdmin() {
         // Pulisci la chiave privata: rimuovi virgolette iniziali/finali e converti \n
         let privateKey = process.env.FIREBASE_PRIVATE_KEY;
         
+        console.log(`   Chiave privata RAW (lunghezza totale): ${privateKey.length} caratteri`);
         console.log(`   Chiave privata RAW (primi 50 caratteri): ${privateKey.substring(0, 50)}...`);
         console.log(`   Chiave privata RAW (ultimi 50 caratteri): ...${privateKey.substring(privateKey.length - 50)}`);
         console.log(`   Chiave privata RAW contiene \\n letterali: ${privateKey.includes('\\n')}`);
+        console.log(`   Chiave privata RAW contiene \\\\n (doppio backslash): ${privateKey.includes('\\\\n')}`);
         console.log(`   Chiave privata RAW inizia con ": ${privateKey.startsWith('"')}`);
         console.log(`   Chiave privata RAW finisce con ": ${privateKey.endsWith('"')}`);
+        console.log(`   Chiave privata RAW contiene spazi iniziali/finali: ${privateKey !== privateKey.trim()}`);
         
         // Rimuovi virgolette iniziali e finali se presenti (sia singole che doppie)
         privateKey = privateKey.trim();
@@ -55,9 +58,15 @@ function initializeFirebaseAdmin() {
         
         // Converti \n letterali in newline reali (gestisci sia \\n che \n)
         const beforeReplace = privateKey;
+        // Prima prova con \\n (doppio backslash + n, come nel JSON)
+        privateKey = privateKey.replace(/\\\\n/g, '\n');
+        // Poi prova con \n (singolo backslash + n, se presente)
         privateKey = privateKey.replace(/\\n/g, '\n');
         if (beforeReplace !== privateKey) {
           console.log(`   ✅ Convertiti \\n letterali in newline reali`);
+          console.log(`   📊 Newline convertite: ${(privateKey.match(/\n/g) || []).length} newline reali trovate`);
+        } else {
+          console.log(`   ⚠️ Nessun \\n trovato da convertire - la chiave potrebbe già avere newline reali o essere malformata`);
         }
         
         // Verifica che la chiave inizi e finisca correttamente
@@ -85,10 +94,40 @@ function initializeFirebaseAdmin() {
         if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
           const errorMsg = `La chiave privata non contiene BEGIN PRIVATE KEY o END PRIVATE KEY. Formato non valido.`;
           console.error(`❌ ${errorMsg}`);
+          console.error(`   Chiave dopo parsing (primi 100 caratteri): ${privateKey.substring(0, 100)}`);
+          console.error(`   Chiave dopo parsing (ultimi 100 caratteri): ${privateKey.substring(privateKey.length - 100)}`);
           throw new Error(errorMsg);
         }
         
+        // Verifica che la chiave inizi e finisca correttamente
+        const startsCorrectly = privateKey.trim().startsWith('-----BEGIN PRIVATE KEY-----');
+        const endsCorrectly = privateKey.trim().endsWith('-----END PRIVATE KEY-----');
+        
+        if (!startsCorrectly || !endsCorrectly) {
+          console.warn(`⚠️ La chiave potrebbe non essere formattata correttamente:`);
+          console.warn(`   Inizia correttamente: ${startsCorrectly}`);
+          console.warn(`   Finisce correttamente: ${endsCorrectly}`);
+          console.warn(`   Primi 50 caratteri: ${privateKey.substring(0, 50)}`);
+          console.warn(`   Ultimi 50 caratteri: ${privateKey.substring(privateKey.length - 50)}`);
+        }
+        
         console.log('🔧 Tentativo di inizializzazione Firebase Admin con credential.cert()...');
+        console.log(`   Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
+        console.log(`   Client Email: ${process.env.FIREBASE_CLIENT_EMAIL}`);
+        console.log(`   Private Key length: ${privateKey.length} caratteri`);
+        console.log(`   Private Key inizia con: ${privateKey.substring(0, 30)}...`);
+        console.log(`   Private Key finisce con: ...${privateKey.substring(privateKey.length - 30)}`);
+        
+        // Verifica che client_email corrisponda al formato atteso
+        if (!process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_CLIENT_EMAIL.includes('@')) {
+          console.error('❌ FIREBASE_CLIENT_EMAIL non valido o mancante');
+          throw new Error('FIREBASE_CLIENT_EMAIL non valido');
+        }
+        
+        if (!process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk')) {
+          console.warn('⚠️ FIREBASE_CLIENT_EMAIL non sembra essere un Firebase Admin SDK service account');
+        }
+        
         try {
           const credential = admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,

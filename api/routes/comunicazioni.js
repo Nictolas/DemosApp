@@ -1208,11 +1208,48 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
       stato_inizializzazione: {
         isInitialized: isInitialized(),
         admin_disponibile: null,
-        errore: null
+        messaging_disponibile: null,
+        errore: null,
+        test_invio: null,
+        dettagli_parsing: null
       }
     };
     
     console.log('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
+    
+    // Raccogli informazioni sul parsing della chiave privata
+    let parsingDetails = null;
+    if (process.env.FIREBASE_PRIVATE_KEY) {
+      const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+      let cleanedKey = rawKey.trim();
+      
+      // Rimuovi virgolette se presenti
+      if ((cleanedKey.startsWith('"') && cleanedKey.endsWith('"')) || 
+          (cleanedKey.startsWith("'") && cleanedKey.endsWith("'"))) {
+        cleanedKey = cleanedKey.slice(1, -1);
+      }
+      
+      // Converti \n
+      const beforeReplace = cleanedKey;
+      cleanedKey = cleanedKey.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
+      
+      parsingDetails = {
+        lunghezza_raw: rawKey.length,
+        lunghezza_dopo_trim: rawKey.trim().length,
+        lunghezza_dopo_pulizia: cleanedKey.length,
+        aveva_virgolette: (rawKey.startsWith('"') && rawKey.endsWith('"')) || (rawKey.startsWith("'") && rawKey.endsWith("'")),
+        aveva_backslash_n: rawKey.includes('\\n'),
+        aveva_doppio_backslash_n: rawKey.includes('\\\\n'),
+        newline_reali_dopo_parsing: (cleanedKey.match(/\n/g) || []).length,
+        inizia_correttamente: cleanedKey.trim().startsWith('-----BEGIN PRIVATE KEY-----'),
+        finisce_correttamente: cleanedKey.trim().endsWith('-----END PRIVATE KEY-----'),
+        contiene_begin: cleanedKey.includes('BEGIN PRIVATE KEY'),
+        contiene_end: cleanedKey.includes('END PRIVATE KEY'),
+        sembra_completa: cleanedKey.length > 1000
+      };
+      
+      debugInfo.stato_inizializzazione.dettagli_parsing = parsingDetails;
+    }
     
     // Prova a inizializzare Firebase Admin
     try {
