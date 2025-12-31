@@ -21,12 +21,17 @@ const messaging = firebase.messaging();
 // Gestisci i messaggi in background
 messaging.onBackgroundMessage((payload) => {
   console.log('📨 Messaggio push ricevuto in background:', payload);
+  console.log('📋 Payload data:', payload.data);
+  console.log('📋 Payload notification:', payload.notification);
   
   const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
   const notificationBody = payload.notification?.body || payload.data?.messaggio || '';
   
   // Usa il tag dal payload se disponibile, altrimenti usa un default
-  const notificationTag = payload.data?.notificationTag || payload.notification?.tag || 'demos-notification';
+  // Il tag viene passato in data.notificationTag dal backend
+  const notificationTag = payload.data?.notificationTag || payload.notification?.tag || `demos-notification-${Date.now()}`;
+  
+  console.log('🔔 Mostro notifica in background con tag:', notificationTag);
   
   const notificationOptions = {
     body: notificationBody,
