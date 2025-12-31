@@ -119,6 +119,78 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/fcm-tokens/cleanup - Rimuovi token duplicati, mantieni solo l'ultimo (mobile)
+router.post('/cleanup', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id || req.user.userId;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
+    
+    console.log(`🧹 Pulizia token FCM duplicati per utente: ${userId}`);
+    
+    // Recupera i token esistenti
+    const userResult = await pool.query(
+      'SELECT fcm_tokens FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const existingTokens = userResult.rows[0].fcm_tokens || [];
+    
+    // Filtra i token validi
+    const validTokens = existingTokens.filter(t => 
+      t && t.length > 100 && !t.startsWith('web_')
+    );
+    
+    // Mantieni solo l'ultimo token (più recente)
+    const cleanedTokens = validTokens.length > 0 ? [validTokens[validTokens.length - 1]] : [];
+    
+    if (validTokens.length > 1) {
+      const removedCount = validTokens.length - 1;
+      console.log(`   🧹 Rimossi ${removedCount} token duplicati`);
+      console.log(`   📋 Token rimossi: ${validTokens.slice(0, -1).map(t => t.substring(0, 30) + '...').join(', ')}`);
+      console.log(`   ✅ Mantenuto solo l'ultimo token: ${cleanedTokens[0].substring(0, 30)}...`);
+    } else {
+      console.log(`   ℹ️ Nessun token duplicato trovato (${validTokens.length} token presente)`);
+    }
+    
+    // Salva i token puliti
+    await pool.query(
+      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
+      [cleanedTokens, userId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Token FCM puliti con successo',
+      data: {
+        userId,
+        tokenCountBefore: validTokens.length,
+        tokenCountAfter: cleanedTokens.length,
+        removedCount: validTokens.length - cleanedTokens.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nella pulizia token FCM:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // DELETE /api/fcm-tokens/:token - Rimuovi un token FCM specifico
 router.delete('/:token', verifyToken, async (req, res) => {
   try {
