@@ -7,7 +7,8 @@ import {
   getLeggeNumberStyle,
   getLeggeTextStyle,
   getTrophyColor,
-  getButtonStyle
+  getButtonStyle,
+  getLeggeEmoji
 } from "../utils/amnistiaUtils";
 
 export const LeggeItem: React.FC<LeggeItemProps> = ({
@@ -32,7 +33,8 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
           {index + 1}
         </div>
         <div>
-          <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 ${textStyle}`}>
+          <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 ${textStyle} flex items-center gap-2`}>
+            <span className="text-xl">{getLeggeEmoji(item.legge)}</span>
             {item.legge}
           </h4>
           <p className="text-sm text-gray-600 flex items-center">
