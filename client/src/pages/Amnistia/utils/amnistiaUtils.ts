@@ -1,5 +1,82 @@
 import { Classifica } from '../types';
 
+// Funzione per ottenere l'emoji per una legge
+export const getLeggeEmoji = (legge: string): string => {
+  const leggeLower = legge.toLowerCase();
+  
+  // Mappa di parole chiave a emoji
+  const emojiMap: { [key: string]: string } = {
+    'cannabis': '🌿',
+    'marijuana': '🌿',
+    'droga': '💊',
+    'stupefacenti': '💊',
+    'reato': '⚖️',
+    'penale': '⚖️',
+    'carcere': '🔒',
+    'detenzione': '🔒',
+    'prigione': '🔒',
+    'condanna': '📜',
+    'sentenza': '📜',
+    'giustizia': '⚖️',
+    'legge': '📋',
+    'decreto': '📋',
+    'codice': '📚',
+    'art': '📄',
+    'articolo': '📄',
+    'amnistia': '🕊️',
+    'indulto': '🕊️',
+    'grazia': '🕊️',
+    'libertà': '🕊️',
+    'diritto': '⚖️',
+    'cittadino': '👤',
+    'persona': '👤',
+    'sanzione': '⚠️',
+    'multa': '💰',
+    'pena': '⚖️',
+    'tribunale': '⚖️',
+    'corte': '⚖️',
+    'processo': '⚖️',
+    'crimine': '🚨',
+    'delitto': '🚨',
+    'violazione': '⚠️',
+    'infrazione': '⚠️',
+    'sostanza': '💊',
+    'psicotropo': '💊',
+    'tossicodipendenza': '💊',
+    'spaccio': '💊',
+    'traffico': '💊',
+    'possesso': '📦',
+    'consumo': '🍃',
+    'coltivazione': '🌱',
+    'produzione': '🏭',
+    'commercio': '💼',
+    'vendita': '💰',
+    'acquisto': '🛒',
+    'uso': '💉',
+    'somministrazione': '💉',
+    'somministrare': '💉',
+    'somministrato': '💉',
+  };
+  
+  // Cerca corrispondenze nelle parole chiave
+  for (const [keyword, emoji] of Object.entries(emojiMap)) {
+    if (leggeLower.includes(keyword)) {
+      return emoji;
+    }
+  }
+  
+  // Emoji di default basata sulla prima lettera o categoria
+  if (leggeLower.includes('legge') || leggeLower.includes('decreto') || leggeLower.includes('codice')) {
+    return '📋';
+  }
+  if (leggeLower.includes('art') || leggeLower.includes('articolo')) {
+    return '📄';
+  }
+  
+  // Emoji di default
+  return '⚖️';
+};
+
 export const getSuggestions = (classifica: Classifica[], leggeInput: string, showSuggestions: boolean): Classifica[] => {
   if (!leggeInput.trim() || !showSuggestions) return [];
   return classifica
@@ -10,13 +87,6 @@ export const getSuggestions = (classifica: Classifica[], leggeInput: string, sho
     .slice(0, 5);
 };
 
-export const getTopThreeClassifica = (classifica: Classifica[]): Classifica[] => {
-  return classifica.slice(0, 3);
-};
-
-export const getRemainingClassifica = (classifica: Classifica[]): Classifica[] => {
-  return classifica.slice(3);
-};
 
 export const isTopThree = (index: number): boolean => {
   return index < 3;

@@ -56,6 +56,9 @@ router.get('/', verifyToken, async (req, res) => {
       voti: votiCountMap[amnistia.legge] || 0
     }));
     
+    // Ordina la classifica per voti in ordine decrescente (più voti in alto)
+    classificaResult.sort((a, b) => b.voti - a.voti);
+    
     res.json({
       success: true,
       amnistie: amnistieResult.rows,

@@ -1,12 +1,9 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
 import { Classifica } from "../types";
 import { LeggeItem } from "./LeggeItem";
 import {
-  getTopThreeClassifica,
-  getRemainingClassifica,
   isTopThree
 } from "../utils/amnistiaUtils";
 
@@ -54,9 +51,6 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
     );
   }
 
-  const topThree = getTopThreeClassifica(classifica);
-  const remaining = getRemainingClassifica(classifica);
-
   return (
     <Card className="bg-white">
       <CardHeader>
@@ -70,9 +64,9 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Primi 3 leggi sempre visibili */}
+          {/* Tutte le leggi visibili, ordinate per voti */}
           <div className="space-y-3">
-            {topThree.map((item, index) => (
+            {classifica.map((item, index) => (
               <LeggeItem
                 key={item.legge}
                 item={item}
@@ -85,44 +79,6 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
               />
             ))}
           </div>
-
-          {/* Leggi rimanenti (espandibili) */}
-          {remaining.length > 0 && (
-            <div className="space-y-3">
-              {/* Pulsante per espandere/comprimere */}
-              <div className="text-center">
-                <Button 
-                  onClick={onShowClassifica} 
-                  variant="outline" 
-                  size="lg"
-                  className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
-                >
-                  <Trophy className="h-5 w-5 mr-2 text-blue-600" />
-                  {showAllClassifica 
-                    ? `Nascondi (${remaining.length} leggi)` 
-                    : `Mostra Altro (${remaining.length} leggi rimanenti)`
-                  }
-                </Button>
-              </div>
-              
-              {/* Leggi rimanenti (animati) */}
-              {showAllClassifica && (
-                <div className="space-y-3 transition-all duration-500 ease-out">
-                  {remaining.map((item, index) => (
-                    <LeggeItem
-                      key={item.legge}
-                      item={item}
-                      index={index + 3}
-                      isTopThree={isTopThree(index + 3)}
-                      onVote={onVote}
-                      isPending={isPending}
-                      hasReachedLimit={hasReachedLimit}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
