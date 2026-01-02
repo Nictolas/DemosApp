@@ -52,13 +52,17 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
   }
 
   return (
-    <Card className="bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Trophy className="h-5 w-5 text-yellow-500" />
-          <span>Classifica Leggi</span>
+    <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-yellow-100">
+        <CardTitle className="flex items-center space-x-2 text-xl">
+          <div className="p-2 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-lg">
+            <Trophy className="h-5 w-5 text-white" />
+          </div>
+          <span className="bg-gradient-to-r from-yellow-600 to-amber-700 bg-clip-text text-transparent font-bold">
+            Classifica Leggi
+          </span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-gray-600 mt-2">
           Le leggi che hanno ricevuto più richieste di amnistia ({classifica.length} totali)
         </CardDescription>
       </CardHeader>
