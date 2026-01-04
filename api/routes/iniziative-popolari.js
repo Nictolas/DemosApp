@@ -425,6 +425,58 @@ router.get('/', async (req, res) => {
       };
     });
     
+    // Se l'iniziativa votata non è nella lista delle iniziative disponibili (per esempio, non rispetta i filtri),
+    // cerca di recuperarla comunque per mostrarla all'utente
+    if (mieiVoti.length > 0) {
+      for (let i = 0; i < mieiVoti.length; i++) {
+        const votoId = String(mieiVoti[i]);
+        const votoEsisteInNormalized = normalizedData.some(iniz => String(iniz.id) === votoId);
+        
+        if (!votoEsisteInNormalized) {
+          console.log(`⚠️ DEBUG: Voto ${votoId} non trovato nelle iniziative normalizzate. Cercando nel database...`);
+          
+          // Cerca l'iniziativa nel database anche se non rispetta i filtri
+          try {
+            // Cerca in iniziative_ministero (id è VARCHAR(255), non UUID)
+            const iniziativaMinisteroQuery = `
+              SELECT * FROM iniziative_ministero 
+              WHERE id = $1
+              LIMIT 1
+            `;
+            const iniziativaMinisteroResult = await pool.query(iniziativaMinisteroQuery, [votoId]);
+            
+            if (iniziativaMinisteroResult.rows.length > 0) {
+              const row = iniziativaMinisteroResult.rows[0];
+              const mapped = mapToLegacyFormat(row, 'iniziativa');
+              mapped.emoji = getEmojiAutomatica(mapped);
+              normalizedData.push(mapped);
+              console.log(`✅ DEBUG: Iniziativa votata trovata in iniziative_ministero: ${mapped.nome} (ID: ${mapped.id})`);
+            } else {
+              // Cerca in iniziative_popolari (id potrebbe essere UUID o VARCHAR)
+              const iniziativaPopolariQuery = `
+                SELECT * FROM iniziative_popolari 
+                WHERE id::text = $1 OR id = $1
+                LIMIT 1
+              `;
+              const iniziativaPopolariResult = await pool.query(iniziativaPopolariQuery, [votoId]);
+              
+              if (iniziativaPopolariResult.rows.length > 0) {
+                const row = iniziativaPopolariResult.rows[0];
+                const mapped = mapIniziativePopolariToLegacyFormat(row);
+                mapped.emoji = getEmojiAutomatica(mapped);
+                normalizedData.push(mapped);
+                console.log(`✅ DEBUG: Iniziativa votata trovata in iniziative_popolari: ${mapped.nome} (ID: ${mapped.id})`);
+              } else {
+                console.warn(`❌ DEBUG: Iniziativa con ID ${votoId} non trovata in nessuna tabella`);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ DEBUG: Errore nel cercare iniziativa votata ${votoId}:`, error.message);
+          }
+        }
+      }
+    }
+    
     // Normalizza gli ID in mieiVoti per assicurarsi che corrispondano agli ID delle iniziative normalizzate
     // Questo gestisce il caso in cui gli ID nel database hanno un formato diverso (con/senza trattini)
     // E anche il caso in cui iniziativa_id è un nome invece di un ID
