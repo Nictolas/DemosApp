@@ -208,7 +208,10 @@ router.get('/', async (req, res) => {
       console.warn(`⚠️ ATTENZIONE: La query SQL non ha restituito risultati!`);
       console.warn(`⚠️ Query eseguita:`, query);
       console.warn(`⚠️ Parametri:`, params);
-      // Query di debug per vedere cosa c'è nel database
+      // Query di debug: usa la stessa condizione tipo della query principale
+      const debugTipoCondition = params.length === 0
+        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+        : `tipo LIKE $1`;
       const debugQuery = `
         SELECT 
           COUNT(*) as totale,
@@ -218,7 +221,7 @@ router.get('/', async (req, res) => {
           COUNT(*) FILTER (WHERE id_ministero IS NOT NULL) as con_id_ministero,
             COUNT(*) FILTER (WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND stato = 'in_corso' AND id_ministero IS NOT NULL) as valide
         FROM iniziative_ministero
-        WHERE tipo LIKE $1
+        WHERE ${debugTipoCondition}
       `;
       const debugResult = await pool.query(debugQuery, params);
       console.log(`🔍 DEBUG REFERENDUM: Statistiche database (tipo LIKE '%Referendum%abrogativo%' OR '%Referendum%costituzionale%'):`, debugResult.rows[0]);
@@ -261,15 +264,19 @@ router.get('/', async (req, res) => {
         console.warn(`⚠️ Query eseguita:`, query);
         console.warn(`⚠️ Parametri:`, params);
         // Query di debug per vedere cosa c'è nel database
+        // Query di debug: usa la stessa condizione tipo della query principale
+        const debugTipoCondition = params.length === 0
+          ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+          : `tipo LIKE $1`;
         const debugQuery = `
           SELECT 
             COUNT(*) as totale,
             COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
             COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
             COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000) as valide,
-            COUNT(*) FILTER (WHERE tipo LIKE $1 AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id_ministero IS NOT NULL) as valide_complete
+            COUNT(*) FILTER (WHERE ${debugTipoCondition} AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id_ministero IS NOT NULL) as valide_complete
           FROM iniziative_ministero
-          WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
+          WHERE ${debugTipoCondition} AND id_ministero IS NOT NULL
         `;
         const debugResult = await pool.query(debugQuery, params);
         console.log(`🔍 DEBUG VOTA REFERENDUM: Statistiche database:`, debugResult.rows[0]);
@@ -331,7 +338,10 @@ router.get('/', async (req, res) => {
       console.log(`🔍 DEBUG LISTING REFERENDUM: result.rows.length = ${result.rows.length}`);
       if (result.rows.length === 0) {
         console.warn(`⚠️ ATTENZIONE: La query per soloInCorso non ha restituito risultati. Verificando nel database...`);
-        // Query di debug per vedere cosa c'è nel database
+        // Query di debug: usa la stessa condizione tipo della query principale
+        const debugTipoCondition = params.length === 0
+          ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+          : `tipo LIKE $1`;
         const debugQuery = `
           SELECT 
             COUNT(*) as totale,
@@ -339,7 +349,7 @@ router.get('/', async (req, res) => {
             COUNT(*) FILTER (WHERE stato = 'conclusa') as conclusa,
             COUNT(*) FILTER (WHERE stato IS NULL) as stato_null
           FROM iniziative_ministero
-          WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
+          WHERE ${debugTipoCondition} AND id_ministero IS NOT NULL
         `;
         const debugResult = await pool.query(debugQuery, params);
         console.log(`🔍 DEBUG LISTING: Statistiche database:`, debugResult.rows[0]);
