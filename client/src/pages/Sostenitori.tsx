@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -242,17 +242,25 @@ export default function Sostenitori() {
   const isLoading = getCurrentLoading();
   const isError = getCurrentError();
 
+  // Funzione per contare quante tab sono disponibili per l'utente
+  const getTabCount = () => {
+    let tabCount = 0;
+    // Tab Politico
+    if (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    // Tab Candidato
+    if (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    // Tab Totale
+    if (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    // Tab Attivista
+    if (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    // Tab Organizzazione
+    if (user.ruolo === "AD" || user.ruolo === "O") tabCount++;
+    return tabCount;
+  };
+
   // Funzione per determinare la classe CSS delle tabs
   const getTabsGridClass = () => {
-    let tabCount = 0;
-    if (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
-    if (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
-    if (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
-    // nuova scheda Attivista
-    if (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
-    // nuova scheda Organizzazione
-    if (user.ruolo === "AD" || user.ruolo === "O") tabCount++;
-    
+    const tabCount = getTabCount();
     switch (tabCount) {
       case 1: return "grid-cols-1";
       case 2: return "grid-cols-2";
@@ -260,6 +268,28 @@ export default function Sostenitori() {
       default: return "grid-cols-4";
     }
   };
+
+  // Determina quale tab mostrare se c'è solo una tab disponibile
+  const getSingleTabValue = () => {
+    if (user.ruolo === "P") return "politico";
+    if (user.ruolo === "C") return "candidato";
+    if (user.ruolo === "A") return "attivista";
+    if (user.ruolo === "O") return "organizzazione";
+    return activeTab; // Fallback alla tab attiva
+  };
+
+  const tabCount = getTabCount();
+  const showTabsList = tabCount > 1;
+
+  // Imposta automaticamente la tab corretta se c'è solo una tab disponibile
+  useEffect(() => {
+    if (tabCount === 1 && user) {
+      const singleTab = getSingleTabValue();
+      if (activeTab !== singleTab) {
+        setActiveTab(singleTab);
+      }
+    }
+  }, [tabCount, user]);
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -283,24 +313,26 @@ export default function Sostenitori() {
             <CardDescription>Statistiche dettagliate e lista dei tuoi sostenitori.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className={`grid w-full ${getTabsGridClass()}`}>
-                {(user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
-                  <TabsTrigger value="politico">Politico</TabsTrigger>
-                )}
-                {(user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
-                  <TabsTrigger value="candidato">Candidato</TabsTrigger>
-                )}
-                {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
-                  <TabsTrigger value="attivista">Attivista</TabsTrigger>
-                )}
-                {(user.ruolo === "AD" || user.ruolo === "O") && (
-                  <TabsTrigger value="organizzazione">Organizzazione</TabsTrigger>
-                )}
-                {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
-                  <TabsTrigger value="totale">Totale</TabsTrigger>
-                )}
-              </TabsList>
+            <Tabs value={showTabsList ? activeTab : getSingleTabValue()} onValueChange={setActiveTab} className="w-full">
+              {showTabsList && (
+                <TabsList className={`grid w-full ${getTabsGridClass()}`}>
+                  {(user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+                    <TabsTrigger value="politico">Politico</TabsTrigger>
+                  )}
+                  {(user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+                    <TabsTrigger value="candidato">Candidato</TabsTrigger>
+                  )}
+                  {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
+                    <TabsTrigger value="attivista">Attivista</TabsTrigger>
+                  )}
+                  {(user.ruolo === "AD" || user.ruolo === "O") && (
+                    <TabsTrigger value="organizzazione">Organizzazione</TabsTrigger>
+                  )}
+                  {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+                    <TabsTrigger value="totale">Totale</TabsTrigger>
+                  )}
+                </TabsList>
+              )}
               {(user.ruolo === "AD" || user.ruolo === "O") && (
                 <TabsContent value="organizzazione" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
