@@ -300,8 +300,10 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
   
   if (userRole === "AD") {
     // Admin vedono tutto (con LIKE per gestire varianti del nome)
-    // Ma se votaOnly è true, anche gli admin devono vedere solo quelle con quorum_raggiunto = TRUE, stato = 'conclusa' e firme_raccolte >= 50000
+    // Ma se votaOnly è true, anche gli admin devono vedere solo quelle con quorum_raggiunto = TRUE, stato = 'conclusa' e firme_raccolte >= 500000 (per referendum)
+    // Per iniziative: firme_raccolte >= 50000, per referendum: firme_raccolte >= 500000
     if (votaOnly) {
+      const firmeMinime = tipoFilter === 'referendum' ? 500000 : 50000;
       return {
         query: `
           SELECT *
@@ -310,7 +312,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
             AND stato = 'conclusa'
-            AND firme_raccolte >= 50000
+            AND firme_raccolte >= ${firmeMinime}
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: [`%${tipoValue}%`]
@@ -344,12 +346,13 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     // Se votaOnly = true (pagine di voto): 
     // - quorum_raggiunto = TRUE
     // - stato = 'conclusa' (per votare la priorità delle iniziative già concluse)
-    // - firme_raccolte >= 50000
+    // - firme_raccolte >= 50000 (iniziative) o >= 500000 (referendum)
     // Altrimenti:
     //   1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
     //   2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
     // ESCLUSE: quelle con quorum_raggiunto = FALSE E stato = 'conclusa'
     if (votaOnly) {
+      const firmeMinime = tipoFilter === 'referendum' ? 500000 : 50000;
       return {
         query: `
           SELECT *
@@ -358,7 +361,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
             AND stato = 'conclusa'
-            AND firme_raccolte >= 50000
+            AND firme_raccolte >= ${firmeMinime}
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: [`%${tipoValue}%`]
