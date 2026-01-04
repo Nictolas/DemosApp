@@ -23,6 +23,24 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
   remainingVotes,
   hasReachedLimit
 }) => {
+  // Debug: verifica corrispondenza tra selectedVoti e iniziative
+  React.useEffect(() => {
+    if (selectedVoti.length > 0 && iniziative.length > 0) {
+      const votiNonTrovati = selectedVoti.filter(votoId => {
+        return !iniziative.some(i => String(i.id) === String(votoId));
+      });
+      
+      if (votiNonTrovati.length > 0) {
+        console.warn('⚠️ DEBUG UserPreferences: Voti non trovati nelle iniziative:', votiNonTrovati);
+        console.warn('⚠️ DEBUG UserPreferences: selectedVoti:', selectedVoti);
+        console.warn('⚠️ DEBUG UserPreferences: iniziative IDs:', iniziative.map(i => i.id));
+        console.warn('⚠️ DEBUG UserPreferences: iniziative nomi:', iniziative.map(i => i.nome));
+      } else {
+        console.log('✅ DEBUG UserPreferences: Tutti i voti hanno corrispondenza nelle iniziative');
+      }
+    }
+  }, [selectedVoti, iniziative]);
+
   return (
     <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4">
