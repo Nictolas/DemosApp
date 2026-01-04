@@ -97,7 +97,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                     <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 flex items-center gap-2 ${
                       index < 3 ? 'group-hover:text-yellow-800' : 'group-hover:text-indigo-800'
                     }`}>
-                      {/* Mostra emoji se disponibile */}
+                      {/* Mostra emoji se disponibile - a sinistra del nome */}
                       {item.emoji && (
                         <span className="text-2xl" role="img" aria-label="emoji">
                           {item.emoji}

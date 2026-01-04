@@ -66,7 +66,13 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-lg font-semibold text-gray-900 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 flex-1 flex items-center gap-2">
+                  {/* Mostra emoji se disponibile - a sinistra del nome */}
+                  {iniziativa.emoji && (
+                    <span className="text-2xl" role="img" aria-label="emoji">
+                      {iniziativa.emoji}
+                    </span>
+                  )}
                   {iniziativa.nome}
                 </h3>
                 {iniziativa.quorum === 'proposta' && (

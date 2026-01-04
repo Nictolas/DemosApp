@@ -26,6 +26,7 @@ export interface Referendum extends ReferendumFormData {
   sitoWeb?: string;
   sito_web?: string;
   sitoweb?: string;
+  emoji?: string;
 }
 
 // Interfaccia per lo stato del componente

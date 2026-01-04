@@ -9,11 +9,13 @@ export interface Referendum {
   esito?: string;
   firestore_id_backup?: string;
   firme?: number;
+  emoji?: string;
 }
 
 export interface Classifica {
   nome: string;
   voti: number;
+  emoji?: string;
 }
 
 export interface ReferendumAbrogativiData {
