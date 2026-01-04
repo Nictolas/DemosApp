@@ -288,11 +288,12 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     // NOTA: Potrebbe avere spazi multipli come i referendum, usiamo pattern flessibile
     tipoValue = "Legge%di%iniziativa%popolare"; // Il % gestisce spazi multipli
   } else if (tipoFilter === 'referendum') {
-    // Per referendum, cerca "Referendum abrogativo" o varianti
+    // Per referendum, cerca sia "Referendum abrogativo" che "Referendum costituzionale"
     // NOTA: Nel database può essere "Referendum abrogativo" (1 spazio) o "Referendum  abrogativo" (2 spazi)
-    // Usiamo un pattern che gestisce uno o più spazi tra "Referendum" e "abrogativo"
+    // Usiamo un pattern che gestisce uno o più spazi tra "Referendum" e "abrogativo"/"costituzionale"
     // Il pattern '%Referendum%abrogativo%' matcha qualsiasi numero di caratteri (inclusi spazi) tra le due parole
-    tipoValue = "Referendum%abrogativo"; // Il % gestisce 0, 1 o più caratteri (spazi inclusi)
+    // Per includere entrambi i tipi, useremo una condizione OR nella query
+    tipoValue = null; // Segnale speciale per indicare che dobbiamo usare OR per entrambi i tipi
   } else {
     // Se viene passato direttamente un valore, usalo
     tipoValue = tipoFilter;
@@ -304,42 +305,55 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     // Per iniziative: firme_raccolte >= 50000, per referendum: firme_raccolte >= 500000
     if (votaOnly) {
       const firmeMinime = tipoFilter === 'referendum' ? 500000 : 50000;
+      // Se tipoValue è null, significa che dobbiamo includere sia abrogativi che costituzionali
+      const tipoCondition = tipoValue === null 
+        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+        : `tipo LIKE $1`;
+      const params = tipoValue === null ? [] : [`%${tipoValue}%`];
       return {
         query: `
           SELECT *
           FROM iniziative_ministero
-          WHERE tipo LIKE $1
+          WHERE ${tipoCondition}
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
             AND stato = 'conclusa'
             AND firme_raccolte >= ${firmeMinime}
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
-        params: [`%${tipoValue}%`]
+        params: params
       };
     }
     // Se soloInCorso è true, anche gli admin vedono solo quelle con stato = 'in_corso'
     if (soloInCorso) {
+      const tipoCondition = tipoValue === null 
+        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+        : `tipo LIKE $1`;
+      const params = tipoValue === null ? [] : [`%${tipoValue}%`];
       return {
         query: `
           SELECT *
           FROM iniziative_ministero
-          WHERE tipo LIKE $1
+          WHERE ${tipoCondition}
             AND stato = 'in_corso'
           ORDER BY firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
         `,
-        params: [`%${tipoValue}%`]
+        params: params
       };
     }
     // Admin vedono TUTTI i referendum (in corso e conclusi), anche senza id_ministero
+    const tipoCondition = tipoValue === null 
+      ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+      : `tipo LIKE $1`;
+    const params = tipoValue === null ? [] : [`%${tipoValue}%`];
     return {
       query: `
         SELECT *
         FROM iniziative_ministero
-        WHERE tipo LIKE $1
+        WHERE ${tipoCondition}
         ORDER BY CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
       `,
-      params: [`%${tipoValue}%`]
+      params: params
     };
   } else {
     // Altri utenti vedono solo le iniziative/referendum ufficiali che:
@@ -353,18 +367,22 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     // ESCLUSE: quelle con quorum_raggiunto = FALSE E stato = 'conclusa'
     if (votaOnly) {
       const firmeMinime = tipoFilter === 'referendum' ? 500000 : 50000;
+      const tipoCondition = tipoValue === null 
+        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+        : `tipo LIKE $1`;
+      const params = tipoValue === null ? [] : [`%${tipoValue}%`];
       return {
         query: `
           SELECT *
           FROM iniziative_ministero
-          WHERE tipo LIKE $1
+          WHERE ${tipoCondition}
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
             AND stato = 'conclusa'
             AND firme_raccolte >= ${firmeMinime}
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
-        params: [`%${tipoValue}%`]
+        params: params
       };
       } else {
         // Se soloInCorso è true, mostra solo quelle con stato = 'in_corso'
@@ -372,10 +390,15 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         let whereClause;
         let orderClause;
         
+        const tipoCondition = tipoValue === null 
+          ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
+          : `tipo LIKE $1`;
+        const params = tipoValue === null ? [] : [`%${tipoValue}%`];
+        
         if (soloInCorso) {
           // Per la pagina listing, mostra solo quelli in corso
           // Filtriamo per id_ministero IS NOT NULL per mostrare solo quelli ufficiali
-          whereClause = `tipo LIKE $1
+          whereClause = `${tipoCondition}
             AND id_ministero IS NOT NULL
             AND stato = 'in_corso'`;
           // Ordina per firme_raccolte in ordine decrescente (più firme in alto)
@@ -385,7 +408,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           // Questo include: in corso, concluse, con o senza quorum
           // NOTA: Per la pagina listing (soloInCorso = true), questo blocco non viene eseguito
           // Questo blocco viene eseguito solo quando soloInCorso = false (per esempio per admin o altre viste)
-          whereClause = `tipo LIKE $1
+          whereClause = `${tipoCondition}
             AND id_ministero IS NOT NULL`;
           // Ordina: prima quelli in corso (per stato), poi per data_inizio decrescente
           orderClause = `CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
@@ -398,7 +421,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           WHERE ${whereClause}
           ORDER BY ${orderClause}
         `,
-        params: [`%${tipoValue}%`]
+        params: params
       };
     }
   }

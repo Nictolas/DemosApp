@@ -216,18 +216,18 @@ router.get('/', async (req, res) => {
           COUNT(*) FILTER (WHERE stato = 'conclusa') as conclusa,
           COUNT(*) FILTER (WHERE stato IS NULL) as stato_null,
           COUNT(*) FILTER (WHERE id_ministero IS NOT NULL) as con_id_ministero,
-          COUNT(*) FILTER (WHERE tipo LIKE '%Referendum abrogativo%' AND stato = 'in_corso' AND id_ministero IS NOT NULL) as valide
+            COUNT(*) FILTER (WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND stato = 'in_corso' AND id_ministero IS NOT NULL) as valide
         FROM iniziative_ministero
         WHERE tipo LIKE $1
       `;
       const debugResult = await pool.query(debugQuery, params);
-      console.log(`🔍 DEBUG REFERENDUM: Statistiche database (tipo LIKE '%Referendum abrogativo%'):`, debugResult.rows[0]);
+      console.log(`🔍 DEBUG REFERENDUM: Statistiche database (tipo LIKE '%Referendum%abrogativo%' OR '%Referendum%costituzionale%'):`, debugResult.rows[0]);
       
       // Query di test diretta per vedere se ci sono risultati
       const testQuery = `
         SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
         FROM iniziative_ministero
-        WHERE tipo LIKE '%Referendum abrogativo%'
+        WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')
         ORDER BY stato, data_inizio DESC
         LIMIT 10
       `;
@@ -301,7 +301,7 @@ router.get('/', async (req, res) => {
         const testQuery2 = `
           SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
           FROM iniziative_ministero
-          WHERE tipo LIKE '%Referendum abrogativo%' 
+          WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') 
             AND stato != 'in_corso' 
             AND id_ministero IS NOT NULL
           ORDER BY stato, data_inizio DESC
@@ -620,7 +620,7 @@ router.get('/', async (req, res) => {
               im.id::text = REPLACE(vra.referendum_id::text, '-', '') OR
               REPLACE(im.id::text, '-', '') = REPLACE(vra.referendum_id::text, '-', '')
             )
-            WHERE im.tipo LIKE '%Referendum abrogativo%'
+            WHERE (im.tipo LIKE '%Referendum%abrogativo%' OR im.tipo LIKE '%Referendum%costituzionale%')
               AND im.id_ministero IS NOT NULL
               ${quorumFilterMinistero}
             GROUP BY im.id, im.titolo, im.sito_web, im.firme_raccolte
@@ -660,7 +660,7 @@ router.get('/', async (req, res) => {
         const debugQuorumFilter = votaOnly 
           ? 'AND quorum_raggiunto = true AND stato != \'in_corso\''
           : 'AND stato = \'in_corso\'';
-        const debugReferendumQuery = `SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND id_ministero IS NOT NULL ${debugQuorumFilter} ORDER BY firme_raccolte DESC NULLS LAST`;
+        const debugReferendumQuery = `SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte FROM iniziative_ministero WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND id_ministero IS NOT NULL ${debugQuorumFilter} ORDER BY firme_raccolte DESC NULLS LAST`;
         const debugReferendumResult = await pool.query(debugReferendumQuery);
         console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
@@ -696,20 +696,47 @@ router.get('/', async (req, res) => {
         
         classifica = classificaResult.rows.map(row => {
           // Trova il referendum corrispondente per ottenere l'emoji
-          const referendum = normalizedData.find(r => 
+          // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
+          let referendum = normalizedData.find(r => 
             r.nome === row.nome || 
-            r.titolo === row.nome ||
-            (r.sitoWeb && (r.sitoWeb === row.sitoweb || r.sitoWeb === row.sito_web))
+            r.titolo === row.nome
           );
+          
+          // Se non trova, prova con normalizzazione (trim, lowercase)
+          if (!referendum) {
+            const rowNomeNormalized = String(row.nome || '').toLowerCase().trim();
+            referendum = normalizedData.find(r => {
+              const nomeNormalized = String(r.nome || '').toLowerCase().trim();
+              const titoloNormalized = String(r.titolo || '').toLowerCase().trim();
+              return nomeNormalized === rowNomeNormalized || titoloNormalized === rowNomeNormalized;
+            });
+          }
+          
+          // Se ancora non trova, prova per sitoWeb
+          if (!referendum && row.sitoweb) {
+            referendum = normalizedData.find(r => 
+              r.sitoWeb && (r.sitoWeb === row.sitoweb || r.sitoWeb === row.sito_web || r.sito_web === row.sitoweb)
+            );
+          }
+          
+          // Genera sempre un'emoji (usa quella trovata o genera una nuova)
+          const emoji = referendum?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome });
           
           return {
             nome: row.nome,
             sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
             voti: parseInt(row.voti) || 0,
-            emoji: referendum?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome })
+            emoji: emoji
           };
         });
         console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica);
+        // Debug: verifica che tutti i referendum nella classifica abbiano un'emoji
+        const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
+        if (classificaSenzaEmoji.length > 0) {
+          console.warn(`⚠️ ATTENZIONE: ${classificaSenzaEmoji.length} referendum nella classifica senza emoji:`, classificaSenzaEmoji.map(c => c.nome));
+        } else {
+          console.log(`✅ Tutti i ${classifica.length} referendum nella classifica hanno un'emoji`);
+        }
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
         // Se la classifica fallisce, continua senza di essa
@@ -1227,7 +1254,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Verifica che gli ID dei referendum esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
       // Per votare, il referendum deve avere quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 500000
-      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Referendum%abrogativo%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id = ANY($1)`;
+      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id = ANY($1)`;
       const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
@@ -1263,7 +1290,7 @@ router.post('/vota', verifyToken, async (req, res) => {
         });
 
         // Verifica quale referendum corrisponde a questo ID
-        const refInfoQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND (id::text = $1 OR id = $1)`;
+        const refInfoQuery = `SELECT id, titolo as nome FROM iniziative_ministero WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND (id::text = $1 OR id = $1)`;
         const refInfoResult = await client.query(refInfoQuery, [referendumId]);
         if (refInfoResult.rows.length > 0) {
           console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovato:`, {
