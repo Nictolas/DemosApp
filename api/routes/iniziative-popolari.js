@@ -685,20 +685,47 @@ router.get('/', async (req, res) => {
         
         classifica = classificaResult.rows.map(row => {
           // Trova l'iniziativa corrispondente per ottenere l'emoji
-          const iniziativa = normalizedData.find(i => 
+          // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
+          let iniziativa = normalizedData.find(i => 
             i.nome === row.nome || 
-            i.titolo === row.nome ||
-            (i.sitoWeb && (i.sitoWeb === row.sitoweb || i.sitoWeb === row.sito_web))
+            i.titolo === row.nome
           );
+          
+          // Se non trova, prova con normalizzazione (trim, lowercase)
+          if (!iniziativa) {
+            const rowNomeNormalized = String(row.nome || '').toLowerCase().trim();
+            iniziativa = normalizedData.find(i => {
+              const nomeNormalized = String(i.nome || '').toLowerCase().trim();
+              const titoloNormalized = String(i.titolo || '').toLowerCase().trim();
+              return nomeNormalized === rowNomeNormalized || titoloNormalized === rowNomeNormalized;
+            });
+          }
+          
+          // Se ancora non trova, prova per sitoWeb
+          if (!iniziativa && row.sitoweb) {
+            iniziativa = normalizedData.find(i => 
+              i.sitoWeb && (i.sitoWeb === row.sitoweb || i.sitoWeb === row.sito_web || i.sito_web === row.sitoweb)
+            );
+          }
+          
+          // Genera sempre un'emoji (usa quella trovata o genera una nuova)
+          const emoji = iniziativa?.emoji || getEmojiAutomatica({ nome: row.nome });
           
           return {
             nome: row.nome,
             sitoWeb: row.sitoweb || row.sito_web || row.sitoweb,
             voti: parseInt(row.voti) || 0,
-            emoji: iniziativa?.emoji || getEmojiAutomatica({ nome: row.nome })
+            emoji: emoji
           };
         });
         console.log(`✅ Generata classifica con ${classifica.length} iniziative (da entrambe le tabelle):`, classifica);
+        // Debug: verifica che tutte le iniziative nella classifica abbiano un'emoji
+        const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
+        if (classificaSenzaEmoji.length > 0) {
+          console.warn(`⚠️ ATTENZIONE: ${classificaSenzaEmoji.length} iniziative nella classifica senza emoji:`, classificaSenzaEmoji.map(c => c.nome));
+        } else {
+          console.log(`✅ Tutte le ${classifica.length} iniziative nella classifica hanno un'emoji`);
+        }
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
         console.log('⚠️ Stack trace:', classificaError.stack);
@@ -806,8 +833,15 @@ router.get('/', async (req, res) => {
     if (normalizedData.length > 0) {
       console.log(`✅ ========== INIZIATIVE NORMALIZZATE ==========`);
       normalizedData.slice(0, 3).forEach((i, idx) => {
-        console.log(`   ${idx + 1}. ID: ${i.id}, Nome: ${i.nome?.substring(0, 60)}..., Stato: ${i.stato}, Tipo: ${i.tipo}`);
+        console.log(`   ${idx + 1}. ID: ${i.id}, Nome: ${i.nome?.substring(0, 60)}..., Stato: ${i.stato}, Tipo: ${i.tipo}, Emoji: ${i.emoji || 'NON PRESENTE'}`);
       });
+      // Verifica che tutte le iniziative abbiano un'emoji
+      const iniziativeSenzaEmoji = normalizedData.filter(i => !i.emoji);
+      if (iniziativeSenzaEmoji.length > 0) {
+        console.warn(`⚠️ ATTENZIONE: ${iniziativeSenzaEmoji.length} iniziative senza emoji su ${normalizedData.length} totali`);
+      } else {
+        console.log(`✅ Tutte le ${normalizedData.length} iniziative hanno un'emoji`);
+      }
     } else {
       console.error(`❌ ========== ERRORE: NORMALIZED DATA VUOTO ==========`);
       console.error(`❌ filteredRows.length = ${filteredRows.length}`);
