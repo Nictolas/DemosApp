@@ -141,11 +141,11 @@ router.get('/', async (req, res) => {
       let referendumAbrogativiParams = [];
       
       if (votaOnly) {
-        // Per votaOnly: solo quelle con status = 'A' o 'a' (approvate, quorum raggiunto)
+        // Per votaOnly: solo quelle con quorum_raggiunto = TRUE
         referendumAbrogativiQuery = `
           SELECT *
           FROM referendum_abrogativi
-          WHERE (status = 'A' OR status = 'a')
+          WHERE quorum_raggiunto = true
           ORDER BY data_inizio DESC NULLS LAST, nome ASC
         `;
       } else if (soloInCorso) {
@@ -266,8 +266,8 @@ router.get('/', async (req, res) => {
             COUNT(*) as totale,
             COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
             COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
-            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide,
-            COUNT(*) FILTER (WHERE tipo LIKE '%Referendum abrogativo%' AND quorum_raggiunto = true AND stato != 'in_corso' AND id_ministero IS NOT NULL) as valide_complete
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000) as valide,
+            COUNT(*) FILTER (WHERE tipo LIKE $1 AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id_ministero IS NOT NULL) as valide_complete
           FROM iniziative_ministero
           WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
         `;
@@ -276,22 +276,24 @@ router.get('/', async (req, res) => {
         
         // Query di test diretta per vedere se ci sono risultati
         const testQuery = `
-          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
+          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto, firme_raccolte
           FROM iniziative_ministero
-          WHERE tipo LIKE '%Referendum abrogativo%' 
+          WHERE tipo LIKE '%Referendum%abrogativo%' 
             AND quorum_raggiunto = true 
-            AND stato != 'in_corso' 
+            AND stato = 'conclusa' 
+            AND firme_raccolte >= 500000
             AND id_ministero IS NOT NULL
           LIMIT 5
         `;
         const testResult = await pool.query(testQuery);
-        console.log(`🔍 DEBUG VOTA REFERENDUM: Test query diretta (con quorum_raggiunto = true) restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
+        console.log(`🔍 DEBUG VOTA REFERENDUM: Test query diretta (con quorum_raggiunto = true, stato = 'conclusa', firme_raccolte >= 500000) restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
           id: r.id,
           titolo: r.titolo?.substring(0, 50),
           tipo: r.tipo,
           stato: r.stato,
           id_ministero: r.id_ministero,
           quorum_raggiunto: r.quorum_raggiunto,
+          firme_raccolte: r.firme_raccolte,
           quorum_raggiunto_type: typeof r.quorum_raggiunto
         })));
         
@@ -351,33 +353,29 @@ router.get('/', async (req, res) => {
     }
     
     // Filtro aggiuntivo di sicurezza per votaOnly: 
-    // - ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum)
-    // - Solo quelle con quorum_raggiunto = true (gestisce sia booleani che stringhe)
+    // - Solo quelle con quorum_raggiunto = true, stato = 'conclusa' E firme_raccolte >= 500000
     let filteredRows = result.rows;
     if (votaOnly) {
       const beforeFilter = filteredRows.length;
       filteredRows = filteredRows.filter(row => {
-        // ESCLUDE TUTTE quelle con stato = 'in_corso'
-        if (row.stato === 'in_corso') {
-          return false;
-        }
-        // Solo quelle con quorum_raggiunto = true (gestisce sia booleani che stringhe)
-        // PostgreSQL può restituire booleani come 't'/'f' o true/false
+        // Solo quelle con quorum_raggiunto = true, stato = 'conclusa' E firme_raccolte >= 500000
         const quorumRaggiunto = row.quorum_raggiunto;
-        if (quorumRaggiunto === true || quorumRaggiunto === 't' || quorumRaggiunto === 'true' || quorumRaggiunto === 1) {
-          return true;
-        }
-        return false;
+        const hasQuorum = quorumRaggiunto === true || quorumRaggiunto === 't' || quorumRaggiunto === 'true' || quorumRaggiunto === 1;
+        return hasQuorum 
+          && row.stato === 'conclusa' 
+          && (row.firme_raccolte || 0) >= 500000;
       });
       const afterFilter = filteredRows.length;
       
       if (beforeFilter !== afterFilter) {
         console.warn(`⚠️ FILTRO SICUREZZA: Rimosse ${beforeFilter - afterFilter} referendum che non rispettano i criteri (prima: ${beforeFilter}, dopo: ${afterFilter})`);
         const removed = result.rows.filter(row => {
-          // Rimuove quelle con stato = 'in_corso' O quorum_raggiunto != true
+          // Rimuove quelle con stato != 'conclusa' O quorum_raggiunto != true O firme_raccolte < 500000
           const quorumRaggiunto = row.quorum_raggiunto;
           const hasQuorum = quorumRaggiunto === true || quorumRaggiunto === 't' || quorumRaggiunto === 'true' || quorumRaggiunto === 1;
-          return row.stato === 'in_corso' || !hasQuorum;
+          return row.stato !== 'conclusa' 
+            || !hasQuorum 
+            || (row.firme_raccolte || 0) < 500000;
         });
         console.warn(`⚠️ Referendum rimossi:`, removed.map(r => ({ 
           id: r.id, 
@@ -410,10 +408,10 @@ router.get('/', async (req, res) => {
         }));
         console.log(`🔍 DEBUG: Stato quorum_raggiunto e stato dei risultati FINALI (dopo filtro sicurezza):`, quorumStatus);
         
-        // Verifica che non ci siano referendum con stato = 'in_corso'
-        const inCorso = filteredRows.filter(r => r.stato === 'in_corso');
-        if (inCorso.length > 0) {
-          console.error(`❌ ERRORE CRITICO: Trovati ${inCorso.length} referendum con stato='in_corso' dopo il filtro sicurezza:`, inCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50) })));
+        // Verifica che tutte abbiano stato = 'conclusa'
+        const notConclusa = filteredRows.filter(r => r.stato !== 'conclusa');
+        if (notConclusa.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovati ${notConclusa.length} referendum con stato != 'conclusa' dopo il filtro sicurezza:`, notConclusa.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), stato: r.stato })));
         }
         
         // Verifica che tutti abbiano quorum_raggiunto = true
@@ -423,6 +421,12 @@ router.get('/', async (req, res) => {
         });
         if (noQuorum.length > 0) {
           console.error(`❌ ERRORE CRITICO: Trovati ${noQuorum.length} referendum con quorum_raggiunto != true dopo il filtro sicurezza:`, noQuorum.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto })));
+        }
+        
+        // Verifica che tutte abbiano firme_raccolte >= 500000
+        const insufficientFirme = filteredRows.filter(r => (r.firme_raccolte || 0) < 500000);
+        if (insufficientFirme.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovati ${insufficientFirme.length} referendum con firme_raccolte < 500000 dopo il filtro sicurezza:`, insufficientFirme.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), firme_raccolte: r.firme_raccolte })));
         }
       }
     } else if (soloInCorso) {
@@ -544,9 +548,9 @@ router.get('/', async (req, res) => {
       let filteredReferendum = referendumAbrogativiResult.rows;
       
       if (votaOnly) {
-        // Filtro sicurezza: solo quelle con status = 'A' o 'a' (approvate)
+        // Filtro sicurezza: solo quelle con quorum_raggiunto = TRUE
         filteredReferendum = filteredReferendum.filter(row => {
-          return row.status === 'A' || row.status === 'a';
+          return row.quorum_raggiunto === true;
         });
       } else if (soloInCorso) {
         // Filtro sicurezza: solo quelle in corso (status = 'P' o 'p')
@@ -595,11 +599,11 @@ router.get('/', async (req, res) => {
         // Per la pagina listing: mostra solo quelle con stato = 'in_corso'
         // Per la pagina vota: quorum_raggiunto = TRUE E ESCLUDE TUTTE quelle con stato = 'in_corso'
         const quorumFilterMinistero = votaOnly 
-          ? 'AND im.quorum_raggiunto = true AND im.stato != \'in_corso\''
+          ? 'AND im.quorum_raggiunto = true AND im.stato = \'conclusa\' AND im.firme_raccolte >= 500000'
           : 'AND im.stato = \'in_corso\'';
         
         const quorumFilterReferendum = votaOnly
-          ? `AND (ra.status = 'A' OR ra.status = 'a')`
+          ? `AND ra.quorum_raggiunto = true`
           : `AND (ra.status = 'P' OR ra.status = 'p')`;
         
         const classificaQuery = `
@@ -1222,8 +1226,8 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Verifica che gli ID dei referendum esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      // Per votare, il referendum deve avere quorum_raggiunto = TRUE E NON deve avere stato = 'in_corso'
-      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Referendum abrogativo%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato != 'in_corso' AND id = ANY($1)`;
+      // Per votare, il referendum deve avere quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 500000
+      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Referendum%abrogativo%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id = ANY($1)`;
       const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
