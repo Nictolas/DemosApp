@@ -10,6 +10,17 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
+/**
+ * Genera un'emoji automatica basata sul nome del candidato
+ */
+function getEmojiAutomaticaCapoStato(nome) {
+  if (!nome) return '👤';
+  
+  // Emoji di default per capo di stato
+  return '👤';
+}
+
 // ===== ENDPOINTS PER CAPO DI STATO =====
 
 // GET /api/capo-stato - Lista candidati capo di stato con classifica voti
@@ -29,10 +40,11 @@ router.get('/', async (req, res) => {
     
     console.log('🔍 DEBUG /api/capo-stato - Candidati trovati:', classificaResult.rows.length);
     
-    // Processa la classifica per il frontend
+    // Processa la classifica per il frontend con emoji
     const classifica = classificaResult.rows.map(candidato => ({
       nome: candidato.nome,
-      voti: parseInt(candidato.voti)
+      voti: parseInt(candidato.voti),
+      emoji: getEmojiAutomaticaCapoStato(candidato.nome)
     }));
     
     // Ottieni i voti dell'utente corrente se autenticato
