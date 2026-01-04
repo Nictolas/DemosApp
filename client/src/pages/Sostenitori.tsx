@@ -74,14 +74,16 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/rappresentanti/sostenitori?sostenuto_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento dei dati dei sostenitori rappresentanti");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Errore nel caricamento dei dati dei sostenitori rappresentanti");
       }
+      const data = await response.json();
       // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (response.supporters && response.stats) {
-        return { supporters: response.supporters, stats: response.stats };
+      if (data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
       }
-      return response;
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -92,14 +94,16 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/candidati/sostenitori?sostenuto_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento dei dati dei sostenitori candidati");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Errore nel caricamento dei dati dei sostenitori candidati");
       }
+      const data = await response.json();
       // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (response.supporters && response.stats) {
-        return { supporters: response.supporters, stats: response.stats };
+      if (data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
       }
-      return response;
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -110,14 +114,16 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/attivisti/sostenitori?sostenuto_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento dei dati degli attivisti");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Errore nel caricamento dei dati degli attivisti");
       }
+      const data = await response.json();
       // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (response.supporters && response.stats) {
-        return { supporters: response.supporters, stats: response.stats };
+      if (data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
       }
-      return response;
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -128,13 +134,15 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/sostenitori/organizzazione?sostenuto_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento dei dati organizzazioni");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Errore nel caricamento dei dati organizzazioni");
       }
-      if (response.supporters && response.stats) {
-        return { supporters: response.supporters, stats: response.stats };
+      const data = await response.json();
+      if (data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
       }
-      return response;
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "O"),
   });
@@ -145,10 +153,12 @@ export default function Sostenitori() {
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
-      if (!response || !response.success) {
-        throw new Error(response?.error || "Errore nel caricamento dei dati totali");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Errore nel caricamento dei dati totali");
       }
-      return (response.data || response) as TotaleCounts;
+      const data = await response.json();
+      return (data.data || data) as TotaleCounts;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -295,6 +305,7 @@ export default function Sostenitori() {
                 <TabsContent value="organizzazione" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
                   {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
@@ -302,6 +313,7 @@ export default function Sostenitori() {
                 <TabsContent value="attivista" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
                   {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
@@ -310,6 +322,7 @@ export default function Sostenitori() {
                 <TabsContent value="politico" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
                   {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
@@ -318,6 +331,7 @@ export default function Sostenitori() {
                 <TabsContent value="candidato" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
                   {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
