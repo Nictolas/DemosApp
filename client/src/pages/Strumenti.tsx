@@ -294,26 +294,26 @@ export default function Strumenti() {
           </CardHeader>
         </Card>
 
-        {/* Pulsanti Navigazione - Nuova estetica */}
-        <div className="flex-1 grid grid-cols-2 gap-1 min-h-0">
+        {/* Pulsanti Navigazione - Layout verticale con descrizioni */}
+        <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
           {/* Comunica - solo per Istituzione e Admin, NON per Politico/Candidato/Candidato Politico */}
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-lg"
               onClick={() => setLocation('/comunica')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <Megaphone className="h-8 w-8 text-blue-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Comunica</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Megaphone className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Comunica</div>
+                    <div className="text-gray-600 text-sm">Comunica le tue decisioni di voto</div>
+                  </div>
+                </div>
               </div>
             </button>
           )}
@@ -321,60 +321,60 @@ export default function Strumenti() {
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg"
               onClick={() => setLocation('/informa-cittadini')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <Bell className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <Bell className="h-8 w-8 text-emerald-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Informa Cittadini</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Bell className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Informa Cittadini</div>
+                    <div className="text-gray-600 text-sm">Invia notifiche ai cittadini</div>
+                  </div>
+                </div>
               </div>
             </button>
           )}
           {/* Evento (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-green-300 hover:shadow-lg"
             onClick={() => setLocation('/evento')}
             onContextMenu={e => e.preventDefault()}
           >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <Calendar className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <Calendar className="h-8 w-8 text-green-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Evento</div>
+            <div className="relative z-10 flex items-center justify-between h-full px-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <div className="text-gray-900 font-semibold text-base">Evento</div>
+                  <div className="text-gray-600 text-sm">Crea e gestisci eventi pubblici</div>
+                </div>
+              </div>
             </div>
           </button>
           {/* Programma (solo Admin/Candidato) */}
           {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
               onClick={() => setLocation('/programma')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <BookOpen className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <BookOpen className="h-8 w-8 text-purple-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Programma</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Programma</div>
+                    <div className="text-gray-600 text-sm">Il tuo programma personale</div>
+                  </div>
+                </div>
               </div>
             </button>
           ) : null}
@@ -382,20 +382,20 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-pink-300 hover:shadow-lg"
               onClick={() => setLocation('/sostenitori')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <Users className="h-8 w-8 text-pink-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Sostenitori</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-pink-100 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Sostenitori</div>
+                    <div className="text-gray-600 text-sm">Dati su chi ti ha scelto</div>
+                  </div>
+                </div>
               </div>
             </button>
           )}
@@ -403,20 +403,20 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
               onClick={() => setLocation('/riscontro')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#c7d2fe" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <CheckCircle className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <CheckCircle className="h-8 w-8 text-indigo-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Riscontro</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Riscontro</div>
+                    <div className="text-gray-600 text-sm">Feedback sulle tue decisioni</div>
+                  </div>
+                </div>
               </div>
             </button>
           )}
@@ -424,20 +424,20 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-lg"
               onClick={() => setLocation('/sondaggi')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                    <MessageSquare className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Sondaggi</div>
+                    <div className="text-gray-600 text-sm">Vedi le opinioni dei cittadini</div>
+                  </div>
+                </div>
               </div>
             </button>
           )}
@@ -445,20 +445,20 @@ export default function Strumenti() {
           {(user?.ruolo === "A" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
               onClick={() => setLocation('/social')}
               onContextMenu={e => e.preventDefault()}
             >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <Share2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <Share2 className="h-8 w-8 text-amber-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Social</div>
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <Share2 className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Social</div>
+                    <div className="text-gray-600 text-sm">Inserisci il tuo sito e profili social</div>
+                  </div>
+                </div>
               </div>
             </button>
           )}
