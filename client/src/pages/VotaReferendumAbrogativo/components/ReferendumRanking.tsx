@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThumbsUp, Trophy } from "lucide-react";
@@ -25,9 +25,6 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
   isPending,
   hasReachedLimit
 }) => {
-  const [showAllClassifica, setShowAllClassifica] = useState(false);
-
-  const handleShowClassifica = () => setShowAllClassifica(!showAllClassifica);
 
   if (!classifica || classifica.length === 0) {
     return (
@@ -69,12 +66,16 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Primi 3 referendum sempre visibili */}
+          {/* Tutti i referendum sempre visibili */}
           <div className="space-y-3">
-            {classifica.slice(0, 3).map((item, index) => (
+            {classifica.map((item, index) => (
               <div 
                 key={item.nome} 
-                className={`group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
+                className={`group flex items-center justify-between p-4 ${
+                  index < 3 
+                    ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200' 
+                    : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100'
+                } rounded-xl border transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
                   onViewReferendum ? 'cursor-pointer' : ''
                 }`}
                 onClick={() => {
@@ -85,11 +86,17 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                 }}
               >
                 <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
+                  <div className={`flex items-center justify-center w-10 h-10 ${
+                    index < 3 
+                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700' 
+                      : 'bg-gradient-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700'
+                  } text-white rounded-full font-bold text-lg shadow-md transition-all duration-300`}>
                     {index + 1}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">
+                    <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 ${
+                      index < 3 ? 'group-hover:text-yellow-800' : 'group-hover:text-indigo-800'
+                    }`}>
                       {item.nome}
                     </h4>
                     {(() => {
@@ -110,7 +117,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                         </strong>
                       </span>
                       <p className="text-sm text-gray-600 flex items-center">
-                        <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                        <Trophy className={`h-4 w-4 mr-2 ${index < 3 ? 'text-yellow-500' : 'text-blue-500'}`} />
                         {item.voti} voti
                       </p>
                     </div>
@@ -127,7 +134,9 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                   className={`transition-all duration-300 ${
                     referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id)
                       ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
-                      : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                      : index < 3 
+                        ? "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                        : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
                   }`}
                 >
                   {referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id) ? (
@@ -145,106 +154,6 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
               </div>
             ))}
           </div>
-          
-          {/* Referendum rimanenti (espandibili) */}
-          {classifica.length > 3 && (
-            <div className="space-y-3">
-              {/* Pulsante per espandere/comprimere */}
-              <div className="text-center">
-                <Button 
-                  onClick={handleShowClassifica} 
-                  variant="outline" 
-                  size="lg"
-                  className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
-                >
-                  <Trophy className="h-5 w-5 mr-2 text-blue-600" />
-                  {showAllClassifica 
-                    ? `Nascondi (${classifica.length - 3} referendum abrogativi)` 
-                    : `Mostra Altro (${classifica.length - 3} referendum abrogativi rimanenti)`
-                  }
-                </Button>
-              </div>
-              
-              {/* Referendum rimanenti (animati) */}
-              {showAllClassifica && (
-                <div className="space-y-3 transition-all duration-500 ease-out">
-                  {classifica.slice(3).map((item, index) => (
-                    <div 
-                      key={item.nome} 
-                      className={`group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
-                        onViewReferendum ? 'cursor-pointer' : ''
-                      }`}
-                      onClick={() => {
-                        if (onViewReferendum) {
-                          const referendumItem = referendum.find(r => r.nome === item.nome);
-                          if (referendumItem) onViewReferendum(referendumItem);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
-                          {index + 4}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">
-                            {item.nome}
-                          </h4>
-                          {(() => {
-                            const referendumItem = referendum.find(r => r.nome === item.nome);
-                            return referendumItem?.descrizione ? (
-                              <p className="text-gray-600 mb-2 mt-1 line-clamp-2">
-                                {referendumItem.descrizione}
-                              </p>
-                            ) : null;
-                          })()}
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span>
-                              Firme raccolte: <strong>
-                                {(() => {
-                                  const referendumItem = referendum.find(r => r.nome === item.nome);
-                                  return (referendumItem?.firme || 0).toLocaleString('it-IT');
-                                })()}
-                              </strong>
-                            </span>
-                            <p className="text-sm text-gray-600 flex items-center">
-                              <Trophy className="h-4 w-4 mr-2 text-blue-500" />
-                              {item.voti} voti
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSelezioneClassifica(item.nome);
-                        }}
-                        disabled={isPending || isBlocked}
-                        className={`transition-all duration-300 ${
-                          referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id)
-                            ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
-                            : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
-                        }`}
-                      >
-                        {referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id) ? (
-                          <>
-                            <ThumbsUp className="h-4 w-4 mr-2" />
-                            Selezionato
-                          </>
-                        ) : (
-                          <>
-                            <ThumbsUp className="h-4 w-4 mr-2" />
-                            Seleziona
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

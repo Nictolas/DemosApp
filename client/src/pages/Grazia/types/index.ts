@@ -16,7 +16,6 @@ export interface GraziaVotingState {
   nomeInput: string;
   selectedVoti: string[];
   showConfirmDialog: boolean;
-  showAllClassifica: boolean;
   showForm: boolean;
 }
 
@@ -28,7 +27,6 @@ export interface GraziaVotingActions {
   onAddNomeLocal: (e: React.FormEvent) => void;
   onRemoveLocal: (nome: string) => void;
   onToggleSelezione: (nome: string) => void;
-  onShowClassifica: () => void;
   onSaveVoti: () => void;
 }
 

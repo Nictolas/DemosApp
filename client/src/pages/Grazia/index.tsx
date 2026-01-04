@@ -27,7 +27,6 @@ export default function Grazia() {
     addNomeLocal, 
     removeLocal, 
     toggleSelezioneClassifica, 
-    showClassifica, 
     showForm,
     hideForm,
     handleCreateCarcerato,
@@ -105,11 +104,9 @@ export default function Grazia() {
             <ClassificaCarcerati
               classifica={data?.classifica || []}
               selectedVoti={votingState.selectedVoti}
-              showAllClassifica={votingState.showAllClassifica}
               isBlocked={data?.blocco.isBlocked || false}
               isPending={saveVotiMutation.isPending}
               onToggleSelezione={toggleSelezioneClassifica}
-              onShowClassifica={showClassifica}
               hasReachedLimit={hasReachedLimit}
             />
           </div>

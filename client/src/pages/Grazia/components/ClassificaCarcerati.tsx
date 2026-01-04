@@ -13,22 +13,18 @@ import {
 interface ClassificaCarceratiProps {
   classifica: Classifica[];
   selectedVoti: string[];
-  showAllClassifica: boolean;
   isBlocked: boolean;
   isPending: boolean;
   onToggleSelezione: (nome: string) => void;
-  onShowClassifica: () => void;
   hasReachedLimit: boolean;
 }
 
 export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
   classifica,
   selectedVoti,
-  showAllClassifica,
   isBlocked,
   isPending,
   onToggleSelezione,
-  onShowClassifica,
   hasReachedLimit
 }) => {
   if (!classifica || classifica.length === 0) {
@@ -87,41 +83,20 @@ export const ClassificaCarcerati: React.FC<ClassificaCarceratiProps> = ({
             ))}
           </div>
           
-          {/* Carcerati rimanenti (espandibili) */}
+          {/* Carcerati rimanenti sempre visibili */}
           {remaining.length > 0 && (
             <div className="space-y-3">
-              {/* Pulsante per espandere/comprimere */}
-              <div className="text-center">
-                <Button 
-                  onClick={onShowClassifica} 
-                  variant="outline" 
-                  size="lg"
-                  className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
-                >
-                  <Trophy className="h-5 w-5 mr-2 text-blue-600" />
-                  {showAllClassifica 
-                    ? `Nascondi (${remaining.length} carcerati)` 
-                    : `Mostra Altro (${remaining.length} carcerati rimanenti)`
-                  }
-                </Button>
-              </div>
-              
-              {/* Carcerati rimanenti (animati) */}
-              {showAllClassifica && (
-                <div className="space-y-3 transition-all duration-500 ease-out">
-                  {remaining.map((item, index) => (
-                    <CarceratoItem
-                      key={item.nome}
-                      item={item}
-                      index={index + 3}
-                      isSelected={selectedVoti.includes(item.nome)}
-                      isTopThree={isTopThree(index + 3)}
-                      onToggleSelezione={onToggleSelezione}
-                      disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
-                    />
-                  ))}
-                </div>
-              )}
+              {remaining.map((item, index) => (
+                <CarceratoItem
+                  key={item.nome}
+                  item={item}
+                  index={index + 3}
+                  isSelected={selectedVoti.includes(item.nome)}
+                  isTopThree={isTopThree(index + 3)}
+                  onToggleSelezione={onToggleSelezione}
+                  disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
+                />
+              ))}
             </div>
           )}
         </div>
