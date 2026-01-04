@@ -14,6 +14,7 @@ export interface IniziativaPopolare {
   esito?: string;
   status?: string;
   quorum_raggiunto?: boolean;
+  emoji?: string;
 }
 
 export interface IniziativaFormData {
