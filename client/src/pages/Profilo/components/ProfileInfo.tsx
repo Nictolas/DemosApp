@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Edit, Image, Globe, Heart, User } from "lucide-react";
+import { Edit, Image, Heart, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { UserInfo } from "@/types/profile";
 import { TIPOLOGIE_ATTIVISMO } from "@/constants/attivismo-types";
@@ -14,7 +14,6 @@ interface ProfileInfoProps {
   isEditing: boolean;
   onEditClick: () => void;
   onModificaImmagine: () => void;
-  onModificaSiti?: () => void;
   canEdit?: boolean;
   avatarConfig?: any;
 }
@@ -24,7 +23,6 @@ export const ProfileInfo = ({
   isEditing, 
   onEditClick, 
   onModificaImmagine,
-  onModificaSiti,
   canEdit = true,
   avatarConfig
 }: ProfileInfoProps) => {
@@ -274,32 +272,16 @@ export const ProfileInfo = ({
         </CardContent>
         
         <CardFooter className="relative flex gap-3 pt-6">
-          {canEdit && (
-            <>
-              {(userInfo.ruolo === "A" || userInfo.ruolo === "AD") && onModificaSiti && (
-                <Button 
-                  onClick={onModificaSiti} 
-                  variant="outline"
-                  className="flex-1 h-12 rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 hover:border-green-300 hover:shadow-lg transition-all duration-300 group"
-                >
-                  <div className="h-6 w-6 rounded-md bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                    <Globe className="h-3 w-3 text-white" />
-                  </div>
-                  <span className="font-semibold">Modifica Siti</span>
-                </Button>
-              )}
-              {!isEditing && (
-                <Button 
-                  onClick={onEditClick}
-                  className="flex-1 h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
-                >
-                  <div className="h-6 w-6 rounded-md bg-white flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                    <Edit className="h-3 w-3 text-white" />
-                  </div>
-                  <span className="font-semibold text-white">Modifica Profilo</span>
-                </Button>
-              )}
-            </>
+          {canEdit && !isEditing && (
+            <Button 
+              onClick={onEditClick}
+              className="flex-1 h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
+            >
+              <div className="h-6 w-6 rounded-md bg-white flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <Edit className="h-3 w-3 text-white" />
+              </div>
+              <span className="font-semibold text-white">Modifica Profilo</span>
+            </Button>
           )}
         </CardFooter>
       </Card>

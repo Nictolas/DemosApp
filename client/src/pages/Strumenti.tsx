@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaphone, Calendar, BookOpen, Users, Bell } from "lucide-react";
+import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaphone, Calendar, BookOpen, Users, Bell, Share2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
@@ -438,6 +438,27 @@ export default function Strumenti() {
                   <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
                 </span>
                 <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
+              </div>
+            </button>
+          )}
+          {/* Social (solo per Attivista e Admin) */}
+          {(user?.ruolo === "A" || user?.ruolo === "AD") && (
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/social')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <Share2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <Share2 className="h-8 w-8 text-amber-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Social</div>
               </div>
             </button>
           )}
