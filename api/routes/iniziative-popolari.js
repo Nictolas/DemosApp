@@ -427,34 +427,85 @@ router.get('/', async (req, res) => {
     
     // Normalizza gli ID in mieiVoti per assicurarsi che corrispondano agli ID delle iniziative normalizzate
     // Questo gestisce il caso in cui gli ID nel database hanno un formato diverso (con/senza trattini)
+    // E anche il caso in cui iniziativa_id è un nome invece di un ID
     if (mieiVoti.length > 0 && normalizedData.length > 0) {
       const normalizedIds = normalizedData.map(i => String(i.id));
+      const normalizedNomi = normalizedData.map(i => String(i.nome || '').toLowerCase().trim());
+      
+      console.log(`🔍 DEBUG: Normalizzazione mieiVoti - ${mieiVoti.length} voti da normalizzare`);
+      console.log(`🔍 DEBUG: mieiVoti prima normalizzazione:`, mieiVoti);
+      console.log(`🔍 DEBUG: normalizedIds disponibili (primi 3):`, normalizedIds.slice(0, 3));
+      console.log(`🔍 DEBUG: normalizedNomi disponibili (primi 3):`, normalizedNomi.slice(0, 3));
       
       mieiVoti = mieiVoti.map(votoId => {
         const votoIdStr = String(votoId);
         const votoIdNoDashes = votoIdStr.replace(/-/g, '');
+        const votoIdLower = votoIdStr.toLowerCase().trim();
         
-        // Cerca corrispondenza esatta
+        // 1. Cerca corrispondenza esatta per ID
         if (normalizedIds.includes(votoIdStr)) {
+          console.log(`✅ DEBUG: Trovata corrispondenza esatta per ID: ${votoIdStr}`);
           return votoIdStr;
         }
         
-        // Cerca corrispondenza senza trattini
-        const match = normalizedIds.find(id => {
+        // 2. Cerca corrispondenza senza trattini per ID
+        const matchById = normalizedIds.find(id => {
           return id.replace(/-/g, '') === votoIdNoDashes;
         });
         
-        if (match) {
-          console.log(`🔍 DEBUG: ID normalizzato da ${votoIdStr} a ${match}`);
-          return match;
+        if (matchById) {
+          console.log(`✅ DEBUG: ID normalizzato da ${votoIdStr} a ${matchById} (senza trattini)`);
+          return matchById;
         }
         
-        // Se non trova corrispondenza, mantieni l'ID originale
-        console.log(`⚠️ DEBUG: Nessuna corrispondenza trovata per votoId ${votoIdStr} nelle iniziative normalizzate`);
+        // 3. Se non trova corrispondenza per ID, prova a cercare per nome
+        // Questo gestisce il caso in cui iniziativa_id nel database è un nome invece di un ID
+        const matchByNome = normalizedData.find(i => {
+          const nomeNormalized = String(i.nome || '').toLowerCase().trim();
+          return nomeNormalized === votoIdLower || nomeNormalized.includes(votoIdLower) || votoIdLower.includes(nomeNormalized);
+        });
+        
+        if (matchByNome) {
+          console.log(`✅ DEBUG: Trovata corrispondenza per nome: "${votoIdStr}" -> ID: ${matchByNome.id} (nome: "${matchByNome.nome}")`);
+          return String(matchByNome.id);
+        }
+        
+        // 4. Se non trova corrispondenza né per ID né per nome, mantieni l'ID originale
+        // ma logga un warning per debug
+        console.log(`⚠️ DEBUG: Nessuna corrispondenza trovata per votoId "${votoIdStr}" (né per ID né per nome)`);
+        console.log(`⚠️ DEBUG: Tentativo ricerca parziale per nome...`);
+        
+        // Ultimo tentativo: ricerca parziale per nome
+        const matchParziale = normalizedData.find(i => {
+          const nomeNormalized = String(i.nome || '').toLowerCase().trim();
+          // Cerca se il votoId è contenuto nel nome o viceversa (almeno 10 caratteri per evitare match casuali)
+          if (votoIdStr.length >= 10 && nomeNormalized.length >= 10) {
+            return nomeNormalized.includes(votoIdLower) || votoIdLower.includes(nomeNormalized);
+          }
+          return false;
+        });
+        
+        if (matchParziale) {
+          console.log(`✅ DEBUG: Trovata corrispondenza parziale per nome: "${votoIdStr}" -> ID: ${matchParziale.id} (nome: "${matchParziale.nome}")`);
+          return String(matchParziale.id);
+        }
+        
+        console.log(`❌ DEBUG: Nessuna corrispondenza trovata per votoId "${votoIdStr}" - verrà mantenuto l'ID originale`);
         return votoIdStr;
       });
       
       console.log(`✅ mieiVoti dopo normalizzazione:`, mieiVoti);
+      
+      // Verifica finale: controlla se tutti i voti hanno una corrispondenza nelle iniziative
+      const votiNonTrovati = mieiVoti.filter(votoId => {
+        const votoIdStr = String(votoId);
+        return !normalizedData.some(i => String(i.id) === votoIdStr);
+      });
+      
+      if (votiNonTrovati.length > 0) {
+        console.warn(`⚠️ ATTENZIONE: ${votiNonTrovati.length} voti non hanno corrispondenza nelle iniziative normalizzate:`, votiNonTrovati);
+        console.warn(`⚠️ Questo potrebbe causare problemi nel frontend (mostrerà "Caricamento...")`);
+      }
     }
 
     // Genera la classifica basata sui voti da ENTRAMBE le tabelle
