@@ -6,6 +6,41 @@ const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
+// ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
+/**
+ * Genera un'emoji automatica basata sul contenuto del referendum
+ */
+function getEmojiAutomaticaReferendum(referendum) {
+  const testo = `${referendum.nome || ''} ${referendum.titolo || ''} ${referendum.descrizione || ''} ${referendum.quesito || ''}`.toLowerCase();
+  
+  const emojiMap = [
+    { keywords: ['educazione', 'scuola', 'istruzione'], emoji: '📚' },
+    { keywords: ['ambiente', 'clima', 'energia'], emoji: '🌱' },
+    { keywords: ['sanità', 'salute', 'ospedale'], emoji: '🏥' },
+    { keywords: ['diritti', 'uguaglianza', 'discriminazione'], emoji: '🤝' },
+    { keywords: ['lavoro', 'economia', 'iva', 'tasse'], emoji: '💼' },
+    { keywords: ['giustizia', 'legge', 'penale', 'abrogativo'], emoji: '⚖️' },
+    { keywords: ['cultura', 'arte'], emoji: '🎭' },
+    { keywords: ['trasporti', 'mobilità'], emoji: '🚗' },
+    { keywords: ['tecnologia', 'digitale'], emoji: '💻' },
+    { keywords: ['famiglia', 'bambini'], emoji: '👨‍👩‍👧‍👦' },
+    { keywords: ['animali'], emoji: '🐕' },
+    { keywords: ['sport'], emoji: '⚽' },
+    { keywords: ['cibo', 'agricoltura'], emoji: '🌾' },
+    { keywords: ['casa', 'abitazione'], emoji: '🏠' },
+    { keywords: ['sicurezza', 'polizia'], emoji: '🛡️' },
+    { keywords: ['democrazia', 'politica', 'elezioni', 'voto', 'referendum'], emoji: '🗳️' }
+  ];
+  
+  for (const mapping of emojiMap) {
+    if (mapping.keywords.some(keyword => testo.includes(keyword))) {
+      return mapping.emoji;
+    }
+  }
+  
+  return '🗳️';
+}
+
 // GET /api/referendum-abrogativi - Ottieni referendum abrogativi (endpoint root)
 router.get('/', async (req, res) => {
   try {
@@ -29,22 +64,36 @@ router.get('/', async (req, res) => {
     `;
     const classificaResult = await pool.query(classificaQuery);
 
-    // 3. Combina i risultati
-    const referendum = referendumResult.rows.map(r => ({
-      id: r.id,
-      nome: r.nome,
-      data_inizio: r.data_inizio,
-      data_fine: r.data_fine,
-      status: r.status,
-      quorum: r.quorum,
-      firestore_id_backup: r.firestore_id_backup,
-      voti: classificaResult.rows.find(c => c.nome === r.nome)?.voti || 0
-    }));
+    // 3. Combina i risultati e aggiungi emoji
+    const referendum = referendumResult.rows.map(r => {
+      const referendumData = {
+        id: r.id,
+        nome: r.nome,
+        data_inizio: r.data_inizio,
+        data_fine: r.data_fine,
+        status: r.status,
+        quorum: r.quorum,
+        firestore_id_backup: r.firestore_id_backup,
+        voti: classificaResult.rows.find(c => c.nome === r.nome)?.voti || 0
+      };
+      // Aggiungi emoji
+      referendumData.emoji = getEmojiAutomaticaReferendum(referendumData);
+      return referendumData;
+    });
 
+    // Aggiungi emoji anche alla classifica
+    const classificaConEmoji = classificaResult.rows.map(row => {
+      const referendumCorrispondente = referendum.find(r => r.nome === row.nome);
+      return {
+        ...row,
+        emoji: referendumCorrispondente?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome })
+      };
+    });
+    
     res.json({
       success: true,
       referendum: referendum,
-      classifica: classificaResult.rows,
+      classifica: classificaConEmoji,
       mieiVoti: [] // Inizialmente vuoto, sarà popolato se l'utente è autenticato
     });
   } catch (error) {
@@ -100,13 +149,29 @@ router.get('/abrogativi', async (req, res) => {
       }
     }
 
-    res.json({
-      success: true,
-      referendum: referendumResult.rows.map(row => ({
+    // Aggiungi emoji ai referendum
+    const referendumConEmoji = referendumResult.rows.map(row => {
+      const referendumData = {
         ...row,
         id: row.firestore_id_backup || row.id // Assicurati che firestore_id_backup sia disponibile
-      })),
-      classifica: classificaResult.rows,
+      };
+      referendumData.emoji = getEmojiAutomaticaReferendum(referendumData);
+      return referendumData;
+    });
+    
+    // Aggiungi emoji anche alla classifica
+    const classificaConEmoji = classificaResult.rows.map(row => {
+      const referendumCorrispondente = referendumConEmoji.find(r => r.nome === row.nome);
+      return {
+        ...row,
+        emoji: referendumCorrispondente?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome })
+      };
+    });
+    
+    res.json({
+      success: true,
+      referendum: referendumConEmoji,
+      classifica: classificaConEmoji,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
