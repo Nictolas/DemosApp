@@ -338,7 +338,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
               {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
@@ -346,7 +346,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
 
@@ -355,7 +355,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
 
@@ -364,7 +364,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
 
@@ -399,7 +399,8 @@ const SostenitoriContent = ({
   setShowSupportersList,
   genderChartData, 
   ageChartData,
-  provinceChartData
+  provinceChartData,
+  userRole
 }: {
   stats: SupporterStats;
   supporters: Supporter[];
@@ -408,6 +409,7 @@ const SostenitoriContent = ({
   genderChartData: any[];
   ageChartData: any[];
   provinceChartData: any[];
+  userRole?: string;
 }) => (
   <div className="space-y-8">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -415,14 +417,16 @@ const SostenitoriContent = ({
         <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.averageAge.toFixed(1)}</p><p className="text-sm text-muted-foreground">Età Media</p></CardContent></Card>
     </div>
 
-    <div className="flex justify-center">
-      <Button variant="outline" onClick={() => setShowSupportersList(prev => !prev)}>
-        {showSupportersList ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-        {showSupportersList ? 'Nascondi Lista' : `Mostra Lista (${supporters.length})`}
-      </Button>
-    </div>
+    {userRole === "AD" && (
+      <div className="flex justify-center">
+        <Button variant="outline" onClick={() => setShowSupportersList(prev => !prev)}>
+          {showSupportersList ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+          {showSupportersList ? 'Nascondi Lista' : `Mostra Lista (${supporters.length})`}
+        </Button>
+      </div>
+    )}
     
-    {showSupportersList && <SupportersTable supporters={supporters} />}
+    {showSupportersList && userRole === "AD" && <SupportersTable supporters={supporters} />}
 
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* === INIZIO MODIFICHE GRAFICI === */}
