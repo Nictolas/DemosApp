@@ -111,7 +111,13 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
                           <CheckCircle2 className="h-5 w-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors flex items-center gap-2">
+                            {/* Mostra emoji se disponibile - a sinistra del nome */}
+                            {referendumItem.emoji && (
+                              <span className="text-2xl" role="img" aria-label="emoji">
+                                {referendumItem.emoji}
+                              </span>
+                            )}
                             {referendumItem.nome}
                           </h3>
                         </div>
