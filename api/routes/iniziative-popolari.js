@@ -103,7 +103,8 @@ router.get('/', async (req, res) => {
     }
     
     // Query da ENTRAMBE le tabelle: iniziative_ministero e iniziative_popolari
-    // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE
+    // Se il parametro vota=true è presente, mostra solo quelle con quorum_raggiunto = TRUE e stato = 'conclusa'
+    // (per votare la priorità delle iniziative già concluse)
     // Per la pagina iniziative-popolari (non vota), mostra solo quelle con stato = 'in_corso'
     const votaOnly = req.query.vota === 'true';
     const soloInCorso = !votaOnly; // Per la pagina listing, mostra solo quelle in corso
@@ -123,12 +124,11 @@ router.get('/', async (req, res) => {
       let iniziativePopolariParams = [];
       
       if (votaOnly) {
-        // Per votaOnly: solo quelle con quorum = 'ok' (approvate) e status != 'pending'
+        // Per votaOnly: solo quelle con quorum_raggiunto = TRUE
         iniziativePopolariQuery = `
           SELECT *
           FROM iniziative_popolari
-          WHERE (quorum = 'ok' OR quorum = 'OK')
-            AND (status IS NULL OR status != 'pending')
+          WHERE quorum_raggiunto = true
           ORDER BY created_at DESC
         `;
       } else if (soloInCorso) {
@@ -172,8 +172,8 @@ router.get('/', async (req, res) => {
             COUNT(*) as totale,
             COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
             COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
-            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato != 'in_corso') as valide,
-            COUNT(*) FILTER (WHERE tipo LIKE $1 AND quorum_raggiunto = true AND stato != 'in_corso' AND id_ministero IS NOT NULL) as valide_complete
+            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000) as valide,
+            COUNT(*) FILTER (WHERE tipo LIKE $1 AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000 AND id_ministero IS NOT NULL) as valide_complete
           FROM iniziative_ministero
           WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
         `;
@@ -182,11 +182,12 @@ router.get('/', async (req, res) => {
         
         // Query di test diretta per vedere se ci sono risultati
         const testQuery = `
-          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto
+          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto, firme_raccolte
           FROM iniziative_ministero
           WHERE tipo LIKE $1
             AND quorum_raggiunto = true 
-            AND stato != 'in_corso' 
+            AND stato = 'conclusa' 
+            AND firme_raccolte >= 50000
             AND id_ministero IS NOT NULL
           LIMIT 5
         `;
@@ -197,7 +198,8 @@ router.get('/', async (req, res) => {
           tipo: r.tipo,
           stato: r.stato,
           id_ministero: r.id_ministero,
-          quorum_raggiunto: r.quorum_raggiunto
+          quorum_raggiunto: r.quorum_raggiunto,
+          firme_raccolte: r.firme_raccolte
         })));
       } else {
         console.log(`🔍 DEBUG VOTA: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
@@ -210,26 +212,26 @@ router.get('/', async (req, res) => {
     }
     
     // Filtro aggiuntivo di sicurezza:
-    // - Per votaOnly: ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum) e solo quelle con quorum_raggiunto = true
+    // - Per votaOnly: solo quelle con quorum_raggiunto = true, stato = 'conclusa' E firme_raccolte >= 50000
     // - Per listing (soloInCorso): ESCLUDE TUTTE quelle con stato != 'in_corso'
     let filteredRows = result.rows;
     if (votaOnly) {
       const beforeFilter = filteredRows.length;
       filteredRows = filteredRows.filter(row => {
-        // ESCLUDE TUTTE quelle con stato = 'in_corso'
-        if (row.stato === 'in_corso') {
-          return false;
-        }
-        // Solo quelle con quorum_raggiunto = true
-        return row.quorum_raggiunto === true;
+        // Solo quelle con quorum_raggiunto = true, stato = 'conclusa' E firme_raccolte >= 50000
+        return row.quorum_raggiunto === true 
+          && row.stato === 'conclusa' 
+          && (row.firme_raccolte || 0) >= 50000;
       });
       const afterFilter = filteredRows.length;
       
       if (beforeFilter !== afterFilter) {
         console.warn(`⚠️ FILTRO SICUREZZA: Rimosse ${beforeFilter - afterFilter} iniziative che non rispettano i criteri (prima: ${beforeFilter}, dopo: ${afterFilter})`);
         const removed = result.rows.filter(row => {
-          // Rimuove quelle con stato = 'in_corso' O quorum_raggiunto != true
-          return row.stato === 'in_corso' || row.quorum_raggiunto !== true;
+          // Rimuove quelle con stato != 'conclusa' O quorum_raggiunto != true O firme_raccolte < 50000
+          return row.stato !== 'conclusa' 
+            || row.quorum_raggiunto !== true 
+            || (row.firme_raccolte || 0) < 50000;
         });
         console.warn(`⚠️ Iniziative rimosse:`, removed.map(r => ({ 
           id: r.id, 
@@ -262,16 +264,22 @@ router.get('/', async (req, res) => {
         }));
         console.log(`🔍 DEBUG: Stato quorum_raggiunto e stato dei risultati FINALI (dopo filtro sicurezza):`, quorumStatus);
         
-        // Verifica che non ci siano iniziative con stato = 'in_corso'
-        const inCorso = filteredRows.filter(r => r.stato === 'in_corso');
-        if (inCorso.length > 0) {
-          console.error(`❌ ERRORE CRITICO: Trovate ${inCorso.length} iniziative con stato='in_corso' dopo il filtro sicurezza:`, inCorso.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50) })));
-    }
+        // Verifica che tutte abbiano stato = 'conclusa'
+        const notConclusa = filteredRows.filter(r => r.stato !== 'conclusa');
+        if (notConclusa.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovate ${notConclusa.length} iniziative con stato != 'conclusa' dopo il filtro sicurezza:`, notConclusa.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), stato: r.stato })));
+        }
     
         // Verifica che tutte abbiano quorum_raggiunto = true
         const noQuorum = filteredRows.filter(r => r.quorum_raggiunto !== true);
         if (noQuorum.length > 0) {
           console.error(`❌ ERRORE CRITICO: Trovate ${noQuorum.length} iniziative con quorum_raggiunto != true dopo il filtro sicurezza:`, noQuorum.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto })));
+        }
+        
+        // Verifica che tutte abbiano firme_raccolte >= 50000
+        const insufficientFirme = filteredRows.filter(r => (r.firme_raccolte || 0) < 50000);
+        if (insufficientFirme.length > 0) {
+          console.error(`❌ ERRORE CRITICO: Trovate ${insufficientFirme.length} iniziative con firme_raccolte < 50000 dopo il filtro sicurezza:`, insufficientFirme.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), firme_raccolte: r.firme_raccolte })));
         }
       }
     } else if (soloInCorso) {
@@ -379,11 +387,9 @@ router.get('/', async (req, res) => {
       let filteredPopolari = iniziativePopolariResult.rows;
       
       if (votaOnly) {
-        // Filtro sicurezza: solo quelle con quorum = 'ok' e status != 'pending'
+        // Filtro sicurezza: solo quelle con quorum_raggiunto = TRUE
         filteredPopolari = filteredPopolari.filter(row => {
-          const quorumOk = row.quorum === 'ok' || row.quorum === 'OK';
-          const notPending = !row.status || (row.status !== 'pending' && row.status !== 'In Attesa');
-          return quorumOk && notPending;
+          return row.quorum_raggiunto === true;
         });
       } else if (soloInCorso) {
         // Filtro sicurezza: solo quelle in corso
@@ -436,42 +442,101 @@ router.get('/', async (req, res) => {
           console.log(`⚠️ DEBUG: Voto ${votoId} non trovato nelle iniziative normalizzate. Cercando nel database...`);
           
           // Cerca l'iniziativa nel database anche se non rispetta i filtri
+          // Usa una ricerca più flessibile che gestisce anche ID senza trattini
           try {
-            // Cerca in iniziative_ministero (id è VARCHAR(255), non UUID)
-            const iniziativaMinisteroQuery = `
-              SELECT * FROM iniziative_ministero 
-              WHERE id = $1
-              LIMIT 1
-            `;
-            const iniziativaMinisteroResult = await pool.query(iniziativaMinisteroQuery, [votoId]);
+            const votoIdNoDashes = votoId.replace(/-/g, '');
+            
+            // 1. Cerca in iniziative_ministero (id è VARCHAR(255), non UUID)
+            // Prova prima con ID esatto, poi senza trattini
+            let iniziativaMinisteroResult = await pool.query(
+              `SELECT * FROM iniziative_ministero WHERE id = $1 LIMIT 1`,
+              [votoId]
+            );
+            
+            // Se non trova, prova senza trattini
+            if (iniziativaMinisteroResult.rows.length === 0 && votoIdNoDashes.length > 10) {
+              iniziativaMinisteroResult = await pool.query(
+                `SELECT * FROM iniziative_ministero WHERE REPLACE(id, '-', '') = $1 LIMIT 1`,
+                [votoIdNoDashes]
+              );
+            }
             
             if (iniziativaMinisteroResult.rows.length > 0) {
               const row = iniziativaMinisteroResult.rows[0];
               const mapped = mapToLegacyFormat(row, 'iniziativa');
               mapped.emoji = getEmojiAutomatica(mapped);
               normalizedData.push(mapped);
+              // Aggiorna mieiVoti con l'ID corretto dell'iniziativa trovata
+              mieiVoti[i] = String(mapped.id);
               console.log(`✅ DEBUG: Iniziativa votata trovata in iniziative_ministero: ${mapped.nome} (ID: ${mapped.id})`);
+              console.log(`✅ DEBUG: mieiVoti[${i}] aggiornato da ${votoId} a ${mapped.id}`);
             } else {
-              // Cerca in iniziative_popolari (id potrebbe essere UUID o VARCHAR)
-              const iniziativaPopolariQuery = `
-                SELECT * FROM iniziative_popolari 
-                WHERE id::text = $1 OR id = $1
-                LIMIT 1
-              `;
-              const iniziativaPopolariResult = await pool.query(iniziativaPopolariQuery, [votoId]);
+              // 2. Cerca in iniziative_popolari (id potrebbe essere UUID o VARCHAR)
+              // Prova prima con ID esatto, poi senza trattini, poi come UUID
+              let iniziativaPopolariResult = await pool.query(
+                `SELECT * FROM iniziative_popolari WHERE id::text = $1 OR id = $1 LIMIT 1`,
+                [votoId]
+              );
+              
+              // Se non trova, prova senza trattini
+              if (iniziativaPopolariResult.rows.length === 0 && votoIdNoDashes.length > 10) {
+                iniziativaPopolariResult = await pool.query(
+                  `SELECT * FROM iniziative_popolari WHERE REPLACE(id::text, '-', '') = $1 LIMIT 1`,
+                  [votoIdNoDashes]
+                );
+              }
+              
+              // Se non trova, prova come UUID (se l'ID è un UUID valido)
+              if (iniziativaPopolariResult.rows.length === 0 && votoId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                try {
+                  iniziativaPopolariResult = await pool.query(
+                    `SELECT * FROM iniziative_popolari WHERE id = $1::uuid LIMIT 1`,
+                    [votoId]
+                  );
+                } catch (uuidError) {
+                  // Se fallisce, continua senza questo tentativo
+                  console.log(`⚠️ DEBUG: Tentativo UUID fallito per ${votoId}:`, uuidError.message);
+                }
+              }
               
               if (iniziativaPopolariResult.rows.length > 0) {
                 const row = iniziativaPopolariResult.rows[0];
                 const mapped = mapIniziativePopolariToLegacyFormat(row);
                 mapped.emoji = getEmojiAutomatica(mapped);
                 normalizedData.push(mapped);
+                // Aggiorna mieiVoti con l'ID corretto dell'iniziativa trovata
+                mieiVoti[i] = String(mapped.id);
                 console.log(`✅ DEBUG: Iniziativa votata trovata in iniziative_popolari: ${mapped.nome} (ID: ${mapped.id})`);
+                console.log(`✅ DEBUG: mieiVoti[${i}] aggiornato da ${votoId} a ${mapped.id}`);
               } else {
-                console.warn(`❌ DEBUG: Iniziativa con ID ${votoId} non trovata in nessuna tabella`);
+                // 3. Ultimo tentativo: cerca per nome se l'ID sembra essere un nome
+                // (gestisce il caso in cui iniziativa_id nel database è un nome invece di un ID)
+                if (votoId.length > 10 && !votoId.match(/^[0-9a-f-]+$/i)) {
+                  const iniziativaByNomeResult = await pool.query(
+                    `SELECT * FROM iniziative_popolari WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) LIMIT 1`,
+                    [votoId]
+                  );
+                  
+                  if (iniziativaByNomeResult.rows.length > 0) {
+                    const row = iniziativaByNomeResult.rows[0];
+                    const mapped = mapIniziativePopolariToLegacyFormat(row);
+                    mapped.emoji = getEmojiAutomatica(mapped);
+                    normalizedData.push(mapped);
+                    // Aggiorna mieiVoti con l'ID corretto dell'iniziativa trovata
+                    mieiVoti[i] = String(mapped.id);
+                    console.log(`✅ DEBUG: Iniziativa votata trovata per nome in iniziative_popolari: ${mapped.nome} (ID: ${mapped.id})`);
+                    console.log(`✅ DEBUG: mieiVoti[${i}] aggiornato da ${votoId} a ${mapped.id}`);
+                  } else {
+                    console.warn(`❌ DEBUG: Iniziativa con ID ${votoId} non trovata in nessuna tabella (né per ID né per nome)`);
+                  }
+                } else {
+                  console.warn(`❌ DEBUG: Iniziativa con ID ${votoId} non trovata in nessuna tabella`);
+                }
               }
             }
           } catch (error) {
             console.error(`❌ DEBUG: Errore nel cercare iniziativa votata ${votoId}:`, error.message);
+            console.error(`❌ DEBUG: Stack trace:`, error.stack);
           }
         }
       }
@@ -568,11 +633,11 @@ router.get('/', async (req, res) => {
         // Per la pagina iniziative-popolari, mostra solo quelle con stato = 'in_corso'
         // Per la pagina vota: quorum_raggiunto = TRUE E ESCLUDE TUTTE quelle con stato = 'in_corso'
         const quorumFilterMinistero = votaOnly 
-          ? 'AND im.quorum_raggiunto = true AND im.stato != \'in_corso\''
+          ? 'AND im.quorum_raggiunto = true AND im.stato = \'conclusa\' AND im.firme_raccolte >= 50000'
           : 'AND im.stato = \'in_corso\'';
         
         const quorumFilterPopolari = votaOnly
-          ? `(ip.quorum = 'ok' OR ip.quorum = 'OK') AND (ip.status IS NULL OR ip.status != 'pending')`
+          ? `ip.quorum_raggiunto = true`
           : `(ip.status IS NULL OR ip.status = 'pending' OR ip.status = 'in attesa' OR ip.status = 'in_corso') AND ip.quorum != 'proposta'`;
         
         const classificaQuery = `
@@ -651,9 +716,9 @@ router.get('/', async (req, res) => {
           SELECT 
             COUNT(*) as totale,
             COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%') as tipo_iniziativa,
-            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND quorum_raggiunto = true AND stato != 'in_corso') as concluse_con_quorum,
+            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000) as concluse_con_quorum,
             COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND id_ministero IS NOT NULL) as con_id_ministero,
-            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND quorum_raggiunto = true AND stato != 'in_corso' AND id_ministero IS NOT NULL) as valide
+            COUNT(*) FILTER (WHERE tipo ILIKE '%iniziativa%popolare%' AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000 AND id_ministero IS NOT NULL) as valide
           FROM iniziative_ministero
         `;
         const debugStatsResult = await pool.query(debugStatsQuery);
@@ -1052,8 +1117,8 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     // Verifica che gli ID delle iniziative esistano nella nuova tabella
     if (votiDaSalvare.length > 0) {
-      // Per votare, l'iniziativa deve avere quorum_raggiunto = TRUE E NON deve avere stato = 'in_corso'
-      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge%di%iniziativa%popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato != 'in_corso' AND id = ANY($1)`;
+      // Per votare, l'iniziativa deve avere quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 50000
+      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge%di%iniziativa%popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000 AND id = ANY($1)`;
       const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);

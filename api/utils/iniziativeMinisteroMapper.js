@@ -300,7 +300,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
   
   if (userRole === "AD") {
     // Admin vedono tutto (con LIKE per gestire varianti del nome)
-    // Ma se votaOnly è true, anche gli admin devono vedere solo quelle con quorum_raggiunto = TRUE e stato != 'in_corso'
+    // Ma se votaOnly è true, anche gli admin devono vedere solo quelle con quorum_raggiunto = TRUE, stato = 'conclusa' e firme_raccolte >= 50000
     if (votaOnly) {
       return {
         query: `
@@ -309,7 +309,8 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           WHERE tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
-            AND stato != 'in_corso'
+            AND stato = 'conclusa'
+            AND firme_raccolte >= 50000
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: [`%${tipoValue}%`]
@@ -342,7 +343,8 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
     // Altri utenti vedono solo le iniziative/referendum ufficiali che:
     // Se votaOnly = true (pagine di voto): 
     // - quorum_raggiunto = TRUE
-    // - ESCLUDE TUTTE quelle con stato = 'in_corso' (INDIPENDENTEMENTE dal quorum)
+    // - stato = 'conclusa' (per votare la priorità delle iniziative già concluse)
+    // - firme_raccolte >= 50000
     // Altrimenti:
     //   1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
     //   2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
@@ -355,7 +357,8 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           WHERE tipo LIKE $1
             AND id_ministero IS NOT NULL
             AND quorum_raggiunto = true
-            AND stato != 'in_corso'
+            AND stato = 'conclusa'
+            AND firme_raccolte >= 50000
           ORDER BY data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: [`%${tipoValue}%`]
