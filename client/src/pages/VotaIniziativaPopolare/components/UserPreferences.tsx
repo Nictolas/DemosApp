@@ -33,8 +33,23 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
       if (votiNonTrovati.length > 0) {
         console.warn('⚠️ DEBUG UserPreferences: Voti non trovati nelle iniziative:', votiNonTrovati);
         console.warn('⚠️ DEBUG UserPreferences: selectedVoti:', selectedVoti);
-        console.warn('⚠️ DEBUG UserPreferences: iniziative IDs:', iniziative.map(i => i.id));
-        console.warn('⚠️ DEBUG UserPreferences: iniziative nomi:', iniziative.map(i => i.nome));
+        console.warn('⚠️ DEBUG UserPreferences: iniziative IDs:', iniziative.map(i => ({ id: i.id, nome: i.nome })));
+        
+        // Prova a trovare per nome o ID parziale
+        votiNonTrovati.forEach(votoId => {
+          const votoIdStr = String(votoId);
+          const matchPerNome = iniziative.find(i => {
+            const nomeNormalized = String(i.nome || '').toLowerCase().trim();
+            const votoIdLower = votoIdStr.toLowerCase().trim();
+            return nomeNormalized === votoIdLower || nomeNormalized.includes(votoIdLower) || votoIdLower.includes(nomeNormalized);
+          });
+          
+          if (matchPerNome) {
+            console.log(`✅ DEBUG UserPreferences: Trovata corrispondenza per nome: "${votoIdStr}" -> ID: ${matchPerNome.id} (nome: "${matchPerNome.nome}")`);
+          } else {
+            console.error(`❌ DEBUG UserPreferences: Nessuna corrispondenza trovata per votoId "${votoIdStr}"`);
+          }
+        });
       } else {
         console.log('✅ DEBUG UserPreferences: Tutti i voti hanno corrispondenza nelle iniziative');
       }
@@ -88,7 +103,23 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
             </div>
             <div className="grid gap-3">
               {selectedVoti.map((id) => {
-                const iniziativa = iniziative.find(i => i.id === id);
+                // Cerca prima per ID esatto
+                let iniziativa = iniziative.find(i => String(i.id) === String(id));
+                
+                // Se non trova per ID, prova a cercare per nome (caso in cui iniziativa_id è un nome)
+                if (!iniziativa) {
+                  const idStr = String(id);
+                  iniziativa = iniziative.find(i => {
+                    const nomeNormalized = String(i.nome || '').toLowerCase().trim();
+                    const idLower = idStr.toLowerCase().trim();
+                    return nomeNormalized === idLower || nomeNormalized.includes(idLower) || idLower.includes(nomeNormalized);
+                  });
+                  
+                  if (iniziativa) {
+                    console.log(`✅ DEBUG UserPreferences: Trovata iniziativa per nome: "${idStr}" -> ID: ${iniziativa.id} (nome: "${iniziativa.nome}")`);
+                  }
+                }
+                
                 // Se l'iniziativa non viene trovata, mostra comunque l'ID (può succedere durante il caricamento)
                 if (!iniziativa) {
                   return (
@@ -103,8 +134,11 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
-                              Caricamento...
+                              Caricamento... (ID: {String(id).substring(0, 20)}...)
                             </h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                              L'iniziativa potrebbe non essere più disponibile per il voto
+                            </p>
                           </div>
                         </div>
                         <button
@@ -129,7 +163,12 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
                           <CheckCircle2 className="h-5 w-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors flex items-center gap-2">
+                            {iniziativa.emoji && (
+                              <span className="text-2xl" role="img" aria-label="emoji">
+                                {iniziativa.emoji}
+                              </span>
+                            )}
                             {iniziativa.nome}
                           </h3>
                           {iniziativa.descrizione && (
