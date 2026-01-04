@@ -5,36 +5,6 @@ const { pool } = require('../middleware/auth');
 
 const router = express.Router();
 
-// ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
-/**
- * Genera un'emoji automatica basata sul contenuto (per grazia)
- * Analizza nome del carcerato per trovare parole chiave
- */
-function getEmojiAutomaticaGrazia(nome) {
-  if (!nome) return '📋';
-  
-  const testo = nome.toLowerCase();
-  
-  // Mappa di parole chiave -> emoji
-  const emojiMap = [
-    { keywords: ['giustizia', 'legge', 'reato', 'penale'], emoji: '⚖️' },
-    { keywords: ['libertà', 'liberazione', 'rilascio'], emoji: '🔓' },
-    { keywords: ['famiglia', 'figli', 'madre', 'padre'], emoji: '👨‍👩‍👧‍👦' },
-    { keywords: ['salute', 'malattia', 'cure'], emoji: '🏥' },
-    { keywords: ['giovane', 'minore', 'adolescente'], emoji: '👤' },
-    { keywords: ['anziano', 'vecchio'], emoji: '👴' }
-  ];
-  
-  for (const mapping of emojiMap) {
-    if (mapping.keywords.some(keyword => testo.includes(keyword))) {
-      return mapping.emoji;
-    }
-  }
-  
-  // Emoji di default per grazia
-  return '📋';
-}
-
 // POST /api/grazia - Crea richiesta di grazia
 router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
   try {
@@ -104,13 +74,6 @@ router.get('/', async (req, res) => {
     const classificaResult = await pool.query(classificaQuery);
     console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
     
-    // Aggiungi emoji automatiche alla classifica
-    const classificaConEmoji = classificaResult.rows.map(row => ({
-      nome: row.nome,
-      richieste: parseInt(row.richieste) || 0,
-      emoji: getEmojiAutomaticaGrazia(row.nome)
-    }));
-    
     // Recupera i voti dell'utente se autenticato
     let mieiVoti = [];
     if (userId) {
@@ -165,11 +128,8 @@ router.get('/', async (req, res) => {
     
     res.json({
       success: true,
-      classifica: classificaConEmoji,
-      richieste: result.rows.map(row => ({
-        ...row,
-        emoji: getEmojiAutomaticaGrazia(row.nome)
-      })),
+      classifica: classificaResult.rows,
+      richieste: result.rows,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });

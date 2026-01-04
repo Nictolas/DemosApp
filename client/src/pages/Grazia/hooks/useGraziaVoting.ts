@@ -16,7 +16,6 @@ export const useGraziaVoting = (
     nomeInput: "",
     selectedVoti: [],
     showConfirmDialog: false,
-    showAllClassifica: false,
     showForm: false
   });
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -179,13 +178,6 @@ export const useGraziaVoting = (
     });
   };
 
-  const showClassifica = () => {
-    setVotingState(prev => ({
-      ...prev,
-      showAllClassifica: !prev.showAllClassifica
-    }));
-  };
-
   const handleCreateCarcerato = (data: any) => {
     // Qui implementerai la logica per creare un nuovo carcerato
     console.log('Nuovo carcerato:', data);
@@ -210,7 +202,6 @@ export const useGraziaVoting = (
     addNomeLocal,
     removeLocal,
     toggleSelezioneClassifica,
-    showClassifica,
     handleCreateCarcerato,
     // Informazioni sui limiti
     currentVotes,
