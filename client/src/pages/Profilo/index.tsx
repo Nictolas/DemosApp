@@ -61,10 +61,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     setLocation('/modifica-immagine');
   };
 
-  // Gestione modifica siti
-  const handleModificaSiti = () => {
-    setLocation('/siti');
-  };
 
   // Gestione salvataggio profilo
   const handleSaveProfile = async (updatedData: any) => {
@@ -160,7 +156,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 isEditing={isEditing}
                 onEditClick={() => setIsEditing(true)}
                 onModificaImmagine={handleModificaImmagine}
-                onModificaSiti={handleModificaSiti}
                 canEdit={isViewingOwnProfile}
                 avatarConfig={avatarConfig}
               />

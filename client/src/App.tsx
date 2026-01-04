@@ -48,6 +48,7 @@ import Preferiti from "./pages/Preferiti";
 import Candidati from "./pages/Candidati";
 import Attivisti from "./pages/Attivisti";
 import Siti from "./pages/Siti";
+import Social from "./pages/Social";
 import Organizzazioni from "./pages/Organizzazioni";
 import Notifiche from "./pages/Notifiche";
 import NotifichePreferenze from "./pages/NotifichePreferenze";
@@ -563,6 +564,13 @@ export default function App() {
               <Route path="/siti">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/siti" component={Siti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route social */}
+              <Route path="/social">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/social" component={Social} />
                 </PageTransition>
               </Route>
 
