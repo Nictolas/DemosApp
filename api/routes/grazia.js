@@ -5,6 +5,36 @@ const { pool } = require('../middleware/auth');
 
 const router = express.Router();
 
+// ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
+/**
+ * Genera un'emoji automatica basata sul contenuto (per grazia)
+ * Analizza nome del carcerato per trovare parole chiave
+ */
+function getEmojiAutomaticaGrazia(nome) {
+  if (!nome) return '📋';
+  
+  const testo = nome.toLowerCase();
+  
+  // Mappa di parole chiave -> emoji
+  const emojiMap = [
+    { keywords: ['giustizia', 'legge', 'reato', 'penale'], emoji: '⚖️' },
+    { keywords: ['libertà', 'liberazione', 'rilascio'], emoji: '🔓' },
+    { keywords: ['famiglia', 'figli', 'madre', 'padre'], emoji: '👨‍👩‍👧‍👦' },
+    { keywords: ['salute', 'malattia', 'cure'], emoji: '🏥' },
+    { keywords: ['giovane', 'minore', 'adolescente'], emoji: '👤' },
+    { keywords: ['anziano', 'vecchio'], emoji: '👴' }
+  ];
+  
+  for (const mapping of emojiMap) {
+    if (mapping.keywords.some(keyword => testo.includes(keyword))) {
+      return mapping.emoji;
+    }
+  }
+  
+  // Emoji di default per grazia
+  return '📋';
+}
+
 // POST /api/grazia - Crea richiesta di grazia
 router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
   try {
@@ -52,27 +82,34 @@ router.get('/', async (req, res) => {
     }
     
     // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
+    // Rimosso LIMIT per mostrare tutti i risultati (rimosso "Mostra Altro")
     const query = `
       SELECT *
       FROM voti_grazia
       ORDER BY created_at DESC
-      LIMIT 10
     `;
     
     const result = await pool.query(query);
     console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
     
-    // Creiamo una classifica Top 10 basata sul numero di voti per carcerato
+    // Creiamo una classifica basata sul numero di voti per carcerato
+    // Rimosso LIMIT per mostrare tutti i risultati (rimosso "Mostra Altro")
     const classificaQuery = `
       SELECT nome, COUNT(*) as richieste
       FROM voti_grazia
       GROUP BY nome
       ORDER BY richieste DESC
-      LIMIT 10
     `;
     
     const classificaResult = await pool.query(classificaQuery);
     console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
+    
+    // Aggiungi emoji automatiche alla classifica
+    const classificaConEmoji = classificaResult.rows.map(row => ({
+      nome: row.nome,
+      richieste: parseInt(row.richieste) || 0,
+      emoji: getEmojiAutomaticaGrazia(row.nome)
+    }));
     
     // Recupera i voti dell'utente se autenticato
     let mieiVoti = [];
@@ -128,8 +165,11 @@ router.get('/', async (req, res) => {
     
     res.json({
       success: true,
-      classifica: classificaResult.rows,
-      richieste: result.rows,
+      classifica: classificaConEmoji,
+      richieste: result.rows.map(row => ({
+        ...row,
+        emoji: getEmojiAutomaticaGrazia(row.nome)
+      })),
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });

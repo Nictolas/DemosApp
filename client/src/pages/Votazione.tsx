@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, ChevronDown } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -198,8 +198,6 @@ const Votazione = React.memo(function Votazione() {
     { id: "1", nome: "", voto: "Favorevole" }
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
-
-  const [isComunicaVotiOpen, setIsComunicaVotiOpen] = useState(false);
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
@@ -575,70 +573,30 @@ const Votazione = React.memo(function Votazione() {
         {isAdmin ? (
           // Admin vede solo le sezioni Istituzione
           <div className="space-y-4">
-              {/* Sezione Comunica Voti (collassabile) */}
-              <Card className="w-full bg-white">
-                <CardHeader 
-                  className="flex flex-row items-center justify-between cursor-pointer"
-                  onClick={() => setIsComunicaVotiOpen(prev => !prev)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Calculator className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-lg font-semibold">
-                      Comunica Voti
-                    </CardTitle>
-                  </div>
-                  <ChevronDown
-                    className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
-                  />
-                </CardHeader>
-                {isComunicaVotiOpen && (
-                  <CardContent className="pt-0 pb-6">
-                    <ComunicaVotiCard 
-                      titoloVotazione={titoloVotazione}
-                      setTitoloVotazione={setTitoloVotazione}
-                      votiEntries={votiEntries}
-                      addVotoEntry={addVotoEntry}
-                      updateVotoEntry={updateVotoEntry}
-                      removeVotoEntry={removeVotoEntry}
-                      submitComunicaVoti={submitComunicaVoti}
-                    />
-                  </CardContent>
-                )}
-              </Card>
+              {/* Sezione Comunica Voti */}
+              <ComunicaVotiCard 
+                titoloVotazione={titoloVotazione}
+                setTitoloVotazione={setTitoloVotazione}
+                votiEntries={votiEntries}
+                addVotoEntry={addVotoEntry}
+                updateVotoEntry={updateVotoEntry}
+                removeVotoEntry={removeVotoEntry}
+                submitComunicaVoti={submitComunicaVoti}
+              />
           </div>
         ) : (
           // Altri utenti vedono solo i riquadri che possono usare
           <div className="space-y-6">
             {canComunicaVoti && (
-                <Card className="w-full bg-white">
-                  <CardHeader 
-                    className="flex flex-row items-center justify-between cursor-pointer"
-                    onClick={() => setIsComunicaVotiOpen(prev => !prev)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Calculator className="h-5 w-5 text-blue-600" />
-                      <CardTitle className="text-lg font-semibold">
-                        Comunica Voti
-                      </CardTitle>
-                    </div>
-                    <ChevronDown
-                      className={`h-5 w-5 text-gray-500 transition-transform ${isComunicaVotiOpen ? "rotate-180" : ""}`}
-                    />
-                  </CardHeader>
-                  {isComunicaVotiOpen && (
-                    <CardContent className="pt-0 pb-6">
-                      <ComunicaVotiCard 
-                        titoloVotazione={titoloVotazione}
-                        setTitoloVotazione={setTitoloVotazione}
-                        votiEntries={votiEntries}
-                        addVotoEntry={addVotoEntry}
-                        updateVotoEntry={updateVotoEntry}
-                        removeVotoEntry={removeVotoEntry}
-                        submitComunicaVoti={submitComunicaVoti}
-                      />
-                    </CardContent>
-                  )}
-                </Card>
+              <ComunicaVotiCard 
+                titoloVotazione={titoloVotazione}
+                setTitoloVotazione={setTitoloVotazione}
+                votiEntries={votiEntries}
+                addVotoEntry={addVotoEntry}
+                updateVotoEntry={updateVotoEntry}
+                removeVotoEntry={removeVotoEntry}
+                submitComunicaVoti={submitComunicaVoti}
+              />
             )}
           </div>
         )}

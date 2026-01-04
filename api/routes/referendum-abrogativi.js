@@ -11,6 +11,61 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
+/**
+ * Genera un'emoji automatica basata sul contenuto del referendum
+ * Analizza titolo e descrizione per trovare parole chiave
+ */
+function getEmojiAutomaticaReferendum(referendum) {
+  const testo = `${referendum.nome || ''} ${referendum.titolo || ''} ${referendum.descrizione || ''} ${referendum.quesito || ''}`.toLowerCase();
+  
+  // Mappa di parole chiave -> emoji (in ordine di priorità)
+  const emojiMap = [
+    // Educazione e scuola
+    { keywords: ['educazione', 'scuola', 'istruzione', 'studenti', 'docenti', 'curriculum', 'materia'], emoji: '📚' },
+    // Ambiente e clima
+    { keywords: ['ambiente', 'clima', 'energia', 'rinnovabile', 'sostenibilità', 'ecologia', 'inquinamento'], emoji: '🌱' },
+    // Sanità e salute
+    { keywords: ['sanità', 'salute', 'ospedale', 'cure', 'medico', 'farmaco', 'igiene'], emoji: '🏥' },
+    // Diritti e uguaglianza
+    { keywords: ['diritti', 'uguaglianza', 'discriminazione', 'parità', 'genere', 'lgbt', 'matrimonio'], emoji: '🤝' },
+    // Lavoro ed economia
+    { keywords: ['lavoro', 'economia', 'iva', 'tasse', 'fiscale', 'occupazione', 'salario'], emoji: '💼' },
+    // Giustizia e legalità
+    { keywords: ['giustizia', 'legge', 'penale', 'carcere', 'reato', 'criminale', 'abrogativo'], emoji: '⚖️' },
+    // Cultura e arte
+    { keywords: ['cultura', 'arte', 'patrimonio', 'museo', 'teatro'], emoji: '🎭' },
+    // Trasporti e mobilità
+    { keywords: ['trasporti', 'mobilità', 'auto', 'strada', 'traffico'], emoji: '🚗' },
+    // Tecnologia e digitale
+    { keywords: ['tecnologia', 'digitale', 'internet', 'informatica', 'software'], emoji: '💻' },
+    // Famiglia e sociale
+    { keywords: ['famiglia', 'bambini', 'infanzia', 'maternità'], emoji: '👨‍👩‍👧‍👦' },
+    // Animali
+    { keywords: ['animali', 'cane', 'gatto', 'pet', 'sperimentazione animale'], emoji: '🐕' },
+    // Sport
+    { keywords: ['sport', 'calcio', 'atletica', 'olimpico'], emoji: '⚽' },
+    // Cibo e agricoltura
+    { keywords: ['cibo', 'agricoltura', 'alimentare', 'produzione'], emoji: '🌾' },
+    // Casa e abitazione
+    { keywords: ['casa', 'abitazione', 'edilizia', 'alloggio'], emoji: '🏠' },
+    // Sicurezza
+    { keywords: ['sicurezza', 'polizia', 'protezione', 'difesa'], emoji: '🛡️' },
+    // Democrazia e politica
+    { keywords: ['democrazia', 'politica', 'elezioni', 'voto', 'referendum'], emoji: '🗳️' }
+  ];
+  
+  // Cerca la prima corrispondenza
+  for (const mapping of emojiMap) {
+    if (mapping.keywords.some(keyword => testo.includes(keyword))) {
+      return mapping.emoji;
+    }
+  }
+  
+  // Emoji di default per referendum
+  return '🗳️';
+}
+
 // ===== ENDPOINTS PER REFERENDUM ABROGATIVI =====
 
 // GET /api/referendum-abrogativi - Lista referendum abrogativi (come ICE)
@@ -520,8 +575,17 @@ router.get('/', async (req, res) => {
       return acc;
     }, []);
     
-    const normalizedData = uniqueNormalized;
+    let normalizedData = uniqueNormalized;
     console.log(`✅ Totale referendum normalizzati: ${normalizedData.length} (${normalizedMinistero.length} da ministero, ${normalizedReferendum.length} da referendum_abrogativi)`);
+    
+    // Aggiungi emoji automatiche a tutti i referendum
+    normalizedData = normalizedData.map(referendum => {
+      const emoji = getEmojiAutomaticaReferendum(referendum);
+      return {
+        ...referendum,
+        emoji: emoji
+      };
+    });
 
     // Genera la classifica basata sui voti da ENTRAMBE le tabelle
     let classifica = [];
@@ -626,11 +690,21 @@ router.get('/', async (req, res) => {
           });
         }
         
-        classifica = classificaResult.rows.map(row => ({
-          nome: row.nome,
-          sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
-          voti: parseInt(row.voti) || 0
-        }));
+        classifica = classificaResult.rows.map(row => {
+          // Trova il referendum corrispondente per ottenere l'emoji
+          const referendum = normalizedData.find(r => 
+            r.nome === row.nome || 
+            r.titolo === row.nome ||
+            (r.sitoWeb && (r.sitoWeb === row.sitoweb || r.sitoWeb === row.sito_web))
+          );
+          
+          return {
+            nome: row.nome,
+            sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
+            voti: parseInt(row.voti) || 0,
+            emoji: referendum?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome })
+          };
+        });
         console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica);
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);

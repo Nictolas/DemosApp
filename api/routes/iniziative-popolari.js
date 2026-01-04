@@ -11,6 +11,63 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
+/**
+ * Genera un'emoji automatica basata sul contenuto dell'iniziativa
+ * Analizza titolo e descrizione per trovare parole chiave
+ */
+function getEmojiAutomatica(iniziativa) {
+  const testo = `${iniziativa.nome || ''} ${iniziativa.titolo || ''} ${iniziativa.descrizione || ''}`.toLowerCase();
+  
+  // Mappa di parole chiave -> emoji (in ordine di priorità)
+  const emojiMap = [
+    // Educazione e scuola
+    { keywords: ['educazione', 'scuola', 'istruzione', 'studenti', 'docenti', 'curriculum', 'materia'], emoji: '📚' },
+    // Ambiente e clima
+    { keywords: ['ambiente', 'clima', 'energia', 'rinnovabile', 'sostenibilità', 'ecologia', 'inquinamento'], emoji: '🌱' },
+    // Sanità e salute
+    { keywords: ['sanità', 'salute', 'ospedale', 'cure', 'medico', 'farmaco', 'igiene', 'femminile'], emoji: '🏥' },
+    // Diritti e uguaglianza
+    { keywords: ['diritti', 'uguaglianza', 'discriminazione', 'parità', 'genere', 'lgbt', 'matrimonio'], emoji: '🤝' },
+    // Lavoro ed economia
+    { keywords: ['lavoro', 'economia', 'iva', 'tasse', 'fiscale', 'occupazione', 'salario'], emoji: '💼' },
+    // Nucleare ed energia
+    { keywords: ['nucleare', 'energia nucleare', 'reattore', 'fissione'], emoji: '⚛️' },
+    // Giustizia e legalità
+    { keywords: ['giustizia', 'legge', 'penale', 'carcere', 'reato', 'criminale'], emoji: '⚖️' },
+    // Cultura e arte
+    { keywords: ['cultura', 'arte', 'patrimonio', 'museo', 'teatro'], emoji: '🎭' },
+    // Trasporti e mobilità
+    { keywords: ['trasporti', 'mobilità', 'auto', 'strada', 'traffico'], emoji: '🚗' },
+    // Tecnologia e digitale
+    { keywords: ['tecnologia', 'digitale', 'internet', 'informatica', 'software'], emoji: '💻' },
+    // Famiglia e sociale
+    { keywords: ['famiglia', 'bambini', 'infanzia', 'prima infanzia', 'maternità'], emoji: '👨‍👩‍👧‍👦' },
+    // Animali
+    { keywords: ['animali', 'cane', 'gatto', 'pet', 'sperimentazione animale'], emoji: '🐕' },
+    // Sport
+    { keywords: ['sport', 'calcio', 'atletica', 'olimpico'], emoji: '⚽' },
+    // Cibo e agricoltura
+    { keywords: ['cibo', 'agricoltura', 'alimentare', 'produzione'], emoji: '🌾' },
+    // Casa e abitazione
+    { keywords: ['casa', 'abitazione', 'edilizia', 'alloggio'], emoji: '🏠' },
+    // Sicurezza
+    { keywords: ['sicurezza', 'polizia', 'protezione', 'difesa'], emoji: '🛡️' },
+    // Democrazia e politica
+    { keywords: ['democrazia', 'politica', 'elezioni', 'voto', 'referendum'], emoji: '🗳️' }
+  ];
+  
+  // Cerca la prima corrispondenza
+  for (const mapping of emojiMap) {
+    if (mapping.keywords.some(keyword => testo.includes(keyword))) {
+      return mapping.emoji;
+    }
+  }
+  
+  // Emoji di default per iniziative popolari
+  return '📋';
+}
+
 // ===== ENDPOINTS PER INIZIATIVE POPOLARI =====
 
 // GET /api/iniziative-popolari - Lista iniziative popolari (come ICE)
@@ -259,32 +316,45 @@ router.get('/', async (req, res) => {
         const debugResult = await pool.query(debugQuery);
         console.log(`🔍 DEBUG: Voti totali nel DB (primi 10):`, debugResult.rows.map(r => ({ userid: r.userid, iniziativa_id: r.iniziativa_id })));
         
-        // Query per recuperare i voti dell'utente
-        // Usa DISTINCT ON per ottenere solo l'ultimo voto per utente (se ci sono duplicati)
-        // e LIMIT 1 per rispettare il limite di 1 voto per utente
-        const userVotiQuery = `
-          SELECT DISTINCT ON (userid) iniziativa_id 
-          FROM voti_iniziative_popolari 
-          WHERE userid::text = $1 OR userid = $1::uuid
-          ORDER BY userid, timestamp DESC, created_at DESC
-          LIMIT 1
-        `;
-        const userVotiResult = await pool.query(userVotiQuery, [userId]);
-        console.log(`🔍 DEBUG: Query risultato per userId ${userId}:`, userVotiResult.rows);
+        // Query semplificata e più robusta per recuperare i voti dell'utente
+        // Prova prima come UUID, poi come text se non trova risultati
+        let userVotiResult = null;
         
-        // Se non trova voti, prova solo come UUID
-        if (userVotiResult.rows.length === 0) {
+        // Prova come UUID
+        try {
           const userVotiQueryUUID = `
-            SELECT iniziativa_id FROM voti_iniziative_popolari 
+            SELECT iniziativa_id 
+            FROM voti_iniziative_popolari 
             WHERE userid = $1::uuid
             ORDER BY timestamp DESC, created_at DESC
             LIMIT 1
           `;
-          const userVotiResultUUID = await pool.query(userVotiQueryUUID, [userId]);
-          console.log(`🔍 DEBUG: Query solo UUID per userId ${userId}:`, userVotiResultUUID.rows);
-          mieiVoti = userVotiResultUUID.rows.map(v => v.iniziativa_id);
-        } else {
-          mieiVoti = userVotiResult.rows.map(v => v.iniziativa_id);
+          userVotiResult = await pool.query(userVotiQueryUUID, [userId]);
+          console.log(`🔍 DEBUG: Query UUID risultato per userId ${userId}:`, userVotiResult.rows);
+        } catch (uuidError) {
+          console.log(`⚠️ DEBUG: Errore query UUID, provo come text:`, uuidError.message);
+        }
+        
+        // Se non trova voti come UUID, prova come text
+        if (!userVotiResult || userVotiResult.rows.length === 0) {
+          const userVotiQueryText = `
+            SELECT iniziativa_id 
+            FROM voti_iniziative_popolari 
+            WHERE userid::text = $1
+            ORDER BY timestamp DESC, created_at DESC
+            LIMIT 1
+          `;
+          userVotiResult = await pool.query(userVotiQueryText, [userId]);
+          console.log(`🔍 DEBUG: Query text risultato per userId ${userId}:`, userVotiResult.rows);
+        }
+        
+        // Estrai gli ID delle iniziative
+        if (userVotiResult && userVotiResult.rows.length > 0) {
+          mieiVoti = userVotiResult.rows.map(v => {
+            // Assicurati che l'ID sia una stringa
+            const id = v.iniziativa_id;
+            return id ? String(id) : null;
+          }).filter(id => id !== null);
         }
         
         // Limita a massimo 1 voto (per sicurezza)
@@ -294,6 +364,7 @@ router.get('/', async (req, res) => {
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
         console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione:', authError.message);
+        console.log('⚠️ Stack trace:', authError.stack);
       }
     }
     
@@ -342,8 +413,49 @@ router.get('/', async (req, res) => {
       return acc;
     }, []);
     
-    const normalizedData = uniqueNormalized;
+    let normalizedData = uniqueNormalized;
     console.log(`✅ Totale iniziative normalizzate: ${normalizedData.length} (${normalizedMinistero.length} da ministero, ${normalizedPopolari.length} da popolari)`);
+    
+    // Aggiungi emoji automatiche a tutte le iniziative
+    normalizedData = normalizedData.map(iniziativa => {
+      const emoji = getEmojiAutomatica(iniziativa);
+      return {
+        ...iniziativa,
+        emoji: emoji
+      };
+    });
+    
+    // Normalizza gli ID in mieiVoti per assicurarsi che corrispondano agli ID delle iniziative normalizzate
+    // Questo gestisce il caso in cui gli ID nel database hanno un formato diverso (con/senza trattini)
+    if (mieiVoti.length > 0 && normalizedData.length > 0) {
+      const normalizedIds = normalizedData.map(i => String(i.id));
+      
+      mieiVoti = mieiVoti.map(votoId => {
+        const votoIdStr = String(votoId);
+        const votoIdNoDashes = votoIdStr.replace(/-/g, '');
+        
+        // Cerca corrispondenza esatta
+        if (normalizedIds.includes(votoIdStr)) {
+          return votoIdStr;
+        }
+        
+        // Cerca corrispondenza senza trattini
+        const match = normalizedIds.find(id => {
+          return id.replace(/-/g, '') === votoIdNoDashes;
+        });
+        
+        if (match) {
+          console.log(`🔍 DEBUG: ID normalizzato da ${votoIdStr} a ${match}`);
+          return match;
+        }
+        
+        // Se non trova corrispondenza, mantieni l'ID originale
+        console.log(`⚠️ DEBUG: Nessuna corrispondenza trovata per votoId ${votoIdStr} nelle iniziative normalizzate`);
+        return votoIdStr;
+      });
+      
+      console.log(`✅ mieiVoti dopo normalizzazione:`, mieiVoti);
+    }
 
     // Genera la classifica basata sui voti da ENTRAMBE le tabelle
     let classifica = [];
@@ -403,11 +515,21 @@ router.get('/', async (req, res) => {
         const classificaResult = await pool.query(classificaQuery, params);
         console.log('🔍 DEBUG - Risultati classifica raw:', classificaResult.rows);
         
-        classifica = classificaResult.rows.map(row => ({
-          nome: row.nome,
-          sitoWeb: row.sitoweb || row.sito_web || row.sitoweb,
-          voti: parseInt(row.voti) || 0
-        }));
+        classifica = classificaResult.rows.map(row => {
+          // Trova l'iniziativa corrispondente per ottenere l'emoji
+          const iniziativa = normalizedData.find(i => 
+            i.nome === row.nome || 
+            i.titolo === row.nome ||
+            (i.sitoWeb && (i.sitoWeb === row.sitoweb || i.sitoWeb === row.sito_web))
+          );
+          
+          return {
+            nome: row.nome,
+            sitoWeb: row.sitoweb || row.sito_web || row.sitoweb,
+            voti: parseInt(row.voti) || 0,
+            emoji: iniziativa?.emoji || getEmojiAutomatica({ nome: row.nome })
+          };
+        });
         console.log(`✅ Generata classifica con ${classifica.length} iniziative (da entrambe le tabelle):`, classifica);
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
@@ -496,6 +618,22 @@ router.get('/', async (req, res) => {
     console.log(`🔍 classifica.length = ${classifica.length}`);
     console.log(`🔍 filteredRows.length = ${filteredRows.length}`);
     console.log(`🔍 result.rows.length = ${result.rows.length}`);
+    console.log(`🔍 mieiVoti.length = ${mieiVoti.length}`);
+    console.log(`🔍 mieiVoti =`, mieiVoti);
+    if (normalizedData.length > 0 && mieiVoti.length > 0) {
+      console.log(`🔍 Verifica corrispondenza ID:`);
+      normalizedData.forEach(i => {
+        const match = mieiVoti.some(votoId => {
+          // Confronta con e senza trattini
+          const votoIdNormalized = String(votoId).replace(/-/g, '');
+          const iniziativaIdNormalized = String(i.id).replace(/-/g, '');
+          return votoIdNormalized === iniziativaIdNormalized || String(votoId) === String(i.id);
+        });
+        if (match) {
+          console.log(`   ✅ Trovata corrispondenza: votoId=${mieiVoti.find(v => String(v).replace(/-/g, '') === String(i.id).replace(/-/g, ''))}, iniziativaId=${i.id}`);
+        }
+      });
+    }
     
     if (normalizedData.length > 0) {
       console.log(`✅ ========== INIZIATIVE NORMALIZZATE ==========`);
