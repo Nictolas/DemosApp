@@ -7,12 +7,14 @@ export interface Iniziativa {
   firme?: number;
   dataInizio?: string;
   dataFine?: string;
+  emoji?: string;
 }
 
 export interface Classifica {
   nome: string;
   sitoWeb?: string;
   voti: number;
+  emoji?: string;
 }
 
 export interface IniziativePopolariData {
