@@ -156,13 +156,14 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
         .filter(r => r.quorum !== 'proposta')
         .map(ref => ({
           nome: ref.nome,
+          emoji: ref.emoji,
           voti: 0
         }));
       
       // Applica i cambiamenti locali anche qui
-      const classificaMap = new Map<string, number>();
+      const classificaMap = new Map<string, { voti: number; emoji?: string }>();
       referendumUfficiali.forEach(item => {
-        classificaMap.set(item.nome, item.voti);
+        classificaMap.set(item.nome, { voti: item.voti, emoji: item.emoji });
       });
 
       // Trova i referendum aggiunti (in selectedVoti ma non in mieiVoti)
@@ -175,8 +176,11 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
       referendumAggiunti.forEach(id => {
         const referendum = data.referendum.find(r => r.id === id);
         if (referendum) {
-          const current = classificaMap.get(referendum.nome) || 0;
-          classificaMap.set(referendum.nome, current + 1);
+          const current = classificaMap.get(referendum.nome) || { voti: 0, emoji: referendum.emoji };
+          classificaMap.set(referendum.nome, {
+            voti: current.voti + 1,
+            emoji: current.emoji || referendum.emoji
+          });
         }
       });
 
@@ -184,14 +188,18 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
       referendumRimossi.forEach(id => {
         const referendum = data.referendum.find(r => r.id === id);
         if (referendum) {
-          const current = classificaMap.get(referendum.nome) || 0;
-          classificaMap.set(referendum.nome, Math.max(0, current - 1));
+          const current = classificaMap.get(referendum.nome) || { voti: 0, emoji: referendum.emoji };
+          classificaMap.set(referendum.nome, {
+            voti: Math.max(0, current.voti - 1),
+            emoji: current.emoji || referendum.emoji
+          });
         }
       });
 
       return Array.from(classificaMap.entries())
-        .map(([nome, voti]) => ({
+        .map(([nome, { voti, emoji }]) => ({
           nome,
+          emoji,
           voti
         }))
         .sort((a, b) => {
@@ -202,10 +210,10 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
         });
     }
 
-    // Crea una mappa della classifica originale (nome -> voti)
-    const classificaMap = new Map<string, number>();
+    // Crea una mappa della classifica originale (nome -> {voti, emoji})
+    const classificaMap = new Map<string, { voti: number; emoji?: string }>();
     data.classifica.forEach(item => {
-      classificaMap.set(item.nome, item.voti);
+      classificaMap.set(item.nome, { voti: item.voti, emoji: item.emoji });
     });
 
     // Aggiungi anche tutti i referendum ufficiali (quorum != 'proposta') che potrebbero non essere in classifica
@@ -213,7 +221,7 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
       .filter(r => r.quorum !== 'proposta')
       .forEach(ref => {
         if (!classificaMap.has(ref.nome)) {
-          classificaMap.set(ref.nome, 0);
+          classificaMap.set(ref.nome, { voti: 0, emoji: ref.emoji });
         }
       });
 
@@ -227,8 +235,11 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
     referendumAggiunti.forEach(id => {
       const referendum = data.referendum.find(r => r.id === id);
       if (referendum) {
-        const current = classificaMap.get(referendum.nome) || 0;
-        classificaMap.set(referendum.nome, current + 1);
+        const current = classificaMap.get(referendum.nome) || { voti: 0, emoji: referendum.emoji };
+        classificaMap.set(referendum.nome, {
+          voti: current.voti + 1,
+          emoji: current.emoji || referendum.emoji
+        });
       }
     });
 
@@ -236,15 +247,19 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
     referendumRimossi.forEach(id => {
       const referendum = data.referendum.find(r => r.id === id);
       if (referendum) {
-        const current = classificaMap.get(referendum.nome) || 0;
-        classificaMap.set(referendum.nome, Math.max(0, current - 1));
+        const current = classificaMap.get(referendum.nome) || { voti: 0, emoji: referendum.emoji };
+        classificaMap.set(referendum.nome, {
+          voti: Math.max(0, current.voti - 1),
+          emoji: current.emoji || referendum.emoji
+        });
       }
     });
 
     // Converti la mappa in array - MOSTRA TUTTI i referendum ufficiali, anche con 0 voti
     const classificaAggiornata: Classifica[] = Array.from(classificaMap.entries())
-      .map(([nome, voti]) => ({
+      .map(([nome, { voti, emoji }]) => ({
         nome,
+        emoji,
         voti
       }))
       .sort((a, b) => {
