@@ -177,13 +177,14 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
         .map(iniziativa => ({
           nome: iniziativa.nome,
           sitoWeb: iniziativa.sitoWeb,
+          emoji: iniziativa.emoji,
           voti: 0
         }));
       
       // Applica i cambiamenti locali anche qui
-      const classificaMap = new Map<string, { voti: number; sitoWeb?: string }>();
+      const classificaMap = new Map<string, { voti: number; sitoWeb?: string; emoji?: string }>();
       iniziativeUfficiali.forEach(item => {
-        classificaMap.set(item.nome, { voti: item.voti, sitoWeb: item.sitoWeb });
+        classificaMap.set(item.nome, { voti: item.voti, sitoWeb: item.sitoWeb, emoji: item.emoji });
       });
 
       // Trova le iniziative aggiunte (in selectedVoti ma non in mieiVoti)
@@ -196,10 +197,11 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       iniziativeAggiunte.forEach(id => {
         const iniziativa = data.iniziative.find(i => i.id === id);
         if (iniziativa) {
-          const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+          const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb, emoji: iniziativa.emoji };
           classificaMap.set(iniziativa.nome, {
             voti: current.voti + 1,
-            sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+            sitoWeb: current.sitoWeb || iniziativa.sitoWeb,
+            emoji: current.emoji || iniziativa.emoji
           });
         }
       });
@@ -208,18 +210,20 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       iniziativeRimosse.forEach(id => {
         const iniziativa = data.iniziative.find(i => i.id === id);
         if (iniziativa) {
-          const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+          const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb, emoji: iniziativa.emoji };
           classificaMap.set(iniziativa.nome, {
             voti: Math.max(0, current.voti - 1),
-            sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+            sitoWeb: current.sitoWeb || iniziativa.sitoWeb,
+            emoji: current.emoji || iniziativa.emoji
           });
         }
       });
 
       return Array.from(classificaMap.entries())
-        .map(([nome, { voti, sitoWeb }]) => ({
+        .map(([nome, { voti, sitoWeb, emoji }]) => ({
           nome,
           sitoWeb,
+          emoji,
           voti
         }))
         .sort((a, b) => {
@@ -230,10 +234,10 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
         });
     }
 
-    // Crea una mappa della classifica originale (nome -> {voti, sitoWeb})
-    const classificaMap = new Map<string, { voti: number; sitoWeb?: string }>();
+    // Crea una mappa della classifica originale (nome -> {voti, sitoWeb, emoji})
+    const classificaMap = new Map<string, { voti: number; sitoWeb?: string; emoji?: string }>();
     data.classifica.forEach(item => {
-      classificaMap.set(item.nome, { voti: item.voti, sitoWeb: item.sitoWeb });
+      classificaMap.set(item.nome, { voti: item.voti, sitoWeb: item.sitoWeb, emoji: item.emoji });
     });
 
     // Aggiungi anche tutte le iniziative ufficiali (quorum != 'proposta') che potrebbero non essere in classifica
@@ -241,7 +245,7 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       .filter(i => i.quorum !== 'proposta')
       .forEach(iniziativa => {
         if (!classificaMap.has(iniziativa.nome)) {
-          classificaMap.set(iniziativa.nome, { voti: 0, sitoWeb: iniziativa.sitoWeb });
+          classificaMap.set(iniziativa.nome, { voti: 0, sitoWeb: iniziativa.sitoWeb, emoji: iniziativa.emoji });
         }
       });
 
@@ -255,10 +259,11 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     iniziativeAggiunte.forEach(id => {
       const iniziativa = data.iniziative.find(i => i.id === id);
       if (iniziativa) {
-        const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+        const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb, emoji: iniziativa.emoji };
         classificaMap.set(iniziativa.nome, {
           voti: current.voti + 1,
-          sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+          sitoWeb: current.sitoWeb || iniziativa.sitoWeb,
+          emoji: current.emoji || iniziativa.emoji
         });
       }
     });
@@ -267,19 +272,21 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     iniziativeRimosse.forEach(id => {
       const iniziativa = data.iniziative.find(i => i.id === id);
       if (iniziativa) {
-        const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+        const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb, emoji: iniziativa.emoji };
         classificaMap.set(iniziativa.nome, {
           voti: Math.max(0, current.voti - 1),
-          sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+          sitoWeb: current.sitoWeb || iniziativa.sitoWeb,
+          emoji: current.emoji || iniziativa.emoji
         });
       }
     });
 
     // Converti la mappa in array - MOSTRA TUTTE le iniziative ufficiali, anche con 0 voti
     const classificaAggiornata: Classifica[] = Array.from(classificaMap.entries())
-      .map(([nome, { voti, sitoWeb }]) => ({
+      .map(([nome, { voti, sitoWeb, emoji }]) => ({
         nome,
         sitoWeb,
+        emoji,
         voti
       }))
       .sort((a, b) => {
