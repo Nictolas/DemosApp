@@ -28,3 +28,4 @@ WHERE NOT EXISTS (
 -- Alternativa: Se vuoi solo aggiungere la legge senza un voto specifico,
 -- il comando sopra per amnistia è sufficiente.
 
+

@@ -603,6 +603,7 @@ router.get('/', async (req, res) => {
 
     // Genera la classifica basata sui voti da ENTRAMBE le tabelle
     let classifica = [];
+    console.log(`🔍 DEBUG CLASSIFICA: normalizedData.length = ${normalizedData.length}, votaOnly = ${votaOnly}`);
     if (normalizedData.length > 0) {
       try {
         // Costruisci la query di classifica con UNION per includere entrambe le tabelle
@@ -658,8 +659,12 @@ router.get('/', async (req, res) => {
         `;
         
         console.log('🔍 DEBUG - Esecuzione query classifica referendum (con UNION)');
+        console.log('🔍 DEBUG - Query classifica:', classificaQuery.substring(0, 500));
+        console.log('🔍 DEBUG - quorumFilterMinistero:', quorumFilterMinistero);
+        console.log('🔍 DEBUG - quorumFilterReferendum:', quorumFilterReferendum);
         const classificaResult = await pool.query(classificaQuery);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
+        console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
         
         // Debug: verifica tutti i voti nel database
         const debugVotiQuery = 'SELECT referendum_id, COUNT(*) as count FROM voti_referendum_abrogativi GROUP BY referendum_id';
@@ -744,8 +749,17 @@ router.get('/', async (req, res) => {
         const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
         if (classificaSenzaEmoji.length > 0) {
           console.warn(`⚠️ ATTENZIONE: ${classificaSenzaEmoji.length} referendum nella classifica senza emoji:`, classificaSenzaEmoji.map(c => c.nome));
-        } else {
+        } else if (classifica.length > 0) {
           console.log(`✅ Tutti i ${classifica.length} referendum nella classifica hanno un'emoji`);
+        }
+        
+        // Debug: verifica se la classifica è vuota e perché
+        if (classifica.length === 0 && classificaResult.rows.length === 0) {
+          console.warn(`⚠️ ATTENZIONE: La query della classifica non ha restituito risultati!`);
+          console.warn(`⚠️ Verifica i filtri: quorumFilterMinistero = "${quorumFilterMinistero}", quorumFilterReferendum = "${quorumFilterReferendum}"`);
+          console.warn(`⚠️ normalizedData contiene ${normalizedData.length} referendum, ma la query della classifica non trova risultati`);
+        } else if (classifica.length === 0 && classificaResult.rows.length > 0) {
+          console.warn(`⚠️ ATTENZIONE: La query ha restituito ${classificaResult.rows.length} risultati, ma la classifica è vuota dopo il mapping!`);
         }
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
@@ -1261,21 +1275,58 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Limita a massimo 1 voto come da limite configurato
     const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
     
-    // Verifica che gli ID dei referendum esistano nella nuova tabella
+    // Verifica che gli ID dei referendum esistano in ENTRAMBE le tabelle
     if (votiDaSalvare.length > 0) {
-      // Per votare, il referendum deve avere quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 500000
-      const referendumCheckQuery = `SELECT id FROM iniziative_ministero WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 500000 AND id = ANY($1)`;
-      const referendumCheckResult = await client.query(referendumCheckQuery, [votiDaSalvare]);
-      console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati nel DB:', referendumCheckResult.rows.map(r => r.id));
+      // Per votare, il referendum deve:
+      // - Da iniziative_ministero: quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 500000
+      // - Da referendum_abrogativi: quorum_raggiunto = TRUE
+      // Verifica prima in iniziative_ministero
+      const referendumCheckQueryMinistero = `
+        SELECT id::text as id FROM iniziative_ministero 
+        WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') 
+          AND id_ministero IS NOT NULL 
+          AND quorum_raggiunto = true 
+          AND stato = 'conclusa' 
+          AND firme_raccolte >= 500000 
+          AND (id::text = ANY($1) OR REPLACE(id::text, '-', '') = ANY(SELECT REPLACE(unnest($1::text[]), '-', '')))
+      `;
+      const referendumCheckResultMinistero = await client.query(referendumCheckQueryMinistero, [votiDaSalvare]);
+      
+      // Verifica poi in referendum_abrogativi
+      const referendumCheckQueryAbrogativi = `
+        SELECT id::text as id FROM referendum_abrogativi 
+        WHERE quorum_raggiunto = true 
+          AND (id::text = ANY($1) OR REPLACE(id::text, '-', '') = ANY(SELECT REPLACE(unnest($1::text[]), '-', '')))
+      `;
+      const referendumCheckResultAbrogativi = await client.query(referendumCheckQueryAbrogativi, [votiDaSalvare]);
+      
+      // Combina i risultati
+      const allFoundIds = [
+        ...referendumCheckResultMinistero.rows.map(r => r.id),
+        ...referendumCheckResultAbrogativi.rows.map(r => r.id)
+      ];
+      
+      console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati in iniziative_ministero:', referendumCheckResultMinistero.rows.map(r => r.id));
+      console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum trovati in referendum_abrogativi:', referendumCheckResultAbrogativi.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Referendum richiesti:', votiDaSalvare);
       
-      // Verifica che tutti gli ID dei referendum esistano
-      if (referendumCheckResult.rows.length !== votiDaSalvare.length) {
-        const missingIds = votiDaSalvare.filter(id => !referendumCheckResult.rows.some(row => row.id.toString() === id.toString()));
+      // Verifica che tutti gli ID dei referendum esistano (con matching flessibile)
+      const missingIds = votiDaSalvare.filter(id => {
+        const idString = String(id);
+        const idNoDash = idString.replace(/-/g, '');
+        return !allFoundIds.some(foundId => {
+          const foundIdString = String(foundId);
+          const foundIdNoDash = foundIdString.replace(/-/g, '');
+          return foundIdString === idString || foundIdNoDash === idNoDash || foundIdString === idNoDash || foundIdNoDash === idString;
+        });
+      });
+      
+      if (missingIds.length > 0) {
         console.error('❌ DEBUG /api/referendum-abrogativi/vota - ID referendum non trovati:', missingIds);
+        console.error('❌ DEBUG /api/referendum-abrogativi/vota - ID trovati:', allFoundIds);
         return res.status(400).json({
           success: false,
-          error: `Alcuni referendum non esistono: ${missingIds.join(', ')}`
+          error: `Alcuni referendum non esistono o non rispettano i criteri: ${missingIds.join(', ')}`
         });
       }
     }
@@ -1315,14 +1366,36 @@ router.post('/vota', verifyToken, async (req, res) => {
 
         // Inserisce il voto - referendum_id è TEXT, quindi lo convertiamo a stringa
         const referendumIdString = String(referendumId);
-        await client.query(
-          'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
-          [userId, referendumIdString]
-        );
-        console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
+        console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Tentativo inserimento con:`, {
+          userId: userId,
+          userIdType: typeof userId,
           referendumId: referendumId,
-          userId
+          referendumIdString: referendumIdString,
+          referendumIdStringType: typeof referendumIdString
         });
+        
+        try {
+          await client.query(
+            'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
+            [userId, referendumIdString]
+          );
+          console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
+            referendumId: referendumId,
+            referendumIdString: referendumIdString,
+            userId: userId
+          });
+        } catch (insertError) {
+          console.error(`❌ DEBUG /api/referendum-abrogativi/vota - Errore durante inserimento:`, {
+            error: insertError.message,
+            code: insertError.code,
+            detail: insertError.detail,
+            hint: insertError.hint,
+            userId: userId,
+            referendumId: referendumId,
+            referendumIdString: referendumIdString
+          });
+          throw insertError;
+        }
       }
     
     await client.query('COMMIT');
