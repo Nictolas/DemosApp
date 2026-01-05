@@ -613,20 +613,9 @@ router.get('/', async (req, res) => {
           ? 'AND im.quorum_raggiunto = true AND im.stato = \'conclusa\' AND im.firme_raccolte >= 500000'
           : 'AND im.stato = \'in_corso\'';
         
-        // Per votaOnly, la query della classifica deve includere TUTTI i referendum
-        // che sono in normalizedData, indipendentemente dal loro quorum_raggiunto
-        // perché vengono mostrati nella pagina e devono avere i voti contati
-        const referendumIdsFromNormalized = normalizedData
-          .filter(r => {
-            // Solo quelli che provengono da referendum_abrogativi (non da iniziative_ministero)
-            // perché quelli da iniziative_ministero sono già gestiti nella prima parte della UNION
-            const isFromAbrogativi = normalizedReferendum.some(ra => String(ra.id) === String(r.id));
-            return isFromAbrogativi;
-          })
-          .map(r => String(r.id));
-        
-        // Per votaOnly, includiamo TUTTI i referendum mostrati nella pagina
-        // anche se hanno quorum_raggiunto = false, perché vengono mostrati comunque
+        // Per votaOnly, includiamo i referendum con quorum_raggiunto = true
+        // Ma anche quelli che sono in normalizedData (per includere tutti i referendum mostrati)
+        const referendumIdsFromNormalized = normalizedReferendum.map(r => String(r.id));
         const quorumFilterReferendum = votaOnly
           ? referendumIdsFromNormalized.length > 0
             ? `AND (ra.quorum_raggiunto = true OR ra.id::text = ANY($1::text[]))`
@@ -641,6 +630,7 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG CLASSIFICA - referendumIdsFromNormalized:', referendumIdsFromNormalized);
         console.log('🔍 DEBUG CLASSIFICA - normalizedReferendum.length:', normalizedReferendum.length);
         console.log('🔍 DEBUG CLASSIFICA - normalizedData.length:', normalizedData.length);
+        console.log('🔍 DEBUG CLASSIFICA - Usando query SQL UNION (stessa logica delle iniziative)');
         
         const classificaQuery = `
           (
@@ -687,7 +677,6 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Query classifica:', classificaQuery.substring(0, 500));
         console.log('🔍 DEBUG - quorumFilterMinistero:', quorumFilterMinistero);
         console.log('🔍 DEBUG - quorumFilterReferendum:', quorumFilterReferendum);
-        console.log('🔍 DEBUG - referendumIdsFromNormalized:', referendumIdsFromNormalized);
         console.log('🔍 DEBUG - classificaParams:', classificaParams);
         
         // Test: verifica se ci sono voti che corrispondono ai referendum in normalizedData
@@ -709,87 +698,6 @@ router.get('/', async (req, res) => {
         const classificaResult = await pool.query(classificaQuery, classificaParams);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
-        
-        // Per votaOnly, creiamo SEMPRE la classifica basata su normalizedData
-        // perché la query SQL potrebbe non includere tutti i referendum mostrati
-        if (votaOnly && normalizedData.length > 0) {
-          console.log('🔍 DEBUG - votaOnly=true, creo classifica da normalizedData');
-          
-          // Crea una classifica basata direttamente su normalizedData
-          const classificaAlternativa = await Promise.all(normalizedData.map(async (ref) => {
-            const refId = String(ref.id);
-            const refIdNoDash = refId.replace(/-/g, '');
-            const votiQuery = `
-              SELECT COUNT(*) as count 
-              FROM voti_referendum_abrogativi 
-              WHERE referendum_id::text = $1 
-                 OR REPLACE(referendum_id::text, '-', '') = $2
-                 OR referendum_id::text = $3
-                 OR REPLACE(referendum_id::text, '-', '') = $4
-            `;
-            console.log(`🔍 DEBUG CLASSIFICA - Conto voti per "${ref.nome?.substring(0, 50)}" (ID: ${refId})`);
-            const votiResult = await pool.query(votiQuery, [refId, refIdNoDash, refIdNoDash, refId]);
-            const votiCount = parseInt(votiResult.rows[0]?.count || 0);
-            console.log(`🔍 DEBUG CLASSIFICA - "${ref.nome?.substring(0, 50)}": ${votiCount} voti trovati`);
-            
-            return {
-              nome: ref.nome || ref.titolo,
-              sitoWeb: ref.sitoWeb || ref.sito_web || ref.sitoweb,
-              voti: votiCount,
-              emoji: ref.emoji || getEmojiAutomaticaReferendum(ref)
-            };
-          }));
-          
-          // Ordina per voti (decrescente) e poi per firme (decrescente)
-          classificaAlternativa.sort((a, b) => {
-            if (b.voti !== a.voti) return b.voti - a.voti;
-            const refA = normalizedData.find(r => (r.nome || r.titolo) === a.nome);
-            const refB = normalizedData.find(r => (r.nome || r.titolo) === b.nome);
-            const firmeA = refA?.firme_raccolte || refA?.firme || 0;
-            const firmeB = refB?.firme_raccolte || refB?.firme || 0;
-            return firmeB - firmeA;
-          });
-          
-          console.log(`✅ DEBUG - Classifica creata da normalizedData con ${classificaAlternativa.length} referendum:`, classificaAlternativa.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
-          classifica = classificaAlternativa;
-        } else if (classificaResult.rows.length === 0 && normalizedData.length > 0) {
-          // Fallback: se la query non ha restituito risultati, usa normalizedData
-          console.warn('⚠️ DEBUG - La query della classifica non ha restituito risultati, creo classifica alternativa da normalizedData');
-          
-          const classificaAlternativa = await Promise.all(normalizedData.map(async (ref) => {
-            const refId = String(ref.id);
-            const refIdNoDash = refId.replace(/-/g, '');
-            const votiQuery = `
-              SELECT COUNT(*) as count 
-              FROM voti_referendum_abrogativi 
-              WHERE referendum_id::text = $1 
-                 OR REPLACE(referendum_id::text, '-', '') = $2
-                 OR referendum_id::text = $3
-                 OR REPLACE(referendum_id::text, '-', '') = $4
-            `;
-            const votiResult = await pool.query(votiQuery, [refId, refIdNoDash, refIdNoDash, refId]);
-            const votiCount = parseInt(votiResult.rows[0]?.count || 0);
-            
-            return {
-              nome: ref.nome || ref.titolo,
-              sitoWeb: ref.sitoWeb || ref.sito_web || ref.sitoweb,
-              voti: votiCount,
-              emoji: ref.emoji || getEmojiAutomaticaReferendum(ref)
-            };
-          }));
-          
-          classificaAlternativa.sort((a, b) => {
-            if (b.voti !== a.voti) return b.voti - a.voti;
-            const refA = normalizedData.find(r => (r.nome || r.titolo) === a.nome);
-            const refB = normalizedData.find(r => (r.nome || r.titolo) === b.nome);
-            const firmeA = refA?.firme_raccolte || refA?.firme || 0;
-            const firmeB = refB?.firme_raccolte || refB?.firme || 0;
-            return firmeB - firmeA;
-          });
-          
-          console.log(`✅ DEBUG - Classifica alternativa creata con ${classificaAlternativa.length} referendum:`, classificaAlternativa.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
-          classifica = classificaAlternativa;
-        }
         
         // Debug: verifica se i risultati della classifica corrispondono ai referendum in normalizedData
         if (classificaResult.rows.length > 0) {
@@ -871,51 +779,46 @@ router.get('/', async (req, res) => {
           });
         }
         
-        // Solo se non abbiamo già creato la classifica da normalizedData (per votaOnly),
-        // usa i risultati della query SQL
-        if (!votaOnly || classifica.length === 0) {
-          classifica = classificaResult.rows.map(row => {
-            // Trova il referendum corrispondente per ottenere l'emoji
-            // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
-            let referendum = normalizedData.find(r => 
-              r.nome === row.nome || 
-              r.titolo === row.nome
+        // Usa sempre i risultati della query SQL UNION (stessa logica delle iniziative)
+        classifica = classificaResult.rows.map(row => {
+          // Trova il referendum corrispondente per ottenere l'emoji
+          // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
+          let referendum = normalizedData.find(r => 
+            r.nome === row.nome || 
+            r.titolo === row.nome
+          );
+          
+          // Se non trova, prova con normalizzazione (trim, lowercase)
+          if (!referendum) {
+            const rowNomeNormalized = String(row.nome || '').toLowerCase().trim();
+            referendum = normalizedData.find(r => {
+              const nomeNormalized = String(r.nome || '').toLowerCase().trim();
+              const titoloNormalized = String(r.titolo || '').toLowerCase().trim();
+              return nomeNormalized === rowNomeNormalized || titoloNormalized === rowNomeNormalized;
+            });
+          }
+          
+          // Se ancora non trova, prova per sitoWeb
+          if (!referendum && row.sitoweb) {
+            referendum = normalizedData.find(r => 
+              r.sitoWeb && (r.sitoWeb === row.sitoweb || r.sitoWeb === row.sito_web || r.sito_web === row.sitoweb)
             );
-            
-            // Se non trova, prova con normalizzazione (trim, lowercase)
-            if (!referendum) {
-              const rowNomeNormalized = String(row.nome || '').toLowerCase().trim();
-              referendum = normalizedData.find(r => {
-                const nomeNormalized = String(r.nome || '').toLowerCase().trim();
-                const titoloNormalized = String(r.titolo || '').toLowerCase().trim();
-                return nomeNormalized === rowNomeNormalized || titoloNormalized === rowNomeNormalized;
-              });
-            }
-            
-            // Se ancora non trova, prova per sitoWeb
-            if (!referendum && row.sitoweb) {
-              referendum = normalizedData.find(r => 
-                r.sitoWeb && (r.sitoWeb === row.sitoweb || r.sitoWeb === row.sito_web || r.sito_web === row.sitoweb)
-              );
-            }
-            
-            // Genera sempre un'emoji (usa quella trovata o genera una nuova)
-            const emoji = referendum?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome });
-            
-            const votiCount = parseInt(row.voti) || 0;
-            console.log(`🔍 DEBUG CLASSIFICA - Referendum "${row.nome?.substring(0, 50)}": ${votiCount} voti`);
-            
-            return {
-              nome: row.nome,
-              sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
-              voti: votiCount,
-              emoji: emoji
-            };
-          });
-          console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
-        } else {
-          console.log(`✅ Classifica già creata da normalizedData con ${classifica.length} referendum, non sovrascrivo`);
-        }
+          }
+          
+          // Genera sempre un'emoji (usa quella trovata o genera una nuova)
+          const emoji = referendum?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome });
+          
+          const votiCount = parseInt(row.voti) || 0;
+          console.log(`🔍 DEBUG CLASSIFICA - Referendum "${row.nome?.substring(0, 50)}": ${votiCount} voti`);
+          
+          return {
+            nome: row.nome,
+            sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
+            voti: votiCount,
+            emoji: emoji
+          };
+        });
+        console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
         
         // Debug: verifica che tutti i referendum nella classifica abbiano un'emoji
         const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
@@ -1013,6 +916,14 @@ router.get('/', async (req, res) => {
       testQueryResult: testQueryResult // Risultati query di test
     };
     
+    // Log finale della classifica prima di restituirla
+    console.log(`🔍 DEBUG FINALE - classifica.length = ${classifica.length}`);
+    if (classifica.length > 0) {
+      console.log(`🔍 DEBUG FINALE - Primi 3 elementi classifica:`, classifica.slice(0, 3).map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+    } else {
+      console.warn(`⚠️ DEBUG FINALE - classifica è VUOTA!`);
+    }
+    
     const responseData = {
       success: true,
       richieste: normalizedData,
@@ -1022,6 +933,8 @@ router.get('/', async (req, res) => {
       blocco: { isBlocked: false, unlockDate: null },
       debug: debugInfo // Sempre incluso per debug
     };
+    
+    console.log(`🔍 DEBUG FINALE - responseData.classifica.length = ${responseData.classifica.length}`);
     
     // Log esplicito del debug per vedere nella console del server
     console.log('🔍 ========== DEBUG INFO PER CLIENT ==========');
