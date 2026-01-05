@@ -1171,6 +1171,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     await client.query('BEGIN');
     
     // Prima cancella TUTTI i voti esistenti dell'utente (sia come UUID che come text)
+    // Questo garantisce che l'utente abbia sempre massimo 1 voto
     const deleteQuery = `
       DELETE FROM voti_iniziative_popolari 
       WHERE userid::text = $1 OR userid = $1::uuid
@@ -1181,11 +1182,17 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Poi inserisce i nuovi voti (massimo 1)
     if (votiDaSalvare.length > 0) {
       const iniziativaId = votiDaSalvare[0];
-      await client.query(
-        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
+      const insertResult = await client.query(
+        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW()) RETURNING id',
         [userId, iniziativaId]
       );
-      console.log(`🔍 DEBUG /api/iniziative-popolari/vota - Voto inserito: ${iniziativaId}`);
+      console.log(`✅ DEBUG /api/iniziative-popolari/vota - Voto inserito con successo:`, {
+        id: insertResult.rows[0]?.id,
+        iniziativaId: iniziativaId,
+        userId: userId
+      });
+    } else {
+      console.log(`🔍 DEBUG /api/iniziative-popolari/vota - Nessun voto da inserire (array vuoto)`);
     }
     
     await client.query('COMMIT');
