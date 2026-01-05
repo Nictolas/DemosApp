@@ -15,3 +15,4 @@ ON CONFLICT (id) DO UPDATE SET
 ALTER TABLE opinioni_risposte 
   ADD COLUMN IF NOT EXISTS "ponte_sullo_stretto" TEXT;
 
+
