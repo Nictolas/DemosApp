@@ -613,8 +613,8 @@ router.get('/', async (req, res) => {
           ? 'AND im.quorum_raggiunto = true AND im.stato = \'conclusa\' AND im.firme_raccolte >= 500000'
           : 'AND im.stato = \'in_corso\'';
         
-        // Per votaOnly, includiamo i referendum con quorum_raggiunto = true
-        // Ma anche quelli che sono in normalizedData (per includere tutti i referendum mostrati)
+        // Per votaOnly, includiamo TUTTI i referendum che sono in normalizedData
+        // (anche se hanno quorum_raggiunto = false), perché vengono mostrati nella pagina
         const referendumIdsFromNormalized = normalizedReferendum.map(r => String(r.id));
         const quorumFilterReferendum = votaOnly
           ? referendumIdsFromNormalized.length > 0
@@ -626,6 +626,11 @@ router.get('/', async (req, res) => {
         const classificaParams = votaOnly && referendumIdsFromNormalized.length > 0
           ? [referendumIdsFromNormalized]
           : [];
+        
+        console.log('🔍 DEBUG CLASSIFICA - referendumIdsFromNormalized:', referendumIdsFromNormalized);
+        console.log('🔍 DEBUG CLASSIFICA - normalizedReferendum.length:', normalizedReferendum.length);
+        console.log('🔍 DEBUG CLASSIFICA - normalizedData.length:', normalizedData.length);
+        console.log('🔍 DEBUG CLASSIFICA - Usando query SQL UNION (stessa logica delle iniziative)');
         
         console.log('🔍 DEBUG CLASSIFICA - referendumIdsFromNormalized:', referendumIdsFromNormalized);
         console.log('🔍 DEBUG CLASSIFICA - normalizedReferendum.length:', normalizedReferendum.length);
@@ -698,6 +703,11 @@ router.get('/', async (req, res) => {
         const classificaResult = await pool.query(classificaQuery, classificaParams);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
+        console.log('🔍 DEBUG - classificaParams usati:', classificaParams);
+        console.log('🔍 DEBUG - referendumIdsFromNormalized usati:', referendumIdsFromNormalized);
+        console.log('🔍 DEBUG - quorumFilterMinistero:', quorumFilterMinistero);
+        console.log('🔍 DEBUG - quorumFilterReferendum:', quorumFilterReferendum);
+        console.log('🔍 DEBUG - Query completa classifica:', classificaQuery);
         
         // Debug: verifica se i risultati della classifica corrispondono ai referendum in normalizedData
         if (classificaResult.rows.length > 0) {
@@ -779,8 +789,48 @@ router.get('/', async (req, res) => {
           });
         }
         
-        // Usa sempre i risultati della query SQL UNION (stessa logica delle iniziative)
-        classifica = classificaResult.rows.map(row => {
+        // Se la query UNION non ha trovato risultati ma ci sono referendum in normalizedData,
+        // crea la classifica direttamente contando i voti per ogni referendum mostrato
+        if (classificaResult.rows.length === 0 && votaOnly && normalizedData.length > 0) {
+          console.warn('⚠️ DEBUG - Query UNION non ha trovato risultati, creo classifica da normalizedData');
+          
+          const classificaDaNormalized = await Promise.all(normalizedData.map(async (ref) => {
+            const refId = String(ref.id);
+            const refIdNoDash = refId.replace(/-/g, '');
+            const votiQuery = `
+              SELECT COUNT(*) as count 
+              FROM voti_referendum_abrogativi 
+              WHERE referendum_id::text = $1 
+                 OR REPLACE(referendum_id::text, '-', '') = $2
+                 OR referendum_id::text = $3
+                 OR REPLACE(referendum_id::text, '-', '') = $4
+            `;
+            const votiResult = await pool.query(votiQuery, [refId, refIdNoDash, refIdNoDash, refId]);
+            const votiCount = parseInt(votiResult.rows[0]?.count || 0);
+            
+            return {
+              nome: ref.nome || ref.titolo,
+              sitoWeb: ref.sitoWeb || ref.sito_web || ref.sitoweb,
+              voti: votiCount,
+              emoji: ref.emoji || getEmojiAutomaticaReferendum(ref)
+            };
+          }));
+          
+          // Ordina per voti (decrescente) e poi per firme (decrescente)
+          classificaDaNormalized.sort((a, b) => {
+            if (b.voti !== a.voti) return b.voti - a.voti;
+            const refA = normalizedData.find(r => (r.nome || r.titolo) === a.nome);
+            const refB = normalizedData.find(r => (r.nome || r.titolo) === b.nome);
+            const firmeA = refA?.firme_raccolte || refA?.firme || 0;
+            const firmeB = refB?.firme_raccolte || refB?.firme || 0;
+            return firmeB - firmeA;
+          });
+          
+          console.log(`✅ DEBUG - Classifica creata da normalizedData con ${classificaDaNormalized.length} referendum:`, classificaDaNormalized.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+          classifica = classificaDaNormalized;
+        } else {
+          // Usa sempre i risultati della query SQL UNION (stessa logica delle iniziative)
+          classifica = classificaResult.rows.map(row => {
           // Trova il referendum corrispondente per ottenere l'emoji
           // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
           let referendum = normalizedData.find(r => 

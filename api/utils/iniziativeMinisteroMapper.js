@@ -197,10 +197,15 @@ function mapReferendumAbrogativiToLegacyFormat(row) {
   // La tabella referendum_abrogativi usa 'A'/'a' per approvato, 'P'/'p' per pending
   const stato = mapReferendumStatusToStato(row.status);
   
-  // Determina quorum_raggiunto basandosi su quorum o status
-  // Se status è 'A' o 'a' (approvato), consideralo raggiunto
+  // Determina quorum_raggiunto
+  // PRIMA controlla se esiste già la colonna quorum_raggiunto nel database (priorità massima)
+  // POI fallback su status e quorum per compatibilità
   let quorum_raggiunto = false;
-  if (row.status === 'A' || row.status === 'a') {
+  if (row.quorum_raggiunto !== undefined && row.quorum_raggiunto !== null) {
+    // Usa direttamente il valore dal database se esiste
+    quorum_raggiunto = Boolean(row.quorum_raggiunto);
+  } else if (row.status === 'A' || row.status === 'a') {
+    // Fallback: se status è 'A' o 'a' (approvato), consideralo raggiunto
     quorum_raggiunto = true;
   } else if (row.quorum === 'ok' || row.quorum === 'OK') {
     quorum_raggiunto = true;
