@@ -1430,6 +1430,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     await client.query('BEGIN');
     
     // Prima cancella TUTTI i voti esistenti dell'utente (sia come UUID che come text)
+    // Questo garantisce che l'utente abbia sempre massimo 1 voto
     const deleteQuery = `
       DELETE FROM voti_referendum_abrogativi 
       WHERE userid::text = $1 OR userid = $1::uuid
@@ -1437,8 +1438,8 @@ router.post('/vota', verifyToken, async (req, res) => {
     const deleteResult = await client.query(deleteQuery, [userId]);
     console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Voti eliminati: ${deleteResult.rowCount}`);
     
-      // Poi inserisce i nuovi voti (massimo 1)
-      if (votiDaSalvare.length > 0) {
+    // Poi inserisce i nuovi voti (massimo 1)
+    if (votiDaSalvare.length > 0) {
         const referendumId = votiDaSalvare[0];
         console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Tentativo inserimento voto:`, {
           userId,
@@ -1471,11 +1472,12 @@ router.post('/vota', verifyToken, async (req, res) => {
         });
         
         try {
-          await client.query(
-            'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
+          const insertResult = await client.query(
+            'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW()) RETURNING id',
             [userId, referendumIdString]
           );
           console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
+            id: insertResult.rows[0]?.id,
             referendumId: referendumId,
             referendumIdString: referendumIdString,
             userId: userId
@@ -1492,6 +1494,8 @@ router.post('/vota', verifyToken, async (req, res) => {
           });
           throw insertError;
         }
+      } else {
+        console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Nessun voto da inserire (array vuoto)`);
       }
     
     await client.query('COMMIT');
