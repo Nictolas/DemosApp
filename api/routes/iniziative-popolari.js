@@ -1149,21 +1149,79 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Limita a massimo 1 voto come da limite configurato
     const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
     
-    // Verifica che gli ID delle iniziative esistano nella nuova tabella
+    // Verifica che gli ID delle iniziative esistano in ENTRAMBE le tabelle
     if (votiDaSalvare.length > 0) {
-      // Per votare, l'iniziativa deve avere quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 50000
-      const iniziativeCheckQuery = `SELECT id FROM iniziative_ministero WHERE tipo LIKE '%Legge%di%iniziativa%popolare%' AND id_ministero IS NOT NULL AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000 AND id = ANY($1)`;
-      const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [votiDaSalvare]);
-      console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
+      // Per votare, l'iniziativa deve:
+      // - Da iniziative_ministero: quorum_raggiunto = TRUE, stato = 'conclusa' E firme_raccolte >= 50000
+      // - Da iniziative_popolari: quorum_raggiunto = TRUE
+      
+      // Verifica prima in iniziative_ministero
+      const iniziativeCheckQueryMinistero = `
+        SELECT id::text as id FROM iniziative_ministero 
+        WHERE tipo LIKE '%Legge%di%iniziativa%popolare%' 
+          AND id_ministero IS NOT NULL 
+          AND quorum_raggiunto = true 
+          AND stato = 'conclusa' 
+          AND firme_raccolte >= 50000 
+          AND (id::text = ANY($1) OR REPLACE(id::text, '-', '') = ANY(SELECT REPLACE(unnest($1::text[]), '-', '')))
+      `;
+      const iniziativeCheckResultMinistero = await client.query(iniziativeCheckQueryMinistero, [votiDaSalvare]);
+      
+      // Verifica poi in iniziative_popolari
+      const iniziativeCheckQueryPopolari = `
+        SELECT id::text as id FROM iniziative_popolari 
+        WHERE quorum_raggiunto = true 
+          AND (id::text = ANY($1) OR REPLACE(id::text, '-', '') = ANY(SELECT REPLACE(unnest($1::text[]), '-', '')))
+      `;
+      const iniziativeCheckResultPopolari = await client.query(iniziativeCheckQueryPopolari, [votiDaSalvare]);
+      
+      // Combina i risultati
+      const allFoundIds = [
+        ...iniziativeCheckResultMinistero.rows.map(r => r.id),
+        ...iniziativeCheckResultPopolari.rows.map(r => r.id)
+      ];
+      
+      console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate in iniziative_ministero:', iniziativeCheckResultMinistero.rows.map(r => r.id));
+      console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate in iniziative_popolari:', iniziativeCheckResultPopolari.rows.map(r => r.id));
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', votiDaSalvare);
       
-      // Verifica che tutti gli ID delle iniziative esistano
-      if (iniziativeCheckResult.rows.length !== votiDaSalvare.length) {
-        const missingIds = votiDaSalvare.filter(id => !iniziativeCheckResult.rows.some(row => row.id === id));
+      // Verifica che tutti gli ID delle iniziative esistano (con matching flessibile)
+      const missingIds = votiDaSalvare.filter(id => {
+        const idString = String(id);
+        const idNoDash = idString.replace(/-/g, '');
+        return !allFoundIds.some(foundId => {
+          const foundIdString = String(foundId);
+          const foundIdNoDash = foundIdString.replace(/-/g, '');
+          return foundIdString === idString || foundIdNoDash === idNoDash || foundIdString === idNoDash || foundIdNoDash === idString;
+        });
+      });
+      
+      if (missingIds.length > 0) {
         console.error('❌ DEBUG /api/iniziative-popolari/vota - ID iniziative non trovati:', missingIds);
+        console.error('❌ DEBUG /api/iniziative-popolari/vota - ID trovati:', allFoundIds);
+        
+        // Debug: verifica se l'iniziativa esiste ma non rispetta i criteri
+        for (const missingId of missingIds) {
+          const debugQuery = `
+            SELECT id, quorum_raggiunto, stato, firme_raccolte, tipo 
+            FROM iniziative_ministero 
+            WHERE id::text = $1 OR REPLACE(id::text, '-', '') = $2
+            UNION ALL
+            SELECT id::text, quorum_raggiunto, stato, firme_raccolte, 'iniziative_popolari' as tipo
+            FROM iniziative_popolari 
+            WHERE id::text = $1 OR REPLACE(id::text, '-', '') = $2
+          `;
+          const debugResult = await client.query(debugQuery, [missingId, String(missingId).replace(/-/g, '')]);
+          if (debugResult.rows.length > 0) {
+            console.error(`❌ DEBUG - Iniziativa ${missingId} esiste ma non rispetta i criteri:`, debugResult.rows[0]);
+          } else {
+            console.error(`❌ DEBUG - Iniziativa ${missingId} non esiste in nessuna tabella`);
+          }
+        }
+        
         return res.status(400).json({
           success: false,
-          error: `Alcune iniziative non esistono: ${missingIds.join(', ')}`
+          error: `Alcune iniziative non esistono o non rispettano i criteri: ${missingIds.join(', ')}`
         });
       }
     }
