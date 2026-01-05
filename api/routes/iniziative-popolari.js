@@ -1222,6 +1222,88 @@ router.post('/vota', verifyToken, async (req, res) => {
   }
 });
 
+// DELETE /api/iniziative-popolari/vota - Cancella il voto dell'utente
+router.delete('/vota', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const userId = req.userId || req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Autenticazione richiesta'
+      });
+    }
+    
+    // Verifica se l'utente è admin (gli admin possono sempre cancellare)
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await client.query(userQuery, [userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+    const isAdmin = userRole === 'AD' || userRole === 'Admin';
+    
+    // Se non è admin, verifica il blocco settimanale
+    if (!isAdmin) {
+      const bloccoQuery = `
+        SELECT 
+          CASE 
+            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+            ELSE false
+          END as is_blocked,
+          MAX(timestamp) + INTERVAL '7 days' as unlock_date
+        FROM voti_iniziative_popolari
+        WHERE userid::text = $1 OR userid = $1::uuid
+      `;
+      const bloccoResult = await client.query(bloccoQuery, [userId]);
+      
+      if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+        const unlockDate = bloccoResult.rows[0].unlock_date;
+        return res.status(400).json({
+          success: false,
+          error: 'Non puoi modificare il voto prima di 7 giorni dall\'ultimo voto',
+          unlockDate: unlockDate ? new Date(unlockDate).toISOString() : null
+        });
+      }
+    }
+    
+    await client.query('BEGIN');
+    
+    // Cancella tutti i voti dell'utente
+    const deleteQuery = `
+      DELETE FROM voti_iniziative_popolari 
+      WHERE userid::text = $1 OR userid = $1::uuid
+    `;
+    const deleteResult = await client.query(deleteQuery, [userId]);
+    
+    await client.query('COMMIT');
+    
+    console.log(`✅ DEBUG /api/iniziative-popolari/vota DELETE - Voti eliminati: ${deleteResult.rowCount} (utente: ${userId}, admin: ${isAdmin})`);
+    
+    res.json({
+      success: true,
+      message: 'Voto cancellato con successo',
+      deletedCount: deleteResult.rowCount
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK').catch(err => {
+      console.error('❌ Errore nel ROLLBACK:', err);
+    });
+    console.error('❌ Errore nella cancellazione voto iniziative popolari:', error);
+    console.error('❌ Stack trace:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        details: error.message
+      });
+    }
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/iniziative-popolari/debug - Debug per verificare la struttura delle tabelle
 router.get('/debug', verifyToken, async (req, res) => {
   try {
