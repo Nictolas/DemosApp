@@ -625,6 +625,8 @@ router.get('/', async (req, res) => {
           })
           .map(r => String(r.id));
         
+        // Per votaOnly, includiamo TUTTI i referendum mostrati nella pagina
+        // anche se hanno quorum_raggiunto = false, perché vengono mostrati comunque
         const quorumFilterReferendum = votaOnly
           ? referendumIdsFromNormalized.length > 0
             ? `AND (ra.quorum_raggiunto = true OR ra.id::text = ANY($1::text[]))`
@@ -635,6 +637,10 @@ router.get('/', async (req, res) => {
         const classificaParams = votaOnly && referendumIdsFromNormalized.length > 0
           ? [referendumIdsFromNormalized]
           : [];
+        
+        console.log('🔍 DEBUG CLASSIFICA - referendumIdsFromNormalized:', referendumIdsFromNormalized);
+        console.log('🔍 DEBUG CLASSIFICA - normalizedReferendum.length:', normalizedReferendum.length);
+        console.log('🔍 DEBUG CLASSIFICA - normalizedData.length:', normalizedData.length);
         
         const classificaQuery = `
           (
@@ -703,6 +709,46 @@ router.get('/', async (req, res) => {
         const classificaResult = await pool.query(classificaQuery, classificaParams);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
+        
+        // Se la classifica è vuota ma ci sono referendum in normalizedData, 
+        // crea una classifica alternativa basata direttamente su normalizedData
+        if (classificaResult.rows.length === 0 && normalizedData.length > 0) {
+          console.warn('⚠️ DEBUG - La query della classifica non ha restituito risultati, creo classifica alternativa da normalizedData');
+          
+          // Crea una classifica basata direttamente su normalizedData
+          const classificaAlternativa = await Promise.all(normalizedData.map(async (ref) => {
+            const refId = String(ref.id);
+            const refIdNoDash = refId.replace(/-/g, '');
+            const votiQuery = `
+              SELECT COUNT(*) as count 
+              FROM voti_referendum_abrogativi 
+              WHERE referendum_id::text = $1 
+                 OR REPLACE(referendum_id::text, '-', '') = $2
+                 OR referendum_id::text = $3
+                 OR REPLACE(referendum_id::text, '-', '') = $4
+            `;
+            const votiResult = await pool.query(votiQuery, [refId, refIdNoDash, refIdNoDash, refId]);
+            const votiCount = parseInt(votiResult.rows[0]?.count || 0);
+            
+            return {
+              nome: ref.nome || ref.titolo,
+              sitoWeb: ref.sitoWeb || ref.sito_web || ref.sitoweb,
+              voti: votiCount,
+              emoji: ref.emoji || getEmojiAutomaticaReferendum(ref)
+            };
+          }));
+          
+          // Ordina per voti (decrescente) e poi per firme (decrescente)
+          classificaAlternativa.sort((a, b) => {
+            if (b.voti !== a.voti) return b.voti - a.voti;
+            const firmeA = normalizedData.find(r => (r.nome || r.titolo) === a.nome)?.firme_raccolte || normalizedData.find(r => (r.nome || r.titolo) === a.nome)?.firme || 0;
+            const firmeB = normalizedData.find(r => (r.nome || r.titolo) === b.nome)?.firme_raccolte || normalizedData.find(r => (r.nome || r.titolo) === b.nome)?.firme || 0;
+            return firmeB - firmeA;
+          });
+          
+          console.log(`✅ DEBUG - Classifica alternativa creata con ${classificaAlternativa.length} referendum:`, classificaAlternativa.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+          classifica = classificaAlternativa;
+        }
         
         // Debug: verifica se i risultati della classifica corrispondono ai referendum in normalizedData
         if (classificaResult.rows.length > 0) {
@@ -812,20 +858,35 @@ router.get('/', async (req, res) => {
           // Genera sempre un'emoji (usa quella trovata o genera una nuova)
           const emoji = referendum?.emoji || getEmojiAutomaticaReferendum({ nome: row.nome });
           
+          const votiCount = parseInt(row.voti) || 0;
+          console.log(`🔍 DEBUG CLASSIFICA - Referendum "${row.nome?.substring(0, 50)}": ${votiCount} voti`);
+          
           return {
             nome: row.nome,
             sitoWeb: row.sitoweb || row.sito_web || row.sitoWeb,
-            voti: parseInt(row.voti) || 0,
+            voti: votiCount,
             emoji: emoji
           };
         });
-        console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica);
+        console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+        
         // Debug: verifica che tutti i referendum nella classifica abbiano un'emoji
         const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
         if (classificaSenzaEmoji.length > 0) {
           console.warn(`⚠️ ATTENZIONE: ${classificaSenzaEmoji.length} referendum nella classifica senza emoji:`, classificaSenzaEmoji.map(c => c.nome));
         } else if (classifica.length > 0) {
           console.log(`✅ Tutti i ${classifica.length} referendum nella classifica hanno un'emoji`);
+        }
+        
+        // Debug: verifica se ci sono referendum in normalizedData che non sono nella classifica
+        if (normalizedData.length > classifica.length) {
+          console.warn(`⚠️ ATTENZIONE: Ci sono ${normalizedData.length} referendum in normalizedData ma solo ${classifica.length} nella classifica!`);
+          const nomiInNormalized = normalizedData.map(r => r.nome);
+          const nomiInClassifica = classifica.map(c => c.nome);
+          const mancanti = nomiInNormalized.filter(nome => !nomiInClassifica.includes(nome));
+          if (mancanti.length > 0) {
+            console.warn(`⚠️ Referendum in normalizedData ma non in classifica:`, mancanti.map(n => n?.substring(0, 50)));
+          }
         }
         
         // Debug: verifica se la classifica è vuota e perché
