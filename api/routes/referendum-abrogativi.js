@@ -867,8 +867,9 @@ router.get('/', async (req, res) => {
             voti: votiCount,
             emoji: emoji
           };
-        });
-        console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+          });
+          console.log(`✅ Generata classifica con ${classifica.length} referendum (da entrambe le tabelle):`, classifica.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+        }
         
         // Debug: verifica che tutti i referendum nella classifica abbiano un'emoji
         const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
