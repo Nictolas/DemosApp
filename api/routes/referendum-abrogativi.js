@@ -710,10 +710,10 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
         
-        // Se la classifica è vuota ma ci sono referendum in normalizedData, 
-        // crea una classifica alternativa basata direttamente su normalizedData
-        if (classificaResult.rows.length === 0 && normalizedData.length > 0) {
-          console.warn('⚠️ DEBUG - La query della classifica non ha restituito risultati, creo classifica alternativa da normalizedData');
+        // Per votaOnly, creiamo SEMPRE la classifica basata su normalizedData
+        // perché la query SQL potrebbe non includere tutti i referendum mostrati
+        if (votaOnly && normalizedData.length > 0) {
+          console.log('🔍 DEBUG - votaOnly=true, creo classifica da normalizedData');
           
           // Crea una classifica basata direttamente su normalizedData
           const classificaAlternativa = await Promise.all(normalizedData.map(async (ref) => {
@@ -741,8 +741,47 @@ router.get('/', async (req, res) => {
           // Ordina per voti (decrescente) e poi per firme (decrescente)
           classificaAlternativa.sort((a, b) => {
             if (b.voti !== a.voti) return b.voti - a.voti;
-            const firmeA = normalizedData.find(r => (r.nome || r.titolo) === a.nome)?.firme_raccolte || normalizedData.find(r => (r.nome || r.titolo) === a.nome)?.firme || 0;
-            const firmeB = normalizedData.find(r => (r.nome || r.titolo) === b.nome)?.firme_raccolte || normalizedData.find(r => (r.nome || r.titolo) === b.nome)?.firme || 0;
+            const refA = normalizedData.find(r => (r.nome || r.titolo) === a.nome);
+            const refB = normalizedData.find(r => (r.nome || r.titolo) === b.nome);
+            const firmeA = refA?.firme_raccolte || refA?.firme || 0;
+            const firmeB = refB?.firme_raccolte || refB?.firme || 0;
+            return firmeB - firmeA;
+          });
+          
+          console.log(`✅ DEBUG - Classifica creata da normalizedData con ${classificaAlternativa.length} referendum:`, classificaAlternativa.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
+          classifica = classificaAlternativa;
+        } else if (classificaResult.rows.length === 0 && normalizedData.length > 0) {
+          // Fallback: se la query non ha restituito risultati, usa normalizedData
+          console.warn('⚠️ DEBUG - La query della classifica non ha restituito risultati, creo classifica alternativa da normalizedData');
+          
+          const classificaAlternativa = await Promise.all(normalizedData.map(async (ref) => {
+            const refId = String(ref.id);
+            const refIdNoDash = refId.replace(/-/g, '');
+            const votiQuery = `
+              SELECT COUNT(*) as count 
+              FROM voti_referendum_abrogativi 
+              WHERE referendum_id::text = $1 
+                 OR REPLACE(referendum_id::text, '-', '') = $2
+                 OR referendum_id::text = $3
+                 OR REPLACE(referendum_id::text, '-', '') = $4
+            `;
+            const votiResult = await pool.query(votiQuery, [refId, refIdNoDash, refIdNoDash, refId]);
+            const votiCount = parseInt(votiResult.rows[0]?.count || 0);
+            
+            return {
+              nome: ref.nome || ref.titolo,
+              sitoWeb: ref.sitoWeb || ref.sito_web || ref.sitoweb,
+              voti: votiCount,
+              emoji: ref.emoji || getEmojiAutomaticaReferendum(ref)
+            };
+          }));
+          
+          classificaAlternativa.sort((a, b) => {
+            if (b.voti !== a.voti) return b.voti - a.voti;
+            const refA = normalizedData.find(r => (r.nome || r.titolo) === a.nome);
+            const refB = normalizedData.find(r => (r.nome || r.titolo) === b.nome);
+            const firmeA = refA?.firme_raccolte || refA?.firme || 0;
+            const firmeB = refB?.firme_raccolte || refB?.firme || 0;
             return firmeB - firmeA;
           });
           
