@@ -662,22 +662,76 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Query classifica:', classificaQuery.substring(0, 500));
         console.log('🔍 DEBUG - quorumFilterMinistero:', quorumFilterMinistero);
         console.log('🔍 DEBUG - quorumFilterReferendum:', quorumFilterReferendum);
+        
+        // Test: verifica se ci sono voti che corrispondono ai referendum in normalizedData
+        if (normalizedData.length > 0 && debugVotiResult.rows.length > 0) {
+          console.log('🔍 DEBUG - Test matching voti con referendum in normalizedData:');
+          normalizedData.forEach(ref => {
+            const refId = String(ref.id);
+            const refIdNoDash = refId.replace(/-/g, '');
+            debugVotiResult.rows.forEach(voto => {
+              const votoId = String(voto.referendum_id);
+              const votoIdNoDash = votoId.replace(/-/g, '');
+              if (refId === votoId || refIdNoDash === votoIdNoDash || refId === votoIdNoDash || refIdNoDash === votoId) {
+                console.log(`✅ MATCH POTENZIALE: "${ref.nome?.substring(0, 50)}" (ID: ${refId}) <-> Voto ID: ${votoId} (count: ${voto.count})`);
+              }
+            });
+          });
+        }
+        
         const classificaResult = await pool.query(classificaQuery);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
+        
+        // Debug: verifica se i risultati della classifica corrispondono ai referendum in normalizedData
+        if (classificaResult.rows.length > 0) {
+          console.log('🔍 DEBUG - Risultati classifica per nome:', classificaResult.rows.map(r => ({
+            nome: r.nome?.substring(0, 50),
+            voti: r.voti,
+            firme: r.firme
+          })));
+        } else if (normalizedData.length > 0) {
+          console.warn('⚠️ DEBUG - La classifica è vuota ma ci sono referendum in normalizedData!');
+          console.warn('⚠️ DEBUG - Verifica se i referendum in normalizedData corrispondono ai filtri della query:');
+          normalizedData.forEach(ref => {
+            const refId = String(ref.id);
+            const isFromMinistero = normalizedMinistero.some(m => String(m.id) === refId);
+            const isFromAbrogativi = normalizedReferendum.some(r => String(r.id) === refId);
+            console.warn(`⚠️   - "${ref.nome?.substring(0, 50)}" (ID: ${refId}): da ministero=${isFromMinistero}, da abrogativi=${isFromAbrogativi}, quorum=${ref.quorum_raggiunto}, stato=${ref.stato}, firme=${ref.firme_raccolte || ref.firme}`);
+          });
+        }
         
         // Debug: verifica tutti i voti nel database
         const debugVotiQuery = 'SELECT referendum_id, COUNT(*) as count FROM voti_referendum_abrogativi GROUP BY referendum_id';
         const debugVotiResult = await pool.query(debugVotiQuery);
         console.log('🔍 DEBUG - Tutti i voti per referendum_id:', debugVotiResult.rows);
+        console.log('🔍 DEBUG - Numero totale di voti nel database:', debugVotiResult.rows.reduce((sum, r) => sum + parseInt(r.count), 0));
         
-        // Debug: verifica gli ID dei referendum
+        // Debug: verifica i referendum in normalizedData
+        console.log('🔍 DEBUG - Referendum in normalizedData:', normalizedData.map(r => ({
+          id: r.id,
+          idText: String(r.id),
+          idNoDash: String(r.id).replace(/-/g, ''),
+          nome: r.nome?.substring(0, 50),
+          quorum_raggiunto: r.quorum_raggiunto,
+          stato: r.stato,
+          firme_raccolte: r.firme_raccolte
+        })));
+        
+        // Debug: verifica gli ID dei referendum in iniziative_ministero
         const debugQuorumFilter = votaOnly 
-          ? 'AND quorum_raggiunto = true AND stato != \'in_corso\''
+          ? 'AND quorum_raggiunto = true AND stato = \'conclusa\' AND firme_raccolte >= 500000'
           : 'AND stato = \'in_corso\'';
         const debugReferendumQuery = `SELECT id, titolo as nome, stato, quorum_raggiunto, firme_raccolte FROM iniziative_ministero WHERE (tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%') AND id_ministero IS NOT NULL ${debugQuorumFilter} ORDER BY firme_raccolte DESC NULLS LAST`;
         const debugReferendumResult = await pool.query(debugReferendumQuery);
-        console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
+        console.log('🔍 DEBUG - ID referendum in iniziative_ministero (con filtri):', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome?.substring(0, 50), stato: r.stato, quorum: r.quorum_raggiunto, firme: r.firme_raccolte })));
+        
+        // Debug: verifica gli ID dei referendum in referendum_abrogativi
+        const debugReferendumAbrogativiQuery = votaOnly
+          ? `SELECT id, nome, quorum_raggiunto, firme FROM referendum_abrogativi WHERE quorum_raggiunto = true ORDER BY firme DESC NULLS LAST`
+          : `SELECT id, nome, quorum_raggiunto, firme FROM referendum_abrogativi WHERE (status = 'P' OR status = 'p') ORDER BY firme DESC NULLS LAST`;
+        const debugReferendumAbrogativiResult = await pool.query(debugReferendumAbrogativiQuery);
+        console.log('🔍 DEBUG - ID referendum in referendum_abrogativi (con filtri):', debugReferendumAbrogativiResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome?.substring(0, 50), quorum: r.quorum_raggiunto, firme: r.firme })));
         
         // Debug: verifica manualmente la corrispondenza tra voti e referendum
         if (debugVotiResult.rows.length > 0 && debugReferendumResult.rows.length > 0) {
