@@ -613,9 +613,28 @@ router.get('/', async (req, res) => {
           ? 'AND im.quorum_raggiunto = true AND im.stato = \'conclusa\' AND im.firme_raccolte >= 500000'
           : 'AND im.stato = \'in_corso\'';
         
+        // Per votaOnly, la query della classifica deve includere TUTTI i referendum
+        // che sono in normalizedData, indipendentemente dal loro quorum_raggiunto
+        // perché vengono mostrati nella pagina e devono avere i voti contati
+        const referendumIdsFromNormalized = normalizedData
+          .filter(r => {
+            // Solo quelli che provengono da referendum_abrogativi (non da iniziative_ministero)
+            // perché quelli da iniziative_ministero sono già gestiti nella prima parte della UNION
+            const isFromAbrogativi = normalizedReferendum.some(ra => String(ra.id) === String(r.id));
+            return isFromAbrogativi;
+          })
+          .map(r => String(r.id));
+        
         const quorumFilterReferendum = votaOnly
-          ? `AND ra.quorum_raggiunto = true`
+          ? referendumIdsFromNormalized.length > 0
+            ? `AND (ra.quorum_raggiunto = true OR ra.id::text = ANY($1::text[]))`
+            : `AND ra.quorum_raggiunto = true`
           : `AND (ra.status = 'P' OR ra.status = 'p')`;
+        
+        // Parametri per la query (solo se necessario)
+        const classificaParams = votaOnly && referendumIdsFromNormalized.length > 0
+          ? [referendumIdsFromNormalized]
+          : [];
         
         const classificaQuery = `
           (
@@ -662,6 +681,8 @@ router.get('/', async (req, res) => {
         console.log('🔍 DEBUG - Query classifica:', classificaQuery.substring(0, 500));
         console.log('🔍 DEBUG - quorumFilterMinistero:', quorumFilterMinistero);
         console.log('🔍 DEBUG - quorumFilterReferendum:', quorumFilterReferendum);
+        console.log('🔍 DEBUG - referendumIdsFromNormalized:', referendumIdsFromNormalized);
+        console.log('🔍 DEBUG - classificaParams:', classificaParams);
         
         // Test: verifica se ci sono voti che corrispondono ai referendum in normalizedData
         if (normalizedData.length > 0 && debugVotiResult.rows.length > 0) {
@@ -679,7 +700,7 @@ router.get('/', async (req, res) => {
           });
         }
         
-        const classificaResult = await pool.query(classificaQuery);
+        const classificaResult = await pool.query(classificaQuery, classificaParams);
         console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
         console.log('🔍 DEBUG - Numero risultati classifica:', classificaResult.rows.length);
         
@@ -1347,6 +1368,7 @@ router.post('/vota', verifyToken, async (req, res) => {
       const referendumCheckResultMinistero = await client.query(referendumCheckQueryMinistero, [votiDaSalvare]);
       
       // Verifica poi in referendum_abrogativi
+      // Per votare, il referendum deve avere quorum_raggiunto = TRUE
       const referendumCheckQueryAbrogativi = `
         SELECT id::text as id FROM referendum_abrogativi 
         WHERE quorum_raggiunto = true 
@@ -1378,6 +1400,26 @@ router.post('/vota', verifyToken, async (req, res) => {
       if (missingIds.length > 0) {
         console.error('❌ DEBUG /api/referendum-abrogativi/vota - ID referendum non trovati:', missingIds);
         console.error('❌ DEBUG /api/referendum-abrogativi/vota - ID trovati:', allFoundIds);
+        
+        // Debug: verifica se il referendum esiste ma non rispetta i criteri
+        for (const missingId of missingIds) {
+          const debugQuery = `
+            SELECT id, quorum_raggiunto, stato, firme_raccolte, tipo 
+            FROM iniziative_ministero 
+            WHERE id::text = $1 OR REPLACE(id::text, '-', '') = $2
+            UNION ALL
+            SELECT id::text, quorum_raggiunto, stato, firme, 'referendum_abrogativi' as tipo
+            FROM referendum_abrogativi 
+            WHERE id::text = $1 OR REPLACE(id::text, '-', '') = $2
+          `;
+          const debugResult = await client.query(debugQuery, [missingId, String(missingId).replace(/-/g, '')]);
+          if (debugResult.rows.length > 0) {
+            console.error(`❌ DEBUG - Referendum ${missingId} esiste ma non rispetta i criteri:`, debugResult.rows[0]);
+          } else {
+            console.error(`❌ DEBUG - Referendum ${missingId} non esiste in nessuna tabella`);
+          }
+        }
+        
         return res.status(400).json({
           success: false,
           error: `Alcuni referendum non esistono o non rispettano i criteri: ${missingIds.join(', ')}`
@@ -1456,9 +1498,20 @@ router.post('/vota', verifyToken, async (req, res) => {
     
     console.log('✅ DEBUG /api/referendum-abrogativi/vota - Voti salvati con successo');
     
+    // Verifica che il voto sia stato effettivamente salvato
+    const verifyQuery = `
+      SELECT referendum_id FROM voti_referendum_abrogativi 
+      WHERE userid::text = $1 OR userid = $1::uuid
+      ORDER BY timestamp DESC, created_at DESC
+      LIMIT 1
+    `;
+    const verifyResult = await client.query(verifyQuery, [userId]);
+    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Verifica voto salvato:', verifyResult.rows);
+    
     res.json({
       success: true,
-      message: 'Voti salvati con successo'
+      message: 'Voti salvati con successo',
+      savedVote: verifyResult.rows.length > 0 ? verifyResult.rows[0].referendum_id : null
     });
     
   } catch (error) {
@@ -1473,6 +1526,88 @@ router.post('/vota', verifyToken, async (req, res) => {
       detail: error.detail,
       hint: error.hint
     });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        details: error.message
+      });
+    }
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/referendum-abrogativi/vota - Cancella il voto dell'utente
+router.delete('/vota', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const userId = req.userId || req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Autenticazione richiesta'
+      });
+    }
+    
+    // Verifica se l'utente è admin (gli admin possono sempre cancellare)
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await client.query(userQuery, [userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+    const isAdmin = userRole === 'AD' || userRole === 'Admin';
+    
+    // Se non è admin, verifica il blocco settimanale
+    if (!isAdmin) {
+      const bloccoQuery = `
+        SELECT 
+          CASE 
+            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+            ELSE false
+          END as is_blocked,
+          MAX(timestamp) + INTERVAL '7 days' as unlock_date
+        FROM voti_referendum_abrogativi
+        WHERE userid::text = $1 OR userid = $1::uuid
+      `;
+      const bloccoResult = await client.query(bloccoQuery, [userId]);
+      
+      if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+        const unlockDate = bloccoResult.rows[0].unlock_date;
+        return res.status(400).json({
+          success: false,
+          error: 'Non puoi modificare il voto prima di 7 giorni dall\'ultimo voto',
+          unlockDate: unlockDate ? new Date(unlockDate).toISOString() : null
+        });
+      }
+    }
+    
+    await client.query('BEGIN');
+    
+    // Cancella tutti i voti dell'utente
+    const deleteQuery = `
+      DELETE FROM voti_referendum_abrogativi 
+      WHERE userid::text = $1 OR userid = $1::uuid
+    `;
+    const deleteResult = await client.query(deleteQuery, [userId]);
+    
+    await client.query('COMMIT');
+    
+    console.log(`✅ DEBUG /api/referendum-abrogativi/vota DELETE - Voti eliminati: ${deleteResult.rowCount} (utente: ${userId}, admin: ${isAdmin})`);
+    
+    res.json({
+      success: true,
+      message: 'Voto cancellato con successo',
+      deletedCount: deleteResult.rowCount
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK').catch(err => {
+      console.error('❌ Errore nel ROLLBACK:', err);
+    });
+    console.error('❌ Errore nella cancellazione voto referendum abrogativi:', error);
+    console.error('❌ Stack trace:', error.stack);
     
     if (!res.headersSent) {
       res.status(500).json({
