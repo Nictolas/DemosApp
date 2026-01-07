@@ -146,7 +146,7 @@ export default function VotiPolitici() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <div className="w-full px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
