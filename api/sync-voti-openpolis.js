@@ -232,23 +232,60 @@ async function getPolitici(deputatiFile = null) {
       }
     }
     
-    // Altrimenti, recupera dal database quelli che hanno già un URL configurato
+    // Recupera i politici dalla tabella users con ruolo="P" e grado_elezione="C" o "S"
     try {
-      console.log('[*] Recupero politici dal database...');
+      console.log('[*] Recupero politici dalla tabella users...');
       const result = await pool.query(`
-        SELECT politico_nome, camera, url_openpolis 
-        FROM voti_camera 
-        WHERE url_openpolis IS NOT NULL AND url_openpolis != ''
-        ORDER BY politico_nome
+        SELECT 
+          u.id as user_id,
+          u.nome,
+          u.cognome,
+          CONCAT(u.nome, ' ', u.cognome) as politico_nome,
+          CASE 
+            WHEN u.grado_elezione = 'C' THEN 'Camera'
+            WHEN u.grado_elezione = 'S' THEN 'Senato'
+            ELSE 'Camera'
+          END as camera,
+          u.grado_elezione,
+          COALESCE(vc.url_openpolis, '') as url_openpolis
+        FROM users u
+        LEFT JOIN voti_camera vc ON CONCAT(u.nome, ' ', u.cognome) = vc.politico_nome
+        WHERE u.ruolo = 'P' 
+          AND (u.grado_elezione = 'C' OR u.grado_elezione = 'S')
+          AND u.status = 'a'
+        ORDER BY u.cognome, u.nome
       `);
       
-      console.log(`[*] Query eseguita, trovati ${result.rows.length} risultati`);
+      console.log(`[*] Query eseguita, trovati ${result.rows.length} politici`);
       
       if (result.rows.length > 0) {
-        console.log(`[OK] Trovati ${result.rows.length} politici nel database con URL configurato`);
-        return result.rows;
+        // Se un politico non ha URL configurato, prova a costruirlo dal nome
+        const politiciConUrl = result.rows.map(row => {
+          let urlOpenpolis = row.url_openpolis;
+          
+          // Se non ha URL, prova a costruirlo
+          if (!urlOpenpolis || urlOpenpolis === '') {
+            // Costruisci URL base: https://parlamento19.openpolis.it/persone/nome-cognome-data
+            // Per ora usiamo solo nome-cognome, senza data (che potrebbe non essere disponibile)
+            const nomeSlug = row.nome?.toLowerCase().replace(/\s+/g, '-') || '';
+            const cognomeSlug = row.cognome?.toLowerCase().replace(/\s+/g, '-') || '';
+            urlOpenpolis = `https://parlamento19.openpolis.it/persone/${nomeSlug}-${cognomeSlug}`;
+          }
+          
+          return {
+            politico_nome: row.politico_nome,
+            camera: row.camera,
+            url_openpolis: urlOpenpolis,
+            user_id: row.user_id,
+            nome: row.nome,
+            cognome: row.cognome
+          };
+        });
+        
+        console.log(`[OK] Trovati ${politiciConUrl.length} politici dalla tabella users`);
+        return politiciConUrl;
       } else {
-        console.log('[!] Nessun politico con URL configurato trovato nel database');
+        console.log('[!] Nessun politico trovato nella tabella users con ruolo="P" e grado_elezione="C" o "S"');
       }
     } catch (error) {
       console.error('[ERR] Errore nel recupero dal database:', error.message);
@@ -291,10 +328,16 @@ async function syncVotiOpenpolis(deputatiFile = null) {
       const politico = politici[i];
       const progress = `[${i + 1}/${politici.length}]`;
       
-      const politicoNome = politico.politico_nome || `${politico.nome} ${politico.cognome}`;
+      const politicoNome = politico.politico_nome || `${politico.nome || ''} ${politico.cognome || ''}`.trim();
       const camera = politico.camera || (politico.grado_elezione === 'S' ? 'Senato' : 'Camera');
-      const urlOpenpolis = politico.url_openpolis || 
-        `${OPENPOLIS_BASE_URL}/persone/${politico.nome?.toLowerCase()}-${politico.cognome?.toLowerCase()}-${politico.data_nascita || ''}`;
+      let urlOpenpolis = politico.url_openpolis;
+      
+      // Se non ha URL, prova a costruirlo
+      if (!urlOpenpolis || urlOpenpolis === '') {
+        const nomeSlug = (politico.nome || '').toLowerCase().replace(/\s+/g, '-');
+        const cognomeSlug = (politico.cognome || '').toLowerCase().replace(/\s+/g, '-');
+        urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}`;
+      }
       
       try {
         console.log(`${progress} ${politicoNome}...`, { end: ' ' });

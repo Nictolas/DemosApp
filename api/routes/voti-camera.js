@@ -51,18 +51,30 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Recupera tutti i dati dalla tabella voti_camera
+    // Recupera i dati dalla tabella voti_camera JOIN con users
+    // Mostra solo i politici con ruolo="P" e grado_elezione="C" o "S"
     const dbResult = await pool.query(
-      `SELECT 
-        politico_nome,
-        camera,
-        url_openpolis,
-        votazione,
-        voto,
-        data_votazione,
-        ultimo_aggiornamento
-      FROM voti_camera
-      ORDER BY data_votazione DESC NULLS LAST, politico_nome ASC
+      `SELECT DISTINCT
+        COALESCE(vc.politico_nome, CONCAT(u.nome, ' ', u.cognome)) as politico_nome,
+        CASE 
+          WHEN u.grado_elezione = 'C' THEN 'Camera'
+          WHEN u.grado_elezione = 'S' THEN 'Senato'
+          ELSE COALESCE(vc.camera, 'Camera')
+        END as camera,
+        COALESCE(vc.url_openpolis, '') as url_openpolis,
+        vc.votazione,
+        vc.voto,
+        vc.data_votazione,
+        vc.ultimo_aggiornamento,
+        u.id as user_id,
+        u.nome,
+        u.cognome
+      FROM users u
+      LEFT JOIN voti_camera vc ON CONCAT(u.nome, ' ', u.cognome) = vc.politico_nome
+      WHERE u.ruolo = 'P' 
+        AND (u.grado_elezione = 'C' OR u.grado_elezione = 'S')
+        AND u.status = 'a'
+      ORDER BY vc.data_votazione DESC NULLS LAST, u.cognome ASC, u.nome ASC
       LIMIT 1000`
     );
 
