@@ -36,7 +36,64 @@ router.get('/', async (req, res) => {
     console.log(`🔍 Query notifiche per user_id: ${user_id}`);
     console.log(`🔍 Comune residenza utente: ${userComuneResidenza}`);
     
-    let votiComuniResult, demosResult, comunaliResult;
+    let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult;
+    
+    // Recupera da notifiche_voti_parlamento (solo per i rappresentanti scelti dall'utente)
+    try {
+      // Trova i rappresentanti scelti dall'utente
+      const userResult = await pool.query(
+        'SELECT rappresentante_camera, rappresentante_senato FROM users WHERE id = $1',
+        [user_id]
+      );
+      
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        const rappresentantiIds = [];
+        
+        if (user.rappresentante_camera) {
+          rappresentantiIds.push(user.rappresentante_camera);
+        }
+        if (user.rappresentante_senato) {
+          rappresentantiIds.push(user.rappresentante_senato);
+        }
+        
+        if (rappresentantiIds.length > 0) {
+          const votiParlamentoQuery = `
+            SELECT 
+              nvp.id,
+              nvp.id_utente,
+              nvp.titolo,
+              nvp.testo,
+              COALESCE(nvp.data, CURRENT_DATE) as data,
+              COALESCE(nvp.data_creazione, CURRENT_TIMESTAMP) as data_creazione,
+              nvp.voto,
+              nvp.camera,
+              nvp.politico,
+              COALESCE(nvp.likes, 0) as likes,
+              COALESCE(nvp.dislikes, 0) as dislikes,
+              'notifiche_voti_parlamento' as tabella_origine,
+              u.nome as politico_nome,
+              u.cognome as politico_cognome,
+              u.avatar_config as politico_avatar_config
+            FROM notifiche_voti_parlamento nvp
+            LEFT JOIN users u ON nvp.id_utente = u.id
+            WHERE nvp.id_utente = ANY($1::uuid[])
+            ORDER BY COALESCE(nvp.data_creazione, CURRENT_TIMESTAMP) DESC
+            LIMIT 50
+          `;
+          
+          votiParlamentoResult = await pool.query(votiParlamentoQuery, [rappresentantiIds]);
+          console.log(`✅ Notifiche voti parlamento recuperate: ${votiParlamentoResult.rows.length}`);
+        } else {
+          votiParlamentoResult = { rows: [] };
+        }
+      } else {
+        votiParlamentoResult = { rows: [] };
+      }
+    } catch (err) {
+      console.error('❌ Errore query notifiche_voti_parlamento:', err);
+      votiParlamentoResult = { rows: [] };
+    }
     
     // Recupera da notifiche_voti_comuni
     try {
@@ -351,15 +408,17 @@ router.get('/', async (req, res) => {
     const demosRows = demosResult?.rows || [];
     const comunaliRows = comunaliResult?.rows || [];
     const avvistamentiRows = avvistamentiResult?.rows || [];
+    const votiParlamentoRows = votiParlamentoResult?.rows || [];
     
     const allNotificheRaw = [
       ...votiComuniRows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
+      ...votiParlamentoRows.map(n => ({ ...n, tipo_notifica: 'voto_parlamento' })),
       ...demosRows.map(n => ({ ...n, tipo_notifica: 'demos' })),
       ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' })),
       ...avvistamentiRows.map(n => ({ ...n, tipo_notifica: 'avvistamento' }))
     ];
     
-    console.log(`📊 Notifiche raw combinate: voti_comuni=${votiComuniRows.length}, demos=${demosRows.length}, comunali=${comunaliRows.length}, avvistamenti=${avvistamentiRows.length}, totale=${allNotificheRaw.length}`);
+    console.log(`📊 Notifiche raw combinate: voti_comuni=${votiComuniRows.length}, voti_parlamento=${votiParlamentoRows.length}, demos=${demosRows.length}, comunali=${comunaliRows.length}, avvistamenti=${avvistamentiRows.length}, totale=${allNotificheRaw.length}`);
     
     if (votiComuniRows.length > 0) {
       console.log('📋 Esempio notifica voto_comune:', {
@@ -380,7 +439,7 @@ router.get('/', async (req, res) => {
       if (c.tipo_notifica === 'avvistamento') {
         titolo = `Avvistamento ${c.tipo_avvistamento || 'Animale'}`;
         messaggio = ''; // Nessun messaggio per le notifiche di avvistamento
-      } else if (c.tipo_notifica === 'voto_comune') {
+      } else if (c.tipo_notifica === 'voto_comune' || c.tipo_notifica === 'voto_parlamento') {
         // Costruisci titolo nel formato: "Nome Cognome ha votato Voto a Titolo"
         const nomePolitico = c.politico_nome && c.politico_cognome 
           ? `${c.politico_nome} ${c.politico_cognome}`
