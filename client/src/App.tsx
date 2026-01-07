@@ -85,6 +85,7 @@ import VotaReferendumAbrogativo from "./pages/VotaReferendumAbrogativo";
 import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
 import Sostenitori from "./pages/Sostenitori";
+import VotiPolitici from "./pages/VotiPolitici";
 import Comunica from "./pages/Comunica";
 import Evento from "./pages/Evento";
 import Programma from "./pages/Programma";
@@ -651,6 +652,13 @@ export default function App() {
               <Route path="/gestisci">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci" component={Gestisci} />
+                </PageTransition>
+              </Route>
+
+              {/* Route voti politici */}
+              <Route path="/voti-politici">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/voti-politici" component={VotiPolitici} />
                 </PageTransition>
               </Route>
 

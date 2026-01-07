@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -112,5 +112,15 @@ export const gestisciSections: GestisciSection[] = [
       buttonColor: "bg-indigo-500 hover:bg-indigo-600",
       route: "/gestisci/notifiche-demos",
       buttonText: "Notifiche Demos"
+    },
+    {
+      id: "voti-politici",
+      title: "Voti Politici",
+      description: "Visualizza le votazioni della Camera dei Deputati dell'ultima legislatura",
+      icon: Vote,
+      color: "text-blue-600 group-hover:text-blue-800",
+      buttonColor: "bg-blue-500 hover:bg-blue-600",
+      route: "/voti-politici",
+      buttonText: "Voti Politici"
     },
 ];
