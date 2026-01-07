@@ -240,6 +240,7 @@ async function getPolitici(deputatiFile = null) {
           u.id as user_id,
           u.nome,
           u.cognome,
+          u.data_nascita,
           CONCAT(u.nome, ' ', u.cognome) as politico_nome,
           CASE 
             WHEN u.grado_elezione = 'C' THEN 'Camera'
@@ -263,13 +264,48 @@ async function getPolitici(deputatiFile = null) {
         const politiciConUrl = result.rows.map(row => {
           let urlOpenpolis = row.url_openpolis;
           
-          // Se non ha URL, prova a costruirlo
+          // Se non ha URL, costruiscilo usando nome, cognome e data di nascita
           if (!urlOpenpolis || urlOpenpolis === '') {
-            // Costruisci URL base: https://parlamento19.openpolis.it/persone/nome-cognome-data
-            // Per ora usiamo solo nome-cognome, senza data (che potrebbe non essere disponibile)
-            const nomeSlug = row.nome?.toLowerCase().replace(/\s+/g, '-') || '';
-            const cognomeSlug = row.cognome?.toLowerCase().replace(/\s+/g, '-') || '';
-            urlOpenpolis = `https://parlamento19.openpolis.it/persone/${nomeSlug}-${cognomeSlug}`;
+            // Costruisci slug da nome e cognome (normalizza caratteri speciali)
+            const nomeSlug = (row.nome || '').toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[àáâãäå]/g, 'a')
+              .replace(/[èéêë]/g, 'e')
+              .replace(/[ìíîï]/g, 'i')
+              .replace(/[òóôõö]/g, 'o')
+              .replace(/[ùúûü]/g, 'u')
+              .replace(/[ç]/g, 'c')
+              .replace(/[^a-z0-9-]/g, '');
+            
+            const cognomeSlug = (row.cognome || '').toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[àáâãäå]/g, 'a')
+              .replace(/[èéêë]/g, 'e')
+              .replace(/[ìíîï]/g, 'i')
+              .replace(/[òóôõö]/g, 'o')
+              .replace(/[ùúûü]/g, 'u')
+              .replace(/[ç]/g, 'c')
+              .replace(/[^a-z0-9-]/g, '');
+            
+            // Formatta la data di nascita come YYYY-MM-DD
+            let dataFormattata = '';
+            if (row.data_nascita) {
+              const data = new Date(row.data_nascita);
+              if (!isNaN(data.getTime())) {
+                const anno = data.getFullYear();
+                const mese = String(data.getMonth() + 1).padStart(2, '0');
+                const giorno = String(data.getDate()).padStart(2, '0');
+                dataFormattata = `${anno}-${mese}-${giorno}`;
+              }
+            }
+            
+            // Costruisci URL: https://parlamento19.openpolis.it/persone/nome-cognome-YYYY-MM-DD
+            if (dataFormattata) {
+              urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}-${dataFormattata}`;
+            } else {
+              // Se non c'è data, usa solo nome-cognome (fallback)
+              urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}`;
+            }
           }
           
           return {
@@ -278,7 +314,8 @@ async function getPolitici(deputatiFile = null) {
             url_openpolis: urlOpenpolis,
             user_id: row.user_id,
             nome: row.nome,
-            cognome: row.cognome
+            cognome: row.cognome,
+            data_nascita: row.data_nascita
           };
         });
         
@@ -332,11 +369,48 @@ async function syncVotiOpenpolis(deputatiFile = null) {
       const camera = politico.camera || (politico.grado_elezione === 'S' ? 'Senato' : 'Camera');
       let urlOpenpolis = politico.url_openpolis;
       
-      // Se non ha URL, prova a costruirlo
+      // Se non ha URL, costruiscilo usando nome, cognome e data di nascita
       if (!urlOpenpolis || urlOpenpolis === '') {
-        const nomeSlug = (politico.nome || '').toLowerCase().replace(/\s+/g, '-');
-        const cognomeSlug = (politico.cognome || '').toLowerCase().replace(/\s+/g, '-');
-        urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}`;
+        // Costruisci slug da nome e cognome
+        const nomeSlug = (politico.nome || '').toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[àáâãäå]/g, 'a')
+          .replace(/[èéêë]/g, 'e')
+          .replace(/[ìíîï]/g, 'i')
+          .replace(/[òóôõö]/g, 'o')
+          .replace(/[ùúûü]/g, 'u')
+          .replace(/[ç]/g, 'c')
+          .replace(/[^a-z0-9-]/g, '');
+        
+        const cognomeSlug = (politico.cognome || '').toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[àáâãäå]/g, 'a')
+          .replace(/[èéêë]/g, 'e')
+          .replace(/[ìíîï]/g, 'i')
+          .replace(/[òóôõö]/g, 'o')
+          .replace(/[ùúûü]/g, 'u')
+          .replace(/[ç]/g, 'c')
+          .replace(/[^a-z0-9-]/g, '');
+        
+        // Formatta la data di nascita come YYYY-MM-DD
+        let dataFormattata = '';
+        if (politico.data_nascita) {
+          const data = new Date(politico.data_nascita);
+          if (!isNaN(data.getTime())) {
+            const anno = data.getFullYear();
+            const mese = String(data.getMonth() + 1).padStart(2, '0');
+            const giorno = String(data.getDate()).padStart(2, '0');
+            dataFormattata = `${anno}-${mese}-${giorno}`;
+          }
+        }
+        
+        // Costruisci URL: https://parlamento19.openpolis.it/persone/nome-cognome-YYYY-MM-DD
+        if (dataFormattata) {
+          urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}-${dataFormattata}`;
+        } else {
+          // Se non c'è data, usa solo nome-cognome (fallback)
+          urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}`;
+        }
       }
       
       try {
