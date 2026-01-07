@@ -188,7 +188,88 @@ function normalizzaVoto(voto) {
 /**
  * Salva o aggiorna una votazione nel database
  */
-async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto, dataVotazione) {
+/**
+ * Crea notifiche per gli utenti che hanno scelto questo rappresentante
+ */
+async function creaNotificheParlamento(politicoNome, camera, votazione, voto, dataVotazione, politicoUserId) {
+  try {
+    if (!votazione || !voto) {
+      return; // Non creare notifiche se non ci sono dati di votazione
+    }
+    
+    // Crea hash univoco per evitare duplicati
+    const crypto = require('crypto');
+    const hashInput = `${politicoNome}-${votazione}-${dataVotazione || ''}`;
+    const votazioneHash = crypto.createHash('md5').update(hashInput).digest('hex');
+    
+    // Verifica se la notifica esiste già
+    const existingNotifica = await pool.query(
+      'SELECT id FROM notifiche_voti_parlamento WHERE votazione_hash = $1',
+      [votazioneHash]
+    );
+    
+    if (existingNotifica.rows.length > 0) {
+      return; // Notifica già esistente, evita duplicati
+    }
+    
+    // Trova gli utenti che hanno scelto questo rappresentante
+    const campoRappresentante = camera === 'Senato' ? 'rappresentante_senato' : 'rappresentante_camera';
+    
+    // Trova il politico nella tabella users per ottenere il suo ID
+    let politicoId = politicoUserId;
+    if (!politicoId) {
+      const politicoResult = await pool.query(
+        'SELECT id FROM users WHERE CONCAT(nome, \' \', cognome) = $1 AND ruolo = \'P\'',
+        [politicoNome]
+      );
+      if (politicoResult.rows.length > 0) {
+        politicoId = politicoResult.rows[0].id;
+      }
+    }
+    
+    if (!politicoId) {
+      console.log(`[!] Politico ${politicoNome} non trovato nella tabella users, notifica non creata`);
+      return;
+    }
+    
+    // Trova gli utenti che hanno questo rappresentante
+    const utentiResult = await pool.query(
+      `SELECT id FROM users WHERE ${campoRappresentante} = $1 AND status = 'a'`,
+      [politicoId]
+    );
+    
+    if (utentiResult.rows.length === 0) {
+      return; // Nessun utente ha scelto questo rappresentante
+    }
+    
+    // Crea UNA notifica condivisa (come per i voti comunali)
+    // La notifica è visibile a tutti gli utenti che hanno scelto questo rappresentante
+    const titolo = votazione;
+    const testo = `Il voto di ${politicoNome}: ${voto}`;
+    
+    try {
+      await pool.query(
+        `INSERT INTO notifiche_voti_parlamento (
+          id_utente, politico, camera, titolo, testo, voto, data, votazione_hash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (votazione_hash) DO NOTHING`,
+        [politicoId, politicoNome, camera, titolo, testo, voto, dataVotazione, votazioneHash]
+      );
+      
+      console.log(`[OK] Notifica creata per ${utentiResult.rows.length} utenti che hanno scelto ${politicoNome}`);
+    } catch (error) {
+      // Ignora errori di duplicati (ON CONFLICT DO NOTHING)
+      if (!error.message.includes('duplicate') && !error.message.includes('unique')) {
+        console.error(`[ERR] Errore creazione notifica per ${politicoNome}:`, error.message);
+      }
+    }
+    
+  } catch (error) {
+    console.error(`[ERR] Errore nella creazione notifiche per ${politicoNome}:`, error.message);
+  }
+}
+
+async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto, dataVotazione, politicoUserId = null) {
   try {
     const query = `
       INSERT INTO voti_camera (politico_nome, camera, url_openpolis, votazione, voto, data_votazione)
@@ -204,6 +285,10 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto
     `;
     
     await pool.query(query, [politicoNome, camera, urlOpenpolis, votazione, voto, dataVotazione]);
+    
+    // Crea notifiche per gli utenti che hanno scelto questo rappresentante
+    await creaNotificheParlamento(politicoNome, camera, votazione, voto, dataVotazione, politicoUserId);
+    
     return true;
     
   } catch (error) {
@@ -425,7 +510,8 @@ async function syncVotiOpenpolis(deputatiFile = null) {
             urlOpenpolis,
             risultato.votazione,
             risultato.voto,
-            risultato.data_votazione
+            risultato.data_votazione,
+            politico.user_id || null
           );
           
           if (salvato) {
