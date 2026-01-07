@@ -184,29 +184,28 @@ async function saveVotazioniToDatabase(votazioni) {
   
   for (const votazione of votazioni) {
     try {
+      // Salva seduta nei metadati se non c'è una colonna dedicata
+      const metadatiCompleti = {
+        ...votazione.metadati,
+        seduta: votazione.seduta || null
+      };
+      
       const result = await pool.query(
-        // Salva seduta nei metadati se non c'è una colonna dedicata
-        const metadatiCompleti = {
-          ...votazione.metadati,
-          seduta: votazione.seduta || null
-        };
-        
-        await pool.query(
-          `INSERT INTO voti_politici (
-            uri, votazione_id, legislatura, data_votazione, descrizione,
-            esito, sigla_atto, numero_atto, tipo_atto, metadati
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
-          ON CONFLICT (uri) 
-          DO UPDATE SET
-            data_votazione = EXCLUDED.data_votazione,
-            descrizione = EXCLUDED.descrizione,
-            esito = EXCLUDED.esito,
-            sigla_atto = EXCLUDED.sigla_atto,
-            numero_atto = EXCLUDED.numero_atto,
-            tipo_atto = EXCLUDED.tipo_atto,
-            metadati = EXCLUDED.metadati,
-            data_aggiornamento = CURRENT_TIMESTAMP`,
-          [
+        `INSERT INTO voti_politici (
+          uri, votazione_id, legislatura, data_votazione, descrizione,
+          esito, sigla_atto, numero_atto, tipo_atto, metadati
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+        ON CONFLICT (uri) 
+        DO UPDATE SET
+          data_votazione = EXCLUDED.data_votazione,
+          descrizione = EXCLUDED.descrizione,
+          esito = EXCLUDED.esito,
+          sigla_atto = EXCLUDED.sigla_atto,
+          numero_atto = EXCLUDED.numero_atto,
+          tipo_atto = EXCLUDED.tipo_atto,
+          metadati = EXCLUDED.metadati,
+          data_aggiornamento = CURRENT_TIMESTAMP`,
+        [
             votazione.uri,
             votazione.votazione_id,
             votazione.legislatura,
