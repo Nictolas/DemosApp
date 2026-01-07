@@ -69,7 +69,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
   return (
     <button
       type="button"
-      className="menu-button relative w-full h-full min-h-[200px] rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="menu-button relative w-full min-h-[120px] rounded-xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:shadow-xl"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -78,16 +78,19 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
       onContextMenu={handleContextMenu}
       data-testid="gestisci-button"
     >
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <polygon points="100,0 0,0 0,35 100,20" fill={bgColor} />
-        <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-      </svg>
-      <div className="relative z-10 flex flex-col items-center justify-center h-full p-4">
-        <span className="relative flex items-center justify-center w-16 h-16 mb-3">
-          <IconComponent className="h-14 w-14 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-          <IconComponent className="h-10 w-10 relative z-10" style={{ color: iconColor }} />
+      <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: 0.1 }}></div>
+      <div className="absolute top-0 left-0 w-2 h-full" style={{ backgroundColor: bgColor }}></div>
+      <div className="relative z-10 flex flex-row items-center gap-6 p-6 w-full">
+        <span className="relative flex items-center justify-center w-16 h-16 flex-shrink-0">
+          <IconComponent className="h-12 w-12" style={{ color: iconColor }} />
         </span>
-        <div className="text-gray-700 font-semibold text-2xl select-none text-center leading-tight">{section.title}</div>
+        <div className="flex-1 text-left">
+          <div className="text-gray-900 font-bold text-2xl select-none leading-tight mb-1">{section.title}</div>
+          <div className="text-gray-600 text-sm select-none">{section.description}</div>
+        </div>
+        <div className="flex-shrink-0">
+          <div className="text-gray-400 text-xs select-none">→</div>
+        </div>
       </div>
     </button>
   );

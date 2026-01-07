@@ -21,8 +21,8 @@ export default function Gestisci() {
 
   return (
     <PageContainer className="menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
-      <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
-        <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
+      <div className="w-full px-4 py-4 flex-1 flex flex-col">
+        <div className="w-full flex-1 flex flex-col min-h-0">
           <div className="mt-4">
             <SectionsGrid />
           </div>
