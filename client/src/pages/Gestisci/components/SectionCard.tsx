@@ -44,6 +44,9 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
     if (buttonColor.includes('red')) return '#ef4444';
     if (buttonColor.includes('emerald')) return '#10b981';
     if (buttonColor.includes('indigo')) return '#6366f1';
+    if (buttonColor.includes('blue')) return '#3b82f6';
+    if (buttonColor.includes('pink')) return '#ec4899';
+    if (buttonColor.includes('slate')) return '#64748b';
     return '#6b7280';
   };
 
@@ -54,6 +57,9 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
     if (buttonColor.includes('red')) return '#ef4444';
     if (buttonColor.includes('emerald')) return '#10b981';
     if (buttonColor.includes('indigo')) return '#6366f1';
+    if (buttonColor.includes('blue')) return '#3b82f6';
+    if (buttonColor.includes('pink')) return '#ec4899';
+    if (buttonColor.includes('slate')) return '#64748b';
     return '#6b7280';
   };
 
@@ -63,7 +69,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
   return (
     <button
       type="button"
-      className="menu-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="menu-button relative w-full h-full min-h-[200px] rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
