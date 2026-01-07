@@ -69,7 +69,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
   return (
     <button
       type="button"
-      className="menu-button relative w-full min-h-[120px] rounded-xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:shadow-xl"
+      className="menu-button relative w-full min-h-[140px] rounded-xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:shadow-xl"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -80,16 +80,13 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
     >
       <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: 0.1 }}></div>
       <div className="absolute top-0 left-0 w-2 h-full" style={{ backgroundColor: bgColor }}></div>
-      <div className="relative z-10 flex flex-row items-center gap-6 p-6 w-full">
-        <span className="relative flex items-center justify-center w-16 h-16 flex-shrink-0">
-          <IconComponent className="h-12 w-12" style={{ color: iconColor }} />
+      <div className="relative z-10 flex flex-col items-center justify-center gap-3 p-4 w-full h-full">
+        <span className="relative flex items-center justify-center w-12 h-12 flex-shrink-0">
+          <IconComponent className="h-10 w-10" style={{ color: iconColor }} />
         </span>
-        <div className="flex-1 text-left">
-          <div className="text-gray-900 font-bold text-2xl select-none leading-tight mb-1">{section.title}</div>
-          <div className="text-gray-600 text-sm select-none">{section.description}</div>
-        </div>
-        <div className="flex-shrink-0">
-          <div className="text-gray-400 text-xs select-none">→</div>
+        <div className="flex-1 text-center">
+          <div className="text-gray-900 font-bold text-lg select-none leading-tight mb-1">{section.title}</div>
+          <div className="text-gray-600 text-xs select-none line-clamp-2">{section.description}</div>
         </div>
       </div>
     </button>
