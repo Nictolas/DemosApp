@@ -74,7 +74,9 @@ ensureTableExists();
 
 // Funzione helper per recuperare dati da SPARQL
 async function fetchFromSparql(limit = 100) {
-  const sparqlQuery = `
+  // Query SPARQL per ottenere votazioni
+  // Nota: l'URI usa "votazione" minuscolo, non "Votazione"
+  let sparqlQuery = `
     PREFIX ocd: <http://dati.camera.it/ocd/>
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -82,30 +84,51 @@ async function fetchFromSparql(limit = 100) {
     
     SELECT DISTINCT ?votazione ?predicato ?oggetto
     WHERE {
-      ?votazione a ocd:Votazione .
+      ?votazione a <http://dati.camera.it/ocd/votazione> .
       ?votazione ?predicato ?oggetto .
-      
-      # Filtra per la XIX legislatura (2022-2027)
-      ?votazione ocd:rif_legislatura ?legislatura .
-      ?legislatura ocd:numero 19 .
     }
     LIMIT ${limit}
   `;
 
   const sparqlEndpoint = 'http://dati.camera.it/sparql';
-  const params = new URLSearchParams();
-  params.append('query', sparqlQuery);
-  params.append('format', 'json');
   
-  const response = await axios.post(sparqlEndpoint, params.toString(), {
-    headers: {
-      'Accept': 'application/sparql-results+json',
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    timeout: 30000
-  });
+  console.log('🔍 SPARQL Query:', sparqlQuery);
+  console.log('🔍 SPARQL Endpoint:', sparqlEndpoint);
+  
+  try {
+    // Prova prima con GET (metodo standard per SPARQL)
+    const params = new URLSearchParams();
+    params.append('query', sparqlQuery);
+    params.append('format', 'json');
+    
+    const response = await axios.get(`${sparqlEndpoint}?${params.toString()}`, {
+      headers: {
+        'Accept': 'application/sparql-results+json, application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 30000
+    });
 
-  return response.data.results?.bindings || [];
+    console.log('✅ SPARQL Response status:', response.status);
+    console.log('✅ SPARQL Response data keys:', Object.keys(response.data || {}));
+    
+    const bindings = response.data?.results?.bindings || [];
+    console.log(`📊 SPARQL Results: ${bindings.length} bindings trovati`);
+    
+    if (bindings.length === 0 && response.data?.results) {
+      console.log('⚠️ Nessun binding trovato, ma response.data.results esiste');
+      console.log('📋 Response data completo:', JSON.stringify(response.data, null, 2).substring(0, 500));
+    }
+    
+    return bindings;
+  } catch (error) {
+    console.error('❌ Errore nella chiamata SPARQL:', error.message);
+    if (error.response) {
+      console.error('❌ SPARQL Response status:', error.response.status);
+      console.error('❌ SPARQL Response data:', error.response.data);
+    }
+    throw error;
+  }
 }
 
 // Funzione helper per processare e salvare i dati
@@ -168,10 +191,13 @@ async function processAndSaveVotazioni(sparqlResults) {
 // Funzione helper per salvare le votazioni nel database
 async function saveVotazioniToDatabase(votazioni) {
   let savedCount = 0;
+  let errorCount = 0;
+  
+  console.log(`💾 Tentativo di salvare ${votazioni.length} votazioni nel database...`);
   
   for (const votazione of votazioni) {
     try {
-      await pool.query(
+      const result = await pool.query(
         `INSERT INTO voti_politici (
           uri, votazione_id, legislatura, data_votazione, descrizione,
           esito, sigla_atto, numero_atto, tipo_atto, metadati
@@ -200,11 +226,17 @@ async function saveVotazioniToDatabase(votazioni) {
         ]
       );
       savedCount++;
+      if (savedCount % 10 === 0) {
+        console.log(`  💾 Salvate ${savedCount}/${votazioni.length} votazioni...`);
+      }
     } catch (error) {
+      errorCount++;
       console.error(`❌ Errore nel salvare votazione ${votazione.uri}:`, error.message);
+      console.error(`❌ Dettagli errore:`, error);
     }
   }
   
+  console.log(`✅ Salvataggio completato: ${savedCount} salvate, ${errorCount} errori`);
   return savedCount;
 }
 
@@ -254,13 +286,27 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Se il database è vuoto, recupera da SPARQL e salva
     console.log('📥 Database vuoto, recupero dati da SPARQL...');
-    const sparqlResults = await fetchFromSparql(100);
+    let sparqlResults;
+    try {
+      sparqlResults = await fetchFromSparql(100);
+      console.log(`📊 SPARQL ha restituito ${sparqlResults.length} risultati`);
+    } catch (sparqlError) {
+      console.error('❌ Errore nel recupero da SPARQL:', sparqlError);
+      return res.status(503).json({
+        success: false,
+        data: [],
+        error: 'Errore nel recupero dati da SPARQL',
+        message: sparqlError.message || 'Impossibile connettersi all\'endpoint SPARQL',
+        source: 'sparql'
+      });
+    }
     
     if (sparqlResults.length === 0) {
+      console.log('⚠️ Nessun risultato da SPARQL');
       return res.json({
         success: true,
         data: [],
-        message: 'Nessuna votazione trovata',
+        message: 'Nessuna votazione trovata nell\'endpoint SPARQL. La query potrebbe non restituire risultati per la XIX legislatura.',
         source: 'sparql'
       });
     }
@@ -315,34 +361,111 @@ router.post('/sync', verifyToken, async (req, res) => {
     
     await ensureTableExists();
     
+    // Verifica conteggio attuale
+    const countBefore = await pool.query('SELECT COUNT(*) as count FROM voti_politici');
+    const countBeforeValue = parseInt(countBefore.rows[0].count);
+    console.log(`📊 Record prima della sincronizzazione: ${countBeforeValue}`);
+    
     const { limit = 100 } = req.body;
     
+    console.log(`🔍 Recupero dati da SPARQL con limit=${limit}...`);
     const sparqlResults = await fetchFromSparql(limit);
     
+    console.log(`📊 SPARQL ha restituito ${sparqlResults.length} bindings`);
+    
     if (sparqlResults.length === 0) {
+      console.log('⚠️ Nessun risultato da SPARQL');
       return res.json({
         success: true,
-        message: 'Nessuna votazione trovata da SPARQL',
-        saved: 0
+        message: 'Nessuna votazione trovata da SPARQL. L\'endpoint potrebbe non restituire dati o la query potrebbe non essere corretta.',
+        saved: 0,
+        sparqlResults: 0
       });
     }
 
-    const savedCount = await processAndSaveVotazioni(sparqlResults);
+    console.log('🔄 Processo e salvo i dati...');
+    const votazioni = await processAndSaveVotazioni(sparqlResults);
+    
+    // Verifica conteggio dopo
+    const countAfter = await pool.query('SELECT COUNT(*) as count FROM voti_politici');
+    const countAfterValue = parseInt(countAfter.rows[0].count);
+    const newRecords = countAfterValue - countBeforeValue;
+    
+    console.log(`📊 Record dopo la sincronizzazione: ${countAfterValue}`);
+    console.log(`✅ Nuovi record aggiunti: ${newRecords}`);
     
     res.json({
       success: true,
       message: `Sincronizzazione completata`,
-      saved: savedCount,
-      total: sparqlResults.length
+      saved: newRecords,
+      total: sparqlResults.length,
+      votazioniProcessate: votazioni.length,
+      countBefore: countBeforeValue,
+      countAfter: countAfterValue
     });
 
   } catch (error) {
     console.error('❌ Errore nella sincronizzazione:', error);
+    console.error('❌ Stack:', error.stack);
     
     res.status(500).json({
       success: false,
       error: 'Errore nella sincronizzazione',
-      message: error.message
+      message: error.message,
+      details: error.stack
+    });
+  }
+});
+
+// GET /api/voti-politici/debug - Endpoint di debug per verificare lo stato
+router.get('/debug', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/voti-politici/debug - Debug info');
+    
+    // Verifica esistenza tabella
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'voti_politici'
+      );
+    `);
+    
+    const tableExists = tableCheck.rows[0].exists;
+    
+    let count = 0;
+    let sampleData = [];
+    
+    if (tableExists) {
+      const countResult = await pool.query('SELECT COUNT(*) as count FROM voti_politici');
+      count = parseInt(countResult.rows[0].count);
+      
+      if (count > 0) {
+        const sampleResult = await pool.query(`
+          SELECT uri, votazione_id, data_votazione, descrizione, esito, data_sincronizzazione
+          FROM voti_politici
+          ORDER BY data_sincronizzazione DESC
+          LIMIT 5
+        `);
+        sampleData = sampleResult.rows;
+      }
+    }
+    
+    res.json({
+      success: true,
+      tableExists,
+      recordCount: count,
+      sampleData,
+      message: tableExists 
+        ? (count > 0 ? `Tabella esiste con ${count} record` : 'Tabella esiste ma è vuota')
+        : 'Tabella non esiste'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel debug:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
