@@ -71,3 +71,4 @@
 
 4. **Query classifica**: La query per referendum usa una logica alternativa (crea classifica da normalizedData) che potrebbe non funzionare correttamente se la classifica viene sovrascritta dopo.
 
+
