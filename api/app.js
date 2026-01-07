@@ -94,6 +94,7 @@ const testPerformanceRoutes = require('./routes/test-performance');
 const statisticheRoutes = require('./routes/statistiche');
 const ministeroRoutes = require('./routes/ministero');
 const votiPoliticiRoutes = require('./routes/voti-politici');
+const votiCameraRoutes = require('./routes/voti-camera');
 // const testMiddlewareRoutes = require('./routes/test-middleware');
 // const testSimpleRoutes = require('./routes/test-simple');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
@@ -368,6 +369,7 @@ app.use('/api/test-performance', testPerformanceRoutes);
 app.use('/api/statistiche', publicLimiter, statisticheRoutes);
 app.use('/api/ministero', publicLimiter, ministeroRoutes);
 app.use('/api/voti-politici', userLimiter, votiPoliticiRoutes);
+app.use('/api/voti-camera', userLimiter, votiCameraRoutes);
 // app.use('/api/test', testMiddlewareRoutes);
 // app.use('/api/test', testSimpleRoutes);
 app.use('/api/admin', adminRoutes);

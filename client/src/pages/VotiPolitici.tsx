@@ -17,27 +17,22 @@ import {
 } from "@/components/ui/table";
 import { Loader2, ArrowLeft, Vote, AlertCircle } from "lucide-react";
 
-interface Votazione {
-  uri: string;
-  id: string;
-  data_creazione: string | null;
-  descrizione: string | null;
-  esito: string | null;
-  sigla_atto: string | null;
-  numero_atto: string | null;
-  tipo_atto: string | null;
-  data: Record<string, any>;
+interface VotazioneCamera {
+  politico_nome: string;
+  data_votazione: string | null;
+  oggetto_voto: string | null;
+  esito_voto: string | null;
 }
 
 export default function VotiPolitici() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Query per recuperare i dati delle votazioni
+  // Query per recuperare i dati delle votazioni dalla tabella voti_camera
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/voti-politici"],
+    queryKey: ["/api/voti-camera"],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/voti-politici");
+      const response = await apiRequest("GET", "/api/voti-camera");
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Errore nel recupero dei dati");
@@ -50,41 +45,7 @@ export default function VotiPolitici() {
     staleTime: 5 * 60 * 1000, // Cache per 5 minuti
   });
 
-  // Funzione per sincronizzare manualmente i dati
-  const syncData = async () => {
-    try {
-      toast({
-        title: "Sincronizzazione in corso...",
-        description: "Recupero dati da SPARQL...",
-      });
-      
-      const response = await apiRequest("POST", "/api/voti-politici/sync", {
-        limit: 100,
-      });
-      
-      if (!response.ok) {
-        throw new Error("Errore nella sincronizzazione");
-      }
-      
-      const result = await response.json();
-      
-      toast({
-        title: "Sincronizzazione completata",
-        description: `${result.saved || 0} votazioni sincronizzate`,
-      });
-      
-      // Ricarica i dati
-      await refetch();
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: error.message || "Errore nella sincronizzazione",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const votazioni: Votazione[] = data || [];
+  const votazioni: VotazioneCamera[] = data || [];
 
   // Formatta la data
   const formatDate = (dateString: string | null) => {
@@ -101,18 +62,18 @@ export default function VotiPolitici() {
     }
   };
 
-  // Estrai tutti i predicati unici per mostrare colonne dinamiche
-  const getAllPredicates = () => {
-    const predicates = new Set<string>();
+  // Conta i politici unici
+  const getUniquePolitici = () => {
+    const politici = new Set<string>();
     votazioni.forEach((votazione) => {
-      Object.keys(votazione.data || {}).forEach((key) => {
-        predicates.add(key);
-      });
+      if (votazione.politico_nome) {
+        politici.add(votazione.politico_nome);
+      }
     });
-    return Array.from(predicates).sort();
+    return Array.from(politici);
   };
 
-  const allPredicates = getAllPredicates();
+  const uniquePolitici = getUniquePolitici();
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -134,21 +95,14 @@ export default function VotiPolitici() {
                 Voti Politici
               </h1>
               <p className="text-muted-foreground mt-1">
-                Votazioni della Camera dei Deputati - XIX Legislatura
+                Votazioni più recenti dei deputati della Camera
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Dati estratti dal sito della Camera dei Deputati
               </p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => syncData()}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
-              Sincronizza da SPARQL
-            </Button>
             <Button
               variant="outline"
               onClick={() => refetch()}
@@ -190,7 +144,7 @@ export default function VotiPolitici() {
             <CardHeader>
               <CardTitle>Votazioni ({votazioni.length})</CardTitle>
               <CardDescription>
-                Dati recuperati dall'endpoint SPARQL della Camera dei Deputati
+                Votazioni più recenti dei deputati della Camera dei Deputati
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -198,7 +152,7 @@ export default function VotiPolitici() {
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Nessuna votazione trovata. Clicca su "Sincronizza da SPARQL" per recuperare i dati dall'endpoint della Camera dei Deputati.
+                    Nessuna votazione trovata. Esegui lo script Python per popolare la tabella voti_camera.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -206,39 +160,45 @@ export default function VotiPolitici() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[100px]">ID</TableHead>
-                        <TableHead className="min-w-[150px]">Data</TableHead>
-                        <TableHead className="min-w-[200px]">Descrizione</TableHead>
-                        <TableHead className="min-w-[100px]">Esito</TableHead>
-                        <TableHead className="min-w-[100px]">Sigla Atto</TableHead>
-                        <TableHead className="min-w-[100px]">Numero Atto</TableHead>
-                        <TableHead className="min-w-[100px]">Tipo Atto</TableHead>
-                        {allPredicates.slice(0, 5).map((predicate) => (
-                          <TableHead key={predicate} className="min-w-[150px]">
-                            {predicate}
-                          </TableHead>
-                        ))}
+                        <TableHead className="min-w-[200px]">Politico</TableHead>
+                        <TableHead className="min-w-[150px]">Data Votazione</TableHead>
+                        <TableHead className="min-w-[300px]">Oggetto Voto</TableHead>
+                        <TableHead className="min-w-[120px]">Esito</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {votazioni.map((votazione) => (
-                        <TableRow key={votazione.id}>
-                          <TableCell className="font-mono text-xs">
-                            {votazione.id.substring(0, 20)}...
+                      {votazioni.map((votazione, index) => (
+                        <TableRow key={`${votazione.politico_nome}-${index}`}>
+                          <TableCell className="font-medium">
+                            {votazione.politico_nome || "N/A"}
                           </TableCell>
-                          <TableCell>{formatDate(votazione.data_creazione)}</TableCell>
-                          <TableCell className="max-w-[300px] truncate">
-                            {votazione.descrizione || "N/A"}
+                          <TableCell>
+                            {votazione.data_votazione ? formatDate(votazione.data_votazione) : "N/A"}
                           </TableCell>
-                          <TableCell>{votazione.esito || "N/A"}</TableCell>
-                          <TableCell>{votazione.sigla_atto || "N/A"}</TableCell>
-                          <TableCell>{votazione.numero_atto || "N/A"}</TableCell>
-                          <TableCell>{votazione.tipo_atto || "N/A"}</TableCell>
-                          {allPredicates.slice(0, 5).map((predicate) => (
-                            <TableCell key={predicate} className="max-w-[200px] truncate">
-                              {votazione.data[predicate] || "N/A"}
-                            </TableCell>
-                          ))}
+                          <TableCell className="max-w-[400px]">
+                            <div className="truncate" title={votazione.oggetto_voto || ""}>
+                              {votazione.oggetto_voto || "N/A"}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {votazione.esito_voto ? (
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                votazione.esito_voto.toLowerCase().includes('favorevole') || 
+                                votazione.esito_voto.toLowerCase().includes('sì') ||
+                                votazione.esito_voto.toLowerCase().includes('approvato')
+                                  ? 'bg-green-100 text-green-800' 
+                                  : votazione.esito_voto.toLowerCase().includes('contrario') ||
+                                    votazione.esito_voto.toLowerCase().includes('no') ||
+                                    votazione.esito_voto.toLowerCase().includes('respinto')
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {votazione.esito_voto}
+                              </span>
+                            ) : (
+                              "N/A"
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -261,13 +221,14 @@ export default function VotiPolitici() {
                   <strong>Totale votazioni:</strong> {votazioni.length}
                 </p>
                 <p>
-                  <strong>Predicati unici trovati:</strong> {allPredicates.length}
+                  <strong>Politici unici:</strong> {uniquePolitici.length}
                 </p>
                 <p className="text-xs">
-                  I dati vengono recuperati in tempo reale dall'endpoint SPARQL
-                  della Camera dei Deputati. Solo i primi 5 predicati
-                  aggiuntivi sono mostrati nella tabella per questioni di
-                  spazio.
+                  <strong>Dati disponibili:</strong> Nome politico, Data votazione, Oggetto del voto, Esito
+                </p>
+                <p className="text-xs mt-2">
+                  <strong>Fonte:</strong> Dati estratti dal sito della Camera dei Deputati tramite scraping automatico.
+                  Ogni politico mostra la votazione più recente disponibile.
                 </p>
               </div>
             </CardContent>
