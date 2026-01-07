@@ -39,14 +39,50 @@ export default function VotiPolitici() {
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/voti-politici");
       if (!response.ok) {
-        throw new Error("Errore nel recupero dei dati");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Errore nel recupero dei dati");
       }
       const result = await response.json();
+      console.log("📊 Dati ricevuti:", result);
       return result.data || [];
     },
     retry: 2,
     staleTime: 5 * 60 * 1000, // Cache per 5 minuti
   });
+
+  // Funzione per sincronizzare manualmente i dati
+  const syncData = async () => {
+    try {
+      toast({
+        title: "Sincronizzazione in corso...",
+        description: "Recupero dati da SPARQL...",
+      });
+      
+      const response = await apiRequest("POST", "/api/voti-politici/sync", {
+        limit: 100,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Errore nella sincronizzazione");
+      }
+      
+      const result = await response.json();
+      
+      toast({
+        title: "Sincronizzazione completata",
+        description: `${result.saved || 0} votazioni sincronizzate`,
+      });
+      
+      // Ricarica i dati
+      await refetch();
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nella sincronizzazione",
+        variant: "destructive",
+      });
+    }
+  };
 
   const votazioni: Votazione[] = data || [];
 
@@ -79,7 +115,7 @@ export default function VotiPolitici() {
   const allPredicates = getAllPredicates();
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -102,16 +138,28 @@ export default function VotiPolitici() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : null}
-            Aggiorna
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => syncData()}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Sincronizza da SPARQL
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Aggiorna
+            </Button>
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -150,7 +198,7 @@ export default function VotiPolitici() {
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Nessuna votazione trovata.
+                    Nessuna votazione trovata. Clicca su "Sincronizza da SPARQL" per recuperare i dati dall'endpoint della Camera dei Deputati.
                   </AlertDescription>
                 </Alert>
               ) : (
