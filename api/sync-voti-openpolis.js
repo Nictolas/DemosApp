@@ -198,8 +198,9 @@ async function creaNotificheParlamento(politicoNome, camera, votazione, voto, da
     }
     
     // Crea hash univoco per evitare duplicati
+    // Usa solo politicoNome e votazione (senza data) per evitare duplicati con date diverse
     const crypto = require('crypto');
-    const hashInput = `${politicoNome}-${votazione}-${dataVotazione || ''}`;
+    const hashInput = `${politicoNome}-${votazione}`.toLowerCase().trim();
     const votazioneHash = crypto.createHash('md5').update(hashInput).digest('hex');
     
     // Verifica se la notifica esiste già

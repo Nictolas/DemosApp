@@ -47,8 +47,8 @@ async function creaNotificheRetroattive() {
           continue;
         }
         
-        // Crea hash univoco
-        const hashInput = `${voto.politico_nome}-${voto.votazione}-${voto.data_votazione || ''}`;
+        // Crea hash univoco (senza data per evitare duplicati con date diverse)
+        const hashInput = `${voto.politico_nome}-${voto.votazione}`.toLowerCase().trim();
         const votazioneHash = crypto.createHash('md5').update(hashInput).digest('hex');
         
         // Verifica se la notifica esiste già
