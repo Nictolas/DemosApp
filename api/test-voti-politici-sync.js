@@ -42,19 +42,20 @@ async function testVotiPolitici() {
     // 3. Test query SPARQL
     console.log('3️⃣ Test query SPARQL...');
     
-    // Usa l'URI corretto con "votazione" minuscolo
+    // Query ottimizzata per ottenere label, approvato e seduta
     let sparqlQuery = `
       PREFIX ocd: <http://dati.camera.it/ocd/>
-      PREFIX dc: <http://purl.org/dc/elements/1.1/>
-      PREFIX dcterms: <http://purl.org/dc/terms/>
-      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
       
-      SELECT DISTINCT ?votazione ?predicato ?oggetto
+      SELECT DISTINCT ?votazione ?label ?approvato ?seduta
       WHERE {
         ?votazione a <http://dati.camera.it/ocd/votazione> .
-        ?votazione ?predicato ?oggetto .
+        OPTIONAL { ?votazione rdfs:label ?label . }
+        OPTIONAL { ?votazione ocd:approvato ?approvato . }
+        OPTIONAL { ?votazione ocd:rif_seduta ?seduta . }
       }
-      LIMIT 10
+      ORDER BY DESC(?votazione)
+      LIMIT 50
     `;
     
     console.log('🔍 Query con URI corretto (votazione minuscolo)...');
@@ -95,42 +96,33 @@ async function testVotiPolitici() {
       return;
     }
 
-    // 4. Processa i risultati
+    // 4. Processa i risultati (nuova struttura)
     console.log('4️⃣ Processa risultati SPARQL...');
     const votazioni = {};
     for (const result of bindings) {
       const votazioneUri = result.votazione?.value;
-      const predicato = result.predicato?.value;
-      const oggetto = result.oggetto?.value;
-
       if (!votazioneUri) continue;
 
       if (!votazioni[votazioneUri]) {
         votazioni[votazioneUri] = {
           uri: votazioneUri,
           votazione_id: votazioneUri.split('/').pop() || votazioneUri,
-          legislatura: 19,
+          legislatura: null,
           data_votazione: null,
-          descrizione: null,
-          esito: null,
+          descrizione: result.label?.value || null,
+          esito: result.approvato?.value === '1' || result.approvato?.value === 1 ? 'Approvato' : 
+                 result.approvato?.value === '0' || result.approvato?.value === 0 ? 'Non Approvato' : null,
           sigla_atto: null,
           numero_atto: null,
           tipo_atto: null,
-          metadati: {}
+          seduta: result.seduta?.value || null,
+          metadati: {
+            label: result.label?.value || null,
+            approvato: result.approvato?.value || null,
+            seduta: result.seduta?.value || null
+          }
         };
       }
-
-      const nomePredicato = predicato.split('/').pop().split('#').pop();
-      
-      if (nomePredicato === 'date' || nomePredicato === 'data') {
-        votazioni[votazioneUri].data_votazione = oggetto;
-      } else if (nomePredicato === 'description' || nomePredicato === 'descrizione') {
-        votazioni[votazioneUri].descrizione = oggetto;
-      } else if (nomePredicato === 'esitoVotazione' || nomePredicato === 'esito') {
-        votazioni[votazioneUri].esito = oggetto;
-      }
-
-      votazioni[votazioneUri].metadati[nomePredicato] = oggetto;
     }
 
     console.log(`✅ Processate ${Object.keys(votazioni).length} votazioni uniche`);
@@ -169,7 +161,10 @@ async function testVotiPolitici() {
             votazione.sigla_atto,
             votazione.numero_atto,
             votazione.tipo_atto,
-            JSON.stringify(votazione.metadati)
+            JSON.stringify({
+            ...votazione.metadati,
+            seduta: votazione.seduta || null
+          })
           ]
         );
         savedCount++;

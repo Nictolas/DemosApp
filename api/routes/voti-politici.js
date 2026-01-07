@@ -74,19 +74,23 @@ ensureTableExists();
 
 // Funzione helper per recuperare dati da SPARQL
 async function fetchFromSparql(limit = 100) {
-  // Query SPARQL per ottenere votazioni
-  // Nota: l'URI usa "votazione" minuscolo, non "Votazione"
+  // Query SPARQL per ottenere votazioni della XIX legislatura
+  // Filtra per votazioni con "vs19" nel nome (XIX legislatura)
+  // I dati disponibili sono limitati: label, approvato, rif_seduta
+  // NOTA: I voti dei singoli politici NON sono disponibili tramite SPARQL
   let sparqlQuery = `
     PREFIX ocd: <http://dati.camera.it/ocd/>
-    PREFIX dc: <http://purl.org/dc/elements/1.1/>
-    PREFIX dcterms: <http://purl.org/dc/terms/>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     
-    SELECT DISTINCT ?votazione ?predicato ?oggetto
+    SELECT DISTINCT ?votazione ?label ?approvato ?seduta
     WHERE {
       ?votazione a <http://dati.camera.it/ocd/votazione> .
-      ?votazione ?predicato ?oggetto .
+      FILTER(CONTAINS(STR(?votazione), "vs19"))
+      OPTIONAL { ?votazione rdfs:label ?label . }
+      OPTIONAL { ?votazione ocd:approvato ?approvato . }
+      OPTIONAL { ?votazione ocd:rif_seduta ?seduta . }
     }
+    ORDER BY DESC(?votazione)
     LIMIT ${limit}
   `;
 
@@ -135,50 +139,33 @@ async function fetchFromSparql(limit = 100) {
 async function processAndSaveVotazioni(sparqlResults) {
   if (sparqlResults.length === 0) return [];
 
-  // Raggruppa i risultati per votazione
+  // I risultati ora hanno struttura diretta: votazione, label, approvato, seduta
   const votazioni = {};
+  
   for (const result of sparqlResults) {
     const votazioneUri = result.votazione?.value;
-    const predicato = result.predicato?.value;
-    const oggetto = result.oggetto?.value;
-
     if (!votazioneUri) continue;
 
     if (!votazioni[votazioneUri]) {
       votazioni[votazioneUri] = {
         uri: votazioneUri,
         votazione_id: votazioneUri.split('/').pop() || votazioneUri,
-        legislatura: 19,
+        legislatura: votazioneUri.includes('vs19') ? 19 : null, // Estrai da vs19 nel nome
         data_votazione: null,
-        descrizione: null,
-        esito: null,
+        descrizione: result.label?.value || null,
+        esito: result.approvato?.value === '1' || result.approvato?.value === 1 ? 'Approvato' : 
+               result.approvato?.value === '0' || result.approvato?.value === 0 ? 'Non Approvato' : null,
         sigla_atto: null,
         numero_atto: null,
         tipo_atto: null,
-        metadati: {}
+        seduta: result.seduta?.value || null,
+        metadati: {
+          label: result.label?.value || null,
+          approvato: result.approvato?.value || null,
+          seduta: result.seduta?.value || null
+        }
       };
     }
-
-    // Estrai il nome del predicato
-    const nomePredicato = predicato.split('/').pop().split('#').pop();
-    
-    // Mappa i predicati comuni
-    if (nomePredicato === 'date' || nomePredicato === 'data') {
-      votazioni[votazioneUri].data_votazione = oggetto;
-    } else if (nomePredicato === 'description' || nomePredicato === 'descrizione') {
-      votazioni[votazioneUri].descrizione = oggetto;
-    } else if (nomePredicato === 'esitoVotazione' || nomePredicato === 'esito') {
-      votazioni[votazioneUri].esito = oggetto;
-    } else if (nomePredicato === 'siglaAtto' || nomePredicato === 'sigla_atto') {
-      votazioni[votazioneUri].sigla_atto = oggetto;
-    } else if (nomePredicato === 'numeroAtto' || nomePredicato === 'numero_atto') {
-      votazioni[votazioneUri].numero_atto = oggetto;
-    } else if (nomePredicato === 'tipoAtto' || nomePredicato === 'tipo_atto') {
-      votazioni[votazioneUri].tipo_atto = oggetto;
-    }
-
-    // Salva tutti i predicati nei metadati
-    votazioni[votazioneUri].metadati[nomePredicato] = oggetto;
   }
 
   // Salva nel database
@@ -198,32 +185,39 @@ async function saveVotazioniToDatabase(votazioni) {
   for (const votazione of votazioni) {
     try {
       const result = await pool.query(
-        `INSERT INTO voti_politici (
-          uri, votazione_id, legislatura, data_votazione, descrizione,
-          esito, sigla_atto, numero_atto, tipo_atto, metadati
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (uri) 
-        DO UPDATE SET
-          data_votazione = EXCLUDED.data_votazione,
-          descrizione = EXCLUDED.descrizione,
-          esito = EXCLUDED.esito,
-          sigla_atto = EXCLUDED.sigla_atto,
-          numero_atto = EXCLUDED.numero_atto,
-          tipo_atto = EXCLUDED.tipo_atto,
-          metadati = EXCLUDED.metadati,
-          data_aggiornamento = CURRENT_TIMESTAMP`,
-        [
-          votazione.uri,
-          votazione.votazione_id,
-          votazione.legislatura,
-          votazione.data_votazione,
-          votazione.descrizione,
-          votazione.esito,
-          votazione.sigla_atto,
-          votazione.numero_atto,
-          votazione.tipo_atto,
-          JSON.stringify(votazione.metadati)
-        ]
+        // Salva seduta nei metadati se non c'è una colonna dedicata
+        const metadatiCompleti = {
+          ...votazione.metadati,
+          seduta: votazione.seduta || null
+        };
+        
+        await pool.query(
+          `INSERT INTO voti_politici (
+            uri, votazione_id, legislatura, data_votazione, descrizione,
+            esito, sigla_atto, numero_atto, tipo_atto, metadati
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+          ON CONFLICT (uri) 
+          DO UPDATE SET
+            data_votazione = EXCLUDED.data_votazione,
+            descrizione = EXCLUDED.descrizione,
+            esito = EXCLUDED.esito,
+            sigla_atto = EXCLUDED.sigla_atto,
+            numero_atto = EXCLUDED.numero_atto,
+            tipo_atto = EXCLUDED.tipo_atto,
+            metadati = EXCLUDED.metadati,
+            data_aggiornamento = CURRENT_TIMESTAMP`,
+          [
+            votazione.uri,
+            votazione.votazione_id,
+            votazione.legislatura,
+            votazione.data_votazione,
+            votazione.descrizione,
+            votazione.esito,
+            votazione.sigla_atto,
+            votazione.numero_atto,
+            votazione.tipo_atto,
+            JSON.stringify(metadatiCompleti)
+          ]
       );
       savedCount++;
       if (savedCount % 10 === 0) {
@@ -272,6 +266,7 @@ router.get('/', verifyToken, async (req, res) => {
         numero_atto: row.numero_atto,
         tipo_atto: row.tipo_atto,
         data: row.metadati || {},
+        seduta: row.metadati?.seduta || null,
         data_sincronizzazione: row.data_sincronizzazione,
         data_aggiornamento: row.data_aggiornamento
       }));
@@ -325,7 +320,8 @@ router.get('/', verifyToken, async (req, res) => {
       sigla_atto: v.sigla_atto,
       numero_atto: v.numero_atto,
       tipo_atto: v.tipo_atto,
-      data: v.metadati
+      data: v.metadati,
+      seduta: v.seduta || null
     }));
 
     res.json({
