@@ -225,7 +225,8 @@ router.post('/sync', verifyToken, async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'admin') {
+    const userRole = userResult.rows[0]?.ruolo;
+    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
@@ -233,22 +234,17 @@ router.post('/sync', verifyToken, async (req, res) => {
       });
     }
     
-    // Esegui lo script di sincronizzazione in background
-    const { exec } = require('child_process');
-    const path = require('path');
-    const scriptPath = path.join(__dirname, '..', 'sync-voti-openpolis.js');
+    // Esegui la sincronizzazione in background (non bloccare la risposta)
+    const { syncVotiOpenpolis } = require('../sync-voti-openpolis');
     
-    exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
-      if (error) {
-        console.error('Errore sincronizzazione:', error);
-      }
-      console.log('Output sincronizzazione:', stdout);
-      if (stderr) console.error('Stderr:', stderr);
+    // Avvia la sincronizzazione in background senza attendere il completamento
+    syncVotiOpenpolis().catch(error => {
+      console.error('❌ Errore durante la sincronizzazione:', error);
     });
     
     return res.json({
       success: true,
-      message: 'Sincronizzazione avviata in background'
+      message: 'Sincronizzazione avviata in background. I dati verranno aggiornati a breve.'
     });
     
   } catch (error) {
