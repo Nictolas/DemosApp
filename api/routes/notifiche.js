@@ -488,7 +488,20 @@ router.get('/', async (req, res) => {
       };
     });
     
-    console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuniResult.rows.length}, demos=${demosResult.rows.length}, comunali=${comunaliResult.rows.length}, totale=${comunicazioni.length}`);
+    console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuniResult.rows.length}, voti_parlamento=${votiParlamentoResult?.rows?.length || 0}, demos=${demosResult.rows.length}, comunali=${comunaliResult.rows.length}, totale=${comunicazioni.length}`);
+    
+    // Debug: verifica notifiche parlamentari
+    const notificheParlamento = comunicazioni.filter(c => c.tipo_notifica === 'voto_parlamento');
+    if (notificheParlamento.length > 0) {
+      console.log('🔍 DEBUG - Notifiche parlamentari trovate:', notificheParlamento.map(n => ({
+        id: n.id?.substring(0, 8),
+        tipo_notifica: n.tipo_notifica,
+        politico: n.politico,
+        politico_avatar_config: n.politico_avatar_config ? 'Presente' : 'Mancante',
+        politico_nome: n.politico_nome,
+        politico_cognome: n.politico_cognome
+      })));
+    }
 
     // Se l'utente è admin, recupera anche le segnalazioni
     let segnalazioni = [];
