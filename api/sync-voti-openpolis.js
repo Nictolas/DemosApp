@@ -272,20 +272,31 @@ async function creaNotificheParlamento(politicoNome, camera, votazione, voto, da
 
 async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto, dataVotazione, politicoUserId = null) {
   try {
+    // Prima verifica se esiste già un record con un URL configurato
+    const existingResult = await pool.query(
+      'SELECT url_openpolis FROM voti_camera WHERE politico_nome = $1',
+      [politicoNome]
+    );
+    
+    // Se esiste già un URL (non vuoto), preservalo invece di sovrascriverlo
+    const urlDaUsare = existingResult.rows.length > 0 && existingResult.rows[0].url_openpolis && existingResult.rows[0].url_openpolis.trim() !== ''
+      ? existingResult.rows[0].url_openpolis  // Preserva URL esistente
+      : urlOpenpolis;  // Usa nuovo URL solo se non ce n'è uno esistente
+    
     const query = `
       INSERT INTO voti_camera (politico_nome, camera, url_openpolis, votazione, voto, data_votazione)
       VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (politico_nome) 
       DO UPDATE SET 
         camera = EXCLUDED.camera,
-        url_openpolis = EXCLUDED.url_openpolis,
+        url_openpolis = COALESCE(NULLIF(voti_camera.url_openpolis, ''), EXCLUDED.url_openpolis),
         votazione = EXCLUDED.votazione,
         voto = EXCLUDED.voto,
         data_votazione = EXCLUDED.data_votazione,
         ultimo_aggiornamento = CURRENT_TIMESTAMP
     `;
     
-    await pool.query(query, [politicoNome, camera, urlOpenpolis, votazione, voto, dataVotazione]);
+    await pool.query(query, [politicoNome, camera, urlDaUsare, votazione, voto, dataVotazione]);
     
     // Crea notifiche per gli utenti che hanno scelto questo rappresentante
     await creaNotificheParlamento(politicoNome, camera, votazione, voto, dataVotazione, politicoUserId);
