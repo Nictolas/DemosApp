@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, ArrowLeft, Vote, AlertCircle, Edit, ExternalLink } from "lucide-react";
+import { Loader2, ArrowLeft, Vote, AlertCircle, Edit, ExternalLink, Search, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-neon";
 
 interface VotazioneCamera {
@@ -37,6 +37,7 @@ export default function VotiPolitici() {
   const queryClient = useQueryClient();
   const [editingUrl, setEditingUrl] = useState<{ politico: string; url: string } | null>(null);
   const [newUrl, setNewUrl] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const isAdmin = user?.ruolo === "AD";
 
@@ -115,6 +116,19 @@ export default function VotiPolitici() {
   });
 
   const votazioni: VotazioneCamera[] = data || [];
+  
+  // Filtra le votazioni in base al termine di ricerca
+  const filteredVotazioni = votazioni.filter((votazione) => {
+    if (!searchTerm.trim()) return true;
+    const searchLower = searchTerm.toLowerCase().trim();
+    return (
+      votazione.politico_nome?.toLowerCase().includes(searchLower) ||
+      votazione.camera?.toLowerCase().includes(searchLower) ||
+      votazione.votazione?.toLowerCase().includes(searchLower) ||
+      votazione.voto?.toLowerCase().includes(searchLower) ||
+      votazione.url_openpolis?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleEditUrl = (politico: string, currentUrl: string) => {
     setEditingUrl({ politico, url: currentUrl });
@@ -220,17 +234,48 @@ export default function VotiPolitici() {
         {!isLoading && !error && (
           <Card>
             <CardHeader>
-              <CardTitle>Votazioni ({votazioni.length})</CardTitle>
-              <CardDescription>
-                Ultima votazione per ogni politico (Camera e Senato)
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Votazioni ({filteredVotazioni.length}{searchTerm && ` di ${votazioni.length}`})</CardTitle>
+                  <CardDescription>
+                    Ultima votazione per ogni politico (Camera e Senato)
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {votazioni.length === 0 ? (
+              {/* Barra di ricerca */}
+              <div className="mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Cerca per nome politico, camera, votazione, voto o URL..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                      onClick={() => setSearchTerm("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {filteredVotazioni.length === 0 ? (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Nessuna votazione trovata. {isAdmin && "Clicca su 'Sincronizza' per popolare la tabella."}
+                    {searchTerm 
+                      ? `Nessun risultato trovato per "${searchTerm}". ${votazioni.length === 0 && isAdmin ? "Clicca su 'Sincronizza' per popolare la tabella." : ""}`
+                      : `Nessuna votazione trovata. ${isAdmin ? "Clicca su 'Sincronizza' per popolare la tabella." : ""}`
+                    }
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -246,7 +291,7 @@ export default function VotiPolitici() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {votazioni.map((votazione, index) => (
+                      {filteredVotazioni.map((votazione, index) => (
                         <TableRow key={`${votazione.politico_nome}-${index}`}>
                           <TableCell className="font-medium">
                             {votazione.politico_nome || "N/A"}
