@@ -55,9 +55,12 @@ router.get('/', verifyToken, async (req, res) => {
     const dbResult = await pool.query(
       `SELECT 
         politico_nome,
+        camera,
+        url_openpolis,
+        votazione,
+        voto,
         data_votazione,
-        oggetto_voto,
-        esito_voto
+        ultimo_aggiornamento
       FROM voti_camera
       ORDER BY data_votazione DESC NULLS LAST, politico_nome ASC
       LIMIT 1000`
@@ -65,9 +68,12 @@ router.get('/', verifyToken, async (req, res) => {
 
     const votazioni = dbResult.rows.map(row => ({
       politico_nome: row.politico_nome,
+      camera: row.camera,
+      url_openpolis: row.url_openpolis,
+      votazione: row.votazione,
+      voto: row.voto,
       data_votazione: row.data_votazione,
-      oggetto_voto: row.oggetto_voto,
-      esito_voto: row.esito_voto
+      ultimo_aggiornamento: row.ultimo_aggiornamento
     }));
 
     return res.json({
@@ -112,10 +118,10 @@ router.get('/stats', verifyToken, async (req, res) => {
 
     const esitiStats = await pool.query(`
       SELECT 
-        esito_voto,
+        voto,
         COUNT(*) as count
       FROM voti_camera
-      GROUP BY esito_voto
+      GROUP BY voto
       ORDER BY count DESC
     `);
 
@@ -132,6 +138,112 @@ router.get('/stats', verifyToken, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Errore nel recupero delle statistiche',
+      message: error.message
+    });
+  }
+});
+
+// PUT /api/voti-camera/:politico/url - Aggiorna l'URL Openpolis di un politico (solo admin)
+router.put('/:politico/url', verifyToken, async (req, res) => {
+  try {
+    // Verifica che l'utente sia admin
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono modificare gli URL'
+      });
+    }
+    
+    const politicoNome = decodeURIComponent(req.params.politico);
+    const { url_openpolis } = req.body;
+    
+    if (!url_openpolis || !url_openpolis.startsWith('https://parlamento19.openpolis.it')) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL non valido',
+        message: 'L\'URL deve essere un link valido a parlamento19.openpolis.it'
+      });
+    }
+    
+    const result = await pool.query(
+      `UPDATE voti_camera 
+       SET url_openpolis = $1, ultimo_aggiornamento = CURRENT_TIMESTAMP
+       WHERE politico_nome = $2
+       RETURNING politico_nome, url_openpolis`,
+      [url_openpolis, politicoNome]
+    );
+    
+    if (result.rows.length === 0) {
+      // Se non esiste, crealo
+      await pool.query(
+        `INSERT INTO voti_camera (politico_nome, url_openpolis, camera)
+         VALUES ($1, $2, $3)`,
+        [politicoNome, url_openpolis, 'Camera']
+      );
+    }
+    
+    return res.json({
+      success: true,
+      message: 'URL aggiornato con successo',
+      data: result.rows[0] || { politico_nome: politicoNome, url_openpolis }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento URL:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento dell\'URL',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/voti-camera/sync - Sincronizza i voti da Openpolis (solo admin)
+router.post('/sync', verifyToken, async (req, res) => {
+  try {
+    // Verifica che l'utente sia admin
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono sincronizzare i voti'
+      });
+    }
+    
+    // Esegui lo script di sincronizzazione in background
+    const { exec } = require('child_process');
+    const path = require('path');
+    const scriptPath = path.join(__dirname, '..', 'sync-voti-openpolis.js');
+    
+    exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Errore sincronizzazione:', error);
+      }
+      console.log('Output sincronizzazione:', stdout);
+      if (stderr) console.error('Stderr:', stderr);
+    });
+    
+    return res.json({
+      success: true,
+      message: 'Sincronizzazione avviata in background'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'avvio sincronizzazione:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nell\'avvio della sincronizzazione',
       message: error.message
     });
   }
