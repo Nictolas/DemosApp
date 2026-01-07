@@ -540,11 +540,12 @@ router.get('/', async (req, res) => {
       }));
     }
     
-    // Combina tutte le notifiche
+    // Combina tutte le notifiche e ordina per data_creazione (più recenti prima)
     const allNotifiche = [...comunicazioni, ...segnalazioni].sort((a, b) => {
-      const dateA = a.data ? new Date(a.data) : (a.data_creazione ? new Date(a.data_creazione) : new Date(0));
-      const dateB = b.data ? new Date(b.data) : (b.data_creazione ? new Date(b.data_creazione) : new Date(0));
-      return dateB.getTime() - dateA.getTime();
+      // Usa data_creazione come priorità principale, poi data come fallback
+      const dateA = a.data_creazione ? new Date(a.data_creazione) : (a.data ? new Date(a.data) : new Date(0));
+      const dateB = b.data_creazione ? new Date(b.data_creazione) : (b.data ? new Date(b.data) : new Date(0));
+      return dateB.getTime() - dateA.getTime(); // Ordine decrescente (più recenti prima)
     });
     
     console.log('🔍 DEBUG: Comunicazioni trovate:', comunicazioni.length);

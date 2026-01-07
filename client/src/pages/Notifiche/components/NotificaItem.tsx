@@ -24,8 +24,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const [likes, setLikes] = useState(notifica.likes || 0);
   const [dislikes, setDislikes] = useState(notifica.dislikes || 0);
 
-  // Carica reazioni e reazione utente per voto_comune e comunicazione
-  const shouldLoadReactions = Boolean((notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'comunicazione') && user?.id);
+  // Carica reazioni e reazione utente per voto_comune, voto_parlamento e comunicazione
+  const shouldLoadReactions = Boolean((notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'voto_parlamento' || notifica.tipo_notifica === 'comunicazione') && user?.id);
 
   const { data: reactionsData } = useQuery({
     queryKey: ['reazioni', notifica.id],
@@ -113,7 +113,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   });
 
   const handleReaction = (tipo: 'like' | 'dislike') => {
-    if (!user?.id || (notifica.tipo_notifica !== 'comunicazione' && notifica.tipo_notifica !== 'voto_comune')) return;
+    if (!user?.id || (notifica.tipo_notifica !== 'comunicazione' && notifica.tipo_notifica !== 'voto_comune' && notifica.tipo_notifica !== 'voto_parlamento')) return;
     reactionMutation.mutate(tipo);
   };
 
@@ -126,6 +126,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const getNotificaStyle = (tipo: string) => {
     switch (tipo) {
       case 'voto_comune':
+      case 'voto_parlamento':
         return {
           emoji: '🗳️',
           bgColor: 'bg-blue-50 border-blue-200',
@@ -189,8 +190,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            {/* Mostra avatar del politico per voti comuni, altrimenti emoji */}
-            {notifica.tipo_notifica === 'voto_comune' && notifica.politico_avatar_config ? (
+            {/* Mostra avatar del politico per voti comuni e parlamentari, altrimenti emoji */}
+            {(notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'voto_parlamento') && notifica.politico_avatar_config ? (
               <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-300">
                 <CustomAvatar 
                   config={typeof notifica.politico_avatar_config === 'string' 
@@ -368,8 +369,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </div>
           )}
           
-          {/* Pulsanti like/dislike per voto_comune (sopra l'orario) */}
-          {notifica.tipo_notifica === 'voto_comune' && user?.id && (
+          {/* Pulsanti like/dislike per voto_comune e voto_parlamento (sopra l'orario) */}
+          {(notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'voto_parlamento') && user?.id && (
             <div className="mb-3 flex items-center gap-2">
               <Button
                 variant={userReaction === 'like' ? 'default' : 'outline'}
