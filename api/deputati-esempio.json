@@ -1,0 +1,16 @@
+[
+  {
+    "nome": "Giorgia",
+    "cognome": "Meloni",
+    "url_openpolis": "https://parlamento19.openpolis.it/persone/giorgia-meloni-1977-01-15",
+    "camera": "Camera",
+    "grado_elezione": "C"
+  },
+  {
+    "nome": "Matteo",
+    "cognome": "Salvini",
+    "url_openpolis": "https://parlamento19.openpolis.it/persone/matteo-salvini-1973-03-09",
+    "camera": "Camera",
+    "grado_elezione": "C"
+  }
+]
