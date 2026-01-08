@@ -61,3 +61,4 @@ Lo script salva nella tabella `voti_camera`:
 - Se un deputato ha già un record, viene aggiornato con l'ultima votazione
 - Lo script fa una pausa di 500ms tra ogni deputato per non sovraccaricare il server
 
+

@@ -79,3 +79,4 @@ testSparqlQueries().then(query => {
   process.exit(1);
 });
 
+

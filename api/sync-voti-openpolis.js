@@ -298,6 +298,14 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto
     
     await pool.query(query, [politicoNome, camera, urlDaUsare, votazione, voto, dataVotazione]);
     
+    // Genera spiegazione AI se disponibile (in background, non blocca il processo)
+    if (votazione && votazione.trim() !== '') {
+      const { generaESalvaSpiegazione } = require('./services/aiExplanationService');
+      generaESalvaSpiegazione(politicoNome, votazione, camera, voto).catch(error => {
+        console.error(`[ERR] Errore generazione spiegazione per ${politicoNome}:`, error.message);
+      });
+    }
+    
     // Crea notifiche per gli utenti che hanno scelto questo rappresentante
     await creaNotificheParlamento(politicoNome, camera, votazione, voto, dataVotazione, politicoUserId);
     

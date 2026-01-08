@@ -73,3 +73,4 @@ Seduta: http://dati.camera.it/ocd/seduta.rdf/s19_590
 - Formato risposta: JSON (application/sparql-results+json)
 - Limitazioni: L'endpoint pubblico espone solo dati limitati
 
+
