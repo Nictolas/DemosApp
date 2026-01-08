@@ -37,6 +37,7 @@ export default function VotiPolitici() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingUrl, setEditingUrl] = useState<{ politico: string; url: string } | null>(null);
+  const [politicoDialog, setPoliticoDialog] = useState<VotazioneCamera | null>(null);
   const [newUrl, setNewUrl] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -156,7 +157,6 @@ export default function VotiPolitici() {
       votazione.camera?.toLowerCase().includes(searchLower) ||
       votazione.votazione?.toLowerCase().includes(searchLower) ||
       votazione.voto?.toLowerCase().includes(searchLower) ||
-      votazione.url_openpolis?.toLowerCase().includes(searchLower) ||
       votazione.spiegazione?.toLowerCase().includes(searchLower)
     );
   });
@@ -281,7 +281,7 @@ export default function VotiPolitici() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Cerca per nome politico, camera, votazione, voto, URL o spiegazione..."
+                    placeholder="Cerca per nome politico, camera, votazione, voto o spiegazione..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 pr-10"
@@ -316,7 +316,6 @@ export default function VotiPolitici() {
                       <TableRow>
                         <TableHead className="min-w-[200px]">Politico</TableHead>
                         <TableHead className="min-w-[100px]">Camera</TableHead>
-                        <TableHead className="min-w-[300px]">URL</TableHead>
                         <TableHead className="min-w-[300px]">Votazione</TableHead>
                         <TableHead className="min-w-[120px]">Voto</TableHead>
                         <TableHead className="min-w-[400px]">Spiegazione</TableHead>
@@ -326,7 +325,12 @@ export default function VotiPolitici() {
                       {filteredVotazioni.map((votazione, index) => (
                         <TableRow key={`${votazione.politico_nome}-${index}`}>
                           <TableCell className="font-medium">
-                            {votazione.politico_nome || "N/A"}
+                            <button
+                              onClick={() => setPoliticoDialog(votazione)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            >
+                              {votazione.politico_nome || "N/A"}
+                            </button>
                           </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -336,29 +340,6 @@ export default function VotiPolitici() {
                             }`}>
                               {votazione.camera || "N/A"}
                             </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <a
-                                href={votazione.url_openpolis}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline text-sm truncate max-w-[250px]"
-                              >
-                                {votazione.url_openpolis}
-                              </a>
-                              <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              {isAdmin && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => handleEditUrl(votazione.politico_nome, votazione.url_openpolis)}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
                           </TableCell>
                           <TableCell className="max-w-[400px]">
                             <div className="truncate" title={votazione.votazione || ""}>
@@ -409,7 +390,100 @@ export default function VotiPolitici() {
           </Card>
         )}
 
-        {/* Dialog per modificare URL */}
+        {/* Dialog per visualizzare/modificare informazioni politico */}
+        <Dialog open={!!politicoDialog} onOpenChange={(open) => !open && setPoliticoDialog(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{politicoDialog?.politico_nome}</DialogTitle>
+              <DialogDescription>
+                Informazioni e URL Openpolis per {politicoDialog?.politico_nome}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {/* Camera */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Camera</label>
+                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                  politicoDialog?.camera === "Senato" 
+                    ? "bg-purple-100 text-purple-800" 
+                    : "bg-blue-100 text-blue-800"
+                }`}>
+                  {politicoDialog?.camera || "N/A"}
+                </span>
+              </div>
+
+              {/* URL Openpolis */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">URL Openpolis</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={politicoDialog?.url_openpolis || ""}
+                    onChange={(e) => {
+                      if (politicoDialog) {
+                        setPoliticoDialog({ ...politicoDialog, url_openpolis: e.target.value });
+                      }
+                    }}
+                    placeholder="https://parlamento19.openpolis.it/persone/..."
+                    className="flex-1"
+                  />
+                  <a
+                    href={politicoDialog?.url_openpolis}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-gray-100 rounded"
+                  >
+                    <ExternalLink className="h-4 w-4 text-blue-600" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Votazione */}
+              {politicoDialog?.votazione && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Votazione</label>
+                  <p className="text-sm text-gray-700">{politicoDialog.votazione}</p>
+                </div>
+              )}
+
+              {/* Voto */}
+              {politicoDialog?.voto && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Voto</label>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getVotoColor(politicoDialog.voto)}`}>
+                    {politicoDialog.voto}
+                  </span>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPoliticoDialog(null)}>
+                Chiudi
+              </Button>
+              {isAdmin && (
+                <Button 
+                  onClick={() => {
+                    if (politicoDialog) {
+                      const urlToEdit = politicoDialog.url_openpolis || "";
+                      setEditingUrl({ politico: politicoDialog.politico_nome, url: urlToEdit });
+                      setNewUrl(urlToEdit);
+                      setPoliticoDialog(null);
+                    }
+                  }}
+                  disabled={updateUrlMutation.isPending}
+                >
+                  {updateUrlMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Edit className="h-4 w-4 mr-2" />
+                  )}
+                  Modifica URL
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog per modificare URL (solo admin) */}
         <Dialog open={!!editingUrl} onOpenChange={(open) => !open && setEditingUrl(null)}>
           <DialogContent>
             <DialogHeader>
