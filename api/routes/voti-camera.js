@@ -63,6 +63,7 @@ router.get('/', verifyToken, async (req, res) => {
         END as camera,
         COALESCE(vc.url_openpolis, '') as url_openpolis,
         vc.votazione,
+        vc.descrizione_votazione,
         vc.voto,
         vc.data_votazione,
         vc.ultimo_aggiornamento,
@@ -84,6 +85,7 @@ router.get('/', verifyToken, async (req, res) => {
       camera: row.camera,
       url_openpolis: row.url_openpolis,
       votazione: row.votazione,
+      descrizione_votazione: row.descrizione_votazione,
       voto: row.voto,
       data_votazione: row.data_votazione,
       ultimo_aggiornamento: row.ultimo_aggiornamento,
@@ -316,8 +318,8 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       });
     }
 
-    // Genera la spiegazione
-    const spiegazione = await generaESalvaSpiegazione(politicoNome, votazione, camera, voto);
+    // Genera la spiegazione con titolo + descrizione
+    const spiegazione = await generaESalvaSpiegazione(politicoNome, votazione, descrizione_votazione || null, camera, voto);
 
     if (!spiegazione) {
       return res.status(500).json({

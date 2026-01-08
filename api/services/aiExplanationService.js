@@ -34,11 +34,12 @@ if (process.env.GROQ_API_KEY) {
 /**
  * Genera una spiegazione AI per una votazione
  * @param {string} votazione - Il titolo/descrizione della votazione
+ * @param {string} descrizioneVotazione - La descrizione completa scrapata da Openpolis (opzionale)
  * @param {string} camera - "Camera" o "Senato"
  * @param {string} voto - "Favorevole", "Contrario", "Astenuto", "In missione"
  * @returns {Promise<string|null>} La spiegazione generata o null se errore
  */
-async function generaSpiegazione(votazione, camera, voto) {
+async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) {
   if (!aiClient) {
     console.warn('⚠️ Nessuna API AI configurata, impossibile generare spiegazione');
     return null;
@@ -59,17 +60,25 @@ async function generaSpiegazione(votazione, camera, voto) {
   }
 
   try {
-    const prompt = `Spiega in modo chiaro e conciso (massimo 150 parole) questa votazione parlamentare italiana:
+    // Costruisci il prompt con tutte le informazioni disponibili
+    let prompt = `Spiega in modo chiaro e conciso (massimo 150 parole) questa votazione parlamentare italiana:
 
-Votazione: "${votazione}"
-Camera: ${camera}
+Titolo votazione: "${votazione}"`;
+
+    // Aggiungi la descrizione se disponibile
+    if (descrizioneVotazione && descrizioneVotazione.trim() !== '') {
+      prompt += `\n\nDescrizione completa:\n"${descrizioneVotazione}"`;
+    }
+
+    prompt += `\n\nCamera: ${camera}
 Voto espresso: ${voto}
 
 La spiegazione deve:
 - Essere in italiano
 - Essere comprensibile per cittadini non esperti
-- Spiegare di cosa tratta la votazione
+- Spiegare di cosa tratta la votazione in modo dettagliato e preciso
 - Essere neutrale e obiettiva
+- Basarsi principalmente sulla descrizione completa se disponibile
 - Non superare le 150 parole
 
 Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
@@ -246,7 +255,7 @@ async function generaSpiegazioniMancanti(limit = 10) {
   try {
     // Recupera votazioni senza spiegazione
     const result = await pool.query(
-      `SELECT politico_nome, votazione, camera, voto 
+      `SELECT politico_nome, votazione, descrizione_votazione, camera, voto 
        FROM voti_camera 
        WHERE votazione IS NOT NULL 
          AND votazione != ''
@@ -271,6 +280,7 @@ async function generaSpiegazioniMancanti(limit = 10) {
         const spiegazione = await generaESalvaSpiegazione(
           row.politico_nome,
           row.votazione,
+          row.descrizione_votazione || null,
           row.camera,
           row.voto
         );

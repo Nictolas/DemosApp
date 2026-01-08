@@ -31,6 +31,7 @@ async function getUltimaVotazione(urlOpenpolis) {
     // Cerca la sezione "Votazione" o "Voti chiave"
     // La prima riga della tabella è l'ultima votazione
     let votazione = null;
+    let descrizioneVotazione = null;
     let voto = null;
     let dataVotazione = null;
     
@@ -91,6 +92,55 @@ async function getUltimaVotazione(urlOpenpolis) {
           votazione = cells.eq(votazioneCol).text().trim();
           voto = cells.eq(votoCol).text().trim();
           
+          // Estrai la descrizione completa: cerca link o tooltip nella cella della votazione
+          const votazioneCell = cells.eq(votazioneCol);
+          // Cerca link nella cella (spesso la votazione ha un link con più dettagli)
+          const link = votazioneCell.find('a').first();
+          if (link.length > 0) {
+            const href = link.attr('href');
+            // Se è un link relativo, costruisci l'URL completo
+            if (href && !href.startsWith('http')) {
+              const baseUrl = urlOpenpolis.split('/').slice(0, 3).join('/');
+              const fullUrl = href.startsWith('/') ? baseUrl + href : `${urlOpenpolis}/${href}`;
+              
+              // Prova a recuperare la descrizione dal link (se è nella stessa pagina o pagina collegata)
+              try {
+                const descResponse = await axios.get(fullUrl, {
+                  headers: {
+                    'Accept': 'text/html',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                  },
+                  timeout: 10000
+                });
+                const $desc = cheerio.load(descResponse.data);
+                // Cerca descrizione nella pagina (prova diversi selettori)
+                descrizioneVotazione = $desc('.descrizione, .description, .testo, .content, [class*="desc"], [class*="testo"]').first().text().trim();
+                // Se non trovato, prova a prendere il primo paragrafo significativo
+                if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
+                  descrizioneVotazione = $desc('p').first().text().trim();
+                }
+              } catch (err) {
+                // Ignora errori nel recupero della descrizione
+                console.log(`[INFO] Impossibile recuperare descrizione da ${fullUrl}: ${err.message}`);
+              }
+            }
+          }
+          
+          // Se non abbiamo ancora la descrizione, cerca tooltip o attributi title
+          if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
+            descrizioneVotazione = votazioneCell.attr('title') || votazioneCell.attr('data-tooltip') || votazioneCell.attr('data-description');
+          }
+          
+          // Se ancora non abbiamo descrizione, cerca nella pagina stessa sezioni descrittive vicine alla tabella
+          if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
+            // Cerca sezioni di testo vicine alla tabella
+            const tableParent = table.parent();
+            const nearbyText = tableParent.find('p, .description, .testo').first().text().trim();
+            if (nearbyText && nearbyText.length > 50 && nearbyText.length < 2000) {
+              descrizioneVotazione = nearbyText;
+            }
+          }
+          
           // Se il voto è vuoto o troppo lungo, prova altre colonne
           if (!voto || voto.length > 50) {
             // Prova colonna successiva
@@ -146,6 +196,7 @@ async function getUltimaVotazione(urlOpenpolis) {
     
     return {
       votazione: votazione || null,
+      descrizione_votazione: descrizioneVotazione || null,
       voto: voto || null,
       data_votazione: dataVotazione || null
     };
@@ -301,7 +352,7 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto
     // Genera spiegazione AI se disponibile (in background, non blocca il processo)
     if (votazione && votazione.trim() !== '') {
       const { generaESalvaSpiegazione } = require('./services/aiExplanationService');
-      generaESalvaSpiegazione(politicoNome, votazione, camera, voto).catch(error => {
+      generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotazione || null, camera, voto).catch(error => {
         console.error(`[ERR] Errore generazione spiegazione per ${politicoNome}:`, error.message);
       });
     }
@@ -529,6 +580,7 @@ async function syncVotiOpenpolis(deputatiFile = null) {
             camera,
             urlOpenpolis,
             risultato.votazione,
+            risultato.descrizione_votazione || null,
             risultato.voto,
             risultato.data_votazione,
             politico.user_id || null
