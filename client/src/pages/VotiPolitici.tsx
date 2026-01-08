@@ -25,10 +25,12 @@ interface VotazioneCamera {
   camera: string;
   url_openpolis: string;
   votazione: string | null;
+  descrizione_votazione: string | null;
   voto: string | null;
   data_votazione: string | null;
   ultimo_aggiornamento: string | null;
   spiegazione: string | null;
+  votazione_id: number | null;
 }
 
 export default function VotiPolitici() {

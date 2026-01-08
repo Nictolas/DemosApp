@@ -51,7 +51,7 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Recupera i dati dalla tabella voti_camera JOIN con users
+    // Recupera i dati dalla tabella voti_camera JOIN con votazioni_parlamento e users
     // Mostra solo i politici con ruolo="P" e grado_elezione="C" o "S"
     const dbResult = await pool.query(
       `SELECT DISTINCT
@@ -62,17 +62,19 @@ router.get('/', verifyToken, async (req, res) => {
           ELSE COALESCE(vc.camera, 'Camera')
         END as camera,
         COALESCE(vc.url_openpolis, '') as url_openpolis,
-        vc.votazione,
-        vc.descrizione_votazione,
+        vp.titolo_votazione as votazione,
+        vp.descrizione_votazione,
         vc.voto,
         vc.data_votazione,
         vc.ultimo_aggiornamento,
-        vc.spiegazione,
+        vp.spiegazione,
+        vp.id as votazione_id,
         u.id as user_id,
         u.nome,
         u.cognome
       FROM users u
       LEFT JOIN voti_camera vc ON CONCAT(u.nome, ' ', u.cognome) = vc.politico_nome
+      LEFT JOIN votazioni_parlamento vp ON vc.votazione_id = vp.id
       WHERE u.ruolo = 'P' 
         AND (u.grado_elezione = 'C' OR u.grado_elezione = 'S')
         AND u.status = 'a'
@@ -89,7 +91,8 @@ router.get('/', verifyToken, async (req, res) => {
       voto: row.voto,
       data_votazione: row.data_votazione,
       ultimo_aggiornamento: row.ultimo_aggiornamento,
-      spiegazione: row.spiegazione
+      spiegazione: row.spiegazione,
+      votazione_id: row.votazione_id
     }));
 
     return res.json({
@@ -281,23 +284,26 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
 
     const politicoNome = decodeURIComponent(req.params.politico);
     
-    // Recupera i dati della votazione
-    const votazioneResult = await pool.query(
-      'SELECT votazione, camera, voto FROM voti_camera WHERE politico_nome = $1',
+    // Recupera i dati del politico e la votazione associata
+    const politicoResult = await pool.query(
+      `SELECT vc.votazione_id, vp.titolo_votazione, vp.descrizione_votazione, vp.camera, vp.spiegazione
+       FROM voti_camera vc
+       LEFT JOIN votazioni_parlamento vp ON vc.votazione_id = vp.id
+       WHERE vc.politico_nome = $1`,
       [politicoNome]
     );
 
-    if (votazioneResult.rows.length === 0) {
+    if (politicoResult.rows.length === 0 || !politicoResult.rows[0].votazione_id) {
       return res.status(404).json({
         success: false,
-        error: 'Politico non trovato',
+        error: 'Politico o votazione non trovata',
         message: 'Nessuna votazione trovata per questo politico'
       });
     }
 
-    const { votazione, descrizione_votazione, camera, voto } = votazioneResult.rows[0];
+    const { votazione_id, titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = politicoResult.rows[0];
 
-    if (!votazione || votazione.trim() === '') {
+    if (!titolo_votazione || titolo_votazione.trim() === '') {
       return res.status(400).json({
         success: false,
         error: 'Votazione vuota',
@@ -305,8 +311,21 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       });
     }
 
-    // Verifica limite giornaliero prima di generare
-    const { generaESalvaSpiegazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
+    // Se esiste già una spiegazione, restituiscila
+    if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+      return res.json({
+        success: true,
+        message: 'Spiegazione già esistente',
+        data: {
+          politico_nome: politicoNome,
+          votazione_id,
+          spiegazione: spiegazioneEsistente
+        }
+      });
+    }
+
+    // Genera la spiegazione
+    const { generaSpiegazioneVotazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
     const limiteCheck = await verificaLimiteGiornaliero();
     
     if (!limiteCheck.rispettato) {
@@ -318,8 +337,8 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       });
     }
 
-    // Genera la spiegazione con titolo + descrizione
-    const spiegazione = await generaESalvaSpiegazione(politicoNome, votazione, descrizione_votazione || null, camera, voto);
+    // Genera la spiegazione per la votazione (non per il politico)
+    const spiegazione = await generaSpiegazioneVotazione(votazione_id, titolo_votazione, descrizione_votazione || null, camera);
 
     if (!spiegazione) {
       return res.status(500).json({
