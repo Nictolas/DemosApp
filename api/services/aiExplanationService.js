@@ -50,6 +50,11 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     return null;
   }
 
+  // Normalizza descrizioneVotazione (può essere undefined, null o stringa)
+  const descrizione = descrizioneVotazione && typeof descrizioneVotazione === 'string' && descrizioneVotazione.trim() !== '' 
+    ? descrizioneVotazione.trim() 
+    : null;
+
   // Verifica limite giornaliero prima di generare (solo se non è Groq che è completamente gratuito)
   if (aiProvider !== 'groq') {
     const limiteCheck = await verificaLimiteGiornaliero();
@@ -66,8 +71,8 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
 Titolo votazione: "${votazione}"`;
 
     // Aggiungi la descrizione se disponibile
-    if (descrizioneVotazione && descrizioneVotazione.trim() !== '') {
-      prompt += `\n\nDescrizione completa:\n"${descrizioneVotazione}"`;
+    if (descrizione && descrizione.length > 0) {
+      prompt += `\n\nDescrizione completa:\n"${descrizione}"`;
     }
 
     prompt += `\n\nCamera: ${camera}
