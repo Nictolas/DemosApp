@@ -295,7 +295,7 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       });
     }
 
-    const { votazione, camera, voto } = votazioneResult.rows[0];
+    const { votazione, descrizione_votazione, camera, voto } = votazioneResult.rows[0];
 
     if (!votazione || votazione.trim() === '') {
       return res.status(400).json({

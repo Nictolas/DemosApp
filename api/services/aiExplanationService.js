@@ -165,15 +165,16 @@ async function salvaSpiegazione(politicoNome, spiegazione) {
  * Genera e salva la spiegazione per una votazione
  * @param {string} politicoNome - Nome completo del politico
  * @param {string} votazione - Il titolo/descrizione della votazione
+ * @param {string} descrizioneVotazione - La descrizione completa scrapata da Openpolis (opzionale)
  * @param {string} camera - "Camera" o "Senato"
  * @param {string} voto - "Favorevole", "Contrario", "Astenuto", "In missione"
  * @param {boolean} forceRegenerate - Forza la rigenerazione anche se esiste già (default: false)
  * @returns {Promise<string|null>} La spiegazione generata o null
  */
-async function generaESalvaSpiegazione(politicoNome, votazione, camera, voto, forceRegenerate = false) {
+async function generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotazione, camera, voto, forceRegenerate = false) {
   // Verifica se esiste già una spiegazione per questa votazione
   const existingResult = await pool.query(
-    `SELECT spiegazione FROM voti_camera WHERE politico_nome = $1 AND votazione = $2`,
+    `SELECT spiegazione, descrizione_votazione FROM voti_camera WHERE politico_nome = $1 AND votazione = $2`,
     [politicoNome, votazione]
   );
 
@@ -183,8 +184,11 @@ async function generaESalvaSpiegazione(politicoNome, votazione, camera, voto, fo
     return existingResult.rows[0].spiegazione;
   }
 
-  // Genera nuova spiegazione
-  const spiegazione = await generaSpiegazione(votazione, camera, voto);
+  // Usa la descrizione dal database se disponibile e non è stata passata
+  const descrizioneDaUsare = descrizioneVotazione || (existingResult.rows.length > 0 ? existingResult.rows[0].descrizione_votazione : null);
+
+  // Genera nuova spiegazione con titolo + descrizione
+  const spiegazione = await generaSpiegazione(votazione, descrizioneDaUsare, camera, voto);
   
   if (spiegazione) {
     await salvaSpiegazione(politicoNome, spiegazione);
