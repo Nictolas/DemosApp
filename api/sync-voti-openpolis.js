@@ -94,7 +94,16 @@ async function getUltimaVotazione(urlOpenpolis) {
           
           // Estrai la descrizione completa: cerca link o tooltip nella cella della votazione
           const votazioneCell = cells.eq(votazioneCol);
-          // Cerca link nella cella (spesso la votazione ha un link con più dettagli)
+          
+          // Strategia 1: Cerca attributi data-* o title nella cella (più veloce)
+          if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
+            descrizioneVotazione = votazioneCell.attr('title') || 
+                                   votazioneCell.attr('data-tooltip') || 
+                                   votazioneCell.attr('data-description') ||
+                                   votazioneCell.attr('data-title');
+          }
+          
+          // Strategia 2: Cerca link nella cella e segui il link per ottenere più dettagli
           const link = votazioneCell.find('a').first();
           if (link.length > 0) {
             const href = link.attr('href');
@@ -113,11 +122,40 @@ async function getUltimaVotazione(urlOpenpolis) {
                   timeout: 10000
                 });
                 const $desc = cheerio.load(descResponse.data);
-                // Cerca descrizione nella pagina (prova diversi selettori)
-                descrizioneVotazione = $desc('.descrizione, .description, .testo, .content, [class*="desc"], [class*="testo"]').first().text().trim();
+                
+                // Selettori specifici per Openpolis
+                const selectors = [
+                  '.descrizione-votazione',
+                  '.descrizione',
+                  '.description',
+                  '.testo-votazione',
+                  '.testo',
+                  '.content',
+                  '[class*="desc"]',
+                  '[class*="testo"]',
+                  '[class*="votazione"]',
+                  'article p',
+                  '.main-content p',
+                  'main p'
+                ];
+                
+                for (const selector of selectors) {
+                  const text = $desc(selector).first().text().trim();
+                  if (text && text.length >= 50 && text.length < 5000) {
+                    descrizioneVotazione = text;
+                    break;
+                  }
+                }
+                
                 // Se non trovato, prova a prendere il primo paragrafo significativo
                 if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
-                  descrizioneVotazione = $desc('p').first().text().trim();
+                  $desc('p').each((i, elem) => {
+                    const text = $desc(elem).text().trim();
+                    if (text.length >= 50 && text.length < 5000 && !descrizioneVotazione) {
+                      descrizioneVotazione = text;
+                      return false; // break
+                    }
+                  });
                 }
               } catch (err) {
                 // Ignora errori nel recupero della descrizione
@@ -126,18 +164,58 @@ async function getUltimaVotazione(urlOpenpolis) {
             }
           }
           
-          // Se non abbiamo ancora la descrizione, cerca tooltip o attributi title
+          // Strategia 3: Cerca nella pagina stessa sezioni descrittive vicine alla tabella
           if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
-            descrizioneVotazione = votazioneCell.attr('title') || votazioneCell.attr('data-tooltip') || votazioneCell.attr('data-description');
+            const tableParent = table.parent();
+            const nearbySelectors = [
+              'p',
+              '.description',
+              '.testo',
+              '.descrizione',
+              '[class*="desc"]',
+              '.content',
+              '.info',
+              '.dettagli'
+            ];
+            
+            for (const selector of nearbySelectors) {
+              const text = tableParent.find(selector).first().text().trim();
+              if (text && text.length >= 50 && text.length < 2000) {
+                descrizioneVotazione = text;
+                break;
+              }
+            }
           }
           
-          // Se ancora non abbiamo descrizione, cerca nella pagina stessa sezioni descrittive vicine alla tabella
+          // Strategia 4: Cerca nella pagina principale sezioni specifiche di Openpolis
           if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
-            // Cerca sezioni di testo vicine alla tabella
-            const tableParent = table.parent();
-            const nearbyText = tableParent.find('p, .description, .testo').first().text().trim();
-            if (nearbyText && nearbyText.length > 50 && nearbyText.length < 2000) {
-              descrizioneVotazione = nearbyText;
+            const openpolisSelectors = [
+              'section[class*="votazione"]',
+              'div[class*="votazione"]',
+              '.votazioni-dettaglio',
+              '.atto-dettaglio',
+              'article',
+              'main section'
+            ];
+            
+            for (const selector of openpolisSelectors) {
+              const section = $(selector).first();
+              if (section.length > 0) {
+                const text = section.find('p').first().text().trim();
+                if (text && text.length >= 50 && text.length < 2000) {
+                  descrizioneVotazione = text;
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Strategia 5: Usa il testo completo della cella se contiene più informazioni
+          if (!descrizioneVotazione || descrizioneVotazione.length < 50) {
+            const cellText = votazioneCell.text().trim();
+            if (cellText && cellText.length > votazione.length && cellText.length < 2000) {
+              // Se il testo della cella è più lungo del titolo, potrebbe contenere la descrizione
+              descrizioneVotazione = cellText;
             }
           }
           

@@ -53,6 +53,7 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Recupera i dati dalla tabella voti_camera JOIN con votazioni_parlamento e users
     // Mostra solo i politici con ruolo="P" e grado_elezione="C" o "S"
+    // Ottimizzato: usa vp.data_votazione per ORDER BY e gestisce NULL correttamente
     const dbResult = await pool.query(
       `SELECT DISTINCT
         COALESCE(vc.politico_nome, CONCAT(u.nome, ' ', u.cognome)) as politico_nome,
@@ -65,7 +66,7 @@ router.get('/', verifyToken, async (req, res) => {
         vp.titolo_votazione as votazione,
         vp.descrizione_votazione,
         vc.voto,
-        vc.data_votazione,
+        vp.data_votazione as data_votazione,
         vc.ultimo_aggiornamento,
         vp.spiegazione,
         vp.id as votazione_id,
@@ -78,7 +79,7 @@ router.get('/', verifyToken, async (req, res) => {
       WHERE u.ruolo = 'P' 
         AND (u.grado_elezione = 'C' OR u.grado_elezione = 'S')
         AND u.status = 'a'
-      ORDER BY vc.data_votazione DESC NULLS LAST, u.cognome ASC, u.nome ASC
+      ORDER BY vp.data_votazione DESC NULLS LAST, u.cognome ASC, u.nome ASC
       LIMIT 1000`
     );
 
@@ -285,6 +286,7 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     const politicoNome = decodeURIComponent(req.params.politico);
     
     // Recupera i dati del politico e la votazione associata
+    // Fix: gestisce correttamente il caso in cui votazione_id è NULL
     const politicoResult = await pool.query(
       `SELECT vc.votazione_id, vp.titolo_votazione, vp.descrizione_votazione, vp.camera, vp.spiegazione
        FROM voti_camera vc
@@ -293,23 +295,26 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       [politicoNome]
     );
 
-    if (politicoResult.rows.length === 0 || !politicoResult.rows[0].votazione_id) {
+    if (politicoResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Politico o votazione non trovata',
-        message: 'Nessuna votazione trovata per questo politico'
+        error: 'Politico non trovato',
+        message: `Nessun politico trovato con il nome: ${politicoNome}`
       });
     }
 
-    const { votazione_id, titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = politicoResult.rows[0];
-
-    if (!titolo_votazione || titolo_votazione.trim() === '') {
-      return res.status(400).json({
+    const row = politicoResult.rows[0];
+    
+    // Fix: controlla esplicitamente se votazione_id è NULL o se la votazione non esiste
+    if (!row.votazione_id || !row.titolo_votazione || row.titolo_votazione.trim() === '') {
+      return res.status(404).json({
         success: false,
-        error: 'Votazione vuota',
-        message: 'Nessuna votazione disponibile per generare la spiegazione'
+        error: 'Votazione non trovata',
+        message: `Nessuna votazione trovata per il politico: ${politicoNome}. Esegui prima una sincronizzazione.`
       });
     }
+
+    const { votazione_id, titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = row;
 
     // Se esiste già una spiegazione, restituiscila
     if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
