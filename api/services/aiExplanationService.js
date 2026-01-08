@@ -208,12 +208,13 @@ async function verificaLimiteGiornaliero() {
     const oggi = new Date();
     oggi.setHours(0, 0, 0, 0);
     
+    // Conta le spiegazioni generate oggi nella tabella votazioni_parlamento
     const result = await pool.query(
       `SELECT COUNT(*) as count 
-       FROM voti_camera 
+       FROM votazioni_parlamento 
        WHERE spiegazione IS NOT NULL 
          AND spiegazione != ''
-         AND ultimo_aggiornamento >= $1`,
+         AND updated_at >= $1`,
       [oggi]
     );
     
@@ -262,21 +263,21 @@ async function generaSpiegazioniMancanti(limit = 10) {
   }
 
   try {
-    // Recupera votazioni senza spiegazione
+    // Recupera votazioni senza spiegazione dalla tabella votazioni_parlamento
     const result = await pool.query(
-      `SELECT politico_nome, votazione, descrizione_votazione, camera, voto 
-       FROM voti_camera 
-       WHERE votazione IS NOT NULL 
-         AND votazione != ''
-         AND (spiegazione IS NULL OR spiegazione = '')
-       ORDER BY ultimo_aggiornamento DESC
+      `SELECT vp.id as votazione_id, vp.titolo_votazione, vp.descrizione_votazione, vp.camera
+       FROM votazioni_parlamento vp
+       WHERE vp.titolo_votazione IS NOT NULL 
+         AND vp.titolo_votazione != ''
+         AND (vp.spiegazione IS NULL OR vp.spiegazione = '')
+       ORDER BY vp.updated_at DESC
        LIMIT $1`,
       [limitEffettivo]
     );
 
     if (result.rows.length === 0) {
       console.log('ℹ️ Nessuna votazione senza spiegazione trovata');
-      return { successi: 0, errori: 0 };
+      return { successi: 0, errori: 0, limiteRaggiunto: false };
     }
 
     console.log(`[*] Generazione spiegazioni per ${result.rows.length} votazioni...`);
@@ -286,12 +287,11 @@ async function generaSpiegazioniMancanti(limit = 10) {
 
     for (const row of result.rows) {
       try {
-        const spiegazione = await generaESalvaSpiegazione(
-          row.politico_nome,
-          row.votazione,
+        const spiegazione = await generaSpiegazioneVotazione(
+          row.votazione_id,
+          row.titolo_votazione,
           row.descrizione_votazione || null,
-          row.camera,
-          row.voto
+          row.camera
         );
 
         if (spiegazione) {
@@ -322,10 +322,59 @@ async function generaSpiegazioniMancanti(limit = 10) {
   }
 }
 
+/**
+ * Genera e salva la spiegazione per una votazione (non per un politico)
+ * @param {number} votazioneId - ID della votazione in votazioni_parlamento
+ * @param {string} titoloVotazione - Il titolo della votazione
+ * @param {string} descrizioneVotazione - La descrizione completa scrapata (opzionale)
+ * @param {string} camera - "Camera" o "Senato"
+ * @returns {Promise<string|null>} La spiegazione generata o null
+ */
+async function generaSpiegazioneVotazione(votazioneId, titoloVotazione, descrizioneVotazione, camera) {
+  try {
+    // Verifica se esiste già una spiegazione per questa votazione
+    const existingResult = await pool.query(
+      'SELECT spiegazione FROM votazioni_parlamento WHERE id = $1',
+      [votazioneId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      console.warn(`⚠️ Votazione ${votazioneId} non trovata`);
+      return null;
+    }
+
+    // Se esiste già una spiegazione, non rigenerarla
+    if (existingResult.rows[0].spiegazione && existingResult.rows[0].spiegazione.trim() !== '') {
+      console.log(`ℹ️ Spiegazione già esistente per votazione ${votazioneId}, skip generazione`);
+      return existingResult.rows[0].spiegazione;
+    }
+
+    // Genera nuova spiegazione (il voto non serve per la spiegazione della votazione stessa)
+    const spiegazione = await generaSpiegazione(titoloVotazione, descrizioneVotazione, camera, null);
+  
+    if (spiegazione) {
+      // Salva la spiegazione nella tabella votazioni_parlamento
+      await pool.query(
+        `UPDATE votazioni_parlamento 
+         SET spiegazione = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [spiegazione.trim(), votazioneId]
+      );
+      console.log(`✅ Spiegazione salvata per votazione ${votazioneId}`);
+    }
+
+    return spiegazione;
+  } catch (error) {
+    console.error(`❌ Errore nella generazione spiegazione per votazione ${votazioneId}:`, error.message);
+    return null;
+  }
+}
+
 module.exports = {
   generaSpiegazione,
   salvaSpiegazione,
   generaESalvaSpiegazione,
   generaSpiegazioniMancanti,
-  verificaLimiteGiornaliero
+  verificaLimiteGiornaliero,
+  generaSpiegazioneVotazione
 };

@@ -321,8 +321,42 @@ async function creaNotificheParlamento(politicoNome, camera, votazione, voto, da
   }
 }
 
-async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto, dataVotazione, politicoUserId = null) {
+async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, descrizioneVotazione, voto, dataVotazione, politicoUserId = null) {
   try {
+    if (!votazione || votazione.trim() === '') {
+      console.log(`[!] Votazione vuota per ${politicoNome}, skip`);
+      return false;
+    }
+
+    // Step 1: Crea o recupera la votazione in votazioni_parlamento
+    // Genera hash univoco per identificare la votazione
+    const crypto = require('crypto');
+    const hashInput = `${votazione}|${camera}|${dataVotazione || ''}`;
+    const votazioneHash = crypto.createHash('md5').update(hashInput).digest('hex');
+
+    // Crea o recupera la votazione (una sola per tutte le occorrenze)
+    const votazioneResult = await pool.query(
+      `INSERT INTO votazioni_parlamento (titolo_votazione, descrizione_votazione, camera, data_votazione, votazione_hash)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (votazione_hash) 
+       DO UPDATE SET 
+         descrizione_votazione = COALESCE(NULLIF(EXCLUDED.descrizione_votazione, ''), votazioni_parlamento.descrizione_votazione),
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING id`,
+      [votazione, descrizioneVotazione || null, camera, dataVotazione, votazioneHash]
+    );
+
+    const votazioneId = votazioneResult.rows[0].id;
+
+    // Step 2: Genera spiegazione AI per la votazione (solo se non esiste già, in background)
+    if (votazioneId) {
+      const { generaSpiegazioneVotazione } = require('./services/aiExplanationService');
+      generaSpiegazioneVotazione(votazioneId, votazione, descrizioneVotazione || null, camera).catch(error => {
+        console.error(`[ERR] Errore generazione spiegazione per votazione ${votazioneId}:`, error.message);
+      });
+    }
+
+    // Step 3: Salva il voto del politico in voti_camera con riferimento alla votazione
     // Prima verifica se esiste già un record con un URL configurato
     const existingResult = await pool.query(
       'SELECT url_openpolis FROM voti_camera WHERE politico_nome = $1',
@@ -335,29 +369,21 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, voto
       : urlOpenpolis;  // Usa nuovo URL solo se non ce n'è uno esistente
     
     const query = `
-      INSERT INTO voti_camera (politico_nome, camera, url_openpolis, votazione, voto, data_votazione)
+      INSERT INTO voti_camera (politico_nome, camera, url_openpolis, votazione_id, voto, data_votazione)
       VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (politico_nome) 
       DO UPDATE SET 
         camera = EXCLUDED.camera,
         url_openpolis = COALESCE(NULLIF(voti_camera.url_openpolis, ''), EXCLUDED.url_openpolis),
-        votazione = EXCLUDED.votazione,
+        votazione_id = EXCLUDED.votazione_id,
         voto = EXCLUDED.voto,
         data_votazione = EXCLUDED.data_votazione,
         ultimo_aggiornamento = CURRENT_TIMESTAMP
     `;
     
-    await pool.query(query, [politicoNome, camera, urlDaUsare, votazione, voto, dataVotazione]);
+    await pool.query(query, [politicoNome, camera, urlDaUsare, votazioneId, voto, dataVotazione]);
     
-    // Genera spiegazione AI se disponibile (in background, non blocca il processo)
-    if (votazione && votazione.trim() !== '') {
-      const { generaESalvaSpiegazione } = require('./services/aiExplanationService');
-      generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotazione || null, camera, voto).catch(error => {
-        console.error(`[ERR] Errore generazione spiegazione per ${politicoNome}:`, error.message);
-      });
-    }
-    
-    // Crea notifiche per gli utenti che hanno scelto questo rappresentante
+    // Step 4: Crea notifiche per gli utenti che hanno scelto questo rappresentante
     await creaNotificheParlamento(politicoNome, camera, votazione, voto, dataVotazione, politicoUserId);
     
     return true;
