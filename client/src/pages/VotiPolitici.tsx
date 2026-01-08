@@ -28,6 +28,7 @@ interface VotazioneCamera {
   voto: string | null;
   data_votazione: string | null;
   ultimo_aggiornamento: string | null;
+  spiegazione: string | null;
 }
 
 export default function VotiPolitici() {
@@ -115,6 +116,35 @@ export default function VotiPolitici() {
     },
   });
 
+  // Mutation per generare spiegazione
+  const generaSpiegazioneMutation = useMutation({
+    mutationFn: async (politicoNome: string) => {
+      const response = await apiRequest("POST", `/api/voti-camera/${encodeURIComponent(politicoNome)}/spiegazione`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Errore nella generazione della spiegazione");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/voti-camera"] });
+      toast({
+        title: "Spiegazione generata",
+        description: "La spiegazione è stata generata con successo",
+      });
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const votazioni: VotazioneCamera[] = data || [];
   
   // Filtra le votazioni in base al termine di ricerca
@@ -126,7 +156,8 @@ export default function VotiPolitici() {
       votazione.camera?.toLowerCase().includes(searchLower) ||
       votazione.votazione?.toLowerCase().includes(searchLower) ||
       votazione.voto?.toLowerCase().includes(searchLower) ||
-      votazione.url_openpolis?.toLowerCase().includes(searchLower)
+      votazione.url_openpolis?.toLowerCase().includes(searchLower) ||
+      votazione.spiegazione?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -250,7 +281,7 @@ export default function VotiPolitici() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Cerca per nome politico, camera, votazione, voto o URL..."
+                    placeholder="Cerca per nome politico, camera, votazione, voto, URL o spiegazione..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 pr-10"
@@ -288,6 +319,7 @@ export default function VotiPolitici() {
                         <TableHead className="min-w-[300px]">URL</TableHead>
                         <TableHead className="min-w-[300px]">Votazione</TableHead>
                         <TableHead className="min-w-[120px]">Voto</TableHead>
+                        <TableHead className="min-w-[400px]">Spiegazione</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -340,6 +372,31 @@ export default function VotiPolitici() {
                               </span>
                             ) : (
                               "N/A"
+                            )}
+                          </TableCell>
+                          <TableCell className="max-w-[500px]">
+                            {votazione.spiegazione ? (
+                              <div className="text-sm text-gray-700">
+                                {votazione.spiegazione}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400 italic text-sm">Non disponibile</span>
+                                {isAdmin && votazione.votazione && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => generaSpiegazioneMutation.mutate(votazione.politico_nome)}
+                                    disabled={generaSpiegazioneMutation.isPending}
+                                    className="h-7 text-xs"
+                                  >
+                                    {generaSpiegazioneMutation.isPending ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : null}
+                                    Genera
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>

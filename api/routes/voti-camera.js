@@ -66,6 +66,7 @@ router.get('/', verifyToken, async (req, res) => {
         vc.voto,
         vc.data_votazione,
         vc.ultimo_aggiornamento,
+        vc.spiegazione,
         u.id as user_id,
         u.nome,
         u.cognome
@@ -85,7 +86,8 @@ router.get('/', verifyToken, async (req, res) => {
       votazione: row.votazione,
       voto: row.voto,
       data_votazione: row.data_votazione,
-      ultimo_aggiornamento: row.ultimo_aggiornamento
+      ultimo_aggiornamento: row.ultimo_aggiornamento,
+      spiegazione: row.spiegazione
     }));
 
     return res.json({
@@ -252,6 +254,154 @@ router.post('/sync', verifyToken, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Errore nell\'avvio della sincronizzazione',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/voti-camera/:politico/spiegazione - Genera spiegazione AI per una votazione (solo admin)
+router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
+  try {
+    // Verifica che l'utente sia admin
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono generare spiegazioni'
+      });
+    }
+
+    const politicoNome = decodeURIComponent(req.params.politico);
+    
+    // Recupera i dati della votazione
+    const votazioneResult = await pool.query(
+      'SELECT votazione, camera, voto FROM voti_camera WHERE politico_nome = $1',
+      [politicoNome]
+    );
+
+    if (votazioneResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Politico non trovato',
+        message: 'Nessuna votazione trovata per questo politico'
+      });
+    }
+
+    const { votazione, camera, voto } = votazioneResult.rows[0];
+
+    if (!votazione || votazione.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Votazione vuota',
+        message: 'Nessuna votazione disponibile per generare la spiegazione'
+      });
+    }
+
+    // Verifica limite giornaliero prima di generare
+    const { generaESalvaSpiegazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
+    const limiteCheck = await verificaLimiteGiornaliero();
+    
+    if (!limiteCheck.rispettato) {
+      return res.status(429).json({
+        success: false,
+        error: 'Limite giornaliero raggiunto',
+        message: `Limite giornaliero raggiunto: ${limiteCheck.count}/${limiteCheck.limite} spiegazioni generate oggi. Riprova domani.`,
+        limite: limiteCheck
+      });
+    }
+
+    // Genera la spiegazione
+    const spiegazione = await generaESalvaSpiegazione(politicoNome, votazione, camera, voto);
+
+    if (!spiegazione) {
+      return res.status(500).json({
+        success: false,
+        error: 'Errore nella generazione',
+        message: 'Impossibile generare la spiegazione. Verifica che OPENAI_API_KEY sia configurato.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Spiegazione generata con successo',
+      data: {
+        politico_nome: politicoNome,
+        spiegazione
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nella generazione spiegazione:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nella generazione della spiegazione',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/voti-camera/genera-spiegazioni - Genera spiegazioni per tutte le votazioni senza spiegazione (solo admin)
+router.post('/genera-spiegazioni', verifyToken, async (req, res) => {
+  try {
+    // Verifica che l'utente sia admin
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono generare spiegazioni'
+      });
+    }
+
+    const limit = Math.min(parseInt(req.body.limit) || 10, 50); // Massimo 50 per volta
+
+    // Verifica limite giornaliero prima di avviare
+    const { verificaLimiteGiornaliero } = require('../services/aiExplanationService');
+    const limiteCheck = await verificaLimiteGiornaliero();
+    
+    if (!limiteCheck.rispettato) {
+      return res.status(429).json({
+        success: false,
+        error: 'Limite giornaliero raggiunto',
+        message: `Limite giornaliero raggiunto: ${limiteCheck.count}/${limiteCheck.limite} spiegazioni generate oggi. Riprova domani.`,
+        limite: limiteCheck
+      });
+    }
+
+    // Avvia la generazione in background
+    const { generaSpiegazioniMancanti } = require('../services/aiExplanationService');
+    
+    generaSpiegazioniMancanti(limit).then(result => {
+      console.log(`✅ Generazione spiegazioni completata: ${result.successi} successi, ${result.errori} errori`);
+      if (result.limiteRaggiunto) {
+        console.warn(`⚠️ Limite giornaliero raggiunto durante la generazione`);
+      }
+    }).catch(error => {
+      console.error('❌ Errore nella generazione spiegazioni:', error);
+    });
+
+    return res.json({
+      success: true,
+      message: `Generazione spiegazioni avviata in background per massimo ${limit} votazioni`,
+      limite: limiteCheck
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nell\'avvio generazione spiegazioni:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nell\'avvio della generazione',
       message: error.message
     });
   }

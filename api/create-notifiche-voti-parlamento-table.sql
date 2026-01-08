@@ -69,3 +69,4 @@ COMMENT ON COLUMN notifiche_voti_parlamento.camera IS 'Camera o Senato';
 COMMENT ON COLUMN notifiche_voti_parlamento.votazione_hash IS 'Hash univoco per evitare duplicati (politico_nome + votazione + data_votazione)';
 COMMENT ON COLUMN notifiche_voti_parlamento.voto IS 'Voto espresso: Favorevole, Contrario, Astenuto, In missione';
 
+

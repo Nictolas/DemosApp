@@ -102,3 +102,4 @@ findVotazioni().then(query => {
   process.exit(0);
 });
 
+

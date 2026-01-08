@@ -59,3 +59,4 @@ COMMENT ON COLUMN voti_camera.votazione IS 'Titolo/descrizione della votazione p
 COMMENT ON COLUMN voti_camera.voto IS 'Voto espresso: In missione, Astenuto, Favorevole, Contrario';
 COMMENT ON COLUMN voti_camera.ultimo_aggiornamento IS 'Data/ora dell''ultimo aggiornamento (per sovrascrivere i dati)';
 
+

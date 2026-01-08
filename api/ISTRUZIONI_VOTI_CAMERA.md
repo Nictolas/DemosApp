@@ -64,3 +64,4 @@ La tabella mostra solo politici con:
 - Normalizza i voti in: In missione, Astenuto, Favorevole, Contrario
 - Aggiorna automaticamente `ultimo_aggiornamento` ad ogni sincronizzazione
 
+

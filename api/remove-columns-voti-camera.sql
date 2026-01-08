@@ -17,3 +17,4 @@ FROM information_schema.columns
 WHERE table_name = 'voti_camera' 
 ORDER BY ordinal_position;
 
+

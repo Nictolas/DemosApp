@@ -77,3 +77,4 @@ COMMENT ON COLUMN voti_politici.metadati IS 'Metadati aggiuntivi in formato JSON
 COMMENT ON COLUMN voti_politici.data_sincronizzazione IS 'Data/ora in cui il record è stato sincronizzato da SPARQL';
 COMMENT ON COLUMN voti_politici.data_aggiornamento IS 'Data/ora dell''ultimo aggiornamento del record';
 
+
