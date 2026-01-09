@@ -206,8 +206,8 @@ export default function VotiPolitici() {
     return (
       votazione.politico_nome?.toLowerCase().includes(searchLower) ||
       votazione.camera?.toLowerCase().includes(searchLower) ||
-      votazione.voto?.toLowerCase().includes(searchLower) ||
-      votazione.spiegazione?.toLowerCase().includes(searchLower)
+      votazione.votazione?.toLowerCase().includes(searchLower) ||
+      votazione.voto?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -374,8 +374,8 @@ export default function VotiPolitici() {
                       <TableRow>
                         <TableHead className="min-w-[200px]">Politico</TableHead>
                         <TableHead className="min-w-[100px]">Camera</TableHead>
+                        <TableHead className="min-w-[300px]">Votazione</TableHead>
                         <TableHead className="min-w-[120px]">Voto</TableHead>
-                        <TableHead className="min-w-[400px]">Spiegazione</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -398,6 +398,44 @@ export default function VotiPolitici() {
                               {votazione.camera || "N/A"}
                             </span>
                           </TableCell>
+                          <TableCell className="max-w-[400px]">
+                            {votazione.votazione && votazione.votazione_id ? (
+                              <button
+                                onClick={() => {
+                                  // Recupera i dettagli della votazione
+                                  apiRequest("GET", `/api/voti-camera/votazione/${votazione.votazione_id}`)
+                                    .then(async (response) => {
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        setVotazioneDialog(data.data);
+                                      } else {
+                                        const errorData = await response.json().catch(() => ({}));
+                                        toast({
+                                          title: "Errore",
+                                          description: errorData.message || "Impossibile recuperare i dettagli della votazione",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    })
+                                    .catch((error) => {
+                                      toast({
+                                        title: "Errore",
+                                        description: error.message || "Errore nel recupero dei dettagli",
+                                        variant: "destructive",
+                                      });
+                                    });
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate block w-full text-left"
+                                title={votazione.votazione}
+                              >
+                                {votazione.votazione}
+                              </button>
+                            ) : (
+                              <div className="truncate" title={votazione.votazione || ""}>
+                                {votazione.votazione || "N/A"}
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell>
                             {votazione.voto ? (
                               <span className={`px-2 py-1 rounded text-xs font-medium ${getVotoColor(votazione.voto)}`}>
@@ -405,31 +443,6 @@ export default function VotiPolitici() {
                               </span>
                             ) : (
                               "N/A"
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-[500px]">
-                            {votazione.spiegazione ? (
-                              <div className="text-sm text-gray-700">
-                                {votazione.spiegazione}
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-400 italic text-sm">Non disponibile</span>
-                                {isAdmin && votazione.votazione_id && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => generaSpiegazioneMutation.mutate(votazione.votazione_id)}
-                                    disabled={generaSpiegazioneMutation.isPending}
-                                    className="h-7 text-xs"
-                                  >
-                                    {generaSpiegazioneMutation.isPending ? (
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    ) : null}
-                                    Genera
-                                  </Button>
-                                )}
-                              </div>
                             )}
                           </TableCell>
                         </TableRow>
@@ -510,7 +523,7 @@ export default function VotiPolitici() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="min-w-[300px]">Titolo Votazione</TableHead>
+                                  <TableHead className="min-w-[200px] max-w-[300px]">Titolo Votazione</TableHead>
                                   <TableHead className="min-w-[100px]">Camera</TableHead>
                                   <TableHead className="min-w-[120px]">Data</TableHead>
                                   <TableHead className="min-w-[100px]">Tipo Atto</TableHead>
@@ -522,7 +535,7 @@ export default function VotiPolitici() {
                               <TableBody>
                                 {filteredVotazioniTab.map((votazione) => (
                                   <TableRow key={votazione.votazione_id}>
-                                    <TableCell className="font-medium">
+                                    <TableCell className="font-medium max-w-[300px]">
                                       <button
                                         onClick={() => {
                                           apiRequest("GET", `/api/voti-camera/votazione/${votazione.votazione_id}`)
@@ -547,7 +560,7 @@ export default function VotiPolitici() {
                                               });
                                             });
                                         }}
-                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer whitespace-pre-wrap block w-full text-left"
+                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer whitespace-pre-wrap break-words block w-full text-left"
                                         title={votazione.titolo_votazione}
                                       >
                                         {votazione.titolo_votazione}
