@@ -41,10 +41,12 @@ if (process.env.GROQ_API_KEY) {
  */
 async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) {
   if (!aiClient) {
-    console.warn('⚠️ Nessuna API AI configurata, impossibile generare spiegazione');
-    console.warn(`⚠️ GROQ_API_KEY presente: ${!!process.env.GROQ_API_KEY}`);
-    console.warn(`⚠️ OPENAI_API_KEY presente: ${!!process.env.OPENAI_API_KEY}`);
-    return null;
+    console.error('❌ Nessuna API AI configurata, impossibile generare spiegazione');
+    console.error(`❌ GROQ_API_KEY presente: ${!!process.env.GROQ_API_KEY}`);
+    console.error(`❌ OPENAI_API_KEY presente: ${!!process.env.OPENAI_API_KEY}`);
+    console.error(`❌ aiProvider: ${aiProvider}`);
+    console.error(`❌ aiClient: ${aiClient ? 'configurato' : 'null'}`);
+    throw new Error('API AI non configurata. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato nelle variabili d\'ambiente e che il servizio sia stato riavviato.');
   }
 
   if (!votazione || votazione.trim() === '') {
