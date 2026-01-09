@@ -42,6 +42,8 @@ if (process.env.GROQ_API_KEY) {
 async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) {
   if (!aiClient) {
     console.warn('⚠️ Nessuna API AI configurata, impossibile generare spiegazione');
+    console.warn(`⚠️ GROQ_API_KEY presente: ${!!process.env.GROQ_API_KEY}`);
+    console.warn(`⚠️ OPENAI_API_KEY presente: ${!!process.env.OPENAI_API_KEY}`);
     return null;
   }
 
@@ -49,6 +51,8 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     console.warn('⚠️ Votazione vuota, impossibile generare spiegazione');
     return null;
   }
+  
+  console.log(`[DEBUG] generaSpiegazione chiamata con: votazione="${votazione.substring(0, 50)}...", camera="${camera}", provider="${aiProvider}"`);
 
   // Normalizza descrizioneVotazione (può essere undefined, null o stringa)
   const descrizione = descrizioneVotazione && typeof descrizioneVotazione === 'string' && descrizioneVotazione.trim() !== '' 

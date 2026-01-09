@@ -114,6 +114,80 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/voti-camera/votazione/:votazione_id - Ottieni dettagli di una votazione
+router.get('/votazione/:votazione_id', verifyToken, async (req, res) => {
+  try {
+    const votazioneId = parseInt(req.params.votazione_id);
+    
+    if (isNaN(votazioneId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID votazione non valido',
+        message: 'L\'ID votazione deve essere un numero'
+      });
+    }
+
+    // Recupera i dettagli della votazione
+    const votazioneResult = await pool.query(
+      `SELECT 
+        vp.id as votazione_id,
+        vp.titolo_votazione as titolo,
+        vp.descrizione_votazione as descrizione,
+        vp.spiegazione,
+        vp.camera,
+        vp.data_votazione
+      FROM votazioni_parlamento vp
+      WHERE vp.id = $1`,
+      [votazioneId]
+    );
+
+    if (votazioneResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Votazione non trovata',
+        message: `Nessuna votazione trovata con ID: ${votazioneId}`
+      });
+    }
+
+    const votazione = votazioneResult.rows[0];
+
+    // Recupera tutti i politici che hanno votato questa votazione
+    const politiciResult = await pool.query(
+      `SELECT 
+        vc.politico_nome,
+        vc.voto
+      FROM voti_camera vc
+      WHERE vc.votazione_id = $1
+      ORDER BY vc.politico_nome ASC`,
+      [votazioneId]
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        votazione_id: votazione.votazione_id,
+        titolo: votazione.titolo,
+        descrizione: votazione.descrizione,
+        spiegazione: votazione.spiegazione,
+        camera: votazione.camera,
+        data_votazione: votazione.data_votazione,
+        politici: politiciResult.rows.map(row => ({
+          politico_nome: row.politico_nome,
+          voto: row.voto
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel recupero dettagli votazione:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero dei dettagli',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/voti-camera/stats - Statistiche sui dati
 router.get('/stats', verifyToken, async (req, res) => {
   try {
@@ -346,9 +420,15 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     // Genera la spiegazione per la votazione (non per il politico)
     let spiegazione;
     try {
+      console.log(`[DEBUG] Generazione spiegazione per votazione_id=${votazione_id}, titolo="${titolo_votazione}", camera="${camera}"`);
+      console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
+      
       spiegazione = await generaSpiegazioneVotazione(votazione_id, titolo_votazione, descrizione_votazione || null, camera);
+      
+      console.log(`[DEBUG] Spiegazione generata: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
       console.error('❌ Errore durante la generazione spiegazione:', genError);
+      console.error('❌ Stack trace:', genError.stack);
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
@@ -357,10 +437,11 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     if (!spiegazione) {
+      console.error(`[DEBUG] Spiegazione non generata per votazione_id=${votazione_id}`);
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
-        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.'
+        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che l\'API sia raggiungibile.'
       });
     }
 

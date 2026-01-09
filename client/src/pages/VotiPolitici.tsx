@@ -40,6 +40,7 @@ export default function VotiPolitici() {
   const queryClient = useQueryClient();
   const [editingUrl, setEditingUrl] = useState<{ politico: string; url: string } | null>(null);
   const [politicoDialog, setPoliticoDialog] = useState<VotazioneCamera | null>(null);
+  const [votazioneDialog, setVotazioneDialog] = useState<{ votazione_id: number; titolo: string; descrizione: string | null; spiegazione: string | null; camera: string; data_votazione: string | null; politici: Array<{ politico_nome: string; voto: string | null }> } | null>(null);
   const [newUrl, setNewUrl] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -344,9 +345,42 @@ export default function VotiPolitici() {
                             </span>
                           </TableCell>
                           <TableCell className="max-w-[400px]">
-                            <div className="truncate" title={votazione.votazione || ""}>
-                              {votazione.votazione || "N/A"}
-                            </div>
+                            {votazione.votazione && votazione.votazione_id ? (
+                              <button
+                                onClick={() => {
+                                  // Recupera i dettagli della votazione
+                                  apiRequest("GET", `/api/voti-camera/votazione/${votazione.votazione_id}`)
+                                    .then(async (response) => {
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        setVotazioneDialog(data.data);
+                                      } else {
+                                        const errorData = await response.json().catch(() => ({}));
+                                        toast({
+                                          title: "Errore",
+                                          description: errorData.message || "Impossibile recuperare i dettagli della votazione",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    })
+                                    .catch((error) => {
+                                      toast({
+                                        title: "Errore",
+                                        description: error.message || "Errore nel recupero dei dettagli",
+                                        variant: "destructive",
+                                      });
+                                    });
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate block w-full text-left"
+                                title={votazione.votazione}
+                              >
+                                {votazione.votazione}
+                              </button>
+                            ) : (
+                              <div className="truncate" title={votazione.votazione || ""}>
+                                {votazione.votazione || "N/A"}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
                             {votazione.voto ? (
@@ -510,6 +544,88 @@ export default function VotiPolitici() {
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : null}
                 Salva
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog per dettagli votazione */}
+        <Dialog open={!!votazioneDialog} onOpenChange={(open) => !open && setVotazioneDialog(null)}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl">{votazioneDialog?.titolo}</DialogTitle>
+              <DialogDescription>
+                Dettagli della votazione {votazioneDialog?.camera}
+                {votazioneDialog?.data_votazione && ` - ${new Date(votazioneDialog.data_votazione).toLocaleDateString('it-IT')}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {/* Descrizione */}
+              {votazioneDialog?.descrizione && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Descrizione</label>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md">
+                    {votazioneDialog.descrizione}
+                  </p>
+                </div>
+              )}
+
+              {/* Spiegazione */}
+              {votazioneDialog?.spiegazione && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Spiegazione</label>
+                  <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded-md">
+                    {votazioneDialog.spiegazione}
+                  </p>
+                </div>
+              )}
+
+              {/* Politici che hanno votato */}
+              {votazioneDialog?.politici && votazioneDialog.politici.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Politici che hanno votato ({votazioneDialog.politici.length})
+                  </label>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {votazioneDialog.politici.map((politico, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <span className="text-sm font-medium">{politico.politico_nome}</span>
+                        {politico.voto && (
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${getVotoColor(politico.voto)}`}>
+                            {politico.voto}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!votazioneDialog?.spiegazione && isAdmin && votazioneDialog?.votazione_id && (
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Trova un politico che ha questa votazione per generare la spiegazione
+                      const politicoConVotazione = votazioni.find(v => v.votazione_id === votazioneDialog.votazione_id);
+                      if (politicoConVotazione) {
+                        generaSpiegazioneMutation.mutate(politicoConVotazione.politico_nome);
+                      }
+                    }}
+                    disabled={generaSpiegazioneMutation.isPending}
+                  >
+                    {generaSpiegazioneMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : null}
+                    Genera Spiegazione
+                  </Button>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVotazioneDialog(null)}>
+                Chiudi
               </Button>
             </DialogFooter>
           </DialogContent>
