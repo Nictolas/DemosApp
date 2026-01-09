@@ -513,6 +513,8 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, async (req, res
 
     // Genera la spiegazione
     console.log(`[DEBUG] Step 5: Caricamento servizio AI`);
+    console.log(`[DEBUG] Verifica variabili ambiente: GROQ_API_KEY=${!!process.env.GROQ_API_KEY}, OPENAI_API_KEY=${!!process.env.OPENAI_API_KEY}`);
+    
     const { generaSpiegazioneVotazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
     
     console.log(`[DEBUG] Step 6: Verifica limite giornaliero`);
@@ -536,18 +538,30 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, async (req, res
     
     let spiegazione;
     try {
+      console.log(`[DEBUG] Step 7.1: Chiamata generaSpiegazioneVotazione...`);
       spiegazione = await generaSpiegazioneVotazione(votazioneId, titolo_votazione, descrizione_votazione || null, camera);
       
       console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
-      console.error('❌ Errore durante la generazione spiegazione:', genError);
-      console.error('❌ Stack trace:', genError.stack);
+      console.error('❌ ERRORE CRITICO durante la generazione spiegazione:');
+      console.error(`❌ Tipo errore: ${genError.constructor.name}`);
+      console.error(`❌ Messaggio: ${genError.message}`);
+      console.error(`❌ Stack trace completo:`, genError.stack);
+      
+      // Log dettagliato per errori specifici
+      if (genError.message && genError.message.includes('decommissioned')) {
+        console.error(`❌ PROBLEMA: Modello Groq deprecato! Il codice su Render usa ancora llama-3.1-70b-versatile`);
+      }
+      if (genError.message && genError.message.includes('API AI non configurata')) {
+        console.error(`❌ PROBLEMA: Chiave API non caricata su Render! Verifica GROQ_API_KEY in Environment Variables`);
+      }
+      
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
-        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.`
+        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che il servizio sia stato riavviato.`
       });
     }
 
