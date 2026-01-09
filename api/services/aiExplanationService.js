@@ -75,10 +75,14 @@ Titolo votazione: "${votazione}"`;
       prompt += `\n\nDescrizione completa:\n"${descrizione}"`;
     }
 
-    prompt += `\n\nCamera: ${camera}
-Voto espresso: ${voto}
+    prompt += `\n\nCamera: ${camera}`;
+    
+    // Aggiungi il voto solo se disponibile (non è necessario per spiegare la votazione stessa)
+    if (voto && voto !== 'null' && voto.trim() !== '') {
+      prompt += `\nVoto espresso: ${voto}`;
+    }
 
-La spiegazione deve:
+    prompt += `\n\nLa spiegazione deve:
 - Essere in italiano
 - Essere comprensibile per cittadini non esperti
 - Spiegare di cosa tratta la votazione in modo dettagliato e preciso
@@ -350,7 +354,8 @@ async function generaSpiegazioneVotazione(votazioneId, titoloVotazione, descrizi
     }
 
     // Genera nuova spiegazione (il voto non serve per la spiegazione della votazione stessa)
-    const spiegazione = await generaSpiegazione(titoloVotazione, descrizioneVotazione, camera, null);
+    // Passa 'N/A' invece di null per evitare problemi nel prompt
+    const spiegazione = await generaSpiegazione(titoloVotazione, descrizioneVotazione, camera, 'N/A');
   
     if (spiegazione) {
       // Salva la spiegazione nella tabella votazioni_parlamento

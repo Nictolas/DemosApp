@@ -172,7 +172,8 @@ router.put('/:politico/url', verifyToken, async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'admin') {
+    const userRole = userResult.rows[0]?.ruolo;
+    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
@@ -343,13 +344,23 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     // Genera la spiegazione per la votazione (non per il politico)
-    const spiegazione = await generaSpiegazioneVotazione(votazione_id, titolo_votazione, descrizione_votazione || null, camera);
+    let spiegazione;
+    try {
+      spiegazione = await generaSpiegazioneVotazione(votazione_id, titolo_votazione, descrizione_votazione || null, camera);
+    } catch (genError) {
+      console.error('❌ Errore durante la generazione spiegazione:', genError);
+      return res.status(500).json({
+        success: false,
+        error: 'Errore nella generazione',
+        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.`
+      });
+    }
 
     if (!spiegazione) {
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
-        message: 'Impossibile generare la spiegazione. Verifica che OPENAI_API_KEY sia configurato.'
+        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.'
       });
     }
 
