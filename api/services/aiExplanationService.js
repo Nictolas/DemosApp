@@ -397,7 +397,9 @@ async function generaSpiegazioneVotazione(votazioneId, titoloVotazione, descrizi
     return spiegazione;
   } catch (error) {
     console.error(`❌ Errore nella generazione spiegazione per votazione ${votazioneId}:`, error.message);
-    return null;
+    console.error(`❌ Stack trace:`, error.stack);
+    // Rilancia l'errore per permettere all'endpoint di gestirlo e mostrare il messaggio dettagliato
+    throw error;
   }
 }
 
