@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2, ArrowLeft, Vote, AlertCircle, Edit, ExternalLink, Search, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-neon";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface VotazioneCamera {
   politico_nome: string;
@@ -31,6 +32,23 @@ interface VotazioneCamera {
   ultimo_aggiornamento: string | null;
   spiegazione: string | null;
   votazione_id: number | null;
+}
+
+interface VotazioneParlamento {
+  votazione_id: number;
+  titolo_votazione: string;
+  descrizione_votazione: string | null;
+  camera: string;
+  data_votazione: string | null;
+  spiegazione: string | null;
+  url_votazione: string | null;
+  numero_seduta: number | null;
+  tipo_atto: string | null;
+  sigla_atto: string | null;
+  numero_atto: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  numero_politici: number;
 }
 
 export default function VotiPolitici() {
@@ -46,7 +64,7 @@ export default function VotiPolitici() {
 
   const isAdmin = user?.ruolo === "AD";
 
-  // Query per recuperare i dati delle votazioni dalla tabella voti_camera
+  // Query per recuperare i dati delle votazioni dalla tabella voti_camera (voti dei politici)
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/voti-camera"],
     queryFn: async () => {
@@ -54,6 +72,22 @@ export default function VotiPolitici() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Errore nel recupero dei dati");
+      }
+      const result = await response.json();
+      return result.data || [];
+    },
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Query per recuperare le votazioni uniche da votazioni_parlamento
+  const { data: votazioniData, isLoading: isLoadingVotazioni, error: errorVotazioni, refetch: refetchVotazioni } = useQuery({
+    queryKey: ["/api/voti-camera/votazioni"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/voti-camera/votazioni");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Errore nel recupero delle votazioni");
       }
       const result = await response.json();
       return result.data || [];
@@ -143,12 +177,14 @@ export default function VotiPolitici() {
     onSuccess: (data) => {
       console.log(`[DEBUG] Successo generazione spiegazione:`, data);
       queryClient.invalidateQueries({ queryKey: ["/api/voti-camera"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/voti-camera/votazioni"] });
       toast({
         title: "Spiegazione generata",
         description: data.message || "La spiegazione è stata generata con successo",
       });
       setTimeout(() => {
         refetch();
+        refetchVotazioni();
       }, 2000);
     },
     onError: (error: Error) => {
@@ -276,20 +312,28 @@ export default function VotiPolitici() {
           </Card>
         )}
 
-        {/* Data Table */}
+        {/* Tabs per Votazioni e Voti Politici */}
         {!isLoading && !error && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Votazioni ({filteredVotazioni.length}{searchTerm && ` di ${votazioni.length}`})</CardTitle>
+                  <CardTitle>Voti e Votazioni Parlamentari</CardTitle>
                   <CardDescription>
-                    Ultima votazione per ogni politico (Camera e Senato)
+                    Visualizza votazioni uniche o voti dei singoli politici
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
+              <Tabs defaultValue="voti-politici" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="voti-politici">Voti Politici</TabsTrigger>
+                  <TabsTrigger value="votazioni">Votazioni</TabsTrigger>
+                </TabsList>
+
+                {/* Tab: Voti Politici */}
+                <TabsContent value="voti-politici" className="mt-4">
               {/* Barra di ricerca */}
               <div className="mb-6">
                 <div className="relative">
@@ -434,6 +478,182 @@ export default function VotiPolitici() {
                   </Table>
                 </div>
               )}
+                </TabsContent>
+
+                {/* Tab: Votazioni */}
+                <TabsContent value="votazioni" className="mt-4">
+                  {isLoadingVotazioni ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <p className="ml-4 text-muted-foreground">Caricamento votazioni...</p>
+                    </div>
+                  ) : errorVotazioni ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Errore nel caricamento delle votazioni. Riprova più tardi.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <>
+                      {/* Barra di ricerca per votazioni */}
+                      <div className="mb-6">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="Cerca per titolo, camera, tipo atto, sigla..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-10"
+                          />
+                          {searchTerm && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                              onClick={() => setSearchTerm("")}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tabella Votazioni */}
+                      {(() => {
+                        const votazioni: VotazioneParlamento[] = votazioniData || [];
+                        const filteredVotazioniTab = votazioni.filter((v) => {
+                          if (!searchTerm.trim()) return true;
+                          const searchLower = searchTerm.toLowerCase().trim();
+                          return (
+                            v.titolo_votazione?.toLowerCase().includes(searchLower) ||
+                            v.camera?.toLowerCase().includes(searchLower) ||
+                            v.tipo_atto?.toLowerCase().includes(searchLower) ||
+                            v.sigla_atto?.toLowerCase().includes(searchLower) ||
+                            v.spiegazione?.toLowerCase().includes(searchLower)
+                          );
+                        });
+
+                        return filteredVotazioniTab.length === 0 ? (
+                          <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              {searchTerm
+                                ? `Nessun risultato trovato per "${searchTerm}".`
+                                : `Nessuna votazione trovata. ${isAdmin ? "Clicca su 'Sincronizza' per popolare la tabella." : ""}`
+                              }
+                            </AlertDescription>
+                          </Alert>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="min-w-[300px]">Titolo Votazione</TableHead>
+                                  <TableHead className="min-w-[100px]">Camera</TableHead>
+                                  <TableHead className="min-w-[120px]">Data</TableHead>
+                                  <TableHead className="min-w-[100px]">Tipo Atto</TableHead>
+                                  <TableHead className="min-w-[100px]">Sigla</TableHead>
+                                  <TableHead className="min-w-[80px]">Politici</TableHead>
+                                  <TableHead className="min-w-[400px]">Spiegazione</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredVotazioniTab.map((votazione) => (
+                                  <TableRow key={votazione.votazione_id}>
+                                    <TableCell className="font-medium">
+                                      <button
+                                        onClick={() => {
+                                          apiRequest("GET", `/api/voti-camera/votazione/${votazione.votazione_id}`)
+                                            .then(async (response) => {
+                                              if (response.ok) {
+                                                const data = await response.json();
+                                                setVotazioneDialog(data.data);
+                                              } else {
+                                                const errorData = await response.json().catch(() => ({}));
+                                                toast({
+                                                  title: "Errore",
+                                                  description: errorData.message || "Impossibile recuperare i dettagli",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            })
+                                            .catch((error) => {
+                                              toast({
+                                                title: "Errore",
+                                                description: error.message || "Errore nel recupero",
+                                                variant: "destructive",
+                                              });
+                                            });
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate block w-full text-left"
+                                        title={votazione.titolo_votazione}
+                                      >
+                                        {votazione.titolo_votazione}
+                                      </button>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                        votazione.camera === "Senato"
+                                          ? "bg-purple-100 text-purple-800"
+                                          : "bg-blue-100 text-blue-800"
+                                      }`}>
+                                        {votazione.camera || "N/A"}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell>
+                                      {votazione.data_votazione
+                                        ? new Date(votazione.data_votazione).toLocaleDateString('it-IT')
+                                        : "N/A"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {votazione.tipo_atto || "N/A"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {votazione.sigla_atto || "N/A"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="text-sm text-gray-600">
+                                        {votazione.numero_politici || 0}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="max-w-[500px]">
+                                      {votazione.spiegazione ? (
+                                        <div className="text-sm text-gray-700">
+                                          {votazione.spiegazione}
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-gray-400 italic text-sm">Non disponibile</span>
+                                          {isAdmin && (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => generaSpiegazioneMutation.mutate(votazione.votazione_id)}
+                                              disabled={generaSpiegazioneMutation.isPending}
+                                              className="h-7 text-xs"
+                                            >
+                                              {generaSpiegazioneMutation.isPending ? (
+                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                              ) : null}
+                                              Genera
+                                            </Button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         )}

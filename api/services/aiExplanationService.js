@@ -15,20 +15,30 @@ let aiProvider = null;
 
 // Priorità: Groq (gratuito) > OpenAI (a pagamento)
 if (process.env.GROQ_API_KEY) {
-  aiClient = new Groq({
-    apiKey: process.env.GROQ_API_KEY
-  });
-  aiProvider = 'groq';
-  console.log('✅ Groq AI configurato (gratuito)');
+  try {
+    aiClient = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    });
+    aiProvider = 'groq';
+    console.log('✅ Groq AI configurato (gratuito)');
+    console.log(`   API Key: ${process.env.GROQ_API_KEY.substring(0, 10)}...${process.env.GROQ_API_KEY.substring(process.env.GROQ_API_KEY.length - 4)}`);
+  } catch (error) {
+    console.error('❌ Errore inizializzazione Groq:', error.message);
+  }
 } else if (process.env.OPENAI_API_KEY) {
-  const OpenAI = require('openai');
-  aiClient = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
-  aiProvider = 'openai';
-  console.log('✅ OpenAI configurato (a pagamento)');
+  try {
+    const OpenAI = require('openai');
+    aiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    aiProvider = 'openai';
+    console.log('✅ OpenAI configurato (a pagamento)');
+  } catch (error) {
+    console.error('❌ Errore inizializzazione OpenAI:', error.message);
+  }
 } else {
-  console.warn('⚠️ Nessuna API AI configurata. Configura GROQ_API_KEY (gratuito) o OPENAI_API_KEY (a pagamento).');
+  console.error('❌ Nessuna API AI configurata. Configura GROQ_API_KEY (gratuito) o OPENAI_API_KEY (a pagamento).');
+  console.error('   Verifica che la variabile d\'ambiente sia presente e che il servizio sia stato riavviato.');
 }
 
 /**
