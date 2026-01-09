@@ -157,8 +157,12 @@ Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
     return null;
   } catch (error) {
     console.error(`❌ Errore nella generazione spiegazione AI (${aiProvider}):`, error.message);
-    // Non bloccare il processo se la generazione fallisce
-    return null;
+    console.error(`❌ Stack trace completo:`, error.stack);
+    if (error.message && error.message.includes('decommissioned')) {
+      console.error(`❌ MODELLO DEPRECATO! Aggiorna GROQ_MODEL a llama-3.3-70b-versatile`);
+    }
+    // Rilancia l'errore invece di restituire null, così l'endpoint può gestirlo
+    throw error;
   }
 }
 
