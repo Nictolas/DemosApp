@@ -364,6 +364,100 @@ router.put('/:politico/url', verifyToken, async (req, res) => {
   }
 });
 
+// DELETE /api/voti-camera/:politico - Cancella un politico da voti_camera e users (solo admin)
+router.delete('/:politico', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    // Verifica che l'utente sia admin
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const userResult = await client.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono cancellare i politici'
+      });
+    }
+    
+    const politicoNome = decodeURIComponent(req.params.politico);
+    
+    // Estrai nome e cognome dal nome completo
+    const parts = politicoNome.trim().split(/\s+/);
+    if (parts.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome non valido',
+        message: 'Il nome del politico deve contenere almeno nome e cognome'
+      });
+    }
+    
+    const nome = parts[0];
+    const cognome = parts.slice(1).join(' ');
+    
+    await client.query('BEGIN');
+    
+    try {
+      // 1. Cancella da voti_camera
+      const deleteVotiCamera = await client.query(
+        'DELETE FROM voti_camera WHERE politico_nome = $1',
+        [politicoNome]
+      );
+      
+      // 2. Trova l'utente corrispondente
+      const userQuery = await client.query(
+        `SELECT id FROM users 
+         WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) 
+           AND LOWER(TRIM(cognome)) = LOWER(TRIM($2))
+           AND ruolo = 'P'`,
+        [nome, cognome]
+      );
+      
+      if (userQuery.rows.length > 0) {
+        const userId = userQuery.rows[0].id;
+        
+        // 3. Cancella le notifiche correlate
+        await client.query(
+          'DELETE FROM notifiche_voti_parlamento WHERE politico_nome = $1',
+          [politicoNome]
+        );
+        
+        // 4. Cancella l'utente dalla tabella users
+        await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      }
+      
+      await client.query('COMMIT');
+      
+      return res.json({
+        success: true,
+        message: `Politico "${politicoNome}" cancellato con successo da voti_camera e users`,
+        deleted: {
+          voti_camera: deleteVotiCamera.rowCount,
+          users: userQuery.rows.length > 0 ? 1 : 0
+        }
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('❌ Errore nella cancellazione del politico:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nella cancellazione del politico',
+      message: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/voti-camera/sync - Sincronizza i voti da Openpolis (solo admin)
 router.post('/sync', verifyToken, async (req, res) => {
   try {
