@@ -25,6 +25,7 @@ interface VotazioneCamera {
   politico_nome: string;
   camera: string;
   url_openpolis: string;
+  foto_url: string | null;
   votazione: string | null;
   descrizione_votazione: string | null;
   voto: string | null;
@@ -399,6 +400,7 @@ export default function VotiPolitici() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="min-w-[80px]">Foto</TableHead>
                         <TableHead className="min-w-[200px]">Politico</TableHead>
                         <TableHead className="min-w-[100px]">Camera</TableHead>
                         <TableHead className="min-w-[300px]">Votazione</TableHead>
@@ -408,6 +410,28 @@ export default function VotiPolitici() {
                     <TableBody>
                       {filteredVotazioni.map((votazione, index) => (
                         <TableRow key={`${votazione.politico_nome}-${index}`}>
+                          <TableCell>
+                            {votazione.foto_url ? (
+                              <img 
+                                src={votazione.foto_url} 
+                                alt={votazione.politico_nome || "Politico"}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                onError={(e) => {
+                                  // Sostituisci l'immagine con un placeholder se non carica
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                  const placeholder = document.createElement('div');
+                                  placeholder.className = 'w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300';
+                                  placeholder.innerHTML = '<span class="text-gray-400 text-xs">N/A</span>';
+                                  target.parentNode?.appendChild(placeholder);
+                                }}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                                <span className="text-gray-400 text-xs">N/A</span>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium">
                             <button
                               onClick={() => setPoliticoDialog(votazione)}

@@ -63,6 +63,7 @@ router.get('/', verifyToken, async (req, res) => {
           ELSE COALESCE(vc.camera, 'Camera')
         END as camera,
         COALESCE(vc.url_openpolis, '') as url_openpolis,
+        COALESCE(vc.foto_url, '') as foto_url,
         vp.titolo_votazione as votazione,
         vp.descrizione_votazione,
         vc.voto,
