@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, ArrowLeft, Vote, AlertCircle, Edit, ExternalLink, Search, X } from "lucide-react";
+import { Loader2, ArrowLeft, Vote, AlertCircle, Edit, ExternalLink, Search, X, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -144,6 +144,33 @@ export default function VotiPolitici() {
       setTimeout(() => {
         refetch();
       }, 5000);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation per cancellare un politico
+  const deletePoliticoMutation = useMutation({
+    mutationFn: async (politicoNome: string) => {
+      const response = await apiRequest("DELETE", `/api/voti-camera/${encodeURIComponent(politicoNome)}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Errore nella cancellazione");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/voti-camera"] });
+      toast({
+        title: "Politico cancellato",
+        description: "Il politico è stato cancellato con successo da voti_camera e users",
+      });
+      setPoliticoDialog(null);
     },
     onError: (error: Error) => {
       toast({
@@ -701,24 +728,42 @@ export default function VotiPolitici() {
                 Chiudi
               </Button>
               {isAdmin && (
-                <Button 
-                  onClick={() => {
-                    if (politicoDialog) {
-                      const urlToEdit = politicoDialog.url_openpolis || "";
-                      setEditingUrl({ politico: politicoDialog.politico_nome, url: urlToEdit });
-                      setNewUrl(urlToEdit);
-                      setPoliticoDialog(null);
-                    }
-                  }}
-                  disabled={updateUrlMutation.isPending}
-                >
-                  {updateUrlMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Edit className="h-4 w-4 mr-2" />
-                  )}
-                  Modifica URL
-                </Button>
+                <>
+                  <Button 
+                    onClick={() => {
+                      if (politicoDialog) {
+                        const urlToEdit = politicoDialog.url_openpolis || "";
+                        setEditingUrl({ politico: politicoDialog.politico_nome, url: urlToEdit });
+                        setNewUrl(urlToEdit);
+                        setPoliticoDialog(null);
+                      }
+                    }}
+                    disabled={updateUrlMutation.isPending}
+                  >
+                    {updateUrlMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Edit className="h-4 w-4 mr-2" />
+                    )}
+                    Modifica URL
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => {
+                      if (politicoDialog && window.confirm(`Sei sicuro di voler cancellare il politico "${politicoDialog.politico_nome}"? Questa azione rimuoverà il politico sia da voti_camera che da users e non può essere annullata.`)) {
+                        deletePoliticoMutation.mutate(politicoDialog.politico_nome);
+                      }
+                    }}
+                    disabled={deletePoliticoMutation.isPending}
+                  >
+                    {deletePoliticoMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Cancella Politico
+                  </Button>
+                </>
               )}
             </DialogFooter>
           </DialogContent>
