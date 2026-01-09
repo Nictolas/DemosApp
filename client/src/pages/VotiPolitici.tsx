@@ -206,7 +206,6 @@ export default function VotiPolitici() {
     return (
       votazione.politico_nome?.toLowerCase().includes(searchLower) ||
       votazione.camera?.toLowerCase().includes(searchLower) ||
-      votazione.votazione?.toLowerCase().includes(searchLower) ||
       votazione.voto?.toLowerCase().includes(searchLower) ||
       votazione.spiegazione?.toLowerCase().includes(searchLower)
     );
@@ -375,7 +374,6 @@ export default function VotiPolitici() {
                       <TableRow>
                         <TableHead className="min-w-[200px]">Politico</TableHead>
                         <TableHead className="min-w-[100px]">Camera</TableHead>
-                        <TableHead className="min-w-[300px]">Votazione</TableHead>
                         <TableHead className="min-w-[120px]">Voto</TableHead>
                         <TableHead className="min-w-[400px]">Spiegazione</TableHead>
                       </TableRow>
@@ -399,44 +397,6 @@ export default function VotiPolitici() {
                             }`}>
                               {votazione.camera || "N/A"}
                             </span>
-                          </TableCell>
-                          <TableCell className="max-w-[400px]">
-                            {votazione.votazione && votazione.votazione_id ? (
-                              <button
-                                onClick={() => {
-                                  // Recupera i dettagli della votazione
-                                  apiRequest("GET", `/api/voti-camera/votazione/${votazione.votazione_id}`)
-                                    .then(async (response) => {
-                                      if (response.ok) {
-                                        const data = await response.json();
-                                        setVotazioneDialog(data.data);
-                                      } else {
-                                        const errorData = await response.json().catch(() => ({}));
-                                        toast({
-                                          title: "Errore",
-                                          description: errorData.message || "Impossibile recuperare i dettagli della votazione",
-                                          variant: "destructive",
-                                        });
-                                      }
-                                    })
-                                    .catch((error) => {
-                                      toast({
-                                        title: "Errore",
-                                        description: error.message || "Errore nel recupero dei dettagli",
-                                        variant: "destructive",
-                                      });
-                                    });
-                                }}
-                                className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate block w-full text-left"
-                                title={votazione.votazione}
-                              >
-                                {votazione.votazione}
-                              </button>
-                            ) : (
-                              <div className="truncate" title={votazione.votazione || ""}>
-                                {votazione.votazione || "N/A"}
-                              </div>
-                            )}
                           </TableCell>
                           <TableCell>
                             {votazione.voto ? (
@@ -587,7 +547,7 @@ export default function VotiPolitici() {
                                               });
                                             });
                                         }}
-                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate block w-full text-left"
+                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer whitespace-pre-wrap block w-full text-left"
                                         title={votazione.titolo_votazione}
                                       >
                                         {votazione.titolo_votazione}
