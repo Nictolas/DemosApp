@@ -369,14 +369,9 @@ router.delete('/:politico', verifyToken, async (req, res) => {
   const client = await pool.connect();
   
   try {
-    // Verifica che l'utente sia admin
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const userResult = await client.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
+    // Verifica che l'utente sia admin (usa req.userRole già impostato da verifyToken)
+    if (!req.userRole || (req.userRole !== 'admin' && req.userRole !== 'AD')) {
+      client.release();
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
@@ -385,6 +380,7 @@ router.delete('/:politico', verifyToken, async (req, res) => {
     }
     
     const politicoNome = decodeURIComponent(req.params.politico);
+    console.log(`🗑️ DELETE /api/voti-camera/:politico - Tentativo di cancellare: "${politicoNome}"`);
     
     // Estrai nome e cognome dal nome completo
     const parts = politicoNome.trim().split(/\s+/);
@@ -402,11 +398,14 @@ router.delete('/:politico', verifyToken, async (req, res) => {
     await client.query('BEGIN');
     
     try {
+      console.log(`🔍 Cercando politico: nome="${nome}", cognome="${cognome}"`);
+      
       // 1. Cancella da voti_camera
       const deleteVotiCamera = await client.query(
         'DELETE FROM voti_camera WHERE politico_nome = $1',
         [politicoNome]
       );
+      console.log(`✅ Cancellati ${deleteVotiCamera.rowCount} record da voti_camera`);
       
       // 2. Trova l'utente corrispondente
       const userQuery = await client.query(
@@ -416,18 +415,36 @@ router.delete('/:politico', verifyToken, async (req, res) => {
            AND ruolo = 'P'`,
         [nome, cognome]
       );
+      console.log(`🔍 Trovati ${userQuery.rows.length} utenti corrispondenti`);
       
       if (userQuery.rows.length > 0) {
         const userId = userQuery.rows[0].id;
+        console.log(`🔍 User ID trovato: ${userId}`);
         
-        // 3. Cancella le notifiche correlate
-        await client.query(
-          'DELETE FROM notifiche_voti_parlamento WHERE politico_nome = $1',
-          [politicoNome]
+        // 3. Cancella le notifiche correlate usando id_utente (più efficiente)
+        // Nota: Le notifiche verranno anche cancellate automaticamente grazie a ON DELETE CASCADE,
+        // ma cancelliamo anche quelle che potrebbero avere solo il nome (per sicurezza)
+        const deleteNotifiche = await client.query(
+          'DELETE FROM notifiche_voti_parlamento WHERE id_utente = $1 OR politico = $2',
+          [userId, politicoNome]
         );
+        console.log(`✅ Cancellati ${deleteNotifiche.rowCount} record da notifiche_voti_parlamento`);
         
-        // 4. Cancella l'utente dalla tabella users
-        await client.query('DELETE FROM users WHERE id = $1', [userId]);
+        // 4. Rimuovi i riferimenti a questo politico come rappresentante dagli altri utenti
+        const updateRappresentanti = await client.query(
+          `UPDATE users 
+           SET rappresentante_camera = NULL, rappresentante_senato = NULL, updated_at = NOW()
+           WHERE (rappresentante_camera = $1 OR rappresentante_senato = $1)`,
+          [userId]
+        );
+        console.log(`✅ Aggiornati ${updateRappresentanti.rowCount} utenti che avevano questo politico come rappresentante`);
+        
+        // 5. Cancella l'utente dalla tabella users
+        // Questo cancellerà automaticamente le notifiche grazie a ON DELETE CASCADE
+        const deleteUser = await client.query('DELETE FROM users WHERE id = $1', [userId]);
+        console.log(`✅ Cancellato utente dalla tabella users`);
+      } else {
+        console.log(`⚠️ Nessun utente trovato nella tabella users per "${nome} ${cognome}"`);
       }
       
       await client.query('COMMIT');
@@ -448,13 +465,29 @@ router.delete('/:politico', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nella cancellazione del politico:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
+    
+    // Assicurati di rilasciare il client anche in caso di errore
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('❌ Errore durante ROLLBACK:', rollbackError);
+      }
+      client.release();
+    }
+    
     return res.status(500).json({
       success: false,
       error: 'Errore nella cancellazione del politico',
-      message: error.message
+      message: error.message || 'Errore sconosciuto durante la cancellazione'
     });
-  } finally {
-    client.release();
   }
 });
 
