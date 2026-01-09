@@ -19,9 +19,10 @@ if (process.env.GROQ_API_KEY) {
     aiClient = new Groq({
       apiKey: process.env.GROQ_API_KEY
     });
-    aiProvider = 'groq';
-    console.log('✅ Groq AI configurato (gratuito)');
-    console.log(`   API Key: ${process.env.GROQ_API_KEY.substring(0, 10)}...${process.env.GROQ_API_KEY.substring(process.env.GROQ_API_KEY.length - 4)}`);
+  aiProvider = 'groq';
+  console.log('✅ Groq AI configurato (gratuito)');
+  console.log(`   API Key: ${process.env.GROQ_API_KEY.substring(0, 10)}...${process.env.GROQ_API_KEY.substring(process.env.GROQ_API_KEY.length - 4)}`);
+  console.log(`   Modello default: llama-3.3-70b-versatile (puoi cambiarlo con GROQ_MODEL)`);
   } catch (error) {
     console.error('❌ Errore inizializzazione Groq:', error.message);
   }
@@ -125,7 +126,10 @@ Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
 
     if (aiProvider === 'groq') {
       // Groq API (gratuito)
-      const model = process.env.GROQ_MODEL || 'llama-3.1-70b-versatile';
+      // Modello aggiornato: llama-3.1-70b-versatile è stato decommissionato
+      // Usa llama-3.3-70b-versatile o llama-3.1-8b-instant come alternativa
+      const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+      console.log(`[DEBUG] Usando modello Groq: ${model}`);
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,

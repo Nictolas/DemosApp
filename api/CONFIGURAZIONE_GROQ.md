@@ -51,10 +51,12 @@ Dovresti vedere nel log del server:
 Puoi scegliere il modello nel `.env`:
 
 ```env
-GROQ_MODEL=llama-3.1-70b-versatile  # Default (consigliato)
+GROQ_MODEL=llama-3.3-70b-versatile  # Default (consigliato) - AGGIORNATO
 GROQ_MODEL=llama-3.1-8b-instant     # Più veloce, qualità leggermente inferiore
 GROQ_MODEL=mixtral-8x7b-32768       # Alternativa
 ```
+
+**NOTA**: Il modello `llama-3.1-70b-versatile` è stato decommissionato da Groq. Usa `llama-3.3-70b-versatile` come default.
 
 ## 🚀 Pronto!
 
