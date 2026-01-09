@@ -114,6 +114,71 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/voti-camera/votazioni - Ottieni tutte le votazioni uniche da votazioni_parlamento
+router.get('/votazioni', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/voti-camera/votazioni - Richiesta votazioni uniche');
+    
+    const dbResult = await pool.query(
+      `SELECT 
+        vp.id as votazione_id,
+        vp.titolo_votazione,
+        vp.descrizione_votazione,
+        vp.camera,
+        vp.data_votazione,
+        vp.spiegazione,
+        vp.url_votazione,
+        vp.numero_seduta,
+        vp.tipo_atto,
+        vp.sigla_atto,
+        vp.numero_atto,
+        vp.created_at,
+        vp.updated_at,
+        COUNT(vc.politico_nome) as numero_politici
+      FROM votazioni_parlamento vp
+      LEFT JOIN voti_camera vc ON vc.votazione_id = vp.id
+      WHERE vp.titolo_votazione IS NOT NULL
+        AND vp.titolo_votazione != ''
+      GROUP BY vp.id
+      ORDER BY vp.data_votazione DESC NULLS LAST, vp.updated_at DESC
+      LIMIT 1000`
+    );
+
+    const votazioni = dbResult.rows.map(row => ({
+      votazione_id: row.votazione_id,
+      titolo_votazione: row.titolo_votazione,
+      descrizione_votazione: row.descrizione_votazione,
+      camera: row.camera,
+      data_votazione: row.data_votazione,
+      spiegazione: row.spiegazione,
+      url_votazione: row.url_votazione,
+      numero_seduta: row.numero_seduta,
+      tipo_atto: row.tipo_atto,
+      sigla_atto: row.sigla_atto,
+      numero_atto: row.numero_atto,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      numero_politici: parseInt(row.numero_politici) || 0
+    }));
+
+    return res.json({
+      success: true,
+      data: votazioni,
+      count: votazioni.length,
+      source: 'database'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel recupero votazioni:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero dei dati',
+      message: error.message || 'Errore interno del server',
+      data: []
+    });
+  }
+});
+
 // GET /api/voti-camera/votazione/:votazione_id - Ottieni dettagli di una votazione
 router.get('/votazione/:votazione_id', verifyToken, async (req, res) => {
   try {
