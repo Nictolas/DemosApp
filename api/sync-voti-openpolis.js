@@ -667,66 +667,26 @@ async function getPolitici(deputatiFile = null) {
       console.log(`[*] Query eseguita, trovati ${result.rows.length} politici`);
       
       if (result.rows.length > 0) {
-        // Se un politico non ha URL configurato, prova a costruirlo dal nome
-        const politiciConUrl = result.rows.map(row => {
-          let urlOpenpolis = row.url_openpolis;
-          
-          // Se non ha URL, costruiscilo usando nome, cognome e data di nascita
-          if (!urlOpenpolis || urlOpenpolis === '') {
-            // Costruisci slug da nome e cognome (normalizza caratteri speciali)
-            const nomeSlug = (row.nome || '').toLowerCase()
-              .replace(/\s+/g, '-')
-              .replace(/[àáâãäå]/g, 'a')
-              .replace(/[èéêë]/g, 'e')
-              .replace(/[ìíîï]/g, 'i')
-              .replace(/[òóôõö]/g, 'o')
-              .replace(/[ùúûü]/g, 'u')
-              .replace(/[ç]/g, 'c')
-              .replace(/[^a-z0-9-]/g, '');
-            
-            const cognomeSlug = (row.cognome || '').toLowerCase()
-              .replace(/\s+/g, '-')
-              .replace(/[àáâãäå]/g, 'a')
-              .replace(/[èéêë]/g, 'e')
-              .replace(/[ìíîï]/g, 'i')
-              .replace(/[òóôõö]/g, 'o')
-              .replace(/[ùúûü]/g, 'u')
-              .replace(/[ç]/g, 'c')
-              .replace(/[^a-z0-9-]/g, '');
-            
-            // Formatta la data di nascita come YYYY-MM-DD
-            let dataFormattata = '';
-            if (row.data_nascita) {
-              const data = new Date(row.data_nascita);
-              if (!isNaN(data.getTime())) {
-                const anno = data.getFullYear();
-                const mese = String(data.getMonth() + 1).padStart(2, '0');
-                const giorno = String(data.getDate()).padStart(2, '0');
-                dataFormattata = `${anno}-${mese}-${giorno}`;
-              }
-            }
-            
-            // Costruisci URL: https://parlamento19.openpolis.it/persone/nome-cognome-YYYY-MM-DD
-            if (dataFormattata) {
-              urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}-${dataFormattata}`;
-            } else {
-              // Se non c'è data, usa solo nome-cognome (fallback)
-              urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}`;
-            }
-          }
-          
-          return {
-            politico_nome: row.politico_nome,
-            camera: row.camera,
-            url_openpolis: urlOpenpolis,
-            user_id: row.user_id,
-            nome: row.nome,
-            cognome: row.cognome,
-            data_nascita: row.data_nascita
-          };
-        });
+        // Filtra solo i politici che hanno un URL configurato (non vuoto)
+        // Non costruiamo URL automaticamente per evitare errori
+        const politiciConUrl = result.rows
+          .filter(row => {
+            const url = row.url_openpolis;
+            return url && url.trim() !== '' && url.startsWith('https://parlamento19.openpolis.it');
+          })
+          .map(row => {
+            return {
+              politico_nome: row.politico_nome,
+              camera: row.camera,
+              url_openpolis: row.url_openpolis.trim(),
+              user_id: row.user_id,
+              nome: row.nome,
+              cognome: row.cognome,
+              data_nascita: row.data_nascita
+            };
+          });
         
-        console.log(`[OK] Trovati ${politiciConUrl.length} politici dalla tabella users`);
+        console.log(`[OK] Trovati ${politiciConUrl.length} politici con URL configurato (su ${result.rows.length} totali)`);
         return politiciConUrl;
       } else {
         console.log('[!] Nessun politico trovato nella tabella users con ruolo="P" e grado_elezione="C" o "S"');
@@ -774,50 +734,12 @@ async function syncVotiOpenpolis(deputatiFile = null) {
       
       const politicoNome = politico.politico_nome || `${politico.nome || ''} ${politico.cognome || ''}`.trim();
       const camera = politico.camera || (politico.grado_elezione === 'S' ? 'Senato' : 'Camera');
-      let urlOpenpolis = politico.url_openpolis;
+      const urlOpenpolis = politico.url_openpolis;
       
-      // Se non ha URL, costruiscilo usando nome, cognome e data di nascita
-      if (!urlOpenpolis || urlOpenpolis === '') {
-        // Costruisci slug da nome e cognome
-        const nomeSlug = (politico.nome || '').toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[àáâãäå]/g, 'a')
-          .replace(/[èéêë]/g, 'e')
-          .replace(/[ìíîï]/g, 'i')
-          .replace(/[òóôõö]/g, 'o')
-          .replace(/[ùúûü]/g, 'u')
-          .replace(/[ç]/g, 'c')
-          .replace(/[^a-z0-9-]/g, '');
-        
-        const cognomeSlug = (politico.cognome || '').toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[àáâãäå]/g, 'a')
-          .replace(/[èéêë]/g, 'e')
-          .replace(/[ìíîï]/g, 'i')
-          .replace(/[òóôõö]/g, 'o')
-          .replace(/[ùúûü]/g, 'u')
-          .replace(/[ç]/g, 'c')
-          .replace(/[^a-z0-9-]/g, '');
-        
-        // Formatta la data di nascita come YYYY-MM-DD
-        let dataFormattata = '';
-        if (politico.data_nascita) {
-          const data = new Date(politico.data_nascita);
-          if (!isNaN(data.getTime())) {
-            const anno = data.getFullYear();
-            const mese = String(data.getMonth() + 1).padStart(2, '0');
-            const giorno = String(data.getDate()).padStart(2, '0');
-            dataFormattata = `${anno}-${mese}-${giorno}`;
-          }
-        }
-        
-        // Costruisci URL: https://parlamento19.openpolis.it/persone/nome-cognome-YYYY-MM-DD
-        if (dataFormattata) {
-          urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}-${dataFormattata}`;
-        } else {
-          // Se non c'è data, usa solo nome-cognome (fallback)
-          urlOpenpolis = `${OPENPOLIS_BASE_URL}/persone/${nomeSlug}-${cognomeSlug}`;
-        }
+      // Salta se non ha URL configurato
+      if (!urlOpenpolis || urlOpenpolis.trim() === '' || !urlOpenpolis.startsWith('https://parlamento19.openpolis.it')) {
+        console.log(`${progress} ${politicoNome}... [SKIP] Nessun URL valido`);
+        continue;
       }
       
       try {

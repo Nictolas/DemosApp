@@ -3,17 +3,19 @@
 
 -- Funzione helper per normalizzare i nomi (rimuove accenti, caratteri speciali)
 -- Se esiste già, la ricrea per sicurezza
+-- IMPORTANTE: Prima converte in lowercase, poi rimuove accenti e caratteri speciali
 CREATE OR REPLACE FUNCTION normalize_slug(text)
 RETURNS text AS $$
 BEGIN
-  RETURN lower(
+  -- Prima converte tutto in lowercase, poi rimuove accenti e caratteri speciali
+  RETURN regexp_replace(
     regexp_replace(
       regexp_replace(
         regexp_replace(
           regexp_replace(
             regexp_replace(
               regexp_replace(
-                regexp_replace($1, '[àáâãäå]', 'a', 'g'),
+                lower($1), '[àáâãäå]', 'a', 'g'),
                 '[èéêë]', 'e', 'g'
               ),
               '[ìíîï]', 'i', 'g'
@@ -25,8 +27,7 @@ BEGIN
         '[ç]', 'c', 'g'
       ),
       '[^a-z0-9]+', '-', 'g'
-    )
-  );
+    );
 END;
 $$ LANGUAGE plpgsql;
 
