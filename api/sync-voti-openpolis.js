@@ -15,18 +15,119 @@ const OPENPOLIS_BASE_URL = 'https://parlamento19.openpolis.it';
 /**
  * Ottiene l'ultima votazione da una pagina Openpolis
  * Formato URL: https://parlamento19.openpolis.it/persone/nome-cognome-data-nascita
+ * Gestisce anche suffissi numerici (es: -2, -3) se l'URL base non funziona
  */
 async function getUltimaVotazione(urlOpenpolis) {
+  let response = null;
+  let finalUrl = urlOpenpolis;
+  
   try {
-    const response = await axios.get(urlOpenpolis, {
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 15000
-    });
+    // Prova prima con l'URL originale
+    try {
+      response = await axios.get(urlOpenpolis, {
+        headers: {
+          'Accept': 'text/html',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 15000,
+        validateStatus: function (status) {
+          return status < 500; // Accetta anche 404 per gestirlo
+        }
+      });
+      
+      // Se 404, prova con suffissi numerici (-2, -3, ecc.)
+      if (response.status === 404) {
+        console.log(`[INFO] URL base non trovato, provo con suffissi numerici...`);
+        
+        // Estrai la base dell'URL (senza eventuali suffissi esistenti)
+        const urlBase = urlOpenpolis.replace(/-\d+$/, '');
+        
+        // Prova con suffissi da -2 a -5
+        for (let suffix = 2; suffix <= 5; suffix++) {
+          const testUrl = `${urlBase}-${suffix}`;
+          try {
+            const testResponse = await axios.get(testUrl, {
+              headers: {
+                'Accept': 'text/html',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              timeout: 10000,
+              validateStatus: function (status) {
+                return status < 500;
+              }
+            });
+            
+            if (testResponse.status === 200) {
+              response = testResponse;
+              finalUrl = testUrl;
+              console.log(`[OK] Trovato con suffisso -${suffix}`);
+              break;
+            }
+          } catch (e) {
+            // Continua con il prossimo suffisso
+            continue;
+          }
+        }
+      }
+    } catch (error) {
+      // Se l'errore è 404, prova con suffissi
+      if (error.response && error.response.status === 404) {
+        const urlBase = urlOpenpolis.replace(/-\d+$/, '');
+        for (let suffix = 2; suffix <= 5; suffix++) {
+          try {
+            const testUrl = `${urlBase}-${suffix}`;
+            const testResponse = await axios.get(testUrl, {
+              headers: {
+                'Accept': 'text/html',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              timeout: 10000
+            });
+            response = testResponse;
+            finalUrl = testUrl;
+            console.log(`[OK] Trovato con suffisso -${suffix}`);
+            break;
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+      
+      if (!response) {
+        throw error;
+      }
+    }
+    
+    if (!response || response.status !== 200) {
+      throw new Error(`HTTP ${response?.status || 'unknown'}: URL non valido`);
+    }
     
     const $ = cheerio.load(response.data);
+    
+    // Estrai URL dell'immagine del politico
+    let fotoUrl = null;
+    const imageSelectors = [
+      'img[src*="opdm-service-data"]',
+      'img[src*="persons"]',
+      'img[src*="images/persons"]'
+    ];
+    
+    for (const selector of imageSelectors) {
+      const img = $(selector).first();
+      if (img.length > 0) {
+        let src = img.attr('src');
+        if (src) {
+          // Normalizza URL (gestisce URL relativi e protocollo)
+          if (src.startsWith('//')) {
+            src = 'https:' + src;
+          } else if (src.startsWith('/')) {
+            src = 'https://parlamento19.openpolis.it' + src;
+          }
+          fotoUrl = src;
+          break;
+        }
+      }
+    }
     
     // Cerca la sezione "Votazione" o "Voti chiave"
     // La prima riga della tabella è l'ultima votazione
@@ -108,10 +209,10 @@ async function getUltimaVotazione(urlOpenpolis) {
           const link = votazioneCell.find('a').first();
           if (link.length > 0) {
             const href = link.attr('href');
-            // Se è un link relativo, costruisci l'URL completo
+            // Se è un link relativo, costruisci l'URL completo usando finalUrl
             if (href && !href.startsWith('http')) {
-              const baseUrl = urlOpenpolis.split('/').slice(0, 3).join('/');
-              urlVotazione = href.startsWith('/') ? baseUrl + href : `${urlOpenpolis}/${href}`;
+              const baseUrl = finalUrl.split('/').slice(0, 3).join('/');
+              urlVotazione = href.startsWith('/') ? baseUrl + href : `${finalUrl}/${href}`;
             } else if (href && href.startsWith('http')) {
               urlVotazione = href;
             }
@@ -283,7 +384,8 @@ async function getUltimaVotazione(urlOpenpolis) {
       voto: voto || null,
       data_votazione: dataVotazione || null,
       url_votazione: urlVotazione || null,
-      numero_seduta: numeroSeduta || null
+      numero_seduta: numeroSeduta || null,
+      foto_url: fotoUrl || null
     };
     
   } catch (error) {
@@ -511,7 +613,7 @@ async function creaNotificheParlamento(politicoNome, camera, votazione, voto, da
   }
 }
 
-async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, descrizioneVotazione, voto, dataVotazione, politicoUserId = null, urlVotazione = null, numeroSeduta = null) {
+async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, descrizioneVotazione, voto, dataVotazione, politicoUserId = null, urlVotazione = null, numeroSeduta = null, fotoUrl = null) {
   try {
     if (!votazione || votazione.trim() === '') {
       console.log(`[!] Votazione vuota per ${politicoNome}, skip`);
@@ -594,8 +696,8 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, desc
       : urlOpenpolis;  // Usa nuovo URL solo se non ce n'è uno esistente
     
     const query = `
-      INSERT INTO voti_camera (politico_nome, camera, url_openpolis, votazione_id, voto, data_votazione)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO voti_camera (politico_nome, camera, url_openpolis, votazione_id, voto, data_votazione, foto_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (politico_nome) 
       DO UPDATE SET 
         camera = EXCLUDED.camera,
@@ -603,10 +705,11 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, desc
         votazione_id = EXCLUDED.votazione_id,
         voto = EXCLUDED.voto,
         data_votazione = EXCLUDED.data_votazione,
+        foto_url = COALESCE(EXCLUDED.foto_url, voti_camera.foto_url),
         ultimo_aggiornamento = CURRENT_TIMESTAMP
     `;
     
-    await pool.query(query, [politicoNome, camera, urlDaUsare, votazioneId, voto, dataVotazione]);
+    await pool.query(query, [politicoNome, camera, urlDaUsare, votazioneId, voto, dataVotazione, fotoUrl]);
     
     // Step 4: Crea notifiche per gli utenti che hanno scelto questo rappresentante
     await creaNotificheParlamento(politicoNome, camera, votazione, voto, dataVotazione, politicoUserId);
@@ -722,14 +825,18 @@ async function syncVotiOpenpolis(deputatiFile = null) {
       return;
     }
     
-    console.log(`\n[*] Elaborazione di ${politici.length} politici...\n`);
+    // Limita a 10 politici per test (rimuovi questa riga per processare tutti)
+    const limit = process.env.SCRAPING_LIMIT ? parseInt(process.env.SCRAPING_LIMIT) : null;
+    const politiciDaProcessare = limit ? politici.slice(0, limit) : politici;
+    
+    console.log(`\n[*] Elaborazione di ${politiciDaProcessare.length} politici${limit ? ` (limitato a ${limit} per test)` : ''}...\n`);
     
     let successi = 0;
     let errori = 0;
     
     // Processa ogni politico
-    for (let i = 0; i < politici.length; i++) {
-      const politico = politici[i];
+    for (let i = 0; i < politiciDaProcessare.length; i++) {
+      const politico = politiciDaProcessare[i];
       const progress = `[${i + 1}/${politici.length}]`;
       
       const politicoNome = politico.politico_nome || `${politico.nome || ''} ${politico.cognome || ''}`.trim();
@@ -758,7 +865,8 @@ async function syncVotiOpenpolis(deputatiFile = null) {
             risultato.data_votazione,
             politico.user_id || null,
             risultato.url_votazione || null,
-            risultato.numero_seduta || null
+            risultato.numero_seduta || null,
+            risultato.foto_url || null
           );
           
           if (salvato) {
