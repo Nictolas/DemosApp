@@ -88,6 +88,7 @@ router.get('/', verifyToken, async (req, res) => {
       politico_nome: row.politico_nome,
       camera: row.camera,
       url_openpolis: row.url_openpolis,
+      foto_url: row.foto_url || null,
       votazione: row.votazione,
       descrizione_votazione: row.descrizione_votazione,
       voto: row.voto,

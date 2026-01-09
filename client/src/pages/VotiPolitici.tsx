@@ -411,19 +411,20 @@ export default function VotiPolitici() {
                       {filteredVotazioni.map((votazione, index) => (
                         <TableRow key={`${votazione.politico_nome}-${index}`}>
                           <TableCell>
-                            {votazione.foto_url ? (
+                            {votazione.foto_url && votazione.foto_url.trim() !== '' ? (
                               <img 
                                 src={votazione.foto_url} 
                                 alt={votazione.politico_nome || "Politico"}
                                 className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                loading="lazy"
+                                crossOrigin="anonymous"
                                 onError={(e) => {
                                   // Sostituisci l'immagine con un placeholder se non carica
                                   const target = e.currentTarget;
-                                  target.style.display = 'none';
                                   const placeholder = document.createElement('div');
                                   placeholder.className = 'w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300';
                                   placeholder.innerHTML = '<span class="text-gray-400 text-xs">N/A</span>';
-                                  target.parentNode?.appendChild(placeholder);
+                                  target.parentNode?.replaceChild(placeholder, target);
                                 }}
                               />
                             ) : (
