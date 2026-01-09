@@ -120,30 +120,42 @@ export default function VotiPolitici() {
     },
   });
 
-  // Mutation per generare spiegazione
+  // Mutation per generare spiegazione (usa votazione_id invece di politico_nome)
   const generaSpiegazioneMutation = useMutation({
-    mutationFn: async (politicoNome: string) => {
-      const response = await apiRequest("POST", `/api/voti-camera/${encodeURIComponent(politicoNome)}/spiegazione`);
+    mutationFn: async (votazioneId: number) => {
+      console.log(`[DEBUG] Inizio generazione spiegazione per votazione_id: ${votazioneId}`);
+      const url = `/api/voti-camera/votazione/${votazioneId}/spiegazione`;
+      console.log(`[DEBUG] URL chiamata: ${url}`);
+      
+      const response = await apiRequest("POST", url);
+      console.log(`[DEBUG] Risposta ricevuta: status=${response.status}, ok=${response.ok}`);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Errore nella generazione della spiegazione");
+        console.error(`[DEBUG] Errore nella risposta:`, errorData);
+        throw new Error(errorData.message || errorData.error || `Errore ${response.status}: ${response.statusText}`);
       }
-      return response.json();
+      
+      const result = await response.json();
+      console.log(`[DEBUG] Risultato generazione:`, result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log(`[DEBUG] Successo generazione spiegazione:`, data);
       queryClient.invalidateQueries({ queryKey: ["/api/voti-camera"] });
       toast({
         title: "Spiegazione generata",
-        description: "La spiegazione è stata generata con successo",
+        description: data.message || "La spiegazione è stata generata con successo",
       });
       setTimeout(() => {
         refetch();
       }, 2000);
     },
     onError: (error: Error) => {
+      console.error(`[DEBUG] Errore nella generazione spiegazione:`, error);
       toast({
-        title: "Errore",
-        description: error.message,
+        title: "Errore nella generazione",
+        description: error.message || "Si è verificato un errore durante la generazione della spiegazione",
         variant: "destructive",
       });
     },
@@ -399,11 +411,11 @@ export default function VotiPolitici() {
                             ) : (
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-400 italic text-sm">Non disponibile</span>
-                                {isAdmin && votazione.votazione && (
+                                {isAdmin && votazione.votazione_id && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => generaSpiegazioneMutation.mutate(votazione.politico_nome)}
+                                    onClick={() => generaSpiegazioneMutation.mutate(votazione.votazione_id)}
                                     disabled={generaSpiegazioneMutation.isPending}
                                     className="h-7 text-xs"
                                   >
@@ -607,11 +619,7 @@ export default function VotiPolitici() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      // Trova un politico che ha questa votazione per generare la spiegazione
-                      const politicoConVotazione = votazioni.find(v => v.votazione_id === votazioneDialog.votazione_id);
-                      if (politicoConVotazione) {
-                        generaSpiegazioneMutation.mutate(politicoConVotazione.politico_nome);
-                      }
+                      generaSpiegazioneMutation.mutate(votazioneDialog.votazione_id);
                     }}
                     disabled={generaSpiegazioneMutation.isPending}
                   >

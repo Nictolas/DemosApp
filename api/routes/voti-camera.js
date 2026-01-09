@@ -340,17 +340,230 @@ router.post('/sync', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/voti-camera/:politico/spiegazione - Genera spiegazione AI per una votazione (solo admin)
-router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
+// POST /api/voti-camera/votazione/:votazione_id/spiegazione - Genera spiegazione AI per una votazione (solo admin)
+router.post('/votazione/:votazione_id/spiegazione', verifyToken, async (req, res) => {
+  const startTime = Date.now();
+  console.log(`[DEBUG] ========== INIZIO GENERAZIONE SPIEGAZIONE ==========`);
+  console.log(`[DEBUG] Timestamp: ${new Date().toISOString()}`);
+  
   try {
     // Verifica che l'utente sia admin
+    console.log(`[DEBUG] Step 1: Verifica autenticazione e ruolo admin`);
     const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      console.error(`[DEBUG] Token mancante nell'header`);
+      return res.status(401).json({
+        success: false,
+        error: 'Token mancante',
+        message: 'Token di autenticazione non fornito'
+      });
+    }
+    
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log(`[DEBUG] Token verificato, userId: ${decoded.userId}`);
+    } catch (jwtError) {
+      console.error(`[DEBUG] Errore verifica JWT:`, jwtError.message);
+      return res.status(401).json({
+        success: false,
+        error: 'Token non valido',
+        message: 'Token di autenticazione non valido o scaduto'
+      });
+    }
     
     const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
     const userRole = userResult.rows[0]?.ruolo;
+    console.log(`[DEBUG] Ruolo utente: ${userRole}`);
+    
     if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
+      console.error(`[DEBUG] Accesso negato: utente non è admin (ruolo: ${userRole})`);
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono generare spiegazioni'
+      });
+    }
+
+    const votazioneId = parseInt(req.params.votazione_id);
+    console.log(`[DEBUG] Step 2: Votazione richiesta: ID=${votazioneId}`);
+    
+    if (isNaN(votazioneId)) {
+      console.error(`[DEBUG] ID votazione non valido: ${req.params.votazione_id}`);
+      return res.status(400).json({
+        success: false,
+        error: 'ID votazione non valido',
+        message: 'L\'ID votazione deve essere un numero'
+      });
+    }
+    
+    // Recupera i dati della votazione
+    console.log(`[DEBUG] Step 3: Query database per trovare votazione`);
+    const votazioneResult = await pool.query(
+      `SELECT id, titolo_votazione, descrizione_votazione, camera, spiegazione
+       FROM votazioni_parlamento
+       WHERE id = $1`,
+      [votazioneId]
+    );
+
+    console.log(`[DEBUG] Risultati query: ${votazioneResult.rows.length} righe trovate`);
+
+    if (votazioneResult.rows.length === 0) {
+      console.error(`[DEBUG] Votazione non trovata: ID=${votazioneId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Votazione non trovata',
+        message: `Nessuna votazione trovata con ID: ${votazioneId}`
+      });
+    }
+
+    const row = votazioneResult.rows[0];
+    console.log(`[DEBUG] Dati trovati: titolo="${row.titolo_votazione}", camera="${row.camera}"`);
+    
+    if (!row.titolo_votazione || row.titolo_votazione.trim() === '') {
+      console.error(`[DEBUG] Votazione senza titolo: ID=${votazioneId}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Votazione non valida',
+        message: 'La votazione non ha un titolo valido'
+      });
+    }
+
+    const { titolo_votazione, descrizione_votazione, camera, spiegazione: spiegazioneEsistente } = row;
+
+    // Se esiste già una spiegazione, restituiscila
+    if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+      console.log(`[DEBUG] Step 4: Spiegazione già esistente, restituisco quella esistente`);
+      return res.json({
+        success: true,
+        message: 'Spiegazione già esistente',
+        data: {
+          votazione_id: votazioneId,
+          spiegazione: spiegazioneEsistente
+        }
+      });
+    }
+
+    // Genera la spiegazione
+    console.log(`[DEBUG] Step 5: Caricamento servizio AI`);
+    const { generaSpiegazioneVotazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
+    
+    console.log(`[DEBUG] Step 6: Verifica limite giornaliero`);
+    const limiteCheck = await verificaLimiteGiornaliero();
+    console.log(`[DEBUG] Limite check: rispettato=${limiteCheck.rispettato}, count=${limiteCheck.count}, limite=${limiteCheck.limite}`);
+    
+    if (!limiteCheck.rispettato) {
+      console.error(`[DEBUG] Limite giornaliero raggiunto`);
+      return res.status(429).json({
+        success: false,
+        error: 'Limite giornaliero raggiunto',
+        message: `Limite giornaliero raggiunto: ${limiteCheck.count}/${limiteCheck.limite} spiegazioni generate oggi. Riprova domani.`,
+        limite: limiteCheck
+      });
+    }
+
+    // Genera la spiegazione per la votazione
+    console.log(`[DEBUG] Step 7: Generazione spiegazione AI`);
+    console.log(`[DEBUG] Parametri: votazione_id=${votazioneId}, titolo="${titolo_votazione}", camera="${camera}"`);
+    console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
+    
+    let spiegazione;
+    try {
+      spiegazione = await generaSpiegazioneVotazione(votazioneId, titolo_votazione, descrizione_votazione || null, camera);
+      
+      console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
+    } catch (genError) {
+      console.error('❌ Errore durante la generazione spiegazione:', genError);
+      console.error('❌ Stack trace:', genError.stack);
+      const elapsed = Date.now() - startTime;
+      console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
+      return res.status(500).json({
+        success: false,
+        error: 'Errore nella generazione',
+        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.`
+      });
+    }
+
+    if (!spiegazione) {
+      console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazioneId}`);
+      const elapsed = Date.now() - startTime;
+      console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
+      return res.status(500).json({
+        success: false,
+        error: 'Errore nella generazione',
+        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che l\'API sia raggiungibile.'
+      });
+    }
+
+    console.log(`[DEBUG] Step 9: Spiegazione generata con successo, restituisco risposta`);
+    const elapsed = Date.now() - startTime;
+    console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (SUCCESSO) ========== Tempo: ${elapsed}ms`);
+    
+    return res.json({
+      success: true,
+      message: 'Spiegazione generata con successo',
+      data: {
+        votazione_id: votazioneId,
+        spiegazione
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nella generazione spiegazione:', error);
+    console.error('❌ Stack trace:', error.stack);
+    const elapsed = Date.now() - startTime;
+    console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE GENERALE) ========== Tempo: ${elapsed}ms`);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nella generazione della spiegazione',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/voti-camera/:politico/spiegazione - DEPRECATO: Usa /votazione/:votazione_id/spiegazione
+// Mantenuto per retrocompatibilità
+router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
+  const startTime = Date.now();
+  console.log(`[DEBUG] ========== INIZIO GENERAZIONE SPIEGAZIONE ==========`);
+  console.log(`[DEBUG] Timestamp: ${new Date().toISOString()}`);
+  
+  try {
+    // Verifica che l'utente sia admin
+    console.log(`[DEBUG] Step 1: Verifica autenticazione e ruolo admin`);
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      console.error(`[DEBUG] Token mancante nell'header`);
+      return res.status(401).json({
+        success: false,
+        error: 'Token mancante',
+        message: 'Token di autenticazione non fornito'
+      });
+    }
+    
+    const jwt = require('jsonwebtoken');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log(`[DEBUG] Token verificato, userId: ${decoded.userId}`);
+    } catch (jwtError) {
+      console.error(`[DEBUG] Errore verifica JWT:`, jwtError.message);
+      return res.status(401).json({
+        success: false,
+        error: 'Token non valido',
+        message: 'Token di autenticazione non valido o scaduto'
+      });
+    }
+    
+    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+    console.log(`[DEBUG] Ruolo utente: ${userRole}`);
+    
+    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
+      console.error(`[DEBUG] Accesso negato: utente non è admin (ruolo: ${userRole})`);
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
@@ -359,9 +572,10 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     const politicoNome = decodeURIComponent(req.params.politico);
+    console.log(`[DEBUG] Step 2: Politico richiesto: "${politicoNome}"`);
     
     // Recupera i dati del politico e la votazione associata
-    // Fix: gestisce correttamente il caso in cui votazione_id è NULL
+    console.log(`[DEBUG] Step 3: Query database per trovare politico e votazione`);
     const politicoResult = await pool.query(
       `SELECT vc.votazione_id, vp.titolo_votazione, vp.descrizione_votazione, vp.camera, vp.spiegazione
        FROM voti_camera vc
@@ -370,7 +584,10 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       [politicoNome]
     );
 
+    console.log(`[DEBUG] Risultati query: ${politicoResult.rows.length} righe trovate`);
+
     if (politicoResult.rows.length === 0) {
+      console.error(`[DEBUG] Politico non trovato: "${politicoNome}"`);
       return res.status(404).json({
         success: false,
         error: 'Politico non trovato',
@@ -379,9 +596,11 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     const row = politicoResult.rows[0];
+    console.log(`[DEBUG] Dati trovati: votazione_id=${row.votazione_id}, titolo="${row.titolo_votazione}", camera="${row.camera}"`);
     
     // Fix: controlla esplicitamente se votazione_id è NULL o se la votazione non esiste
     if (!row.votazione_id || !row.titolo_votazione || row.titolo_votazione.trim() === '') {
+      console.error(`[DEBUG] Votazione non trovata per politico: "${politicoNome}"`);
       return res.status(404).json({
         success: false,
         error: 'Votazione non trovata',
@@ -393,6 +612,7 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
 
     // Se esiste già una spiegazione, restituiscila
     if (spiegazioneEsistente && spiegazioneEsistente.trim() !== '') {
+      console.log(`[DEBUG] Step 4: Spiegazione già esistente, restituisco quella esistente`);
       return res.json({
         success: true,
         message: 'Spiegazione già esistente',
@@ -405,10 +625,15 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     // Genera la spiegazione
+    console.log(`[DEBUG] Step 5: Caricamento servizio AI`);
     const { generaSpiegazioneVotazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
+    
+    console.log(`[DEBUG] Step 6: Verifica limite giornaliero`);
     const limiteCheck = await verificaLimiteGiornaliero();
+    console.log(`[DEBUG] Limite check: rispettato=${limiteCheck.rispettato}, count=${limiteCheck.count}, limite=${limiteCheck.limite}`);
     
     if (!limiteCheck.rispettato) {
+      console.error(`[DEBUG] Limite giornaliero raggiunto`);
       return res.status(429).json({
         success: false,
         error: 'Limite giornaliero raggiunto',
@@ -418,17 +643,20 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     // Genera la spiegazione per la votazione (non per il politico)
+    console.log(`[DEBUG] Step 7: Generazione spiegazione AI`);
+    console.log(`[DEBUG] Parametri: votazione_id=${votazione_id}, titolo="${titolo_votazione}", camera="${camera}"`);
+    console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
+    
     let spiegazione;
     try {
-      console.log(`[DEBUG] Generazione spiegazione per votazione_id=${votazione_id}, titolo="${titolo_votazione}", camera="${camera}"`);
-      console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
-      
       spiegazione = await generaSpiegazioneVotazione(votazione_id, titolo_votazione, descrizione_votazione || null, camera);
       
-      console.log(`[DEBUG] Spiegazione generata: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
+      console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
       console.error('❌ Errore durante la generazione spiegazione:', genError);
       console.error('❌ Stack trace:', genError.stack);
+      const elapsed = Date.now() - startTime;
+      console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
@@ -437,7 +665,9 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
     }
 
     if (!spiegazione) {
-      console.error(`[DEBUG] Spiegazione non generata per votazione_id=${votazione_id}`);
+      console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazione_id}`);
+      const elapsed = Date.now() - startTime;
+      console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
@@ -445,6 +675,10 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
       });
     }
 
+    console.log(`[DEBUG] Step 9: Spiegazione generata con successo, restituisco risposta`);
+    const elapsed = Date.now() - startTime;
+    console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (SUCCESSO) ========== Tempo: ${elapsed}ms`);
+    
     return res.json({
       success: true,
       message: 'Spiegazione generata con successo',
@@ -456,6 +690,9 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Errore nella generazione spiegazione:', error);
+    console.error('❌ Stack trace:', error.stack);
+    const elapsed = Date.now() - startTime;
+    console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE GENERALE) ========== Tempo: ${elapsed}ms`);
     return res.status(500).json({
       success: false,
       error: 'Errore nella generazione della spiegazione',

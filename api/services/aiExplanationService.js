@@ -70,13 +70,14 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
 
   try {
     // Costruisci il prompt con tutte le informazioni disponibili
+    // L'AI userà la sua conoscenza + i dati forniti per creare una spiegazione completa
     let prompt = `Spiega in modo chiaro e conciso (massimo 150 parole) questa votazione parlamentare italiana:
 
 Titolo votazione: "${votazione}"`;
 
-    // Aggiungi la descrizione se disponibile
+    // Aggiungi la descrizione se disponibile (molto importante per l'AI)
     if (descrizione && descrizione.length > 0) {
-      prompt += `\n\nDescrizione completa:\n"${descrizione}"`;
+      prompt += `\n\nDescrizione completa dalla fonte ufficiale:\n"${descrizione}"`;
     }
 
     prompt += `\n\nCamera: ${camera}`;
@@ -91,7 +92,8 @@ Titolo votazione: "${votazione}"`;
 - Essere comprensibile per cittadini non esperti
 - Spiegare di cosa tratta la votazione in modo dettagliato e preciso
 - Essere neutrale e obiettiva
-- Basarsi principalmente sulla descrizione completa se disponibile
+- Basarsi principalmente sulla descrizione completa fornita, integrando con la tua conoscenza se necessario
+- Se la descrizione è incompleta o vaga, usa la tua conoscenza per fornire contesto aggiuntivo
 - Non superare le 150 parole
 
 Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
