@@ -104,17 +104,22 @@ async function getUltimaVotazione(urlOpenpolis) {
           }
           
           // Strategia 2: Cerca link nella cella e segui il link per ottenere più dettagli
+          let urlVotazione = null;
           const link = votazioneCell.find('a').first();
           if (link.length > 0) {
             const href = link.attr('href');
             // Se è un link relativo, costruisci l'URL completo
             if (href && !href.startsWith('http')) {
               const baseUrl = urlOpenpolis.split('/').slice(0, 3).join('/');
-              const fullUrl = href.startsWith('/') ? baseUrl + href : `${urlOpenpolis}/${href}`;
-              
-              // Prova a recuperare la descrizione dal link (se è nella stessa pagina o pagina collegata)
+              urlVotazione = href.startsWith('/') ? baseUrl + href : `${urlOpenpolis}/${href}`;
+            } else if (href && href.startsWith('http')) {
+              urlVotazione = href;
+            }
+            
+            // Prova a recuperare la descrizione dal link (se è nella stessa pagina o pagina collegata)
+            if (urlVotazione) {
               try {
-                const descResponse = await axios.get(fullUrl, {
+                const descResponse = await axios.get(urlVotazione, {
                   headers: {
                     'Accept': 'text/html',
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -276,11 +281,118 @@ async function getUltimaVotazione(urlOpenpolis) {
       votazione: votazione || null,
       descrizione_votazione: descrizioneVotazione || null,
       voto: voto || null,
-      data_votazione: dataVotazione || null
+      data_votazione: dataVotazione || null,
+      url_votazione: urlVotazione || null,
+      numero_seduta: numeroSeduta || null
     };
     
   } catch (error) {
     console.error(`[ERR] Errore nel recupero votazione da ${urlOpenpolis}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Scraping approfondito della pagina della votazione su Openpolis
+ * Estrae: descrizione completa, tipo atto, sigla atto, numero atto, metadati aggiuntivi
+ */
+async function scrapeVotazioneDettagliata(urlVotazione) {
+  if (!urlVotazione || !urlVotazione.startsWith('http')) {
+    return null;
+  }
+
+  try {
+    console.log(`[INFO] Scraping approfondito votazione: ${urlVotazione}`);
+    const response = await axios.get(urlVotazione, {
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 15000
+    });
+
+    const $ = cheerio.load(response.data);
+    
+    let descrizioneCompleta = null;
+    let tipoAtto = null;
+    let siglaAtto = null;
+    let numeroAtto = null;
+    let numeroSeduta = null;
+
+    // Estrai descrizione completa con selettori specifici per Openpolis
+    const descrizioneSelectors = [
+      '.descrizione-votazione',
+      '.descrizione-atto',
+      '.descrizione',
+      '.description',
+      '.testo-votazione',
+      '.testo-atto',
+      '.testo',
+      '.content',
+      'article .content',
+      'main article',
+      '[class*="desc"]',
+      '[class*="testo"]',
+      '[class*="votazione"]',
+      '[class*="atto"]'
+    ];
+
+    for (const selector of descrizioneSelectors) {
+      const element = $(selector).first();
+      if (element.length > 0) {
+        const text = element.text().trim();
+        if (text && text.length >= 100 && text.length < 10000) {
+          descrizioneCompleta = text;
+          break;
+        }
+      }
+    }
+
+    // Se non trovato, prova a prendere tutti i paragrafi significativi
+    if (!descrizioneCompleta || descrizioneCompleta.length < 100) {
+      const paragraphs = [];
+      $('article p, main p, .content p').each((i, elem) => {
+        const text = $(elem).text().trim();
+        if (text && text.length >= 50) {
+          paragraphs.push(text);
+        }
+      });
+      if (paragraphs.length > 0) {
+        descrizioneCompleta = paragraphs.join(' ').substring(0, 5000);
+      }
+    }
+
+    // Estrai tipo atto (DDL, Mozione, Decreto, ecc.)
+    const tipoAttoMatch = $('body').text().match(/(DDL|Mozione|Decreto|Disegno di legge|Proposta di legge|Ordine del giorno|ODG|Emendamento|EM)\s*(?:n\.?\s*)?(\d+)?/i);
+    if (tipoAttoMatch) {
+      tipoAtto = tipoAttoMatch[1].trim();
+      if (tipoAttoMatch[2]) {
+        numeroAtto = parseInt(tipoAttoMatch[2]);
+      }
+    }
+
+    // Estrai sigla atto (es: "DDL 1718", "Mozione 123")
+    const siglaMatch = $('body').text().match(/(DDL|Mozione|Decreto|ODG|EM)\s*(?:n\.?\s*)?(\d+)/i);
+    if (siglaMatch) {
+      siglaAtto = `${siglaMatch[1]} ${siglaMatch[2]}`;
+    }
+
+    // Estrai numero seduta
+    const sedutaMatch = $('body').text().match(/Seduta\s+(?:n\.?\s*)?(\d+)/i);
+    if (sedutaMatch) {
+      numeroSeduta = parseInt(sedutaMatch[1]);
+    }
+
+    return {
+      descrizione_votazione: descrizioneCompleta,
+      tipo_atto: tipoAtto,
+      sigla_atto: siglaAtto,
+      numero_atto: numeroAtto,
+      numero_seduta: numeroSeduta
+    };
+
+  } catch (error) {
+    console.error(`[ERR] Errore nello scraping approfondito di ${urlVotazione}:`, error.message);
     return null;
   }
 }
@@ -399,11 +511,27 @@ async function creaNotificheParlamento(politicoNome, camera, votazione, voto, da
   }
 }
 
-async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, descrizioneVotazione, voto, dataVotazione, politicoUserId = null) {
+async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, descrizioneVotazione, voto, dataVotazione, politicoUserId = null, urlVotazione = null, numeroSeduta = null) {
   try {
     if (!votazione || votazione.trim() === '') {
       console.log(`[!] Votazione vuota per ${politicoNome}, skip`);
       return false;
+    }
+
+    // Step 0: Se abbiamo l'URL della votazione, fai scraping approfondito
+    let dettagliVotazione = null;
+    if (urlVotazione) {
+      dettagliVotazione = await scrapeVotazioneDettagliata(urlVotazione);
+      if (dettagliVotazione) {
+        // Usa la descrizione approfondita se disponibile, altrimenti quella base
+        if (dettagliVotazione.descrizione_votazione && dettagliVotazione.descrizione_votazione.length > (descrizioneVotazione?.length || 0)) {
+          descrizioneVotazione = dettagliVotazione.descrizione_votazione;
+        }
+        // Usa numero_seduta dallo scraping approfondito se disponibile
+        if (dettagliVotazione.numero_seduta) {
+          numeroSeduta = dettagliVotazione.numero_seduta;
+        }
+      }
     }
 
     // Step 1: Crea o recupera la votazione in votazioni_parlamento
@@ -414,14 +542,33 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, desc
 
     // Crea o recupera la votazione (una sola per tutte le occorrenze)
     const votazioneResult = await pool.query(
-      `INSERT INTO votazioni_parlamento (titolo_votazione, descrizione_votazione, camera, data_votazione, votazione_hash)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO votazioni_parlamento (
+        titolo_votazione, descrizione_votazione, camera, data_votazione, votazione_hash,
+        url_votazione, numero_seduta, tipo_atto, sigla_atto, numero_atto
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (votazione_hash) 
        DO UPDATE SET 
          descrizione_votazione = COALESCE(NULLIF(EXCLUDED.descrizione_votazione, ''), votazioni_parlamento.descrizione_votazione),
+         url_votazione = COALESCE(NULLIF(EXCLUDED.url_votazione, ''), votazioni_parlamento.url_votazione),
+         numero_seduta = COALESCE(EXCLUDED.numero_seduta, votazioni_parlamento.numero_seduta),
+         tipo_atto = COALESCE(EXCLUDED.tipo_atto, votazioni_parlamento.tipo_atto),
+         sigla_atto = COALESCE(EXCLUDED.sigla_atto, votazioni_parlamento.sigla_atto),
+         numero_atto = COALESCE(EXCLUDED.numero_atto, votazioni_parlamento.numero_atto),
          updated_at = CURRENT_TIMESTAMP
        RETURNING id`,
-      [votazione, descrizioneVotazione || null, camera, dataVotazione, votazioneHash]
+      [
+        votazione, 
+        descrizioneVotazione || null, 
+        camera, 
+        dataVotazione, 
+        votazioneHash,
+        urlVotazione || null,
+        numeroSeduta || dettagliVotazione?.numero_seduta || null,
+        dettagliVotazione?.tipo_atto || null,
+        dettagliVotazione?.sigla_atto || null,
+        dettagliVotazione?.numero_atto || null
+      ]
     );
 
     const votazioneId = votazioneResult.rows[0].id;
@@ -687,7 +834,9 @@ async function syncVotiOpenpolis(deputatiFile = null) {
             risultato.descrizione_votazione || null,
             risultato.voto,
             risultato.data_votazione,
-            politico.user_id || null
+            politico.user_id || null,
+            risultato.url_votazione || null,
+            risultato.numero_seduta || null
           );
           
           if (salvato) {
