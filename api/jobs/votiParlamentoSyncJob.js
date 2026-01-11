@@ -40,7 +40,7 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
           OPTIONAL { ?seduta osr:legislatura ?sedutaLegislatura . }
         }
       }
-      ORDER BY DESC(?votazione)
+      ORDER BY DESC(?sedutaData) DESC(?votazione)
       LIMIT ${limit}
     `;
     sparqlEndpoint = 'https://dati.senato.it/sparql';
@@ -66,7 +66,7 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
           }
         }
       }
-      ORDER BY DESC(?votazione)
+      ORDER BY DESC(?sedutaData) DESC(?votazione)
       LIMIT ${limit}
     `;
     sparqlEndpoint = 'http://dati.camera.it/sparql';
