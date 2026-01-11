@@ -123,17 +123,21 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
     sparqlEndpoint = 'https://dati.senato.it/sparql';
   } else {
     // Query SPARQL per la Camera (default)
+    // Recupera anche la data dalla seduta collegata
     sparqlQuery = `
       PREFIX ocd: <http://dati.camera.it/ocd/>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
       
-      SELECT DISTINCT ?votazione ?label ?approvato ?seduta
+      SELECT DISTINCT ?votazione ?label ?approvato ?seduta ?dataSeduta
       WHERE {
         ?votazione a <http://dati.camera.it/ocd/votazione> .
         FILTER(CONTAINS(STR(?votazione), "vs19"))
         OPTIONAL { ?votazione rdfs:label ?label . }
         OPTIONAL { ?votazione ocd:approvato ?approvato . }
-        OPTIONAL { ?votazione ocd:rif_seduta ?seduta . }
+        OPTIONAL { 
+          ?votazione ocd:rif_seduta ?seduta .
+          OPTIONAL { ?seduta ocd:data ?dataSeduta . }
+        }
       }
       ORDER BY DESC(?votazione)
       LIMIT ${limit}
@@ -217,11 +221,26 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
         // Se pari, potrebbe essere necessario controllare altri fattori
       }
       
+      // Estrai data dalla seduta se disponibile (Camera) o da altri metadati
+      let dataVotazione = null;
+      if (camera === 'Camera' && result.dataSeduta?.value) {
+        // La data della seduta può essere usata come data della votazione
+        try {
+          dataVotazione = new Date(result.dataSeduta.value).toISOString().split('T')[0];
+        } catch (e) {
+          // Se non è una data valida, prova a parsarla
+          const dateStr = result.dataSeduta.value;
+          if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+            dataVotazione = dateStr.split('T')[0];
+          }
+        }
+      }
+      
       votazioni[votazioneUri] = {
         uri: votazioneUri,
         votazione_id: votazioneUri.split('/').pop() || votazioneUri,
         legislatura: legislatura,
-        data_votazione: null,
+        data_votazione: dataVotazione,
         descrizione: result.label?.value || null,
         esito: esito,
         sigla_atto: null,
@@ -238,6 +257,7 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
           votanti: result.votanti?.value || null,
           tipoVotazione: result.tipoVotazione?.value || null,
           seduta: result.seduta?.value || null,
+          dataSeduta: result.dataSeduta?.value || null,
           camera: camera
         }
       };
