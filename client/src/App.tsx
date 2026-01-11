@@ -86,6 +86,7 @@ import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
 import Sostenitori from "./pages/Sostenitori";
 import VotiPolitici from "./pages/VotiPolitici";
+import VotiParlamento from "./pages/VotiParlamento";
 import Comunica from "./pages/Comunica";
 import Evento from "./pages/Evento";
 import Programma from "./pages/Programma";
@@ -659,6 +660,13 @@ export default function App() {
               <Route path="/voti-politici">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/voti-politici" component={VotiPolitici} />
+                </PageTransition>
+              </Route>
+
+              {/* Route voti parlamento */}
+              <Route path="/voti-parlamento">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/voti-parlamento" component={VotiParlamento} />
                 </PageTransition>
               </Route>
 
