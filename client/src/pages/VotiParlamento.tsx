@@ -39,13 +39,18 @@ export default function VotiParlamento() {
         throw new Error(errorData.message || "Errore nel recupero dei dati");
       }
       const result = await response.json();
-      return result.data || [];
+      // La risposta ora ha struttura: { camera: [...], senato: [...] }
+      return {
+        camera: result.camera || result.data?.camera || [],
+        senato: result.senato || result.data?.senato || []
+      };
     },
     retry: 2,
     staleTime: 5 * 60 * 1000, // 5 minuti
   });
 
-  const votazioni: VotazioneParlamento[] = data || [];
+  const votazioniCamera: VotazioneParlamento[] = data?.camera || [];
+  const votazioniSenato: VotazioneParlamento[] = data?.senato || [];
 
   const getCameraColor = (camera: string) => {
     if (camera === "Senato") return "bg-purple-100 text-purple-800 border-purple-300";
@@ -98,7 +103,7 @@ export default function VotiParlamento() {
                 Voti Parlamento
               </h1>
               <p className="text-muted-foreground mt-1">
-                Ultime {limit} votazioni del Parlamento (Camera e Senato) in ordine cronologico
+                Ultime {limit} votazioni della Camera e ultime {limit} votazioni del Senato
               </p>
             </div>
           </div>
@@ -141,7 +146,7 @@ export default function VotiParlamento() {
         {/* Votazioni List */}
         {!isLoading && !error && (
           <>
-            {votazioni.length === 0 ? (
+            {votazioniCamera.length === 0 && votazioniSenato.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
@@ -151,16 +156,24 @@ export default function VotiParlamento() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
-                {votazioni.map((votazione, index) => (
-                  <Card
-                    key={votazione.votazione_id}
-                    className={`transition-all hover:shadow-lg ${
-                      index === 0
-                        ? "border-2 border-green-500 shadow-md"
-                        : "border"
-                    }`}
-                  >
+              <div className="space-y-6">
+                {/* Sezione Camera */}
+                {votazioniCamera.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                      <Building2 className="h-6 w-6 text-blue-600" />
+                      Camera dei Deputati
+                    </h2>
+                    <div className="space-y-4">
+                      {votazioniCamera.map((votazione, index) => (
+                        <Card
+                          key={`camera-${votazione.votazione_id}`}
+                          className={`transition-all hover:shadow-lg ${
+                            index === 0
+                              ? "border-2 border-green-500 shadow-md"
+                              : "border"
+                          }`}
+                        >
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -245,9 +258,120 @@ export default function VotiParlamento() {
                           </p>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sezione Senato */}
+                {votazioniSenato.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                      <Building2 className="h-6 w-6 text-purple-600" />
+                      Senato della Repubblica
+                    </h2>
+                    <div className="space-y-4">
+                      {votazioniSenato.map((votazione, index) => (
+                        <Card
+                          key={`senato-${votazione.votazione_id}`}
+                          className={`transition-all hover:shadow-lg ${
+                            index === 0
+                              ? "border-2 border-green-500 shadow-md"
+                              : "border"
+                          }`}
+                        >
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <CardTitle className="text-xl">
+                                    {votazione.titolo_votazione || votazione.descrizione || "Votazione senza titolo"}
+                                  </CardTitle>
+                                  {index === 0 && (
+                                    <Badge className="bg-green-600 text-white">
+                                      PIÙ RECENTE
+                                    </Badge>
+                                  )}
+                                </div>
+                                <CardDescription className="flex items-center gap-4 flex-wrap mt-2">
+                                  <div className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4" />
+                                    <Badge
+                                      variant="outline"
+                                      className={getCameraColor(votazione.camera)}
+                                    >
+                                      {votazione.camera || "N/A"}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" />
+                                    <span className="text-sm">
+                                      {formatDate(votazione.data_votazione)}
+                                    </span>
+                                  </div>
+                                  {votazione.esito && (
+                                    <Badge
+                                      variant="outline"
+                                      className={getEsitoColor(votazione.esito)}
+                                    >
+                                      {votazione.esito}
+                                    </Badge>
+                                  )}
+                                </CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {/* Descrizione */}
+                            {votazione.descrizione && (
+                              <div>
+                                <p className="text-sm text-gray-700 leading-relaxed">
+                                  {votazione.descrizione}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Dettagli aggiuntivi */}
+                            <div className="flex flex-wrap gap-2">
+                              {votazione.legislatura && (
+                                <Badge variant="outline" className="text-xs">
+                                  📜 Legislatura {votazione.legislatura}
+                                </Badge>
+                              )}
+                              {votazione.tipo_atto && (
+                                <Badge variant="outline" className="text-xs">
+                                  📄 {votazione.tipo_atto}
+                                </Badge>
+                              )}
+                              {votazione.sigla_atto && votazione.numero_atto && (
+                                <Badge variant="outline" className="text-xs">
+                                  {votazione.sigla_atto} n. {votazione.numero_atto}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Spiegazione AI */}
+                            {votazione.spiegazione && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Sparkles className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm font-semibold text-blue-900">
+                                    Spiegazione AI
+                                  </span>
+                                </div>
+                                <p className="text-sm text-blue-900 leading-relaxed">
+                                  {votazione.spiegazione}
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
