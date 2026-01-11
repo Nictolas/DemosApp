@@ -103,6 +103,7 @@ const dataRetentionJob = require('./jobs/dataRetentionJob');
 const violationMonitoringJob = require('./jobs/violationMonitoringJob');
 const backupJob = require('./jobs/backupJob');
 const ministeroSyncJob = require('./jobs/ministeroSyncJob');
+const { startVotiParlamentoSyncJob } = require('./jobs/votiParlamentoSyncJob');
 
 // Import rate limiting middleware
 const {
@@ -500,6 +501,11 @@ if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
 // Avvia job di sincronizzazione Ministero (sempre attivo)
 if (process.env.ENABLE_MINISTERO_SYNC !== 'false') {
   ministeroSyncJob.start();
+}
+
+// Avvia job di sincronizzazione votazioni parlamentari (sempre attivo)
+if (process.env.ENABLE_VOTI_PARLAMENTO_SYNC !== 'false') {
+  startVotiParlamentoSyncJob();
 }
 
 module.exports = app;
