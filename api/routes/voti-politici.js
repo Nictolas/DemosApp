@@ -860,7 +860,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
               
               return {
                 id: votazione.id,
-                uri: votazione.uri,
+                uri: votazione.uri, // IMPORTANTE: URI per endpoint dettagli
                 votazione_id: votazione.votazione_id,
                 legislatura: votazione.legislatura,
                 data_votazione: votazione.data_votazione || (votazione.data_sincronizzazione ? votazione.data_sincronizzazione.split('T')[0] : null),
@@ -1172,6 +1172,237 @@ router.get('/debug', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// GET /api/voti-politici/dettagli/:uri - Ottieni dettagli completi di una singola votazione
+router.get('/dettagli/:uri', verifyToken, async (req, res) => {
+  try {
+    const { uri } = req.params;
+    const decodedUri = decodeURIComponent(uri);
+    
+    console.log(`🔍 GET /api/voti-politici/dettagli - Richiesta dettagli per: ${decodedUri}`);
+    
+    await ensureParlamentoTableExists();
+    
+    // Recupera la votazione dal database
+    const query = `
+      SELECT 
+        p.id,
+        p.uri,
+        p.votazione_id,
+        p.camera,
+        p.titolo,
+        p.descrizione,
+        p.data_votazione,
+        p.esito,
+        p.uri_seduta,
+        p.numero_seduta,
+        p.titolo_seduta,
+        p.legislatura,
+        p.favorevoli,
+        p.contrari,
+        p.presenti,
+        p.votanti,
+        p.maggioranza,
+        p.tipo_votazione,
+        p.approvato,
+        p.metadati,
+        p.created_at,
+        p.updated_at,
+        p.data_sincronizzazione,
+        vp.descrizione_votazione as descrizione_openpolis,
+        vp.spiegazione as spiegazione_ai
+      FROM parlamento p
+      LEFT JOIN votazioni_parlamento vp ON (
+        LOWER(TRIM(p.titolo)) = LOWER(TRIM(vp.titolo_votazione))
+        AND p.camera = vp.camera
+        AND (
+          (p.data_votazione IS NULL AND vp.data_votazione IS NULL) OR
+          (p.data_votazione = vp.data_votazione)
+        )
+      )
+      WHERE p.uri = $1
+      LIMIT 1
+    `;
+    
+    const result = await pool.query(query, [decodedUri]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Votazione non trovata'
+      });
+    }
+    
+    const votazione = result.rows[0];
+    
+    // Arricchisci con voti nominali se disponibili (solo Senato)
+    let votiNominali = {
+      favorevoli: [],
+      contrari: [],
+      astenuti: []
+    };
+    
+    if (votazione.camera === 'Senato') {
+      try {
+        // Query per voti favorevoli
+        const queryFavorevoli = `
+          PREFIX osr: <http://dati.senato.it/osr/>
+          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+          
+          SELECT DISTINCT ?senatore ?nomeSenatore
+          WHERE {
+            <${decodedUri}> osr:favorevole ?senatore .
+            OPTIONAL { ?senatore rdfs:label ?nomeSenatore . }
+          }
+          LIMIT 200
+        `;
+        
+        const params = new URLSearchParams();
+        params.append('query', queryFavorevoli);
+        params.append('format', 'json');
+        
+        const responseFav = await axios.get(`https://dati.senato.it/sparql?${params.toString()}`, {
+          headers: {
+            'Accept': 'application/sparql-results+json, application/json',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          timeout: 15000
+        });
+        
+        const bindingsFav = responseFav.data?.results?.bindings || [];
+        votiNominali.favorevoli = bindingsFav
+          .map(b => b.nomeSenatore?.value)
+          .filter(nome => nome && nome.trim() !== '');
+        
+        // Query per voti contrari
+        const queryContrari = `
+          PREFIX osr: <http://dati.senato.it/osr/>
+          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+          
+          SELECT DISTINCT ?senatore ?nomeSenatore
+          WHERE {
+            <${decodedUri}> osr:contrario ?senatore .
+            OPTIONAL { ?senatore rdfs:label ?nomeSenatore . }
+          }
+          LIMIT 200
+        `;
+        
+        params.set('query', queryContrari);
+        const responseContr = await axios.get(`https://dati.senato.it/sparql?${params.toString()}`, {
+          headers: {
+            'Accept': 'application/sparql-results+json, application/json',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          timeout: 15000
+        });
+        
+        const bindingsContr = responseContr.data?.results?.bindings || [];
+        votiNominali.contrari = bindingsContr
+          .map(b => b.nomeSenatore?.value)
+          .filter(nome => nome && nome.trim() !== '');
+        
+        // Query per astenuti
+        const queryAstenuti = `
+          PREFIX osr: <http://dati.senato.it/osr/>
+          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+          
+          SELECT DISTINCT ?senatore ?nomeSenatore
+          WHERE {
+            <${decodedUri}> osr:astenuto ?senatore .
+            OPTIONAL { ?senatore rdfs:label ?nomeSenatore . }
+          }
+          LIMIT 200
+        `;
+        
+        params.set('query', queryAstenuti);
+        const responseAst = await axios.get(`https://dati.senato.it/sparql?${params.toString()}`, {
+          headers: {
+            'Accept': 'application/sparql-results+json, application/json',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          timeout: 15000
+        });
+        
+        const bindingsAst = responseAst.data?.results?.bindings || [];
+        votiNominali.astenuti = bindingsAst
+          .map(b => b.nomeSenatore?.value)
+          .filter(nome => nome && nome.trim() !== '');
+        
+        console.log(`✅ Recuperati ${votiNominali.favorevoli.length} favorevoli, ${votiNominali.contrari.length} contrari, ${votiNominali.astenuti.length} astenuti`);
+        
+      } catch (error) {
+        console.warn(`⚠️ Errore nel recupero voti nominali: ${error.message}`);
+        // Continua senza voti nominali
+      }
+    }
+    
+    // Formatta la risposta
+    const descrizioneCompleta = votazione.descrizione_openpolis || 
+                               votazione.descrizione || 
+                               votazione.titolo || 
+                               'Votazione parlamentare';
+    
+    const spiegazione = votazione.spiegazione_ai || 
+                       votazione.metadati?.spiegazione || 
+                       null;
+    
+    const dettagli = {
+      id: votazione.id,
+      uri: votazione.uri,
+      votazione_id: votazione.votazione_id,
+      camera: votazione.camera,
+      titolo: votazione.titolo || 'Votazione parlamentare',
+      descrizione: descrizioneCompleta,
+      descrizione_votazione: descrizioneCompleta,
+      data_votazione: votazione.data_votazione || null,
+      esito: votazione.esito,
+      legislatura: votazione.legislatura,
+      numero_seduta: votazione.numero_seduta,
+      titolo_seduta: votazione.titolo_seduta,
+      spiegazione: spiegazione,
+      
+      // Statistiche
+      favorevoli: votazione.favorevoli,
+      contrari: votazione.contrari,
+      presenti: votazione.presenti,
+      votanti: votazione.votanti,
+      maggioranza: votazione.maggioranza,
+      astenuti: votazione.metadati?.astenuti || null,
+      numero_legale: votazione.metadati?.numeroLegale || null,
+      tipo_votazione: votazione.tipo_votazione,
+      approvato: votazione.approvato,
+      
+      // Informazioni aggiuntive
+      presidente: votazione.metadati?.presidente || null,
+      tipo_seduta: votazione.metadati?.sedutaTipo || null,
+      uri_seduta: votazione.uri_seduta,
+      
+      // Voti nominali (solo se disponibili)
+      voti_nominali: votiNominali.favorevoli.length > 0 || 
+                    votiNominali.contrari.length > 0 || 
+                    votiNominali.astenuti.length > 0 ? votiNominali : null,
+      
+      // Metadati completi
+      metadati: votazione.metadati || {},
+      dati_arricchiti: !!votazione.descrizione_openpolis,
+      data_sincronizzazione: votazione.data_sincronizzazione,
+      data_aggiornamento: votazione.updated_at
+    };
+    
+    res.json({
+      success: true,
+      data: dettagli
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero dettagli votazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero dei dettagli',
+      message: error.message
     });
   }
 });

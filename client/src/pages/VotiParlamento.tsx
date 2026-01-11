@@ -7,8 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
-import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles } from "lucide-react";
+import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface VotazioneParlamento {
   votazione_id: number;
@@ -38,12 +41,26 @@ interface VotazioneParlamento {
   approvato: number | null;
   // Flag
   dati_arricchiti?: boolean;
+  // URI per dettagli
+  uri?: string;
+}
+
+interface DettagliVotazione extends VotazioneParlamento {
+  voti_nominali?: {
+    favorevoli: string[];
+    contrari: string[];
+    astenuti: string[];
+  } | null;
+  uri_seduta?: string | null;
 }
 
 export default function VotiParlamento() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [limit] = useState(3);
+  const [selectedVotazione, setSelectedVotazione] = useState<VotazioneParlamento | null>(null);
+  const [dettagliVotazione, setDettagliVotazione] = useState<DettagliVotazione | null>(null);
+  const [loadingDettagli, setLoadingDettagli] = useState(false);
 
   // Query per recuperare le ultime votazioni
   const { data, isLoading, error, refetch } = useQuery({
@@ -98,6 +115,45 @@ export default function VotiParlamento() {
       });
     } catch {
       return dateString;
+    }
+  };
+
+  // Funzione per caricare i dettagli di una votazione
+  const handleVotazioneClick = async (votazione: VotazioneParlamento) => {
+    if (!votazione.uri) {
+      toast({
+        title: "Errore",
+        description: "URI della votazione non disponibile",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedVotazione(votazione);
+    setLoadingDettagli(true);
+    setDettagliVotazione(null);
+
+    try {
+      const encodedUri = encodeURIComponent(votazione.uri);
+      const response = await apiRequest("GET", `/api/voti-politici/dettagli/${encodedUri}`);
+      
+      if (!response.ok) {
+        throw new Error("Errore nel recupero dei dettagli");
+      }
+
+      const result = await response.json();
+      setDettagliVotazione(result.data);
+    } catch (error) {
+      console.error("Errore nel caricamento dettagli:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare i dettagli della votazione",
+        variant: "destructive",
+      });
+      // Mostra comunque i dettagli base dalla card
+      setDettagliVotazione(votazione as DettagliVotazione);
+    } finally {
+      setLoadingDettagli(false);
     }
   };
 
@@ -186,11 +242,12 @@ export default function VotiParlamento() {
                       {votazioniCamera.map((votazione, index) => (
                         <Card
                           key={`camera-${votazione.votazione_id}`}
-                          className={`transition-all hover:shadow-lg ${
+                          className={`transition-all hover:shadow-lg cursor-pointer ${
                             index === 0
                               ? "border-2 border-green-500 shadow-md"
                               : "border"
                           }`}
+                          onClick={() => handleVotazioneClick(votazione)}
                         >
                     <CardHeader>
                       <div className="flex items-start justify-between">
@@ -486,6 +543,287 @@ export default function VotiParlamento() {
             )}
           </>
         )}
+
+        {/* Dialog Dettagli Votazione */}
+        <Dialog open={!!selectedVotazione} onOpenChange={(open) => !open && setSelectedVotazione(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <Vote className="h-6 w-6 text-green-600" />
+                {dettagliVotazione?.titolo || selectedVotazione?.titolo_votazione || "Dettagli Votazione"}
+              </DialogTitle>
+              <DialogDescription>
+                Informazioni complete sulla votazione parlamentare
+              </DialogDescription>
+            </DialogHeader>
+
+            <ScrollArea className="flex-1 pr-4">
+              {loadingDettagli ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                  <p className="ml-4 text-muted-foreground">Caricamento dettagli...</p>
+                </div>
+              ) : dettagliVotazione ? (
+                <div className="space-y-6">
+                  {/* Informazioni Base */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Info className="h-5 w-5" />
+                      Informazioni Generali
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Camera</p>
+                        <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
+                          {dettagliVotazione.camera}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Data</p>
+                        <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Esito</p>
+                        <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
+                          {dettagliVotazione.esito || "N/A"}
+                        </Badge>
+                      </div>
+                      {dettagliVotazione.legislatura && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
+                          <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
+                        </div>
+                      )}
+                      {dettagliVotazione.numero_seduta && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Seduta</p>
+                          <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
+                        </div>
+                      )}
+                      {dettagliVotazione.tipo_votazione && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
+                          <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Descrizione */}
+                  {dettagliVotazione.descrizione && (
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold">Descrizione</h3>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {dettagliVotazione.descrizione}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Statistiche Votazione */}
+                  {(dettagliVotazione.favorevoli !== null || dettagliVotazione.contrari !== null || 
+                    dettagliVotazione.presenti !== null || dettagliVotazione.votanti !== null) && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Users className="h-5 w-5" />
+                          Statistiche Votazione
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {dettagliVotazione.favorevoli !== null && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <p className="text-xs text-green-700 font-medium">Favorevoli</p>
+                              </div>
+                              <p className="text-2xl font-bold text-green-800">{dettagliVotazione.favorevoli}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.contrari !== null && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                <p className="text-xs text-red-700 font-medium">Contrari</p>
+                              </div>
+                              <p className="text-2xl font-bold text-red-800">{dettagliVotazione.contrari}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.astenuti !== null && dettagliVotazione.astenuti > 0 && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <MinusCircle className="h-4 w-4 text-yellow-600" />
+                                <p className="text-xs text-yellow-700 font-medium">Astenuti</p>
+                              </div>
+                              <p className="text-2xl font-bold text-yellow-800">{dettagliVotazione.astenuti}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.presenti !== null && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Users className="h-4 w-4 text-blue-600" />
+                                <p className="text-xs text-blue-700 font-medium">Presenti</p>
+                              </div>
+                              <p className="text-2xl font-bold text-blue-800">{dettagliVotazione.presenti}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.votanti !== null && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Vote className="h-4 w-4 text-purple-600" />
+                                <p className="text-xs text-purple-700 font-medium">Votanti</p>
+                              </div>
+                              <p className="text-2xl font-bold text-purple-800">{dettagliVotazione.votanti}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.maggioranza !== null && (
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Info className="h-4 w-4 text-indigo-600" />
+                                <p className="text-xs text-indigo-700 font-medium">Maggioranza</p>
+                              </div>
+                              <p className="text-2xl font-bold text-indigo-800">{dettagliVotazione.maggioranza}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Voti Nominali */}
+                  {dettagliVotazione.voti_nominali && 
+                   (dettagliVotazione.voti_nominali.favorevoli.length > 0 || 
+                    dettagliVotazione.voti_nominali.contrari.length > 0 || 
+                    dettagliVotazione.voti_nominali.astenuti.length > 0) && (
+                    <>
+                      <Separator />
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <User className="h-5 w-5" />
+                          Voti Nominali
+                        </h3>
+                        
+                        {dettagliVotazione.voti_nominali.favorevoli.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <h4 className="font-semibold text-green-800">
+                                Favorevoli ({dettagliVotazione.voti_nominali.favorevoli.length})
+                              </h4>
+                            </div>
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliVotazione.voti_nominali.favorevoli.map((nome, i) => (
+                                  <Badge key={i} variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                                    {nome}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {dettagliVotazione.voti_nominali.contrari.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <XCircle className="h-4 w-4 text-red-600" />
+                              <h4 className="font-semibold text-red-800">
+                                Contrari ({dettagliVotazione.voti_nominali.contrari.length})
+                              </h4>
+                            </div>
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliVotazione.voti_nominali.contrari.map((nome, i) => (
+                                  <Badge key={i} variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                                    {nome}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {dettagliVotazione.voti_nominali.astenuti.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <MinusCircle className="h-4 w-4 text-yellow-600" />
+                              <h4 className="font-semibold text-yellow-800">
+                                Astenuti ({dettagliVotazione.voti_nominali.astenuti.length})
+                              </h4>
+                            </div>
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliVotazione.voti_nominali.astenuti.map((nome, i) => (
+                                  <Badge key={i} variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                    {nome}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Informazioni Aggiuntive */}
+                  {(dettagliVotazione.presidente || dettagliVotazione.titolo_seduta || dettagliVotazione.numero_legale) && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold">Informazioni Aggiuntive</h3>
+                        <div className="space-y-2 text-sm">
+                          {dettagliVotazione.presidente && (
+                            <div>
+                              <p className="text-muted-foreground">Presidente:</p>
+                              <p className="font-medium">{dettagliVotazione.presidente}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.titolo_seduta && (
+                            <div>
+                              <p className="text-muted-foreground">Titolo Seduta:</p>
+                              <p className="font-medium">{dettagliVotazione.titolo_seduta}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.numero_legale && (
+                            <div>
+                              <p className="text-muted-foreground">Numero Legale:</p>
+                              <p className="font-medium">{dettagliVotazione.numero_legale}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Spiegazione AI */}
+                  {dettagliVotazione.spiegazione && (
+                    <>
+                      <Separator />
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="h-4 w-4 text-blue-600" />
+                          <h3 className="text-lg font-semibold text-blue-900">Spiegazione AI</h3>
+                        </div>
+                        <p className="text-sm text-blue-900 leading-relaxed">
+                          {dettagliVotazione.spiegazione}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground text-center">
+                    Impossibile caricare i dettagli della votazione
+                  </p>
+                </div>
+              )}
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageContainer>
   );
