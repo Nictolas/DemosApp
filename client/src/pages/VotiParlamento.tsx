@@ -22,6 +22,22 @@ interface VotazioneParlamento {
   tipo_atto: string | null;
   sigla_atto: string | null;
   numero_atto: number | null;
+  // Dati tecnici Senato
+  favorevoli: number | null;
+  contrari: number | null;
+  presenti: number | null;
+  votanti: number | null;
+  maggioranza: number | null;
+  astenuti: number | null;
+  numero_legale: number | null;
+  presidente: string | null;
+  tipo_seduta: string | null;
+  numero_seduta: string | null;
+  titolo_seduta: string | null;
+  // Dati Camera
+  approvato: number | null;
+  // Flag
+  dati_arricchiti?: boolean;
 }
 
 export default function VotiParlamento() {
@@ -226,36 +242,112 @@ export default function VotiParlamento() {
                       )}
 
                       {/* Dettagli aggiuntivi */}
-                      <div className="flex flex-wrap gap-2">
-                        {votazione.legislatura && (
-                          <Badge variant="outline" className="text-xs">
-                            📜 Legislatura {votazione.legislatura}
-                          </Badge>
+                      <div className="space-y-3">
+                        {/* Badge principali */}
+                        <div className="flex flex-wrap gap-2">
+                          {votazione.legislatura && (
+                            <Badge variant="outline" className="text-xs">
+                              📜 Legislatura {votazione.legislatura}
+                            </Badge>
+                          )}
+                          {votazione.tipo_atto && (
+                            <Badge variant="outline" className="text-xs">
+                              📄 {votazione.tipo_atto}
+                            </Badge>
+                          )}
+                          {votazione.numero_seduta && (
+                            <Badge variant="outline" className="text-xs">
+                              🏛️ Seduta n. {votazione.numero_seduta}
+                            </Badge>
+                          )}
+                          {votazione.tipo_seduta && (
+                            <Badge variant="outline" className="text-xs">
+                              🕐 {votazione.tipo_seduta}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* Dati tecnici Senato - Statistiche votazione */}
+                        {(votazione.favorevoli !== null || votazione.contrari !== null || votazione.astenuti !== null) && (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            <div className="text-xs font-semibold text-gray-700 mb-2">📊 Statistiche Votazione</div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              {votazione.favorevoli !== null && votazione.favorevoli !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-800 border-green-300">
+                                    ✅ {votazione.favorevoli}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Fav.</span>
+                                </div>
+                              )}
+                              {votazione.contrari !== null && votazione.contrari !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-red-50 text-red-800 border-red-300">
+                                    ❌ {votazione.contrari}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Contr.</span>
+                                </div>
+                              )}
+                              {votazione.astenuti !== null && votazione.astenuti !== undefined && votazione.astenuti > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-800 border-yellow-300">
+                                    ⚪ {votazione.astenuti}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Asten.</span>
+                                </div>
+                              )}
+                              {votazione.presenti !== null && votazione.presenti !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-800 border-blue-300">
+                                    👥 {votazione.presenti}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Pres.</span>
+                                </div>
+                              )}
+                              {votazione.votanti !== null && votazione.votanti !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-purple-50 text-purple-800 border-purple-300">
+                                    🗳️ {votazione.votanti}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Vot.</span>
+                                </div>
+                              )}
+                              {votazione.maggioranza !== null && votazione.maggioranza !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-800 border-indigo-300">
+                                    📊 {votazione.maggioranza}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Magg.</span>
+                                </div>
+                              )}
+                              {votazione.numero_legale !== null && votazione.numero_legale !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-800 border-gray-300">
+                                    ⚖️ {votazione.numero_legale}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">Legale</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
-                        {votazione.tipo_atto && (
-                          <Badge variant="outline" className="text-xs">
-                            📄 {votazione.tipo_atto}
-                          </Badge>
+                        
+                        {/* Informazioni aggiuntive */}
+                        {(votazione.presidente || votazione.titolo_seduta) && (
+                          <div className="text-xs text-gray-600 space-y-1">
+                            {votazione.presidente && (
+                              <div>👤 Presidente: {votazione.presidente}</div>
+                            )}
+                            {votazione.titolo_seduta && (
+                              <div>📋 {votazione.titolo_seduta}</div>
+                            )}
+                          </div>
                         )}
-                        {votazione.numero_seduta && (
-                          <Badge variant="outline" className="text-xs">
-                            🏛️ Seduta n. {votazione.numero_seduta}
-                          </Badge>
-                        )}
-                        {/* Dati specifici Senato */}
-                        {votazione.favorevoli !== null && votazione.favorevoli !== undefined && (
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-800">
-                            ✅ {votazione.favorevoli} favorevoli
-                          </Badge>
-                        )}
-                        {votazione.contrari !== null && votazione.contrari !== undefined && (
-                          <Badge variant="outline" className="text-xs bg-red-50 text-red-800">
-                            ❌ {votazione.contrari} contrari
-                          </Badge>
-                        )}
-                        {votazione.presenti !== null && votazione.presenti !== undefined && (
-                          <Badge variant="outline" className="text-xs">
-                            👥 {votazione.presenti} presenti
+                        
+                        {/* Badge dati arricchiti */}
+                        {votazione.dati_arricchiti && (
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                            ✨ Dati arricchiti da Openpolis
                           </Badge>
                         )}
                       </div>
