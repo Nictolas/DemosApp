@@ -754,24 +754,24 @@ export default function VotiPolitici() {
               </Button>
               {isAdmin && (
                 <>
-                  <Button 
-                    onClick={() => {
-                      if (politicoDialog) {
-                        const urlToEdit = politicoDialog.url_openpolis || "";
-                        setEditingUrl({ politico: politicoDialog.politico_nome, url: urlToEdit });
-                        setNewUrl(urlToEdit);
-                        setPoliticoDialog(null);
-                      }
-                    }}
-                    disabled={updateUrlMutation.isPending}
-                  >
-                    {updateUrlMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Edit className="h-4 w-4 mr-2" />
-                    )}
-                    Modifica URL
-                  </Button>
+                <Button 
+                  onClick={() => {
+                    if (politicoDialog) {
+                      const urlToEdit = politicoDialog.url_openpolis || "";
+                      setEditingUrl({ politico: politicoDialog.politico_nome, url: urlToEdit });
+                      setNewUrl(urlToEdit);
+                      setPoliticoDialog(null);
+                    }
+                  }}
+                  disabled={updateUrlMutation.isPending}
+                >
+                  {updateUrlMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Edit className="h-4 w-4 mr-2" />
+                  )}
+                  Modifica URL
+                </Button>
                   <Button 
                     variant="destructive"
                     onClick={() => {

@@ -26,7 +26,7 @@ BEGIN
         '[ç]', 'c', 'g'
       ),
       '[^a-z0-9]+', '-', 'g'
-    );
+  );
 END;
 $$ LANGUAGE plpgsql;
 
