@@ -537,85 +537,174 @@ router.post('/sync', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/voti-politici/ultime - Ottieni le ultime N votazioni (default: 3)
+// GET /api/voti-politici/ultime - Ottieni le ultime N votazioni (default: 3) direttamente da SPARQL
 router.get('/ultime', verifyToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 3, 100); // Default 3, max 100
-    console.log(`🔍 GET /api/voti-politici/ultime - Richiesta ultime ${limit} votazioni`);
+    const useCache = req.query.cache !== 'false'; // Default true, usa cache se disponibile
+    console.log(`🔍 GET /api/voti-politici/ultime - Richiesta ultime ${limit} votazioni (cache: ${useCache})`);
     
     await ensureTableExists();
     
-    // Cerca le ultime votazioni da voti_politici (SPARQL)
-    // Combina con votazioni_parlamento se disponibile
-    // Priorità: data_votazione > data_sincronizzazione > data_aggiornamento
-    const query = `
-      SELECT 
-        vp.id as id,
-        vp.uri,
-        vp.votazione_id,
-        vp.legislatura,
-        vp.data_votazione,
-        vp.descrizione,
-        vp.esito,
-        vp.sigla_atto,
-        vp.numero_atto,
-        vp.tipo_atto,
-        vp.camera,
-        vp.metadati,
-        vp.data_sincronizzazione,
-        vp.data_aggiornamento,
-        vparl.titolo_votazione,
-        vparl.descrizione_votazione as descrizione_completa,
-        vparl.spiegazione,
-        vparl.url_votazione,
-        vparl.numero_seduta
-      FROM voti_politici vp
-      LEFT JOIN votazioni_parlamento vparl ON vp.votazione_id = vparl.id::text
-      WHERE vp.descrizione IS NOT NULL 
-        AND vp.descrizione != ''
-        AND vp.descrizione != 'N/A'
-      ORDER BY 
-        COALESCE(vp.data_votazione, vparl.data_votazione) DESC NULLS LAST,
-        vp.data_sincronizzazione DESC NULLS LAST,
-        vp.data_aggiornamento DESC NULLS LAST
-      LIMIT $1
-    `;
+    let votazioni = [];
     
-    const dbResult = await pool.query(query, [limit]);
+    // Se cache è abilitata, prova prima a recuperare dal database
+    if (useCache) {
+      try {
+        const query = `
+          SELECT DISTINCT ON (vp.descrizione, vp.camera, vp.data_votazione)
+            vp.id as id,
+            vp.uri,
+            vp.votazione_id,
+            vp.legislatura,
+            vp.data_votazione,
+            vp.descrizione,
+            vp.esito,
+            vp.sigla_atto,
+            vp.numero_atto,
+            vp.tipo_atto,
+            vp.camera,
+            vp.metadati,
+            vp.data_sincronizzazione,
+            vp.data_aggiornamento
+          FROM voti_politici vp
+          WHERE vp.descrizione IS NOT NULL 
+            AND vp.descrizione != ''
+            AND vp.descrizione != 'N/A'
+            AND vp.camera IS NOT NULL
+          ORDER BY 
+            vp.descrizione,
+            vp.camera,
+            vp.data_votazione,
+            COALESCE(vp.data_votazione, vp.data_sincronizzazione) DESC NULLS LAST,
+            vp.data_sincronizzazione DESC NULLS LAST,
+            vp.data_aggiornamento DESC NULLS LAST
+          LIMIT $1
+        `;
+        
+        const dbResult = await pool.query(query, [limit]);
+        
+        if (dbResult.rows.length > 0) {
+          votazioni = dbResult.rows.map(votazione => ({
+            id: votazione.id,
+            uri: votazione.uri,
+            votazione_id: votazione.votazione_id,
+            legislatura: votazione.legislatura,
+            data_votazione: votazione.data_votazione || (votazione.data_sincronizzazione ? votazione.data_sincronizzazione.split('T')[0] : null),
+            titolo_votazione: votazione.descrizione || 'Votazione parlamentare',
+            descrizione: votazione.descrizione || 'Votazione parlamentare',
+            descrizione_completa: votazione.descrizione || 'Votazione parlamentare',
+            esito: votazione.esito,
+            sigla_atto: votazione.sigla_atto,
+            numero_atto: votazione.numero_atto,
+            tipo_atto: votazione.tipo_atto,
+            camera: votazione.camera || 'Camera',
+            spiegazione: votazione.metadati?.spiegazione || null,
+            url_votazione: votazione.metadati?.url_votazione || votazione.uri || null,
+            numero_seduta: votazione.metadati?.seduta || votazione.metadati?.numero_seduta || null,
+            metadati: votazione.metadati || {},
+            seduta: votazione.metadati?.seduta || null,
+            data_sincronizzazione: votazione.data_sincronizzazione,
+            data_aggiornamento: votazione.data_aggiornamento,
+            source: 'database'
+          }));
+          
+          console.log(`✅ Trovate ${votazioni.length} votazioni in cache`);
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Errore nel recupero da database, recupero da SPARQL:', dbError.message);
+      }
+    }
     
-    if (dbResult.rows.length === 0) {
+    // Se non ci sono dati in cache o cache disabilitata, recupera direttamente da SPARQL
+    if (votazioni.length === 0) {
+      console.log('📥 Recupero dati direttamente da SPARQL (Camera e Senato)...');
+      
+      const allVotazioni = [];
+      
+      // Recupera da Camera
+      try {
+        console.log('🔍 Recupero votazioni Camera da SPARQL...');
+        const sparqlResultsCamera = await fetchFromSparql('Camera', limit * 2); // Prendi più risultati per avere scelta
+        if (sparqlResultsCamera.length > 0) {
+          const votazioniCamera = await processAndSaveVotazioni(sparqlResultsCamera, 'Camera');
+          allVotazioni.push(...votazioniCamera);
+          console.log(`✅ Recuperate ${votazioniCamera.length} votazioni dalla Camera`);
+        }
+      } catch (error) {
+        console.error('❌ Errore nel recupero da SPARQL Camera:', error.message);
+      }
+      
+      // Recupera da Senato
+      try {
+        console.log('🔍 Recupero votazioni Senato da SPARQL...');
+        const sparqlResultsSenato = await fetchFromSparql('Senato', limit * 2); // Prendi più risultati per avere scelta
+        if (sparqlResultsSenato.length > 0) {
+          const votazioniSenato = await processAndSaveVotazioni(sparqlResultsSenato, 'Senato');
+          allVotazioni.push(...votazioniSenato);
+          console.log(`✅ Recuperate ${votazioniSenato.length} votazioni dal Senato`);
+        }
+      } catch (error) {
+        console.error('❌ Errore nel recupero da SPARQL Senato:', error.message);
+      }
+      
+      // Ordina per data (più recente prima) e prendi le prime N
+      allVotazioni.sort((a, b) => {
+        const dateA = a.data_votazione ? new Date(a.data_votazione) : new Date(0);
+        const dateB = b.data_votazione ? new Date(b.data_votazione) : new Date(0);
+        return dateB - dateA; // Più recente prima
+      });
+      
+      // Prendi le prime N votazioni uniche (per descrizione + camera)
+      const uniqueVotazioni = [];
+      const seen = new Set();
+      
+      for (const votazione of allVotazioni) {
+        const key = `${votazione.descrizione || ''}_${votazione.camera || ''}_${votazione.data_votazione || ''}`;
+        if (!seen.has(key) && uniqueVotazioni.length < limit) {
+          seen.add(key);
+          uniqueVotazioni.push(votazione);
+        }
+      }
+      
+      // Formatta le votazioni
+      votazioni = uniqueVotazioni.map(votazione => ({
+        id: votazione.id || null,
+        uri: votazione.uri,
+        votazione_id: votazione.votazione_id,
+        legislatura: votazione.legislatura,
+        data_votazione: votazione.data_votazione || null,
+        titolo_votazione: votazione.descrizione || 'Votazione parlamentare',
+        descrizione: votazione.descrizione || 'Votazione parlamentare',
+        descrizione_completa: votazione.descrizione || 'Votazione parlamentare',
+        esito: votazione.esito,
+        sigla_atto: votazione.sigla_atto,
+        numero_atto: votazione.numero_atto,
+        tipo_atto: votazione.tipo_atto,
+        camera: votazione.camera || 'Camera',
+        spiegazione: votazione.metadati?.spiegazione || null,
+        url_votazione: votazione.metadati?.url_votazione || votazione.uri || null,
+        numero_seduta: votazione.metadati?.seduta || votazione.metadati?.numero_seduta || null,
+        metadati: votazione.metadati || {},
+        seduta: votazione.metadati?.seduta || null,
+        data_sincronizzazione: votazione.data_sincronizzazione || new Date().toISOString(),
+        data_aggiornamento: votazione.data_aggiornamento || new Date().toISOString(),
+        source: 'sparql'
+      }));
+      
+      console.log(`✅ Recuperate ${votazioni.length} votazioni da SPARQL`);
+    }
+    
+    if (votazioni.length === 0) {
       return res.json({
         success: true,
         data: [],
         count: 0,
-        message: 'Nessuna votazione trovata nel database. Esegui la sincronizzazione da SPARQL.'
+        message: 'Nessuna votazione trovata. Gli endpoint SPARQL potrebbero non restituire risultati per la XIX legislatura.'
       });
     }
     
-    // Formatta tutte le votazioni
-    const votazioni = dbResult.rows.map(votazione => ({
-      id: votazione.id,
-      uri: votazione.uri,
-      votazione_id: votazione.votazione_id,
-      legislatura: votazione.legislatura,
-      data_votazione: votazione.data_votazione || votazione.data_sincronizzazione?.split('T')[0] || null,
-      descrizione: votazione.descrizione || votazione.titolo_votazione || 'Votazione parlamentare',
-      descrizione_completa: votazione.descrizione_completa || votazione.descrizione,
-      esito: votazione.esito,
-      sigla_atto: votazione.sigla_atto,
-      numero_atto: votazione.numero_atto,
-      tipo_atto: votazione.tipo_atto,
-      camera: votazione.camera || 'Camera',
-      spiegazione: votazione.spiegazione,
-      url_votazione: votazione.url_votazione,
-      numero_seduta: votazione.numero_seduta,
-      metadati: votazione.metadati || {},
-      seduta: votazione.metadati?.seduta || null,
-      data_sincronizzazione: votazione.data_sincronizzazione,
-      data_aggiornamento: votazione.data_aggiornamento
-    }));
-    
-    console.log(`✅ Restituite ${votazioni.length} votazioni`);
+    console.log(`✅ Restituite ${votazioni.length} votazioni (source: ${votazioni[0]?.source || 'unknown'})`);
     
     return res.json({
       success: true,
