@@ -396,6 +396,105 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
 }
 
 // Funzione helper per salvare le votazioni nella tabella "parlamento"
+// Funzione per salvare i voti nominali nella tabella cache
+async function saveVotiNominaliToCache(uriVotazione, camera, votiNominali, bindingsFav, bindingsContr, bindingsAst) {
+  try {
+    // Assicurati che la tabella esista
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS parlamento_voti_nominali (
+        id SERIAL PRIMARY KEY,
+        uri_votazione TEXT NOT NULL,
+        camera VARCHAR(50) NOT NULL CHECK (camera IN ('Camera', 'Senato')),
+        nome_politico TEXT NOT NULL,
+        voto VARCHAR(20) NOT NULL CHECK (voto IN ('Favorevole', 'Contrario', 'Astenuto')),
+        uri_politico TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        data_sincronizzazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(uri_votazione, nome_politico, voto)
+      )
+    `);
+    
+    // Crea indici se non esistono
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_parlamento_voti_nominali_uri_votazione 
+      ON parlamento_voti_nominali(uri_votazione)
+    `);
+    
+    let savedCount = 0;
+    
+    // Salva voti favorevoli
+    for (const binding of bindingsFav || []) {
+      const nome = binding.nomeSenatore?.value;
+      const uriPolitico = binding.senatore?.value;
+      if (nome && nome.trim() !== '') {
+        try {
+          await pool.query(
+            `INSERT INTO parlamento_voti_nominali (uri_votazione, camera, nome_politico, voto, uri_politico, data_sincronizzazione)
+             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+             ON CONFLICT (uri_votazione, nome_politico, voto) 
+             DO UPDATE SET 
+               updated_at = CURRENT_TIMESTAMP,
+               data_sincronizzazione = CURRENT_TIMESTAMP`,
+            [uriVotazione, camera, nome, 'Favorevole', uriPolitico || null]
+          );
+          savedCount++;
+        } catch (error) {
+          console.warn(`⚠️ Errore salvataggio voto favorevole ${nome}:`, error.message);
+        }
+      }
+    }
+    
+    // Salva voti contrari
+    for (const binding of bindingsContr || []) {
+      const nome = binding.nomeSenatore?.value;
+      const uriPolitico = binding.senatore?.value;
+      if (nome && nome.trim() !== '') {
+        try {
+          await pool.query(
+            `INSERT INTO parlamento_voti_nominali (uri_votazione, camera, nome_politico, voto, uri_politico, data_sincronizzazione)
+             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+             ON CONFLICT (uri_votazione, nome_politico, voto) 
+             DO UPDATE SET 
+               updated_at = CURRENT_TIMESTAMP,
+               data_sincronizzazione = CURRENT_TIMESTAMP`,
+            [uriVotazione, camera, nome, 'Contrario', uriPolitico || null]
+          );
+          savedCount++;
+        } catch (error) {
+          console.warn(`⚠️ Errore salvataggio voto contrario ${nome}:`, error.message);
+        }
+      }
+    }
+    
+    // Salva astenuti
+    for (const binding of bindingsAst || []) {
+      const nome = binding.nomeSenatore?.value;
+      const uriPolitico = binding.senatore?.value;
+      if (nome && nome.trim() !== '') {
+        try {
+          await pool.query(
+            `INSERT INTO parlamento_voti_nominali (uri_votazione, camera, nome_politico, voto, uri_politico, data_sincronizzazione)
+             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+             ON CONFLICT (uri_votazione, nome_politico, voto) 
+             DO UPDATE SET 
+               updated_at = CURRENT_TIMESTAMP,
+               data_sincronizzazione = CURRENT_TIMESTAMP`,
+            [uriVotazione, camera, nome, 'Astenuto', uriPolitico || null]
+          );
+          savedCount++;
+        } catch (error) {
+          console.warn(`⚠️ Errore salvataggio voto astenuto ${nome}:`, error.message);
+        }
+      }
+    }
+    
+    console.log(`✅ Salvati ${savedCount} voti nominali nella cache`);
+  } catch (error) {
+    console.error(`❌ Errore nel salvataggio voti nominali nella cache:`, error.message);
+  }
+}
+
 async function saveVotazioniToParlamento(votazioni) {
   let savedCount = 0;
   let errorCount = 0;
@@ -1245,8 +1344,33 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       astenuti: []
     };
     
-    if (votazione.camera === 'Senato') {
-      try {
+    // Prima prova a recuperare dalla tabella cache
+    try {
+      const votiCacheQuery = `
+        SELECT nome_politico, voto
+        FROM parlamento_voti_nominali
+        WHERE uri_votazione = $1
+        ORDER BY voto, nome_politico
+      `;
+      const votiCacheResult = await pool.query(votiCacheQuery, [decodedUri]);
+      
+      if (votiCacheResult.rows.length > 0) {
+        // Usa i dati dalla cache
+        votiCacheResult.rows.forEach(row => {
+          if (row.voto === 'Favorevole') {
+            votiNominali.favorevoli.push(row.nome_politico);
+          } else if (row.voto === 'Contrario') {
+            votiNominali.contrari.push(row.nome_politico);
+          } else if (row.voto === 'Astenuto') {
+            votiNominali.astenuti.push(row.nome_politico);
+          }
+        });
+        console.log(`✅ Voti nominali recuperati dalla cache: ${votiCacheResult.rows.length} voti`);
+      } else if (votazione.camera === 'Senato') {
+        // Se non ci sono in cache, recupera da SPARQL e salva
+        console.log(`📥 Voti nominali non in cache, recupero da SPARQL...`);
+        
+        try {
         // Query per voti favorevoli
         const queryFavorevoli = `
           PREFIX osr: <http://dati.senato.it/osr/>

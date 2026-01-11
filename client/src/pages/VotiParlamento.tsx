@@ -120,7 +120,11 @@ export default function VotiParlamento() {
 
   // Funzione per caricare i dettagli di una votazione
   const handleVotazioneClick = async (votazione: VotazioneParlamento) => {
+    console.log('🔍 Click su votazione:', votazione);
+    console.log('🔍 URI disponibile:', votazione.uri);
+    
     if (!votazione.uri) {
+      console.error('❌ URI non disponibile nella votazione:', votazione);
       toast({
         title: "Errore",
         description: "URI della votazione non disponibile",
