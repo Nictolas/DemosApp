@@ -123,4 +123,14 @@ export const gestisciSections: GestisciSection[] = [
       route: "/voti-politici",
       buttonText: "Voti Politici"
     },
+    {
+      id: "voti-parlamento",
+      title: "Voti Parlamento",
+      description: "Visualizza le ultime votazioni del Parlamento (Camera e Senato) in ordine cronologico",
+      icon: Vote,
+      color: "text-green-600 group-hover:text-green-800",
+      buttonColor: "bg-green-500 hover:bg-green-600",
+      route: "/voti-parlamento",
+      buttonText: "Voti Parlamento"
+    },
 ];
