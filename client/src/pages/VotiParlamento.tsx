@@ -49,7 +49,8 @@ export default function VotiParlamento() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/voti-politici/ultime", limit],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/voti-politici/ultime?limit=${limit}`);
+      // Forza refresh per ottenere dati aggiornati da SPARQL
+      const response = await apiRequest("GET", `/api/voti-politici/ultime?limit=${limit}&refresh=true`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Errore nel recupero dei dati");
@@ -62,7 +63,8 @@ export default function VotiParlamento() {
       };
     },
     retry: 2,
-    staleTime: 5 * 60 * 1000, // 5 minuti
+    staleTime: 0, // Sempre considera i dati come "stale" per forzare refresh
+    cacheTime: 0, // Non cache i dati
   });
 
   const votazioniCamera: VotazioneParlamento[] = data?.camera || [];

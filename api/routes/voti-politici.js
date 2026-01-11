@@ -759,7 +759,8 @@ router.get('/ultime', verifyToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 3, 100); // Default 3, max 100
     const useCache = req.query.cache !== 'false'; // Default true, usa cache se disponibile
-    console.log(`🔍 GET /api/voti-politici/ultime - Richiesta ultime ${limit} votazioni per Camera e Senato (cache: ${useCache})`);
+    const forceRefresh = req.query.refresh === 'true'; // Forza refresh da SPARQL
+    console.log(`🔍 GET /api/voti-politici/ultime - Richiesta ultime ${limit} votazioni per Camera e Senato (cache: ${useCache}, forceRefresh: ${forceRefresh})`);
     
     await ensureParlamentoTableExists();
     
@@ -771,61 +772,80 @@ router.get('/ultime', verifyToken, async (req, res) => {
     // Funzione helper per recuperare votazioni da database o SPARQL
     async function getVotazioni(camera, limitCount) {
       let votazioni = [];
+      let shouldRefresh = false;
       
       // Se cache è abilitata, prova prima a recuperare dalla tabella "parlamento"
       if (useCache) {
         try {
-          const query = `
-            SELECT 
-              p.id,
-              p.uri,
-              p.votazione_id,
-              p.camera,
-              p.titolo,
-              p.descrizione,
-              p.data_votazione,
-              p.esito,
-              p.uri_seduta,
-              p.numero_seduta,
-              p.titolo_seduta,
-              p.legislatura,
-              p.favorevoli,
-              p.contrari,
-              p.presenti,
-              p.votanti,
-              p.maggioranza,
-              p.tipo_votazione,
-              p.approvato,
-              p.metadati,
-              p.created_at,
-              p.updated_at,
-              p.data_sincronizzazione,
-              -- Dati arricchiti da votazioni_parlamento (Openpolis)
-              vp.descrizione_votazione as descrizione_openpolis,
-              vp.spiegazione as spiegazione_ai
-            FROM parlamento p
-            LEFT JOIN votazioni_parlamento vp ON (
-              LOWER(TRIM(p.titolo)) = LOWER(TRIM(vp.titolo_votazione))
-              AND p.camera = vp.camera
-              AND (
-                (p.data_votazione IS NULL AND vp.data_votazione IS NULL) OR
-                (p.data_votazione = vp.data_votazione)
+          // Controlla se ci sono dati recenti (ultime 24 ore) nel database
+          const checkRecent = await pool.query(`
+            SELECT MAX(data_sincronizzazione) as last_sync, MAX(data_votazione) as last_date
+            FROM parlamento
+            WHERE camera = $1
+          `, [camera]);
+          
+          const lastSync = checkRecent.rows[0]?.last_sync;
+          const lastDate = checkRecent.rows[0]?.last_date;
+          const now = new Date();
+          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          
+          // Se i dati sono più vecchi di 1 giorno, recupera da SPARQL
+          shouldRefresh = !lastSync || new Date(lastSync) < oneDayAgo;
+          
+          if (shouldRefresh) {
+            console.log(`🔄 Dati nel database troppo vecchi (ultima sync: ${lastSync || 'N/A'}), recupero da SPARQL...`);
+          } else {
+            const query = `
+              SELECT 
+                p.id,
+                p.uri,
+                p.votazione_id,
+                p.camera,
+                p.titolo,
+                p.descrizione,
+                p.data_votazione,
+                p.esito,
+                p.uri_seduta,
+                p.numero_seduta,
+                p.titolo_seduta,
+                p.legislatura,
+                p.favorevoli,
+                p.contrari,
+                p.presenti,
+                p.votanti,
+                p.maggioranza,
+                p.tipo_votazione,
+                p.approvato,
+                p.metadati,
+                p.created_at,
+                p.updated_at,
+                p.data_sincronizzazione,
+                -- Dati arricchiti da votazioni_parlamento (Openpolis)
+                vp.descrizione_votazione as descrizione_openpolis,
+                vp.spiegazione as spiegazione_ai
+              FROM parlamento p
+              LEFT JOIN votazioni_parlamento vp ON (
+                LOWER(TRIM(p.titolo)) = LOWER(TRIM(vp.titolo_votazione))
+                AND p.camera = vp.camera
+                AND (
+                  (p.data_votazione IS NULL AND vp.data_votazione IS NULL) OR
+                  (p.data_votazione = vp.data_votazione)
+                )
               )
-            )
-            WHERE p.titolo IS NOT NULL 
-              AND p.titolo != ''
-              AND p.titolo != 'N/A'
-              AND p.camera = $1
-            ORDER BY 
-              COALESCE(p.data_votazione, p.data_sincronizzazione) DESC NULLS LAST,
-              p.data_sincronizzazione DESC NULLS LAST,
-              p.updated_at DESC NULLS LAST
-            LIMIT $2
-          `;
-          
-          const dbResult = await pool.query(query, [camera, limitCount]);
-          
-          if (dbResult.rows.length > 0) {
+              WHERE p.titolo IS NOT NULL 
+                AND p.titolo != ''
+                AND p.titolo != 'N/A'
+                AND p.camera = $1
+              ORDER BY 
+                COALESCE(p.data_votazione, p.data_sincronizzazione) DESC NULLS LAST,
+                p.data_sincronizzazione DESC NULLS LAST,
+                p.updated_at DESC NULLS LAST
+              LIMIT $2
+            `;
+            
+            const dbResult = await pool.query(query, [camera, limitCount]);
+            
+            if (dbResult.rows.length > 0) {
             votazioni = dbResult.rows.map(votazione => {
               // Usa descrizione da Openpolis se disponibile, altrimenti quella da SPARQL
               const descrizioneCompleta = votazione.descrizione_openpolis || 
@@ -877,15 +897,16 @@ router.get('/ultime', verifyToken, async (req, res) => {
               };
             });
             
-            console.log(`✅ Trovate ${votazioni.length} votazioni ${camera} nella tabella parlamento`);
+              console.log(`✅ Trovate ${votazioni.length} votazioni ${camera} nella tabella parlamento`);
+            }
           }
         } catch (dbError) {
           console.warn(`⚠️ Errore nel recupero da database per ${camera}, recupero da SPARQL:`, dbError.message);
         }
       }
       
-      // Se non ci sono dati in cache o cache disabilitata, recupera direttamente da SPARQL
-      if (votazioni.length === 0) {
+      // Se non ci sono dati in cache, cache disabilitata, dati troppo vecchi, o refresh forzato, recupera direttamente da SPARQL
+      if (votazioni.length === 0 || shouldRefresh || forceRefresh) {
         console.log(`📥 Recupero dati direttamente da SPARQL per ${camera}...`);
         
         try {
