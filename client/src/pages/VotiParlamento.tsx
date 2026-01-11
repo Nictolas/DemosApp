@@ -237,9 +237,25 @@ export default function VotiParlamento() {
                             📄 {votazione.tipo_atto}
                           </Badge>
                         )}
-                        {votazione.sigla_atto && votazione.numero_atto && (
+                        {votazione.numero_seduta && (
                           <Badge variant="outline" className="text-xs">
-                            {votazione.sigla_atto} n. {votazione.numero_atto}
+                            🏛️ Seduta n. {votazione.numero_seduta}
+                          </Badge>
+                        )}
+                        {/* Dati specifici Senato */}
+                        {votazione.favorevoli !== null && votazione.favorevoli !== undefined && (
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-800">
+                            ✅ {votazione.favorevoli} favorevoli
+                          </Badge>
+                        )}
+                        {votazione.contrari !== null && votazione.contrari !== undefined && (
+                          <Badge variant="outline" className="text-xs bg-red-50 text-red-800">
+                            ❌ {votazione.contrari} contrari
+                          </Badge>
+                        )}
+                        {votazione.presenti !== null && votazione.presenti !== undefined && (
+                          <Badge variant="outline" className="text-xs">
+                            👥 {votazione.presenti} presenti
                           </Badge>
                         )}
                       </div>

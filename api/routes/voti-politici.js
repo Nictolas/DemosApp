@@ -11,7 +11,75 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Funzione per assicurarsi che la tabella esista
+// Funzione per assicurarsi che la tabella "parlamento" esista
+async function ensureParlamentoTableExists() {
+  try {
+    // Crea la tabella parlamento con tutte le colonne necessarie
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS parlamento (
+        id SERIAL PRIMARY KEY,
+        uri TEXT NOT NULL UNIQUE,
+        votazione_id TEXT,
+        camera VARCHAR(50) NOT NULL CHECK (camera IN ('Camera', 'Senato')),
+        titolo TEXT NOT NULL,
+        descrizione TEXT,
+        data_votazione DATE,
+        esito VARCHAR(50),
+        uri_seduta TEXT,
+        numero_seduta TEXT,
+        titolo_seduta TEXT,
+        legislatura INTEGER,
+        favorevoli INTEGER,
+        contrari INTEGER,
+        presenti INTEGER,
+        votanti INTEGER,
+        maggioranza INTEGER,
+        tipo_votazione TEXT,
+        approvato INTEGER,
+        metadati JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        data_sincronizzazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Crea indici
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_uri ON parlamento(uri)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_camera ON parlamento(camera)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_data_votazione ON parlamento(data_votazione DESC)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_esito ON parlamento(esito)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_legislatura ON parlamento(legislatura)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_numero_seduta ON parlamento(numero_seduta)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_data_sincronizzazione ON parlamento(data_sincronizzazione DESC)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_metadati_gin ON parlamento USING GIN (metadati)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_camera_data ON parlamento(camera, data_votazione DESC NULLS LAST)`);
+    
+    // Crea trigger per updated_at
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION update_parlamento_updated_at()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql
+    `);
+    
+    await pool.query(`
+      DROP TRIGGER IF EXISTS trigger_update_parlamento_updated_at ON parlamento;
+      CREATE TRIGGER trigger_update_parlamento_updated_at
+        BEFORE UPDATE ON parlamento
+        FOR EACH ROW
+        EXECUTE FUNCTION update_parlamento_updated_at()
+    `);
+    
+    console.log('✅ Tabella parlamento verificata/creata');
+  } catch (error) {
+    console.error('❌ Errore nella creazione tabella parlamento:', error);
+  }
+}
+
+// Funzione per assicurarsi che la tabella esista (legacy - mantiene compatibilità)
 async function ensureTableExists() {
   try {
     // Crea la tabella
@@ -88,8 +156,9 @@ async function ensureTableExists() {
   }
 }
 
-// Inizializza la tabella all'avvio
-ensureTableExists();
+// Inizializza le tabelle all'avvio
+ensureTableExists(); // Tabella legacy voti_politici
+ensureParlamentoTableExists(); // Nuova tabella parlamento
 
 // Funzione helper per recuperare dati da SPARQL (Camera o Senato)
 async function fetchFromSparql(camera = 'Camera', limit = 100) {
@@ -97,38 +166,41 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
   let sparqlEndpoint;
   
   if (camera === 'Senato') {
-    // Query SPARQL per il Senato
-    // Il Senato usa namespace diverso: http://dati.senato.it/osr/
-    // Tipo: http://dati.senato.it/osr/Votazione
-    // Predicati: favorevoli, contrari, favorevole (voti individuali), seduta, label
+    // Query SPARQL per il Senato - Recupera TUTTI i dati disponibili incluso dalla seduta
     sparqlQuery = `
       PREFIX osr: <http://dati.senato.it/osr/>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
       
-      SELECT DISTINCT ?votazione ?label ?favorevoli ?contrari ?seduta ?tipoVotazione ?presenti ?votanti
+      SELECT DISTINCT ?votazione ?label ?favorevoli ?contrari ?presenti ?votanti ?maggioranza 
+                      ?tipoVotazione ?seduta ?sedutaData ?sedutaNumero ?sedutaLegislatura
       WHERE {
         ?votazione a osr:Votazione .
         OPTIONAL { ?votazione rdfs:label ?label . }
-        OPTIONAL { ?votazione osr:seduta ?seduta . }
         OPTIONAL { ?votazione osr:favorevoli ?favorevoli . }
         OPTIONAL { ?votazione osr:contrari ?contrari . }
-        OPTIONAL { ?votazione osr:tipoVotazione ?tipoVotazione . }
         OPTIONAL { ?votazione osr:presenti ?presenti . }
         OPTIONAL { ?votazione osr:votanti ?votanti . }
+        OPTIONAL { ?votazione osr:maggioranza ?maggioranza . }
+        OPTIONAL { ?votazione osr:tipoVotazione ?tipoVotazione . }
+        OPTIONAL { 
+          ?votazione osr:seduta ?seduta .
+          OPTIONAL { ?seduta osr:dataSeduta ?sedutaData . }
+          OPTIONAL { ?seduta osr:numeroSeduta ?sedutaNumero . }
+          OPTIONAL { ?seduta osr:legislatura ?sedutaLegislatura . }
+        }
       }
       ORDER BY DESC(?votazione)
       LIMIT ${limit}
     `;
     sparqlEndpoint = 'https://dati.senato.it/sparql';
   } else {
-    // Query SPARQL per la Camera (default)
-    // Recupera anche la data dalla seduta collegata
+    // Query SPARQL per la Camera - Recupera TUTTI i dati disponibili incluso dalla seduta
     sparqlQuery = `
       PREFIX ocd: <http://dati.camera.it/ocd/>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
       
-      SELECT DISTINCT ?votazione ?label ?approvato ?seduta ?dataSeduta
+      SELECT DISTINCT ?votazione ?label ?approvato ?seduta ?sedutaData ?sedutaNumero ?sedutaTitle ?sedutaLegislatura
       WHERE {
         ?votazione a <http://dati.camera.it/ocd/votazione> .
         FILTER(CONTAINS(STR(?votazione), "vs19"))
@@ -136,7 +208,13 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
         OPTIONAL { ?votazione ocd:approvato ?approvato . }
         OPTIONAL { 
           ?votazione ocd:rif_seduta ?seduta .
-          OPTIONAL { ?seduta ocd:data ?dataSeduta . }
+          OPTIONAL { ?seduta ocd:data ?sedutaData . }
+          OPTIONAL { ?seduta ocd:identifier ?sedutaNumero . }
+          OPTIONAL { ?seduta ocd:title ?sedutaTitle . }
+          OPTIONAL { 
+            ?seduta ocd:rif_leg ?legislatura .
+            OPTIONAL { ?legislatura ocd:numero ?sedutaLegislatura . }
+          }
         }
       }
       ORDER BY DESC(?votazione)
@@ -184,11 +262,10 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
   }
 }
 
-// Funzione helper per processare e salvare i dati
+// Funzione helper per processare e salvare i dati nella tabella "parlamento"
 async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
   if (sparqlResults.length === 0) return [];
 
-  // I risultati ora hanno struttura diretta: votazione, label, approvato, seduta
   const votazioni = {};
   
   for (const result of sparqlResults) {
@@ -196,58 +273,83 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
     if (!votazioneUri) continue;
 
     if (!votazioni[votazioneUri]) {
-      // Estrai legislatura da URI (vs19 per Camera, potrebbe essere diverso per Senato)
+      // Estrai legislatura dalla seduta o da URI
       let legislatura = null;
-      if (votazioneUri.includes('vs19') || votazioneUri.includes('19')) {
+      if (camera === 'Senato' && result.sedutaLegislatura?.value) {
+        legislatura = parseInt(result.sedutaLegislatura.value);
+      } else if (camera === 'Camera' && result.sedutaLegislatura?.value) {
+        legislatura = parseInt(result.sedutaLegislatura.value);
+      } else if (votazioneUri.includes('vs19') || votazioneUri.includes('19')) {
         legislatura = 19;
       }
       
       // Determina esito in base alla camera
       let esito = null;
+      let approvato = null;
       if (camera === 'Camera') {
         // Camera usa approvato (1 o 0)
-        esito = result.approvato?.value === '1' || result.approvato?.value === 1 ? 'Approvato' : 
-                result.approvato?.value === '0' || result.approvato?.value === 0 ? 'Non Approvato' : null;
+        approvato = result.approvato?.value === '1' || result.approvato?.value === 1 ? 1 : 
+                   result.approvato?.value === '0' || result.approvato?.value === 0 ? 0 : null;
+        esito = approvato === 1 ? 'Approvato' : approvato === 0 ? 'Non Approvato' : null;
       } else if (camera === 'Senato') {
         // Senato usa favorevoli e contrari
         const favorevoli = parseInt(result.favorevoli?.value || 0);
         const contrari = parseInt(result.contrari?.value || 0);
-        const maggioranza = parseInt(result.maggioranza?.value || 0);
         if (favorevoli > contrari) {
           esito = 'Approvato';
         } else if (contrari > favorevoli) {
           esito = 'Non Approvato';
         }
-        // Se pari, potrebbe essere necessario controllare altri fattori
       }
       
-      // Estrai data dalla seduta se disponibile (Camera) o da altri metadati
+      // Estrai data dalla seduta
       let dataVotazione = null;
-      if (camera === 'Camera' && result.dataSeduta?.value) {
-        // La data della seduta può essere usata come data della votazione
-        try {
-          dataVotazione = new Date(result.dataSeduta.value).toISOString().split('T')[0];
-        } catch (e) {
-          // Se non è una data valida, prova a parsarla
-          const dateStr = result.dataSeduta.value;
-          if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-            dataVotazione = dateStr.split('T')[0];
-          }
+      if (camera === 'Camera' && result.sedutaData?.value) {
+        // Camera: formato YYYYMMDD (es. 20230607)
+        const dateStr = result.sedutaData.value;
+        if (dateStr.match(/^\d{8}$/)) {
+          // Formato YYYYMMDD
+          const year = dateStr.substring(0, 4);
+          const month = dateStr.substring(4, 6);
+          const day = dateStr.substring(6, 8);
+          dataVotazione = `${year}-${month}-${day}`;
+        }
+      } else if (camera === 'Senato' && result.sedutaData?.value) {
+        // Senato: formato YYYY-MM-DD
+        const dateStr = result.sedutaData.value;
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+          dataVotazione = dateStr.split('T')[0];
         }
       }
+      
+      // Estrai numero seduta
+      const numeroSeduta = result.sedutaNumero?.value || null;
+      
+      // Estrai titolo seduta (solo Camera)
+      const titoloSeduta = result.sedutaTitle?.value || null;
       
       votazioni[votazioneUri] = {
         uri: votazioneUri,
         votazione_id: votazioneUri.split('/').pop() || votazioneUri,
-        legislatura: legislatura,
-        data_votazione: dataVotazione,
-        descrizione: result.label?.value || null,
-        esito: esito,
-        sigla_atto: null,
-        numero_atto: null,
-        tipo_atto: result.tipoVotazione?.value || null, // Senato ha tipoVotazione
         camera: camera,
-        seduta: result.seduta?.value || null,
+        titolo: result.label?.value || 'Votazione parlamentare',
+        descrizione: result.label?.value || null,
+        data_votazione: dataVotazione,
+        esito: esito,
+        uri_seduta: result.seduta?.value || null,
+        numero_seduta: numeroSeduta,
+        titolo_seduta: titoloSeduta,
+        legislatura: legislatura,
+        // Dati specifici Senato
+        favorevoli: camera === 'Senato' ? parseInt(result.favorevoli?.value || 0) : null,
+        contrari: camera === 'Senato' ? parseInt(result.contrari?.value || 0) : null,
+        presenti: camera === 'Senato' ? parseInt(result.presenti?.value || 0) : null,
+        votanti: camera === 'Senato' ? parseInt(result.votanti?.value || 0) : null,
+        maggioranza: camera === 'Senato' ? parseInt(result.maggioranza?.value || 0) : null,
+        tipo_votazione: camera === 'Senato' ? result.tipoVotazione?.value || null : null,
+        // Dati specifici Camera
+        approvato: camera === 'Camera' ? approvato : null,
+        // Metadati aggiuntivi
         metadati: {
           label: result.label?.value || null,
           approvato: result.approvato?.value || null,
@@ -257,21 +359,97 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
           votanti: result.votanti?.value || null,
           tipoVotazione: result.tipoVotazione?.value || null,
           seduta: result.seduta?.value || null,
-          dataSeduta: result.dataSeduta?.value || null,
+          sedutaData: result.sedutaData?.value || null,
+          sedutaNumero: result.sedutaNumero?.value || null,
+          sedutaTitle: result.sedutaTitle?.value || null,
+          sedutaLegislatura: result.sedutaLegislatura?.value || null,
           camera: camera
         }
       };
     }
   }
 
-  // Salva nel database
-  const savedCount = await saveVotazioniToDatabase(Object.values(votazioni));
-  console.log(`✅ Salvate ${savedCount} votazioni nel database per ${camera}`);
+  // Salva nella tabella "parlamento"
+  const savedCount = await saveVotazioniToParlamento(Object.values(votazioni));
+  console.log(`✅ Salvate ${savedCount} votazioni nella tabella parlamento per ${camera}`);
 
   return Object.values(votazioni);
 }
 
-// Funzione helper per salvare le votazioni nel database
+// Funzione helper per salvare le votazioni nella tabella "parlamento"
+async function saveVotazioniToParlamento(votazioni) {
+  let savedCount = 0;
+  let errorCount = 0;
+  
+  console.log(`💾 Tentativo di salvare ${votazioni.length} votazioni nella tabella parlamento...`);
+  
+  for (const votazione of votazioni) {
+    try {
+      const result = await pool.query(
+        `INSERT INTO parlamento (
+          uri, votazione_id, camera, titolo, descrizione, data_votazione, esito,
+          uri_seduta, numero_seduta, titolo_seduta, legislatura,
+          favorevoli, contrari, presenti, votanti, maggioranza, tipo_votazione,
+          approvato, metadati
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb)
+        ON CONFLICT (uri) 
+        DO UPDATE SET
+          titolo = EXCLUDED.titolo,
+          descrizione = EXCLUDED.descrizione,
+          data_votazione = EXCLUDED.data_votazione,
+          esito = EXCLUDED.esito,
+          uri_seduta = EXCLUDED.uri_seduta,
+          numero_seduta = EXCLUDED.numero_seduta,
+          titolo_seduta = EXCLUDED.titolo_seduta,
+          legislatura = EXCLUDED.legislatura,
+          favorevoli = EXCLUDED.favorevoli,
+          contrari = EXCLUDED.contrari,
+          presenti = EXCLUDED.presenti,
+          votanti = EXCLUDED.votanti,
+          maggioranza = EXCLUDED.maggioranza,
+          tipo_votazione = EXCLUDED.tipo_votazione,
+          approvato = EXCLUDED.approvato,
+          metadati = EXCLUDED.metadati,
+          updated_at = CURRENT_TIMESTAMP,
+          data_sincronizzazione = CURRENT_TIMESTAMP`,
+        [
+          votazione.uri,
+          votazione.votazione_id,
+          votazione.camera,
+          votazione.titolo,
+          votazione.descrizione,
+          votazione.data_votazione,
+          votazione.esito,
+          votazione.uri_seduta,
+          votazione.numero_seduta,
+          votazione.titolo_seduta,
+          votazione.legislatura,
+          votazione.favorevoli,
+          votazione.contrari,
+          votazione.presenti,
+          votazione.votanti,
+          votazione.maggioranza,
+          votazione.tipo_votazione,
+          votazione.approvato,
+          JSON.stringify(votazione.metadati)
+        ]
+      );
+      savedCount++;
+      if (savedCount % 10 === 0) {
+        console.log(`  💾 Salvate ${savedCount}/${votazioni.length} votazioni...`);
+      }
+    } catch (error) {
+      errorCount++;
+      console.error(`❌ Errore nel salvare votazione ${votazione.uri}:`, error.message);
+      console.error(`❌ Dettagli errore:`, error);
+    }
+  }
+  
+  console.log(`✅ Salvataggio completato: ${savedCount} salvate, ${errorCount} errori`);
+  return savedCount;
+}
+
+// Funzione helper per salvare le votazioni nel database (legacy - mantiene compatibilità)
 async function saveVotazioniToDatabase(votazioni) {
   let savedCount = 0;
   let errorCount = 0;
@@ -564,7 +742,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
     const useCache = req.query.cache !== 'false'; // Default true, usa cache se disponibile
     console.log(`🔍 GET /api/voti-politici/ultime - Richiesta ultime ${limit} votazioni per Camera e Senato (cache: ${useCache})`);
     
-    await ensureTableExists();
+    await ensureParlamentoTableExists();
     
     const result = {
       camera: [],
@@ -575,37 +753,43 @@ router.get('/ultime', verifyToken, async (req, res) => {
     async function getVotazioni(camera, limitCount) {
       let votazioni = [];
       
-      // Se cache è abilitata, prova prima a recuperare dal database
+      // Se cache è abilitata, prova prima a recuperare dalla tabella "parlamento"
       if (useCache) {
         try {
           const query = `
-            SELECT DISTINCT ON (vp.descrizione, vp.camera, vp.data_votazione)
-              vp.id as id,
-              vp.uri,
-              vp.votazione_id,
-              vp.legislatura,
-              vp.data_votazione,
-              vp.descrizione,
-              vp.esito,
-              vp.sigla_atto,
-              vp.numero_atto,
-              vp.tipo_atto,
-              vp.camera,
-              vp.metadati,
-              vp.data_sincronizzazione,
-              vp.data_aggiornamento
-            FROM voti_politici vp
-            WHERE vp.descrizione IS NOT NULL 
-              AND vp.descrizione != ''
-              AND vp.descrizione != 'N/A'
-              AND vp.camera = $1
+            SELECT 
+              p.id,
+              p.uri,
+              p.votazione_id,
+              p.camera,
+              p.titolo,
+              p.descrizione,
+              p.data_votazione,
+              p.esito,
+              p.uri_seduta,
+              p.numero_seduta,
+              p.titolo_seduta,
+              p.legislatura,
+              p.favorevoli,
+              p.contrari,
+              p.presenti,
+              p.votanti,
+              p.maggioranza,
+              p.tipo_votazione,
+              p.approvato,
+              p.metadati,
+              p.created_at,
+              p.updated_at,
+              p.data_sincronizzazione
+            FROM parlamento p
+            WHERE p.titolo IS NOT NULL 
+              AND p.titolo != ''
+              AND p.titolo != 'N/A'
+              AND p.camera = $1
             ORDER BY 
-              vp.descrizione,
-              vp.camera,
-              vp.data_votazione,
-              COALESCE(vp.data_votazione, vp.data_sincronizzazione) DESC NULLS LAST,
-              vp.data_sincronizzazione DESC NULLS LAST,
-              vp.data_aggiornamento DESC NULLS LAST
+              COALESCE(p.data_votazione, p.data_sincronizzazione) DESC NULLS LAST,
+              p.data_sincronizzazione DESC NULLS LAST,
+              p.updated_at DESC NULLS LAST
             LIMIT $2
           `;
           
@@ -618,25 +802,32 @@ router.get('/ultime', verifyToken, async (req, res) => {
               votazione_id: votazione.votazione_id,
               legislatura: votazione.legislatura,
               data_votazione: votazione.data_votazione || (votazione.data_sincronizzazione ? votazione.data_sincronizzazione.split('T')[0] : null),
-              titolo_votazione: votazione.descrizione || 'Votazione parlamentare',
-              descrizione: votazione.descrizione || 'Votazione parlamentare',
-              descrizione_completa: votazione.descrizione || 'Votazione parlamentare',
+              titolo_votazione: votazione.titolo || 'Votazione parlamentare',
+              descrizione: votazione.descrizione || votazione.titolo || 'Votazione parlamentare',
+              descrizione_votazione: votazione.descrizione || votazione.titolo || 'Votazione parlamentare',
+              descrizione_completa: votazione.descrizione || votazione.titolo || 'Votazione parlamentare',
               esito: votazione.esito,
-              sigla_atto: votazione.sigla_atto,
-              numero_atto: votazione.numero_atto,
-              tipo_atto: votazione.tipo_atto,
+              sigla_atto: null,
+              numero_atto: null,
+              tipo_atto: votazione.tipo_votazione,
               camera: votazione.camera || camera,
               spiegazione: votazione.metadati?.spiegazione || null,
-              url_votazione: votazione.metadati?.url_votazione || votazione.uri || null,
-              numero_seduta: votazione.metadati?.seduta || votazione.metadati?.numero_seduta || null,
+              url_votazione: votazione.uri || null,
+              numero_seduta: votazione.numero_seduta || null,
+              titolo_seduta: votazione.titolo_seduta || null,
+              favorevoli: votazione.favorevoli,
+              contrari: votazione.contrari,
+              presenti: votazione.presenti,
+              votanti: votazione.votanti,
+              maggioranza: votazione.maggioranza,
+              approvato: votazione.approvato,
               metadati: votazione.metadati || {},
-              seduta: votazione.metadati?.seduta || null,
               data_sincronizzazione: votazione.data_sincronizzazione,
-              data_aggiornamento: votazione.data_aggiornamento,
+              data_aggiornamento: votazione.updated_at,
               source: 'database'
             }));
             
-            console.log(`✅ Trovate ${votazioni.length} votazioni ${camera} in cache`);
+            console.log(`✅ Trovate ${votazioni.length} votazioni ${camera} nella tabella parlamento`);
           }
         } catch (dbError) {
           console.warn(`⚠️ Errore nel recupero da database per ${camera}, recupero da SPARQL:`, dbError.message);
@@ -678,21 +869,28 @@ router.get('/ultime', verifyToken, async (req, res) => {
               votazione_id: votazione.votazione_id,
               legislatura: votazione.legislatura,
               data_votazione: votazione.data_votazione || null,
-              titolo_votazione: votazione.descrizione || 'Votazione parlamentare',
-              descrizione: votazione.descrizione || 'Votazione parlamentare',
-              descrizione_completa: votazione.descrizione || 'Votazione parlamentare',
+              titolo_votazione: votazione.titolo || votazione.descrizione || 'Votazione parlamentare',
+              descrizione: votazione.descrizione || votazione.titolo || 'Votazione parlamentare',
+              descrizione_votazione: votazione.descrizione || votazione.titolo || 'Votazione parlamentare',
+              descrizione_completa: votazione.descrizione || votazione.titolo || 'Votazione parlamentare',
               esito: votazione.esito,
-              sigla_atto: votazione.sigla_atto,
-              numero_atto: votazione.numero_atto,
-              tipo_atto: votazione.tipo_atto,
+              sigla_atto: null,
+              numero_atto: null,
+              tipo_atto: votazione.tipo_votazione,
               camera: votazione.camera || camera,
               spiegazione: votazione.metadati?.spiegazione || null,
-              url_votazione: votazione.metadati?.url_votazione || votazione.uri || null,
-              numero_seduta: votazione.metadati?.seduta || votazione.metadati?.numero_seduta || null,
+              url_votazione: votazione.uri || null,
+              numero_seduta: votazione.numero_seduta || null,
+              titolo_seduta: votazione.titolo_seduta || null,
+              favorevoli: votazione.favorevoli,
+              contrari: votazione.contrari,
+              presenti: votazione.presenti,
+              votanti: votazione.votanti,
+              maggioranza: votazione.maggioranza,
+              approvato: votazione.approvato,
               metadati: votazione.metadati || {},
-              seduta: votazione.metadati?.seduta || null,
               data_sincronizzazione: votazione.data_sincronizzazione || new Date().toISOString(),
-              data_aggiornamento: votazione.data_aggiornamento || new Date().toISOString(),
+              data_aggiornamento: new Date().toISOString(),
               source: 'sparql'
             }));
             
