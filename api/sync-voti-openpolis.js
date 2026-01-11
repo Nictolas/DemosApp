@@ -25,10 +25,10 @@ async function getUltimaVotazione(urlOpenpolis) {
     // Prova prima con l'URL originale
     try {
       response = await axios.get(urlOpenpolis, {
-        headers: {
-          'Accept': 'text/html',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
         timeout: 15000,
         validateStatus: function (status) {
           return status < 500; // Accetta anche 404 per gestirlo
@@ -778,16 +778,16 @@ async function getPolitici(deputatiFile = null) {
             return url && url.trim() !== '' && url.startsWith('https://parlamento19.openpolis.it');
           })
           .map(row => {
-            return {
-              politico_nome: row.politico_nome,
-              camera: row.camera,
+          return {
+            politico_nome: row.politico_nome,
+            camera: row.camera,
               url_openpolis: row.url_openpolis.trim(),
-              user_id: row.user_id,
-              nome: row.nome,
-              cognome: row.cognome,
-              data_nascita: row.data_nascita
-            };
-          });
+            user_id: row.user_id,
+            nome: row.nome,
+            cognome: row.cognome,
+            data_nascita: row.data_nascita
+          };
+        });
         
         console.log(`[OK] Trovati ${politiciConUrl.length} politici con URL configurato (su ${result.rows.length} totali)`);
         return politiciConUrl;
