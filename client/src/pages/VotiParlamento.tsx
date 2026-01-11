@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
-import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -246,12 +246,11 @@ export default function VotiParlamento() {
                       {votazioniCamera.map((votazione, index) => (
                         <Card
                           key={`camera-${votazione.votazione_id}`}
-                          className={`transition-all hover:shadow-lg cursor-pointer ${
+                          className={`transition-all hover:shadow-lg ${
                             index === 0
                               ? "border-2 border-green-500 shadow-md"
                               : "border"
                           }`}
-                          onClick={() => handleVotazioneClick(votazione)}
                         >
                     <CardHeader>
                       <div className="flex items-start justify-between">
@@ -429,6 +428,18 @@ export default function VotiParlamento() {
                           </p>
                         </div>
                       )}
+                      
+                      {/* Pulsante Dettagli */}
+                      <div className="pt-4 border-t">
+                        <Button
+                          onClick={() => handleVotazioneClick(votazione)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Dettagli
+                        </Button>
+                      </div>
                         </CardContent>
                       </Card>
                       ))}
@@ -537,6 +548,18 @@ export default function VotiParlamento() {
                                 </p>
                               </div>
                             )}
+                            
+                            {/* Pulsante Dettagli */}
+                            <div className="pt-4 border-t">
+                              <Button
+                                onClick={() => handleVotazioneClick(votazione)}
+                                variant="outline"
+                                className="w-full"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Dettagli
+                              </Button>
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
