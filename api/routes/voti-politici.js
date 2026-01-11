@@ -1457,10 +1457,16 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
         
         console.log(`✅ Recuperati ${votiNominali.favorevoli.length} favorevoli, ${votiNominali.contrari.length} contrari, ${votiNominali.astenuti.length} astenuti`);
         
+        // Salva i voti nominali nella tabella cache
+        await saveVotiNominaliToCache(decodedUri, votazione.camera, votiNominali, bindingsFav, bindingsContr, bindingsAst);
+        
       } catch (error) {
         console.warn(`⚠️ Errore nel recupero voti nominali: ${error.message}`);
         // Continua senza voti nominali
       }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Errore nel recupero voti nominali dalla cache: ${error.message}`);
     }
     
     // Formatta la risposta
