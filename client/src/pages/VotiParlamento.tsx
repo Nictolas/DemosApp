@@ -989,6 +989,7 @@ export default function VotiParlamento() {
                   </p>
                 </div>
               )}
+              </div>
             </ScrollArea>
           </DialogContent>
         </Dialog>
