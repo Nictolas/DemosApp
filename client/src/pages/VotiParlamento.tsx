@@ -131,7 +131,7 @@ export default function VotiParlamento() {
   };
 
   // Funzione per caricare i dettagli di una votazione
-  const handleVotazioneClick = async (votazione: VotazioneParlamento) => {
+  const handleVotazioneClick = async (votazione: VotazioneParlamento, forceRegenerate = false) => {
     console.log('🔍 Click su votazione:', votazione);
     console.log('🔍 URI disponibile:', votazione.uri);
     
@@ -145,13 +145,18 @@ export default function VotiParlamento() {
       return;
     }
 
-    setSelectedVotazione(votazione);
+    if (!forceRegenerate) {
+      setSelectedVotazione(votazione);
+    }
     setLoadingDettagli(true);
-    setDettagliVotazione(null);
 
     try {
       const encodedUri = encodeURIComponent(votazione.uri);
-      const response = await apiRequest("GET", `/api/voti-politici/dettagli/${encodedUri}`);
+      const url = forceRegenerate 
+        ? `/api/voti-politici/dettagli/${encodedUri}?force=true`
+        : `/api/voti-politici/dettagli/${encodedUri}`;
+      
+      const response = await apiRequest("GET", url);
       
       if (!response.ok) {
         throw new Error("Errore nel recupero dei dettagli");
@@ -159,18 +164,34 @@ export default function VotiParlamento() {
 
       const result = await response.json();
       setDettagliVotazione(result.data);
+      
+      if (forceRegenerate) {
+        toast({
+          title: "Analisi rigenerata",
+          description: "L'analisi della legge è stata rigenerata con successo",
+        });
+      }
     } catch (error) {
       console.error("Errore nel caricamento dettagli:", error);
       toast({
         title: "Errore",
-        description: "Impossibile caricare i dettagli della votazione",
+        description: forceRegenerate 
+          ? "Impossibile rigenerare l'analisi della legge"
+          : "Impossibile caricare i dettagli della votazione",
         variant: "destructive",
       });
       // Mostra comunque i dettagli base dalla card
-      setDettagliVotazione(votazione as DettagliVotazione);
+      if (!forceRegenerate) {
+        setDettagliVotazione(votazione as DettagliVotazione);
+      }
     } finally {
       setLoadingDettagli(false);
     }
+  };
+
+  const handleRigeneraAnalisi = async () => {
+    if (!selectedVotazione) return;
+    await handleVotazioneClick(selectedVotazione, true);
   };
 
   return (
@@ -605,122 +626,122 @@ export default function VotiParlamento() {
                 </div>
               ) : dettagliVotazione ? (
                 <div className="space-y-6 pb-4">
-                  {/* Informazioni Generali */}
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <Info className="h-5 w-5" />
-                      Informazioni Generali
-                    </h3>
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Camera</p>
-                          <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
-                            {dettagliVotazione.camera}
-                          </Badge>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Data</p>
-                          <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Esito</p>
-                          <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
-                            {dettagliVotazione.esito || "N/A"}
-                          </Badge>
-                        </div>
-                        {dettagliVotazione.legislatura && (
+                  {/* Informazioni Generali, Statistiche Votazione, Descrizione e Informazioni Aggiuntive - Stessa Riga */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Informazioni Generali */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Info className="h-5 w-5" />
+                        Informazioni Generali
+                      </h3>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="space-y-3">
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
-                            <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
+                            <p className="text-xs text-muted-foreground mb-1">Camera</p>
+                            <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
+                              {dettagliVotazione.camera}
+                            </Badge>
                           </div>
-                        )}
-                        {dettagliVotazione.numero_seduta && (
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Seduta</p>
-                            <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
+                            <p className="text-xs text-muted-foreground mb-1">Data</p>
+                            <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
                           </div>
-                        )}
-                        {dettagliVotazione.tipo_votazione && (
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
-                            <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
+                            <p className="text-xs text-muted-foreground mb-1">Esito</p>
+                            <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
+                              {dettagliVotazione.esito || "N/A"}
+                            </Badge>
                           </div>
-                        )}
+                          {dettagliVotazione.legislatura && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
+                              <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.numero_seduta && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Seduta</p>
+                              <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.tipo_votazione && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
+                              <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <Separator />
-
-                  {/* Statistiche Votazione, Descrizione e Informazioni Aggiuntive - Stessa Riga */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Statistiche Votazione */}
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
                         <Users className="h-5 w-5" />
                         Statistiche Votazione
                       </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {dettagliVotazione.favorevoli !== null && (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              <p className="text-xs text-green-700 font-medium">Favorevoli</p>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          {dettagliVotazione.favorevoli !== null && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <p className="text-xs text-green-700 font-medium">Favorevoli</p>
+                              </div>
+                              <p className="text-2xl font-bold text-green-800">{dettagliVotazione.favorevoli}</p>
                             </div>
-                            <p className="text-2xl font-bold text-green-800">{dettagliVotazione.favorevoli}</p>
-                          </div>
-                        )}
-                        {dettagliVotazione.contrari !== null && (
-                          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <XCircle className="h-4 w-4 text-red-600" />
-                              <p className="text-xs text-red-700 font-medium">Contrari</p>
+                          )}
+                          {dettagliVotazione.contrari !== null && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                <p className="text-xs text-red-700 font-medium">Contrari</p>
+                              </div>
+                              <p className="text-2xl font-bold text-red-800">{dettagliVotazione.contrari}</p>
                             </div>
-                            <p className="text-2xl font-bold text-red-800">{dettagliVotazione.contrari}</p>
-                          </div>
-                        )}
-                        {dettagliVotazione.astenuti !== null && dettagliVotazione.astenuti > 0 && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <MinusCircle className="h-4 w-4 text-yellow-600" />
-                              <p className="text-xs text-yellow-700 font-medium">Astenuti</p>
+                          )}
+                          {dettagliVotazione.astenuti !== null && dettagliVotazione.astenuti > 0 && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <MinusCircle className="h-4 w-4 text-yellow-600" />
+                                <p className="text-xs text-yellow-700 font-medium">Astenuti</p>
+                              </div>
+                              <p className="text-2xl font-bold text-yellow-800">{dettagliVotazione.astenuti}</p>
                             </div>
-                            <p className="text-2xl font-bold text-yellow-800">{dettagliVotazione.astenuti}</p>
-                          </div>
-                        )}
-                        {dettagliVotazione.presenti !== null && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Users className="h-4 w-4 text-blue-600" />
-                              <p className="text-xs text-blue-700 font-medium">Presenti</p>
+                          )}
+                          {dettagliVotazione.presenti !== null && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Users className="h-4 w-4 text-blue-600" />
+                                <p className="text-xs text-blue-700 font-medium">Presenti</p>
+                              </div>
+                              <p className="text-2xl font-bold text-blue-800">{dettagliVotazione.presenti}</p>
                             </div>
-                            <p className="text-2xl font-bold text-blue-800">{dettagliVotazione.presenti}</p>
-                          </div>
-                        )}
-                        {dettagliVotazione.votanti !== null && (
-                          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Vote className="h-4 w-4 text-purple-600" />
-                              <p className="text-xs text-purple-700 font-medium">Votanti</p>
+                          )}
+                          {dettagliVotazione.votanti !== null && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Vote className="h-4 w-4 text-purple-600" />
+                                <p className="text-xs text-purple-700 font-medium">Votanti</p>
+                              </div>
+                              <p className="text-2xl font-bold text-purple-800">{dettagliVotazione.votanti}</p>
                             </div>
-                            <p className="text-2xl font-bold text-purple-800">{dettagliVotazione.votanti}</p>
-                          </div>
-                        )}
-                        {dettagliVotazione.maggioranza !== null && (
-                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Info className="h-4 w-4 text-indigo-600" />
-                              <p className="text-xs text-indigo-700 font-medium">Maggioranza</p>
+                          )}
+                          {dettagliVotazione.maggioranza !== null && (
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Info className="h-4 w-4 text-indigo-600" />
+                                <p className="text-xs text-indigo-700 font-medium">Maggioranza</p>
+                              </div>
+                              <p className="text-2xl font-bold text-indigo-800">{dettagliVotazione.maggioranza}</p>
                             </div>
-                            <p className="text-2xl font-bold text-indigo-800">{dettagliVotazione.maggioranza}</p>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Descrizione */}
-                    {dettagliVotazione.descrizione && (
+                    {dettagliVotazione.descrizione ? (
                       <div className="space-y-3">
                         <h3 className="text-lg font-semibold">Descrizione</h3>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -729,10 +750,17 @@ export default function VotiParlamento() {
                           </p>
                         </div>
                       </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold">Descrizione</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <p className="text-sm text-gray-500 italic">Nessuna descrizione disponibile</p>
+                        </div>
+                      </div>
                     )}
 
                     {/* Informazioni Aggiuntive */}
-                    {(dettagliVotazione.presidente || dettagliVotazione.titolo_seduta || dettagliVotazione.numero_legale) && (
+                    {(dettagliVotazione.presidente || dettagliVotazione.titolo_seduta || dettagliVotazione.numero_legale) ? (
                       <div className="space-y-3">
                         <h3 className="text-lg font-semibold">Informazioni Aggiuntive</h3>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -756,6 +784,13 @@ export default function VotiParlamento() {
                               </div>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold">Informazioni Aggiuntive</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <p className="text-sm text-gray-500 italic">Nessuna informazione aggiuntiva disponibile</p>
                         </div>
                       </div>
                     )}
@@ -862,10 +897,31 @@ export default function VotiParlamento() {
                   {/* Analisi Legge */}
                   <Separator />
                   <div className="space-y-4">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                      <Sparkles className="h-6 w-6 text-purple-600" />
-                      Analisi della Legge
-                    </h2>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-bold flex items-center gap-2">
+                        <Sparkles className="h-6 w-6 text-purple-600" />
+                        Analisi della Legge
+                      </h2>
+                      <Button
+                        onClick={handleRigeneraAnalisi}
+                        disabled={loadingDettagli || !selectedVotazione}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        {loadingDettagli ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Rigenerazione...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4" />
+                            Rigenera Analisi
+                          </>
+                        )}
+                      </Button>
+                    </div>
                     
                     {/* Spiegazione Generale - Full Width */}
                     <div className="space-y-3">
