@@ -86,6 +86,29 @@ function estraiTipoAtto(titolo) {
 }
 
 /**
+ * Cerca informazioni web sulla legge specifica
+ */
+async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo) {
+  if (!numeroLegge) return null;
+
+  try {
+    // Costruisci query di ricerca
+    const query = `disegno di legge n. ${numeroLegge} senato italiano contenuto testo`;
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    
+    // Nota: In produzione, potresti usare un servizio come SerpAPI o Google Custom Search API
+    // Per ora, restituiamo null e lasciamo che l'AI usi le sue conoscenze
+    // Se hai accesso a un'API di ricerca web, integrala qui
+    
+    console.log(`🔍 Ricerca web per legge n. ${numeroLegge} (funzionalità da implementare con API di ricerca)`);
+    return null;
+  } catch (error) {
+    console.warn(`⚠️ Errore ricerca web per legge n. ${numeroLegge}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Genera la spiegazione generale della legge
  */
 async function generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, dataVotazione) {
@@ -93,29 +116,39 @@ async function generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoA
     throw new Error('API AI non configurata');
   }
 
-  const prompt = `Spiega in modo dettagliato e comprensibile (massimo 300 parole) questa legge italiana:
+  // Cerca informazioni web sulla legge (se disponibile)
+  const infoWeb = await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo);
 
-Titolo: "${titolo || 'N/A'}"
+  // Costruisci il prompt migliorato
+  let prompt = `IMPORTANTE: Il tuo compito è spiegare COSA È e COSA FA la legge specifica "${numeroLegge ? `n. ${numeroLegge}` : titolo}".
+
+${numeroLegge ? `La legge n. ${numeroLegge}` : 'Questa legge'} è stata votata in ${camera || 'Parlamento'}${dataVotazione ? ` il ${dataVotazione}` : ''}.
+
+Titolo completo: "${titolo || 'N/A'}"
 ${descrizione ? `Descrizione: "${descrizione}"` : ''}
-${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
 ${tipoAtto ? `Tipo atto: ${tipoAtto}` : ''}
-Camera: ${camera || 'N/A'}
-${dataVotazione ? `Data votazione: ${dataVotazione}` : ''}
+${infoWeb ? `\nInformazioni aggiuntive trovate: ${infoWeb}` : ''}
+
+ISTRUZIONI SPECIFICHE:
+1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari
+2. Spiega COSA È questa legge specifica: contenuto, obiettivi, modifiche introdotte, ambiti di applicazione
+3. Spiega COSA FA questa legge: effetti pratici, cambiamenti normativi, chi ne beneficia, cosa cambia
+4. Se conosci questa legge specifica (es. "Disegno di legge n. 1718"), usa le tue conoscenze per spiegarla in dettaglio
+5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
 
 La spiegazione deve:
-- Essere in italiano
-- Essere comprensibile per cittadini non esperti
-- Spiegare cosa fa la legge in modo dettagliato
-- Includere il contesto e gli obiettivi principali
+- Essere in italiano, chiara e comprensibile per cittadini non esperti
+- Includere il contesto e gli obiettivi principali della legge
 - Essere neutrale e obiettiva
-- Non superare le 300 parole
+- Massimo 300 parole
+- Focalizzarsi sul CONTENUTO della legge, non sul meccanismo di votazione
 
-Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
+Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
 
   const messages = [
     {
       role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Fornisci spiegazioni chiare, dettagliate e accessibili delle leggi italiane.'
+      content: 'Sei un esperto in diritto parlamentare italiano. Il tuo compito è spiegare COSA È e COSA FA una legge specifica, non spiegare meccanismi parlamentari come la "questione di fiducia". Fornisci spiegazioni chiare, dettagliate e accessibili sul contenuto concreto delle leggi italiane.'
     },
     {
       role: 'user',
@@ -160,22 +193,35 @@ async function generaEffettiPositivi(titolo, descrizione, numeroLegge) {
     throw new Error('API AI non configurata');
   }
 
-  const prompt = `Elenca i principali effetti positivi o benefici di questa legge italiana (massimo 10 punti):
+  const prompt = `Elenca i principali PRO (effetti positivi o benefici) se questa legge italiana viene APPROVATA (massimo 10 punti):
 
 Titolo: "${titolo || 'N/A'}"
 ${descrizione ? `Descrizione: "${descrizione}"` : ''}
 ${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
 
+IMPORTANTE:
+- Analizza i PRO della LEGGE SPECIFICA se viene approvata (cosa cambia in positivo, chi ne beneficia, quali problemi risolve)
+- NON analizzare i pro del meccanismo di votazione (questione di fiducia, ecc.)
+- NON analizzare i pro del processo parlamentare
+- Focalizzati sul CONTENUTO della legge e sui suoi effetti pratici se approvata
+
+Esempi di effetti positivi da considerare:
+- Benefici per cittadini, imprese, settori specifici
+- Risoluzione di problemi esistenti
+- Miglioramenti normativi o amministrativi
+- Semplificazioni o innovazioni introdotte
+- Protezioni o garanzie aggiunte
+
 Rispondi in formato elenco puntato (markdown), con ogni punto su una riga separata.
 Ogni punto deve essere chiaro e conciso (massimo 2 righe).
-Se non ci sono effetti positivi evidenti, indica "Nessun effetto positivo identificabile".
+Se non ci sono effetti positivi evidenti per questa legge specifica, indica "Nessun effetto positivo identificabile".
 
 Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
 
   const messages = [
     {
       role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Analizza le leggi in modo obiettivo e neutrale.'
+      content: 'Sei un esperto in diritto parlamentare italiano. Analizza i PRO (effetti positivi) di una legge specifica se viene APPROVATA. Focalizzati sul contenuto concreto della legge e sui suoi effetti pratici, non sui meccanismi parlamentari.'
     },
     {
       role: 'user',
@@ -220,22 +266,36 @@ async function generaEffettiNegativi(titolo, descrizione, numeroLegge) {
     throw new Error('API AI non configurata');
   }
 
-  const prompt = `Elenca i principali effetti negativi, criticità o potenziali problemi di questa legge italiana (massimo 10 punti):
+  const prompt = `Elenca i principali CONTRO (effetti negativi, criticità o potenziali problemi) se questa legge italiana viene APPROVATA (massimo 10 punti):
 
 Titolo: "${titolo || 'N/A'}"
 ${descrizione ? `Descrizione: "${descrizione}"` : ''}
 ${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
 
+IMPORTANTE:
+- Analizza i CONTRO della LEGGE SPECIFICA se viene approvata (cosa cambia in negativo, chi potrebbe essere svantaggiato, quali problemi potrebbe creare)
+- NON analizzare i contro del meccanismo di votazione (questione di fiducia, ecc.)
+- NON analizzare i contro del processo parlamentare
+- Focalizzati sul CONTENUTO della legge e sui suoi effetti pratici se approvata
+
+Esempi di effetti negativi da considerare:
+- Svantaggi per cittadini, imprese, settori specifici
+- Creazione di nuovi problemi o complicazioni
+- Costi o oneri aggiuntivi
+- Limitazioni di diritti o libertà
+- Criticità normative o amministrative
+- Rischi o conseguenze indesiderate
+
 Rispondi in formato elenco puntato (markdown), con ogni punto su una riga separata.
 Ogni punto deve essere chiaro e conciso (massimo 2 righe).
-Se non ci sono effetti negativi evidenti, indica "Nessun effetto negativo identificabile".
+Se non ci sono effetti negativi evidenti per questa legge specifica, indica "Nessun effetto negativo identificabile".
 
 Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
 
   const messages = [
     {
       role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Analizza le leggi in modo obiettivo e neutrale.'
+      content: 'Sei un esperto in diritto parlamentare italiano. Analizza i CONTRO (effetti negativi) di una legge specifica se viene APPROVATA. Focalizzati sul contenuto concreto della legge e sui suoi effetti pratici, non sui meccanismi parlamentari.'
     },
     {
       role: 'user',
