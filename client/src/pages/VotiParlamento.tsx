@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
-import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info, Eye } from "lucide-react";
+import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info, Eye, TrendingUp, TrendingDown, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,6 +45,17 @@ interface VotazioneParlamento {
   uri?: string;
 }
 
+interface AnalisiLegge {
+  spiegazione_generale?: string | null;
+  effetti_positivi?: string | null;
+  effetti_negativi?: string | null;
+  numero_legge?: string | null;
+  tipo_atto?: string | null;
+  provider_ai?: string | null;
+  modello_ai?: string | null;
+  data_generazione?: string | null;
+}
+
 interface DettagliVotazione extends VotazioneParlamento {
   voti_nominali?: {
     favorevoli: string[];
@@ -52,6 +63,7 @@ interface DettagliVotazione extends VotazioneParlamento {
     astenuti: string[];
   } | null;
   uri_seduta?: string | null;
+  analisi_legge?: AnalisiLegge | null;
 }
 
 export default function VotiParlamento() {
@@ -824,8 +836,8 @@ export default function VotiParlamento() {
                     </>
                   )}
 
-                  {/* Spiegazione AI */}
-                  {dettagliVotazione.spiegazione && (
+                  {/* Spiegazione AI (legacy) */}
+                  {dettagliVotazione.spiegazione && !dettagliVotazione.analisi_legge && (
                     <>
                       <Separator />
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -836,6 +848,90 @@ export default function VotiParlamento() {
                         <p className="text-sm text-blue-900 leading-relaxed">
                           {dettagliVotazione.spiegazione}
                         </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Analisi Legge: Spiegazione Generale */}
+                  {dettagliVotazione.analisi_legge?.spiegazione_generale && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-blue-600" />
+                          Spiegazione Generale
+                        </h3>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">
+                            {dettagliVotazione.analisi_legge.spiegazione_generale}
+                          </p>
+                          {dettagliVotazione.analisi_legge.numero_legge && (
+                            <p className="text-xs text-blue-700 mt-2">
+                              Legge n. {dettagliVotazione.analisi_legge.numero_legge}
+                              {dettagliVotazione.analisi_legge.tipo_atto && ` - ${dettagliVotazione.analisi_legge.tipo_atto}`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Analisi Legge: Effetti Positivi */}
+                  {dettagliVotazione.analisi_legge?.effetti_positivi && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-green-600" />
+                          Effetti Positivi
+                        </h3>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="text-sm text-green-900 leading-relaxed whitespace-pre-line">
+                            {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line, i) => {
+                              // Se la riga inizia con "-" o "*" o un numero, è un punto elenco
+                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                                return (
+                                  <div key={i} className="mb-2 flex items-start gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                  </div>
+                                );
+                              }
+                              // Altrimenti mostra come paragrafo normale
+                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Analisi Legge: Effetti Negativi */}
+                  {dettagliVotazione.analisi_legge?.effetti_negativi && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <TrendingDown className="h-5 w-5 text-red-600" />
+                          Effetti Negativi
+                        </h3>
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line">
+                            {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line, i) => {
+                              // Se la riga inizia con "-" o "*" o un numero, è un punto elenco
+                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                                return (
+                                  <div key={i} className="mb-2 flex items-start gap-2">
+                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                  </div>
+                                );
+                              }
+                              // Altrimenti mostra come paragrafo normale
+                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </>
                   )}
