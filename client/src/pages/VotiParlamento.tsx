@@ -605,54 +605,56 @@ export default function VotiParlamento() {
                 </div>
               ) : dettagliVotazione ? (
                 <div className="space-y-6 pb-4">
-                  {/* Informazioni Generali e Statistiche Votazione - Stessa Riga */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Informazioni Generali */}
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Info className="h-5 w-5" />
-                        Informazioni Generali
-                      </h3>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">Camera</p>
-                            <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
-                              {dettagliVotazione.camera}
-                            </Badge>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">Data</p>
-                            <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">Esito</p>
-                            <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
-                              {dettagliVotazione.esito || "N/A"}
-                            </Badge>
-                          </div>
-                          {dettagliVotazione.legislatura && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
-                              <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
-                            </div>
-                          )}
-                          {dettagliVotazione.numero_seduta && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Seduta</p>
-                              <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
-                            </div>
-                          )}
-                          {dettagliVotazione.tipo_votazione && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
-                              <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
-                            </div>
-                          )}
+                  {/* Informazioni Generali */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Info className="h-5 w-5" />
+                      Informazioni Generali
+                    </h3>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Camera</p>
+                          <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
+                            {dettagliVotazione.camera}
+                          </Badge>
                         </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Data</p>
+                          <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Esito</p>
+                          <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
+                            {dettagliVotazione.esito || "N/A"}
+                          </Badge>
+                        </div>
+                        {dettagliVotazione.legislatura && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
+                            <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
+                          </div>
+                        )}
+                        {dettagliVotazione.numero_seduta && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Seduta</p>
+                            <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
+                          </div>
+                        )}
+                        {dettagliVotazione.tipo_votazione && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
+                            <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </div>
 
+                  <Separator />
+
+                  {/* Statistiche Votazione, Descrizione e Informazioni Aggiuntive - Stessa Riga */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Statistiche Votazione */}
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -716,21 +718,50 @@ export default function VotiParlamento() {
                         )}
                       </div>
                     </div>
+
+                    {/* Descrizione */}
+                    {dettagliVotazione.descrizione && (
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold">Descrizione</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            {dettagliVotazione.descrizione}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Informazioni Aggiuntive */}
+                    {(dettagliVotazione.presidente || dettagliVotazione.titolo_seduta || dettagliVotazione.numero_legale) && (
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold">Informazioni Aggiuntive</h3>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <div className="space-y-2 text-sm">
+                            {dettagliVotazione.presidente && (
+                              <div>
+                                <p className="text-muted-foreground">Presidente:</p>
+                                <p className="font-medium">{dettagliVotazione.presidente}</p>
+                              </div>
+                            )}
+                            {dettagliVotazione.titolo_seduta && (
+                              <div>
+                                <p className="text-muted-foreground">Titolo Seduta:</p>
+                                <p className="font-medium">{dettagliVotazione.titolo_seduta}</p>
+                              </div>
+                            )}
+                            {dettagliVotazione.numero_legale && (
+                              <div>
+                                <p className="text-muted-foreground">Numero Legale:</p>
+                                <p className="font-medium">{dettagliVotazione.numero_legale}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <Separator />
-
-                  {/* Descrizione */}
-                  {dettagliVotazione.descrizione && (
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">Descrizione</h3>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {dettagliVotazione.descrizione}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Voti Nominali */}
+                  {/* Voti Nominali - Layout: Contrari (sinistra), Astenuti (centro), Favorevoli (destra) */}
                   {dettagliVotazione.voti_nominali && 
                    (dettagliVotazione.voti_nominali.favorevoli.length > 0 || 
                     dettagliVotazione.voti_nominali.contrari.length > 0 || 
@@ -743,98 +774,74 @@ export default function VotiParlamento() {
                           Voti Nominali
                         </h3>
                         
-                        {dettagliVotazione.voti_nominali.favorevoli.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              <h4 className="font-semibold text-green-800">
-                                Favorevoli ({dettagliVotazione.voti_nominali.favorevoli.length})
-                              </h4>
-                            </div>
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                              <div className="flex flex-wrap gap-2">
-                                {dettagliVotazione.voti_nominali.favorevoli.map((nome, i) => (
-                                  <Badge key={i} variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                                    {nome}
-                                  </Badge>
-                                ))}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Contrari - Sinistra */}
+                          {dettagliVotazione.voti_nominali.contrari.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                <h4 className="font-semibold text-red-800">
+                                  Contrari ({dettagliVotazione.voti_nominali.contrari.length})
+                                </h4>
                               </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {dettagliVotazione.voti_nominali.contrari.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <XCircle className="h-4 w-4 text-red-600" />
-                              <h4 className="font-semibold text-red-800">
-                                Contrari ({dettagliVotazione.voti_nominali.contrari.length})
-                              </h4>
-                            </div>
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                              <div className="flex flex-wrap gap-2">
-                                {dettagliVotazione.voti_nominali.contrari.map((nome, i) => (
-                                  <Badge key={i} variant="outline" className="bg-red-100 text-red-800 border-red-300">
-                                    {nome}
-                                  </Badge>
-                                ))}
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                <div className="flex flex-wrap gap-2">
+                                  {dettagliVotazione.voti_nominali.contrari.map((nome, i) => (
+                                    <Badge key={i} variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                                      {nome}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {dettagliVotazione.voti_nominali.astenuti.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <MinusCircle className="h-4 w-4 text-yellow-600" />
-                              <h4 className="font-semibold text-yellow-800">
-                                Astenuti ({dettagliVotazione.voti_nominali.astenuti.length})
-                              </h4>
-                            </div>
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-                              <div className="flex flex-wrap gap-2">
-                                {dettagliVotazione.voti_nominali.astenuti.map((nome, i) => (
-                                  <Badge key={i} variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                                    {nome}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Informazioni Aggiuntive */}
-                  {(dettagliVotazione.presidente || dettagliVotazione.titolo_seduta || dettagliVotazione.numero_legale) && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold">Informazioni Aggiuntive</h3>
-                        <div className="space-y-2 text-sm">
-                          {dettagliVotazione.presidente && (
-                            <div>
-                              <p className="text-muted-foreground">Presidente:</p>
-                              <p className="font-medium">{dettagliVotazione.presidente}</p>
                             </div>
                           )}
-                          {dettagliVotazione.titolo_seduta && (
-                            <div>
-                              <p className="text-muted-foreground">Titolo Seduta:</p>
-                              <p className="font-medium">{dettagliVotazione.titolo_seduta}</p>
+
+                          {/* Astenuti - Centro */}
+                          {dettagliVotazione.voti_nominali.astenuti.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <MinusCircle className="h-4 w-4 text-yellow-600" />
+                                <h4 className="font-semibold text-yellow-800">
+                                  Astenuti ({dettagliVotazione.voti_nominali.astenuti.length})
+                                </h4>
+                              </div>
+                              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                <div className="flex flex-wrap gap-2">
+                                  {dettagliVotazione.voti_nominali.astenuti.map((nome, i) => (
+                                    <Badge key={i} variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                      {nome}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           )}
-                          {dettagliVotazione.numero_legale && (
-                            <div>
-                              <p className="text-muted-foreground">Numero Legale:</p>
-                              <p className="font-medium">{dettagliVotazione.numero_legale}</p>
+
+                          {/* Favorevoli - Destra */}
+                          {dettagliVotazione.voti_nominali.favorevoli.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <h4 className="font-semibold text-green-800">
+                                  Favorevoli ({dettagliVotazione.voti_nominali.favorevoli.length})
+                                </h4>
+                              </div>
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                                <div className="flex flex-wrap gap-2">
+                                  {dettagliVotazione.voti_nominali.favorevoli.map((nome, i) => (
+                                    <Badge key={i} variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                                      {nome}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
                       </div>
                     </>
                   )}
+
 
                   {/* Spiegazione AI (legacy) */}
                   {dettagliVotazione.spiegazione && !dettagliVotazione.analisi_legge && (

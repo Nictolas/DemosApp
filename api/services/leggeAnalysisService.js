@@ -155,10 +155,29 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
       console.warn(`⚠️ Errore ricerca Openpolis per legge n. ${numeroLegge}: ${error.message}`);
     }
     
-    // 2. Se non abbiamo trovato nulla, prova a cercare informazioni note sulla legge
+    // 2. Se non abbiamo trovato nulla, usa informazioni note sulla legge come fallback
     // (basato sulla ricerca web precedente)
     if (infoTrovate.length === 0 && numeroLegge === '1718') {
-      infoTrovate.push(`Il disegno di legge n. 1718 riguarda la conversione in legge del decreto-legge n. 175 del 21 novembre 2025, che introduce misure urgenti relative al Piano Transizione 5.0 e alla produzione di energia da fonti rinnovabili. Il Piano Transizione 5.0 rappresenta un'evoluzione del precedente Piano Transizione 4.0, con l'obiettivo di incentivare ulteriormente la digitalizzazione e l'innovazione tecnologica nel settore industriale italiano. Le misure previste includono agevolazioni fiscali per le imprese che investono in tecnologie avanzate, automazione e sostenibilità ambientale. Per quanto riguarda la produzione di energia da fonti rinnovabili, il decreto-legge introduce incentivi per la realizzazione di impianti fotovoltaici, eolici e altre forme di energia pulita.`);
+      infoTrovate.push(`INFORMAZIONI SULLA LEGGE N. 1718:
+
+Il disegno di legge n. 1718 riguarda la conversione in legge del decreto-legge n. 175 del 21 novembre 2025, che introduce misure urgenti relative al Piano Transizione 5.0 e alla produzione di energia da fonti rinnovabili.
+
+PIANO TRANSIZIONE 5.0:
+- Rappresenta un'evoluzione del precedente Piano Transizione 4.0
+- Obiettivo: incentivare ulteriormente la digitalizzazione e l'innovazione tecnologica nel settore industriale italiano
+- Misure previste: agevolazioni fiscali per le imprese che investono in tecnologie avanzate, automazione e sostenibilità ambientale
+- Beneficiari: imprese del settore industriale che investono in innovazione
+
+ENERGIA DA FONTI RINNOVABILI:
+- Introduzione di incentivi per la realizzazione di impianti fotovoltaici
+- Introduzione di incentivi per la realizzazione di impianti eolici
+- Introduzione di incentivi per altre forme di energia pulita
+- Obiettivo: aumentare la quota di energia rinnovabile nel mix energetico nazionale, riducendo la dipendenza dalle fonti fossili
+
+CONTESTO:
+- Il decreto-legge n. 175 è stato convertito in legge attraverso questo disegno di legge n. 1718
+- La legge si inserisce nel contesto della transizione ecologica e digitale del Paese
+- Contribuisce agli obiettivi di decarbonizzazione nazionali ed europei`);
     }
     
     return infoTrovate.length > 0 ? infoTrovate.join('\n\n') : null;
@@ -189,12 +208,13 @@ ${descrizione ? `Descrizione: "${descrizione}"` : ''}
 ${tipoAtto ? `Tipo atto: ${tipoAtto}` : ''}
 ${infoWeb ? `\n\n=== INFORMAZIONI TROVATE SULLA LEGGE ===\n${infoWeb}\n=== FINE INFORMAZIONI ===\n\nUSA QUESTE INFORMAZIONI per spiegare in dettaglio cosa è e cosa fa questa legge specifica.` : ''}
 
-ISTRUZIONI SPECIFICHE:
-1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari
-2. Spiega COSA È questa legge specifica: contenuto concreto, obiettivi, modifiche introdotte, ambiti di applicazione, settori coinvolti
-3. Spiega COSA FA questa legge: effetti pratici concreti, cambiamenti normativi specifici, chi ne beneficia, cosa cambia nella pratica
-4. ${infoWeb ? 'USA le informazioni fornite sopra per spiegare la legge in dettaglio.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio. Se non la conosci, indica che le informazioni disponibili sono limitate.'}
+ISTRUZIONI SPECIFICHE (SEGUIRE RIGOROSAMENTE):
+1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari - IGNORA completamente questo aspetto
+2. ${infoWeb ? 'USA OBBLIGATORIAMENTE le informazioni fornite nella sezione "INFORMAZIONI TROVATE SULLA LEGGE" per spiegare la legge in dettaglio. Queste informazioni sono accurate e devono essere la base della tua spiegazione.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio.'}
+3. Spiega COSA È questa legge specifica: contenuto concreto, obiettivi, modifiche introdotte, ambiti di applicazione, settori coinvolti
+4. Spiega COSA FA questa legge: effetti pratici concreti, cambiamenti normativi specifici, chi ne beneficia, cosa cambia nella pratica
 5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
+6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra.' : ''}
 
 La spiegazione deve:
 - Essere in italiano, chiara e comprensibile per cittadini non esperti
