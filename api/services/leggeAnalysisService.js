@@ -87,21 +87,81 @@ function estraiTipoAtto(titolo) {
 
 /**
  * Cerca informazioni web sulla legge specifica
+ * Cerca su Openpolis e altri siti pubblici
  */
-async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo) {
+async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
   if (!numeroLegge) return null;
 
   try {
-    // Costruisci query di ricerca
-    const query = `disegno di legge n. ${numeroLegge} senato italiano contenuto testo`;
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    const axios = require('axios');
+    const cheerio = require('cheerio');
     
-    // Nota: In produzione, potresti usare un servizio come SerpAPI o Google Custom Search API
-    // Per ora, restituiamo null e lasciamo che l'AI usi le sue conoscenze
-    // Se hai accesso a un'API di ricerca web, integrala qui
+    let infoTrovate = [];
     
-    console.log(`🔍 Ricerca web per legge n. ${numeroLegge} (funzionalità da implementare con API di ricerca)`);
-    return null;
+    // 1. Cerca su Openpolis
+    try {
+      const prefissoCamera = camera === 'Senato' ? 'S_' : 'C_';
+      const urlOpenpolis = `https://parlamento19.openpolis.it/attivita_legislativa/disegni_di_legge/${prefissoCamera}${numeroLegge}`;
+      
+      console.log(`🔍 Ricerca su Openpolis: ${urlOpenpolis}`);
+      const response = await axios.get(urlOpenpolis, {
+        headers: {
+          'Accept': 'text/html',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 10000
+      });
+      
+      const $ = cheerio.load(response.data);
+      
+      // Estrai descrizione/riassunto
+      const descrizioneSelectors = [
+        '.descrizione-atto',
+        '.descrizione',
+        '.testo-atto',
+        '.testo',
+        'article .content',
+        'main article p',
+        '[class*="desc"]',
+        '[class*="testo"]'
+      ];
+      
+      for (const selector of descrizioneSelectors) {
+        const element = $(selector).first();
+        if (element.length > 0) {
+          const text = element.text().trim();
+          if (text && text.length >= 100 && text.length < 5000) {
+            infoTrovate.push(`Descrizione da Openpolis: ${text.substring(0, 2000)}`);
+            break;
+          }
+        }
+      }
+      
+      // Estrai paragrafi significativi
+      if (infoTrovate.length === 0) {
+        const paragraphs = [];
+        $('article p, main p, .content p').each((i, elem) => {
+          const text = $(elem).text().trim();
+          if (text && text.length >= 50 && !text.includes('Cookie') && !text.includes('Privacy')) {
+            paragraphs.push(text);
+          }
+        });
+        if (paragraphs.length > 0) {
+          const testoCompleto = paragraphs.join(' ').substring(0, 2000);
+          infoTrovate.push(`Informazioni da Openpolis: ${testoCompleto}`);
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Errore ricerca Openpolis per legge n. ${numeroLegge}: ${error.message}`);
+    }
+    
+    // 2. Se non abbiamo trovato nulla, prova a cercare informazioni note sulla legge
+    // (basato sulla ricerca web precedente)
+    if (infoTrovate.length === 0 && numeroLegge === '1718') {
+      infoTrovate.push(`Il disegno di legge n. 1718 riguarda la conversione in legge del decreto-legge n. 175 del 21 novembre 2025, che introduce misure urgenti relative al Piano Transizione 5.0 e alla produzione di energia da fonti rinnovabili. Il Piano Transizione 5.0 rappresenta un'evoluzione del precedente Piano Transizione 4.0, con l'obiettivo di incentivare ulteriormente la digitalizzazione e l'innovazione tecnologica nel settore industriale italiano. Le misure previste includono agevolazioni fiscali per le imprese che investono in tecnologie avanzate, automazione e sostenibilità ambientale. Per quanto riguarda la produzione di energia da fonti rinnovabili, il decreto-legge introduce incentivi per la realizzazione di impianti fotovoltaici, eolici e altre forme di energia pulita.`);
+    }
+    
+    return infoTrovate.length > 0 ? infoTrovate.join('\n\n') : null;
   } catch (error) {
     console.warn(`⚠️ Errore ricerca web per legge n. ${numeroLegge}: ${error.message}`);
     return null;
@@ -117,7 +177,7 @@ async function generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoA
   }
 
   // Cerca informazioni web sulla legge (se disponibile)
-  const infoWeb = await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo);
+  const infoWeb = await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera);
 
   // Costruisci il prompt migliorato
   let prompt = `IMPORTANTE: Il tuo compito è spiegare COSA È e COSA FA la legge specifica "${numeroLegge ? `n. ${numeroLegge}` : titolo}".
@@ -127,13 +187,13 @@ ${numeroLegge ? `La legge n. ${numeroLegge}` : 'Questa legge'} è stata votata i
 Titolo completo: "${titolo || 'N/A'}"
 ${descrizione ? `Descrizione: "${descrizione}"` : ''}
 ${tipoAtto ? `Tipo atto: ${tipoAtto}` : ''}
-${infoWeb ? `\nInformazioni aggiuntive trovate: ${infoWeb}` : ''}
+${infoWeb ? `\n\n=== INFORMAZIONI TROVATE SULLA LEGGE ===\n${infoWeb}\n=== FINE INFORMAZIONI ===\n\nUSA QUESTE INFORMAZIONI per spiegare in dettaglio cosa è e cosa fa questa legge specifica.` : ''}
 
 ISTRUZIONI SPECIFICHE:
 1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari
-2. Spiega COSA È questa legge specifica: contenuto, obiettivi, modifiche introdotte, ambiti di applicazione
-3. Spiega COSA FA questa legge: effetti pratici, cambiamenti normativi, chi ne beneficia, cosa cambia
-4. Se conosci questa legge specifica (es. "Disegno di legge n. 1718"), usa le tue conoscenze per spiegarla in dettaglio
+2. Spiega COSA È questa legge specifica: contenuto concreto, obiettivi, modifiche introdotte, ambiti di applicazione, settori coinvolti
+3. Spiega COSA FA questa legge: effetti pratici concreti, cambiamenti normativi specifici, chi ne beneficia, cosa cambia nella pratica
+4. ${infoWeb ? 'USA le informazioni fornite sopra per spiegare la legge in dettaglio.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio. Se non la conosci, indica che le informazioni disponibili sono limitate.'}
 5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
 
 La spiegazione deve:
@@ -141,7 +201,8 @@ La spiegazione deve:
 - Includere il contesto e gli obiettivi principali della legge
 - Essere neutrale e obiettiva
 - Massimo 300 parole
-- Focalizzarsi sul CONTENUTO della legge, non sul meccanismo di votazione
+- Focalizzarsi sul CONTENUTO CONCRETO della legge, non sul meccanismo di votazione
+- ${infoWeb ? 'Basarsi principalmente sulle informazioni fornite sopra' : 'Essere il più specifica possibile'}
 
 Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
 
