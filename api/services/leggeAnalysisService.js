@@ -86,8 +86,41 @@ function estraiTipoAtto(titolo) {
 }
 
 /**
+ * Estrae articoli e sezioni rilevanti dal testo HTML
+ */
+function estraiArticoliETesto($) {
+  const articoli = [];
+  const testo = [];
+  
+  // Cerca articoli (Art. 1, Art. 2, ecc.)
+  $('p, div, span').each((i, elem) => {
+    const text = $(elem).text().trim();
+    if (text.match(/^Art\.?\s*\d+[\.\)]/i) || text.match(/^Articolo\s+\d+/i)) {
+      articoli.push(text.substring(0, 1000));
+    }
+  });
+  
+  // Estrai paragrafi significativi
+  $('p, li, td').each((i, elem) => {
+    const text = $(elem).text().trim();
+    if (text.length >= 50 && 
+        !text.includes('Cookie') && 
+        !text.includes('Privacy') &&
+        !text.includes('Accetta') &&
+        !text.match(/^Menu|^Home|^Contatti/i)) {
+      testo.push(text);
+    }
+  });
+  
+  return {
+    articoli: articoli.slice(0, 20), // Limita a 20 articoli
+    testo: testo.slice(0, 50).join(' ') // Limita a 50 paragrafi
+  };
+}
+
+/**
  * Cerca informazioni web sulla legge specifica
- * Cerca su Openpolis e altri siti pubblici
+ * Cerca su Openpolis, Senato.it, Normattiva.it
  */
 async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
   if (!numeroLegge) return null;
@@ -97,8 +130,75 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
     const cheerio = require('cheerio');
     
     let infoTrovate = [];
+    let testoCompleto = '';
     
-    // 1. Cerca su Openpolis
+    // 1. Cerca su Senato.it (per DDL del Senato)
+    if (camera === 'Senato') {
+      try {
+        // URL pattern: https://www.senato.it/leg/19/BGT/Schede/Ddliter/testi/[numero]/[numero].htm
+        const urlSenato = `https://www.senato.it/leg/19/BGT/Schede/Ddliter/testi/${numeroLegge}/${numeroLegge}.htm`;
+        
+        console.log(`🔍 Ricerca su Senato.it: ${urlSenato}`);
+        const response = await axios.get(urlSenato, {
+          headers: {
+            'Accept': 'text/html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          timeout: 15000,
+          validateStatus: (status) => status < 500
+        });
+        
+        if (response.status === 200) {
+          const $ = cheerio.load(response.data);
+          const { articoli, testo } = estraiArticoliETesto($);
+          
+          if (articoli.length > 0) {
+            infoTrovate.push(`ARTICOLI DEL DDL N. ${numeroLegge} (da Senato.it):\n${articoli.join('\n\n---\n\n')}`);
+          }
+          
+          if (testo.length > 500) {
+            testoCompleto += `\n\nTESTO COMPLETO (da Senato.it):\n${testo.substring(0, 5000)}`;
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Errore ricerca Senato.it per legge n. ${numeroLegge}: ${error.message}`);
+      }
+    }
+    
+    // 2. Cerca su Normattiva.it (per decreto-legge convertito)
+    try {
+      // Per legge 1718 che converte il DL 175/2025
+      if (numeroLegge === '1718') {
+        const urlNormattiva = `https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2025-11-21;175`;
+        
+        console.log(`🔍 Ricerca su Normattiva.it per DL 175/2025`);
+        const response = await axios.get(urlNormattiva, {
+          headers: {
+            'Accept': 'text/html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          timeout: 15000,
+          validateStatus: (status) => status < 500
+        });
+        
+        if (response.status === 200) {
+          const $ = cheerio.load(response.data);
+          const { articoli, testo } = estraiArticoliETesto($);
+          
+          if (articoli.length > 0) {
+            infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Normattiva.it):\n${articoli.join('\n\n---\n\n')}`);
+          }
+          
+          if (testo.length > 500) {
+            testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Normattiva.it):\n${testo.substring(0, 5000)}`;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Errore ricerca Normattiva.it per legge n. ${numeroLegge}: ${error.message}`);
+    }
+    
+    // 3. Cerca su Openpolis
     try {
       const prefissoCamera = camera === 'Senato' ? 'S_' : 'C_';
       const urlOpenpolis = `https://parlamento19.openpolis.it/attivita_legislativa/disegni_di_legge/${prefissoCamera}${numeroLegge}`;
@@ -109,54 +209,41 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
           'Accept': 'text/html',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         },
-        timeout: 10000
+        timeout: 10000,
+        validateStatus: (status) => status < 500
       });
       
-      const $ = cheerio.load(response.data);
-      
-      // Estrai descrizione/riassunto
-      const descrizioneSelectors = [
-        '.descrizione-atto',
-        '.descrizione',
-        '.testo-atto',
-        '.testo',
-        'article .content',
-        'main article p',
-        '[class*="desc"]',
-        '[class*="testo"]'
-      ];
-      
-      for (const selector of descrizioneSelectors) {
-        const element = $(selector).first();
-        if (element.length > 0) {
-          const text = element.text().trim();
-          if (text && text.length >= 100 && text.length < 5000) {
-            infoTrovate.push(`Descrizione da Openpolis: ${text.substring(0, 2000)}`);
-            break;
+      if (response.status === 200) {
+        const $ = cheerio.load(response.data);
+        
+        // Estrai descrizione/riassunto
+        const descrizioneSelectors = [
+          '.descrizione-atto',
+          '.descrizione',
+          '.testo-atto',
+          '.testo',
+          'article .content',
+          'main article p',
+          '[class*="desc"]',
+          '[class*="testo"]'
+        ];
+        
+        for (const selector of descrizioneSelectors) {
+          const element = $(selector).first();
+          if (element.length > 0) {
+            const text = element.text().trim();
+            if (text && text.length >= 100 && text.length < 5000) {
+              infoTrovate.push(`Descrizione da Openpolis: ${text.substring(0, 2000)}`);
+              break;
+            }
           }
-        }
-      }
-      
-      // Estrai paragrafi significativi
-      if (infoTrovate.length === 0) {
-        const paragraphs = [];
-        $('article p, main p, .content p').each((i, elem) => {
-          const text = $(elem).text().trim();
-          if (text && text.length >= 50 && !text.includes('Cookie') && !text.includes('Privacy')) {
-            paragraphs.push(text);
-          }
-        });
-        if (paragraphs.length > 0) {
-          const testoCompleto = paragraphs.join(' ').substring(0, 2000);
-          infoTrovate.push(`Informazioni da Openpolis: ${testoCompleto}`);
         }
       }
     } catch (error) {
       console.warn(`⚠️ Errore ricerca Openpolis per legge n. ${numeroLegge}: ${error.message}`);
     }
     
-    // 2. Se non abbiamo trovato nulla, usa informazioni note sulla legge come fallback
-    // (basato sulla ricerca web precedente)
+    // 4. Fallback con informazioni note (se non abbiamo trovato nulla)
     if (infoTrovate.length === 0 && numeroLegge === '1718') {
       infoTrovate.push(`INFORMAZIONI SULLA LEGGE N. 1718:
 
@@ -172,15 +259,15 @@ ENERGIA DA FONTI RINNOVABILI:
 - Introduzione di incentivi per la realizzazione di impianti fotovoltaici
 - Introduzione di incentivi per la realizzazione di impianti eolici
 - Introduzione di incentivi per altre forme di energia pulita
-- Obiettivo: aumentare la quota di energia rinnovabile nel mix energetico nazionale, riducendo la dipendenza dalle fonti fossili
-
-CONTESTO:
-- Il decreto-legge n. 175 è stato convertito in legge attraverso questo disegno di legge n. 1718
-- La legge si inserisce nel contesto della transizione ecologica e digitale del Paese
-- Contribuisce agli obiettivi di decarbonizzazione nazionali ed europei`);
+- Obiettivo: aumentare la quota di energia rinnovabile nel mix energetico nazionale, riducendo la dipendenza dalle fonti fossili`);
     }
     
-    return infoTrovate.length > 0 ? infoTrovate.join('\n\n') : null;
+    // Combina tutte le informazioni trovate
+    const risultato = infoTrovate.length > 0 
+      ? infoTrovate.join('\n\n---\n\n') + testoCompleto
+      : null;
+    
+    return risultato;
   } catch (error) {
     console.warn(`⚠️ Errore ricerca web per legge n. ${numeroLegge}: ${error.message}`);
     return null;
@@ -210,19 +297,39 @@ ${infoWeb ? `\n\n=== INFORMAZIONI TROVATE SULLA LEGGE ===\n${infoWeb}\n=== FINE 
 
 ISTRUZIONI SPECIFICHE (SEGUIRE RIGOROSAMENTE):
 1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari - IGNORA completamente questo aspetto
-2. ${infoWeb ? 'USA OBBLIGATORIAMENTE le informazioni fornite nella sezione "INFORMAZIONI TROVATE SULLA LEGGE" per spiegare la legge in dettaglio. Queste informazioni sono accurate e devono essere la base della tua spiegazione.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio.'}
+2. ${infoWeb ? 'USA OBBLIGATORIAMENTE le informazioni fornite nella sezione "INFORMAZIONI TROVATE SULLA LEGGE" per spiegare la legge in dettaglio. Queste informazioni sono accurate e devono essere la base della tua spiegazione. Se negli articoli trovi percentuali, importi, scadenze o condizioni specifiche, includile nella spiegazione.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio.'}
 3. Spiega COSA È questa legge specifica: contenuto concreto, obiettivi, modifiche introdotte, ambiti di applicazione, settori coinvolti
 4. Spiega COSA FA questa legge: effetti pratici concreti, cambiamenti normativi specifici, chi ne beneficia, cosa cambia nella pratica
+
+FORMATO RICHIESTO PER LE MISURE (MOLTO IMPORTANTE):
+La spiegazione DEVE includere una sezione "MISURE PREVISTE" con elenco SCHEMATICO e PRECISO:
+- Per ogni misura: descrizione SPECIFICA (non generica come "agevolazioni fiscali", ma dettagliata)
+- Se disponibile negli articoli: percentuale esatta, importo specifico, scadenza, condizioni precise
+- Beneficiari specifici (non "le imprese" ma "imprese del settore X con requisiti Y")
+- Organizza per categoria quando possibile (es: "Misure Fiscali", "Misure Energetiche", "Misure Digitali")
+- Usa formato elenco puntato con sottopunti per dettagli
+
+ESEMPIO DI FORMATO RICHIESTO:
+"MISURE PREVISTE:
+• Agevolazione fiscale del X% per investimenti in [tecnologia specifica]
+  - Beneficiari: [categoria specifica di imprese]
+  - Condizioni: [requisiti specifici]
+  - Scadenza: [data se disponibile]
+• Incentivo di €X per impianti fotovoltaici
+  - Potenza minima: X kW
+  - Beneficiari: [specifica]
+..."
+
 5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
-6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra.' : ''}
+6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra. Se negli articoli non trovi dettagli specifici, indica "dettagli non disponibili" piuttosto che inventare.' : ''}
 
 La spiegazione deve:
 - Essere in italiano, chiara e comprensibile per cittadini non esperti
 - Includere il contesto e gli obiettivi principali della legge
 - Essere neutrale e obiettiva
-- Massimo 300 parole
+- Massimo 500 parole (più spazio per dettagli schematici)
 - Focalizzarsi sul CONTENUTO CONCRETO della legge, non sul meccanismo di votazione
-- ${infoWeb ? 'Basarsi principalmente sulle informazioni fornite sopra' : 'Essere il più specifica possibile'}
+- ${infoWeb ? 'Basarsi principalmente sulle informazioni fornite sopra, estraendo dettagli specifici dagli articoli quando disponibili. Se negli articoli trovi numeri, percentuali, importi, includili nella spiegazione.' : 'Essere il più specifica possibile'}
 
 Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
 
@@ -247,14 +354,14 @@ Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 600,
+        max_tokens: 1000,
         temperature: 0.7
       });
     } else {
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 600,
+        max_tokens: 1000,
         temperature: 0.7
       });
     }
