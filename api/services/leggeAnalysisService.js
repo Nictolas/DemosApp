@@ -234,11 +234,60 @@ function estraiArticoliETesto($) {
     }
   });
   
+  // Estrai anche da elementi con classi comuni per contenuti normativi
+  $('[class*="articolo"], [class*="testo"], [class*="contenuto"], [id*="articolo"], [id*="testo"]').each((i, elem) => {
+    const text = $(elem).text().trim();
+    if (text.length > 100 && 
+        !text.includes('Cookie') && 
+        !text.includes('Privacy') &&
+        !text.match(/^Menu|^Home|^Contatti|^Navigazione/i)) {
+      testo.push(text);
+      
+      // Cerca articoli anche in questi elementi
+      if (text.match(/Art\.?\s*\d+/i) || text.match(/Articolo\s+\d+/i)) {
+        const match = text.match(/(Art\.?\s*\d+[^\n]*(?:\n[^\n]*){0,10})/i);
+        if (match) {
+          articoli.push(match[0].substring(0, 2000));
+        }
+      }
+      
+      const dettagli = estraiDettagliNumerici(text);
+      if (dettagli) {
+        dettagliNumerici.push(dettagli);
+      }
+    }
+  });
+  
+  // Filtra testo troppo corto o non significativo
+  const testoFiltrato = testo.filter(t => {
+    // Rimuovi testo che sembra essere solo navigazione o menu
+    if (t.length < 30) return false;
+    if (t.match(/^(Menu|Home|Contatti|Navigazione|Cookie|Privacy|Accetta|Rifiuta)/i)) return false;
+    if (t.split(' ').length < 5) return false; // Almeno 5 parole
+    return true;
+  });
+  
+  // Combina tutti i dettagli numerici trovati
+  const tuttiDettagliNumerici = dettagliNumerici.length > 0 
+    ? dettagliNumerici.join('\n---\n')
+    : null;
+  
   const risultato = {
     articoli: articoli.slice(0, 30), // Aumentato a 30 articoli
-    testo: testo.slice(0, 100).join(' '), // Aumentato a 100 paragrafi
-    dettagliNumerici: dettagliNumerici.length > 0 ? dettagliNumerici.join('\n') : null
+    testo: testoFiltrato.slice(0, 100).join(' '), // Aumentato a 100 paragrafi
+    dettagliNumerici: tuttiDettagliNumerici
   };
+  
+  // Log per debug
+  if (articoli.length > 0) {
+    console.log(`   📜 Articoli estratti: ${articoli.length}`);
+  }
+  if (tuttiDettagliNumerici) {
+    console.log(`   🔢 Dettagli numerici estratti: ${dettagliNumerici.length} sezioni`);
+  }
+  if (testoFiltrato.length > 0) {
+    console.log(`   📄 Paragrafi significativi: ${testoFiltrato.length}`);
+  }
   
   return risultato;
 }
@@ -449,6 +498,14 @@ ENERGIA DA FONTI RINNOVABILI:
     const risultato = infoTrovate.length > 0 
       ? infoTrovate.join('\n\n---\n\n') + testoCompleto
       : null;
+    
+    // Log dettagliato per debug
+    console.log(`📊 Riepilogo ricerca web per legge n. ${numeroLegge}:`);
+    console.log(`   - Fonti consultate: ${infoTrovate.length}`);
+    console.log(`   - Articoli trovati: ${infoTrovate.filter(i => i.includes('ARTICOLI')).length}`);
+    console.log(`   - Dettagli numerici trovati: ${infoTrovate.filter(i => i.includes('DETTAGLI NUMERICI')).length}`);
+    console.log(`   - Testo completo: ${testoCompleto.length > 0 ? `${(testoCompleto.length / 1000).toFixed(1)} KB` : 'Nessuno'}`);
+    console.log(`   - Risultato finale: ${risultato ? `${(risultato.length / 1000).toFixed(1)} KB` : 'Nessuno'}`);
     
     return risultato;
   } catch (error) {
@@ -876,5 +933,6 @@ module.exports = {
   recuperaAnalisiDaCache,
   estraiNumeroLegge,
   estraiTipoAtto,
-  ensureTableExists
+  ensureTableExists,
+  cercaInformazioniLeggeWeb // Esportata per test
 };
