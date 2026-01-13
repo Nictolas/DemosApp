@@ -86,19 +86,115 @@ function estraiTipoAtto(titolo) {
 }
 
 /**
+ * Estrae dettagli numerici (percentuali, importi, date) dal testo
+ */
+function estraiDettagliNumerici(testo) {
+  const dettagli = [];
+  
+  // Pattern per percentuali (es: 50%, 30 per cento, 25%)
+  const percentuali = testo.match(/\d+[\.,]?\d*\s*%|(\d+[\.,]?\d*)\s*(per\s*cento|percento)/gi);
+  if (percentuali) {
+    dettagli.push(`Percentuali trovate: ${percentuali.join(', ')}`);
+  }
+  
+  // Pattern per importi (es: €1000, 5000 euro, 1.000.000 €)
+  const importi = testo.match(/€\s*\d+[\.,]?\d*[\.,]?\d*|\d+[\.,]?\d*[\.,]?\d*\s*(euro|€|miliardi|milioni)/gi);
+  if (importi) {
+    dettagli.push(`Importi trovati: ${importi.join(', ')}`);
+  }
+  
+  // Pattern per date (es: 31/12/2025, 2025-12-31)
+  const date = testo.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/g);
+  if (date) {
+    dettagli.push(`Date trovate: ${date.join(', ')}`);
+  }
+  
+  // Pattern per potenze/limiti (es: 50 kW, 100 MW)
+  const potenze = testo.match(/\d+[\.,]?\d*\s*(kW|MW|GW|kWh|MWh)/gi);
+  if (potenze) {
+    dettagli.push(`Potenze/Energie trovate: ${potenze.join(', ')}`);
+  }
+  
+  return dettagli.length > 0 ? dettagli.join('\n') : null;
+}
+
+/**
+ * Estrae articoli completi con tutto il contenuto associato
+ */
+function estraiArticoliCompleti($) {
+  const articoli = [];
+  const articoliMap = new Map();
+  
+  // Prima passata: trova tutti gli articoli
+  $('p, div, span, article, section').each((i, elem) => {
+    const text = $(elem).text().trim();
+    const match = text.match(/^(Art\.?\s*\d+|Articolo\s+\d+)[\.\)\s]/i);
+    
+    if (match) {
+      const numArt = match[1].replace(/[^\d]/g, '');
+      if (!articoliMap.has(numArt)) {
+        articoliMap.set(numArt, []);
+      }
+      
+      // Estrai tutto il contenuto dell'elemento e dei suoi figli
+      let contenutoCompleto = '';
+      $(elem).find('*').each((j, child) => {
+        const testoFiglio = $(child).text().trim();
+        if (testoFiglio && testoFiglio.length > 10) {
+          contenutoCompleto += testoFiglio + ' ';
+        }
+      });
+      
+      // Se non ci sono figli, usa il testo diretto
+      if (!contenutoCompleto) {
+        contenutoCompleto = text;
+      }
+      
+      articoliMap.get(numArt).push(contenutoCompleto);
+    }
+  });
+  
+  // Seconda passata: cerca contenuto associato agli articoli (paragrafi successivi)
+  let ultimoArticolo = null;
+  $('p, div, li').each((i, elem) => {
+    const text = $(elem).text().trim();
+    const match = text.match(/^(Art\.?\s*\d+|Articolo\s+\d+)[\.\)\s]/i);
+    
+    if (match) {
+      ultimoArticolo = match[1].replace(/[^\d]/g, '');
+    } else if (ultimoArticolo && text.length > 30 && 
+               !text.includes('Cookie') && 
+               !text.includes('Privacy') &&
+               !text.match(/^Menu|^Home|^Contatti/i)) {
+      // Aggiungi questo contenuto all'ultimo articolo trovato
+      if (articoliMap.has(ultimoArticolo)) {
+        articoliMap.get(ultimoArticolo).push(text);
+      }
+    }
+  });
+  
+  // Combina tutto il contenuto per ogni articolo
+  articoliMap.forEach((contenuti, numArt) => {
+    const contenutoCompleto = contenuti.join(' ').substring(0, 3000); // Limite più alto per articoli completi
+    if (contenutoCompleto.length > 100) {
+      articoli.push(`Art. ${numArt}: ${contenutoCompleto}`);
+    }
+  });
+  
+  return articoli;
+}
+
+/**
  * Estrae articoli e sezioni rilevanti dal testo HTML
  */
 function estraiArticoliETesto($) {
   const articoli = [];
   const testo = [];
+  const dettagliNumerici = [];
   
-  // Cerca articoli (Art. 1, Art. 2, ecc.)
-  $('p, div, span').each((i, elem) => {
-    const text = $(elem).text().trim();
-    if (text.match(/^Art\.?\s*\d+[\.\)]/i) || text.match(/^Articolo\s+\d+/i)) {
-      articoli.push(text.substring(0, 1000));
-    }
-  });
+  // Estrai articoli completi
+  const articoliCompleti = estraiArticoliCompleti($);
+  articoli.push(...articoliCompleti);
   
   // Estrai paragrafi significativi
   $('p, li, td').each((i, elem) => {
@@ -109,13 +205,42 @@ function estraiArticoliETesto($) {
         !text.includes('Accetta') &&
         !text.match(/^Menu|^Home|^Contatti/i)) {
       testo.push(text);
+      
+      // Estrai dettagli numerici da ogni paragrafo
+      const dettagli = estraiDettagliNumerici(text);
+      if (dettagli) {
+        dettagliNumerici.push(dettagli);
+      }
     }
   });
   
-  return {
-    articoli: articoli.slice(0, 20), // Limita a 20 articoli
-    testo: testo.slice(0, 50).join(' ') // Limita a 50 paragrafi
+  // Estrai anche da tabelle (spesso contengono dati strutturati)
+  $('table tr').each((i, row) => {
+    const celle = [];
+    $(row).find('td, th').each((j, cell) => {
+      const testo = $(cell).text().trim();
+      if (testo && testo.length > 5) {
+        celle.push(testo);
+      }
+    });
+    if (celle.length > 0) {
+      const rigaTabella = celle.join(' | ');
+      testo.push(rigaTabella);
+      
+      const dettagli = estraiDettagliNumerici(rigaTabella);
+      if (dettagli) {
+        dettagliNumerici.push(dettagli);
+      }
+    }
+  });
+  
+  const risultato = {
+    articoli: articoli.slice(0, 30), // Aumentato a 30 articoli
+    testo: testo.slice(0, 100).join(' '), // Aumentato a 100 paragrafi
+    dettagliNumerici: dettagliNumerici.length > 0 ? dettagliNumerici.join('\n') : null
   };
+  
+  return risultato;
 }
 
 /**
@@ -150,14 +275,18 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
         
         if (response.status === 200) {
           const $ = cheerio.load(response.data);
-          const { articoli, testo } = estraiArticoliETesto($);
+          const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
           
           if (articoli.length > 0) {
             infoTrovate.push(`ARTICOLI DEL DDL N. ${numeroLegge} (da Senato.it):\n${articoli.join('\n\n---\n\n')}`);
           }
           
+          if (dettagliNumerici) {
+            infoTrovate.push(`DETTAGLI NUMERICI (da Senato.it):\n${dettagliNumerici}`);
+          }
+          
           if (testo.length > 500) {
-            testoCompleto += `\n\nTESTO COMPLETO (da Senato.it):\n${testo.substring(0, 5000)}`;
+            testoCompleto += `\n\nTESTO COMPLETO (da Senato.it):\n${testo.substring(0, 8000)}`;
           }
         }
       } catch (error) {
@@ -169,10 +298,60 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
     try {
       // Per legge 1718 che converte il DL 175/2025
       if (numeroLegge === '1718') {
-        const urlNormattiva = `https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2025-11-21;175`;
+        // Prova più URL possibili per Normattiva
+        const urlsNormattiva = [
+          `https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2025-11-21;175`,
+          `https://www.normattiva.it/atto/caricaDettaglioAtto?atto.dataPubblicazioneGazzetta=2025-11-21&atto.codiceRedazionale=DL1752025`,
+          `https://www.normattiva.it/atto/caricaDettaglioAtto?atto.dataPubblicazioneGazzetta=2025-11-21&atto.codiceRedazionale=21G00217`
+        ];
         
-        console.log(`🔍 Ricerca su Normattiva.it per DL 175/2025`);
-        const response = await axios.get(urlNormattiva, {
+        for (const urlNormattiva of urlsNormattiva) {
+          try {
+            console.log(`🔍 Ricerca su Normattiva.it: ${urlNormattiva}`);
+            const response = await axios.get(urlNormattiva, {
+              headers: {
+                'Accept': 'text/html',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              timeout: 15000,
+              validateStatus: (status) => status < 500
+            });
+            
+            if (response.status === 200) {
+              const $ = cheerio.load(response.data);
+              const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
+              
+              if (articoli.length > 0) {
+                infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Normattiva.it):\n${articoli.join('\n\n---\n\n')}`);
+              }
+              
+              if (dettagliNumerici) {
+                infoTrovate.push(`DETTAGLI NUMERICI (da Normattiva.it):\n${dettagliNumerici}`);
+              }
+              
+              if (testo.length > 500) {
+                testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Normattiva.it):\n${testo.substring(0, 8000)}`;
+              }
+              
+              break; // Se trovato, esci dal loop
+            }
+          } catch (err) {
+            console.warn(`⚠️ Errore con URL Normattiva ${urlNormattiva}: ${err.message}`);
+            continue; // Prova il prossimo URL
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Errore ricerca Normattiva.it per legge n. ${numeroLegge}: ${error.message}`);
+    }
+    
+    // 2b. Cerca su Gazzetta Ufficiale (per DL 175/2025)
+    try {
+      if (numeroLegge === '1718') {
+        const urlGazzetta = `https://www.gazzettaufficiale.it/eli/id/2025/11/21/21G00217/sg`;
+        
+        console.log(`🔍 Ricerca su Gazzetta Ufficiale per DL 175/2025`);
+        const response = await axios.get(urlGazzetta, {
           headers: {
             'Accept': 'text/html',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -183,19 +362,23 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
         
         if (response.status === 200) {
           const $ = cheerio.load(response.data);
-          const { articoli, testo } = estraiArticoliETesto($);
+          const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
           
           if (articoli.length > 0) {
-            infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Normattiva.it):\n${articoli.join('\n\n---\n\n')}`);
+            infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Gazzetta Ufficiale):\n${articoli.join('\n\n---\n\n')}`);
+          }
+          
+          if (dettagliNumerici) {
+            infoTrovate.push(`DETTAGLI NUMERICI (da Gazzetta Ufficiale):\n${dettagliNumerici}`);
           }
           
           if (testo.length > 500) {
-            testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Normattiva.it):\n${testo.substring(0, 5000)}`;
+            testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Gazzetta Ufficiale):\n${testo.substring(0, 8000)}`;
           }
         }
       }
     } catch (error) {
-      console.warn(`⚠️ Errore ricerca Normattiva.it per legge n. ${numeroLegge}: ${error.message}`);
+      console.warn(`⚠️ Errore ricerca Gazzetta Ufficiale per legge n. ${numeroLegge}: ${error.message}`);
     }
     
     // 3. Cerca su Openpolis
@@ -304,20 +487,31 @@ ISTRUZIONI SPECIFICHE (SEGUIRE RIGOROSAMENTE):
 FORMATO RICHIESTO PER LE MISURE (MOLTO IMPORTANTE):
 La spiegazione DEVE includere una sezione "MISURE PREVISTE" con elenco SCHEMATICO e PRECISO:
 - Per ogni misura: descrizione SPECIFICA (non generica come "agevolazioni fiscali", ma dettagliata)
-- Se disponibile negli articoli: percentuale esatta, importo specifico, scadenza, condizioni precise
+- OBBLIGATORIO: Se negli articoli o nei dettagli numerici trovi percentuali, importi, date, potenze, includili ESATTAMENTE come scritti
 - Beneficiari specifici (non "le imprese" ma "imprese del settore X con requisiti Y")
 - Organizza per categoria quando possibile (es: "Misure Fiscali", "Misure Energetiche", "Misure Digitali")
 - Usa formato elenco puntato con sottopunti per dettagli
+- Se trovi "DETTAGLI NUMERICI" nella sezione informazioni, USA QUEI NUMERI nella spiegazione
+
+ISTRUZIONI PER L'ESTRAZIONE DEI DETTAGLI:
+1. Cerca nelle informazioni fornite la sezione "DETTAGLI NUMERICI" - contiene percentuali, importi, date, potenze già estratte
+2. Cerca negli articoli pattern come:
+   - "del X%" o "X per cento" → usa quella percentuale esatta
+   - "€X" o "X euro" o "X milioni" → usa quell'importo esatto
+   - "X kW" o "X MW" → usa quella potenza esatta
+   - Date come "31/12/2025" → usa quella data esatta
+3. Se trovi numeri negli articoli ma non sono chiaramente associati a una misura, cerca il contesto (paragrafi precedenti/successivi)
+4. NON scrivere "Dettagli non disponibili" se negli articoli ci sono numeri - cerca di associarli alle misure
 
 ESEMPIO DI FORMATO RICHIESTO:
 "MISURE PREVISTE:
-• Agevolazione fiscale del X% per investimenti in [tecnologia specifica]
-  - Beneficiari: [categoria specifica di imprese]
-  - Condizioni: [requisiti specifici]
-  - Scadenza: [data se disponibile]
-• Incentivo di €X per impianti fotovoltaici
-  - Potenza minima: X kW
-  - Beneficiari: [specifica]
+• Agevolazione fiscale del 50% per investimenti in tecnologie avanzate (se trovi "50%" negli articoli)
+  - Beneficiari: imprese del settore industriale con fatturato superiore a €5 milioni (se trovi questi dettagli)
+  - Condizioni: investimenti minimi di €100.000 in tecnologie 4.0 (se trovi questi dettagli)
+  - Scadenza: 31/12/2026 (se trovi questa data)
+• Incentivo di €500 per kW per impianti fotovoltaici (se trovi questo importo)
+  - Potenza minima: 20 kW (se trovi questa potenza)
+  - Beneficiari: imprese e privati (se specificato)
 ..."
 
 5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
