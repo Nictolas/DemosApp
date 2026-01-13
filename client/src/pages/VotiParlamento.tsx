@@ -585,7 +585,7 @@ export default function VotiParlamento() {
 
         {/* Dialog Dettagli Votazione */}
         <Dialog open={!!selectedVotazione} onOpenChange={(open) => !open && setSelectedVotazione(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-2xl flex items-center gap-2">
                 <Vote className="h-6 w-6 text-green-600" />
@@ -853,15 +853,15 @@ export default function VotiParlamento() {
                   )}
 
                   {/* Analisi Legge: Spiegazione Generale */}
-                  {dettagliVotazione.analisi_legge?.spiegazione_generale && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-blue-600" />
-                          Spiegazione Generale
-                        </h3>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-blue-600" />
+                      Spiegazione Generale
+                    </h3>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      {dettagliVotazione.analisi_legge?.spiegazione_generale ? (
+                        <>
                           <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">
                             {dettagliVotazione.analisi_legge.spiegazione_generale}
                           </p>
@@ -871,70 +871,78 @@ export default function VotiParlamento() {
                               {dettagliVotazione.analisi_legge.tipo_atto && ` - ${dettagliVotazione.analisi_legge.tipo_atto}`}
                             </p>
                           )}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-blue-700 italic">
+                          {loadingDettagli ? "Caricamento analisi..." : "Analisi in generazione. Ricarica la pagina tra qualche secondo."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Analisi Legge: Effetti Positivi */}
-                  {dettagliVotazione.analisi_legge?.effetti_positivi && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-green-600" />
-                          Effetti Positivi
-                        </h3>
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                          <div className="text-sm text-green-900 leading-relaxed whitespace-pre-line">
-                            {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line, i) => {
-                              // Se la riga inizia con "-" o "*" o un numero, è un punto elenco
-                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
-                                return (
-                                  <div key={i} className="mb-2 flex items-start gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
-                                  </div>
-                                );
-                              }
-                              // Altrimenti mostra come paragrafo normale
-                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
-                            })}
-                          </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      Effetti Positivi
+                    </h3>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      {dettagliVotazione.analisi_legge?.effetti_positivi ? (
+                        <div className="text-sm text-green-900 leading-relaxed whitespace-pre-line">
+                          {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line, i) => {
+                            // Se la riga inizia con "-" o "*" o un numero, è un punto elenco
+                            if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                              return (
+                                <div key={i} className="mb-2 flex items-start gap-2">
+                                  <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                  <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                </div>
+                              );
+                            }
+                            // Altrimenti mostra come paragrafo normale
+                            return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                          })}
                         </div>
-                      </div>
-                    </>
-                  )}
+                      ) : (
+                        <p className="text-sm text-green-700 italic">
+                          {loadingDettagli ? "Caricamento analisi..." : "Analisi in generazione. Ricarica la pagina tra qualche secondo."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Analisi Legge: Effetti Negativi */}
-                  {dettagliVotazione.analisi_legge?.effetti_negativi && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <TrendingDown className="h-5 w-5 text-red-600" />
-                          Effetti Negativi
-                        </h3>
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                          <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line">
-                            {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line, i) => {
-                              // Se la riga inizia con "-" o "*" o un numero, è un punto elenco
-                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
-                                return (
-                                  <div key={i} className="mb-2 flex items-start gap-2">
-                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
-                                  </div>
-                                );
-                              }
-                              // Altrimenti mostra come paragrafo normale
-                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
-                            })}
-                          </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5 text-red-600" />
+                      Effetti Negativi
+                    </h3>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      {dettagliVotazione.analisi_legge?.effetti_negativi ? (
+                        <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line">
+                          {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line, i) => {
+                            // Se la riga inizia con "-" o "*" o un numero, è un punto elenco
+                            if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                              return (
+                                <div key={i} className="mb-2 flex items-start gap-2">
+                                  <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                  <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                </div>
+                              );
+                            }
+                            // Altrimenti mostra come paragrafo normale
+                            return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                          })}
                         </div>
-                      </div>
-                    </>
-                  )}
+                      ) : (
+                        <p className="text-sm text-red-700 italic">
+                          {loadingDettagli ? "Caricamento analisi..." : "Analisi in generazione. Ricarica la pagina tra qualche secondo."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">
