@@ -1526,18 +1526,32 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     // Recupera o genera analisi legge (spiegazione generale + effetti positivi + negativi)
     let analisiLegge = null;
     try {
-      // Prima prova a recuperare dalla cache
-      analisiLegge = await recuperaAnalisiDaCache(decodedUri);
+      // Controlla se è richiesta la rigenerazione forzata
+      const forceRegenerate = req.query.force === 'true' || req.query.regenera === 'true';
       
-      // Se non c'è in cache, genera nuova analisi
-      if (!analisiLegge) {
-        console.log(`📝 Analisi legge non in cache, generazione nuova analisi...`);
+      if (forceRegenerate) {
+        console.log(`🔄 Rigenerazione forzata analisi legge per ${decodedUri}...`);
+        // Genera nuova analisi (sovrascriverà quella in cache)
         analisiLegge = await generaAnalisiLegge(decodedUri, {
           titolo: votazione.titolo,
           descrizione: descrizioneCompleta,
           camera: votazione.camera,
           data_votazione: votazione.data_votazione
         });
+      } else {
+        // Prima prova a recuperare dalla cache
+        analisiLegge = await recuperaAnalisiDaCache(decodedUri);
+        
+        // Se non c'è in cache, genera nuova analisi
+        if (!analisiLegge) {
+          console.log(`📝 Analisi legge non in cache, generazione nuova analisi...`);
+          analisiLegge = await generaAnalisiLegge(decodedUri, {
+            titolo: votazione.titolo,
+            descrizione: descrizioneCompleta,
+            camera: votazione.camera,
+            data_votazione: votazione.data_votazione
+          });
+        }
       }
       
       // Aggiungi analisi ai dettagli se disponibile
