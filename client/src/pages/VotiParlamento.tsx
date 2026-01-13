@@ -585,7 +585,7 @@ export default function VotiParlamento() {
 
         {/* Dialog Dettagli Votazione */}
         <Dialog open={!!selectedVotazione} onOpenChange={(open) => !open && setSelectedVotazione(null)}>
-          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !m-0 !rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 overflow-hidden flex flex-col p-6">
             <DialogHeader>
               <DialogTitle className="text-2xl flex items-center gap-2">
                 <Vote className="h-6 w-6 text-green-600" />
@@ -596,7 +596,7 @@ export default function VotiParlamento() {
               </DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 pr-4 max-h-[calc(95vh-120px)]">
+            <ScrollArea className="flex-1 pr-4">
               <div className="pr-4">
               {loadingDettagli ? (
                 <div className="flex items-center justify-center py-12">
@@ -605,73 +605,61 @@ export default function VotiParlamento() {
                 </div>
               ) : dettagliVotazione ? (
                 <div className="space-y-6 pb-4">
-                  {/* Informazioni Base */}
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <Info className="h-5 w-5" />
-                      Informazioni Generali
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Camera</p>
-                        <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
-                          {dettagliVotazione.camera}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Data</p>
-                        <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Esito</p>
-                        <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
-                          {dettagliVotazione.esito || "N/A"}
-                        </Badge>
-                      </div>
-                      {dettagliVotazione.legislatura && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
-                          <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
+                  {/* Informazioni Generali e Statistiche Votazione - Stessa Riga */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Informazioni Generali */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Info className="h-5 w-5" />
+                        Informazioni Generali
+                      </h3>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Camera</p>
+                            <Badge variant="outline" className={getCameraColor(dettagliVotazione.camera)}>
+                              {dettagliVotazione.camera}
+                            </Badge>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Data</p>
+                            <p className="text-sm font-medium">{formatDate(dettagliVotazione.data_votazione)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Esito</p>
+                            <Badge variant="outline" className={getEsitoColor(dettagliVotazione.esito || null)}>
+                              {dettagliVotazione.esito || "N/A"}
+                            </Badge>
+                          </div>
+                          {dettagliVotazione.legislatura && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Legislatura</p>
+                              <p className="text-sm font-medium">{dettagliVotazione.legislatura}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.numero_seduta && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Seduta</p>
+                              <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
+                            </div>
+                          )}
+                          {dettagliVotazione.tipo_votazione && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
+                              <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {dettagliVotazione.numero_seduta && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Seduta</p>
-                          <p className="text-sm font-medium">n. {dettagliVotazione.numero_seduta}</p>
-                        </div>
-                      )}
-                      {dettagliVotazione.tipo_votazione && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Tipo Votazione</p>
-                          <p className="text-sm font-medium">{dettagliVotazione.tipo_votazione}</p>
-                        </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
 
-                  <Separator />
-
-                  {/* Descrizione */}
-                  {dettagliVotazione.descrizione && (
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">Descrizione</h3>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {dettagliVotazione.descrizione}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Statistiche Votazione */}
-                  {(dettagliVotazione.favorevoli !== null || dettagliVotazione.contrari !== null || 
-                    dettagliVotazione.presenti !== null || dettagliVotazione.votanti !== null) && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <Users className="h-5 w-5" />
-                          Statistiche Votazione
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Statistiche Votazione */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Statistiche Votazione
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {dettagliVotazione.favorevoli !== null && (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                               <div className="flex items-center gap-2 mb-1">
@@ -728,7 +716,19 @@ export default function VotiParlamento() {
                           )}
                         </div>
                       </div>
-                    </>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Descrizione */}
+                  {dettagliVotazione.descrizione && (
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold">Descrizione</h3>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {dettagliVotazione.descrizione}
+                      </p>
+                    </div>
                   )}
 
                   {/* Voti Nominali */}
