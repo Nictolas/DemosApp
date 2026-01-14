@@ -208,7 +208,26 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const [loadingDettagli, setLoadingDettagli] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Funzione helper per rilevare date nel testo e verificare se sono passate
+  // Funzione helper per verificare se una data è un riferimento a una legge/decreto (non una scadenza)
+  const isRiferimentoLegge = (testoPrimaData: string): boolean => {
+    const testoLower = testoPrimaData.toLowerCase();
+    // Parole che indicano un riferimento normativo (non una scadenza)
+    const riferimentiNormativi = [
+      'legge', 'decreto', 'dl', 'ddl', 'd.l.', 'd.d.l.', 'decreto-legge',
+      'decreto legge', 'legge n.', 'legge numero', 'd.lgs.', 'd.p.r.',
+      'del decreto', 'della legge', 'dell\'articolo', 'dell\'art.',
+      'articolo', 'art.', 'comma', 'alinea', 'lettera'
+    ];
+    
+    // Controlla se nel testo prima della data c'è un riferimento normativo
+    return riferimentiNormativi.some(rif => {
+      // Cerca la parola seguita eventualmente da "n.", "numero", o direttamente dalla data
+      const pattern = new RegExp(`\\b${rif}\\s*(?:n\\.?|numero|del|della|dell')?\\s*$`, 'i');
+      return pattern.test(testoPrimaData);
+    });
+  };
+
+  // Funzione helper per rilevare date nel testo e verificare se sono passate (solo scadenze, non riferimenti a leggi)
   const rilevaScadenzePassate = (testo: string): Array<{ data: string; testo: string; passata: boolean }> => {
     const scadenze: Array<{ data: string; testo: string; passata: boolean }> = [];
     const oggi = new Date();
@@ -231,15 +250,24 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const data = new Date(anno, mese - 1, giorno);
       data.setHours(0, 0, 0, 0);
       
-      const inizioMatch = Math.max(0, match.index - 50);
+      const inizioMatch = Math.max(0, match.index - 100);
+      const testoPrimaData = testo.substring(inizioMatch, match.index);
+      
+      // Se è un riferimento a una legge/decreto, salta questa data
+      if (isRiferimentoLegge(testoPrimaData)) {
+        continue;
+      }
+      
       const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
       const contesto = testo.substring(inizioMatch, fineMatch);
       
-      scadenze.push({
-        data: match[0],
-        testo: contesto,
-        passata: data < oggi
-      });
+      if (data < oggi) {
+        scadenze.push({
+          data: match[0],
+          testo: contesto,
+          passata: true
+        });
+      }
     }
     
     while ((match = patternDateSlash.exec(testo)) !== null) {
@@ -249,15 +277,24 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const data = new Date(anno, mese - 1, giorno);
       data.setHours(0, 0, 0, 0);
       
-      const inizioMatch = Math.max(0, match.index - 50);
+      const inizioMatch = Math.max(0, match.index - 100);
+      const testoPrimaData = testo.substring(inizioMatch, match.index);
+      
+      // Se è un riferimento a una legge/decreto, salta questa data
+      if (isRiferimentoLegge(testoPrimaData)) {
+        continue;
+      }
+      
       const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
       const contesto = testo.substring(inizioMatch, fineMatch);
       
-      scadenze.push({
-        data: match[0],
-        testo: contesto,
-        passata: data < oggi
-      });
+      if (data < oggi) {
+        scadenze.push({
+          data: match[0],
+          testo: contesto,
+          passata: true
+        });
+      }
     }
     
     while ((match = patternDateISO.exec(testo)) !== null) {
@@ -267,15 +304,24 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const data = new Date(anno, mese - 1, giorno);
       data.setHours(0, 0, 0, 0);
       
-      const inizioMatch = Math.max(0, match.index - 50);
+      const inizioMatch = Math.max(0, match.index - 100);
+      const testoPrimaData = testo.substring(inizioMatch, match.index);
+      
+      // Se è un riferimento a una legge/decreto, salta questa data
+      if (isRiferimentoLegge(testoPrimaData)) {
+        continue;
+      }
+      
       const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
       const contesto = testo.substring(inizioMatch, fineMatch);
       
-      scadenze.push({
-        data: match[0],
-        testo: contesto,
-        passata: data < oggi
-      });
+      if (data < oggi) {
+        scadenze.push({
+          data: match[0],
+          testo: contesto,
+          passata: true
+        });
+      }
     }
     
     return scadenze;
