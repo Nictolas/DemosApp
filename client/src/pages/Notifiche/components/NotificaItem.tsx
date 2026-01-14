@@ -208,6 +208,44 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const [loadingDettagli, setLoadingDettagli] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Funzione helper per formattare il titolo in modo compatto
+  const formattaTitoloCompatto = (titolo: string): string => {
+    if (!titolo) return titolo;
+    
+    // Pattern per "Disegno di legge n. XXXX"
+    const patternDDL = /disegno\s+di\s+legge\s+n\.?\s*(\d+)/i;
+    const matchDDL = titolo.match(patternDDL);
+    
+    if (matchDDL) {
+      const numero = matchDDL[1];
+      return `DDL ${numero}`;
+    }
+    
+    // Pattern per "DDL XXXX" (già formato)
+    const patternDDLGià = /^DDL\s+(\d+)/i;
+    if (titolo.match(patternDDLGià)) {
+      return titolo.match(patternDDLGià)?.[0] || titolo;
+    }
+    
+    // Pattern per "Decreto-legge n. XXXX" o "DL n. XXXX"
+    const patternDL = /(?:decreto\s*[-]?\s*legge|DL|D\.L\.)\s+n\.?\s*(\d+)/i;
+    const matchDL = titolo.match(patternDL);
+    if (matchDL) {
+      const numero = matchDL[1];
+      return `DL ${numero}`;
+    }
+    
+    // Pattern per "Mozione n. XXXX"
+    const patternMozione = /mozione\s+n\.?\s*(\d+)/i;
+    const matchMozione = titolo.match(patternMozione);
+    if (matchMozione) {
+      const numero = matchMozione[1];
+      return `Mozione ${numero}`;
+    }
+    
+    return titolo;
+  };
+
   // Funzione helper per verificare se una data è un riferimento a una legge/decreto (non una scadenza)
   const isRiferimentoLegge = (testoPrimaData: string): boolean => {
     const testoLower = testoPrimaData.toLowerCase();
@@ -721,7 +759,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
               <Vote className="h-6 w-6 text-green-600" />
-              {dettagliVotazione?.titolo || notifica.titolo || "Dettagli Votazione"}
+              {formattaTitoloCompatto(dettagliVotazione?.titolo || notifica.titolo || "Dettagli Votazione")}
             </DialogTitle>
             <DialogDescription>
               Informazioni complete sulla votazione parlamentare
