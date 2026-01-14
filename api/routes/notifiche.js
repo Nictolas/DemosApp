@@ -528,7 +528,8 @@ router.get('/', async (req, res) => {
           }
         }
         
-        titolo = `${articoloETitolo} ${nomePolitico} ha votato ${voto} a ${titoloVotazioneAbbreviato}`;
+        // Evidenzia nome, voto e titolo votazione con HTML
+        titolo = `${articoloETitolo} <span class="font-bold underline">${nomePolitico}</span> ha votato <span class="font-bold underline">${voto}</span> a <span class="font-bold underline">${titoloVotazioneAbbreviato}</span>`;
         messaggio = c.testo || 'Nessun messaggio';
       } else {
         titolo = c.titolo || 'Nessun titolo';
