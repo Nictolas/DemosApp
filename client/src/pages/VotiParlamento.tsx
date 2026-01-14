@@ -207,6 +207,46 @@ function evidenziaScadenzePassate(testo: string): string {
   return testoEvidenziato;
 }
 
+// Funzione helper per formattare il titolo in modo compatto
+function formattaTitoloCompatto(titolo: string): string {
+  if (!titolo) return titolo;
+  
+  // Pattern per "Disegno di legge n. XXXX"
+  const patternDDL = /disegno\s+di\s+legge\s+n\.?\s*(\d+)/i;
+  const matchDDL = titolo.match(patternDDL);
+  
+  if (matchDDL) {
+    const numero = matchDDL[1];
+    // Rimuovi tutto dopo il numero (es: ". Votazione questione fiducia")
+    return `DDL ${numero}`;
+  }
+  
+  // Pattern per "DDL XXXX" (già formato)
+  const patternDDLGià = /^DDL\s+(\d+)/i;
+  if (titolo.match(patternDDLGià)) {
+    return titolo.match(patternDDLGià)?.[0] || titolo;
+  }
+  
+  // Pattern per "Decreto-legge n. XXXX" o "DL n. XXXX"
+  const patternDL = /(?:decreto\s*[-]?\s*legge|DL|D\.L\.)\s+n\.?\s*(\d+)/i;
+  const matchDL = titolo.match(patternDL);
+  if (matchDL) {
+    const numero = matchDL[1];
+    return `DL ${numero}`;
+  }
+  
+  // Pattern per "Mozione n. XXXX"
+  const patternMozione = /mozione\s+n\.?\s*(\d+)/i;
+  const matchMozione = titolo.match(patternMozione);
+  if (matchMozione) {
+    const numero = matchMozione[1];
+    return `Mozione ${numero}`;
+  }
+  
+  // Se non trova pattern, ritorna il titolo originale
+  return titolo;
+}
+
 export default function VotiParlamento() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -431,7 +471,7 @@ export default function VotiParlamento() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <CardTitle className="text-xl">
-                              {votazione.titolo_votazione || "Votazione senza titolo"}
+                              {formattaTitoloCompatto(votazione.titolo_votazione || "Votazione senza titolo")}
                             </CardTitle>
                             {index === 0 && (
                               <Badge className="bg-green-600 text-white">
@@ -643,7 +683,7 @@ export default function VotiParlamento() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <CardTitle className="text-xl">
-                                    {votazione.titolo_votazione || votazione.descrizione || "Votazione senza titolo"}
+                                    {formattaTitoloCompatto(votazione.titolo_votazione || votazione.descrizione || "Votazione senza titolo")}
                                   </CardTitle>
                                   {index === 0 && (
                                     <Badge className="bg-green-600 text-white">
@@ -751,7 +791,7 @@ export default function VotiParlamento() {
             <DialogHeader>
               <DialogTitle className="text-2xl flex items-center gap-2">
                 <Vote className="h-6 w-6 text-green-600" />
-                {dettagliVotazione?.titolo || selectedVotazione?.titolo_votazione || "Dettagli Votazione"}
+                {formattaTitoloCompatto(dettagliVotazione?.titolo || selectedVotazione?.titolo_votazione || "Dettagli Votazione")}
               </DialogTitle>
               <DialogDescription>
                 Informazioni complete sulla votazione parlamentare
