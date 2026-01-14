@@ -74,9 +74,11 @@ router.get('/', async (req, res) => {
               'notifiche_voti_parlamento' as tabella_origine,
               u.nome as politico_nome,
               u.cognome as politico_cognome,
-              u.avatar_config as politico_avatar_config
+              u.avatar_config as politico_avatar_config,
+              p.uri as uri_votazione
             FROM notifiche_voti_parlamento nvp
             LEFT JOIN users u ON nvp.id_utente = u.id
+            LEFT JOIN parlamento p ON LOWER(TRIM(p.titolo)) = LOWER(TRIM(nvp.titolo)) AND p.camera = nvp.camera
             WHERE nvp.id_utente = ANY($1::uuid[])
             ORDER BY COALESCE(nvp.data_creazione, CURRENT_TIMESTAMP) DESC
             LIMIT 50
@@ -484,7 +486,8 @@ router.get('/', async (req, res) => {
         utente_cognome: c.utente_cognome || null, // Cognome utente che ha fatto la segnalazione
         likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
-        tabella_origine: c.tabella_origine
+        tabella_origine: c.tabella_origine,
+        uri_votazione: c.uri_votazione || null // URI per aprire il dialog con i dettagli della votazione
       };
     });
     

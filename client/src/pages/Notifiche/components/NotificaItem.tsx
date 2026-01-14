@@ -13,6 +13,12 @@ import {
   getNotificaMessage,
   formatDate
 } from "../utils/notificheUtils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Vote, CheckCircle2, XCircle, MinusCircle, Users, Info, BookOpen, TrendingUp, TrendingDown, RefreshCw, Sparkles, AlertCircle } from "lucide-react";
 
 export const NotificaItem: React.FC<NotificaItemProps> = ({
   notifica,
@@ -197,10 +203,106 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     (notifica.tabella_origine === 'notifiche_voti_parlamento' ? 'voto_parlamento' : 'default');
   
   const style = getNotificaStyle(tipoNotifica);
+  const { toast } = useToast();
+  const [dettagliVotazione, setDettagliVotazione] = useState<any>(null);
+  const [loadingDettagli, setLoadingDettagli] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Handler per aprire il dialog con i dettagli della votazione
+  const handleNotificaClick = async () => {
+    if (tipoNotifica === 'voto_parlamento' && notifica.uri_votazione) {
+      setDialogOpen(true);
+      setLoadingDettagli(true);
+      
+      try {
+        const encodedUri = encodeURIComponent(notifica.uri_votazione);
+        const response = await apiRequest("GET", `/api/voti-politici/dettagli/${encodedUri}`);
+        
+        if (!response.ok) {
+          throw new Error("Errore nel recupero dei dettagli");
+        }
+        
+        const result = await response.json();
+        setDettagliVotazione(result.data);
+      } catch (error) {
+        console.error("Errore nel caricamento dettagli:", error);
+        toast({
+          title: "Errore",
+          description: "Impossibile caricare i dettagli della votazione",
+          variant: "destructive",
+        });
+        setDialogOpen(false);
+      } finally {
+        setLoadingDettagli(false);
+      }
+    }
+  };
+
+  // Funzioni helper per formattazione (copiate da VotiParlamento)
+  const formatDate = (date: string | null) => {
+    if (!date) return "N/A";
+    try {
+      return new Date(date).toLocaleDateString('it-IT', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return date;
+    }
+  };
+
+  const getCameraColor = (camera: string) => {
+    return camera === 'Senato' ? 'bg-red-100 text-red-800 border-red-300' : 'bg-blue-100 text-blue-800 border-blue-300';
+  };
+
+  const getEsitoColor = (esito: string | null) => {
+    if (!esito) return '';
+    if (esito.toLowerCase().includes('approvato') || esito.toLowerCase().includes('favorevole')) {
+      return 'bg-green-100 text-green-800 border-green-300';
+    }
+    if (esito.toLowerCase().includes('non approvato') || esito.toLowerCase().includes('contrario')) {
+      return 'bg-red-100 text-red-800 border-red-300';
+    }
+    return '';
+  };
+
+  const handleRegenerateAnalysis = async () => {
+    if (!notifica.uri_votazione) return;
+    
+    setLoadingDettagli(true);
+    try {
+      const encodedUri = encodeURIComponent(notifica.uri_votazione);
+      const response = await apiRequest("GET", `/api/voti-politici/dettagli/${encodedUri}?force=true`);
+      
+      if (!response.ok) {
+        throw new Error("Errore nella rigenerazione");
+      }
+      
+      const result = await response.json();
+      setDettagliVotazione(result.data);
+      
+      toast({
+        title: "Analisi rigenerata",
+        description: "L'analisi della legge è stata rigenerata con successo",
+      });
+    } catch (error) {
+      console.error("Errore nella rigenerazione:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile rigenerare l'analisi della legge",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDettagli(false);
+    }
+  };
 
   return (
+    <>
     <div
-      className={`p-4 rounded-lg border-2 ${style.bgColor} ${style.textColor} shadow-sm hover:shadow-md transition-shadow`}
+      className={`p-4 rounded-lg border-2 ${style.bgColor} ${style.textColor} shadow-sm hover:shadow-md transition-shadow ${tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? 'cursor-pointer' : ''}`}
+      onClick={tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? handleNotificaClick : undefined}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -492,5 +594,188 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         
       </div>
     </div>
+
+    {/* Dialog Dettagli Votazione - Solo per notifiche voto_parlamento */}
+    {tipoNotifica === 'voto_parlamento' && (
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !m-0 !rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 overflow-hidden flex flex-col p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <Vote className="h-6 w-6 text-green-600" />
+              {dettagliVotazione?.titolo || notifica.titolo || "Dettagli Votazione"}
+            </DialogTitle>
+            <DialogDescription>
+              Informazioni complete sulla votazione parlamentare
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 pr-4">
+            <div className="pr-4">
+            {loadingDettagli ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                <p className="ml-4 text-muted-foreground">Caricamento dettagli...</p>
+              </div>
+            ) : dettagliVotazione ? (
+              <div className="space-y-6 pb-4">
+                {/* Analisi Legge - Mostra subito in alto */}
+                <Separator />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <Sparkles className="h-6 w-6 text-purple-600" />
+                      Analisi della Legge
+                    </h2>
+                    <Button
+                      onClick={handleRegenerateAnalysis}
+                      disabled={loadingDettagli}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      {loadingDettagli ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Rigenerazione...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4" />
+                          Rigenera Analisi
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {/* Spiegazione Generale */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-blue-600" />
+                      Spiegazione Generale
+                    </h3>
+                    <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-5 min-h-[120px]">
+                      {dettagliVotazione.analisi_legge?.spiegazione_generale ? (
+                        <>
+                          <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">
+                            {dettagliVotazione.analisi_legge.spiegazione_generale}
+                          </p>
+                          {dettagliVotazione.analisi_legge.numero_legge && (
+                            <p className="text-xs text-blue-700 mt-3 font-semibold">
+                              Legge n. {dettagliVotazione.analisi_legge.numero_legge}
+                              {dettagliVotazione.analisi_legge.tipo_atto && ` - ${dettagliVotazione.analisi_legge.tipo_atto}`}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-center h-full min-h-[80px]">
+                          <p className="text-sm text-blue-700 italic">
+                            {loadingDettagli ? (
+                              <span className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Caricamento analisi...
+                              </span>
+                            ) : (
+                              "Analisi in generazione. Ricarica la pagina tra qualche secondo."
+                            )}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Effetti Positivi e Negativi */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Effetti Positivi */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-green-600" />
+                        Effetti Positivi
+                      </h3>
+                      <div className="bg-green-50 border-2 border-green-300 rounded-lg p-5 min-h-[200px]">
+                        {dettagliVotazione.analisi_legge?.effetti_positivi ? (
+                          <div className="text-sm text-green-900 leading-relaxed whitespace-pre-line">
+                            {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line, i) => {
+                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                                return (
+                                  <div key={i} className="mb-2 flex items-start gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                  </div>
+                                );
+                              }
+                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full min-h-[150px]">
+                            <p className="text-sm text-green-700 italic text-center">
+                              {loadingDettagli ? (
+                                <span className="flex items-center gap-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Caricamento...
+                                </span>
+                              ) : (
+                                "Analisi in generazione. Ricarica tra qualche secondo."
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Effetti Negativi */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <TrendingDown className="h-5 w-5 text-red-600" />
+                        Effetti Negativi
+                      </h3>
+                      <div className="bg-red-50 border-2 border-red-300 rounded-lg p-5 min-h-[200px]">
+                        {dettagliVotazione.analisi_legge?.effetti_negativi ? (
+                          <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line">
+                            {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line, i) => {
+                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                                return (
+                                  <div key={i} className="mb-2 flex items-start gap-2">
+                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                  </div>
+                                );
+                              }
+                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full min-h-[150px]">
+                            <p className="text-sm text-red-700 italic text-center">
+                              {loadingDettagli ? (
+                                <span className="flex items-center gap-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Caricamento...
+                                </span>
+                              ) : (
+                                "Analisi in generazione. Ricarica tra qualche secondo."
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12">
+                <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground text-center">
+                  Impossibile caricare i dettagli della votazione
+                </p>
+              </div>
+            )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   );
 };

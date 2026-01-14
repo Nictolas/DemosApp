@@ -36,6 +36,7 @@ export interface Notifica {
   comportamento_effettivo?: string;
   browser?: string;
   dispositivo?: string;
+  uri_votazione?: string; // URI per aprire il dialog con i dettagli della votazione (solo per voto_parlamento)
 }
 
 export interface NotificheData {
