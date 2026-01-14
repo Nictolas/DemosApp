@@ -398,6 +398,99 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
 
 // Funzione helper per salvare le votazioni nella tabella "parlamento"
 // Funzione per salvare i voti nominali nella tabella cache
+/**
+ * Crea notifiche per gli utenti che hanno scelto questo senatore
+ */
+async function creaNotificheParlamentoDaVotiNominali(nomePolitico, camera, titoloVotazione, voto, dataVotazione) {
+  try {
+    if (!nomePolitico || !titoloVotazione || !voto) {
+      return; // Non creare notifiche se non ci sono dati
+    }
+    
+    // Crea hash univoco per evitare duplicati
+    const crypto = require('crypto');
+    const hashInput = `${nomePolitico}-${titoloVotazione}`.toLowerCase().trim();
+    const votazioneHash = crypto.createHash('md5').update(hashInput).digest('hex');
+    
+    // Verifica se la notifica esiste già
+    const existingNotifica = await pool.query(
+      'SELECT id FROM notifiche_voti_parlamento WHERE votazione_hash = $1',
+      [votazioneHash]
+    );
+    
+    if (existingNotifica.rows.length > 0) {
+      return; // Notifica già esistente
+    }
+    
+    // Trova il politico nella tabella users per ottenere il suo ID
+    // Prova prima con nome completo, poi con nome + cognome
+    let politicoResult = await pool.query(
+      `SELECT id FROM users 
+       WHERE CONCAT(nome, ' ', cognome) = $1 
+         AND ruolo = 'P' 
+         AND grado_elezione = $2`,
+      [nomePolitico, camera === 'Senato' ? 'S' : 'C']
+    );
+    
+    // Se non trovato, prova a dividere nome e cognome
+    if (politicoResult.rows.length === 0) {
+      const partiNome = nomePolitico.trim().split(' ');
+      if (partiNome.length >= 2) {
+        const nome = partiNome[0];
+        const cognome = partiNome.slice(1).join(' ');
+        politicoResult = await pool.query(
+          `SELECT id FROM users 
+           WHERE nome = $1 AND cognome = $2 
+             AND ruolo = 'P' 
+             AND grado_elezione = $3`,
+          [nome, cognome, camera === 'Senato' ? 'S' : 'C']
+        );
+      }
+    }
+    
+    if (politicoResult.rows.length === 0) {
+      console.log(`[!] Politico ${nomePolitico} non trovato nella tabella users, notifica non creata`);
+      return;
+    }
+    
+    const politicoId = politicoResult.rows[0].id;
+    
+    // Trova gli utenti che hanno questo rappresentante
+    const campoRappresentante = camera === 'Senato' ? 'rappresentante_senato' : 'rappresentante_camera';
+    const utentiResult = await pool.query(
+      `SELECT id FROM users WHERE ${campoRappresentante} = $1 AND status = 'a'`,
+      [politicoId]
+    );
+    
+    if (utentiResult.rows.length === 0) {
+      return; // Nessun utente ha scelto questo rappresentante
+    }
+    
+    // Crea la notifica
+    const titolo = titoloVotazione;
+    const testo = `Il voto di ${nomePolitico}: ${voto}`;
+    
+    try {
+      await pool.query(
+        `INSERT INTO notifiche_voti_parlamento (
+          id_utente, politico, camera, titolo, testo, voto, data, votazione_hash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (votazione_hash) DO NOTHING`,
+        [politicoId, nomePolitico, camera, titolo, testo, voto, dataVotazione, votazioneHash]
+      );
+      
+      console.log(`[OK] Notifica creata per ${utentiResult.rows.length} utenti che hanno scelto ${nomePolitico}`);
+    } catch (error) {
+      if (!error.message.includes('duplicate') && !error.message.includes('unique')) {
+        console.error(`[ERR] Errore creazione notifica per ${nomePolitico}:`, error.message);
+      }
+    }
+    
+  } catch (error) {
+    console.error(`[ERR] Errore nella creazione notifiche per ${nomePolitico}:`, error.message);
+  }
+}
+
 async function saveVotiNominaliToCache(uriVotazione, camera, votiNominali, bindingsFav, bindingsContr, bindingsAst) {
   try {
     // Assicurati che la tabella esista
@@ -422,6 +515,22 @@ async function saveVotiNominaliToCache(uriVotazione, camera, votiNominali, bindi
       ON parlamento_voti_nominali(uri_votazione)
     `);
     
+    // Recupera il titolo della votazione per le notifiche
+    let titoloVotazione = null;
+    let dataVotazione = null;
+    try {
+      const votazioneResult = await pool.query(
+        'SELECT titolo, data_votazione FROM parlamento WHERE uri = $1',
+        [uriVotazione]
+      );
+      if (votazioneResult.rows.length > 0) {
+        titoloVotazione = votazioneResult.rows[0].titolo;
+        dataVotazione = votazioneResult.rows[0].data_votazione;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Errore recupero titolo votazione: ${error.message}`);
+    }
+    
     let savedCount = 0;
     
     // Salva voti favorevoli
@@ -440,6 +549,11 @@ async function saveVotiNominaliToCache(uriVotazione, camera, votiNominali, bindi
             [uriVotazione, camera, nome, 'Favorevole', uriPolitico || null]
           );
           savedCount++;
+          
+          // Crea notifica se è un nuovo voto salvato (solo per Senato)
+          if (camera === 'Senato' && titoloVotazione) {
+            await creaNotificheParlamentoDaVotiNominali(nome, camera, titoloVotazione, 'Favorevole', dataVotazione);
+          }
         } catch (error) {
           console.warn(`⚠️ Errore salvataggio voto favorevole ${nome}:`, error.message);
         }
@@ -462,6 +576,11 @@ async function saveVotiNominaliToCache(uriVotazione, camera, votiNominali, bindi
             [uriVotazione, camera, nome, 'Contrario', uriPolitico || null]
           );
           savedCount++;
+          
+          // Crea notifica se è un nuovo voto salvato (solo per Senato)
+          if (camera === 'Senato' && titoloVotazione) {
+            await creaNotificheParlamentoDaVotiNominali(nome, camera, titoloVotazione, 'Contrario', dataVotazione);
+          }
         } catch (error) {
           console.warn(`⚠️ Errore salvataggio voto contrario ${nome}:`, error.message);
         }
@@ -484,6 +603,11 @@ async function saveVotiNominaliToCache(uriVotazione, camera, votiNominali, bindi
             [uriVotazione, camera, nome, 'Astenuto', uriPolitico || null]
           );
           savedCount++;
+          
+          // Crea notifica se è un nuovo voto salvato (solo per Senato)
+          if (camera === 'Senato' && titoloVotazione) {
+            await creaNotificheParlamentoDaVotiNominali(nome, camera, titoloVotazione, 'Astenuto', dataVotazione);
+          }
         } catch (error) {
           console.warn(`⚠️ Errore salvataggio voto astenuto ${nome}:`, error.message);
         }
