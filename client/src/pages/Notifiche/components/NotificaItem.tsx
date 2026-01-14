@@ -486,7 +486,54 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               <span className="text-2xl">{style.emoji}</span>
             )}
             <h3 className={`font-semibold ${style.textColor}`}>
-              {getNotificaTitle(notifica.titolo)}
+              {(() => {
+                const titolo = getNotificaTitle(notifica.titolo);
+                
+                // Se è una notifica di voto parlamentare, evidenzia le parti
+                if (tipoNotifica === 'voto_parlamento') {
+                  // Pattern per estrarre: "La senatrice/Il senatore Nome Cognome ha votato Voto a Titolo"
+                  const pattern = /^(La senatrice|Il senatore|La deputata|Il deputato|La parlamentare|Il parlamentare)\s+([^h]+?)\s+ha votato\s+([^a]+?)\s+a\s+(.+)$/i;
+                  const match = titolo.match(pattern);
+                  
+                  if (match) {
+                    const [, articoloETitolo, nomePolitico, voto, titoloVotazione] = match;
+                    const titoloVotazioneAbbreviato = formattaTitoloCompatto(titoloVotazione.trim());
+                    
+                    return (
+                      <span>
+                        <span className="font-bold text-blue-700">{articoloETitolo} {nomePolitico.trim()}</span>
+                        {' ha votato '}
+                        <span className="font-bold text-green-700">{voto.trim()}</span>
+                        {' a '}
+                        <span className="font-bold text-purple-700">{titoloVotazioneAbbreviato}</span>
+                      </span>
+                    );
+                  }
+                  
+                  // Fallback: se il pattern non matcha, prova a evidenziare comunque
+                  // Pattern alternativo: "Nome Cognome ha votato Voto a Titolo"
+                  const patternFallback = /^(.+?)\s+ha votato\s+([^a]+?)\s+a\s+(.+)$/i;
+                  const matchFallback = titolo.match(patternFallback);
+                  
+                  if (matchFallback) {
+                    const [, nomePolitico, voto, titoloVotazione] = matchFallback;
+                    const titoloVotazioneAbbreviato = formattaTitoloCompatto(titoloVotazione.trim());
+                    
+                    return (
+                      <span>
+                        <span className="font-bold text-blue-700">{nomePolitico.trim()}</span>
+                        {' ha votato '}
+                        <span className="font-bold text-green-700">{voto.trim()}</span>
+                        {' a '}
+                        <span className="font-bold text-purple-700">{titoloVotazioneAbbreviato}</span>
+                      </span>
+                    );
+                  }
+                }
+                
+                // Per altre notifiche, mostra normalmente
+                return titolo;
+              })()}
             </h3>
           </div>
           
