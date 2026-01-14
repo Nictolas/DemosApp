@@ -788,29 +788,84 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                     <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-5 min-h-[120px]">
                       {dettagliVotazione.analisi_legge?.spiegazione_generale ? (
                         <>
-                          <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">
-                            {dettagliVotazione.analisi_legge.spiegazione_generale.split('\n').map((line, i) => {
-                              // Rileva scadenze passate in questa riga
-                              const scadenze = rilevaScadenzePassate(line);
-                              const haScadenzePassate = scadenze.some(s => s.passata);
+                          <div className="text-sm text-blue-900 leading-relaxed">
+                            {(() => {
+                              const testo = dettagliVotazione.analisi_legge.spiegazione_generale;
+                              const linee = testo.split('\n');
+                              const risultato: JSX.Element[] = [];
+                              let sezioneCorrente = '';
                               
-                              // Se la riga contiene una scadenza passata, evidenziala
-                              if (haScadenzePassate) {
-                                let lineaEvidenziata = line;
-                                scadenze.forEach((scadenza) => {
-                                  if (scadenza.passata) {
-                                    const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                                    lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
-                                      return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                              linee.forEach((line, i) => {
+                                const lineaTrim = line.trim();
+                                if (!lineaTrim) return;
+                                
+                                // Rileva sezioni (COSA È, COSA FA, MISURE PREVISTE)
+                                if (lineaTrim.match(/^(COSA È|COSA FA|MISURE PREVISTE):?$/i)) {
+                                  sezioneCorrente = lineaTrim.toUpperCase();
+                                  risultato.push(
+                                    <h4 key={`header-${i}`} className="font-bold text-blue-800 mt-4 mb-2 first:mt-0">
+                                      {lineaTrim.replace(/[:?]$/, '')}
+                                    </h4>
+                                  );
+                                  return;
+                                }
+                                
+                                // Rileva scadenze passate
+                                const scadenze = rilevaScadenzePassate(lineaTrim);
+                                const haScadenzePassate = scadenze.some(s => s.passata);
+                                
+                                // Formattazione per misure previste (formato compatto con →)
+                                if (sezioneCorrente === 'MISURE PREVISTE' && lineaTrim.startsWith('•')) {
+                                  let lineaFormattata = lineaTrim;
+                                  
+                                  // Evidenzia scadenze passate
+                                  if (haScadenzePassate) {
+                                    scadenze.forEach((scadenza) => {
+                                      if (scadenza.passata) {
+                                        const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                                        lineaFormattata = lineaFormattata.replace(regex, (match) => {
+                                          return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                        });
+                                      }
                                     });
                                   }
-                                });
-                                return <p key={i} className="mb-2" dangerouslySetInnerHTML={{ __html: lineaEvidenziata }} />;
-                              }
+                                  
+                                  // Formatta → come freccia visiva
+                                  lineaFormattata = lineaFormattata.replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>');
+                                  
+                                  risultato.push(
+                                    <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: lineaFormattata }} />
+                                  );
+                                  return;
+                                }
+                                
+                                // Formattazione normale per altre sezioni
+                                if (haScadenzePassate) {
+                                  let lineaEvidenziata = lineaTrim;
+                                  scadenze.forEach((scadenza) => {
+                                    if (scadenza.passata) {
+                                      const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                                      lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
+                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                      });
+                                    }
+                                  });
+                                  risultato.push(
+                                    <p key={i} className="mb-1.5" dangerouslySetInnerHTML={{ __html: lineaEvidenziata }} />
+                                  );
+                                } else if (lineaTrim.startsWith('•')) {
+                                  risultato.push(
+                                    <p key={i} className="mb-1.5 ml-4">{lineaTrim}</p>
+                                  );
+                                } else {
+                                  risultato.push(
+                                    <p key={i} className="mb-1.5">{lineaTrim}</p>
+                                  );
+                                }
+                              });
                               
-                              // Altrimenti mostra normalmente
-                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : <br key={i} />;
-                            })}
+                              return risultato;
+                            })()}
                           </div>
                           {dettagliVotazione.analisi_legge.numero_legge && (
                             <p className="text-xs text-blue-700 mt-3 font-semibold">
@@ -846,17 +901,31 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                       </h3>
                       <div className="bg-green-50 border-2 border-green-300 rounded-lg p-5 min-h-[200px]">
                         {dettagliVotazione.analisi_legge?.effetti_positivi ? (
-                          <div className="text-sm text-green-900 leading-relaxed whitespace-pre-line">
+                          <div className="text-sm text-green-900 leading-relaxed">
                             {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line, i) => {
-                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                              const lineaTrim = line.trim();
+                              if (!lineaTrim) return null;
+                              
+                              // Supporta formato ✓ o - o • o numeri
+                              if (lineaTrim.match(/^[✓•-]\s/) || lineaTrim.match(/^\d+[\.)]\s/)) {
+                                const testo = lineaTrim.replace(/^[✓•-]\s/, '').replace(/^\d+[\.)]\s/, '');
                                 return (
-                                  <div key={i} className="mb-2 flex items-start gap-2">
+                                  <div key={i} className="mb-1.5 flex items-start gap-2">
                                     <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                    <span>{testo}</span>
                                   </div>
                                 );
                               }
-                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                              // Se inizia già con ✓, mostra direttamente
+                              if (lineaTrim.startsWith('✓')) {
+                                return (
+                                  <div key={i} className="mb-1.5 flex items-start gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                    <span>{lineaTrim.substring(1).trim()}</span>
+                                  </div>
+                                );
+                              }
+                              return <p key={i} className="mb-1.5">{lineaTrim}</p>;
                             })}
                           </div>
                         ) : (
@@ -884,17 +953,31 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                       </h3>
                       <div className="bg-red-50 border-2 border-red-300 rounded-lg p-5 min-h-[200px]">
                         {dettagliVotazione.analisi_legge?.effetti_negativi ? (
-                          <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line">
+                          <div className="text-sm text-red-900 leading-relaxed">
                             {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line, i) => {
-                              if (line.trim().match(/^[-*•]\s/) || line.trim().match(/^\d+[\.)]\s/)) {
+                              const lineaTrim = line.trim();
+                              if (!lineaTrim) return null;
+                              
+                              // Supporta formato ✗ o - o • o numeri
+                              if (lineaTrim.match(/^[✗•-]\s/) || lineaTrim.match(/^\d+[\.)]\s/)) {
+                                const testo = lineaTrim.replace(/^[✗•-]\s/, '').replace(/^\d+[\.)]\s/, '');
                                 return (
-                                  <div key={i} className="mb-2 flex items-start gap-2">
+                                  <div key={i} className="mb-1.5 flex items-start gap-2">
                                     <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                                    <span>{line.trim().replace(/^[-*•]\s/, '').replace(/^\d+[\.)]\s/, '')}</span>
+                                    <span>{testo}</span>
                                   </div>
                                 );
                               }
-                              return line.trim() ? <p key={i} className="mb-2">{line}</p> : null;
+                              // Se inizia già con ✗, mostra direttamente
+                              if (lineaTrim.startsWith('✗')) {
+                                return (
+                                  <div key={i} className="mb-1.5 flex items-start gap-2">
+                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                    <span>{lineaTrim.substring(1).trim()}</span>
+                                  </div>
+                                );
+                              }
+                              return <p key={i} className="mb-1.5">{lineaTrim}</p>;
                             })}
                           </div>
                         ) : (
