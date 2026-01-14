@@ -625,9 +625,9 @@ Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
 }
 
 /**
- * Genera gli effetti positivi della legge
+ * Genera gli effetti positivi della legge basandosi sulla spiegazione generale
  */
-async function generaEffettiPositivi(titolo, descrizione, numeroLegge) {
+async function generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazioneGenerale) {
   if (!aiClient) {
     throw new Error('API AI non configurata');
   }
@@ -638,18 +638,22 @@ Titolo: "${titolo || 'N/A'}"
 ${descrizione ? `Descrizione: "${descrizione}"` : ''}
 ${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
 
+${spiegazioneGenerale ? `\nSPIEGAZIONE GENERALE DELLA LEGGE:\n${spiegazioneGenerale}\n` : ''}
+
 IMPORTANTE:
+- DEVI basarti PRINCIPALMENTE sulla SPIEGAZIONE GENERALE fornita sopra per identificare gli effetti positivi
 - Analizza i PRO della LEGGE SPECIFICA se viene approvata (cosa cambia in positivo, chi ne beneficia, quali problemi risolve)
 - NON analizzare i pro del meccanismo di votazione (questione di fiducia, ecc.)
 - NON analizzare i pro del processo parlamentare
 - Focalizzati sul CONTENUTO della legge e sui suoi effetti pratici se approvata
+- Usa i dettagli specifici dalla spiegazione generale (percentuali, importi, beneficiari, misure) per identificare effetti positivi concreti
 
 Esempi di effetti positivi da considerare:
-- Benefici per cittadini, imprese, settori specifici
-- Risoluzione di problemi esistenti
-- Miglioramenti normativi o amministrativi
-- Semplificazioni o innovazioni introdotte
-- Protezioni o garanzie aggiunte
+- Benefici per cittadini, imprese, settori specifici (identificati nella spiegazione)
+- Risoluzione di problemi esistenti (menzionati nella spiegazione)
+- Miglioramenti normativi o amministrativi (descritti nella spiegazione)
+- Semplificazioni o innovazioni introdotte (dettagliate nella spiegazione)
+- Protezioni o garanzie aggiunte (specificate nella spiegazione)
 
 Rispondi in formato elenco puntato (markdown), con ogni punto su una riga separata.
 Ogni punto deve essere chiaro e conciso (massimo 2 righe).
@@ -698,9 +702,9 @@ Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
 }
 
 /**
- * Genera gli effetti negativi della legge
+ * Genera gli effetti negativi della legge basandosi sulla spiegazione generale
  */
-async function generaEffettiNegativi(titolo, descrizione, numeroLegge) {
+async function generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale) {
   if (!aiClient) {
     throw new Error('API AI non configurata');
   }
@@ -711,19 +715,23 @@ Titolo: "${titolo || 'N/A'}"
 ${descrizione ? `Descrizione: "${descrizione}"` : ''}
 ${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
 
+${spiegazioneGenerale ? `\nSPIEGAZIONE GENERALE DELLA LEGGE:\n${spiegazioneGenerale}\n` : ''}
+
 IMPORTANTE:
+- DEVI basarti PRINCIPALMENTE sulla SPIEGAZIONE GENERALE fornita sopra per identificare gli effetti negativi
 - Analizza i CONTRO della LEGGE SPECIFICA se viene approvata (cosa cambia in negativo, chi potrebbe essere svantaggiato, quali problemi potrebbe creare)
 - NON analizzare i contro del meccanismo di votazione (questione di fiducia, ecc.)
 - NON analizzare i contro del processo parlamentare
 - Focalizzati sul CONTENUTO della legge e sui suoi effetti pratici se approvata
+- Usa i dettagli specifici dalla spiegazione generale (limitazioni, esclusioni, costi, vincoli) per identificare effetti negativi concreti
 
 Esempi di effetti negativi da considerare:
-- Svantaggi per cittadini, imprese, settori specifici
-- Creazione di nuovi problemi o complicazioni
-- Costi o oneri aggiuntivi
-- Limitazioni di diritti o libertà
-- Criticità normative o amministrative
-- Rischi o conseguenze indesiderate
+- Svantaggi per cittadini, imprese, settori specifici (non beneficiari o esclusi dalla spiegazione)
+- Creazione di nuovi problemi o complicazioni (impliciti nella spiegazione)
+- Costi o oneri aggiuntivi (menzionati o deducibili dalla spiegazione)
+- Limitazioni di diritti o libertà (descritte nella spiegazione)
+- Criticità normative o amministrative (evidenti dalla spiegazione)
+- Rischi o conseguenze indesiderate (deducibili dalla spiegazione)
 
 Rispondi in formato elenco puntato (markdown), con ogni punto su una riga separata.
 Ogni punto deve essere chiaro e conciso (massimo 2 righe).
@@ -797,13 +805,15 @@ async function generaAnalisiLegge(uriVotazione, votazioneData) {
   const tipoAtto = estraiTipoAtto(titolo);
 
   try {
-    // Genera tutte e tre le analisi in parallelo per velocità
-    console.log(`📝 Generazione spiegazione generale, effetti positivi e negativi...`);
+    // Genera prima la spiegazione generale
+    console.log(`📝 Generazione spiegazione generale...`);
+    const spiegazioneGenerale = await generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, data_votazione);
     
-    const [spiegazioneGenerale, effettiPositivi, effettiNegativi] = await Promise.all([
-      generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, data_votazione),
-      generaEffettiPositivi(titolo, descrizione, numeroLegge),
-      generaEffettiNegativi(titolo, descrizione, numeroLegge)
+    // Poi genera effetti positivi e negativi basandosi sulla spiegazione generale
+    console.log(`📝 Generazione effetti positivi e negativi basati sulla spiegazione generale...`);
+    const [effettiPositivi, effettiNegativi] = await Promise.all([
+      generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazioneGenerale),
+      generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale)
     ]);
 
     const modello = aiProvider === 'groq' 
