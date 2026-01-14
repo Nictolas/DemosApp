@@ -467,6 +467,8 @@ async function creaNotificheParlamentoDaVotiNominali(nomePolitico, camera, titol
     }
     
     // Crea la notifica
+    // Nota: Il titolo viene formattato quando viene recuperato in routes/notifiche.js
+    // basandosi sul genere del politico, quindi qui salviamo solo il titolo base
     const titolo = titoloVotazione;
     const testo = `Il voto di ${nomePolitico}: ${voto}`;
     

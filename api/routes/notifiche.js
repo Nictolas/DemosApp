@@ -75,6 +75,7 @@ router.get('/', async (req, res) => {
               u.nome as politico_nome,
               u.cognome as politico_cognome,
               u.avatar_config as politico_avatar_config,
+              u.genere as politico_genere,
               p.uri as uri_votazione
             FROM notifiche_voti_parlamento nvp
             LEFT JOIN users u ON nvp.id_utente = u.id
@@ -442,7 +443,7 @@ router.get('/', async (req, res) => {
         titolo = `Avvistamento ${c.tipo_avvistamento || 'Animale'}`;
         messaggio = ''; // Nessun messaggio per le notifiche di avvistamento
       } else if (c.tipo_notifica === 'voto_comune' || c.tipo_notifica === 'voto_parlamento') {
-        // Costruisci titolo nel formato: "Nome Cognome ha votato Voto a Titolo"
+        // Costruisci titolo nel formato: "La senatrice/Il senatore Nome Cognome ha votato Voto a Titolo"
         const nomePolitico = c.politico_nome && c.politico_cognome 
           ? `${c.politico_nome} ${c.politico_cognome}`
           : c.politico || 'Politico';
@@ -461,7 +462,42 @@ router.get('/', async (req, res) => {
           }
         }
         
-        titolo = `${nomePolitico} ha votato ${voto} a ${titoloVotazione}`;
+        // Determina l'articolo e il titolo in base al genere e alla camera
+        let articoloETitolo = '';
+        if (c.tipo_notifica === 'voto_parlamento') {
+          const camera = c.camera || 'Parlamento';
+          const genere = c.politico_genere; // "d" = donna, "u" = uomo, "a" = altro/null
+          
+          if (camera === 'Senato' || camera === 'Senato della Repubblica') {
+            if (genere === 'd') {
+              articoloETitolo = 'La senatrice';
+            } else if (genere === 'u') {
+              articoloETitolo = 'Il senatore';
+            } else {
+              articoloETitolo = 'Il senatore'; // Default
+            }
+          } else if (camera === 'Camera' || camera === 'Camera dei Deputati') {
+            if (genere === 'd') {
+              articoloETitolo = 'La deputata';
+            } else if (genere === 'u') {
+              articoloETitolo = 'Il deputato';
+            } else {
+              articoloETitolo = 'Il deputato'; // Default
+            }
+          } else {
+            // Fallback generico
+            if (genere === 'd') {
+              articoloETitolo = 'La parlamentare';
+            } else {
+              articoloETitolo = 'Il parlamentare';
+            }
+          }
+        } else {
+          // Per voto_comune, usa formato generico
+          articoloETitolo = 'Il politico';
+        }
+        
+        titolo = `${articoloETitolo} ${nomePolitico} ha votato ${voto} a ${titoloVotazione}`;
         messaggio = c.testo || 'Nessun messaggio';
       } else {
         titolo = c.titolo || 'Nessun titolo';
