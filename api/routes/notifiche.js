@@ -497,7 +497,38 @@ router.get('/', async (req, res) => {
           articoloETitolo = 'Il politico';
         }
         
-        titolo = `${articoloETitolo} ${nomePolitico} ha votato ${voto} a ${titoloVotazione}`;
+        // Abbrevia il titolo della votazione (es: "Disegno di legge n. 1718..." -> "DDL 1718")
+        let titoloVotazioneAbbreviato = titoloVotazione;
+        if (c.tipo_notifica === 'voto_parlamento') {
+          // Pattern per "Disegno di legge n. XXXX"
+          const patternDDL = /disegno\s+di\s+legge\s+n\.?\s*(\d+)/i;
+          const matchDDL = titoloVotazione.match(patternDDL);
+          if (matchDDL) {
+            titoloVotazioneAbbreviato = `DDL ${matchDDL[1]}`;
+          } else {
+            // Pattern per "DDL XXXX" (già formato)
+            const patternDDLGià = /^DDL\s+(\d+)/i;
+            if (titoloVotazione.match(patternDDLGià)) {
+              titoloVotazioneAbbreviato = titoloVotazione.match(patternDDLGià)[0];
+            } else {
+              // Pattern per "Decreto-legge n. XXXX" o "DL n. XXXX"
+              const patternDL = /(?:decreto\s*[-]?\s*legge|DL|D\.L\.)\s+n\.?\s*(\d+)/i;
+              const matchDL = titoloVotazione.match(patternDL);
+              if (matchDL) {
+                titoloVotazioneAbbreviato = `DL ${matchDL[1]}`;
+              } else {
+                // Pattern per "Mozione n. XXXX"
+                const patternMozione = /mozione\s+n\.?\s*(\d+)/i;
+                const matchMozione = titoloVotazione.match(patternMozione);
+                if (matchMozione) {
+                  titoloVotazioneAbbreviato = `Mozione ${matchMozione[1]}`;
+                }
+              }
+            }
+          }
+        }
+        
+        titolo = `${articoloETitolo} ${nomePolitico} ha votato ${voto} a ${titoloVotazioneAbbreviato}`;
         messaggio = c.testo || 'Nessun messaggio';
       } else {
         titolo = c.titolo || 'Nessun titolo';
