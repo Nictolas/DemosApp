@@ -66,6 +66,101 @@ interface DettagliVotazione extends VotazioneParlamento {
   analisi_legge?: AnalisiLegge | null;
 }
 
+// Funzione helper per rilevare date nel testo e verificare se sono passate
+function rilevaScadenzePassate(testo: string): Array<{ data: string; testo: string; passata: boolean }> {
+  const scadenze: Array<{ data: string; testo: string; passata: boolean }> = [];
+  const oggi = new Date();
+  oggi.setHours(0, 0, 0, 0);
+  
+  // Pattern per date: "27 novembre 2025", "31/12/2025", "2025-12-31", "entro il 27 novembre 2025"
+  const patternDate = /(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})/gi;
+  const patternDateSlash = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g;
+  const patternDateISO = /(\d{4})-(\d{1,2})-(\d{1,2})/g;
+  
+  const mesi: { [key: string]: number } = {
+    'gennaio': 1, 'febbraio': 2, 'marzo': 3, 'aprile': 4, 'maggio': 5, 'giugno': 6,
+    'luglio': 7, 'agosto': 8, 'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12
+  };
+  
+  // Cerca date nel formato "27 novembre 2025"
+  let match;
+  while ((match = patternDate.exec(testo)) !== null) {
+    const giorno = parseInt(match[1]);
+    const mese = mesi[match[2].toLowerCase()];
+    const anno = parseInt(match[3]);
+    const data = new Date(anno, mese - 1, giorno);
+    data.setHours(0, 0, 0, 0);
+    
+    const inizioMatch = Math.max(0, match.index - 50);
+    const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
+    const contesto = testo.substring(inizioMatch, fineMatch);
+    
+    scadenze.push({
+      data: match[0],
+      testo: contesto,
+      passata: data < oggi
+    });
+  }
+  
+  // Cerca date nel formato "31/12/2025"
+  while ((match = patternDateSlash.exec(testo)) !== null) {
+    const giorno = parseInt(match[1]);
+    const mese = parseInt(match[2]);
+    const anno = parseInt(match[3]);
+    const data = new Date(anno, mese - 1, giorno);
+    data.setHours(0, 0, 0, 0);
+    
+    const inizioMatch = Math.max(0, match.index - 50);
+    const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
+    const contesto = testo.substring(inizioMatch, fineMatch);
+    
+    scadenze.push({
+      data: match[0],
+      testo: contesto,
+      passata: data < oggi
+    });
+  }
+  
+  // Cerca date nel formato ISO "2025-12-31"
+  while ((match = patternDateISO.exec(testo)) !== null) {
+    const anno = parseInt(match[1]);
+    const mese = parseInt(match[2]);
+    const giorno = parseInt(match[3]);
+    const data = new Date(anno, mese - 1, giorno);
+    data.setHours(0, 0, 0, 0);
+    
+    const inizioMatch = Math.max(0, match.index - 50);
+    const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
+    const contesto = testo.substring(inizioMatch, fineMatch);
+    
+    scadenze.push({
+      data: match[0],
+      testo: contesto,
+      passata: data < oggi
+    });
+  }
+  
+  return scadenze;
+}
+
+// Funzione per evidenziare scadenze passate nel testo
+function evidenziaScadenzePassate(testo: string): string {
+  const scadenze = rilevaScadenzePassate(testo);
+  let testoEvidenziato = testo;
+  
+  scadenze.forEach((scadenza) => {
+    if (scadenza.passata) {
+      // Evidenzia la data passata con un badge
+      const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      testoEvidenziato = testoEvidenziato.replace(regex, (match) => {
+        return `${match} ⚠️ (scadenza passata)`;
+      });
+    }
+  });
+  
+  return testoEvidenziato;
+}
+
 export default function VotiParlamento() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -925,16 +1020,50 @@ export default function VotiParlamento() {
                     
                     {/* Spiegazione Generale - Full Width */}
                     <div className="space-y-3">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-blue-600" />
-                        Spiegazione Generale
-                      </h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-blue-600" />
+                          Spiegazione Generale
+                        </h3>
+                        {/* Data di approvazione */}
+                        {dettagliVotazione.data_votazione && (
+                          <Badge variant="outline" className="text-xs">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Approvata il {new Date(dettagliVotazione.data_votazione).toLocaleDateString('it-IT', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-5 min-h-[120px]">
                         {dettagliVotazione.analisi_legge?.spiegazione_generale ? (
                           <>
-                            <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">
-                              {dettagliVotazione.analisi_legge.spiegazione_generale}
-                            </p>
+                            <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">
+                              {dettagliVotazione.analisi_legge.spiegazione_generale.split('\n').map((line, i) => {
+                                // Rileva scadenze passate in questa riga
+                                const scadenze = rilevaScadenzePassate(line);
+                                const haScadenzePassate = scadenze.some(s => s.passata);
+                                
+                                // Se la riga contiene una scadenza passata, evidenziala
+                                if (haScadenzePassate) {
+                                  let lineaEvidenziata = line;
+                                  scadenze.forEach((scadenza) => {
+                                    if (scadenza.passata) {
+                                      const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                                      lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
+                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                      });
+                                    }
+                                  });
+                                  return <p key={i} className="mb-2" dangerouslySetInnerHTML={{ __html: lineaEvidenziata }} />;
+                                }
+                                
+                                // Altrimenti mostra normalmente
+                                return line.trim() ? <p key={i} className="mb-2">{line}</p> : <br key={i} />;
+                              })}
+                            </div>
                             {dettagliVotazione.analisi_legge.numero_legge && (
                               <p className="text-xs text-blue-700 mt-3 font-semibold">
                                 Legge n. {dettagliVotazione.analisi_legge.numero_legge}

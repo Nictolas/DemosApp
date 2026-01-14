@@ -574,11 +574,18 @@ ESEMPIO DI FORMATO RICHIESTO:
 5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
 6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra. Se negli articoli non trovi dettagli specifici, indica "dettagli non disponibili" piuttosto che inventare.' : ''}
 
+REGOLE DI STILE (IMPORTANTE):
+- Essere CONCISA e DIRETTA: evita ridondanze e parole superflue
+- NON specificare "italiano/italiana" quando non necessario (es: "imprese" invece di "imprese italiane", "cittadini" invece di "cittadini italiani")
+- Specifica la nazionalità SOLO quando non è italiana (es: "imprese europee", "cittadini stranieri")
+- Evita frasi come "le imprese italiane", "i cittadini italiani", "lo Stato italiano" - usa "imprese", "cittadini", "Stato"
+- Usa termini tecnici solo se necessari, altrimenti preferisci linguaggio semplice
+
 La spiegazione deve:
 - Essere in italiano, chiara e comprensibile per cittadini non esperti
+- Essere CONCISA: massimo 400 parole (non 500) - ogni parola deve aggiungere valore
 - Includere il contesto e gli obiettivi principali della legge
 - Essere neutrale e obiettiva
-- Massimo 500 parole (più spazio per dettagli schematici)
 - Focalizzarsi sul CONTENUTO CONCRETO della legge, non sul meccanismo di votazione
 - ${infoWeb ? 'Basarsi principalmente sulle informazioni fornite sopra, estraendo dettagli specifici dagli articoli quando disponibili. Se negli articoli trovi numeri, percentuali, importi, includili nella spiegazione.' : 'Essere il più specifica possibile'}
 
@@ -587,7 +594,7 @@ Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
   const messages = [
     {
       role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Il tuo compito è spiegare COSA È e COSA FA una legge specifica, non spiegare meccanismi parlamentari come la "questione di fiducia". Fornisci spiegazioni chiare, dettagliate e accessibili sul contenuto concreto delle leggi italiane.'
+      content: 'Sei un esperto in diritto parlamentare italiano. Il tuo compito è spiegare COSA È e COSA FA una legge specifica, non spiegare meccanismi parlamentari come la "questione di fiducia". Fornisci spiegazioni chiare, CONCISE e accessibili sul contenuto concreto delle leggi. NON specificare "italiano/italiana" quando non necessario (es: "imprese" invece di "imprese italiane", "cittadini" invece di "cittadini italiani"). Specifica la nazionalità SOLO quando non è italiana.'
     },
     {
       role: 'user',
