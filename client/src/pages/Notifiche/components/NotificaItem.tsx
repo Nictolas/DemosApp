@@ -485,16 +485,25 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             ) : (
               <span className="text-2xl">{style.emoji}</span>
             )}
-            {tipoNotifica === 'voto_parlamento' ? (
-              <h3 
-                className={`font-semibold ${style.textColor}`}
-                dangerouslySetInnerHTML={{ __html: getNotificaTitle(notifica.titolo) }}
-              />
-            ) : (
-              <h3 className={`font-semibold ${style.textColor}`}>
-                {getNotificaTitle(notifica.titolo)}
-              </h3>
-            )}
+            {(() => {
+              const titolo = getNotificaTitle(notifica.titolo);
+              const titoloString = String(titolo || 'Notifica').trim() || 'Notifica';
+              
+              if (tipoNotifica === 'voto_parlamento') {
+                return (
+                  <h3 
+                    className={`font-semibold ${style.textColor}`}
+                    dangerouslySetInnerHTML={{ __html: titoloString }}
+                  />
+                );
+              }
+              
+              return (
+                <h3 className={`font-semibold ${style.textColor}`}>
+                  {titolo}
+                </h3>
+              );
+            })()}
           </div>
           
           {getNotificaMessage(notifica.messaggio) && (
@@ -669,7 +678,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 className="flex items-center gap-1"
               >
                 <ThumbsUp className="h-4 w-4" />
-                {likes}
+                {Number(likes) || 0}
               </Button>
               <Button
                 variant={userReaction === 'dislike' ? 'default' : 'outline'}
@@ -679,7 +688,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 className="flex items-center gap-1"
               >
                 <ThumbsDown className="h-4 w-4" />
-                {dislikes}
+                {Number(dislikes) || 0}
               </Button>
             </div>
           )}
@@ -701,7 +710,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 className="flex items-center gap-1"
               >
                 <ThumbsUp className="h-4 w-4" />
-                {likes}
+                {Number(likes) || 0}
               </Button>
               <Button
                 variant={userReaction === 'dislike' ? 'default' : 'outline'}
@@ -711,7 +720,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 className="flex items-center gap-1"
               >
                 <ThumbsDown className="h-4 w-4" />
-                {dislikes}
+                {Number(dislikes) || 0}
               </Button>
             </div>
           )}
