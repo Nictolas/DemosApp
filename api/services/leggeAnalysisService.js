@@ -574,20 +574,35 @@ ESEMPIO DI FORMATO RICHIESTO:
 5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
 6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra. Se negli articoli non trovi dettagli specifici, indica "dettagli non disponibili" piuttosto che inventare.' : ''}
 
-REGOLE DI STILE (IMPORTANTE):
-- Essere CONCISA e DIRETTA: evita ridondanze e parole superflue
-- NON specificare "italiano/italiana" quando non necessario (es: "imprese" invece di "imprese italiane", "cittadini" invece di "cittadini italiani")
-- Specifica la nazionalità SOLO quando non è italiana (es: "imprese europee", "cittadini stranieri")
-- Evita frasi come "le imprese italiane", "i cittadini italiani", "lo Stato italiano" - usa "imprese", "cittadini", "Stato"
-- Usa termini tecnici solo se necessari, altrimenti preferisci linguaggio semplice
+REGOLE DI STILE (CRITICO - SEGUIRE RIGOROSAMENTE):
+- Essere ULTRA-CONCISA: massimo 200 parole totali (non 400!)
+- NON specificare "italiano/italiana" quando non necessario
+- Usa abbreviazioni standard: € (non "euro"), % (non "per cento"), n. (non "numero"), art. (non "articolo"), DL (non "decreto-legge"), DDL (non "disegno di legge")
+- ELIMINA frasi introduttive: inizia direttamente con il contenuto
+  ❌ SBAGLIATO: "La legge prevede che...", "È previsto che...", "La legge introduce..."
+  ✅ CORRETTO: "Proroga comunicazioni crediti d'imposta..."
+- Formato STRUTTURATO obbligatorio:
+
+COSA È:
+[1-2 frasi essenziali, massimo 30 parole]
+
+COSA FA:
+• [punto 1 - una riga]
+• [punto 2 - una riga]
+• [punto 3 - una riga]
+
+MISURE PREVISTE:
+• [Nome misura breve]
+  → Scadenza: [data se presente]
+  → Beneficiari: [chi]
+  → Condizioni: [requisiti se presenti]
+• [Prossima misura...]
 
 La spiegazione deve:
-- Essere in italiano, chiara e comprensibile per cittadini non esperti
-- Essere CONCISA: massimo 400 parole (non 500) - ogni parola deve aggiungere valore
-- Includere il contesto e gli obiettivi principali della legge
-- Essere neutrale e obiettiva
-- Focalizzarsi sul CONTENUTO CONCRETO della legge, non sul meccanismo di votazione
-- ${infoWeb ? 'Basarsi principalmente sulle informazioni fornite sopra, estraendo dettagli specifici dagli articoli quando disponibili. Se negli articoli trovi numeri, percentuali, importi, includili nella spiegazione.' : 'Essere il più specifica possibile'}
+- Essere in italiano, chiara e comprensibile
+- Essere NEUTRALE e OBIETTIVA
+- Focalizzarsi sul CONTENUTO CONCRETO, non sul meccanismo di votazione
+- ${infoWeb ? 'Basarsi sulle informazioni fornite, estraendo dettagli specifici. Usa numeri, percentuali, importi ESATTAMENTE come trovati.' : 'Essere il più specifica possibile'}
 
 Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
 
@@ -612,14 +627,14 @@ Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 1000,
+        max_tokens: 800,
         temperature: 0.7
       });
     } else {
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 1000,
+        max_tokens: 800,
         temperature: 0.7
       });
     }
@@ -639,34 +654,28 @@ async function generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazio
     throw new Error('API AI non configurata');
   }
 
-  const prompt = `Elenca i principali PRO (effetti positivi o benefici) se questa legge italiana viene APPROVATA (massimo 10 punti):
+  const prompt = `Identifica i PRO (effetti positivi) se questa legge viene APPROVATA.
 
-Titolo: "${titolo || 'N/A'}"
-${descrizione ? `Descrizione: "${descrizione}"` : ''}
-${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
+Legge: "${titolo || 'N/A'}"
+${numeroLegge ? `Numero: ${numeroLegge}` : ''}
 
-${spiegazioneGenerale ? `\nSPIEGAZIONE GENERALE DELLA LEGGE:\n${spiegazioneGenerale}\n` : ''}
+SPIEGAZIONE:
+${spiegazioneGenerale || 'N/A'}
 
-IMPORTANTE:
-- DEVI basarti PRINCIPALMENTE sulla SPIEGAZIONE GENERALE fornita sopra per identificare gli effetti positivi
-- Analizza i PRO della LEGGE SPECIFICA se viene approvata (cosa cambia in positivo, chi ne beneficia, quali problemi risolve)
-- NON analizzare i pro del meccanismo di votazione (questione di fiducia, ecc.)
-- NON analizzare i pro del processo parlamentare
-- Focalizzati sul CONTENUTO della legge e sui suoi effetti pratici se approvata
-- Usa i dettagli specifici dalla spiegazione generale (percentuali, importi, beneficiari, misure) per identificare effetti positivi concreti
+REGOLE (SEGUIRE RIGOROSAMENTE):
+1. Massimo 5 punti, uno per riga
+2. Formato: "✓ [beneficio concreto - una riga]"
+3. NO introduzioni ("I principali benefici sono...")
+4. NO conclusioni
+5. Inizia direttamente con i benefici
+6. Usa abbreviazioni: €, %, n., art., DL, DDL
+7. Basati sulla spiegazione fornita
+8. Se informazioni insufficienti: "Informazioni insufficienti per identificare benefici specifici"
 
-Esempi di effetti positivi da considerare:
-- Benefici per cittadini, imprese, settori specifici (identificati nella spiegazione)
-- Risoluzione di problemi esistenti (menzionati nella spiegazione)
-- Miglioramenti normativi o amministrativi (descritti nella spiegazione)
-- Semplificazioni o innovazioni introdotte (dettagliate nella spiegazione)
-- Protezioni o garanzie aggiunte (specificate nella spiegazione)
-
-Rispondi in formato elenco puntato (markdown), con ogni punto su una riga separata.
-Ogni punto deve essere chiaro e conciso (massimo 2 righe).
-Se non ci sono effetti positivi evidenti per questa legge specifica, indica "Nessun effetto positivo identificabile".
-
-Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
+Rispondi SOLO con elenco puntato, esempio:
+✓ Beneficio 1
+✓ Beneficio 2
+✓ Beneficio 3`;
 
   const messages = [
     {
@@ -689,14 +698,14 @@ Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 500,
+        max_tokens: 300,
         temperature: 0.7
       });
     } else {
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 500,
+        max_tokens: 300,
         temperature: 0.7
       });
     }
@@ -716,35 +725,28 @@ async function generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazio
     throw new Error('API AI non configurata');
   }
 
-  const prompt = `Elenca i principali CONTRO (effetti negativi, criticità o potenziali problemi) se questa legge italiana viene APPROVATA (massimo 10 punti):
+  const prompt = `Identifica i CONTRO (effetti negativi) se questa legge viene APPROVATA.
 
-Titolo: "${titolo || 'N/A'}"
-${descrizione ? `Descrizione: "${descrizione}"` : ''}
-${numeroLegge ? `Numero legge: ${numeroLegge}` : ''}
+Legge: "${titolo || 'N/A'}"
+${numeroLegge ? `Numero: ${numeroLegge}` : ''}
 
-${spiegazioneGenerale ? `\nSPIEGAZIONE GENERALE DELLA LEGGE:\n${spiegazioneGenerale}\n` : ''}
+SPIEGAZIONE:
+${spiegazioneGenerale || 'N/A'}
 
-IMPORTANTE:
-- DEVI basarti PRINCIPALMENTE sulla SPIEGAZIONE GENERALE fornita sopra per identificare gli effetti negativi
-- Analizza i CONTRO della LEGGE SPECIFICA se viene approvata (cosa cambia in negativo, chi potrebbe essere svantaggiato, quali problemi potrebbe creare)
-- NON analizzare i contro del meccanismo di votazione (questione di fiducia, ecc.)
-- NON analizzare i contro del processo parlamentare
-- Focalizzati sul CONTENUTO della legge e sui suoi effetti pratici se approvata
-- Usa i dettagli specifici dalla spiegazione generale (limitazioni, esclusioni, costi, vincoli) per identificare effetti negativi concreti
+REGOLE (SEGUIRE RIGOROSAMENTE):
+1. Massimo 5 punti, uno per riga
+2. Formato: "✗ [criticità concreta - una riga]"
+3. NO introduzioni ("Le principali criticità sono...")
+4. NO conclusioni
+5. Inizia direttamente con le criticità
+6. Usa abbreviazioni: €, %, n., art., DL, DDL
+7. Basati sulla spiegazione fornita
+8. Se informazioni insufficienti: "Informazioni insufficienti per identificare criticità specifiche"
 
-Esempi di effetti negativi da considerare:
-- Svantaggi per cittadini, imprese, settori specifici (non beneficiari o esclusi dalla spiegazione)
-- Creazione di nuovi problemi o complicazioni (impliciti nella spiegazione)
-- Costi o oneri aggiuntivi (menzionati o deducibili dalla spiegazione)
-- Limitazioni di diritti o libertà (descritte nella spiegazione)
-- Criticità normative o amministrative (evidenti dalla spiegazione)
-- Rischi o conseguenze indesiderate (deducibili dalla spiegazione)
-
-Rispondi in formato elenco puntato (markdown), con ogni punto su una riga separata.
-Ogni punto deve essere chiaro e conciso (massimo 2 righe).
-Se non ci sono effetti negativi evidenti per questa legge specifica, indica "Nessun effetto negativo identificabile".
-
-Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
+Rispondi SOLO con elenco puntato, esempio:
+✗ Criticità 1
+✗ Criticità 2
+✗ Criticità 3`;
 
   const messages = [
     {
@@ -767,14 +769,14 @@ Rispondi SOLO con l'elenco, senza prefissi o suffissi.`;
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 500,
+        max_tokens: 300,
         temperature: 0.7
       });
     } else {
       completion = await aiClient.chat.completions.create({
         model: model,
         messages: messages,
-        max_tokens: 500,
+        max_tokens: 300,
         temperature: 0.7
       });
     }
