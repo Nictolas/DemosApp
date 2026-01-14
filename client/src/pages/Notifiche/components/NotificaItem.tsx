@@ -485,12 +485,16 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             ) : (
               <span className="text-2xl">{style.emoji}</span>
             )}
-            <h3 
-              className={`font-semibold ${style.textColor}`}
-              dangerouslySetInnerHTML={tipoNotifica === 'voto_parlamento' ? { __html: getNotificaTitle(notifica.titolo) } : undefined}
-            >
-              {tipoNotifica !== 'voto_parlamento' && getNotificaTitle(notifica.titolo)}
-            </h3>
+            {tipoNotifica === 'voto_parlamento' ? (
+              <h3 
+                className={`font-semibold ${style.textColor}`}
+                dangerouslySetInnerHTML={{ __html: getNotificaTitle(notifica.titolo) }}
+              />
+            ) : (
+              <h3 className={`font-semibold ${style.textColor}`}>
+                {getNotificaTitle(notifica.titolo)}
+              </h3>
+            )}
           </div>
           
           {getNotificaMessage(notifica.messaggio) && (
