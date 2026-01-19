@@ -61,6 +61,9 @@ interface VotiNominaliMEPItaliani {
   contrari: VotoMEPItaliano[];
   astenuti: VotoMEPItaliano[];
   assenti: VotoMEPItaliano[];
+  disponibili?: boolean;
+  linkDocumento?: string;
+  messaggio?: string;
 }
 
 interface DettagliVotazione extends VotazioneParlamentoEuropeo {
@@ -547,7 +550,19 @@ export default function VotiParlamentoEuropeo() {
                             <Alert>
                               <Info className="h-4 w-4" />
                               <AlertDescription>
-                                I voti dei MEP italiani non sono ancora disponibili per questa votazione.
+                                {dettagliData.voti_nominali_mep_italiani.messaggio || 'I voti dei MEP italiani non sono ancora disponibili per questa votazione.'}
+                                {dettagliData.voti_nominali_mep_italiani.linkDocumento && (
+                                  <div className="mt-2">
+                                    <a 
+                                      href={dettagliData.voti_nominali_mep_italiani.linkDocumento} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline"
+                                    >
+                                      Consulta il documento ufficiale →
+                                    </a>
+                                  </div>
+                                )}
                               </AlertDescription>
                             </Alert>
                           )}
