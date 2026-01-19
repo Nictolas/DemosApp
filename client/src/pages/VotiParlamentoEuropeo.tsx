@@ -148,7 +148,7 @@ export default function VotiParlamentoEuropeo() {
     queryFn: async () => {
       console.log('🔍 VotiParlamentoEuropeo - Inizio query');
       try {
-        const response = await apiRequest<{ success: boolean; data: VotazioneParlamentoEuropeo[]; count: number }>(
+        const response = await apiRequest.get<{ success: boolean; data: VotazioneParlamentoEuropeo[]; count: number }>(
           '/api/voti-parlamento-europeo/ultime?limit=10'
         );
         console.log('✅ VotiParlamentoEuropeo - Risposta ricevuta:', response);
@@ -172,9 +172,9 @@ export default function VotiParlamentoEuropeo() {
     queryKey: ['voti-parlamento-europeo-dettagli', votazioneSelezionata?.uri],
     queryFn: async () => {
       if (!votazioneSelezionata?.uri) return null;
-      const response = await apiRequest<{ success: boolean; data: DettagliVotazione }>(
-        `/api/voti-parlamento-europeo/dettagli/${encodeURIComponent(votazioneSelezionata.uri)}`
-      );
+        const response = await apiRequest.get<{ success: boolean; data: DettagliVotazione }>(
+          `/api/voti-parlamento-europeo/dettagli/${encodeURIComponent(votazioneSelezionata.uri)}`
+        );
       if (!response.success) {
         throw new Error('Errore nel recupero dei dettagli');
       }
@@ -192,10 +192,9 @@ export default function VotiParlamentoEuropeo() {
     if (!votazioneSelezionata?.uri) return;
     
     try {
-      const response = await apiRequest<{ success: boolean; data: AnalisiLegge }>(
-        `/api/voti-parlamento-europeo/rigenera-analisi/${encodeURIComponent(votazioneSelezionata.uri)}`,
-        { method: 'POST' }
-      );
+        const response = await apiRequest.post<{ success: boolean; data: AnalisiLegge }>(
+          `/api/voti-parlamento-europeo/rigenera-analisi/${encodeURIComponent(votazioneSelezionata.uri)}`
+        );
       
       if (response.success && votazioneSelezionata) {
         setVotazioneSelezionata({

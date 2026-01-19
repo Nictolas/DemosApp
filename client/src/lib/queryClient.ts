@@ -25,6 +25,12 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     headers = { ...headers, ...customHeaders };
   }
   
+  // Verifica che url sia una stringa valida
+  if (!url || typeof url !== 'string') {
+    console.error('❌ apiRequest - URL non valido:', url);
+    throw new Error(`URL non valido: ${url}`);
+  }
+  
   const finalUrl = getApiUrl(url);
   
   try {
