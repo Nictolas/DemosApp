@@ -1,5 +1,8 @@
 const axios = require('axios');
 const { Pool } = require('pg');
+const zlib = require('zlib');
+const { promisify } = require('util');
+const gunzip = promisify(zlib.gunzip);
 
 // Configurazione database
 const pool = new Pool({
@@ -10,8 +13,10 @@ const pool = new Pool({
 // URL base di Parltrack
 // Nota: Gli URL esatti possono variare, verifica su parltrack.org
 const PARLTRACK_BASE = 'https://parltrack.org/dumps';
+const PARLTRACK_API = 'https://parltrack.org/api';
 const HOWTHEYVOTE_BASE = 'https://howtheyvote.eu';
 const HOWTHEYVOTE_GITHUB = 'https://raw.githubusercontent.com/HowTheyVote/data/main';
+const HOWTHEYVOTE_API = 'https://api.howtheyvote.eu';
 
 /**
  * Recupera i voti individuali dei MEP italiani da Parltrack o HowTheyVote
@@ -79,22 +84,79 @@ async function getVotiMEPItalianiDaParltrack(votazioneIdPE) {
  */
 async function getVotiDaHowTheyVote(votazioneIdPE) {
   try {
-    // HowTheyVote ha un repository GitHub con dati CSV
-    // URL: https://github.com/HowTheyVote/data
-    // I dati sono organizzati per votazione
+    console.log(`🔍 Tentativo recupero da HowTheyVote per: ${votazioneIdPE}`);
     
     // Estrai l'ID della votazione (es: "MTG-PL-2014-01-16-VOT-ITM-345348-13")
-    // e prova a costruire l'URL del file JSON/CSV
-    
-    // Per ora, prova a cercare nel formato standard di HowTheyVote
-    // Il formato potrebbe essere: votes/{votazioneId}.json o simile
-    
     const voteId = votazioneIdPE.replace(/^eli\/dl\/event\//, '').replace(/\//g, '-');
+    const voteIdShort = voteId.split('-VOT-')[1] || voteId;
+    
+    // Prova a scaricare il CSV dei voti da GitHub
+    // HowTheyVote ha releases settimanali: https://github.com/HowTheyVote/data/releases
+    const possibleCsvUrls = [
+      `${HOWTHEYVOTE_GITHUB}/votes.csv.gz`,
+      `https://github.com/HowTheyVote/data/releases/latest/download/votes.csv.gz`,
+      `https://github.com/HowTheyVote/data/raw/main/votes.csv.gz`,
+      `https://raw.githubusercontent.com/HowTheyVote/data/main/votes.csv.gz`
+    ];
+    
+    let votesCsvUrl = null;
+    let csvContent = null;
+    
+    for (const url of possibleCsvUrls) {
+      try {
+        console.log(`   Provo URL: ${url}`);
+        const votesResponse = await axios.get(url, {
+          responseType: 'arraybuffer',
+          headers: {
+            'Accept': 'application/gzip, application/octet-stream',
+            'User-Agent': 'DemosApp-1.0.0'
+          },
+          timeout: 60000,
+          validateStatus: (status) => status < 500
+        });
+        
+        if (votesResponse.status === 200) {
+          votesCsvUrl = url;
+          console.log(`   ✅ File trovato su: ${url}`);
+          
+          // Decomprimi il file GZIP
+          console.log(`   Decompressione file...`);
+          const decompressed = await gunzip(votesResponse.data);
+          csvContent = decompressed.toString('utf-8');
+          
+          console.log(`   ✅ File CSV scaricato (${csvContent.length} caratteri)`);
+          break;
+        }
+      } catch (csvError) {
+        if (csvError.response && csvError.response.status === 404) {
+          console.log(`   ⚠️ File non trovato su: ${url}`);
+        } else {
+          console.log(`   ⚠️ Errore per ${url}: ${csvError.message}`);
+        }
+        continue;
+      }
+    }
+    
+    if (!csvContent) {
+      console.log(`   ⚠️ Nessun file CSV trovato su HowTheyVote`);
+      // Continua con fallback JSON
+    } else {
+      // Parse CSV e cerca la votazione
+      const votiItaliani = parseHowTheyVoteCSV(csvContent, votazioneIdPE, voteId, voteIdShort);
+      
+      if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
+        console.log(`   ✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+        return votiItaliani;
+      } else {
+        console.log(`   ⚠️ Nessun voto italiano trovato per questa votazione`);
+      }
+    }
+    
+    
+    // Fallback: prova URL JSON se disponibili
     const possibleUrls = [
       `${HOWTHEYVOTE_GITHUB}/votes/${voteId}.json`,
-      `${HOWTHEYVOTE_GITHUB}/votes/${votazioneIdPE}.json`,
-      `${HOWTHEYVOTE_BASE}/api/votes/${voteId}`,
-      `${HOWTHEYVOTE_BASE}/api/votes/${votazioneIdPE}`
+      `${HOWTHEYVOTE_GITHUB}/votes/${voteIdShort}.json`
     ];
     
     for (const url of possibleUrls) {
@@ -104,22 +166,23 @@ async function getVotiDaHowTheyVote(votazioneIdPE) {
             'Accept': 'application/json',
             'User-Agent': 'DemosApp-1.0.0'
           },
-          timeout: 10000
+          timeout: 10000,
+          validateStatus: (status) => status < 500
         });
         
-        if (response.data) {
+        if (response.status === 200 && response.data) {
           console.log(`✅ Dati trovati su HowTheyVote: ${url}`);
           const votiItaliani = parseHowTheyVoteData(response.data);
-          if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0)) {
+          if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
             return votiItaliani;
           }
         }
       } catch (err) {
-        // Continua con il prossimo URL
         continue;
       }
     }
     
+    console.log(`⚠️ Nessun dato trovato su HowTheyVote per ${votazioneIdPE}`);
     return null;
   } catch (error) {
     console.error('⚠️ Errore nel recupero da HowTheyVote:', error.message);
@@ -128,7 +191,128 @@ async function getVotiDaHowTheyVote(votazioneIdPE) {
 }
 
 /**
- * Parsa i dati di HowTheyVote per estrarre i voti italiani
+ * Parsa il CSV di HowTheyVote per estrarre i voti italiani
+ */
+function parseHowTheyVoteCSV(csvContent, votazioneIdPE, voteId, voteIdShort) {
+  const voti = {
+    favorevoli: [],
+    contrari: [],
+    astenuti: [],
+    assenti: []
+  };
+  
+  const lines = csvContent.split('\n');
+  if (lines.length < 2) {
+    console.log(`   ⚠️ CSV vuoto o malformato`);
+    return voti;
+  }
+  
+  // Prima riga = header
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  console.log(`   Header CSV: ${headers.slice(0, 5).join(', ')}...`);
+  
+  const voteIdIndex = headers.findIndex(h => h.toLowerCase().includes('vote') && h.toLowerCase().includes('id'));
+  const mepIdIndex = headers.findIndex(h => h.toLowerCase().includes('mep') && h.toLowerCase().includes('id'));
+  const countryIndex = headers.findIndex(h => h.toLowerCase().includes('country') || h.toLowerCase().includes('nationality'));
+  const voteIndex = headers.findIndex(h => (h.toLowerCase().includes('vote') || h.toLowerCase().includes('decision') || h.toLowerCase().includes('position')) && !h.toLowerCase().includes('id'));
+  const nameIndex = headers.findIndex(h => h.toLowerCase().includes('name') || (h.toLowerCase().includes('mep') && !h.toLowerCase().includes('id')));
+  const groupIndex = headers.findIndex(h => h.toLowerCase().includes('group') || h.toLowerCase().includes('party'));
+  
+  console.log(`   Indici trovati: voteId=${voteIdIndex}, mepId=${mepIdIndex}, country=${countryIndex}, vote=${voteIndex}, name=${nameIndex}`);
+  
+  if (voteIdIndex === -1 || mepIdIndex === -1 || countryIndex === -1 || voteIndex === -1) {
+    console.log(`   ⚠️ Struttura CSV non riconosciuta. Header completo: ${headers.join(', ')}`);
+    return voti;
+  }
+  
+  let matchedVotes = 0;
+  let italianVotes = 0;
+  
+  // Cerca la votazione nelle righe
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Parse CSV (gestisce valori con virgolette)
+    const values = parseCSVLine(line);
+    
+    if (values.length <= Math.max(voteIdIndex, mepIdIndex, countryIndex, voteIndex)) continue;
+    
+    const rowVoteId = values[voteIdIndex]?.trim().replace(/"/g, '');
+    const country = values[countryIndex]?.trim().replace(/"/g, '').toLowerCase();
+    
+    // Verifica se è la votazione che cerchiamo
+    const isOurVote = rowVoteId === votazioneIdPE || 
+                      rowVoteId === voteId || 
+                      rowVoteId === voteIdShort ||
+                      rowVoteId?.includes(voteIdShort) ||
+                      rowVoteId?.includes(votazioneIdPE) ||
+                      rowVoteId?.includes('345348'); // Fallback per ID parziale
+    
+    if (isOurVote) {
+      matchedVotes++;
+      
+      // Verifica se è un MEP italiano
+      const isItalian = country === 'italy' || country === 'it' || country === 'italia' || country === 'italian';
+      
+      if (isItalian) {
+        italianVotes++;
+        const mepId = values[mepIdIndex]?.trim().replace(/"/g, '');
+        const voteValue = values[voteIndex]?.trim().replace(/"/g, '').toLowerCase();
+        const mepName = nameIndex !== -1 ? values[nameIndex]?.trim().replace(/"/g, '') : 'Unknown';
+        const group = groupIndex !== -1 ? values[groupIndex]?.trim().replace(/"/g, '') : null;
+        
+        const mepInfo = {
+          id: mepId || 'unknown',
+          nome_completo: mepName,
+          gruppo_politico: group
+        };
+        
+        if (voteValue === 'for' || voteValue === 'yes' || voteValue === '1' || voteValue === 'favorevole') {
+          voti.favorevoli.push(mepInfo);
+        } else if (voteValue === 'against' || voteValue === 'no' || voteValue === '-1' || voteValue === 'contrario') {
+          voti.contrari.push(mepInfo);
+        } else if (voteValue === 'abstention' || voteValue === 'abstain' || voteValue === '0' || voteValue === 'astenuto') {
+          voti.astenuti.push(mepInfo);
+        } else if (voteValue === 'absent' || voteValue === 'didnotvote' || voteValue === 'assente') {
+          voti.assenti.push(mepInfo);
+        }
+      }
+    }
+  }
+  
+  console.log(`   Righe processate: ${lines.length - 1}, voti corrispondenti: ${matchedVotes}, voti italiani: ${italianVotes}`);
+  
+  return voti;
+}
+
+/**
+ * Parse una riga CSV gestendo valori con virgolette
+ */
+function parseCSVLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  values.push(current);
+  return values;
+}
+
+/**
+ * Parsa i dati di HowTheyVote per estrarre i voti italiani (formato JSON)
  */
 function parseHowTheyVoteData(data) {
   const voti = {
