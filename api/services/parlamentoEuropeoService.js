@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { Pool } = require('pg');
+const { getVotiMEPItalianiDaParltrack, salvaVotiMEPItaliani } = require('./parltrackService');
 
 const API_BASE = 'https://data.europarl.europa.eu/api/v2';
 
@@ -434,6 +435,132 @@ async function getDettagliVotazione(uri) {
   }
 }
 
+/**
+ * Recupera i voti nominali dei MEP italiani per una votazione
+ */
+async function getVotiNominaliMEPItaliani(uriVotazione) {
+  try {
+    await ensureTableExists();
+    
+    // Recupera dalla cache se disponibile
+    const result = await pool.query(`
+      SELECT 
+        mep_id,
+        nome_completo,
+        nome_mep,
+        cognome_mep,
+        gruppo_politico,
+        voto
+      FROM parlamento_europeo_voti_nominali
+      WHERE uri_votazione = $1
+        AND paese = 'IT'
+      ORDER BY voto, nome_completo
+    `, [uriVotazione]);
+    
+    if (result.rows.length > 0) {
+      const voti = {
+        favorevoli: [],
+        contrari: [],
+        astenuti: [],
+        assenti: [],
+        disponibili: true
+      };
+      
+      result.rows.forEach(row => {
+        const mepInfo = {
+          id: row.mep_id,
+          nome_completo: row.nome_completo,
+          nome: row.nome_mep,
+          cognome: row.cognome_mep,
+          gruppo_politico: row.gruppo_politico
+        };
+        
+        if (row.voto === 'Favorevole') {
+          voti.favorevoli.push(mepInfo);
+        } else if (row.voto === 'Contrario') {
+          voti.contrari.push(mepInfo);
+        } else if (row.voto === 'Astenuto') {
+          voti.astenuti.push(mepInfo);
+        } else if (row.voto === 'Assente') {
+          voti.assenti.push(mepInfo);
+        }
+      });
+      
+      return voti;
+    }
+    
+    // Recupera informazioni sulla votazione per costruire il link al documento PDF
+    const votazioneResult = await pool.query(`
+      SELECT 
+        votazione_id,
+        metadati
+      FROM parlamento_europeo
+      WHERE uri = $1
+      LIMIT 1
+    `, [uriVotazione]);
+    
+    let linkDocumento = null;
+    if (votazioneResult.rows.length > 0) {
+      const metadati = votazioneResult.rows[0].metadati || {};
+      const sessioneCompleta = metadati.sessione_completa || {};
+      
+      // Cerca il documento PDF nei metadati
+      if (sessioneCompleta.id) {
+        const votazioneId = votazioneResult.rows[0].votazione_id;
+        if (votazioneId) {
+          linkDocumento = `https://www.europarl.europa.eu/doceo/document/PV-9-2024-01-18-VOT-ITM-001_EN.html`;
+        }
+      }
+    }
+    
+    // Se non ci sono dati in cache, prova a recuperare da Parltrack/HowTheyVote
+    try {
+      console.log('📡 Tentativo di recupero voti da fonti esterne (Parltrack/HowTheyVote)...');
+      if (votazioneResult.rows.length > 0) {
+        const votazioneId = votazioneResult.rows[0].votazione_id;
+        const votiEsterni = await getVotiMEPItalianiDaParltrack(votazioneId);
+        
+        if (votiEsterni && 
+            (votiEsterni.favorevoli.length > 0 || 
+             votiEsterni.contrari.length > 0 || 
+             votiEsterni.astenuti.length > 0)) {
+          // Salva i voti nel database per la prossima volta
+          await salvaVotiMEPItaliani(uriVotazione, votiEsterni);
+          
+          return {
+            ...votiEsterni,
+            disponibili: true
+          };
+        }
+      }
+    } catch (esterniError) {
+      console.error('⚠️ Errore nel recupero da fonti esterne:', esterniError.message);
+      // Continua e restituisci messaggio informativo
+    }
+    
+    // Se non ci sono dati da nessuna fonte, restituisci vuoto con info
+    return {
+      favorevoli: [],
+      contrari: [],
+      astenuti: [],
+      assenti: [],
+      disponibili: false,
+      linkDocumento: linkDocumento,
+      messaggio: 'I voti individuali dei MEP non sono disponibili tramite l\'API ufficiale del Parlamento Europeo. Per consultare i voti nominali, visita il sito ufficiale del PE o utilizza fonti alternative come MEPvote.eu o Parltrack.'
+    };
+  } catch (error) {
+    console.error('❌ Errore nel recupero voti nominali MEP italiani:', error);
+    return {
+      favorevoli: [],
+      contrari: [],
+      astenuti: [],
+      assenti: [],
+      disponibili: false,
+      messaggio: 'Errore nel recupero dei voti individuali.'
+    };
+  }
+}
+
 module.exports = {
   ensureTableExists,
   fetchUltimeSessioni,
@@ -441,5 +568,6 @@ module.exports = {
   estraiDettagliVotazione,
   sincronizzaVotazioniPE,
   getUltimeVotazioni,
-  getDettagliVotazione
+  getDettagliVotazione,
+  getVotiNominaliMEPItaliani
 };
