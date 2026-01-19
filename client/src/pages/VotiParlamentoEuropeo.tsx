@@ -152,12 +152,18 @@ export default function VotiParlamentoEuropeo() {
           '/api/voti-parlamento-europeo/ultime?limit=10'
         );
         console.log('✅ VotiParlamentoEuropeo - Risposta ricevuta:', response);
-        if (!response.success) {
-          console.error('❌ VotiParlamentoEuropeo - response.success è false');
+        
+        // apiRequest.get() restituisce {ok, status, data, json}
+        // dove data contiene la risposta JSON dal server
+        const responseData = response.data;
+        console.log('📦 VotiParlamentoEuropeo - response.data:', responseData);
+        
+        if (!responseData || !responseData.success) {
+          console.error('❌ VotiParlamentoEuropeo - responseData.success è false:', responseData);
           throw new Error('Errore nel recupero delle votazioni');
         }
-        console.log('📊 VotiParlamentoEuropeo - Dati:', response.data);
-        return response.data;
+        console.log('📊 VotiParlamentoEuropeo - Dati:', responseData.data);
+        return responseData.data;
       } catch (error) {
         console.error('❌ VotiParlamentoEuropeo - Errore nella query:', error);
         throw error;
@@ -175,10 +181,11 @@ export default function VotiParlamentoEuropeo() {
         const response = await apiRequest.get<{ success: boolean; data: DettagliVotazione }>(
           `/api/voti-parlamento-europeo/dettagli/${encodeURIComponent(votazioneSelezionata.uri)}`
         );
-      if (!response.success) {
-        throw new Error('Errore nel recupero dei dettagli');
-      }
-      return response.data;
+        const responseData = response.data;
+        if (!responseData || !responseData.success) {
+          throw new Error('Errore nel recupero dei dettagli');
+        }
+        return responseData.data;
     },
     enabled: !!votazioneSelezionata?.uri && isDialogOpen
   });
@@ -195,12 +202,13 @@ export default function VotiParlamentoEuropeo() {
         const response = await apiRequest.post<{ success: boolean; data: AnalisiLegge }>(
           `/api/voti-parlamento-europeo/rigenera-analisi/${encodeURIComponent(votazioneSelezionata.uri)}`
         );
-      
-      if (response.success && votazioneSelezionata) {
-        setVotazioneSelezionata({
-          ...votazioneSelezionata,
-          analisi_legge: response.data
-        });
+        
+        const responseData = response.data;
+        if (responseData && responseData.success && votazioneSelezionata) {
+          setVotazioneSelezionata({
+            ...votazioneSelezionata,
+            analisi_legge: responseData.data
+          });
         toast({
           title: "Analisi rigenerata",
           description: "L'analisi è stata rigenerata con successo.",

@@ -176,6 +176,10 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
   let esito = null;
   let titolo = `Votazione ${votazioneIdShort}`;
   
+  // Non proviamo a recuperare i risultati dei voti per ora
+  // L'endpoint vote-results non è sempre disponibile e causa errori 400
+  // TODO: Implementare quando l'API del PE sarà più stabile
+  /*
   if (sessioneId) {
     try {
       const voteResults = await fetchVoteResults(sessioneId);
@@ -217,6 +221,7 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
       console.error(`⚠️ Errore nel recupero dettagli votazione ${votazioneId}:`, error.message);
     }
   }
+  */
   
   return {
     uri: votazioneId,
