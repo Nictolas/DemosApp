@@ -62,16 +62,31 @@ async function fetchUltimeSessioni(limit = 10) {
   try {
     const response = await axios.get(`${API_BASE}/meetings`, {
       params: {
-        'page[size]': limit
+        limit: limit,
+        offset: 0
       },
       headers: {
-        'Accept': 'application/ld+json'
+        'Accept': 'application/ld+json',
+        'User-Agent': 'DemosApp-1.0.0'
       }
     });
     
-    return response.data || [];
+    // L'API restituisce un array o un oggetto con 'data'
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    
+    return [];
   } catch (error) {
     console.error('❌ Errore nel recupero sessioni:', error.message);
+    if (error.response) {
+      console.error('   Status:', error.response.status);
+      console.error('   Data:', error.response.data);
+    }
     throw error;
   }
 }
@@ -91,11 +106,43 @@ function estraiVotazioniDaSessione(sessione) {
 }
 
 /**
- * Recupera i dettagli di una votazione
- * Nota: L'API del PE non ha un endpoint diretto per i dettagli delle votazioni,
- * quindi dobbiamo estrarre le informazioni dalla sessione
+ * Recupera i risultati dei voti per una sessione
  */
-function estraiDettagliVotazione(votazioneId, sessione) {
+async function fetchVoteResults(sessioneId) {
+  try {
+    const response = await axios.get(`${API_BASE}/meetings/${encodeURIComponent(sessioneId)}/vote-results`, {
+      headers: {
+        'Accept': 'application/ld+json',
+        'User-Agent': 'DemosApp-1.0.0'
+      }
+    });
+    
+    // L'API restituisce un array o un oggetto con 'data'
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    
+    return [];
+  } catch (error) {
+    // Se l'endpoint non esiste o restituisce 404, restituisci array vuoto
+    if (error.response && error.response.status === 404) {
+      console.log(`⚠️ Nessun risultato di votazione per sessione ${sessioneId}`);
+      return [];
+    }
+    console.error(`❌ Errore nel recupero risultati voti per ${sessioneId}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Recupera i dettagli di una votazione
+ * Prova a recuperare i risultati dei voti dall'endpoint vote-results
+ */
+async function estraiDettagliVotazione(votazioneId, sessione) {
   // Estrai l'ID della votazione (ultima parte dopo l'ultimo slash)
   const parts = votazioneId.split('/');
   const votazioneIdShort = parts[parts.length - 1];
@@ -104,16 +151,74 @@ function estraiDettagliVotazione(votazioneId, sessione) {
   const dataSessione = sessione['activity_date'] || sessione['activity_start_date'];
   const sessioneLabel = sessione['activity_label']?.['it'] || sessione['activity_label']?.['en'] || '';
   const termineParlamentare = sessione['parliamentary_term'] || null;
+  const sessioneId = sessione['id'] || sessione['activity_id'];
+  
+  // Prova a recuperare i risultati dei voti
+  let favorevoli = null;
+  let contrari = null;
+  let astenuti = null;
+  let presenti = null;
+  let votanti = null;
+  let esito = null;
+  let titolo = `Votazione ${votazioneIdShort}`;
+  
+  if (sessioneId) {
+    try {
+      const voteResults = await fetchVoteResults(sessioneId);
+      
+      // Cerca la votazione specifica nei risultati
+      const votazioneResult = voteResults.find(vr => 
+        vr.id === votazioneId || 
+        (vr.id && vr.id.includes(votazioneIdShort)) ||
+        (vr['@id'] && vr['@id'] === votazioneId)
+      );
+      
+      if (votazioneResult) {
+        // Estrai statistiche dalla votazione
+        if (votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for']) {
+          const voteData = votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for'];
+          favorevoli = voteData['eli-dl:vote_result_in_favour'] || voteData['vote_result_in_favour'] || null;
+          contrari = voteData['eli-dl:vote_result_against'] || voteData['vote_result_against'] || null;
+          astenuti = voteData['eli-dl:vote_result_abstention'] || voteData['vote_result_abstention'] || null;
+        }
+        
+        // Estrai titolo se disponibile
+        if (votazioneResult['rdfs:label'] || votazioneResult['label']) {
+          const label = votazioneResult['rdfs:label'] || votazioneResult['label'];
+          if (typeof label === 'string') {
+            titolo = label;
+          } else if (label && label['it']) {
+            titolo = label['it'];
+          } else if (label && label['en']) {
+            titolo = label['en'];
+          }
+        }
+        
+        // Determina esito
+        if (favorevoli !== null && contrari !== null) {
+          esito = favorevoli > contrari ? 'Approvato' : 'Non Approvato';
+        }
+      }
+    } catch (error) {
+      console.error(`⚠️ Errore nel recupero dettagli votazione ${votazioneId}:`, error.message);
+    }
+  }
   
   return {
     uri: votazioneId,
     votazione_id: votazioneIdShort,
-    titolo: `Votazione ${votazioneIdShort}`, // Titolo generico, da migliorare con dati reali
+    titolo: titolo,
     descrizione: null,
     data_votazione: dataSessione ? new Date(dataSessione).toISOString().split('T')[0] : null,
+    esito: esito,
     sessione_id: sessione['activity_id'] || null,
     sessione_data: dataSessione ? new Date(dataSessione).toISOString().split('T')[0] : null,
     sessione_label: sessioneLabel,
+    favorevoli: favorevoli,
+    contrari: contrari,
+    astenuti: astenuti,
+    presenti: presenti,
+    votanti: votanti,
     termine_parlamentare: termineParlamentare,
     metadati: {
       sessione_completa: sessione
@@ -150,23 +255,30 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
         
         for (const votazioneId of votazioniIds) {
           try {
-            const dettagli = estraiDettagliVotazione(votazioneId, sessione);
+            const dettagli = await estraiDettagliVotazione(votazioneId, sessione);
             
             // Salva nel database (upsert)
             await pool.query(`
               INSERT INTO parlamento_europeo (
-                uri, votazione_id, titolo, descrizione, data_votazione,
-                sessione_id, sessione_data, sessione_label, termine_parlamentare, metadati,
+                uri, votazione_id, titolo, descrizione, data_votazione, esito,
+                sessione_id, sessione_data, sessione_label, termine_parlamentare,
+                favorevoli, contrari, astenuti, presenti, votanti, metadati,
                 data_sincronizzazione
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
               ON CONFLICT (uri) DO UPDATE SET
                 titolo = EXCLUDED.titolo,
                 descrizione = EXCLUDED.descrizione,
                 data_votazione = EXCLUDED.data_votazione,
+                esito = EXCLUDED.esito,
                 sessione_id = EXCLUDED.sessione_id,
                 sessione_data = EXCLUDED.sessione_data,
                 sessione_label = EXCLUDED.sessione_label,
                 termine_parlamentare = EXCLUDED.termine_parlamentare,
+                favorevoli = EXCLUDED.favorevoli,
+                contrari = EXCLUDED.contrari,
+                astenuti = EXCLUDED.astenuti,
+                presenti = EXCLUDED.presenti,
+                votanti = EXCLUDED.votanti,
                 metadati = EXCLUDED.metadati,
                 updated_at = CURRENT_TIMESTAMP,
                 data_sincronizzazione = CURRENT_TIMESTAMP
@@ -176,10 +288,16 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
               dettagli.titolo,
               dettagli.descrizione,
               dettagli.data_votazione,
+              dettagli.esito,
               dettagli.sessione_id,
               dettagli.sessione_data,
               dettagli.sessione_label,
               dettagli.termine_parlamentare,
+              dettagli.favorevoli,
+              dettagli.contrari,
+              dettagli.astenuti,
+              dettagli.presenti,
+              dettagli.votanti,
               JSON.stringify(dettagli.metadati)
             ]);
             
