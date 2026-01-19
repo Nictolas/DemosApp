@@ -60,6 +60,7 @@ async function ensureTableExists() {
  */
 async function fetchUltimeSessioni(limit = 10) {
   try {
+    console.log(`📡 Chiamata API PE: ${API_BASE}/meetings con limit=${limit}`);
     const response = await axios.get(`${API_BASE}/meetings`, {
       params: {
         limit: limit,
@@ -71,21 +72,34 @@ async function fetchUltimeSessioni(limit = 10) {
       }
     });
     
+    console.log(`✅ Risposta API ricevuta, status: ${response.status}`);
+    console.log(`📦 Tipo dati: ${Array.isArray(response.data) ? 'Array' : typeof response.data}`);
+    
     // L'API restituisce un array o un oggetto con 'data'
+    let sessioni = [];
     if (Array.isArray(response.data)) {
-      return response.data;
+      sessioni = response.data;
     } else if (response.data && Array.isArray(response.data)) {
-      return response.data;
+      sessioni = response.data;
     } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-      return response.data.data;
+      sessioni = response.data.data;
+    } else if (response.data && typeof response.data === 'object') {
+      // Prova a estrarre da altre strutture possibili
+      console.log('⚠️ Formato risposta non riconosciuto, chiavi disponibili:', Object.keys(response.data));
+      // Se è un oggetto JSON-LD, potrebbe essere un singolo elemento o un array in una proprietà
+      if (response.data['@graph'] && Array.isArray(response.data['@graph'])) {
+        sessioni = response.data['@graph'];
+      }
     }
     
-    return [];
+    console.log(`📊 Sessioni estratte: ${sessioni.length}`);
+    return sessioni;
   } catch (error) {
     console.error('❌ Errore nel recupero sessioni:', error.message);
     if (error.response) {
       console.error('   Status:', error.response.status);
-      console.error('   Data:', error.response.data);
+      console.error('   Headers:', error.response.headers);
+      console.error('   Data:', JSON.stringify(error.response.data).substring(0, 500));
     }
     throw error;
   }
@@ -249,9 +263,15 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
     // Per ogni sessione, estrai le votazioni
     for (const sessione of sessioni) {
       try {
+        const sessioneId = sessione['id'] || sessione['activity_id'] || 'N/A';
         const votazioniIds = estraiVotazioniDaSessione(sessione);
         
-        console.log(`📋 Sessione ${sessione['activity_id']}: ${votazioniIds.length} votazioni trovate`);
+        console.log(`📋 Sessione ${sessioneId}: ${votazioniIds.length} votazioni trovate`);
+        
+        if (votazioniIds.length === 0) {
+          console.log(`   ⚠️ Nessuna votazione VOT trovata in questa sessione`);
+          continue;
+        }
         
         for (const votazioneId of votazioniIds) {
           try {
