@@ -17,17 +17,24 @@ router.get('/ultime', verifyToken, async (req, res) => {
     
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
     
-    // Se richiesto refresh, sincronizza prima
-    if (forceRefresh) {
+    // Recupera dal database
+    let votazioni = await getUltimeVotazioni(limit);
+    
+    // Se non ci sono votazioni o è richiesto refresh, sincronizza
+    if (votazioni.length === 0 || forceRefresh) {
       try {
+        console.log('🔄 Database vuoto o refresh richiesto, sincronizzazione in corso...');
         await sincronizzaVotazioniPE(5); // Sincronizza ultime 5 sessioni
+        // Ricarica dopo la sincronizzazione
+        votazioni = await getUltimeVotazioni(limit);
       } catch (syncError) {
         console.error('⚠️ Errore nella sincronizzazione (continuo comunque):', syncError.message);
+        // Se c'è un errore ma abbiamo già dei dati, restituiscili comunque
+        if (votazioni.length === 0) {
+          throw syncError;
+        }
       }
     }
-    
-    // Recupera dal database
-    const votazioni = await getUltimeVotazioni(limit);
     
     // Formatta la risposta
     const votazioniFormattate = votazioni.map(v => ({
