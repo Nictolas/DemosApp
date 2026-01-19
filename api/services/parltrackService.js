@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const zlib = require('zlib');
 const { promisify } = require('util');
 const gunzip = promisify(zlib.gunzip);
+const cheerio = require('cheerio');
 
 // Configurazione database
 const pool = new Pool({
@@ -19,14 +20,23 @@ const HOWTHEYVOTE_GITHUB = 'https://raw.githubusercontent.com/HowTheyVote/data/m
 const HOWTHEYVOTE_API = 'https://api.howtheyvote.eu';
 
 /**
- * Recupera i voti individuali dei MEP italiani da Parltrack o HowTheyVote
+ * Recupera i voti individuali dei MEP italiani da Parltrack, HowTheyVote o scraping HTML
  * per una specifica votazione del PE
  */
-async function getVotiMEPItalianiDaParltrack(votazioneIdPE) {
+async function getVotiMEPItalianiDaParltrack(votazioneIdPE, documentoVoti = null) {
   try {
     console.log(`📡 Recupero voti MEP italiani per votazione: ${votazioneIdPE}`);
+    if (documentoVoti) {
+      console.log(`   Documento voti: ${documentoVoti}`);
+    }
     
-    // Prova prima con HowTheyVote.eu (più semplice e diretto)
+    // Prova prima con scraping HTML dal sito ufficiale del PE
+    const votiHTML = await getVotiDaHTMLUfficiale(votazioneIdPE, documentoVoti);
+    if (votiHTML && (votiHTML.favorevoli.length > 0 || votiHTML.contrari.length > 0 || votiHTML.astenuti.length > 0)) {
+      return votiHTML;
+    }
+    
+    // Prova poi con HowTheyVote.eu
     const votiHowTheyVote = await getVotiDaHowTheyVote(votazioneIdPE);
     if (votiHowTheyVote) {
       return votiHowTheyVote;
@@ -209,21 +219,26 @@ function parseHowTheyVoteCSV(csvContent, votazioneIdPE, voteId, voteIdShort) {
   
   // Prima riga = header
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-  console.log(`   Header CSV: ${headers.slice(0, 5).join(', ')}...`);
+  console.log(`   Header CSV: ${headers.slice(0, 10).join(', ')}...`);
   
-  const voteIdIndex = headers.findIndex(h => h.toLowerCase().includes('vote') && h.toLowerCase().includes('id'));
-  const mepIdIndex = headers.findIndex(h => h.toLowerCase().includes('mep') && h.toLowerCase().includes('id'));
-  const countryIndex = headers.findIndex(h => h.toLowerCase().includes('country') || h.toLowerCase().includes('nationality'));
-  const voteIndex = headers.findIndex(h => (h.toLowerCase().includes('vote') || h.toLowerCase().includes('decision') || h.toLowerCase().includes('position')) && !h.toLowerCase().includes('id'));
-  const nameIndex = headers.findIndex(h => h.toLowerCase().includes('name') || (h.toLowerCase().includes('mep') && !h.toLowerCase().includes('id')));
-  const groupIndex = headers.findIndex(h => h.toLowerCase().includes('group') || h.toLowerCase().includes('party'));
+  // HowTheyVote ha una struttura diversa: id, timestamp, display_title, reference, ecc.
+  // I voti individuali potrebbero essere in un file separato o in una struttura diversa
+  // Per ora, cerchiamo il riferimento alla votazione nel campo 'reference' o 'id'
+  const referenceIndex = headers.findIndex(h => h.toLowerCase().includes('reference') || h.toLowerCase().includes('id'));
   
-  console.log(`   Indici trovati: voteId=${voteIdIndex}, mepId=${mepIdIndex}, country=${countryIndex}, vote=${voteIndex}, name=${nameIndex}`);
+  console.log(`   Indice reference/id: ${referenceIndex}`);
   
-  if (voteIdIndex === -1 || mepIdIndex === -1 || countryIndex === -1 || voteIndex === -1) {
+  if (referenceIndex === -1) {
     console.log(`   ⚠️ Struttura CSV non riconosciuta. Header completo: ${headers.join(', ')}`);
+    console.log(`   ⚠️ Il CSV di HowTheyVote potrebbe avere una struttura diversa o richiedere un file separato per i voti individuali`);
     return voti;
   }
+  
+  // Il CSV di HowTheyVote potrebbe contenere solo aggregati, non voti individuali
+  // I voti individuali potrebbero essere in un file separato come 'mep_votes.csv' o simile
+  // Per ora, restituiamo vuoto e proviamo con lo scraping HTML
+  console.log(`   ⚠️ Il CSV contiene solo aggregati, non voti individuali. Provo con scraping HTML...`);
+  return voti;
   
   let matchedVotes = 0;
   let italianVotes = 0;
@@ -634,6 +649,194 @@ async function salvaVotiMEPItaliani(uriVotazione, voti) {
     console.error('❌ Errore nel salvataggio voti MEP italiani:', error);
     throw error;
   }
+}
+
+/**
+ * Recupera i voti individuali facendo scraping HTML dal sito ufficiale del PE
+ */
+async function getVotiDaHTMLUfficiale(votazioneIdPE) {
+  try {
+    console.log(`🔍 Tentativo scraping HTML per: ${votazioneIdPE}`);
+    
+    // Costruisci l'URL del documento HTML
+    // Il formato tipico è: PV-{term}-{date}-VOT-ITM-{number}_{lang}.html
+    // Estrai i componenti dall'ID della votazione
+    // Es: "MTG-PL-2014-01-16-VOT-ITM-345348-13" -> term=7, date=2014-01-16, number=13
+    
+    // Estrai informazioni dalla votazione
+    // Formato: "MTG-PL-2014-01-16-VOT-ITM-345348-13"
+    // -> year=2014, month=01, day=16, term=7 (per 2014), number=13
+    
+    const match = votazioneIdPE.match(/MTG-PL-(\d{4})-(\d{2})-(\d{2})-VOT-ITM-(\d+)-(\d+)/);
+    if (!match) {
+      console.log(`   ⚠️ Formato ID votazione non riconosciuto: ${votazioneIdPE}`);
+      return null;
+    }
+    
+    const [, year, month, day, , number] = match;
+    // Per il 2014, il termine parlamentare è il 7°
+    const termNumber = year === '2014' ? '7' : '9'; // Default a 9 per votazioni più recenti
+    const docNumber = number.padStart(3, '0');
+    
+    // Costruisci URL per documento HTML
+    // Formato corretto: PV-7-2014-01-16-VOT-ITM-013_EN.html
+    const possibleUrls = [
+      `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_EN.html`,
+      `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_IT.html`,
+      `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_FR.html`
+    ];
+    
+    for (const url of possibleUrls) {
+      try {
+        console.log(`   Provo URL: ${url}`);
+        const response = await axios.get(url, {
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          timeout: 15000,
+          validateStatus: (status) => status < 500
+        });
+        
+        if (response.status === 200 && response.headers['content-type']?.includes('html')) {
+          console.log(`   ✅ Documento HTML trovato!`);
+          
+          const $ = cheerio.load(response.data);
+          const votiItaliani = estraiVotiDaHTML($, votazioneIdPE);
+          
+          if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
+            console.log(`   ✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+            return votiItaliani;
+          }
+        }
+      } catch (err) {
+        if (err.response && err.response.status === 404) {
+          console.log(`   ⚠️ 404 per ${url}`);
+        } else {
+          console.log(`   ⚠️ Errore per ${url}: ${err.message}`);
+        }
+        continue;
+      }
+    }
+    
+    console.log(`   ⚠️ Nessun documento HTML trovato`);
+    return null;
+  } catch (error) {
+    console.error('⚠️ Errore nello scraping HTML:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Estrae i voti dei MEP italiani da un documento HTML del PE
+ */
+function estraiVotiDaHTML($, votazioneIdPE) {
+  const voti = {
+    favorevoli: [],
+    contrari: [],
+    astenuti: [],
+    assenti: []
+  };
+  
+  // Cerca tabelle che contengono i voti
+  // Le tabelle di voti tipicamente hanno colonne per: Nome MEP, Paese, Voto
+  const tables = $('table');
+  
+  console.log(`   Trovate ${tables.length} tabelle nel documento`);
+  
+  // Lista di paesi italiani (varianti)
+  const italianCountries = ['Italy', 'Italie', 'Italia', 'IT', 'ITA'];
+  
+  // Cerca in ogni tabella
+  tables.each((index, table) => {
+    const $table = $(table);
+    const rows = $table.find('tr');
+    
+    // Cerca header per identificare colonne
+    const headers = [];
+    $table.find('thead tr th, thead tr td, tr:first-child th, tr:first-child td').each((i, el) => {
+      const text = $(el).text().trim().toLowerCase();
+      headers.push(text);
+    });
+    
+    // Cerca colonne rilevanti
+    const nameColIndex = headers.findIndex(h => h.includes('name') || h.includes('mep') || h.includes('member') || h.includes('nome') || h.includes('membro'));
+    const countryColIndex = headers.findIndex(h => h.includes('country') || h.includes('paese') || h.includes('nationality') || h.includes('nazionalità'));
+    const voteColIndex = headers.findIndex(h => h.includes('vote') || h.includes('voto') || h.includes('decision') || h.includes('position') || h.includes('choice'));
+    
+    // Se non troviamo header, prova a dedurre dalle righe
+    if (nameColIndex === -1 || countryColIndex === -1 || voteColIndex === -1) {
+      // Prova a cercare pattern comuni nelle righe
+      rows.each((i, row) => {
+        const cells = $(row).find('td, th');
+        if (cells.length < 3) return;
+        
+        // Cerca pattern italiani nel testo della riga
+        const rowText = $(row).text().toLowerCase();
+        const isItalianRow = italianCountries.some(country => rowText.includes(country.toLowerCase()));
+        
+        if (isItalianRow) {
+          // Prova a estrarre nome e voto
+          const cellTexts = cells.map((j, cell) => $(cell).text().trim()).get();
+          
+          // Cerca il nome (di solito è il primo o secondo campo)
+          let nomeMEP = cellTexts[0] || cellTexts[1] || '';
+          // Cerca il voto (di solito è l'ultimo campo o contiene "for/against/abstention")
+          const voteText = cellTexts[cellTexts.length - 1]?.toLowerCase() || rowText;
+          
+          if (nomeMEP && nomeMEP.length > 2) {
+            const mepInfo = {
+              id: `mep-${nomeMEP.replace(/\s+/g, '-').toLowerCase()}`,
+              nome_completo: nomeMEP,
+              gruppo_politico: null
+            };
+            
+            if (voteText.includes('for') || voteText.includes('yes') || voteText.includes('favorevole') || voteText.includes('pour') || voteText.includes('+')) {
+              voti.favorevoli.push(mepInfo);
+            } else if (voteText.includes('against') || voteText.includes('no') || voteText.includes('contrario') || voteText.includes('contre') || voteText.includes('-')) {
+              voti.contrari.push(mepInfo);
+            } else if (voteText.includes('abstention') || voteText.includes('abstain') || voteText.includes('astenuto') || voteText.includes('0')) {
+              voti.astenuti.push(mepInfo);
+            } else if (voteText.includes('absent') || voteText.includes('assente')) {
+              voti.assenti.push(mepInfo);
+            }
+          }
+        }
+      });
+    } else {
+      // Usa gli indici delle colonne trovati
+      rows.slice(1).each((i, row) => {
+        const cells = $(row).find('td, th');
+        if (cells.length <= Math.max(nameColIndex, countryColIndex, voteColIndex)) return;
+        
+        const nomeMEP = $(cells[nameColIndex]).text().trim();
+        const country = $(cells[countryColIndex]).text().trim();
+        const voteText = $(cells[voteColIndex]).text().trim().toLowerCase();
+        
+        const isItalian = italianCountries.some(ic => country.toLowerCase().includes(ic.toLowerCase()));
+        
+        if (isItalian && nomeMEP) {
+          const mepInfo = {
+            id: `mep-${nomeMEP.replace(/\s+/g, '-').toLowerCase()}`,
+            nome_completo: nomeMEP,
+            gruppo_politico: null
+          };
+          
+          if (voteText.includes('for') || voteText.includes('yes') || voteText.includes('favorevole') || voteText.includes('pour') || voteText === '+' || voteText === '1') {
+            voti.favorevoli.push(mepInfo);
+          } else if (voteText.includes('against') || voteText.includes('no') || voteText.includes('contrario') || voteText.includes('contre') || voteText === '-' || voteText === '-1') {
+            voti.contrari.push(mepInfo);
+          } else if (voteText.includes('abstention') || voteText.includes('abstain') || voteText.includes('astenuto') || voteText === '0') {
+            voti.astenuti.push(mepInfo);
+          } else if (voteText.includes('absent') || voteText.includes('assente')) {
+            voti.assenti.push(mepInfo);
+          }
+        }
+      });
+    }
+  });
+  
+  return voti;
 }
 
 module.exports = {

@@ -204,24 +204,36 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
   let votanti = null;
   let esito = null;
   let titolo = `Votazione ${votazioneIdShort}`;
+  let documentoVoti = null; // Link al documento con voti individuali
   
-  // Non proviamo a recuperare i risultati dei voti per ora
-  // L'endpoint vote-results non è sempre disponibile e causa errori 400
-  // TODO: Implementare quando l'API del PE sarà più stabile
-  /*
+  // Prova a recuperare i risultati dei voti dall'endpoint vote-results
   if (sessioneId) {
     try {
       const voteResults = await fetchVoteResults(sessioneId);
       
       // Cerca la votazione specifica nei risultati
-      const votazioneResult = voteResults.find(vr => 
-        vr.id === votazioneId || 
-        (vr.id && vr.id.includes(votazioneIdShort)) ||
-        (vr['@id'] && vr['@id'] === votazioneId)
-      );
+      const votazioneResult = voteResults.find(vr => {
+        const vrId = vr.id || vr.activity_id || vr['@id'] || '';
+        return vrId === votazioneId || 
+               vrId.includes(votazioneIdShort) ||
+               vrId.includes(votazioneId);
+      });
       
       if (votazioneResult) {
-        // Estrai statistiche dalla votazione
+        // Estrai link al documento con voti individuali
+        if (votazioneResult['recorded_in_a_realization_of'] && Array.isArray(votazioneResult['recorded_in_a_realization_of'])) {
+          const docRef = votazioneResult['recorded_in_a_realization_of'][0];
+          if (typeof docRef === 'string') {
+            documentoVoti = docRef;
+          } else if (docRef && docRef.id) {
+            documentoVoti = docRef.id;
+          } else if (docRef && typeof docRef === 'object' && docRef['@id']) {
+            documentoVoti = docRef['@id'];
+          }
+        }
+        
+        // Estrai statistiche aggregate se disponibili
+        // Nota: questi sono solo totali, non voti individuali
         if (votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for']) {
           const voteData = votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for'];
           favorevoli = voteData['eli-dl:vote_result_in_favour'] || voteData['vote_result_in_favour'] || null;
@@ -230,27 +242,26 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
         }
         
         // Estrai titolo se disponibile
-        if (votazioneResult['rdfs:label'] || votazioneResult['label']) {
-          const label = votazioneResult['rdfs:label'] || votazioneResult['label'];
+        if (votazioneResult['activity_label'] || votazioneResult['rdfs:label'] || votazioneResult['label']) {
+          const label = votazioneResult['activity_label'] || votazioneResult['rdfs:label'] || votazioneResult['label'];
           if (typeof label === 'string') {
             titolo = label;
           } else if (label && label['it']) {
             titolo = label['it'];
           } else if (label && label['en']) {
             titolo = label['en'];
+          } else if (label && label['fr']) {
+            titolo = label['fr'];
           }
-        }
-        
-        // Determina esito
-        if (favorevoli !== null && contrari !== null) {
-          esito = favorevoli > contrari ? 'Approvato' : 'Non Approvato';
         }
       }
     } catch (error) {
-      console.error(`⚠️ Errore nel recupero dettagli votazione ${votazioneId}:`, error.message);
+      // L'endpoint vote-results potrebbe non essere disponibile per tutte le sessioni
+      if (error.response && error.response.status !== 404) {
+        console.error(`⚠️ Errore nel recupero dettagli votazione ${votazioneId}:`, error.message);
+      }
     }
   }
-  */
   
   return {
     uri: votazioneId,
@@ -269,7 +280,8 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
     votanti: votanti,
     termine_parlamentare: termineParlamentare,
     metadati: {
-      sessione_completa: sessione
+      sessione_completa: sessione,
+      documento_voti: documentoVoti // Link al documento con voti individuali
     }
   };
 }
@@ -513,12 +525,15 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
       }
     }
     
-    // Se non ci sono dati in cache, prova a recuperare da Parltrack/HowTheyVote
+    // Se non ci sono dati in cache, prova a recuperare da fonti esterne
     try {
-      console.log('📡 Tentativo di recupero voti da fonti esterne (Parltrack/HowTheyVote)...');
+      console.log('📡 Tentativo di recupero voti da fonti esterne...');
       if (votazioneResult.rows.length > 0) {
         const votazioneId = votazioneResult.rows[0].votazione_id;
-        const votiEsterni = await getVotiMEPItalianiDaParltrack(votazioneId);
+        const metadati = votazioneResult.rows[0].metadati || {};
+        const documentoVoti = metadati.documento_voti || null;
+        
+        const votiEsterni = await getVotiMEPItalianiDaParltrack(votazioneId, documentoVoti);
         
         if (votiEsterni && 
             (votiEsterni.favorevoli.length > 0 || 
