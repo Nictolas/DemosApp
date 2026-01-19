@@ -43,7 +43,13 @@ export const API_CONFIG = {
 } as const;
 
 // Helper per costruire URL completi
-export const getApiUrl = (endpoint: string) => {
+export const getApiUrl = (endpoint: string | undefined | null) => {
+  // Gestisci casi in cui endpoint è undefined o null
+  if (!endpoint || typeof endpoint !== 'string') {
+    console.error('❌ getApiUrl - endpoint non valido:', endpoint);
+    throw new Error(`Endpoint non valido: ${endpoint}`);
+  }
+  
   const baseUrl = resolveBaseUrl();
   
   // Correggi il problema del double /api
