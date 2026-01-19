@@ -146,14 +146,25 @@ export default function VotiParlamentoEuropeo() {
   const { data: votazioniData, isLoading, error, refetch } = useQuery({
     queryKey: ['voti-parlamento-europeo'],
     queryFn: async () => {
-      const response = await apiRequest<{ success: boolean; data: VotazioneParlamentoEuropeo[]; count: number }>(
-        '/api/voti-parlamento-europeo/ultime?limit=10'
-      );
-      if (!response.success) {
-        throw new Error('Errore nel recupero delle votazioni');
+      console.log('🔍 VotiParlamentoEuropeo - Inizio query');
+      try {
+        const response = await apiRequest<{ success: boolean; data: VotazioneParlamentoEuropeo[]; count: number }>(
+          '/api/voti-parlamento-europeo/ultime?limit=10'
+        );
+        console.log('✅ VotiParlamentoEuropeo - Risposta ricevuta:', response);
+        if (!response.success) {
+          console.error('❌ VotiParlamentoEuropeo - response.success è false');
+          throw new Error('Errore nel recupero delle votazioni');
+        }
+        console.log('📊 VotiParlamentoEuropeo - Dati:', response.data);
+        return response.data;
+      } catch (error) {
+        console.error('❌ VotiParlamentoEuropeo - Errore nella query:', error);
+        throw error;
       }
-      return response.data;
-    }
+    },
+    retry: 1,
+    retryDelay: 1000
   });
 
   // Query per recuperare i dettagli di una votazione
@@ -239,7 +250,15 @@ export default function VotiParlamentoEuropeo() {
           </div>
           <Button
             variant="outline"
-            onClick={() => refetch()}
+            onClick={async () => {
+              console.log('🔄 Pulsante Aggiorna cliccato');
+              try {
+                await refetch();
+                console.log('✅ Refetch completato');
+              } catch (error) {
+                console.error('❌ Errore nel refetch:', error);
+              }
+            }}
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
