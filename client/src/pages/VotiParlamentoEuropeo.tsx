@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
-import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, Info, Eye, TrendingUp, TrendingDown, BookOpen, Globe } from "lucide-react";
+import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, Info, Eye, TrendingUp, TrendingDown, BookOpen, Globe, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,8 +48,24 @@ interface AnalisiLegge {
   data_generazione?: string | null;
 }
 
+interface VotoMEPItaliano {
+  id: string;
+  nome_completo: string;
+  nome?: string;
+  cognome?: string;
+  gruppo_politico?: string;
+}
+
+interface VotiNominaliMEPItaliani {
+  favorevoli: VotoMEPItaliano[];
+  contrari: VotoMEPItaliano[];
+  astenuti: VotoMEPItaliano[];
+  assenti: VotoMEPItaliano[];
+}
+
 interface DettagliVotazione extends VotazioneParlamentoEuropeo {
   analisi_legge?: AnalisiLegge | null;
+  voti_nominali_mep_italiani?: VotiNominaliMEPItaliani | null;
 }
 
 // Funzioni helper (stesse di VotiParlamento.tsx)
@@ -443,6 +459,102 @@ export default function VotiParlamentoEuropeo() {
                           </CardContent>
                         </Card>
                       )}
+
+                  {/* Voti MEP Italiani */}
+                  {dettagliData.voti_nominali_mep_italiani && (
+                    <>
+                      <Separator />
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Voti MEP Italiani
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {dettagliData.voti_nominali_mep_italiani.favorevoli.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-green-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Favorevoli ({dettagliData.voti_nominali_mep_italiani.favorevoli.length})
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliData.voti_nominali_mep_italiani.favorevoli.map((mep, index) => (
+                                  <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                    {mep.nome_completo}
+                                    {mep.gruppo_politico && ` (${mep.gruppo_politico})`}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dettagliData.voti_nominali_mep_italiani.contrari.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-red-600">
+                                <XCircle className="h-4 w-4" />
+                                Contrari ({dettagliData.voti_nominali_mep_italiani.contrari.length})
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliData.voti_nominali_mep_italiani.contrari.map((mep, index) => (
+                                  <Badge key={index} variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                    {mep.nome_completo}
+                                    {mep.gruppo_politico && ` (${mep.gruppo_politico})`}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dettagliData.voti_nominali_mep_italiani.astenuti.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-yellow-600">
+                                <MinusCircle className="h-4 w-4" />
+                                Astenuti ({dettagliData.voti_nominali_mep_italiani.astenuti.length})
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliData.voti_nominali_mep_italiani.astenuti.map((mep, index) => (
+                                  <Badge key={index} variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    {mep.nome_completo}
+                                    {mep.gruppo_politico && ` (${mep.gruppo_politico})`}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dettagliData.voti_nominali_mep_italiani.assenti && dettagliData.voti_nominali_mep_italiani.assenti.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-gray-600">
+                                <User className="h-4 w-4" />
+                                Assenti ({dettagliData.voti_nominali_mep_italiani.assenti.length})
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {dettagliData.voti_nominali_mep_italiani.assenti.map((mep, index) => (
+                                  <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                                    {mep.nome_completo}
+                                    {mep.gruppo_politico && ` (${mep.gruppo_politico})`}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {dettagliData.voti_nominali_mep_italiani.favorevoli.length === 0 &&
+                           dettagliData.voti_nominali_mep_italiani.contrari.length === 0 &&
+                           dettagliData.voti_nominali_mep_italiani.astenuti.length === 0 &&
+                           (!dettagliData.voti_nominali_mep_italiani.assenti || dettagliData.voti_nominali_mep_italiani.assenti.length === 0) && (
+                            <Alert>
+                              <Info className="h-4 w-4" />
+                              <AlertDescription>
+                                I voti dei MEP italiani non sono ancora disponibili per questa votazione.
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
 
                   {/* Analisi Legge */}
                   {dettagliData.analisi_legge && (

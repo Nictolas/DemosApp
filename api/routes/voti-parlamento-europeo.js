@@ -3,7 +3,8 @@ const { verifyToken } = require('../middleware/auth');
 const {
   getUltimeVotazioni,
   getDettagliVotazione,
-  sincronizzaVotazioniPE
+  sincronizzaVotazioniPE,
+  getVotiNominaliMEPItaliani
 } = require('../services/parlamentoEuropeoService');
 const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 
@@ -103,6 +104,15 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       });
     }
     
+    // Recupera voti nominali MEP italiani
+    let votiNominaliMEPItaliani = null;
+    try {
+      votiNominaliMEPItaliani = await getVotiNominaliMEPItaliani(decodedUri);
+    } catch (votiError) {
+      console.error('⚠️ Errore nel recupero voti nominali MEP italiani:', votiError.message);
+      // Continua comunque senza voti nominali
+    }
+    
     // Verifica se esiste già un'analisi AI
     let analisiLegge = null;
     try {
@@ -138,6 +148,7 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       termine_parlamentare: votazione.termine_parlamentare,
       metadati: votazione.metadati || {},
       data_sincronizzazione: votazione.data_sincronizzazione,
+      voti_nominali_mep_italiani: votiNominaliMEPItaliani,
       analisi_legge: analisiLegge ? {
         spiegazione_generale: analisiLegge.spiegazione_generale,
         effetti_positivi: analisiLegge.effetti_positivi,

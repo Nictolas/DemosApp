@@ -48,9 +48,37 @@ async function ensureTableExists() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_europeo_metadati_gin ON parlamento_europeo USING GIN (metadati)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_parlamento_europeo_data ON parlamento_europeo(data_votazione DESC NULLS LAST)`);
     
+    // Crea tabella voti nominali
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS parlamento_europeo_voti_nominali (
+        id SERIAL PRIMARY KEY,
+        uri_votazione TEXT NOT NULL,
+        mep_id TEXT NOT NULL,
+        nome_mep TEXT NOT NULL,
+        cognome_mep TEXT,
+        nome_completo TEXT NOT NULL,
+        paese VARCHAR(2) NOT NULL DEFAULT 'IT',
+        gruppo_politico TEXT,
+        voto VARCHAR(20) NOT NULL CHECK (voto IN ('Favorevole', 'Contrario', 'Astenuto', 'Assente')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        data_sincronizzazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(uri_votazione, mep_id)
+      )
+    `);
+    
+    // Crea indici per voti nominali
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pe_voti_nominali_uri_votazione ON parlamento_europeo_voti_nominali(uri_votazione)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pe_voti_nominali_mep_id ON parlamento_europeo_voti_nominali(mep_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pe_voti_nominali_paese ON parlamento_europeo_voti_nominali(paese)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pe_voti_nominali_voto ON parlamento_europeo_voti_nominali(voto)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pe_voti_nominali_uri_voto ON parlamento_europeo_voti_nominali(uri_votazione, voto)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pe_voti_nominali_uri_paese_voto ON parlamento_europeo_voti_nominali(uri_votazione, paese, voto)`);
+    
     console.log('✅ Tabella parlamento_europeo verificata/creata');
+    console.log('✅ Tabella parlamento_europeo_voti_nominali verificata/creata');
   } catch (error) {
-    console.error('❌ Errore nella creazione tabella parlamento_europeo:', error);
+    console.error('❌ Errore nella creazione tabelle:', error);
     throw error;
   }
 }
