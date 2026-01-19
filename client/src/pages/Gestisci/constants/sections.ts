@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -132,5 +132,15 @@ export const gestisciSections: GestisciSection[] = [
       buttonColor: "bg-green-500 hover:bg-green-600",
       route: "/voti-parlamento",
       buttonText: "Voti Parlamento"
+    },
+    {
+      id: "voti-parlamento-europeo",
+      title: "Voti Parlamento Europeo",
+      description: "Visualizza le ultime votazioni del Parlamento Europeo in ordine cronologico",
+      icon: Globe,
+      color: "text-blue-600 group-hover:text-blue-800",
+      buttonColor: "bg-blue-500 hover:bg-blue-600",
+      route: "/voti-parlamento-europeo",
+      buttonText: "Parlamento Europeo"
     },
 ];
