@@ -24,14 +24,22 @@ router.get('/ultime', verifyToken, async (req, res) => {
     if (votazioni.length === 0 || forceRefresh) {
       try {
         console.log('🔄 Database vuoto o refresh richiesto, sincronizzazione in corso...');
-        await sincronizzaVotazioniPE(5); // Sincronizza ultime 5 sessioni
+        const syncResult = await sincronizzaVotazioniPE(5); // Sincronizza ultime 5 sessioni
+        console.log(`✅ Sincronizzazione completata: ${syncResult.salvate} salvate, ${syncResult.errori} errori`);
         // Ricarica dopo la sincronizzazione
         votazioni = await getUltimeVotazioni(limit);
+        console.log(`📊 Votazioni recuperate dopo sincronizzazione: ${votazioni.length}`);
       } catch (syncError) {
-        console.error('⚠️ Errore nella sincronizzazione (continuo comunque):', syncError.message);
+        console.error('❌ Errore nella sincronizzazione:', syncError);
+        console.error('   Stack:', syncError.stack);
         // Se c'è un errore ma abbiamo già dei dati, restituiscili comunque
         if (votazioni.length === 0) {
-          throw syncError;
+          return res.status(500).json({
+            success: false,
+            message: 'Errore nella sincronizzazione dei dati dal Parlamento Europeo',
+            error: syncError.message,
+            details: 'Impossibile recuperare le votazioni. Verifica i log del server per maggiori dettagli.'
+          });
         }
       }
     }
@@ -58,6 +66,8 @@ router.get('/ultime', verifyToken, async (req, res) => {
       data_sincronizzazione: v.data_sincronizzazione
     }));
     
+    console.log(`✅ Restituisco ${votazioniFormattate.length} votazioni`);
+    
     res.json({
       success: true,
       data: votazioniFormattate,
@@ -65,10 +75,12 @@ router.get('/ultime', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recupero votazioni PE:', error);
+    console.error('   Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Errore nel recupero delle votazioni',
-      error: error.message
+      error: error.message,
+      details: error.stack
     });
   }
 });
