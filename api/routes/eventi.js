@@ -240,6 +240,145 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/eventi/prossimo - Ottieni il prossimo evento (quello più vicino nel futuro)
+router.get('/prossimo', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/eventi/prossimo - Richiesta prossimo evento');
+    
+    const userId = req.userId;
+    const oggi = new Date().toISOString().split('T')[0]; // Data di oggi in formato YYYY-MM-DD
+    
+    console.log('📅 Data di oggi:', oggi);
+    
+    // Prima controlliamo se la tabella esiste
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'eventi'
+      );
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      return res.json({
+        success: true,
+        data: null,
+        message: 'Tabella eventi non trovata'
+      });
+    }
+    
+    // Ottieni le selezioni dell'utente per filtrare gli eventi
+    const userQuery = `
+      SELECT 
+        rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune,
+        candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune,
+        ruolo
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    const isAdmin = user.ruolo === 'AD';
+    
+    let query;
+    const queryParams = [];
+    
+    // Se è admin, mostra tutti gli eventi futuri
+    if (isAdmin) {
+      query = `
+        SELECT 
+          id, nome_evento, tipologia_evento, paese_evento, regione_evento, 
+          provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, 
+          giorno_fine, orario_inizio, orario_fine, organizzatore, created_at
+        FROM eventi
+        WHERE giorno_inizio >= $1
+        ORDER BY giorno_inizio ASC, orario_inizio ASC NULLS LAST
+        LIMIT 1
+      `;
+      queryParams.push(oggi);
+    } else {
+      // Per utenti non-admin, filtra come nella lista eventi
+      const selectedIds = [
+        user.rappresentante_europeo,
+        user.rappresentante_camera,
+        user.rappresentante_senato,
+        user.rappresentante_regionale,
+        user.rappresentante_comune,
+        user.candidato_europeo,
+        user.candidato_camera,
+        user.candidato_senato,
+        user.candidato_regionale,
+        user.candidato_comune
+      ].filter(id => id);
+      
+      if (selectedIds.length > 0) {
+        query = `
+          SELECT 
+            e.id, e.nome_evento, e.tipologia_evento, e.paese_evento, e.regione_evento, 
+            e.provincia_evento, e.comune_evento, e.indirizzo_evento, e.giorno_inizio, 
+            e.giorno_fine, e.orario_inizio, e.orario_fine, e.organizzatore, e.created_at
+          FROM eventi e
+          WHERE e.giorno_inizio >= $1
+            AND (e.tipologia_evento = 'Elezioni' OR e.organizzatore IN (SELECT CONCAT(nome, ' ', cognome) FROM users WHERE id = ANY($2)))
+          ORDER BY e.giorno_inizio ASC, e.orario_inizio ASC NULLS LAST
+          LIMIT 1
+        `;
+        queryParams.push(oggi, selectedIds);
+      } else {
+        // Se non ha selezioni, mostra solo eventi "Elezioni"
+        query = `
+          SELECT 
+            id, nome_evento, tipologia_evento, paese_evento, regione_evento, 
+            provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, 
+            giorno_fine, orario_inizio, orario_fine, organizzatore, created_at
+          FROM eventi
+          WHERE giorno_inizio >= $1 AND tipologia_evento = 'Elezioni'
+          ORDER BY giorno_inizio ASC, orario_inizio ASC NULLS LAST
+          LIMIT 1
+        `;
+        queryParams.push(oggi);
+      }
+    }
+    
+    console.log('🔍 Query prossimo evento:', query);
+    console.log('📋 Parametri:', queryParams);
+    
+    const result = await pool.query(query, queryParams);
+    
+    if (result.rows.length === 0) {
+      console.log('📭 Nessun evento futuro trovato');
+      return res.json({
+        success: true,
+        data: null,
+        message: 'Nessun evento futuro trovato'
+      });
+    }
+    
+    console.log('✅ Prossimo evento trovato:', result.rows[0]);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero prossimo evento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // GET /api/eventi/:id - Ottieni singolo evento
 router.get('/:id', async (req, res) => {
   try {
