@@ -96,6 +96,7 @@ const ministeroRoutes = require('./routes/ministero');
 const votiPoliticiRoutes = require('./routes/voti-politici');
 const votiCameraRoutes = require('./routes/voti-camera');
 const votiParlamentoEuropeoRoutes = require('./routes/voti-parlamento-europeo');
+const bachecaRoutes = require('./routes/bacheca');
 // const testMiddlewareRoutes = require('./routes/test-middleware');
 // const testSimpleRoutes = require('./routes/test-simple');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
@@ -373,6 +374,7 @@ app.use('/api/ministero', publicLimiter, ministeroRoutes);
 app.use('/api/voti-politici', userLimiter, votiPoliticiRoutes);
 app.use('/api/voti-parlamento-europeo', userLimiter, votiParlamentoEuropeoRoutes);
 app.use('/api/voti-camera', userLimiter, votiCameraRoutes);
+app.use('/api/bacheca', userLimiter, bachecaRoutes);
 // app.use('/api/test', testMiddlewareRoutes);
 // app.use('/api/test', testSimpleRoutes);
 app.use('/api/admin', adminRoutes);
