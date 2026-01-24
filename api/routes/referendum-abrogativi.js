@@ -1,15 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 const { mapToLegacyFormat, buildQueryForTipo, mapReferendumAbrogativiToLegacyFormat } = require('../utils/iniziativeMinisteroMapper');
+const { getPool } = require('../config/database');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
 /**

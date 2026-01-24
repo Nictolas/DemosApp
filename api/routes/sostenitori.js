@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 const { decompressUserLocation } = require('../utils/locationUtils');
+const { getPool } = require('../config/database');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // ===== ENDPOINTS PER SOSTENITORI =====
 

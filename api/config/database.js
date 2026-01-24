@@ -37,13 +37,27 @@ const getPool = () => {
     try {
       poolInstance = new Pool(poolConfig);
       
-      // Event listeners per monitoraggio
+      // Event listeners per monitoraggio e gestione errori
       poolInstance.on('connect', (client) => {
         console.log('🔗 Nuova connessione database stabilita');
+        
+        // Gestisci errori a livello di client
+        client.on('error', (err) => {
+          console.error('❌ Errore client database:', err);
+          // Il pool gestirà automaticamente la rimozione del client difettoso
+        });
       });
       
-      poolInstance.on('error', (err) => {
+      poolInstance.on('error', (err, client) => {
         console.error('❌ Errore pool database:', err);
+        console.error('   Codice errore:', err.code);
+        console.error('   Messaggio:', err.message);
+        
+        // Se è un errore di connessione, il pool lo gestirà automaticamente
+        // ma logghiamo per monitoraggio
+        if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+          console.error('⚠️ Connessione database persa, il pool tenterà di riconnettersi automaticamente');
+        }
       });
       
       poolInstance.on('remove', (client) => {

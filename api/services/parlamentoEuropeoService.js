@@ -1,14 +1,11 @@
 const axios = require('axios');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 const { getVotiMEPItalianiDaParltrack, salvaVotiMEPItaliani } = require('./parltrackService');
 
 const API_BASE = 'https://data.europarl.europa.eu/api/v2';
 
-// Configurazione database Neon
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 /**
  * Assicura che la tabella parlamento_europeo esista

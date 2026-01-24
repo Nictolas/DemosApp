@@ -1,15 +1,12 @@
 const axios = require('axios');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 const zlib = require('zlib');
 const { promisify } = require('util');
 const gunzip = promisify(zlib.gunzip);
 const cheerio = require('cheerio');
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // URL base di Parltrack
 // Nota: Gli URL esatti possono variare, verifica su parltrack.org

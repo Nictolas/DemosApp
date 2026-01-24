@@ -1,15 +1,12 @@
 const express = require('express');
-const { Pool } = require('pg');
 const crypto = require('crypto');
+const { getPool } = require('../config/database');
 require('dotenv').config();
 
 const router = express.Router();
 
-// Configurazione database Neon
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // POST /api/segnalazioni - Invia segnalazione agli admin
 router.post('/', async (req, res) => {
