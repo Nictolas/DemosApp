@@ -1,26 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { Pool } = require('pg');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
 const { requireAdmin } = require('../../middleware/auth');
 const { authLimiter } = require('../../middleware/rateLimiting');
+const { getPool } = require('../../config/database');
 
 const router = express.Router();
 
-// Configurazione database ottimizzata per performance
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { 
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  },
-  max: 20, // Massimo 20 connessioni
-  idleTimeoutMillis: 30000, // 30 secondi
-  connectionTimeoutMillis: 10000, // 10 secondi timeout connessione (aumentato da 5)
-  query_timeout: 30000, // 30 secondi timeout query (aumentato da 10 per login)
-  statement_timeout: 30000, // 30 secondi timeout statement (aumentato da 10 per login)
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10000
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 /**
  * 🔐 LOGIN UTENTE

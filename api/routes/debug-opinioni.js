@@ -1,14 +1,9 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 const router = express.Router();
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  }
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // Endpoint per debug delle opinioni comuni
 router.get('/debug-opinioni-comuni', async (req, res) => {

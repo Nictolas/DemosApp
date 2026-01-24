@@ -1,14 +1,11 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
+const { getPool } = require('../config/database');
 
 const router = express.Router();
 
-// Configurazione database Neon
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // GET /api/governo/ministro/:categoria/voti - Ottieni voti per un ministero specifico
 router.get('/:categoria/voti', verifyToken, async (req, res) => {

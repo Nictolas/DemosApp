@@ -1,13 +1,10 @@
 // Servizio per generare spiegazioni AI delle votazioni
 // Supporta sia Groq (gratuito) che OpenAI (a pagamento)
 const Groq = require('groq-sdk');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 
-// Inizializza pool database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // Inizializza Groq client (gratuito) o OpenAI client (a pagamento)
 let aiClient = null;
