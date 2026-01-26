@@ -1505,41 +1505,54 @@ router.get('/prossima', verifyToken, async (req, res) => {
     
     console.log('📅 Data di oggi:', oggi);
     
-    // Query per iniziative_ministero: stato = 'in_corso' e data_fine >= oggi
-    // Ordina per scadenza più vicina (data_fine ASC) e poi per più firme (firme_raccolte DESC)
+    // Query per iniziative_ministero: stato = 'in_corso'
+    // Usa ILIKE per cercare iniziative popolari (può essere "Legge di iniziativa popolare" o varianti)
+    // Simile alla logica di buildQueryForTipo ma semplificata per questo endpoint
+    // Mostra tutte le iniziative in corso, ordina per scadenza più vicina e più firme
     const queryMinistero = `
       SELECT 
         id, titolo, descrizione, tipo, stato, id_ministero, 
         data_inizio, data_fine, firme_raccolte, quorum_raggiunto, sito_web
       FROM iniziative_ministero
-      WHERE tipo = 'iniziativa'
+      WHERE tipo ILIKE '%iniziativa%popolare%'
         AND stato = 'in_corso'
-        AND data_fine >= $1
-      ORDER BY data_fine ASC, firme_raccolte DESC NULLS LAST
+      ORDER BY 
+        CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
+        CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
+        firme_raccolte DESC NULLS LAST
       LIMIT 5
     `;
     
-    const resultMinistero = await pool.query(queryMinistero, [oggi]);
+    console.log('🔍 Query iniziative_ministero:', queryMinistero);
+    const resultMinistero = await pool.query(queryMinistero);
+    console.log(`✅ Trovate ${resultMinistero.rows.length} iniziative da iniziative_ministero`);
     
-    // Query per iniziative_popolari: status = 'in_corso' o 'pending' o 'in attesa' e data_fine >= oggi
+    // Query per iniziative_popolari: status = 'in_corso' o 'pending' o 'in attesa'
+    // Simile alla logica dell'endpoint principale per la pagina listing (soloInCorso = true)
+    // Mostra tutte le iniziative in corso, ordina per scadenza più vicina e più firme
     const queryPopolari = `
       SELECT 
         id, nome, descrizione, data_inizio, data_fine, 
         firme, sito_web, status, quorum, userid
       FROM iniziative_popolari
-      WHERE (status = 'in_corso' OR status = 'pending' OR status = 'in attesa' OR status IS NULL)
-        AND data_fine >= $1
-      ORDER BY data_fine ASC, firme DESC NULLS LAST
+      WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
+        AND quorum != 'proposta'
+      ORDER BY 
+        CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
+        CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
+        firme DESC NULLS LAST
       LIMIT 5
     `;
     
-    const resultPopolari = await pool.query(queryPopolari, [oggi]);
+    console.log('🔍 Query iniziative_popolari:', queryPopolari);
+    const resultPopolari = await pool.query(queryPopolari);
+    console.log(`✅ Trovate ${resultPopolari.rows.length} iniziative da iniziative_popolari`);
     
     // Normalizza le iniziative dal ministero
     const iniziativeMinistero = resultMinistero.rows.map(row => ({
       ...mapToLegacyFormat(row, 'iniziativa'),
       source: 'ministero',
-      dataFine: new Date(row.data_fine),
+      dataFine: row.data_fine ? new Date(row.data_fine) : null,
       firme: row.firme_raccolte || 0
     }));
     
@@ -1547,7 +1560,7 @@ router.get('/prossima', verifyToken, async (req, res) => {
     const iniziativePopolari = resultPopolari.rows.map(row => ({
       ...mapIniziativePopolariToLegacyFormat(row),
       source: 'popolari',
-      dataFine: new Date(row.data_fine),
+      dataFine: row.data_fine ? new Date(row.data_fine) : null,
       firme: row.firme || 0
     }));
     
@@ -1556,6 +1569,8 @@ router.get('/prossima', verifyToken, async (req, res) => {
     
     if (tutteIniziative.length === 0) {
       console.log('📭 Nessuna iniziativa in corso trovata');
+      console.log('🔍 Debug: resultMinistero.rows.length =', resultMinistero.rows.length);
+      console.log('🔍 Debug: resultPopolari.rows.length =', resultPopolari.rows.length);
       return res.json({
         success: true,
         data: null,
@@ -1564,7 +1579,16 @@ router.get('/prossima', verifyToken, async (req, res) => {
     }
     
     // Ordina per: 1) scadenza più vicina (data_fine ASC), 2) più firme (firme DESC)
+    // Le iniziative senza data_fine vanno in fondo
     tutteIniziative.sort((a, b) => {
+      // Se una non ha data_fine, mettila in fondo
+      if (!a.dataFine && !b.dataFine) {
+        return b.firme - a.firme; // Ordina per firme se entrambe senza data
+      }
+      if (!a.dataFine) return 1; // a senza data va in fondo
+      if (!b.dataFine) return -1; // b senza data va in fondo
+      
+      // Entrambe hanno data_fine, ordina per scadenza più vicina (anche se passata)
       const dataDiff = a.dataFine.getTime() - b.dataFine.getTime();
       if (dataDiff !== 0) {
         return dataDiff; // Scadenza più vicina prima
@@ -1572,12 +1596,26 @@ router.get('/prossima', verifyToken, async (req, res) => {
       return b.firme - a.firme; // Più firme prima (se stessa scadenza)
     });
     
+    console.log('🔍 Tutte le iniziative trovate:', tutteIniziative.map(i => ({
+      nome: i.nome || i.titolo,
+      data_fine: i.dataFine,
+      firme: i.firme,
+      source: i.source
+    })));
+    
     const iniziativa = tutteIniziative[0];
     
     // Aggiungi emoji automatica
     iniziativa.emoji = getEmojiAutomatica(iniziativa);
     
     console.log(`✅ Iniziativa più rilevante trovata (${iniziativa.source}):`, iniziativa.nome || iniziativa.titolo);
+    console.log('🔍 Dettagli iniziativa:', {
+      nome: iniziativa.nome || iniziativa.titolo,
+      data_fine: iniziativa.data_fine || iniziativa.dataFine,
+      firme: iniziativa.firme || iniziativa.firme_raccolte,
+      source: iniziativa.source,
+      allKeys: Object.keys(iniziativa)
+    });
     
     res.json({
       success: true,
