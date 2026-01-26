@@ -115,9 +115,9 @@ export default function Menu() {
             
             {/* Riquadri per Prossimo Evento, Iniziativa Popolare e Ultima Notifica - Layout 2x2 */}
             <div className="mt-4 grid grid-cols-2 gap-4">
+              <UltimaNotificaRiquadro />
               <ProssimoEventoRiquadro />
               <ProssimaIniziativaRiquadro />
-              <UltimaNotificaRiquadro />
             </div>
           </div>
         </div>
