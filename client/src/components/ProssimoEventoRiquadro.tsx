@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ProssimoEventoRiquadro.css';
+import { apiRequest } from '@/lib/queryClient';
 
 const ProssimoEventoRiquadro = () => {
   const [evento, setEvento] = useState<any>(null);
@@ -9,36 +10,47 @@ const ProssimoEventoRiquadro = () => {
   useEffect(() => {
     const fetchProssimoEvento = async () => {
       try {
-        // Ottieni il token dal localStorage o dal tuo sistema di autenticazione
+        console.log('🔍 ProssimoEventoRiquadro - Inizio fetch');
+        
+        // Ottieni il token dal localStorage
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
-          console.log('Token non trovato, riquadro evento non caricato');
+          console.log('⚠️ ProssimoEventoRiquadro - Token non trovato');
           setLoading(false);
           return;
         }
         
-        const response = await fetch('https://www.demos.community/api/eventi/prossimo', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        console.log('🔍 ProssimoEventoRiquadro - Token trovato, effettuo richiesta');
+        
+        const response = await apiRequest('GET', '/api/eventi/prossimo');
+        
+        console.log('🔍 ProssimoEventoRiquadro - Risposta ricevuta:', {
+          ok: response.ok,
+          status: response.status,
+          hasData: !!response.data
         });
-
+        
         if (!response.ok) {
           throw new Error(`Errore HTTP: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = response.data;
+        
+        console.log('🔍 ProssimoEventoRiquadro - Dati parsati:', {
+          success: data?.success,
+          hasEvento: !!data?.data
+        });
         
         if (data.success && data.data) {
+          console.log('✅ ProssimoEventoRiquadro - Evento trovato:', data.data.nome_evento);
           setEvento(data.data);
         } else {
+          console.log('ℹ️ ProssimoEventoRiquadro - Nessun evento disponibile');
           setEvento(null);
         }
       } catch (err) {
-        console.error('Errore nel recupero prossimo evento:', err);
+        console.error('❌ ProssimoEventoRiquadro - Errore:', err);
         setError('Errore nel caricamento dell\'evento');
       } finally {
         setLoading(false);
@@ -56,8 +68,14 @@ const ProssimoEventoRiquadro = () => {
     );
   }
 
-  if (error || !evento) {
-    return null; // Non mostrare nulla se non c'è un evento o c'è un errore
+  if (error) {
+    console.error('❌ ProssimoEventoRiquadro - Errore:', error);
+    return null; // Non mostrare nulla se c'è un errore
+  }
+
+  if (!evento) {
+    console.log('ℹ️ ProssimoEventoRiquadro - Nessun evento disponibile, non mostro il riquadro');
+    return null; // Non mostrare nulla se non c'è un evento
   }
 
   // Formatta la data
