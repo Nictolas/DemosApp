@@ -96,10 +96,38 @@ const ProssimoEventoRiquadro = () => {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.add('scale-95', 'shadow-md');
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+    handleClick();
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('scale-95', 'shadow-md');
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+    handleClick();
+  };
+
   return (
     <div 
-      className="prossimo-evento-riquadro clickable"
-      onClick={handleClick}
+      className="prossimo-evento-riquadro clickable transition-transform"
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -147,10 +175,6 @@ const ProssimoEventoRiquadro = () => {
               <strong>👤 Organizzatore:</strong> {evento.organizzatore}
             </p>
           )}
-        </div>
-        
-        <div className="vedi-tutti-eventi-btn">
-          Vedi tutti gli eventi →
         </div>
       </div>
     </div>

@@ -64,17 +64,6 @@
   line-height: 1.4;
 }
 
-.vedi-tutte-iniziative-btn {
-  display: inline-block;
-  margin-top: 15px;
-  padding: 10px 20px;
-  background: white;
-  color: #f5576c;
-  text-decoration: none;
-  border-radius: 6px;
-  font-weight: 600;
-  text-align: center;
-}
 
 .prossima-iniziativa-riquadro.loading {
   text-align: center;
