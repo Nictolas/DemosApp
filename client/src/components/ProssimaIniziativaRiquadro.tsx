@@ -184,14 +184,11 @@ const ProssimaIniziativaRiquadro = () => {
         {iniziativa ? (
           <div className="prossima-iniziativa-info">
             {(iniziativa.data_fine || iniziativa.dataFine) && (
-              <p className="scadenza">
+              <p className="scadenza-firme">
                 {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
+                <span className="ml-2">{formattaFirme(firme)}</span>
               </p>
             )}
-            
-            <p className="firme">
-              <strong>✍️ Firme raccolte:</strong> {formattaFirme(firme)}
-            </p>
           </div>
         ) : (
           <div className="prossima-iniziativa-info">

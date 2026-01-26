@@ -184,14 +184,11 @@ const ProssimoReferendumRiquadro = () => {
         {referendum ? (
           <div className="prossimo-referendum-info">
             {(referendum.data_fine || referendum.dataFine) && (
-              <p className="scadenza">
+              <p className="scadenza-firme">
                 {formattaData(referendum.data_fine || referendum.dataFine)}
+                <span className="ml-2">{formattaFirme(firme)}</span>
               </p>
             )}
-            
-            <p className="firme">
-              <strong>✍️ Firme raccolte:</strong> {formattaFirme(firme)}
-            </p>
           </div>
         ) : (
           <div className="prossimo-referendum-info">
