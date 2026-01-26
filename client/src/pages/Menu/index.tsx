@@ -94,9 +94,9 @@ export default function Menu() {
   }
 
   return (
-    <PageContainer className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
-      <div className="container mx-auto px-4 py-4 flex flex-col" style={{ minHeight: '100%' }}>
-        <div className="w-full max-w-4xl mx-auto flex flex-col">
+    <PageContainer className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none overflow-y-auto ${isAndroid ? 'android' : ''}`} style={{ maxHeight: '100vh', overflowY: 'auto' }}>
+      <div className="container mx-auto px-4 py-4 flex flex-col" style={{ minHeight: 'auto' }}>
+        <div className="w-full max-w-4xl mx-auto flex flex-col pb-4">
           <Card className="w-full flex-shrink-0">
             <MenuHeader 
               key={`header-${user?.email || 'no-user'}`}
@@ -113,8 +113,8 @@ export default function Menu() {
               onNavigate={navigateWithButtonReset}
             />
             
-            {/* Riquadri per Prossimo Evento, Iniziativa Popolare e Ultima Notifica */}
-            <div className="mt-4 flex flex-col gap-4">
+            {/* Riquadri per Prossimo Evento, Iniziativa Popolare e Ultima Notifica - Layout 2x2 */}
+            <div className="mt-4 grid grid-cols-2 gap-4">
               <ProssimoEventoRiquadro />
               <ProssimaIniziativaRiquadro />
               <UltimaNotificaRiquadro />
