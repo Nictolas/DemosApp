@@ -1,4 +1,4 @@
-import { FileText, Vote, MessageSquare, User } from "lucide-react";
+import { Vote, MessageSquare, User } from "lucide-react";
 
 export const menuItems = [
   {
@@ -19,16 +19,6 @@ export const menuItems = [
     color: {
       bg: "#e0f2fe",
       icon: "#0891b2"
-    }
-  },
-  {
-    id: "proponi",
-    path: "/firma",
-    icon: FileText,
-    label: "Firma",
-    color: {
-      bg: "#fef3c7",
-      icon: "#d97706"
     }
   },
   {
