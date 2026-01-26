@@ -182,14 +182,57 @@ const ProssimaIniziativaRiquadro = () => {
         <h4>{nomeIniziativa}</h4>
         
         {iniziativa ? (
-          <div className="prossima-iniziativa-info">
-            {(iniziativa.data_fine || iniziativa.dataFine) && (
-              <p className="scadenza-firme">
-                {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
-                <span className="ml-2">{formattaFirme(firme)}</span>
-              </p>
-            )}
-          </div>
+          <>
+            <div className="prossima-iniziativa-info">
+              {(iniziativa.data_fine || iniziativa.dataFine) && (
+                <p className="scadenza-firme">
+                  {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
+                  <span className="ml-2">{formattaFirme(firme)}</span>
+                </p>
+              )}
+            </div>
+            
+            {/* Barra di completamento */}
+            {(() => {
+              const firmeRaccolte = firme;
+              const totaleMinimo = 50000;
+              const percentuale = Math.min((firmeRaccolte / totaleMinimo) * 100, 100);
+              const haSuperatoQuorum = firmeRaccolte >= totaleMinimo;
+              
+              return (
+                <div className="prossima-iniziativa-progress" style={{ marginTop: '8px' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    fontSize: '0.75em',
+                    marginBottom: '4px',
+                    opacity: 0.9
+                  }}>
+                    <span>Progresso verso quorum</span>
+                    <span style={{ fontWeight: 600 }}>{percentuale.toFixed(1)}%</span>
+                  </div>
+                  <div style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    borderRadius: '10px',
+                    height: '6px',
+                    overflow: 'hidden'
+                  }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        borderRadius: '10px',
+                        transition: 'width 0.5s ease, background-color 0.5s ease',
+                        width: `${percentuale}%`,
+                        backgroundColor: haSuperatoQuorum ? '#10b981' : '#3b82f6'
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+          </>
         ) : (
           <div className="prossima-iniziativa-info">
             <p>Nessuna iniziativa popolare in corso al momento.</p>
