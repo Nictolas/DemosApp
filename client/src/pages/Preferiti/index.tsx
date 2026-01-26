@@ -56,7 +56,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
   return (
     <button
       type="button"
-      className="menu-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="menu-button relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform flex-shrink-0"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -107,8 +107,8 @@ const preferitiItems = [
     icon: UserCheck,
     label: "Attivisti",
     color: {
-      bg: "#dcfce7",
-      icon: "#16a34a"
+      bg: "#fce7f3",
+      icon: "#db2777"
     }
   },
   {
@@ -292,7 +292,7 @@ export default function Preferiti() {
 
           {/* Grid dei pulsanti */}
           <div className="mt-2 flex-1">
-            <div className="grid grid-cols-2 gap-1 min-h-0">
+            <div className="grid grid-cols-2 gap-4 min-h-0">
               {preferitiItems.map((item) => (
                 <PreferitiButton
                   key={item.id}
@@ -306,7 +306,7 @@ export default function Preferiti() {
             </div>
             
             {/* Pulsanti Opinioni e Vota spostati dal Menu */}
-            <div className="mt-4 grid grid-cols-2 gap-1">
+            <div className="mt-4 grid grid-cols-2 gap-4">
               <PreferitiButton
                 path="/opinioni"
                 icon={MessageSquare}
