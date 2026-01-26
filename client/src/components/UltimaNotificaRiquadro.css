@@ -1,0 +1,73 @@
+/* CSS globale per il riquadro ultima notifica */
+.ultima-notifica-riquadro {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ultima-notifica-riquadro.clickable {
+  cursor: pointer;
+}
+
+.ultima-notifica-riquadro.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ultima-notifica-riquadro.clickable:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.ultima-notifica-header h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.ultima-notifica-content h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.5em;
+  font-weight: 700;
+}
+
+.ultima-notifica-info {
+  margin: 15px 0;
+}
+
+.ultima-notifica-info p {
+  margin: 8px 0;
+  font-size: 0.95em;
+}
+
+.ultima-notifica-info strong {
+  margin-right: 8px;
+}
+
+.ultima-notifica-info .messaggio {
+  margin-top: 12px;
+  font-style: italic;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.vedi-tutte-notifiche-btn {
+  display: inline-block;
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: white;
+  color: #f59e0b;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ultima-notifica-riquadro.loading {
+  text-align: center;
+  padding: 40px;
+}

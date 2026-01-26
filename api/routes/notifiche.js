@@ -885,4 +885,179 @@ router.post('/preferenze', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/notifiche/ultima - Ottieni l'ultima notifica (la più recente)
+router.get('/ultima', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/notifiche/ultima - Richiesta ultima notifica');
+    
+    const userId = req.userId;
+    
+    // Usa la stessa logica dell'endpoint principale ma restituisce solo la prima
+    // Recupera informazioni utente
+    const userResult = await pool.query(
+      'SELECT is_admin, comune_residenza, rappresentante_camera, rappresentante_senato FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isAdmin = userResult.rows[0].is_admin === true;
+    const userComuneResidenza = userResult.rows[0].comune_residenza;
+    const rappresentanteCamera = userResult.rows[0].rappresentante_camera;
+    const rappresentanteSenato = userResult.rows[0].rappresentante_senato;
+    
+    let comunicazioni = [];
+    
+    // Recupera da notifiche_voti_comuni (filtra per comune se non admin)
+    try {
+      let queryVotiComuni = `
+        SELECT 
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          COALESCE(data_creazione, CURRENT_TIMESTAMP) as data_creazione,
+          voto,
+          comune_residenza,
+          politico,
+          COALESCE(likes, 0) as likes,
+          COALESCE(dislikes, 0) as dislikes,
+          'notifiche_voti_comuni' as tabella_origine
+        FROM notifiche_voti_comuni
+      `;
+      
+      let votiComuniResult;
+      if (!isAdmin && userComuneResidenza) {
+        queryVotiComuni += ` WHERE comune_residenza = $1`;
+        votiComuniResult = await pool.query(queryVotiComuni + ` ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC LIMIT 1`, [userComuneResidenza]);
+      } else {
+        votiComuniResult = await pool.query(queryVotiComuni + ` ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC LIMIT 1`);
+      }
+      
+      if (votiComuniResult.rows.length > 0) {
+        comunicazioni.push({
+          id: votiComuniResult.rows[0].id,
+          titolo: votiComuniResult.rows[0].titolo,
+          messaggio: votiComuniResult.rows[0].testo,
+          data_creazione: votiComuniResult.rows[0].data_creazione,
+          tipo_notifica: 'voto_comune',
+          tabella_origine: 'notifiche_voti_comuni'
+        });
+      }
+    } catch (err) {
+      console.error('❌ Errore query notifiche_voti_comuni:', err);
+    }
+    
+    // Recupera da notifiche_demos
+    try {
+      const demosResult = await pool.query(`
+        SELECT 
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          data_creazione,
+          'notifiche_demos' as tabella_origine
+        FROM notifiche_demos
+        WHERE id_utente = $1
+        ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+        LIMIT 1
+      `, [userId]);
+      
+      if (demosResult.rows.length > 0) {
+        comunicazioni.push({
+          id: demosResult.rows[0].id,
+          titolo: demosResult.rows[0].titolo,
+          messaggio: demosResult.rows[0].testo,
+          data_creazione: demosResult.rows[0].data_creazione,
+          tipo_notifica: 'notifica_demos',
+          tabella_origine: 'notifiche_demos'
+        });
+      }
+    } catch (err) {
+      console.error('❌ Errore query notifiche_demos:', err);
+    }
+    
+    // Recupera da notifiche_voti_parlamento (se l'utente ha rappresentanti scelti)
+    if (rappresentanteCamera || rappresentanteSenato) {
+      try {
+        const rappresentantiIds = [];
+        if (rappresentanteCamera) rappresentantiIds.push(rappresentanteCamera);
+        if (rappresentanteSenato) rappresentantiIds.push(rappresentanteSenato);
+        
+        if (rappresentantiIds.length > 0) {
+          const votiParlamentoResult = await pool.query(`
+            SELECT 
+              id,
+              id_utente,
+              titolo,
+              testo,
+              COALESCE(data, CURRENT_DATE) as data,
+              COALESCE(data_creazione, CURRENT_TIMESTAMP) as data_creazione,
+              voto,
+              camera,
+              politico,
+              'notifiche_voti_parlamento' as tabella_origine
+            FROM notifiche_voti_parlamento
+            WHERE id_utente = ANY($1::uuid[])
+            ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC
+            LIMIT 1
+          `, [rappresentantiIds]);
+          
+          if (votiParlamentoResult.rows.length > 0) {
+            comunicazioni.push({
+              id: votiParlamentoResult.rows[0].id,
+              titolo: votiParlamentoResult.rows[0].titolo,
+              messaggio: votiParlamentoResult.rows[0].testo,
+              data_creazione: votiParlamentoResult.rows[0].data_creazione,
+              tipo_notifica: 'voto_parlamento',
+              tabella_origine: 'notifiche_voti_parlamento'
+            });
+          }
+        }
+      } catch (err) {
+        console.error('❌ Errore query notifiche_voti_parlamento:', err);
+      }
+    }
+    
+    // Ordina per data_creazione (più recenti prima) e prendi la prima
+    comunicazioni.sort((a, b) => {
+      const dateA = a.data_creazione ? new Date(a.data_creazione) : new Date(0);
+      const dateB = b.data_creazione ? new Date(b.data_creazione) : new Date(0);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    if (comunicazioni.length === 0) {
+      console.log('📭 Nessuna notifica trovata');
+      return res.json({
+        success: true,
+        data: null,
+        message: 'Nessuna notifica trovata'
+      });
+    }
+    
+    const ultimaNotifica = comunicazioni[0];
+    console.log('✅ Ultima notifica trovata:', ultimaNotifica.titolo);
+    
+    res.json({
+      success: true,
+      data: ultimaNotifica
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero ultima notifica:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

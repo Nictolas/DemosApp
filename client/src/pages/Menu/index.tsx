@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { useQueryClient } from "@tanstack/react-query";
 import ProssimoEventoRiquadro from "@/components/ProssimoEventoRiquadro";
 import ProssimaIniziativaRiquadro from "@/components/ProssimaIniziativaRiquadro";
+import UltimaNotificaRiquadro from "@/components/UltimaNotificaRiquadro";
 
 export default function Menu() {
   const { user, isLoading, isAdmin, hasAdvancedAccess, hasLimitedAccess } = useMenuData();
@@ -112,10 +113,11 @@ export default function Menu() {
               onNavigate={navigateWithButtonReset}
             />
             
-            {/* Riquadri per Prossimo Evento e Iniziativa Popolare */}
+            {/* Riquadri per Prossimo Evento, Iniziativa Popolare e Ultima Notifica */}
             <div className="mt-4 flex flex-col gap-4">
               <ProssimoEventoRiquadro />
               <ProssimaIniziativaRiquadro />
+              <UltimaNotificaRiquadro />
             </div>
           </div>
         </div>

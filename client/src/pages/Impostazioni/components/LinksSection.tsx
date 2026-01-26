@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings, FileText, Scale, Phone } from "lucide-react";
+import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings, FileText, Scale, Phone, User } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -49,6 +49,22 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
       <CardContent className="relative space-y-6">
         {/* Layout responsive: 1 colonna su mobile, 2 colonne su desktop */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Profilo */}
+          <Link href="/profilo">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-20 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 hover:border-purple-300 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900">Profilo</div>
+                <div className="text-xs text-gray-600">Gestisci il tuo profilo</div>
+              </div>
+            </Button>
+          </Link>
+
           {/* Informazioni Legali */}
           <Link href="/impostazioni/informazioni-legali">
             <Button 
