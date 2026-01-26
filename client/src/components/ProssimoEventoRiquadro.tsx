@@ -153,6 +153,20 @@ const ProssimoEventoRiquadro = () => {
         
         <div className="prossimo-evento-info">
           <p className="data-orario">
+            {evento.comune_evento && (
+              <span className="luogo-indirizzo">
+                {evento.comune_evento}
+                {evento.provincia_evento && `, ${evento.provincia_evento}`}
+                {evento.regione_evento && ` (${evento.regione_evento})`}
+                {evento.indirizzo_evento && ` - ${evento.indirizzo_evento}`}
+              </span>
+            )}
+            {!evento.comune_evento && evento.indirizzo_evento && (
+              <span className="luogo-indirizzo">
+                {evento.indirizzo_evento}
+              </span>
+            )}
+            {(evento.comune_evento || evento.indirizzo_evento) && <span className="ml-2 mr-2">•</span>}
             {formattaData(evento.giorno_inizio)}
             {evento.orario_inizio && (
               <span className="ml-2">
@@ -161,26 +175,6 @@ const ProssimoEventoRiquadro = () => {
               </span>
             )}
           </p>
-          
-          {evento.comune_evento && (
-            <p className="luogo">
-              <strong>📍 Luogo:</strong> {evento.comune_evento}
-              {evento.provincia_evento && `, ${evento.provincia_evento}`}
-              {evento.regione_evento && ` (${evento.regione_evento})`}
-            </p>
-          )}
-          
-          {evento.indirizzo_evento && (
-            <p className="indirizzo">
-              <strong>🏠 Indirizzo:</strong> {evento.indirizzo_evento}
-            </p>
-          )}
-          
-          {evento.organizzatore && (
-            <p className="organizzatore">
-              <strong>👤 Organizzatore:</strong> {evento.organizzatore}
-            </p>
-          )}
         </div>
       </div>
     </div>
