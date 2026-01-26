@@ -78,15 +78,13 @@ const ProssimoEventoRiquadro = () => {
     return null; // Non mostrare nulla se non c'è un evento
   }
 
-  // Formatta la data
+  // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
     const data = new Date(dataString);
-    return data.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const giorno = String(data.getDate()).padStart(2, '0');
+    const mese = String(data.getMonth() + 1).padStart(2, '0');
+    const anno = data.getFullYear();
+    return `${giorno}/${mese}/${anno}`;
   };
 
   // Formatta l'orario rimuovendo i secondi
@@ -154,16 +152,15 @@ const ProssimoEventoRiquadro = () => {
         <h4>{evento.nome_evento}</h4>
         
         <div className="prossimo-evento-info">
-          <p className="data">
-            <strong>📆 Data:</strong> {formattaData(evento.giorno_inizio)}
+          <p className="data-orario">
+            {formattaData(evento.giorno_inizio)}
+            {evento.orario_inizio && (
+              <span className="ml-2">
+                {formattaOrario(evento.orario_inizio)}
+                {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
+              </span>
+            )}
           </p>
-          
-          {evento.orario_inizio && (
-            <p className="orario">
-              <strong>🕐 Orario:</strong> {formattaOrario(evento.orario_inizio)}
-              {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
-            </p>
-          )}
           
           {evento.comune_evento && (
             <p className="luogo">

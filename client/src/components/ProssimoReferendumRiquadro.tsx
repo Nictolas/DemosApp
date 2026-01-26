@@ -89,16 +89,14 @@ const ProssimoReferendumRiquadro = () => {
     // Mostra il riquadro anche se non c'è un referendum, con un messaggio
   }
 
-  // Formatta la data
+  // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
-    if (!dataString) return 'Data non disponibile';
+    if (!dataString) return '';
     const data = new Date(dataString);
-    return data.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const giorno = String(data.getDate()).padStart(2, '0');
+    const mese = String(data.getMonth() + 1).padStart(2, '0');
+    const anno = data.getFullYear();
+    return `${giorno}/${mese}/${anno}`;
   };
 
   // Formatta il numero di firme
@@ -187,7 +185,7 @@ const ProssimoReferendumRiquadro = () => {
           <div className="prossimo-referendum-info">
             {(referendum.data_fine || referendum.dataFine) && (
               <p className="scadenza">
-                <strong>⏰ Scadenza:</strong> {formattaData(referendum.data_fine || referendum.dataFine)}
+                {formattaData(referendum.data_fine || referendum.dataFine)}
               </p>
             )}
             
