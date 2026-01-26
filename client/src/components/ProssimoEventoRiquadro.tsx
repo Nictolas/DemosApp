@@ -142,7 +142,6 @@ const ProssimoEventoRiquadro = () => {
       </div>
       <div className="prossimo-evento-content">
         <h4>{evento.nome_evento}</h4>
-        <p className="tipologia">{evento.tipologia_evento}</p>
         
         <div className="prossimo-evento-info">
           <p className="data">

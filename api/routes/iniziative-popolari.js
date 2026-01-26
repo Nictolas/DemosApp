@@ -1501,52 +1501,75 @@ router.get('/prossima', verifyToken, async (req, res) => {
     console.log('🔍 GET /api/iniziative-popolari/prossima - Richiesta iniziativa più rilevante');
     
     const userId = req.userId;
-    const oggi = new Date().toISOString().split('T')[0]; // Data di oggi in formato YYYY-MM-DD
     
-    console.log('📅 Data di oggi:', oggi);
+    // Ottieni il ruolo dell'utente
+    let userRole = null;
+    try {
+      const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+      const userResult = await pool.query(userQuery, [userId]);
+      if (userResult.rows.length > 0) {
+        userRole = userResult.rows[0].ruolo;
+        console.log(`🔍 Ruolo utente: ${userRole}`);
+      }
+    } catch (authError) {
+      console.log('⚠️ Errore nel recupero ruolo utente:', authError.message);
+    }
     
-    // Query per iniziative_ministero: stato = 'in_corso'
-    // Usa ILIKE per cercare iniziative popolari (può essere "Legge di iniziativa popolare" o varianti)
-    // Simile alla logica di buildQueryForTipo ma semplificata per questo endpoint
-    // Mostra tutte le iniziative in corso, ordina per scadenza più vicina e più firme
-    const queryMinistero = `
-      SELECT 
-        id, titolo, descrizione, tipo, stato, id_ministero, 
-        data_inizio, data_fine, firme_raccolte, quorum_raggiunto, sito_web
-      FROM iniziative_ministero
-      WHERE tipo ILIKE '%iniziativa%popolare%'
-        AND stato = 'in_corso'
-      ORDER BY 
-        CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
-        CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
-        firme_raccolte DESC NULLS LAST
-      LIMIT 5
-    `;
+    // Usa la stessa logica dell'endpoint principale per iniziative_ministero
+    // soloInCorso = true per mostrare solo iniziative in corso
+    const votaOnly = false;
+    const soloInCorso = true;
+    const { query, params } = buildQueryForTipo('iniziativa', userRole, userId, votaOnly, soloInCorso);
     
-    console.log('🔍 Query iniziative_ministero:', queryMinistero);
-    const resultMinistero = await pool.query(queryMinistero);
+    console.log('🔍 Query iniziative_ministero (usando buildQueryForTipo):', query.substring(0, 200) + '...');
+    const resultMinistero = await pool.query(query, params);
     console.log(`✅ Trovate ${resultMinistero.rows.length} iniziative da iniziative_ministero`);
     
-    // Query per iniziative_popolari: status = 'in_corso' o 'pending' o 'in attesa'
-    // Simile alla logica dell'endpoint principale per la pagina listing (soloInCorso = true)
-    // Mostra tutte le iniziative in corso, ordina per scadenza più vicina e più firme
-    const queryPopolari = `
-      SELECT 
-        id, nome, descrizione, data_inizio, data_fine, 
-        firme, sito_web, status, quorum, userid
-      FROM iniziative_popolari
-      WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
-        AND quorum != 'proposta'
-      ORDER BY 
-        CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
-        CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
-        firme DESC NULLS LAST
-      LIMIT 5
-    `;
-    
-    console.log('🔍 Query iniziative_popolari:', queryPopolari);
-    const resultPopolari = await pool.query(queryPopolari);
-    console.log(`✅ Trovate ${resultPopolari.rows.length} iniziative da iniziative_popolari`);
+    // Query per iniziative_popolari: usa la stessa logica dell'endpoint principale
+    // soloInCorso = true per mostrare solo iniziative in corso
+    let iniziativePopolariResult = { rows: [] };
+    try {
+      let iniziativePopolariQuery;
+      let iniziativePopolariParams = [];
+      
+      if (soloInCorso) {
+        // Per listing: solo quelle con status = 'pending' o 'in attesa' o NULL (in corso)
+        iniziativePopolariQuery = `
+          SELECT 
+            id, nome, descrizione, data_inizio, data_fine, 
+            firme, sito_web, status, quorum, userid
+          FROM iniziative_popolari
+          WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
+            AND quorum != 'proposta'
+          ORDER BY 
+            CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
+            CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
+            firme DESC NULLS LAST
+          LIMIT 5
+        `;
+      } else {
+        // Per admin o altre viste: tutte tranne le proposte (quorum != 'proposta')
+        iniziativePopolariQuery = `
+          SELECT 
+            id, nome, descrizione, data_inizio, data_fine, 
+            firme, sito_web, status, quorum, userid
+          FROM iniziative_popolari
+          WHERE quorum != 'proposta'
+          ORDER BY 
+            CASE WHEN data_fine IS NULL THEN 1 ELSE 0 END,
+            CASE WHEN data_fine IS NULL THEN '9999-12-31'::date ELSE data_fine END ASC,
+            firme DESC NULLS LAST
+          LIMIT 5
+        `;
+      }
+      
+      console.log('🔍 Query iniziative_popolari:', iniziativePopolariQuery);
+      iniziativePopolariResult = await pool.query(iniziativePopolariQuery, iniziativePopolariParams);
+      console.log(`✅ Trovate ${iniziativePopolariResult.rows.length} iniziative da iniziative_popolari`);
+    } catch (error) {
+      console.warn(`⚠️ Errore nel recupero iniziative_popolari:`, error.message);
+      // Continua senza iniziative_popolari se c'è un errore
+    }
     
     // Normalizza le iniziative dal ministero
     const iniziativeMinistero = resultMinistero.rows.map(row => ({
@@ -1557,7 +1580,7 @@ router.get('/prossima', verifyToken, async (req, res) => {
     }));
     
     // Normalizza le iniziative popolari
-    const iniziativePopolari = resultPopolari.rows.map(row => ({
+    const iniziativePopolari = iniziativePopolariResult.rows.map(row => ({
       ...mapIniziativePopolariToLegacyFormat(row),
       source: 'popolari',
       dataFine: row.data_fine ? new Date(row.data_fine) : null,
