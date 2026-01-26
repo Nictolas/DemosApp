@@ -194,14 +194,6 @@ const ProssimoReferendumRiquadro = () => {
             <p className="firme">
               <strong>✍️ Firme raccolte:</strong> {formattaFirme(firme)}
             </p>
-            
-            {referendum.descrizione && (
-              <p className="descrizione">
-                {referendum.descrizione.length > 150 
-                  ? `${referendum.descrizione.substring(0, 150)}...` 
-                  : referendum.descrizione}
-              </p>
-            )}
           </div>
         ) : (
           <div className="prossimo-referendum-info">
