@@ -6,6 +6,21 @@
   margin: 20px 0;
   color: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.prossimo-evento-riquadro.clickable {
+  cursor: pointer;
+}
+
+.prossimo-evento-riquadro.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.prossimo-evento-riquadro.clickable:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .prossimo-evento-header h3 {
@@ -51,12 +66,7 @@
   text-decoration: none;
   border-radius: 6px;
   font-weight: 600;
-  transition: transform 0.2s;
-}
-
-.vedi-tutti-eventi-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  text-align: center;
 }
 
 .prossimo-evento-riquadro.loading {

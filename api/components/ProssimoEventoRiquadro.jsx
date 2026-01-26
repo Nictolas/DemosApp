@@ -71,8 +71,26 @@ const ProssimoEventoRiquadro = () => {
     });
   };
 
+  const handleClick = () => {
+    // Naviga alla pagina eventi
+    if (typeof window !== 'undefined') {
+      window.location.href = '/eventi';
+    }
+  };
+
   return (
-    <div className="prossimo-evento-riquadro">
+    <div 
+      className="prossimo-evento-riquadro clickable"
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
       <div className="prossimo-evento-header">
         <h3>📅 Prossimo Evento</h3>
       </div>
@@ -113,12 +131,9 @@ const ProssimoEventoRiquadro = () => {
           )}
         </div>
         
-        <a 
-          href="/eventi" 
-          className="vedi-tutti-eventi-btn"
-        >
+        <div className="vedi-tutti-eventi-btn">
           Vedi tutti gli eventi →
-        </a>
+        </div>
       </div>
     </div>
   );
