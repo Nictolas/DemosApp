@@ -95,8 +95,8 @@ export default function Menu() {
   }
 
   return (
-    <div className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`} style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}>
-      <div className="container mx-auto px-4 py-4 flex flex-col" style={{ minHeight: 'min-content' }}>
+    <div className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`} style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+      <div className="container mx-auto px-4 py-4 flex flex-col" style={{ flex: '0 0 auto' }}>
         <div className="w-full max-w-4xl mx-auto flex flex-col pb-4">
           <Card className="w-full flex-shrink-0">
             <MenuHeader 

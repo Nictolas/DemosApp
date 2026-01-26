@@ -2,7 +2,7 @@
 .prossima-iniziativa-riquadro {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px 16px;
   margin: 0;
   color: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -19,8 +19,8 @@
 /* Rimossi :hover e :active per permettere all'effetto JavaScript scale-95 di funzionare correttamente */
 
 .prossima-iniziativa-header h3 {
-  margin: 0 0 15px 0;
-  font-size: 1.3em;
+  margin: 0 0 8px 0;
+  font-size: 1.1em;
   font-weight: 600;
 }
 
@@ -31,18 +31,18 @@
 }
 
 .prossima-iniziativa-content h4 {
-  margin: 0 0 10px 0;
-  font-size: 1.5em;
+  margin: 0 0 8px 0;
+  font-size: 1.2em;
   font-weight: 700;
 }
 
 .prossima-iniziativa-info {
-  margin: 15px 0;
+  margin: 8px 0;
 }
 
 .prossima-iniziativa-info p {
-  margin: 8px 0;
-  font-size: 0.95em;
+  margin: 4px 0;
+  font-size: 0.9em;
 }
 
 .prossima-iniziativa-info strong {
