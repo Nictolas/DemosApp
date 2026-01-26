@@ -89,6 +89,16 @@ const ProssimoEventoRiquadro = () => {
     });
   };
 
+  // Formatta l'orario rimuovendo i secondi
+  const formattaOrario = (orario: string) => {
+    if (!orario) return '';
+    // Se l'orario è in formato HH:MM:SS, rimuovi i secondi
+    if (orario.includes(':') && orario.split(':').length === 3) {
+      return orario.substring(0, 5); // Prende solo HH:MM
+    }
+    return orario;
+  };
+
   const handleClick = () => {
     // Naviga alla pagina eventi
     if (typeof window !== 'undefined') {
@@ -150,8 +160,8 @@ const ProssimoEventoRiquadro = () => {
           
           {evento.orario_inizio && (
             <p className="orario">
-              <strong>🕐 Orario:</strong> {evento.orario_inizio}
-              {evento.orario_fine && ` - ${evento.orario_fine}`}
+              <strong>🕐 Orario:</strong> {formattaOrario(evento.orario_inizio)}
+              {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
             </p>
           )}
           
