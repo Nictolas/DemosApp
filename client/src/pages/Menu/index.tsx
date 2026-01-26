@@ -8,6 +8,8 @@ import { MenuHeader } from "./components/MenuHeader";
 import { MenuGrid } from "./components/MenuGrid";
 import { PageContainer } from "@/components/PageContainer";
 import { useQueryClient } from "@tanstack/react-query";
+import ProssimoEventoRiquadro from "@/components/ProssimoEventoRiquadro";
+import ProssimaIniziativaRiquadro from "@/components/ProssimaIniziativaRiquadro";
 
 export default function Menu() {
   const { user, isLoading, isAdmin, hasAdvancedAccess, hasLimitedAccess } = useMenuData();
@@ -104,6 +106,12 @@ export default function Menu() {
               userRole={user?.ruolo}
               onNavigate={navigateWithButtonReset}
             />
+            
+            {/* Riquadri per Prossimo Evento e Iniziativa Popolare */}
+            <div className="mt-4 flex flex-col gap-4">
+              <ProssimoEventoRiquadro />
+              <ProssimaIniziativaRiquadro />
+            </div>
           </div>
         </div>
       </div>

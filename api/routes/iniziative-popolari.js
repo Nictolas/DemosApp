@@ -1495,6 +1495,104 @@ router.get('/richieste', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/iniziative-popolari/prossima - Ottieni l'iniziativa con scadenza più vicina e più firme
+router.get('/prossima', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/iniziative-popolari/prossima - Richiesta iniziativa più rilevante');
+    
+    const userId = req.userId;
+    const oggi = new Date().toISOString().split('T')[0]; // Data di oggi in formato YYYY-MM-DD
+    
+    console.log('📅 Data di oggi:', oggi);
+    
+    // Query per iniziative_ministero: stato = 'in_corso' e data_fine >= oggi
+    // Ordina per scadenza più vicina (data_fine ASC) e poi per più firme (firme_raccolte DESC)
+    const queryMinistero = `
+      SELECT 
+        id, titolo, descrizione, tipo, stato, id_ministero, 
+        data_inizio, data_fine, firme_raccolte, quorum_raggiunto, sito_web
+      FROM iniziative_ministero
+      WHERE tipo = 'iniziativa'
+        AND stato = 'in_corso'
+        AND data_fine >= $1
+      ORDER BY data_fine ASC, firme_raccolte DESC NULLS LAST
+      LIMIT 5
+    `;
+    
+    const resultMinistero = await pool.query(queryMinistero, [oggi]);
+    
+    // Query per iniziative_popolari: status = 'in_corso' o 'pending' o 'in attesa' e data_fine >= oggi
+    const queryPopolari = `
+      SELECT 
+        id, nome, descrizione, data_inizio, data_fine, 
+        firme, sito_web, status, quorum, userid
+      FROM iniziative_popolari
+      WHERE (status = 'in_corso' OR status = 'pending' OR status = 'in attesa' OR status IS NULL)
+        AND data_fine >= $1
+      ORDER BY data_fine ASC, firme DESC NULLS LAST
+      LIMIT 5
+    `;
+    
+    const resultPopolari = await pool.query(queryPopolari, [oggi]);
+    
+    // Normalizza le iniziative dal ministero
+    const iniziativeMinistero = resultMinistero.rows.map(row => ({
+      ...mapToLegacyFormat(row, 'iniziativa'),
+      source: 'ministero',
+      dataFine: new Date(row.data_fine),
+      firme: row.firme_raccolte || 0
+    }));
+    
+    // Normalizza le iniziative popolari
+    const iniziativePopolari = resultPopolari.rows.map(row => ({
+      ...mapIniziativePopolariToLegacyFormat(row),
+      source: 'popolari',
+      dataFine: new Date(row.data_fine),
+      firme: row.firme || 0
+    }));
+    
+    // Unisci tutte le iniziative
+    const tutteIniziative = [...iniziativeMinistero, ...iniziativePopolari];
+    
+    if (tutteIniziative.length === 0) {
+      console.log('📭 Nessuna iniziativa in corso trovata');
+      return res.json({
+        success: true,
+        data: null,
+        message: 'Nessuna iniziativa in corso trovata'
+      });
+    }
+    
+    // Ordina per: 1) scadenza più vicina (data_fine ASC), 2) più firme (firme DESC)
+    tutteIniziative.sort((a, b) => {
+      const dataDiff = a.dataFine.getTime() - b.dataFine.getTime();
+      if (dataDiff !== 0) {
+        return dataDiff; // Scadenza più vicina prima
+      }
+      return b.firme - a.firme; // Più firme prima (se stessa scadenza)
+    });
+    
+    const iniziativa = tutteIniziative[0];
+    
+    // Aggiungi emoji automatica
+    iniziativa.emoji = getEmojiAutomatica(iniziativa);
+    
+    console.log(`✅ Iniziativa più rilevante trovata (${iniziativa.source}):`, iniziativa.nome || iniziativa.titolo);
+    
+    res.json({
+      success: true,
+      data: iniziativa
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero iniziativa più rilevante:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 // POST /api/iniziative-popolari/:id/accetta - Accetta richiesta iniziativa popolare
 router.post('/:id/accetta', verifyToken, async (req, res) => {
   try {
