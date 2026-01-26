@@ -1,5 +1,5 @@
 import React from "react";
-import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { CardHeader, CardTitle } from "@/components/ui/card";
 
 interface MenuHeaderProps {
   isAdmin: boolean;
@@ -25,10 +25,6 @@ export const MenuHeader: React.FC<MenuHeaderProps> = ({
       <CardTitle className="text-4xl font-bold text-gray-800 mb-3" data-testid="menu-title">
         Menu Principale
       </CardTitle>
-      <CardDescription className="text-gray-600 text-lg">
-        Benvenuto nell'applicazione DEMOS.<br />
-        Seleziona un'opzione per continuare.
-      </CardDescription>
     </CardHeader>
   );
 };
