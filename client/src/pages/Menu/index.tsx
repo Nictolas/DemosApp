@@ -105,7 +105,7 @@ export default function Menu() {
               onAdminClick={() => setLocation("/gestisci")}
             />
           </Card>
-          <div className="mt-2 flex flex-col">
+          <div className="mt-1 flex flex-col">
             <MenuGrid 
               key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
               hasAdvancedAccess={hasAdvancedAccess}
