@@ -1,0 +1,62 @@
+/* CSS globale per il riquadro referendum */
+.prossimo-referendum-riquadro {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 0;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.prossimo-referendum-riquadro.clickable {
+  cursor: pointer;
+}
+
+/* Rimossi :hover e :active per permettere all'effetto JavaScript scale-95 di funzionare correttamente */
+
+.prossimo-referendum-header h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.prossimo-referendum-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.prossimo-referendum-content h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.5em;
+  font-weight: 700;
+}
+
+.prossimo-referendum-info {
+  margin: 15px 0;
+}
+
+.prossimo-referendum-info p {
+  margin: 8px 0;
+  font-size: 0.95em;
+}
+
+.prossimo-referendum-info strong {
+  margin-right: 8px;
+}
+
+.prossimo-referendum-info .descrizione {
+  margin-top: 12px;
+  font-style: italic;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.prossimo-referendum-riquadro.loading {
+  text-align: center;
+  padding: 40px;
+}
