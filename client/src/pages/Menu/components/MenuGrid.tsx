@@ -20,10 +20,14 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
   const visibleItems = menuItems.filter(item => {
     // Se l'utente è Istituzione, nascondi Opinioni, Firma e Vota
     if (userRole === "I") {
-      return item.id === "profilo";
+      return false; // Nascondi anche Profilo (spostato in Impostazioni)
     }
     // Nascondi "Opinioni" e "Vota" dal Menu (sono stati spostati nella pagina Preferiti)
     if (item.id === "opinioni" || item.id === "vota") {
+      return false;
+    }
+    // Nascondi "Profilo" dal Menu (è stato spostato nella pagina Impostazioni)
+    if (item.id === "profilo") {
       return false;
     }
     // Altrimenti usa la logica esistente
