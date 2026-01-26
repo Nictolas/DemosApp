@@ -78,33 +78,21 @@ const UltimaNotificaRiquadro = () => {
     return null; // Non mostrare nulla se non c'è una notifica
   }
 
-  // Formatta la data
+  // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
-    if (!dataString) return 'Data non disponibile';
+    if (!dataString) return '';
     const data = new Date(dataString);
-    const oggi = new Date();
-    const ieri = new Date(oggi);
-    ieri.setDate(ieri.getDate() - 1);
-    
-    // Se è oggi, mostra "Oggi"
-    if (data.toDateString() === oggi.toDateString()) {
-      return `Oggi alle ${data.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    // Se è ieri, mostra "Ieri"
-    if (data.toDateString() === ieri.toDateString()) {
-      return `Ieri alle ${data.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    // Altrimenti mostra la data completa
-    return data.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const giorno = String(data.getDate()).padStart(2, '0');
+    const mese = String(data.getMonth() + 1).padStart(2, '0');
+    const anno = data.getFullYear();
+    return `${giorno}/${mese}/${anno}`;
+  };
+
+  // Formatta l'orario
+  const formattaOrario = (dataString: string) => {
+    if (!dataString) return '';
+    const data = new Date(dataString);
+    return data.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   };
 
   const handleClick = () => {
@@ -167,8 +155,9 @@ const UltimaNotificaRiquadro = () => {
         
         <div className="ultima-notifica-info">
           {notifica.data_creazione && (
-            <p className="data">
-              <strong>📅 Data:</strong> {formattaData(notifica.data_creazione)}
+            <p className="data-orario">
+              {formattaData(notifica.data_creazione)}
+              <span className="ml-2">{formattaOrario(notifica.data_creazione)}</span>
             </p>
           )}
           
