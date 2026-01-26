@@ -312,8 +312,8 @@ export default function Preferiti() {
                 icon={MessageSquare}
                 label="Opinioni"
                 color={{
-                  bg: "#e0f2fe",
-                  icon: "#0891b2"
+                  bg: "#fef2f2",
+                  icon: "#dc2626"
                 }}
                 onNavigate={(path, event) => {
                   event.preventDefault();
