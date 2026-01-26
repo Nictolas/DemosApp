@@ -194,14 +194,6 @@ const ProssimaIniziativaRiquadro = () => {
             <p className="firme">
               <strong>✍️ Firme raccolte:</strong> {formattaFirme(firme)}
             </p>
-            
-            {iniziativa.descrizione && (
-              <p className="descrizione">
-                {iniziativa.descrizione.length > 150 
-                  ? `${iniziativa.descrizione.substring(0, 150)}...` 
-                  : iniziativa.descrizione}
-              </p>
-            )}
           </div>
         ) : (
           <div className="prossima-iniziativa-info">
