@@ -39,14 +39,25 @@ const ProssimaIniziativaRiquadro = () => {
         
         console.log('🔍 ProssimaIniziativaRiquadro - Dati parsati:', {
           success: data?.success,
-          hasIniziativa: !!data?.data
+          hasIniziativa: !!data?.data,
+          dataKeys: data?.data ? Object.keys(data.data) : [],
+          fullData: data?.data
         });
         
         if (data.success && data.data) {
-          console.log('✅ ProssimaIniziativaRiquadro - Iniziativa trovata:', data.data.nome || data.data.titolo);
+          console.log('✅ ProssimaIniziativaRiquadro - Iniziativa trovata:', {
+            nome: data.data.nome || data.data.titolo,
+            data_fine: data.data.data_fine || data.data.dataFine,
+            firme: data.data.firme || data.data.firme_raccolte,
+            source: data.data.source
+          });
           setIniziativa(data.data);
         } else {
-          console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile');
+          console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile', {
+            success: data?.success,
+            message: data?.message,
+            dataIsNull: data?.data === null
+          });
           setIniziativa(null);
         }
       } catch (err) {
@@ -112,6 +123,16 @@ const ProssimaIniziativaRiquadro = () => {
   const nomeIniziativa = iniziativa.nome || iniziativa.titolo || 'Iniziativa Popolare';
   const firme = iniziativa.firme_raccolte || iniziativa.firme || 0;
   const emoji = iniziativa.emoji || '📋';
+  
+  // Debug: verifica i campi disponibili
+  console.log('🔍 ProssimaIniziativaRiquadro - Rendering con dati:', {
+    nomeIniziativa,
+    firme,
+    emoji,
+    data_fine: iniziativa.data_fine || iniziativa.dataFine,
+    hasDataFine: !!(iniziativa.data_fine || iniziativa.dataFine),
+    allKeys: Object.keys(iniziativa)
+  });
 
   return (
     <div 
@@ -133,9 +154,9 @@ const ProssimaIniziativaRiquadro = () => {
         <h4>{nomeIniziativa}</h4>
         
         <div className="prossima-iniziativa-info">
-          {iniziativa.data_fine && (
+          {(iniziativa.data_fine || iniziativa.dataFine) && (
             <p className="scadenza">
-              <strong>⏰ Scadenza:</strong> {formattaData(iniziativa.data_fine)}
+              <strong>⏰ Scadenza:</strong> {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
             </p>
           )}
           
