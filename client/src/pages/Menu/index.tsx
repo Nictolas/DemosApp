@@ -105,7 +105,7 @@ export default function Menu() {
               onAdminClick={() => setLocation("/gestisci")}
             />
           </Card>
-          <div className="mt-4 flex flex-col">
+          <div className="mt-2 flex flex-col">
             <MenuGrid 
               key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
               hasAdvancedAccess={hasAdvancedAccess}
@@ -115,7 +115,7 @@ export default function Menu() {
             />
             
             {/* Riquadri per Prossimo Evento, Iniziativa Popolare, Referendum e Ultima Notifica - Layout 1 per riga */}
-            <div className="mt-4 flex flex-col gap-4">
+            <div className="mt-2 flex flex-col gap-2">
               <UltimaNotificaRiquadro />
               <ProssimoEventoRiquadro />
               <ProssimaIniziativaRiquadro />
