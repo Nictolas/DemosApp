@@ -115,6 +115,35 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                   </span>
                 )}
               </div>
+              
+              {/* Barra di completamento */}
+              {(() => {
+                const firmeRaccolte = iniziativa.nome === "BASTA QUORUM PER I REFERENDUM! CHI VOTA DECIDE." 
+                  ? 71066 
+                  : (iniziativa.firme_raccolte || iniziativa.firme || 0);
+                const totaleMinimo = 50000;
+                const percentuale = Math.min((firmeRaccolte / totaleMinimo) * 100, 100);
+                const haSuperatoQuorum = firmeRaccolte >= totaleMinimo;
+                
+                return (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <span>Progresso verso il quorum (50.000 firme)</span>
+                      <span className="font-semibold">{percentuale.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          haSuperatoQuorum 
+                            ? 'bg-green-500' 
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${percentuale}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
