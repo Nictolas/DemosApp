@@ -114,14 +114,42 @@ const UltimaNotificaRiquadro = () => {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.add('scale-95', 'shadow-md');
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+    handleClick();
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('scale-95', 'shadow-md');
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+    handleClick();
+  };
+
   const titolo = notifica.titolo || 'Notifica';
   const messaggio = notifica.messaggio || notifica.testo || '';
   const messaggioBreve = messaggio.length > 100 ? `${messaggio.substring(0, 100)}...` : messaggio;
 
   return (
     <div 
-      className="ultima-notifica-riquadro clickable"
-      onClick={handleClick}
+      className="ultima-notifica-riquadro clickable transition-transform"
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -149,10 +177,6 @@ const UltimaNotificaRiquadro = () => {
               {messaggioBreve}
             </p>
           )}
-        </div>
-        
-        <div className="vedi-tutte-notifiche-btn">
-          Vedi tutte le notifiche →
         </div>
       </div>
     </div>

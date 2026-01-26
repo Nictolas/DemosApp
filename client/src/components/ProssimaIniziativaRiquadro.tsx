@@ -81,12 +81,12 @@ const ProssimaIniziativaRiquadro = () => {
 
   if (error) {
     console.error('❌ ProssimaIniziativaRiquadro - Errore:', error);
-    return null; // Non mostrare nulla se c'è un errore
+    // Mostra il riquadro anche in caso di errore, con un messaggio
   }
 
-  if (!iniziativa) {
-    console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile, non mostro il riquadro');
-    return null; // Non mostrare nulla se non c'è un'iniziativa
+  if (!iniziativa && !error) {
+    console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile, mostro riquadro vuoto');
+    // Mostra il riquadro anche se non c'è un'iniziativa, con un messaggio
   }
 
   // Formatta la data
@@ -120,24 +120,54 @@ const ProssimaIniziativaRiquadro = () => {
     }
   };
 
-  const nomeIniziativa = iniziativa.nome || iniziativa.titolo || 'Iniziativa Popolare';
-  const firme = iniziativa.firme_raccolte || iniziativa.firme || 0;
-  const emoji = iniziativa.emoji || '📋';
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.add('scale-95', 'shadow-md');
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+    handleClick();
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('scale-95', 'shadow-md');
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+    handleClick();
+  };
+
+  const nomeIniziativa = iniziativa?.nome || iniziativa?.titolo || 'Nessuna iniziativa disponibile';
+  const firme = iniziativa?.firme_raccolte || iniziativa?.firme || 0;
+  const emoji = iniziativa?.emoji || '📋';
   
   // Debug: verifica i campi disponibili
   console.log('🔍 ProssimaIniziativaRiquadro - Rendering con dati:', {
     nomeIniziativa,
     firme,
     emoji,
-    data_fine: iniziativa.data_fine || iniziativa.dataFine,
-    hasDataFine: !!(iniziativa.data_fine || iniziativa.dataFine),
-    allKeys: Object.keys(iniziativa)
+    data_fine: iniziativa?.data_fine || iniziativa?.dataFine,
+    hasDataFine: !!(iniziativa?.data_fine || iniziativa?.dataFine),
+    allKeys: iniziativa ? Object.keys(iniziativa) : [],
+    hasIniziativa: !!iniziativa,
+    hasError: !!error
   });
 
   return (
     <div 
-      className="prossima-iniziativa-riquadro clickable"
-      onClick={handleClick}
+      className="prossima-iniziativa-riquadro clickable transition-transform"
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -153,29 +183,31 @@ const ProssimaIniziativaRiquadro = () => {
       <div className="prossima-iniziativa-content">
         <h4>{nomeIniziativa}</h4>
         
-        <div className="prossima-iniziativa-info">
-          {(iniziativa.data_fine || iniziativa.dataFine) && (
-            <p className="scadenza">
-              <strong>⏰ Scadenza:</strong> {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
+        {iniziativa ? (
+          <div className="prossima-iniziativa-info">
+            {(iniziativa.data_fine || iniziativa.dataFine) && (
+              <p className="scadenza">
+                <strong>⏰ Scadenza:</strong> {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
+              </p>
+            )}
+            
+            <p className="firme">
+              <strong>✍️ Firme raccolte:</strong> {formattaFirme(firme)}
             </p>
-          )}
-          
-          <p className="firme">
-            <strong>✍️ Firme raccolte:</strong> {formattaFirme(firme)}
-          </p>
-          
-          {iniziativa.descrizione && (
-            <p className="descrizione">
-              {iniziativa.descrizione.length > 150 
-                ? `${iniziativa.descrizione.substring(0, 150)}...` 
-                : iniziativa.descrizione}
-            </p>
-          )}
-        </div>
-        
-        <div className="vedi-tutte-iniziative-btn">
-          Vedi tutte le iniziative →
-        </div>
+            
+            {iniziativa.descrizione && (
+              <p className="descrizione">
+                {iniziativa.descrizione.length > 150 
+                  ? `${iniziativa.descrizione.substring(0, 150)}...` 
+                  : iniziativa.descrizione}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="prossima-iniziativa-info">
+            <p>Nessuna iniziativa popolare in corso al momento.</p>
+          </div>
+        )}
       </div>
     </div>
   );
