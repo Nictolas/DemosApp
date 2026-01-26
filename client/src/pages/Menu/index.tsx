@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { useQueryClient } from "@tanstack/react-query";
 import ProssimoEventoRiquadro from "@/components/ProssimoEventoRiquadro";
 import ProssimaIniziativaRiquadro from "@/components/ProssimaIniziativaRiquadro";
+import ProssimoReferendumRiquadro from "@/components/ProssimoReferendumRiquadro";
 import UltimaNotificaRiquadro from "@/components/UltimaNotificaRiquadro";
 
 export default function Menu() {
@@ -113,11 +114,12 @@ export default function Menu() {
               onNavigate={navigateWithButtonReset}
             />
             
-            {/* Riquadri per Prossimo Evento, Iniziativa Popolare e Ultima Notifica - Layout 2x2 */}
+            {/* Riquadri per Prossimo Evento, Iniziativa Popolare, Referendum e Ultima Notifica - Layout 2x2 */}
             <div className="mt-4 grid grid-cols-2 gap-4">
               <UltimaNotificaRiquadro />
               <ProssimoEventoRiquadro />
               <ProssimaIniziativaRiquadro />
+              <ProssimoReferendumRiquadro />
             </div>
           </div>
         </div>
