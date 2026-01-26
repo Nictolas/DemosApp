@@ -68,6 +68,11 @@ export default function Menu() {
     queryClient.invalidateQueries(['user']);
   }, [queryClient]);
 
+  // Debug: verifica che i riquadri vengano renderizzati
+  useEffect(() => {
+    console.log('🔍 Menu - Componente montato, riquadri dovrebbero essere visibili');
+  }, []);
+
   // Redirect to auth page if not logged in (ma solo se non c'è token)
   const hasToken = localStorage.getItem('auth_token');
   if (!user && !isLoading && !hasToken) {

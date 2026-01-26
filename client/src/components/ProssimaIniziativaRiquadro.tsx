@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ProssimaIniziativaRiquadro.css';
+import { apiRequest } from '@/lib/queryClient';
 
 const ProssimaIniziativaRiquadro = () => {
   const [iniziativa, setIniziativa] = useState<any>(null);
@@ -9,36 +10,47 @@ const ProssimaIniziativaRiquadro = () => {
   useEffect(() => {
     const fetchProssimaIniziativa = async () => {
       try {
-        // Ottieni il token dal localStorage o dal tuo sistema di autenticazione
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+        console.log('🔍 ProssimaIniziativaRiquadro - Inizio fetch');
+        
+        // Ottieni il token dal localStorage
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
-          console.log('Token non trovato, riquadro iniziativa non caricato');
+          console.log('⚠️ ProssimaIniziativaRiquadro - Token non trovato');
           setLoading(false);
           return;
         }
         
-        const response = await fetch('https://www.demos.community/api/iniziative-popolari/prossima', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        console.log('🔍 ProssimaIniziativaRiquadro - Token trovato, effettuo richiesta');
+        
+        const response = await apiRequest('GET', '/api/iniziative-popolari/prossima');
+        
+        console.log('🔍 ProssimaIniziativaRiquadro - Risposta ricevuta:', {
+          ok: response.ok,
+          status: response.status,
+          hasData: !!response.data
         });
-
+        
         if (!response.ok) {
           throw new Error(`Errore HTTP: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = response.data;
+        
+        console.log('🔍 ProssimaIniziativaRiquadro - Dati parsati:', {
+          success: data?.success,
+          hasIniziativa: !!data?.data
+        });
         
         if (data.success && data.data) {
+          console.log('✅ ProssimaIniziativaRiquadro - Iniziativa trovata:', data.data.nome || data.data.titolo);
           setIniziativa(data.data);
         } else {
+          console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile');
           setIniziativa(null);
         }
       } catch (err) {
-        console.error('Errore nel recupero iniziativa più rilevante:', err);
+        console.error('❌ ProssimaIniziativaRiquadro - Errore:', err);
         setError('Errore nel caricamento dell\'iniziativa');
       } finally {
         setLoading(false);
@@ -56,8 +68,14 @@ const ProssimaIniziativaRiquadro = () => {
     );
   }
 
-  if (error || !iniziativa) {
-    return null; // Non mostrare nulla se non c'è un'iniziativa o c'è un errore
+  if (error) {
+    console.error('❌ ProssimaIniziativaRiquadro - Errore:', error);
+    return null; // Non mostrare nulla se c'è un errore
+  }
+
+  if (!iniziativa) {
+    console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile, non mostro il riquadro');
+    return null; // Non mostrare nulla se non c'è un'iniziativa
   }
 
   // Formatta la data

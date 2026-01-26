@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, useLocation } from "wouter";
-import { Heart, Users, Star, UserCheck, Building2 } from "lucide-react";
+import { Heart, Users, Star, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
@@ -303,6 +303,36 @@ export default function Preferiti() {
                   onNavigate={handleNavigate}
                 />
               ))}
+            </div>
+            
+            {/* Pulsanti Opinioni e Vota spostati dal Menu */}
+            <div className="mt-4 grid grid-cols-2 gap-1">
+              <PreferitiButton
+                path="/opinioni"
+                icon={MessageSquare}
+                label="Opinioni"
+                color={{
+                  bg: "#e0f2fe",
+                  icon: "#0891b2"
+                }}
+                onNavigate={(path, event) => {
+                  event.preventDefault();
+                  setLocation(path);
+                }}
+              />
+              <PreferitiButton
+                path="/vota"
+                icon={Vote}
+                label="Vota"
+                color={{
+                  bg: "#dcfce7",
+                  icon: "#16a34a"
+                }}
+                onNavigate={(path, event) => {
+                  event.preventDefault();
+                  setLocation(path);
+                }}
+              />
             </div>
           </div>
         </div>

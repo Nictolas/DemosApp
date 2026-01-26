@@ -22,6 +22,10 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
     if (userRole === "I") {
       return item.id === "profilo";
     }
+    // Nascondi "Opinioni" e "Vota" dal Menu (sono stati spostati nella pagina Preferiti)
+    if (item.id === "opinioni" || item.id === "vota") {
+      return false;
+    }
     // Altrimenti usa la logica esistente
     return !item.requiresAdvancedAccess || hasAdvancedAccess || hasLimitedAccess;
   });
