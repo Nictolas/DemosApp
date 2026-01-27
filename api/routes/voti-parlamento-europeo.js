@@ -243,4 +243,66 @@ router.post('/sincronizza', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/voti-parlamento-europeo/aggiorna-titoli - Aggiorna i titoli delle votazioni esistenti
+router.post('/aggiorna-titoli', verifyToken, async (req, res) => {
+  try {
+    const { getPool } = require('../config/database');
+    const pool = getPool();
+    const { fetchDettagliVotazioneDiretta, estraiTitoloVotazione } = require('../services/parlamentoEuropeoService');
+    
+    console.log(`🔄 POST /api/voti-parlamento-europeo/aggiorna-titoli - Aggiornamento titoli`);
+    
+    // Recupera tutte le votazioni con titoli generici
+    const result = await pool.query(`
+      SELECT uri, votazione_id, titolo
+      FROM parlamento_europeo
+      WHERE titolo LIKE 'Votazione %' OR titolo LIKE 'Votazione del %'
+      ORDER BY data_votazione DESC
+      LIMIT 100
+    `);
+    
+    let aggiornate = 0;
+    let errori = 0;
+    
+    for (const votazione of result.rows) {
+      try {
+        // Prova a recuperare i dettagli direttamente
+        const votazioneDiretta = await fetchDettagliVotazioneDiretta(votazione.uri);
+        if (votazioneDiretta) {
+          const nuovoTitolo = estraiTitoloVotazione(votazioneDiretta);
+          if (nuovoTitolo && nuovoTitolo !== votazione.titolo && nuovoTitolo.length > votazione.titolo.length) {
+            await pool.query(`
+              UPDATE parlamento_europeo
+              SET titolo = $1, updated_at = CURRENT_TIMESTAMP
+              WHERE uri = $2
+            `, [nuovoTitolo, votazione.uri]);
+            aggiornate++;
+            console.log(`✅ Aggiornato titolo per ${votazione.uri}: "${nuovoTitolo}"`);
+          }
+        }
+      } catch (error) {
+        errori++;
+        console.error(`⚠️ Errore nell'aggiornamento titolo per ${votazione.uri}:`, error.message);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Aggiornamento completato: ${aggiornate} titoli aggiornati, ${errori} errori`,
+      data: {
+        aggiornate,
+        errori,
+        totali: result.rows.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento titoli:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nell\'aggiornamento dei titoli',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
