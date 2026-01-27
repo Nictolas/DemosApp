@@ -323,17 +323,45 @@ function estraiTitoloVotazione(votazioneData) {
 /**
  * Recupera i dettagli di una votazione
  * Prova a recuperare i risultati dei voti dall'endpoint vote-results
+ * @param {string} votazioneId - URI o ID della votazione
+ * @param {object} sessioneOrVoteResult - Sessione o voteResult dall'API
  */
-async function estraiDettagliVotazione(votazioneId, sessione) {
+async function estraiDettagliVotazione(votazioneId, sessioneOrVoteResult = {}) {
   // Estrai l'ID della votazione (ultima parte dopo l'ultimo slash)
   const parts = votazioneId.split('/');
   const votazioneIdShort = parts[parts.length - 1];
   
-  // Estrai informazioni dalla sessione
-  const dataSessione = sessione['activity_date'] || sessione['activity_start_date'];
-  const sessioneLabel = sessione['activity_label']?.['it'] || sessione['activity_label']?.['en'] || '';
-  const termineParlamentare = sessione['parliamentary_term'] || null;
-  const sessioneId = sessione['id'] || sessione['activity_id'];
+  // Determina se è una sessione o un voteResult
+  const isVoteResult = sessioneOrVoteResult.date || sessioneOrVoteResult['@id'] || sessioneOrVoteResult.id?.includes('VOT');
+  
+  // Estrai informazioni dalla sessione o voteResult
+  let dataSessione, sessioneLabel, termineParlamentare, sessioneId;
+  
+  if (isVoteResult) {
+    // È un voteResult da /vote-results
+    dataSessione = sessioneOrVoteResult.date || sessioneOrVoteResult['date'] || sessioneOrVoteResult.activity_date || sessioneOrVoteResult['activity_date'];
+    sessioneLabel = sessioneOrVoteResult.label?.it || sessioneOrVoteResult.label?.en || 
+                   sessioneOrVoteResult['rdfs:label']?.it || sessioneOrVoteResult['rdfs:label']?.en ||
+                   sessioneOrVoteResult.title?.it || sessioneOrVoteResult.title?.en || '';
+    termineParlamentare = sessioneOrVoteResult.parliamentary_term || sessioneOrVoteResult['parliamentary_term'] || null;
+    sessioneId = sessioneOrVoteResult.activity_id || sessioneOrVoteResult['activity_id'] || 
+                 sessioneOrVoteResult.id || sessioneOrVoteResult['@id'] || null;
+    
+    // Se non abbiamo la data, prova a estrarla dall'ID
+    if (!dataSessione && sessioneId) {
+      const match = sessioneId.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [, year, month, day] = match;
+        dataSessione = `${year}-${month}-${day}`;
+      }
+    }
+  } else {
+    // È una sessione da /meetings
+    dataSessione = sessioneOrVoteResult['activity_date'] || sessioneOrVoteResult['activity_start_date'];
+    sessioneLabel = sessioneOrVoteResult['activity_label']?.['it'] || sessioneOrVoteResult['activity_label']?.['en'] || '';
+    termineParlamentare = sessioneOrVoteResult['parliamentary_term'] || null;
+    sessioneId = sessioneOrVoteResult['id'] || sessioneOrVoteResult['activity_id'];
+  }
   
   // Prova a recuperare i risultati dei voti
   let favorevoli = null;
@@ -369,53 +397,74 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
     console.log(`⚠️ Errore nel fetch diretto votazione:`, error.message);
   }
   
-  // SECONDA: Prova a recuperare i risultati dei voti dall'endpoint vote-results
-  if (sessioneId) {
+  // SECONDA: Se abbiamo già un voteResult, usalo direttamente
+  let votazioneResult = null;
+  if (isVoteResult) {
+    votazioneResult = sessioneOrVoteResult;
+  } else if (sessioneId) {
+    // Altrimenti prova a recuperare i risultati dei voti dall'endpoint vote-results
     try {
       const voteResults = await fetchVoteResults(sessioneId);
       
       // Cerca la votazione specifica nei risultati
-      const votazioneResult = voteResults.find(vr => {
+      votazioneResult = voteResults.find(vr => {
         const vrId = vr.id || vr.activity_id || vr['@id'] || '';
         return vrId === votazioneId || 
                vrId.includes(votazioneIdShort) ||
                vrId.includes(votazioneId);
       });
-      
-      if (votazioneResult) {
-        // Estrai link al documento con voti individuali
-        if (votazioneResult['recorded_in_a_realization_of'] && Array.isArray(votazioneResult['recorded_in_a_realization_of'])) {
-          const docRef = votazioneResult['recorded_in_a_realization_of'][0];
-          if (typeof docRef === 'string') {
-            documentoVoti = docRef;
-          } else if (docRef && docRef.id) {
-            documentoVoti = docRef.id;
-          } else if (docRef && typeof docRef === 'object' && docRef['@id']) {
-            documentoVoti = docRef['@id'];
-          }
-        }
-        
-        // Estrai statistiche aggregate se disponibili
-        // Nota: questi sono solo totali, non voti individuali
-        if (votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for']) {
-          const voteData = votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for'];
-          favorevoli = voteData['eli-dl:vote_result_in_favour'] || voteData['vote_result_in_favour'] || null;
-          contrari = voteData['eli-dl:vote_result_against'] || voteData['vote_result_against'] || null;
-          astenuti = voteData['eli-dl:vote_result_abstention'] || voteData['vote_result_abstention'] || null;
-        }
-        
-        // Estrai titolo se disponibile (sovrascrive solo se migliore)
-        const titoloDaResult = estraiTitoloVotazione(votazioneResult);
-        if (titoloDaResult && titoloDaResult.length > titolo.length && !titolo.startsWith('Votazione ')) {
-          titolo = titoloDaResult;
-          console.log(`✅ Titolo estratto da vote-results: ${titolo}`);
-        }
-      }
     } catch (error) {
       // L'endpoint vote-results potrebbe non essere disponibile per tutte le sessioni
       if (error.response && error.response.status !== 404) {
         console.error(`⚠️ Errore nel recupero dettagli votazione ${votazioneId}:`, error.message);
       }
+    }
+  }
+  
+  // Estrai informazioni dal voteResult se disponibile
+  if (votazioneResult) {
+    // Estrai link al documento con voti individuali
+    if (votazioneResult['recorded_in_a_realization_of'] && Array.isArray(votazioneResult['recorded_in_a_realization_of'])) {
+      const docRef = votazioneResult['recorded_in_a_realization_of'][0];
+      if (typeof docRef === 'string') {
+        documentoVoti = docRef;
+      } else if (docRef && docRef.id) {
+        documentoVoti = docRef.id;
+      } else if (docRef && typeof docRef === 'object' && docRef['@id']) {
+        documentoVoti = docRef['@id'];
+      }
+    }
+    
+    // Estrai statistiche aggregate se disponibili
+    // Nota: questi sono solo totali, non voti individuali
+    if (votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for']) {
+      const voteData = votazioneResult['eli-dl:vote_result_for'] || votazioneResult['vote_result_for'];
+      favorevoli = voteData['eli-dl:vote_result_in_favour'] || voteData['vote_result_in_favour'] || null;
+      contrari = voteData['eli-dl:vote_result_against'] || voteData['vote_result_against'] || null;
+      astenuti = voteData['eli-dl:vote_result_abstention'] || voteData['vote_result_abstention'] || null;
+    }
+    
+    // Estrai conteggi dai campi votedFor/votedAgainst/votedAbstained se disponibili
+    if (votazioneResult.votedFor && Array.isArray(votazioneResult.votedFor)) {
+      favorevoli = votazioneResult.votedFor.length;
+    }
+    if (votazioneResult.votedAgainst && Array.isArray(votazioneResult.votedAgainst)) {
+      contrari = votazioneResult.votedAgainst.length;
+    }
+    if (votazioneResult.votedAbstained && Array.isArray(votazioneResult.votedAbstained)) {
+      astenuti = votazioneResult.votedAbstained.length;
+    }
+    
+    // Estrai titolo se disponibile (sovrascrive solo se migliore)
+    const titoloDaResult = estraiTitoloVotazione(votazioneResult);
+    if (titoloDaResult && titoloDaResult.length > titolo.length && !titolo.startsWith('Votazione ')) {
+      titolo = titoloDaResult;
+      console.log(`✅ Titolo estratto da vote-results: ${titolo}`);
+    }
+    
+    // Aggiorna data se disponibile nel voteResult
+    if (votazioneResult.date && !dataSessione) {
+      dataSessione = votazioneResult.date;
     }
   }
   
@@ -458,27 +507,171 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
 
 /**
  * Recupera e salva le ultime votazioni del PE
- * Migliorato per recuperare solo sessioni recenti (ultimi 2 anni)
+ * Usa direttamente /vote-results per ottenere le votazioni più recenti
  */
 async function sincronizzaVotazioniPE(limitSessioni = 5) {
   try {
     await ensureTableExists();
     
-    console.log(`🔄 Sincronizzazione votazioni Parlamento Europeo (ultime ${limitSessioni} sessioni recenti)...`);
+    console.log(`🔄 Sincronizzazione votazioni Parlamento Europeo (ultime ${limitSessioni * 10} votazioni recenti)...`);
     
-    // Recupera più sessioni per filtrare solo quelle recenti
-    const sessioniDaRecuperare = limitSessioni * 10; // Recupera più sessioni per filtrare
+    // METODO PRINCIPALE: Usa /vote-results direttamente per ottenere le votazioni più recenti
+    const oggi = new Date();
+    const seiMesiFa = new Date();
+    seiMesiFa.setMonth(oggi.getMonth() - 6);
+    
+    try {
+      console.log(`📡 Tentativo sincronizzazione da /vote-results (metodo principale)...`);
+      const limitVotazioni = limitSessioni * 10; // Recupera più votazioni per filtrare
+      const response = await axios.get(`${API_BASE}/vote-results`, {
+        params: {
+          limit: limitVotazioni * 2, // Recupera ancora più risultati per filtrare meglio
+          offset: 0,
+          sort: '-date' // Ordinamento decrescente per data
+        },
+        headers: {
+          'Accept': 'application/ld+json',
+          'User-Agent': 'DemosApp-1.0.0'
+        },
+        timeout: 30000
+      });
+      
+      // Estrai i dati dalla risposta
+      let voteResults = [];
+      if (Array.isArray(response.data)) {
+        voteResults = response.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        voteResults = response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        voteResults = response.data.data;
+      } else if (response.data && response.data['@graph'] && Array.isArray(response.data['@graph'])) {
+        voteResults = response.data['@graph'];
+      }
+      
+      console.log(`📊 Votazioni recuperate da /vote-results: ${voteResults.length}`);
+      
+      // Filtra solo votazioni degli ultimi 6 mesi
+      const votazioniRecenti = voteResults.filter(vote => {
+        const voteDate = vote.date || vote['date'] || vote.activity_date || vote['activity_date'];
+        if (!voteDate) {
+          // Prova a estrarre dall'ID
+          const voteId = vote.id || vote['@id'] || vote.activity_id || '';
+          const match = voteId.match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (match) {
+            const [, year, month, day] = match;
+            const data = new Date(year, month - 1, day);
+            return data >= seiMesiFa;
+          }
+          return false;
+        }
+        const data = new Date(voteDate);
+        return data >= seiMesiFa;
+      }).slice(0, limitVotazioni);
+      
+      console.log(`📊 Votazioni recenti (ultimi 6 mesi): ${votazioniRecenti.length}`);
+      
+      if (votazioniRecenti.length > 0) {
+        let salvate = 0;
+        let errori = 0;
+        
+        for (const voteResult of votazioniRecenti) {
+          try {
+            const voteId = voteResult.id || voteResult['@id'] || voteResult.activity_id;
+            if (!voteId) {
+              console.log(`⚠️ Votazione senza ID, salto`);
+              continue;
+            }
+            
+            // Estrai l'URI della votazione
+            const uri = voteId.startsWith('http') ? voteId : `eli/dl/event/${voteId}`;
+            
+            // Recupera i dettagli completi della votazione
+            const dettagli = await estraiDettagliVotazione(uri, voteResult);
+            
+            if (!dettagli || !dettagli.votazione_id) {
+              console.log(`⚠️ Dettagli non disponibili per ${uri}, salto`);
+              continue;
+            }
+            
+            // Log della data estratta per debug
+            console.log(`   📅 Votazione ${dettagli.votazione_id}: data_votazione=${dettagli.data_votazione}`);
+            
+            // Estrai i conteggi dei voti se disponibili
+            const favorevoli = voteResult.votedFor?.length || voteResult['votedFor']?.length || null;
+            const contrari = voteResult.votedAgainst?.length || voteResult['votedAgainst']?.length || null;
+            const astenuti = voteResult.votedAbstained?.length || voteResult['votedAbstained']?.length || null;
+            const votanti = (favorevoli || 0) + (contrari || 0) + (astenuti || 0);
+            
+            // Salva nel database (upsert)
+            await pool.query(`
+              INSERT INTO parlamento_europeo (
+                uri, votazione_id, titolo, descrizione, data_votazione, esito,
+                sessione_id, sessione_data, sessione_label, termine_parlamentare,
+                favorevoli, contrari, astenuti, presenti, votanti, metadati,
+                data_sincronizzazione
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
+              ON CONFLICT (uri) DO UPDATE SET
+                titolo = EXCLUDED.titolo,
+                descrizione = EXCLUDED.descrizione,
+                data_votazione = EXCLUDED.data_votazione,
+                esito = EXCLUDED.esito,
+                sessione_id = EXCLUDED.sessione_id,
+                sessione_data = EXCLUDED.sessione_data,
+                sessione_label = EXCLUDED.sessione_label,
+                termine_parlamentare = EXCLUDED.termine_parlamentare,
+                favorevoli = COALESCE(EXCLUDED.favorevoli, parlamento_europeo.favorevoli),
+                contrari = COALESCE(EXCLUDED.contrari, parlamento_europeo.contrari),
+                astenuti = COALESCE(EXCLUDED.astenuti, parlamento_europeo.astenuti),
+                presenti = COALESCE(EXCLUDED.presenti, parlamento_europeo.presenti),
+                votanti = COALESCE(EXCLUDED.votanti, parlamento_europeo.votanti),
+                metadati = EXCLUDED.metadati,
+                updated_at = CURRENT_TIMESTAMP,
+                data_sincronizzazione = CURRENT_TIMESTAMP
+            `, [
+              dettagli.uri,
+              dettagli.votazione_id,
+              dettagli.titolo,
+              dettagli.descrizione,
+              dettagli.data_votazione,
+              dettagli.esito,
+              dettagli.sessione_id,
+              dettagli.sessione_data,
+              dettagli.sessione_label,
+              dettagli.termine_parlamentare,
+              favorevoli || dettagli.favorevoli,
+              contrari || dettagli.contrari,
+              astenuti || dettagli.astenuti,
+              dettagli.presenti,
+              votanti || dettagli.votanti,
+              JSON.stringify({ ...dettagli.metadati, vote_result: voteResult })
+            ]);
+            
+            salvate++;
+          } catch (votError) {
+            console.error(`❌ Errore nel salvare votazione:`, votError.message);
+            errori++;
+          }
+        }
+        
+        console.log(`✅ Sincronizzazione da /vote-results completata: ${salvate} votazioni salvate, ${errori} errori`);
+        return { salvate, errori, metodo: 'vote-results' };
+      }
+    } catch (voteResultsError) {
+      console.log(`⚠️ Errore nel recupero da /vote-results: ${voteResultsError.message}`);
+      console.log(`🔄 Fallback a metodo /meetings...`);
+    }
+    
+    // FALLBACK: Usa il metodo originale con /meetings
+    console.log(`📡 Sincronizzazione da /meetings (metodo fallback)...`);
+    const sessioniDaRecuperare = limitSessioni * 10;
     const sessioni = await fetchUltimeSessioni(sessioniDaRecuperare);
     
-    // Filtra solo sessioni degli ultimi 2 anni
-    const oggi = new Date();
     const dueAnniFa = new Date();
     dueAnniFa.setFullYear(oggi.getFullYear() - 2);
     
     const sessioniRecenti = sessioni.filter(sessione => {
       const dataSessione = sessione['activity_date'] || sessione['activity_start_date'] || sessione['start_date'] || sessione['date'];
       if (!dataSessione) {
-        // Se non ha data, prova a estrarre dall'ID
         const sessioneId = sessione['id'] || sessione['activity_id'] || '';
         const match = sessioneId.match(/(\d{4})-(\d{2})-(\d{2})/);
         if (match) {
@@ -486,23 +679,22 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
           const data = new Date(year, month - 1, day);
           return data >= dueAnniFa;
         }
-        return false; // Se non ha data e non possiamo estrarla, escludila
+        return false;
       }
       const data = new Date(dataSessione);
       return data >= dueAnniFa;
-    }).slice(0, limitSessioni); // Prendi solo le prime limitSessioni
+    }).slice(0, limitSessioni);
     
     console.log(`📊 Sessioni recuperate: ${sessioni.length}, sessioni recenti (ultimi 2 anni): ${sessioniRecenti.length}`);
     
     if (sessioniRecenti.length === 0) {
       console.log(`⚠️ Nessuna sessione recente trovata. Le sessioni disponibili sono più vecchie di 2 anni.`);
-      return { salvate: 0, errori: 0, messaggio: 'Nessuna sessione recente disponibile' };
+      return { salvate: 0, errori: 0, messaggio: 'Nessuna sessione recente disponibile', metodo: 'meetings-fallback' };
     }
     
     let salvate = 0;
     let errori = 0;
     
-    // Per ogni sessione recente, estrai le votazioni
     for (const sessione of sessioniRecenti) {
       try {
         const sessioneId = sessione['id'] || sessione['activity_id'] || 'N/A';
@@ -519,10 +711,8 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
           try {
             const dettagli = await estraiDettagliVotazione(votazioneId, sessione);
             
-            // Log della data estratta per debug
             console.log(`   📅 Votazione ${dettagli.votazione_id}: data_votazione=${dettagli.data_votazione}, sessione_data=${dettagli.sessione_data}`);
             
-            // Salva nel database (upsert)
             await pool.query(`
               INSERT INTO parlamento_europeo (
                 uri, votazione_id, titolo, descrizione, data_votazione, esito,
@@ -579,7 +769,7 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
     }
     
     console.log(`✅ Sincronizzazione completata: ${salvate} votazioni salvate, ${errori} errori`);
-    return { salvate, errori };
+    return { salvate, errori, metodo: 'meetings-fallback' };
   } catch (error) {
     console.error('❌ Errore nella sincronizzazione:', error);
     throw error;
