@@ -197,7 +197,7 @@ const UltimaNotificaRiquadro = () => {
       }}
     >
       <div className="ultima-notifica-header">
-        <h3>🔔 Ultima Notifica</h3>
+        <h3>Ultima Notifica</h3>
       </div>
       <div className="ultima-notifica-content">
         <h4>{titolo}</h4>

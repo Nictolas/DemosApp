@@ -176,7 +176,7 @@ const ProssimaIniziativaRiquadro = () => {
       }}
     >
       <div className="prossima-iniziativa-header">
-        <h3>{emoji} Iniziativa Popolare</h3>
+        <h3>Iniziativa Popolare</h3>
       </div>
       <div className="prossima-iniziativa-content">
         <h4>{nomeIniziativa}</h4>

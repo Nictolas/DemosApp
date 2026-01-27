@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { Loader2, Phone, ArrowLeft } from "lucide-react";
+import { Loader2, Phone } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
-import { Link } from "wouter";
 import { EmergencyDialog } from "./components/EmergencyDialog";
 
 interface EmergencyCategory {
@@ -408,16 +407,6 @@ export default function Avvistamenti() {
       <div className="container mx-auto px-4 py-8 h-full flex flex-col">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/impostazioni">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="mb-4 h-12 w-12 rounded-full bg-white border border-white/20 shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
-            </Button>
-          </Link>
-          
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
               <Phone className="h-6 w-6 text-white" />
