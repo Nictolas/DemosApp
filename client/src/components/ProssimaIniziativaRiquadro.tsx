@@ -207,7 +207,8 @@ const ProssimaIniziativaRiquadro = () => {
                     alignItems: 'center',
                     fontSize: '0.75em',
                     marginBottom: '4px',
-                    opacity: 0.9
+                    opacity: 0.9,
+                    color: '#333'
                   }}>
                     <span>Progresso verso quorum</span>
                     <span style={{ fontWeight: 600 }}>{percentuale.toFixed(1)}%</span>

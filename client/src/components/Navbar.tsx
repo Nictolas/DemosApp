@@ -1,4 +1,4 @@
-import { Home, Settings, Megaphone, Heart, Globe, Binoculars } from "lucide-react";
+import { Home, Settings, Megaphone, Star, Globe, Binoculars } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 
@@ -39,7 +39,7 @@ export default function Navbar() {
         </Link>
         {userRole !== "I" && (
           <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
-            <Heart className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
+            <Star className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
             <span className={`text-xs hidden md:block ${isActive("/preferiti") ? "text-blue-600 font-semibold" : ""}`}>Preferiti</span>
           </Link>
         )}
