@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, useLocation } from "wouter";
-import { Heart, Users, Star, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
+import { Heart, Users, Award, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
@@ -94,7 +94,7 @@ const preferitiItems = [
   {
     id: "candidati",
     path: "/candidati",
-    icon: Star,
+    icon: Award,
     label: "Candidati",
     color: {
       bg: "#fef3c7",
