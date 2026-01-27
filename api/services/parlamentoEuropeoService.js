@@ -568,9 +568,10 @@ async function getUltimeVotazioni(limit = 10) {
   try {
     await ensureTableExists();
     
-    // Calcola la data minima (escludi votazioni più vecchie di 10 anni)
+    // Calcola la data minima (escludi votazioni più vecchie di 6 mesi)
+    // Questo assicura che vengano mostrate solo votazioni molto recenti
     const dataMinima = new Date();
-    dataMinima.setFullYear(dataMinima.getFullYear() - 10);
+    dataMinima.setMonth(dataMinima.getMonth() - 6);
     const dataMinimaStr = dataMinima.toISOString().split('T')[0];
     
     const result = await pool.query(`
@@ -584,9 +585,8 @@ async function getUltimeVotazioni(limit = 10) {
       WHERE titolo IS NOT NULL 
         AND titolo != ''
         AND (
-          data_votazione IS NULL 
-          OR data_votazione >= $2
-          OR data_sincronizzazione >= $2
+          (data_votazione IS NOT NULL AND data_votazione >= $2)
+          OR (data_votazione IS NULL AND data_sincronizzazione >= $2)
         )
       ORDER BY 
         COALESCE(data_votazione, data_sincronizzazione) DESC NULLS LAST,
