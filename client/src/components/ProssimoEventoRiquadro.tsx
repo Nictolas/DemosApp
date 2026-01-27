@@ -158,15 +158,15 @@ const ProssimoEventoRiquadro = () => {
               {evento.indirizzo_evento && ` - ${evento.indirizzo_evento}`}
             </p>
           )}
-          <p className="data-orario">
+          <p className="data">
             {formattaData(evento.giorno_inizio)}
-            {evento.orario_inizio && (
-              <span className="ml-2">
-                {formattaOrario(evento.orario_inizio)}
-                {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
-              </span>
-            )}
           </p>
+          {evento.orario_inizio && (
+            <p className="orario">
+              {formattaOrario(evento.orario_inizio)}
+              {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
+            </p>
+          )}
         </div>
       </div>
     </div>
