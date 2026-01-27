@@ -19,23 +19,30 @@ router.get('/ultime', verifyToken, async (req, res) => {
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
     
     // Recupera dal database
-    let votazioni = await getUltimeVotazioni(limit);
+    console.log(`📊 Recupero votazioni dal database...`);
+    let votazioni = [];
+    try {
+      votazioni = await getUltimeVotazioni(limit);
+      console.log(`✅ Recuperate ${votazioni.length} votazioni dal database`);
+    } catch (dbError) {
+      console.error('❌ Errore nel recupero dal database:', dbError);
+      // Restituisci array vuoto invece di bloccare
+      votazioni = [];
+    }
     
-    // Se non ci sono votazioni recenti o è richiesto refresh, sincronizza
-    // Controlla anche se tutte le votazioni sono vecchie (più di 6 mesi)
-    const oggi = new Date();
-    const seiMesiFa = new Date();
-    seiMesiFa.setMonth(oggi.getMonth() - 6);
-    
-    const tutteVecchie = votazioni.length > 0 && votazioni.every(v => {
-      const dataVotazione = v.data_votazione ? new Date(v.data_votazione) : null;
-      return dataVotazione && dataVotazione < seiMesiFa;
-    });
-    
-    if (votazioni.length === 0 || tutteVecchie || forceRefresh) {
+    // Sincronizza SOLO se esplicitamente richiesto con refresh=true
+    // La sincronizzazione automatica è disabilitata perché può richiedere molto tempo
+    // e bloccare la risposta HTTP. Usa l'endpoint POST /sincronizza per sincronizzazioni manuali.
+    if (forceRefresh) {
       try {
-        console.log('🔄 Database vuoto o refresh richiesto, sincronizzazione in corso...');
-        const syncResult = await sincronizzaVotazioniPE(5); // Sincronizza ultime 5 sessioni
+        console.log('🔄 Refresh richiesto, sincronizzazione in corso...');
+        // Usa Promise.race per aggiungere un timeout di 30 secondi
+        const syncPromise = sincronizzaVotazioniPE(3); // Sincronizza solo ultime 3 sessioni per essere più veloce
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout sincronizzazione (30s)')), 30000)
+        );
+        
+        const syncResult = await Promise.race([syncPromise, timeoutPromise]);
         console.log(`✅ Sincronizzazione completata: ${syncResult.salvate} salvate, ${syncResult.errori} errori`);
         // Ricarica dopo la sincronizzazione
         votazioni = await getUltimeVotazioni(limit);
@@ -43,17 +50,17 @@ router.get('/ultime', verifyToken, async (req, res) => {
       } catch (syncError) {
         console.error('❌ Errore nella sincronizzazione:', syncError);
         console.error('   Stack:', syncError.stack);
-        // Se c'è un errore ma abbiamo già dei dati, restituiscili comunque
+        // Se c'è un errore, restituisci comunque i dati disponibili (anche se vecchi)
+        // Non bloccare la risposta per errori di sincronizzazione
         if (votazioni.length === 0) {
-          return res.status(500).json({
-            success: false,
-            message: 'Errore nella sincronizzazione dei dati dal Parlamento Europeo',
-            error: syncError.message,
-            details: 'Impossibile recuperare le votazioni. Verifica i log del server per maggiori dettagli.'
-          });
+          // Se non ci sono dati, restituisci array vuoto invece di errore
+          votazioni = [];
         }
       }
     }
+    
+    // Se non ci sono votazioni, restituisci array vuoto invece di bloccare
+    // L'utente può richiedere manualmente la sincronizzazione se necessario
     
     // Formatta la risposta
     const votazioniFormattate = votazioni.map(v => ({
