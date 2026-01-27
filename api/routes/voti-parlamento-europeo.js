@@ -13,7 +13,7 @@ const router = express.Router();
 // GET /api/voti-parlamento-europeo/ultime - Ottieni le ultime N votazioni
 router.get('/ultime', verifyToken, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 10, 100); // Default 10, max 100
+    const limit = Math.min(parseInt(req.query.limit) || 1, 100); // Default 1 (ultima votazione), max 100
     const forceRefresh = req.query.refresh === 'true'; // Forza refresh da API
     
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
@@ -21,8 +21,18 @@ router.get('/ultime', verifyToken, async (req, res) => {
     // Recupera dal database
     let votazioni = await getUltimeVotazioni(limit);
     
-    // Se non ci sono votazioni o è richiesto refresh, sincronizza
-    if (votazioni.length === 0 || forceRefresh) {
+    // Se non ci sono votazioni recenti o è richiesto refresh, sincronizza
+    // Controlla anche se tutte le votazioni sono vecchie (più di 6 mesi)
+    const oggi = new Date();
+    const seiMesiFa = new Date();
+    seiMesiFa.setMonth(oggi.getMonth() - 6);
+    
+    const tutteVecchie = votazioni.length > 0 && votazioni.every(v => {
+      const dataVotazione = v.data_votazione ? new Date(v.data_votazione) : null;
+      return dataVotazione && dataVotazione < seiMesiFa;
+    });
+    
+    if (votazioni.length === 0 || tutteVecchie || forceRefresh) {
       try {
         console.log('🔄 Database vuoto o refresh richiesto, sincronizzazione in corso...');
         const syncResult = await sincronizzaVotazioniPE(5); // Sincronizza ultime 5 sessioni
