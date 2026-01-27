@@ -121,28 +121,73 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       });
     }
     
-    // Recupera voti nominali MEP italiani
+    // Verifica se la votazione è recente (meno di 1 anno) prima di recuperare dati aggiuntivi
+    const dataVotazione = votazione.data_votazione ? new Date(votazione.data_votazione) : null;
+    const unAnnoFa = new Date();
+    unAnnoFa.setFullYear(unAnnoFa.getFullYear() - 1);
+    const isVotazioneRecente = dataVotazione && dataVotazione >= unAnnoFa;
+    
+    // Recupera voti nominali MEP italiani (solo per votazioni recenti per evitare timeout)
     let votiNominaliMEPItaliani = null;
-    try {
-      votiNominaliMEPItaliani = await getVotiNominaliMEPItaliani(decodedUri);
-    } catch (votiError) {
-      console.error('⚠️ Errore nel recupero voti nominali MEP italiani:', votiError.message);
-      // Continua comunque senza voti nominali
+    if (isVotazioneRecente) {
+      try {
+        // Aggiungi timeout per evitare blocchi
+        const votiPromise = getVotiNominaliMEPItaliani(decodedUri);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout recupero voti MEP (15s)')), 15000)
+        );
+        votiNominaliMEPItaliani = await Promise.race([votiPromise, timeoutPromise]);
+      } catch (votiError) {
+        console.error('⚠️ Errore nel recupero voti nominali MEP italiani:', votiError.message);
+        // Continua comunque senza voti nominali
+        votiNominaliMEPItaliani = {
+          favorevoli: [],
+          contrari: [],
+          astenuti: [],
+          assenti: [],
+          disponibili: false,
+          messaggio: 'Voti non disponibili per questa votazione'
+        };
+      }
+    } else {
+      console.log(`⚠️ Votazione vecchia (${dataVotazione ? dataVotazione.toISOString().split('T')[0] : 'N/A'}), salto recupero voti MEP per evitare timeout`);
+      votiNominaliMEPItaliani = {
+        favorevoli: [],
+        contrari: [],
+        astenuti: [],
+        assenti: [],
+        disponibili: false,
+        messaggio: 'Voti non disponibili per votazioni vecchie'
+      };
     }
     
-    // Verifica se esiste già un'analisi AI
+    // Verifica se esiste già un'analisi AI (solo per votazioni recenti)
     let analisiLegge = null;
-    try {
-      analisiLegge = await recuperaAnalisiDaCache(decodedUri);
-      
-      // Se non esiste, genera una nuova analisi
-      if (!analisiLegge && votazione.titolo) {
-        console.log('🤖 Generazione analisi AI per la votazione...');
-        analisiLegge = await generaAnalisiLegge(votazione.titolo, decodedUri);
+    if (isVotazioneRecente) {
+      try {
+        analisiLegge = await recuperaAnalisiDaCache(decodedUri);
+        
+        // Se non esiste, genera una nuova analisi (solo per votazioni recenti)
+        if (!analisiLegge && votazione.titolo) {
+          try {
+            console.log('🤖 Generazione analisi AI per la votazione...');
+            // Aggiungi timeout per evitare blocchi
+            const analisiPromise = generaAnalisiLegge(votazione.titolo, decodedUri);
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout generazione analisi (20s)')), 20000)
+            );
+            analisiLegge = await Promise.race([analisiPromise, timeoutPromise]);
+          } catch (analisiTimeoutError) {
+            console.error('⚠️ Timeout nella generazione analisi:', analisiTimeoutError.message);
+            // Continua senza analisi
+          }
+        }
+      } catch (analisiError) {
+        console.error('⚠️ Errore nella generazione analisi:', analisiError.message);
+        // Continua comunque senza analisi
       }
-    } catch (analisiError) {
-      console.error('⚠️ Errore nella generazione analisi:', analisiError.message);
-      // Continua comunque senza analisi
+    } else {
+      console.log(`⚠️ Votazione vecchia, salto generazione analisi AI`);
     }
     
     // Formatta la risposta

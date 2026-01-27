@@ -458,26 +458,52 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
 
 /**
  * Recupera e salva le ultime votazioni del PE
+ * Migliorato per recuperare solo sessioni recenti (ultimi 2 anni)
  */
 async function sincronizzaVotazioniPE(limitSessioni = 5) {
   try {
     await ensureTableExists();
     
-    console.log(`🔄 Sincronizzazione votazioni Parlamento Europeo (ultime ${limitSessioni} sessioni)...`);
+    console.log(`🔄 Sincronizzazione votazioni Parlamento Europeo (ultime ${limitSessioni} sessioni recenti)...`);
     
-    // Recupera le ultime sessioni
-    const sessioni = await fetchUltimeSessioni(limitSessioni);
+    // Recupera più sessioni per filtrare solo quelle recenti
+    const sessioniDaRecuperare = limitSessioni * 10; // Recupera più sessioni per filtrare
+    const sessioni = await fetchUltimeSessioni(sessioniDaRecuperare);
     
-    if (!Array.isArray(sessioni)) {
-      console.log('⚠️ Nessuna sessione trovata');
-      return { salvate: 0, errori: 0 };
+    // Filtra solo sessioni degli ultimi 2 anni
+    const oggi = new Date();
+    const dueAnniFa = new Date();
+    dueAnniFa.setFullYear(oggi.getFullYear() - 2);
+    
+    const sessioniRecenti = sessioni.filter(sessione => {
+      const dataSessione = sessione['activity_date'] || sessione['activity_start_date'] || sessione['start_date'] || sessione['date'];
+      if (!dataSessione) {
+        // Se non ha data, prova a estrarre dall'ID
+        const sessioneId = sessione['id'] || sessione['activity_id'] || '';
+        const match = sessioneId.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          const [, year, month, day] = match;
+          const data = new Date(year, month - 1, day);
+          return data >= dueAnniFa;
+        }
+        return false; // Se non ha data e non possiamo estrarla, escludila
+      }
+      const data = new Date(dataSessione);
+      return data >= dueAnniFa;
+    }).slice(0, limitSessioni); // Prendi solo le prime limitSessioni
+    
+    console.log(`📊 Sessioni recuperate: ${sessioni.length}, sessioni recenti (ultimi 2 anni): ${sessioniRecenti.length}`);
+    
+    if (sessioniRecenti.length === 0) {
+      console.log(`⚠️ Nessuna sessione recente trovata. Le sessioni disponibili sono più vecchie di 2 anni.`);
+      return { salvate: 0, errori: 0, messaggio: 'Nessuna sessione recente disponibile' };
     }
     
     let salvate = 0;
     let errori = 0;
     
-    // Per ogni sessione, estrai le votazioni
-    for (const sessione of sessioni) {
+    // Per ogni sessione recente, estrai le votazioni
+    for (const sessione of sessioniRecenti) {
       try {
         const sessioneId = sessione['id'] || sessione['activity_id'] || 'N/A';
         const votazioniIds = estraiVotazioniDaSessione(sessione);
