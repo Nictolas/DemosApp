@@ -83,13 +83,19 @@ async function ensureTableExists() {
 
 /**
  * Recupera le ultime sessioni plenarie dal PE
+ * Ordina per data decrescente per ottenere le più recenti
  */
 async function fetchUltimeSessioni(limit = 10) {
   try {
     console.log(`📡 Chiamata API PE: ${API_BASE}/meetings con limit=${limit}`);
+    
+    // Prova prima con un limit più alto per poi ordinare e prendere le più recenti
+    // L'API potrebbe non restituire le sessioni ordinate, quindi recuperiamo più dati
+    const limitApi = Math.max(limit * 3, 50); // Recupera almeno 50 sessioni per avere abbastanza dati recenti
+    
     const response = await axios.get(`${API_BASE}/meetings`, {
       params: {
-        limit: limit,
+        limit: limitApi,
         offset: 0
       },
       headers: {
@@ -118,8 +124,59 @@ async function fetchUltimeSessioni(limit = 10) {
       }
     }
     
-    console.log(`📊 Sessioni estratte: ${sessioni.length}`);
-    return sessioni;
+    console.log(`📊 Sessioni estratte prima dell'ordinamento: ${sessioni.length}`);
+    
+    // ORDINA le sessioni per data decrescente (più recenti prima)
+    sessioni.sort((a, b) => {
+      // Estrai le date dalle sessioni
+      const dataA = a['activity_date'] || a['activity_start_date'] || a['start_date'] || a['date'] || '';
+      const dataB = b['activity_date'] || b['activity_start_date'] || b['start_date'] || b['date'] || '';
+      
+      // Se entrambe hanno date, ordina per data decrescente
+      if (dataA && dataB) {
+        const dateA = new Date(dataA);
+        const dateB = new Date(dataB);
+        // Ordina decrescente (più recenti prima)
+        return dateB - dateA;
+      }
+      
+      // Se solo una ha data, quella con data va prima
+      if (dataA && !dataB) return -1;
+      if (!dataA && dataB) return 1;
+      
+      // Se nessuna ha data, prova a estrarre dalla data nell'ID
+      const idA = a['id'] || a['activity_id'] || '';
+      const idB = b['id'] || b['activity_id'] || '';
+      
+      // Estrai anno-mese-giorno dall'ID (formato: MTG-PL-YYYY-MM-DD)
+      const matchA = idA.match(/(\d{4})-(\d{2})-(\d{2})/);
+      const matchB = idB.match(/(\d{4})-(\d{2})-(\d{2})/);
+      
+      if (matchA && matchB) {
+        const dateA = new Date(matchA[1], matchA[2] - 1, matchA[3]);
+        const dateB = new Date(matchB[1], matchB[2] - 1, matchB[3]);
+        return dateB - dateA; // Decrescente
+      }
+      
+      if (matchA) return -1;
+      if (matchB) return 1;
+      
+      // Se non riesci a ordinare, mantieni l'ordine originale
+      return 0;
+    });
+    
+    // Prendi solo le prime 'limit' sessioni (le più recenti)
+    const sessioniOrdinate = sessioni.slice(0, limit);
+    
+    // Log delle date delle sessioni recuperate per debug
+    console.log(`📅 Prime ${sessioniOrdinate.length} sessioni ordinate per data:`);
+    sessioniOrdinate.forEach((sessione, index) => {
+      const data = sessione['activity_date'] || sessione['activity_start_date'] || sessione['start_date'] || sessione['date'] || 'N/A';
+      const id = sessione['id'] || sessione['activity_id'] || 'N/A';
+      console.log(`   ${index + 1}. ${id} - Data: ${data}`);
+    });
+    
+    return sessioniOrdinate;
   } catch (error) {
     console.error('❌ Errore nel recupero sessioni:', error.message);
     if (error.response) {
@@ -436,6 +493,9 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
           try {
             const dettagli = await estraiDettagliVotazione(votazioneId, sessione);
             
+            // Log della data estratta per debug
+            console.log(`   📅 Votazione ${dettagli.votazione_id}: data_votazione=${dettagli.data_votazione}, sessione_data=${dettagli.sessione_data}`);
+            
             // Salva nel database (upsert)
             await pool.query(`
               INSERT INTO parlamento_europeo (
@@ -502,10 +562,16 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
 
 /**
  * Recupera le ultime votazioni dal database
+ * Ordina per data decrescente e filtra per escludere votazioni troppo vecchie
  */
 async function getUltimeVotazioni(limit = 10) {
   try {
     await ensureTableExists();
+    
+    // Calcola la data minima (escludi votazioni più vecchie di 10 anni)
+    const dataMinima = new Date();
+    dataMinima.setFullYear(dataMinima.getFullYear() - 10);
+    const dataMinimaStr = dataMinima.toISOString().split('T')[0];
     
     const result = await pool.query(`
       SELECT 
@@ -517,11 +583,27 @@ async function getUltimeVotazioni(limit = 10) {
       FROM parlamento_europeo
       WHERE titolo IS NOT NULL 
         AND titolo != ''
+        AND (
+          data_votazione IS NULL 
+          OR data_votazione >= $2
+          OR data_sincronizzazione >= $2
+        )
       ORDER BY 
         COALESCE(data_votazione, data_sincronizzazione) DESC NULLS LAST,
-        data_sincronizzazione DESC NULLS LAST
+        data_sincronizzazione DESC NULLS LAST,
+        id DESC
       LIMIT $1
-    `, [limit]);
+    `, [limit, dataMinimaStr]);
+    
+    console.log(`📊 Recuperate ${result.rows.length} votazioni dal database (filtro data minima: ${dataMinimaStr})`);
+    
+    // Log delle date delle votazioni recuperate per debug
+    if (result.rows.length > 0) {
+      console.log(`📅 Date delle votazioni recuperate:`);
+      result.rows.forEach((votazione, index) => {
+        console.log(`   ${index + 1}. ${votazione.titolo?.substring(0, 50)}... - Data: ${votazione.data_votazione || votazione.data_sincronizzazione || 'N/A'}`);
+      });
+    }
     
     return result.rows;
   } catch (error) {
