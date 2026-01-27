@@ -114,8 +114,8 @@ export default function Menu() {
               onNavigate={navigateWithButtonReset}
             />
             
-            {/* Riquadri per Prossimo Evento, Iniziativa Popolare, Referendum e Ultima Notifica - Layout 1 per riga */}
-            <div className="mt-2 flex flex-col gap-2">
+            {/* Riquadri per Prossimo Evento, Iniziativa Popolare, Referendum e Ultima Notifica - Layout 2 per riga */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <UltimaNotificaRiquadro />
               <ProssimoEventoRiquadro />
               <ProssimaIniziativaRiquadro />

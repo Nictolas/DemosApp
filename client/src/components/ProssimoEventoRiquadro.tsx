@@ -152,21 +152,13 @@ const ProssimoEventoRiquadro = () => {
         <h4>{evento.nome_evento}</h4>
         
         <div className="prossimo-evento-info">
+          {(evento.comune_evento || evento.indirizzo_evento) && (
+            <p className="luogo-indirizzo">
+              {evento.comune_evento}
+              {evento.indirizzo_evento && ` - ${evento.indirizzo_evento}`}
+            </p>
+          )}
           <p className="data-orario">
-            {evento.comune_evento && (
-              <span className="luogo-indirizzo">
-                {evento.comune_evento}
-                {evento.provincia_evento && `, ${evento.provincia_evento}`}
-                {evento.regione_evento && ` (${evento.regione_evento})`}
-                {evento.indirizzo_evento && ` - ${evento.indirizzo_evento}`}
-              </span>
-            )}
-            {!evento.comune_evento && evento.indirizzo_evento && (
-              <span className="luogo-indirizzo">
-                {evento.indirizzo_evento}
-              </span>
-            )}
-            {(evento.comune_evento || evento.indirizzo_evento) && <span className="ml-2 mr-2">•</span>}
             {formattaData(evento.giorno_inizio)}
             {evento.orario_inizio && (
               <span className="ml-2">
