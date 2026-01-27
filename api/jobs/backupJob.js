@@ -29,18 +29,27 @@ class BackupJob {
     const config = BackupService.getBackupConfig();
 
     // Backup completo ogni 24 ore (o come configurato)
-    this.fullBackupInterval = setInterval(async () => {
-      await this.performFullBackup();
+    this.fullBackupInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.performFullBackup()).catch(error => {
+        console.error('❌ Errore non gestito in performFullBackup():', error);
+      });
     }, config.fullBackupInterval * 60 * 60 * 1000); // Converti ore in millisecondi
 
     // Backup incrementale ogni 6 ore (o come configurato)
-    this.incrementalBackupInterval = setInterval(async () => {
-      await this.performIncrementalBackup();
+    this.incrementalBackupInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.performIncrementalBackup()).catch(error => {
+        console.error('❌ Errore non gestito in performIncrementalBackup():', error);
+      });
     }, config.incrementalBackupInterval * 60 * 60 * 1000); // Converti ore in millisecondi
 
     // Esegui backup completo immediato all'avvio
     setTimeout(() => {
-      this.performFullBackup();
+      // Wrappare in Promise per gestire errori async
+      Promise.resolve(this.performFullBackup()).catch(error => {
+        console.error('❌ Errore non gestito in performFullBackup() (startup):', error);
+      });
     }, 5000); // 5 secondi dopo l'avvio
 
     console.log('✅ Job di backup automatico avviato');

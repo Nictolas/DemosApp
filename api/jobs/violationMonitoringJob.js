@@ -33,13 +33,19 @@ class ViolationMonitoringJob {
     this.isRunning = true;
 
     // Esegui monitoraggio ogni 5 minuti
-    this.monitoringInterval = setInterval(async () => {
-      await this.performMonitoring();
+    this.monitoringInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.performMonitoring()).catch(error => {
+        console.error('❌ Errore non gestito in performMonitoring():', error);
+      });
     }, 5 * 60 * 1000); // 5 minuti
 
     // Invia riepilogo giornaliero alle 9:00 AM
-    this.summaryInterval = setInterval(async () => {
-      await this.sendDailySummary();
+    this.summaryInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.sendDailySummary()).catch(error => {
+        console.error('❌ Errore non gestito in sendDailySummary():', error);
+      });
     }, 24 * 60 * 60 * 1000); // 24 ore
 
     console.log('✅ Job di monitoraggio violazioni avviato');

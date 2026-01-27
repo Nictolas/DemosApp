@@ -26,13 +26,19 @@ class DataRetentionJob {
     this.isRunning = true;
 
     // Esegui pulizia ogni giorno alle 3:00 AM
-    this.cleanupInterval = setInterval(async () => {
-      await this.performDailyCleanup();
+    this.cleanupInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.performDailyCleanup()).catch(error => {
+        console.error('❌ Errore non gestito in performDailyCleanup():', error);
+      });
     }, 24 * 60 * 60 * 1000); // 24 ore
 
     // Invia notifiche ogni settimana
-    this.notificationInterval = setInterval(async () => {
-      await this.sendWeeklyNotifications();
+    this.notificationInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.sendWeeklyNotifications()).catch(error => {
+        console.error('❌ Errore non gestito in sendWeeklyNotifications():', error);
+      });
     }, 7 * 24 * 60 * 60 * 1000); // 7 giorni
 
     console.log('✅ Job di data retention avviato');

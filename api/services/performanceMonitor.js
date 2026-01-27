@@ -163,8 +163,9 @@ class PerformanceMonitor {
 
   // Metriche database
   async getDatabaseMetrics() {
+    let client = null;
     try {
-      const client = await pool.connect();
+      client = await pool.connect();
       
       // Connessioni attive
       const connectionsQuery = `
@@ -203,15 +204,13 @@ class PerformanceMonitor {
         // pg_stat_statements potrebbe non essere abilitato
       }
       
-      client.release();
-      
       return {
         timestamp: new Date().toISOString(),
-        totalConnections: parseInt(connections.rows[0].total_connections),
-        activeConnections: parseInt(connections.rows[0].active_connections),
-        idleConnections: parseInt(connections.rows[0].idle_connections),
-        databaseSize: size.rows[0].database_size,
-        databaseSizeBytes: parseInt(size.rows[0].database_size_bytes),
+        totalConnections: parseInt(connections.rows[0]?.total_connections || 0),
+        activeConnections: parseInt(connections.rows[0]?.active_connections || 0),
+        idleConnections: parseInt(connections.rows[0]?.idle_connections || 0),
+        databaseSize: size.rows[0]?.database_size || 'N/A',
+        databaseSizeBytes: parseInt(size.rows[0]?.database_size_bytes || 0),
         slowQueries: slowQueries
       };
     } catch (error) {
@@ -220,6 +219,15 @@ class PerformanceMonitor {
         timestamp: new Date().toISOString(),
         error: error.message
       };
+    } finally {
+      // Garantisce sempre il release del client
+      if (client) {
+        try {
+          client.release();
+        } catch (releaseError) {
+          console.error('❌ Errore nel rilasciare client database:', releaseError);
+        }
+      }
     }
   }
 
