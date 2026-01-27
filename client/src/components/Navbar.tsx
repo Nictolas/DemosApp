@@ -1,4 +1,4 @@
-import { Home, Settings, Megaphone, Heart, Globe } from "lucide-react";
+import { Home, Settings, Megaphone, Heart, Globe, Binoculars } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 
@@ -49,6 +49,10 @@ export default function Navbar() {
             <span className={`text-xs hidden md:block ${isActive("/strumenti") ? "text-blue-600 font-semibold" : ""}`}>Strumenti</span>
           </Link>
         )}
+        <Link href="/avvistamenti" className={getLinkClasses("/avvistamenti")} style={{marginTop: 0}}>
+          <Binoculars className={`h-7 w-7 mb-1 ${isActive("/avvistamenti") ? "drop-shadow-lg text-blue-600" : ""}`} />
+          <span className={`text-xs hidden md:block ${isActive("/avvistamenti") ? "text-blue-600 font-semibold" : ""}`}>Avvistamenti</span>
+        </Link>
         <Link href="/impostazioni" className={getLinkClasses("/impostazioni")} style={{marginTop: 0}}>
           <Settings className={`h-7 w-7 mb-1 ${isActive("/impostazioni") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/impostazioni") ? "text-blue-600 font-semibold" : ""}`}>Impostazioni</span>
