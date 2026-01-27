@@ -104,9 +104,65 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 });
 
+// Funzione per cleanup graceful di tutti i servizi
+const gracefulShutdown = async () => {
+  console.log('🛑 Avvio shutdown graceful...');
+  
+  try {
+    // Ferma performance optimizer
+    try {
+      const performanceOptimizer = require('./services/performanceOptimizer');
+      if (performanceOptimizer && typeof performanceOptimizer.stop === 'function') {
+        performanceOptimizer.stop();
+        console.log('✅ Performance optimizer fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando performance optimizer:', error.message);
+    }
+    
+    // Ferma performance monitor
+    try {
+      const performanceMonitor = require('./services/performanceMonitor');
+      if (performanceMonitor && typeof performanceMonitor.stop === 'function') {
+        performanceMonitor.stop();
+        console.log('✅ Performance monitor fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando performance monitor:', error.message);
+    }
+    
+    // Ferma security monitoring
+    try {
+      const { stopSecurityMonitoring } = require('./middleware/securityMonitoring');
+      if (stopSecurityMonitoring && typeof stopSecurityMonitoring === 'function') {
+        stopSecurityMonitoring();
+        console.log('✅ Security monitoring fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando security monitoring:', error.message);
+    }
+    
+    // Chiudi pool database
+    try {
+      const { closePool } = require('./config/database');
+      if (closePool && typeof closePool === 'function') {
+        await closePool();
+        console.log('✅ Pool database chiuso');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore chiudendo pool database:', error.message);
+    }
+    
+    console.log('✅ Cleanup completato');
+  } catch (error) {
+    console.error('❌ Errore durante cleanup graceful:', error);
+  }
+};
+
 // Gestione chiusura graceful
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('🛑 Ricevuto SIGTERM, chiusura graceful...');
+  await gracefulShutdown();
   if (server) {
     server.close(() => {
       console.log('✅ Server chiuso correttamente');
@@ -117,8 +173,9 @@ process.on('SIGTERM', () => {
   }
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('🛑 Ricevuto SIGINT, chiusura graceful...');
+  await gracefulShutdown();
   if (server) {
     server.close(() => {
       console.log('✅ Server chiuso correttamente');
