@@ -515,60 +515,147 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
     
     console.log(`🔄 Sincronizzazione votazioni Parlamento Europeo (ultime ${limitSessioni * 10} votazioni recenti)...`);
     
-    // METODO PRINCIPALE: Usa /vote-results direttamente per ottenere le votazioni più recenti
+    // METODO PRINCIPALE: Usa /vote-results con filtri temporali espliciti per ottenere solo votazioni recenti
     const oggi = new Date();
-    const seiMesiFa = new Date();
-    seiMesiFa.setMonth(oggi.getMonth() - 6);
+    const dataMinima = new Date('2025-01-01'); // Forza solo votazioni dal 2025 in poi
+    const dataMinimaStr = '2025-01-01';
     
     try {
       console.log(`📡 Tentativo sincronizzazione da /vote-results (metodo principale)...`);
       const limitVotazioni = limitSessioni * 10; // Recupera più votazioni per filtrare
-      const response = await axios.get(`${API_BASE}/vote-results`, {
-        params: {
-          limit: limitVotazioni * 2, // Recupera ancora più risultati per filtrare meglio
-          offset: 0,
-          sort: '-date' // Ordinamento decrescente per data
-        },
-        headers: {
-          'Accept': 'application/ld+json',
-          'User-Agent': 'DemosApp-1.0.0'
-        },
-        timeout: 30000
-      });
       
-      // Estrai i dati dalla risposta
+      // Costruisci URL con filtri temporali espliciti
+      const url = `${API_BASE}/vote-results`;
+      const params = {
+        'voted-date-min': dataMinimaStr, // Filtro temporale esplicito
+        'sort': '-votedDate', // Prova prima con votedDate
+        'limit': limitVotazioni * 2
+      };
+      
+      // Log dell'URL completo per debugging
+      const urlCompleto = `${url}?${new URLSearchParams(params).toString()}`;
+      console.log(`🔗 URL completo chiamata API: ${urlCompleto}`);
+      
+      let response;
+      try {
+        response = await axios.get(url, {
+          params: params,
+          headers: {
+            'Accept': 'application/ld+json',
+            'User-Agent': 'DemosApp-1.0.0'
+          },
+          timeout: 30000
+        });
+      } catch (sortError) {
+        // Se sort=-votedDate non funziona, prova con sort=-date
+        console.log(`⚠️ Sort=-votedDate non accettato, provo con sort=-date`);
+        params['sort'] = '-date';
+        const urlCompleto2 = `${url}?${new URLSearchParams(params).toString()}`;
+        console.log(`🔗 URL completo chiamata API (retry): ${urlCompleto2}`);
+        response = await axios.get(url, {
+          params: params,
+          headers: {
+            'Accept': 'application/ld+json',
+            'User-Agent': 'DemosApp-1.0.0'
+          },
+          timeout: 30000
+        });
+      }
+      
+      // Estrai i dati dalla risposta JSON-LD
       let voteResults = [];
       if (Array.isArray(response.data)) {
         voteResults = response.data;
-      } else if (response.data && Array.isArray(response.data)) {
-        voteResults = response.data;
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        voteResults = response.data.data;
       } else if (response.data && response.data['@graph'] && Array.isArray(response.data['@graph'])) {
         voteResults = response.data['@graph'];
+      } else if (response.data && response.data['hydra:member'] && Array.isArray(response.data['hydra:member'])) {
+        voteResults = response.data['hydra:member'];
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        voteResults = response.data.data;
+      } else if (response.data && typeof response.data === 'object') {
+        console.log('⚠️ Formato risposta non riconosciuto, chiavi disponibili:', Object.keys(response.data));
+        // Prova a cercare in altre strutture possibili
+        const keys = Object.keys(response.data);
+        for (const key of keys) {
+          if (Array.isArray(response.data[key])) {
+            voteResults = response.data[key];
+            console.log(`✅ Dati trovati nella chiave: ${key}`);
+            break;
+          }
+        }
       }
       
       console.log(`📊 Votazioni recuperate da /vote-results: ${voteResults.length}`);
       
-      // Filtra solo votazioni degli ultimi 6 mesi
+      // Log delle prime 2 votazioni per debugging
+      if (voteResults.length > 0) {
+        console.log(`🔍 DEBUG - Prime 2 votazioni ricevute dall'API:`);
+        for (let i = 0; i < Math.min(2, voteResults.length); i++) {
+          const vote = voteResults[i];
+          const voteDate = vote.date || vote['date'] || vote.votedDate || vote['votedDate'] || vote.activity_date || vote['activity_date'];
+          const voteTitle = vote.label?.it || vote.label?.en || vote['rdfs:label']?.it || vote['rdfs:label']?.en || vote.title?.it || vote.title?.en || vote.id || vote['@id'] || 'N/A';
+          console.log(`   ${i + 1}. Data: ${voteDate}, Titolo: ${typeof voteTitle === 'string' ? voteTitle.substring(0, 80) : JSON.stringify(voteTitle).substring(0, 80)}`);
+        }
+      }
+      
+      // Filtra per "Voto finale" e solo votazioni dal 2025 in poi
       const votazioniRecenti = voteResults.filter(vote => {
-        const voteDate = vote.date || vote['date'] || vote.activity_date || vote['activity_date'];
-        if (!voteDate) {
+        // Estrai la data della votazione
+        const voteDate = vote.date || vote['date'] || vote.votedDate || vote['votedDate'] || vote.activity_date || vote['activity_date'];
+        let dataVotazione = null;
+        
+        if (voteDate) {
+          dataVotazione = new Date(voteDate);
+        } else {
           // Prova a estrarre dall'ID
           const voteId = vote.id || vote['@id'] || vote.activity_id || '';
           const match = voteId.match(/(\d{4})-(\d{2})-(\d{2})/);
           if (match) {
             const [, year, month, day] = match;
-            const data = new Date(year, month - 1, day);
-            return data >= seiMesiFa;
+            dataVotazione = new Date(year, month - 1, day);
           }
+        }
+        
+        // Filtra solo votazioni dal 2025 in poi
+        if (!dataVotazione || dataVotazione < dataMinima) {
           return false;
         }
-        const data = new Date(voteDate);
-        return data >= seiMesiFa;
+        
+        // Filtra per "Voto finale" o votazioni legislative
+        const selectionMode = vote.selectionMode || vote['selectionMode'] || '';
+        const activityType = vote.activity_type || vote['activity_type'] || vote.type || '';
+        const label = vote.label?.it || vote.label?.en || vote['rdfs:label']?.it || vote['rdfs:label']?.en || vote.title?.it || vote.title?.en || '';
+        const labelStr = typeof label === 'string' ? label.toLowerCase() : '';
+        
+        // Cerca indicatori di voto finale/legislativo
+        const isFinalVote = 
+          labelStr.includes('voto finale') ||
+          labelStr.includes('final vote') ||
+          labelStr.includes('text adopted') ||
+          labelStr.includes('testo adottato') ||
+          activityType.includes('LEGISLATIVE') ||
+          activityType.includes('RESOLUTION') ||
+          selectionMode === 'FINAL' ||
+          selectionMode === 'FINAL_VOTE';
+        
+        // Se non è chiaramente un voto finale, includilo comunque se è recente (potrebbe essere comunque importante)
+        // Ma priorità ai voti finali
+        return isFinalVote || (!labelStr.includes('emendamento') && !labelStr.includes('amendment'));
       }).slice(0, limitVotazioni);
       
-      console.log(`📊 Votazioni recenti (ultimi 6 mesi): ${votazioniRecenti.length}`);
+      console.log(`📊 Votazioni recenti (dal 2025, filtrate per voto finale): ${votazioniRecenti.length}`);
+      
+      if (votazioniRecenti.length === 0) {
+        console.log(`⚠️ Nessuna votazione recente trovata da /vote-results. La sincronizzazione non ha recuperato dati validi.`);
+        // NON fare fallback su dati vecchi - restituisci errore invece
+        return { 
+          salvate: 0, 
+          errori: 0, 
+          messaggio: 'Nessuna votazione recente trovata. Verificare i parametri API o la disponibilità dei dati.',
+          metodo: 'vote-results',
+          errore: 'Nessun dato recente disponibile'
+        };
+      }
       
       if (votazioniRecenti.length > 0) {
         let salvate = 0;
@@ -593,8 +680,19 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
               continue;
             }
             
-            // Log della data estratta per debug
-            console.log(`   📅 Votazione ${dettagli.votazione_id}: data_votazione=${dettagli.data_votazione}`);
+            // Log della data estratta per debug (obbligatorio per verificare che siano del 2025)
+            const dataVotazioneLog = dettagli.data_votazione || 'N/A';
+            const titoloLog = dettagli.titolo?.substring(0, 80) || dettagli.votazione_id;
+            console.log(`   📅 Votazione ${dettagli.votazione_id}: data_votazione=${dataVotazioneLog}, titolo="${titoloLog}"`);
+            
+            // Verifica che la data sia effettivamente dal 2025 in poi
+            if (dettagli.data_votazione) {
+              const dataVotazione = new Date(dettagli.data_votazione);
+              if (dataVotazione < dataMinima) {
+                console.log(`   ⚠️ ATTENZIONE: Votazione con data ${dataVotazioneLog} è precedente al 2025, salto`);
+                continue;
+              }
+            }
             
             // Estrai i conteggi dei voti se disponibili
             const favorevoli = voteResult.votedFor?.length || voteResult['votedFor']?.length || null;
@@ -785,13 +883,12 @@ async function getUltimeVotazioni(limit = 10) {
   try {
     await ensureTableExists();
     
-    // Calcola la data minima (escludi votazioni più vecchie di 6 mesi)
-    // Questo assicura che vengano mostrate solo votazioni molto recenti
-    const dataMinima = new Date();
-    dataMinima.setMonth(dataMinima.getMonth() - 6);
-    const dataMinimaStr = dataMinima.toISOString().split('T')[0];
+    // Forza solo votazioni dal 2025 in poi (non dati vecchi)
+    // Questo assicura che vengano mostrate solo votazioni recenti
+    const dataMinima = new Date('2025-01-01');
+    const dataMinimaStr = '2025-01-01';
     
-    // Prima prova a recuperare solo votazioni recenti (ultimi 6 mesi)
+    // Recupera solo votazioni dal 2025 in poi (non dati vecchi)
     let result = await pool.query(`
       SELECT 
         id, uri, votazione_id, titolo, descrizione, data_votazione,
@@ -815,28 +912,14 @@ async function getUltimeVotazioni(limit = 10) {
     
     console.log(`📊 Recuperate ${result.rows.length} votazioni recenti (filtro data minima: ${dataMinimaStr})`);
     
-    // Se non ci sono votazioni recenti, recupera comunque le più recenti disponibili
-    // (anche se più vecchie di 6 mesi) per evitare di restituire array vuoto
+    // NON fare fallback su dati vecchi - se non ci sono votazioni recenti, restituisci array vuoto
+    // Questo forza l'utente a eseguire una sincronizzazione per ottenere dati aggiornati
     if (result.rows.length === 0) {
-      console.log(`⚠️ Nessuna votazione recente trovata, recupero le più recenti disponibili...`);
-      result = await pool.query(`
-        SELECT 
-          id, uri, votazione_id, titolo, descrizione, data_votazione,
-          esito, sessione_id, sessione_data, sessione_label,
-          favorevoli, contrari, astenuti, presenti, votanti,
-          termine_parlamentare, metadati,
-          created_at, updated_at, data_sincronizzazione
-        FROM parlamento_europeo
-        WHERE titolo IS NOT NULL 
-          AND titolo != ''
-        ORDER BY 
-          COALESCE(data_votazione, data_sincronizzazione) DESC NULLS LAST,
-          data_sincronizzazione DESC NULLS LAST,
-          id DESC
-        LIMIT $1
-      `, [limit]);
-      
-      console.log(`📊 Recuperate ${result.rows.length} votazioni totali (senza filtro data)`);
+      console.log(`⚠️ Nessuna votazione recente trovata nel database.`);
+      console.log(`   Il database contiene solo votazioni vecchie. Eseguire una sincronizzazione manuale.`);
+      console.log(`   Usa: POST /api/voti-parlamento-europeo/sincronizza o GET /api/voti-parlamento-europeo/ultime?refresh=true`);
+      // Restituisci array vuoto invece di dati obsoleti
+      return [];
     }
     
     // Log delle date delle votazioni recuperate per debug
