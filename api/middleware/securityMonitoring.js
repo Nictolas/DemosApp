@@ -403,14 +403,28 @@ class SecurityMonitor {
 // Istanza singleton
 const securityMonitor = new SecurityMonitor();
 
-// Cleanup ogni 5 minuti
-setInterval(() => {
-  securityMonitor.cleanup();
+// Cleanup ogni 5 minuti - salva riferimento per cleanup graceful
+let cleanupInterval = setInterval(() => {
+  try {
+    securityMonitor.cleanup();
+  } catch (error) {
+    console.error('❌ Errore nel cleanup securityMonitor:', error);
+  }
 }, 5 * 60 * 1000);
+
+// Funzione per pulire l'interval (per shutdown graceful)
+const stopSecurityMonitoring = () => {
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+    console.log('🔌 Security monitoring cleanup fermato');
+  }
+};
 
 module.exports = {
   securityMonitor,
   recordFailedLogin: (ip, email, userAgent) => securityMonitor.recordFailedLogin(ip, email, userAgent),
   recordAdminAccess: (ip, userId, action, userAgent) => securityMonitor.recordAdminAccess(ip, userId, action, userAgent),
+  stopSecurityMonitoring,
   detectSuspiciousRequest: (req, res, next) => securityMonitor.detectSuspiciousRequest(req, res, next)
 };

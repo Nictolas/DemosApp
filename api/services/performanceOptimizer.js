@@ -32,6 +32,8 @@ class PerformanceOptimizer {
     };
     
     this.isOptimizing = false;
+    this.optimizationInterval = null;
+    this.metricsInterval = null;
   }
 
   // Avvia ottimizzazioni automatiche
@@ -43,14 +45,20 @@ class PerformanceOptimizer {
     
     // Ottimizzazioni ogni 30 secondi (solo se abilitato)
     if (process.env.ENABLE_PERFORMANCE_OPTIMIZER !== 'false') {
-      setInterval(() => {
-        this.performOptimizations();
+      this.optimizationInterval = setInterval(() => {
+        // Wrappare in Promise per gestire errori async
+        Promise.resolve(this.performOptimizations()).catch(error => {
+          console.error('❌ Errore non gestito in performOptimizations:', error);
+        });
       }, 30000);
     }
     
     // Monitoraggio real-time ogni 10 secondi
-    setInterval(() => {
-      this.updateMetrics();
+    this.metricsInterval = setInterval(() => {
+      // Wrappare in Promise per gestire errori async
+      Promise.resolve(this.updateMetrics()).catch(error => {
+        console.error('❌ Errore non gestito in updateMetrics:', error);
+      });
     }, 10000);
   }
 
@@ -302,6 +310,18 @@ class PerformanceOptimizer {
   // Ferma le ottimizzazioni
   stop() {
     this.isOptimizing = false;
+    
+    // Pulisce gli interval per evitare memory leaks
+    if (this.optimizationInterval) {
+      clearInterval(this.optimizationInterval);
+      this.optimizationInterval = null;
+    }
+    
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval);
+      this.metricsInterval = null;
+    }
+    
     console.log('⏹️ Ottimizzazioni performance fermate');
   }
 }
