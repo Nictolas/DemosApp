@@ -81,6 +81,27 @@ process.on('unhandledRejection', (reason, promise) => {
   if (reason && reason.stack) {
     console.error('❌ Stack trace:', reason.stack);
   }
+  
+  // In produzione, fai exit per evitare memory leaks e stato inconsistente
+  // In sviluppo, continua per permettere il debugging
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ CRITICO: UnhandledRejection in produzione - chiusura graceful del server');
+    if (server) {
+      server.close(() => {
+        console.error('❌ Server chiuso dopo unhandledRejection');
+        process.exit(1);
+      });
+      // Timeout di sicurezza: se il server non si chiude entro 10 secondi, forza l'exit
+      setTimeout(() => {
+        console.error('❌ Timeout chiusura server - forza exit');
+        process.exit(1);
+      }, 10000);
+    } else {
+      process.exit(1);
+    }
+  } else {
+    console.warn('⚠️ UnhandledRejection in sviluppo - continuo per debugging');
+  }
 });
 
 // Gestione chiusura graceful
