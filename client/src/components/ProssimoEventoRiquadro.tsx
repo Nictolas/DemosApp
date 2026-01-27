@@ -146,7 +146,7 @@ const ProssimoEventoRiquadro = () => {
       }}
     >
       <div className="prossimo-evento-header">
-        <h3>📅 Prossimo Evento</h3>
+        <h3>Prossimo Evento</h3>
       </div>
       <div className="prossimo-evento-content">
         <h4>{evento.nome_evento}</h4>

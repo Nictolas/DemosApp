@@ -176,7 +176,7 @@ const ProssimoReferendumRiquadro = () => {
       }}
     >
       <div className="prossimo-referendum-header">
-        <h3>{emoji} Referendum</h3>
+        <h3>Referendum</h3>
       </div>
       <div className="prossimo-referendum-content">
         <h4>{nomeReferendum}</h4>
