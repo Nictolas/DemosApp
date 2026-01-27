@@ -78,6 +78,44 @@ const UltimaNotificaRiquadro = () => {
     return null; // Non mostrare nulla se non c'è una notifica
   }
 
+  // Funzione helper per formattare il titolo in modo compatto (stessa logica di NotificaItem.tsx)
+  const formattaTitoloCompatto = (titolo: string): string => {
+    if (!titolo) return titolo;
+    
+    // Pattern per "Disegno di legge n. XXXX"
+    const patternDDL = /disegno\s+di\s+legge\s+n\.?\s*(\d+)/i;
+    const matchDDL = titolo.match(patternDDL);
+    
+    if (matchDDL) {
+      const numero = matchDDL[1];
+      return `DDL ${numero}`;
+    }
+    
+    // Pattern per "DDL XXXX" (già formato)
+    const patternDDLGià = /^DDL\s+(\d+)/i;
+    if (titolo.match(patternDDLGià)) {
+      return titolo.match(patternDDLGià)?.[0] || titolo;
+    }
+    
+    // Pattern per "Decreto-legge n. XXXX" o "DL n. XXXX"
+    const patternDL = /(?:decreto\s*[-]?\s*legge|DL|D\.L\.)\s+n\.?\s*(\d+)/i;
+    const matchDL = titolo.match(patternDL);
+    if (matchDL) {
+      const numero = matchDL[1];
+      return `DL ${numero}`;
+    }
+    
+    // Pattern per "Mozione n. XXXX"
+    const patternMozione = /mozione\s+n\.?\s*(\d+)/i;
+    const matchMozione = titolo.match(patternMozione);
+    if (matchMozione) {
+      const numero = matchMozione[1];
+      return `Mozione ${numero}`;
+    }
+    
+    return titolo;
+  };
+
   // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
     if (!dataString) return '';
@@ -126,7 +164,8 @@ const UltimaNotificaRiquadro = () => {
     handleClick();
   };
 
-  const titolo = notifica.titolo || 'Notifica';
+  const titoloOriginale = notifica.titolo || 'Notifica';
+  const titolo = formattaTitoloCompatto(titoloOriginale);
   const messaggio = notifica.messaggio || notifica.testo || '';
   const messaggioBreve = messaggio.length > 100 ? `${messaggio.substring(0, 100)}...` : messaggio;
 
