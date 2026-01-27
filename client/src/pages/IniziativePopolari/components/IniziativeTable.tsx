@@ -80,22 +80,6 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                     Proposta
                   </span>
                 )}
-                {iniziativa.sitoWeb && (
-                  <a
-                    href={iniziativa.sitoWeb.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      Firma
-                    </Button>
-                  </a>
-                )}
               </div>
               
               <div className="flex items-center gap-4 text-sm text-gray-500 mt-3">
@@ -144,6 +128,26 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                   </div>
                 );
               })()}
+              
+              {/* Pulsante Firma sotto la barra di completamento */}
+              {iniziativa.sitoWeb && (
+                <div className="mt-4">
+                  <a
+                    href={iniziativa.sitoWeb.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Firma
+                    </Button>
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
