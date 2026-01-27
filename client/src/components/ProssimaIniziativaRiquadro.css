@@ -23,6 +23,7 @@
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   padding: 10px 14px;
   border-radius: 12px 12px 0 0;
+  text-align: center;
 }
 
 .prossima-iniziativa-header h3 {
@@ -38,6 +39,7 @@
   flex-direction: column;
   padding: 10px 14px;
   background: white;
+  text-align: center;
 }
 
 .prossima-iniziativa-content h4 {

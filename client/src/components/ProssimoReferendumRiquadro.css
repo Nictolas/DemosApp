@@ -20,9 +20,10 @@
 /* Rimossi :hover e :active per permettere all'effetto JavaScript scale-95 di funzionare correttamente */
 
 .prossimo-referendum-header {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   padding: 10px 14px;
   border-radius: 12px 12px 0 0;
+  text-align: center;
 }
 
 .prossimo-referendum-header h3 {
@@ -38,6 +39,7 @@
   flex-direction: column;
   padding: 10px 14px;
   background: white;
+  text-align: center;
 }
 
 .prossimo-referendum-content h4 {
