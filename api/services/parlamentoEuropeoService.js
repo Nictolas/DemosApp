@@ -179,6 +179,91 @@ async function fetchVoteResults(sessioneId) {
 }
 
 /**
+ * Recupera i dettagli di una votazione direttamente dall'API
+ */
+async function fetchDettagliVotazioneDiretta(votazioneId) {
+  try {
+    // Costruisci l'URL per ottenere i dettagli della votazione
+    // L'API del PE usa il formato: /api/v2/activities/{activityId}
+    const activityId = votazioneId.split('/').pop();
+    const url = `${API_BASE}/activities/${encodeURIComponent(activityId)}`;
+    
+    console.log(`📡 Fetch diretto votazione: ${url}`);
+    const response = await axios.get(url, {
+      headers: {
+        'Accept': 'application/ld+json',
+        'User-Agent': 'DemosApp-1.0.0'
+      },
+      timeout: 10000
+    });
+    
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 404) {
+      console.log(`   ⚠️ Votazione non trovata direttamente: ${votazioneId}`);
+    } else {
+      console.error(`⚠️ Errore nel fetch diretto votazione:`, error.message);
+    }
+    return null;
+  }
+}
+
+/**
+ * Estrae il titolo da un oggetto votazione cercando in tutti i campi possibili
+ */
+function estraiTitoloVotazione(votazioneData) {
+  if (!votazioneData) return null;
+  
+  // Cerca in vari campi possibili, in ordine di priorità
+  const campiPossibili = [
+    'activity_label',
+    'rdfs:label',
+    'label',
+    'title',
+    'dcterms:title',
+    'eli-dl:title',
+    'name',
+    'description',
+    'dcterms:description'
+  ];
+  
+  for (const campo of campiPossibili) {
+    const valore = votazioneData[campo];
+    if (valore) {
+      // Se è una stringa, usala direttamente
+      if (typeof valore === 'string' && valore.trim().length > 0) {
+        return valore.trim();
+      }
+      // Se è un oggetto multilingue, preferisci italiano, poi inglese
+      if (typeof valore === 'object' && valore !== null) {
+        if (valore.it && valore.it.trim().length > 0) {
+          return valore.it.trim();
+        }
+        if (valore.en && valore.en.trim().length > 0) {
+          return valore.en.trim();
+        }
+        if (valore.fr && valore.fr.trim().length > 0) {
+          return valore.fr.trim();
+        }
+        // Se è un array, prendi il primo elemento
+        if (Array.isArray(valore) && valore.length > 0) {
+          const primo = valore[0];
+          if (typeof primo === 'string') {
+            return primo.trim();
+          } else if (primo && primo.it) {
+            return primo.it.trim();
+          } else if (primo && primo.en) {
+            return primo.en.trim();
+          }
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Recupera i dettagli di una votazione
  * Prova a recuperare i risultati dei voti dall'endpoint vote-results
  */
@@ -201,9 +286,33 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
   let votanti = null;
   let esito = null;
   let titolo = `Votazione ${votazioneIdShort}`;
+  let descrizione = null;
   let documentoVoti = null; // Link al documento con voti individuali
   
-  // Prova a recuperare i risultati dei voti dall'endpoint vote-results
+  // PRIMA: Prova a recuperare i dettagli direttamente dalla votazione
+  try {
+    const votazioneDiretta = await fetchDettagliVotazioneDiretta(votazioneId);
+    if (votazioneDiretta) {
+      const titoloEstratto = estraiTitoloVotazione(votazioneDiretta);
+      if (titoloEstratto && titoloEstratto !== titolo) {
+        titolo = titoloEstratto;
+        console.log(`✅ Titolo estratto dalla votazione diretta: ${titolo}`);
+      }
+      
+      // Estrai anche la descrizione se disponibile
+      const descrizioneEstratta = estraiTitoloVotazione({ 
+        description: votazioneDiretta.description || votazioneDiretta['dcterms:description'],
+        'dcterms:description': votazioneDiretta['dcterms:description']
+      });
+      if (descrizioneEstratta) {
+        descrizione = descrizioneEstratta;
+      }
+    }
+  } catch (error) {
+    console.log(`⚠️ Errore nel fetch diretto votazione:`, error.message);
+  }
+  
+  // SECONDA: Prova a recuperare i risultati dei voti dall'endpoint vote-results
   if (sessioneId) {
     try {
       const voteResults = await fetchVoteResults(sessioneId);
@@ -238,18 +347,11 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
           astenuti = voteData['eli-dl:vote_result_abstention'] || voteData['vote_result_abstention'] || null;
         }
         
-        // Estrai titolo se disponibile
-        if (votazioneResult['activity_label'] || votazioneResult['rdfs:label'] || votazioneResult['label']) {
-          const label = votazioneResult['activity_label'] || votazioneResult['rdfs:label'] || votazioneResult['label'];
-          if (typeof label === 'string') {
-            titolo = label;
-          } else if (label && label['it']) {
-            titolo = label['it'];
-          } else if (label && label['en']) {
-            titolo = label['en'];
-          } else if (label && label['fr']) {
-            titolo = label['fr'];
-          }
+        // Estrai titolo se disponibile (sovrascrive solo se migliore)
+        const titoloDaResult = estraiTitoloVotazione(votazioneResult);
+        if (titoloDaResult && titoloDaResult.length > titolo.length && !titolo.startsWith('Votazione ')) {
+          titolo = titoloDaResult;
+          console.log(`✅ Titolo estratto da vote-results: ${titolo}`);
         }
       }
     } catch (error) {
@@ -260,11 +362,25 @@ async function estraiDettagliVotazione(votazioneId, sessione) {
     }
   }
   
+  // Se il titolo è ancora il default, prova a migliorarlo almeno rendendo l'ID più leggibile
+  if (titolo.startsWith('Votazione ')) {
+    // Prova a rendere l'ID più leggibile
+    // Es: "MTG-PL-2014-01-16-VOT-ITM-345348-13" -> "Votazione del 16 gennaio 2014"
+    const dateMatch = votazioneIdShort.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const mesi = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 
+                    'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+      const meseNome = mesi[parseInt(month) - 1] || month;
+      titolo = `Votazione del ${parseInt(day)} ${meseNome} ${year}`;
+    }
+  }
+  
   return {
     uri: votazioneId,
     votazione_id: votazioneIdShort,
     titolo: titolo,
-    descrizione: null,
+    descrizione: descrizione,
     data_votazione: dataSessione ? new Date(dataSessione).toISOString().split('T')[0] : null,
     esito: esito,
     sessione_id: sessione['activity_id'] || null,
@@ -511,13 +627,16 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
     let linkDocumento = null;
     if (votazioneResult.rows.length > 0) {
       const metadati = votazioneResult.rows[0].metadati || {};
-      const sessioneCompleta = metadati.sessione_completa || {};
+      const documentoVoti = metadati.documento_voti || null;
       
-      // Cerca il documento PDF nei metadati
-      if (sessioneCompleta.id) {
-        const votazioneId = votazioneResult.rows[0].votazione_id;
-        if (votazioneId) {
-          linkDocumento = `https://www.europarl.europa.eu/doceo/document/PV-9-2024-01-18-VOT-ITM-001_EN.html`;
+      // Usa il documento voti dai metadati se disponibile
+      if (documentoVoti) {
+        if (documentoVoti.startsWith('http://') || documentoVoti.startsWith('https://')) {
+          linkDocumento = documentoVoti;
+        } else if (documentoVoti.startsWith('/')) {
+          linkDocumento = `https://www.europarl.europa.eu${documentoVoti}`;
+        } else {
+          linkDocumento = `https://www.europarl.europa.eu/doceo/document/${documentoVoti}`;
         }
       }
     }
@@ -526,9 +645,14 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
     try {
       console.log('📡 Tentativo di recupero voti da fonti esterne...');
       if (votazioneResult.rows.length > 0) {
-        const votazioneId = votazioneResult.rows[0].votazione_id;
+        // Usa l'URI completo invece del solo votazione_id per una migliore corrispondenza
+        const votazioneId = uriVotazione || votazioneResult.rows[0].votazione_id;
         const metadati = votazioneResult.rows[0].metadati || {};
         const documentoVoti = metadati.documento_voti || null;
+        
+        console.log(`   URI votazione: ${uriVotazione}`);
+        console.log(`   Votazione ID: ${votazioneResult.rows[0].votazione_id}`);
+        console.log(`   Documento voti: ${documentoVoti}`);
         
         const votiEsterni = await getVotiMEPItalianiDaParltrack(votazioneId, documentoVoti);
         
@@ -581,5 +705,7 @@ module.exports = {
   sincronizzaVotazioniPE,
   getUltimeVotazioni,
   getDettagliVotazione,
-  getVotiNominaliMEPItaliani
+  getVotiNominaliMEPItaliani,
+  fetchDettagliVotazioneDiretta,
+  estraiTitoloVotazione
 };

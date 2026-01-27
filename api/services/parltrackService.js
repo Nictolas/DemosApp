@@ -651,11 +651,77 @@ async function salvaVotiMEPItaliani(uriVotazione, voti) {
 /**
  * Recupera i voti individuali facendo scraping HTML dal sito ufficiale del PE
  */
-async function getVotiDaHTMLUfficiale(votazioneIdPE) {
+async function getVotiDaHTMLUfficiale(votazioneIdPE, documentoVoti = null) {
   try {
     console.log(`🔍 Tentativo scraping HTML per: ${votazioneIdPE}`);
+    if (documentoVoti) {
+      console.log(`   Documento voti fornito: ${documentoVoti}`);
+    }
     
-    // Costruisci l'URL del documento HTML
+    // Se abbiamo un link diretto al documento, usalo
+    if (documentoVoti) {
+      // Il documento potrebbe essere un URI completo o un ID relativo
+      let docUrl = documentoVoti;
+      
+      // Se è un URI completo, usalo direttamente
+      if (documentoVoti.startsWith('http://') || documentoVoti.startsWith('https://')) {
+        docUrl = documentoVoti;
+      } else if (documentoVoti.startsWith('/')) {
+        // Se inizia con /, aggiungi il dominio base
+        docUrl = `https://www.europarl.europa.eu${documentoVoti}`;
+      } else {
+        // Altrimenti, costruisci l'URL completo
+        docUrl = `https://www.europarl.europa.eu/doceo/document/${documentoVoti}`;
+      }
+      
+      // Prova diverse varianti linguistiche se il documento non ha già la lingua
+      const possibleUrls = [];
+      if (docUrl.includes('_EN.html') || docUrl.includes('_IT.html') || docUrl.includes('_FR.html')) {
+        possibleUrls.push(docUrl);
+      } else {
+        // Aggiungi estensioni linguistiche
+        const baseUrl = docUrl.replace(/\.html$/, '');
+        possibleUrls.push(`${baseUrl}_EN.html`);
+        possibleUrls.push(`${baseUrl}_IT.html`);
+        possibleUrls.push(`${baseUrl}_FR.html`);
+        possibleUrls.push(docUrl); // Prova anche senza estensione linguistica
+      }
+      
+      for (const url of possibleUrls) {
+        try {
+          console.log(`   Provo URL documento: ${url}`);
+          const response = await axios.get(url, {
+            headers: {
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 15000,
+            validateStatus: (status) => status < 500
+          });
+          
+          if (response.status === 200 && response.headers['content-type']?.includes('html')) {
+            console.log(`   ✅ Documento HTML trovato!`);
+            
+            const $ = cheerio.load(response.data);
+            const votiItaliani = estraiVotiDaHTML($, votazioneIdPE);
+            
+            if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
+              console.log(`   ✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+              return votiItaliani;
+            }
+          }
+        } catch (err) {
+          if (err.response && err.response.status === 404) {
+            console.log(`   ⚠️ 404 per ${url}`);
+          } else {
+            console.log(`   ⚠️ Errore per ${url}: ${err.message}`);
+          }
+          continue;
+        }
+      }
+    }
+    
+    // Fallback: costruisci l'URL dall'ID votazione
     // Il formato tipico è: PV-{term}-{date}-VOT-ITM-{number}_{lang}.html
     // Estrai i componenti dall'ID della votazione
     // Es: "MTG-PL-2014-01-16-VOT-ITM-345348-13" -> term=7, date=2014-01-16, number=13
@@ -666,53 +732,100 @@ async function getVotiDaHTMLUfficiale(votazioneIdPE) {
     
     const match = votazioneIdPE.match(/MTG-PL-(\d{4})-(\d{2})-(\d{2})-VOT-ITM-(\d+)-(\d+)/);
     if (!match) {
-      console.log(`   ⚠️ Formato ID votazione non riconosciuto: ${votazioneIdPE}`);
-      return null;
-    }
-    
-    const [, year, month, day, , number] = match;
-    // Per il 2014, il termine parlamentare è il 7°
-    const termNumber = year === '2014' ? '7' : '9'; // Default a 9 per votazioni più recenti
-    const docNumber = number.padStart(3, '0');
-    
-    // Costruisci URL per documento HTML
-    // Formato corretto: PV-7-2014-01-16-VOT-ITM-013_EN.html
-    const possibleUrls = [
-      `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_EN.html`,
-      `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_IT.html`,
-      `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_FR.html`
-    ];
-    
-    for (const url of possibleUrls) {
-      try {
-        console.log(`   Provo URL: ${url}`);
-        const response = await axios.get(url, {
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          },
-          timeout: 15000,
-          validateStatus: (status) => status < 500
-        });
+      // Prova anche altri formati possibili
+      const match2 = votazioneIdPE.match(/(\d{4})-(\d{2})-(\d{2}).*VOT.*(\d+)/);
+      if (match2) {
+        const [, year, month, day, number] = match2;
+        const termNumber = year === '2014' ? '7' : year === '2019' ? '9' : '10'; // Termine parlamentare
+        const docNumber = number.padStart(3, '0');
         
-        if (response.status === 200 && response.headers['content-type']?.includes('html')) {
-          console.log(`   ✅ Documento HTML trovato!`);
-          
-          const $ = cheerio.load(response.data);
-          const votiItaliani = estraiVotiDaHTML($, votazioneIdPE);
-          
-          if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
-            console.log(`   ✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
-            return votiItaliani;
+        const possibleUrls = [
+          `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_EN.html`,
+          `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_IT.html`,
+          `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_FR.html`
+        ];
+        
+        for (const url of possibleUrls) {
+          try {
+            console.log(`   Provo URL costruito: ${url}`);
+            const response = await axios.get(url, {
+              headers: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              timeout: 15000,
+              validateStatus: (status) => status < 500
+            });
+            
+            if (response.status === 200 && response.headers['content-type']?.includes('html')) {
+              console.log(`   ✅ Documento HTML trovato!`);
+              
+              const $ = cheerio.load(response.data);
+              const votiItaliani = estraiVotiDaHTML($, votazioneIdPE);
+              
+              if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
+                console.log(`   ✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+                return votiItaliani;
+              }
+            }
+          } catch (err) {
+            if (err.response && err.response.status === 404) {
+              console.log(`   ⚠️ 404 per ${url}`);
+            } else {
+              console.log(`   ⚠️ Errore per ${url}: ${err.message}`);
+            }
+            continue;
           }
         }
-      } catch (err) {
-        if (err.response && err.response.status === 404) {
-          console.log(`   ⚠️ 404 per ${url}`);
-        } else {
-          console.log(`   ⚠️ Errore per ${url}: ${err.message}`);
+      } else {
+        console.log(`   ⚠️ Formato ID votazione non riconosciuto: ${votazioneIdPE}`);
+        return null;
+      }
+    } else {
+      const [, year, month, day, , number] = match;
+      // Per il 2014, il termine parlamentare è il 7°
+      const termNumber = year === '2014' ? '7' : year === '2019' ? '9' : '10'; // Default a 10 per votazioni più recenti
+      const docNumber = number.padStart(3, '0');
+      
+      // Costruisci URL per documento HTML
+      // Formato corretto: PV-7-2014-01-16-VOT-ITM-013_EN.html
+      const possibleUrls = [
+        `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_EN.html`,
+        `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_IT.html`,
+        `https://www.europarl.europa.eu/doceo/document/PV-${termNumber}-${year}-${month}-${day}-VOT-ITM-${docNumber}_FR.html`
+      ];
+      
+      for (const url of possibleUrls) {
+        try {
+          console.log(`   Provo URL costruito: ${url}`);
+          const response = await axios.get(url, {
+            headers: {
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 15000,
+            validateStatus: (status) => status < 500
+          });
+          
+          if (response.status === 200 && response.headers['content-type']?.includes('html')) {
+            console.log(`   ✅ Documento HTML trovato!`);
+            
+            const $ = cheerio.load(response.data);
+            const votiItaliani = estraiVotiDaHTML($, votazioneIdPE);
+            
+            if (votiItaliani && (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0)) {
+              console.log(`   ✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+              return votiItaliani;
+            }
+          }
+        } catch (err) {
+          if (err.response && err.response.status === 404) {
+            console.log(`   ⚠️ 404 per ${url}`);
+          } else {
+            console.log(`   ⚠️ Errore per ${url}: ${err.message}`);
+          }
+          continue;
         }
-        continue;
       }
     }
     
