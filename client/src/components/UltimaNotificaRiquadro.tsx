@@ -164,10 +164,20 @@ const UltimaNotificaRiquadro = () => {
     handleClick();
   };
 
+  // Funzione per sostituire Favorevole/Contrario/Indeciso con emoji
+  const sostituisciVotoConEmoji = (testo: string): string => {
+    if (!testo) return testo;
+    return testo
+      .replace(/\bFavorevole\b/gi, '👍')
+      .replace(/\bContrario\b/gi, '👎')
+      .replace(/\bIndeciso\b/gi, '🤷');
+  };
+
   const titoloOriginale = notifica.titolo || 'Notifica';
   const titolo = formattaTitoloCompatto(titoloOriginale);
   const messaggio = notifica.messaggio || notifica.testo || '';
-  const messaggioBreve = messaggio.length > 100 ? `${messaggio.substring(0, 100)}...` : messaggio;
+  const messaggioConEmoji = sostituisciVotoConEmoji(messaggio);
+  const messaggioBreve = messaggioConEmoji.length > 100 ? `${messaggioConEmoji.substring(0, 100)}...` : messaggioConEmoji;
 
   return (
     <div 
