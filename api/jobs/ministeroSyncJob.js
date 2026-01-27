@@ -10,6 +10,7 @@ class MinisteroSyncJob {
   constructor() {
     this.interval = null;
     this.intervalInCorso = null; // Sincronizzazione più frequente per referendum in corso
+    this.dailyInterval = null; // Interval per sincronizzazione giornaliera
     this.isRunning = false;
     this.isRunningInCorso = false; // Flag separata per sync rapida
     this.lastSyncTime = null;
@@ -97,13 +98,19 @@ class MinisteroSyncJob {
 
     // Sincronizzazione completa periodica (tutti i referendum)
     this.interval = setInterval(() => {
-      this.execute();
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.execute()).catch(error => {
+        console.error('❌ Errore non gestito in execute():', error);
+      });
     }, this.intervalMs);
 
     // Sincronizzazione più frequente per referendum "in corso" (solo quelli attivi)
     // Questo permette di avere dati più freschi per i referendum attualmente in votazione
     this.intervalInCorso = setInterval(() => {
-      this.syncInCorsoOnly();
+      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
+      Promise.resolve(this.syncInCorsoOnly()).catch(error => {
+        console.error('❌ Errore non gestito in syncInCorsoOnly():', error);
+      });
     }, this.intervalInCorsoMs);
 
     // Esegui anche ogni giorno alle 3:00 AM per sincronizzazione completa
@@ -173,10 +180,17 @@ class MinisteroSyncJob {
     const msUntil3AM = tomorrow.getTime() - now.getTime();
 
     setTimeout(() => {
-      this.execute();
+      // Wrappare in Promise per gestire errori async
+      Promise.resolve(this.execute()).catch(error => {
+        console.error('❌ Errore non gestito in execute() (scheduleDaily):', error);
+      });
       // Dopo la prima esecuzione, programma ogni 24 ore
-      setInterval(() => {
-        this.execute();
+      // Salva riferimento per cleanup
+      this.dailyInterval = setInterval(() => {
+        // Wrappare in Promise per gestire errori async
+        Promise.resolve(this.execute()).catch(error => {
+          console.error('❌ Errore non gestito in execute() (dailyInterval):', error);
+        });
       }, 24 * 60 * 60 * 1000);
     }, msUntil3AM);
   }
@@ -189,6 +203,10 @@ class MinisteroSyncJob {
     if (this.intervalInCorso) {
       clearInterval(this.intervalInCorso);
       this.intervalInCorso = null;
+    }
+    if (this.dailyInterval) {
+      clearInterval(this.dailyInterval);
+      this.dailyInterval = null;
     }
     console.log('🛑 Job sincronizzazione Ministero fermato');
   }

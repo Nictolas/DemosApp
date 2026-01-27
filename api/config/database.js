@@ -58,6 +58,15 @@ const getPool = () => {
         if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
           console.error('⚠️ Connessione database persa, il pool tenterà di riconnettersi automaticamente');
         }
+        
+        // Se il client è specificato, rilascialo per evitare leak
+        if (client) {
+          try {
+            client.release();
+          } catch (releaseError) {
+            console.error('❌ Errore nel rilasciare client difettoso:', releaseError);
+          }
+        }
       });
       
       poolInstance.on('remove', (client) => {
@@ -75,14 +84,22 @@ const getPool = () => {
 const getPoolStats = () => {
   if (!poolInstance) return null;
   
-  return {
-    totalCount: poolInstance.totalCount,
-    idleCount: poolInstance.idleCount,
-    waitingCount: poolInstance.waitingCount,
+  const stats = {
+    totalCount: poolInstance.totalCount || 0,
+    idleCount: poolInstance.idleCount || 0,
+    waitingCount: poolInstance.waitingCount || 0,
     maxConnections: poolConfig.max,
     minConnections: poolConfig.min,
-    utilizationPercent: Math.round((poolInstance.totalCount / poolConfig.max) * 100)
+    utilizationPercent: Math.round(((poolInstance.totalCount || 0) / poolConfig.max) * 100)
   };
+  
+  // Alert se il pool è saturo (oltre 90%)
+  if (stats.utilizationPercent > 90) {
+    console.warn(`⚠️ POOL DATABASE SATURO: ${stats.utilizationPercent}% utilizzato (${stats.totalCount}/${stats.maxConnections} connessioni)`);
+    console.warn(`⚠️ Connessioni in attesa: ${stats.waitingCount}`);
+  }
+  
+  return stats;
 };
 
 // Funzione per testare la connessione

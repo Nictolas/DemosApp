@@ -142,6 +142,61 @@ const gracefulShutdown = async () => {
       console.error('⚠️ Errore fermando security monitoring:', error.message);
     }
     
+    // Ferma job di sincronizzazione Ministero
+    try {
+      const ministeroSyncJob = require('./jobs/ministeroSyncJob');
+      if (ministeroSyncJob && typeof ministeroSyncJob.stop === 'function') {
+        ministeroSyncJob.stop();
+        console.log('✅ Ministero sync job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando ministero sync job:', error.message);
+    }
+    
+    // Ferma job di sincronizzazione votazioni parlamentari
+    try {
+      const { stopVotiParlamentoSyncJob } = require('./jobs/votiParlamentoSyncJob');
+      if (stopVotiParlamentoSyncJob && typeof stopVotiParlamentoSyncJob === 'function') {
+        stopVotiParlamentoSyncJob();
+        console.log('✅ Voti parlamento sync job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando voti parlamento sync job:', error.message);
+    }
+    
+    // Ferma job di backup
+    try {
+      const backupJob = require('./jobs/backupJob');
+      if (backupJob && typeof backupJob.stop === 'function') {
+        backupJob.stop();
+        console.log('✅ Backup job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando backup job:', error.message);
+    }
+    
+    // Ferma job di monitoraggio violazioni
+    try {
+      const violationMonitoringJob = require('./jobs/violationMonitoringJob');
+      if (violationMonitoringJob && typeof violationMonitoringJob.stop === 'function') {
+        violationMonitoringJob.stop();
+        console.log('✅ Violation monitoring job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando violation monitoring job:', error.message);
+    }
+    
+    // Ferma job di data retention
+    try {
+      const dataRetentionJob = require('./jobs/dataRetentionJob');
+      if (dataRetentionJob && typeof dataRetentionJob.stop === 'function') {
+        dataRetentionJob.stop();
+        console.log('✅ Data retention job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando data retention job:', error.message);
+    }
+    
     // Chiudi pool database
     try {
       const { closePool } = require('./config/database');
