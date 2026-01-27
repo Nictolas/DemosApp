@@ -84,19 +84,34 @@ router.get('/', async (req, res) => {
     let userId = null;
     if (req.headers.authorization) {
       try {
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
+        // Verifica che JWT_SECRET sia configurato
+        if (!process.env.JWT_SECRET) {
+          console.error('❌ JWT_SECRET non configurato!');
+          throw new Error('JWT_SECRET non configurato');
+        }
         
-        // Ottieni il ruolo dell'utente
-        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-        const userResult = await pool.query(userQuery, [userId]);
-        if (userResult.rows.length > 0) {
-          userRole = userResult.rows[0].ruolo;
-          console.log(`🔍 Ruolo utente: ${userRole}`);
+        const token = req.headers.authorization.replace('Bearer ', '');
+        if (!token || token === 'Bearer') {
+          console.log('⚠️ Token JWT mancante o malformato');
+        } else {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          userId = decoded?.userId;
+          
+          // Ottieni il ruolo dell'utente solo se userId è valido
+          if (userId) {
+            const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+            const userResult = await pool.query(userQuery, [userId]);
+            if (userResult?.rows && userResult.rows.length > 0) {
+              userRole = userResult.rows[0]?.ruolo;
+              console.log(`🔍 Ruolo utente: ${userRole}`);
+            }
+          }
         }
       } catch (authError) {
-        console.log('⚠️ Errore nel recupero ruolo utente:', authError.message);
+        // Log solo se non è un errore di token mancante (normale per richieste non autenticate)
+        if (authError.name !== 'JsonWebTokenError' && authError.name !== 'TokenExpiredError') {
+          console.log('⚠️ Errore nel recupero ruolo utente:', authError.message);
+        }
       }
     }
     
@@ -311,9 +326,25 @@ router.get('/', async (req, res) => {
     let mieiVoti = [];
     if (req.headers.authorization) {
       try {
+        // Verifica che JWT_SECRET sia configurato
+        if (!process.env.JWT_SECRET) {
+          console.error('❌ JWT_SECRET non configurato!');
+          throw new Error('JWT_SECRET non configurato');
+        }
+        
         const token = req.headers.authorization.replace('Bearer ', '');
+        if (!token || token === 'Bearer') {
+          console.log('⚠️ Token JWT mancante o malformato');
+          throw new Error('Token JWT mancante o malformato');
+        }
+        
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
+        const userId = decoded?.userId;
+        
+        if (!userId) {
+          console.log('⚠️ UserId non presente nel token JWT');
+          throw new Error('UserId non presente nel token');
+        }
         
         console.log(`🔍 DEBUG: UserId dal token: ${userId}`);
         
@@ -354,13 +385,16 @@ router.get('/', async (req, res) => {
           console.log(`🔍 DEBUG: Query text risultato per userId ${userId}:`, userVotiResult.rows);
         }
         
-        // Estrai gli ID delle iniziative
-        if (userVotiResult && userVotiResult.rows.length > 0) {
-          mieiVoti = userVotiResult.rows.map(v => {
-            // Assicurati che l'ID sia una stringa
-            const id = v.iniziativa_id;
-            return id ? String(id) : null;
-          }).filter(id => id !== null);
+        // Estrai gli ID delle iniziative con controlli null safety
+        if (userVotiResult && userVotiResult.rows && userVotiResult.rows.length > 0) {
+          mieiVoti = userVotiResult.rows
+            .filter(v => v && v.iniziativa_id) // Filtra valori null/undefined
+            .map(v => {
+              // Assicurati che l'ID sia una stringa
+              const id = v?.iniziativa_id;
+              return id ? String(id) : null;
+            })
+            .filter(id => id !== null);
         }
         
         // Limita a massimo 1 voto (per sicurezza)
@@ -369,8 +403,13 @@ router.get('/', async (req, res) => {
         console.log(`✅ Recuperati ${mieiVoti.length} voti utente:`, mieiVoti);
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
-        console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione:', authError.message);
-        console.log('⚠️ Stack trace:', authError.stack);
+        // Log solo se non è un errore di token mancante (normale per richieste non autenticate)
+        if (authError.name !== 'JsonWebTokenError' && authError.name !== 'TokenExpiredError') {
+          console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione:', authError.message);
+          if (authError.stack) {
+            console.log('⚠️ Stack trace:', authError.stack);
+          }
+        }
       }
     }
     
@@ -681,41 +720,43 @@ router.get('/', async (req, res) => {
         const classificaResult = await pool.query(classificaQuery, params);
         console.log('🔍 DEBUG - Risultati classifica raw:', classificaResult.rows);
         
-        classifica = classificaResult.rows.map(row => {
-          // Trova l'iniziativa corrispondente per ottenere l'emoji
-          // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
-          let iniziativa = normalizedData.find(i => 
-            i.nome === row.nome || 
-            i.titolo === row.nome
-          );
-          
-          // Se non trova, prova con normalizzazione (trim, lowercase)
-          if (!iniziativa) {
-            const rowNomeNormalized = String(row.nome || '').toLowerCase().trim();
-            iniziativa = normalizedData.find(i => {
-              const nomeNormalized = String(i.nome || '').toLowerCase().trim();
-              const titoloNormalized = String(i.titolo || '').toLowerCase().trim();
-              return nomeNormalized === rowNomeNormalized || titoloNormalized === rowNomeNormalized;
-            });
-          }
-          
-          // Se ancora non trova, prova per sitoWeb
-          if (!iniziativa && row.sitoweb) {
-            iniziativa = normalizedData.find(i => 
-              i.sitoWeb && (i.sitoWeb === row.sitoweb || i.sitoWeb === row.sito_web || i.sito_web === row.sitoweb)
+        classifica = classificaResult.rows
+          .filter(row => row && row.nome) // Filtra righe null/undefined o senza nome
+          .map(row => {
+            // Trova l'iniziativa corrispondente per ottenere l'emoji
+            // Prova prima per nome esatto, poi per nome normalizzato (trim, lowercase), poi per sitoWeb
+            let iniziativa = normalizedData.find(i => 
+              i && (i.nome === row.nome || i.titolo === row.nome)
             );
-          }
-          
-          // Genera sempre un'emoji (usa quella trovata o genera una nuova)
-          const emoji = iniziativa?.emoji || getEmojiAutomatica({ nome: row.nome });
-          
-          return {
-            nome: row.nome,
-            sitoWeb: row.sitoweb || row.sito_web || row.sitoweb,
-            voti: parseInt(row.voti) || 0,
-            emoji: emoji
-          };
-        });
+            
+            // Se non trova, prova con normalizzazione (trim, lowercase)
+            if (!iniziativa) {
+              const rowNomeNormalized = String(row?.nome || '').toLowerCase().trim();
+              iniziativa = normalizedData.find(i => {
+                if (!i) return false;
+                const nomeNormalized = String(i.nome || '').toLowerCase().trim();
+                const titoloNormalized = String(i.titolo || '').toLowerCase().trim();
+                return nomeNormalized === rowNomeNormalized || titoloNormalized === rowNomeNormalized;
+              });
+            }
+            
+            // Se ancora non trova, prova per sitoWeb
+            if (!iniziativa && row?.sitoweb) {
+              iniziativa = normalizedData.find(i => 
+                i && i.sitoWeb && (i.sitoWeb === row.sitoweb || i.sitoWeb === row.sito_web || i.sito_web === row.sitoweb)
+              );
+            }
+            
+            // Genera sempre un'emoji (usa quella trovata o genera una nuova)
+            const emoji = iniziativa?.emoji || getEmojiAutomatica({ nome: row?.nome || '' });
+            
+            return {
+              nome: row?.nome || '',
+              sitoWeb: row?.sitoweb || row?.sito_web || '',
+              voti: parseInt(row?.voti) || 0,
+              emoji: emoji
+            };
+          });
         console.log(`✅ Generata classifica con ${classifica.length} iniziative (da entrambe le tabelle):`, classifica);
         // Debug: verifica che tutte le iniziative nella classifica abbiano un'emoji
         const classificaSenzaEmoji = classifica.filter(c => !c.emoji);
@@ -859,6 +900,8 @@ router.get('/', async (req, res) => {
 
 // POST /api/iniziative-popolari - Crea richiesta iniziativa popolare (come ICE)
 router.post('/', verifyToken, async (req, res) => {
+  let client = null;
+  
   try {
     console.log('🔍 DEBUG POST: Inizio creazione iniziativa popolare');
     console.log('🔍 DEBUG POST: Headers:', req.headers);
@@ -890,7 +933,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
     
     // Inizia una transazione per prevenire race conditions in caso di doppio submit simultaneo
-    const client = await pool.connect();
+    client = await pool.connect();
 
     try {
       await client.query('BEGIN');
@@ -908,7 +951,6 @@ router.post('/', verifyToken, async (req, res) => {
 
       if (existingProposal.rows.length > 0) {
         await client.query('ROLLBACK');
-        client.release();
         console.log('⚠️ DEBUG POST: Utente ha già una proposta in attesa, bloccando nuovo inserimento');
         return res.status(400).json({
           success: false,
@@ -944,7 +986,6 @@ router.post('/', verifyToken, async (req, res) => {
 
       if (!result.rows || result.rows.length === 0) {
         await client.query('ROLLBACK');
-        client.release();
         console.error('❌ DEBUG POST: Nessuna riga inserita!');
         return res.status(500).json({
           success: false,
@@ -954,7 +995,6 @@ router.post('/', verifyToken, async (req, res) => {
 
       // Commit della transazione
       await client.query('COMMIT');
-      client.release();
 
       console.log(`✅ Iniziativa proposta creata: ${iniziativaId} per utente: ${userId}`);
 
@@ -964,12 +1004,13 @@ router.post('/', verifyToken, async (req, res) => {
       });
     } catch (transactionError) {
       // Rollback in caso di errore
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('❌ Errore durante rollback:', rollbackError);
+      if (client) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('❌ Errore durante rollback:', rollbackError);
+        }
       }
-      client.release();
       throw transactionError;
     }
   } catch (error) {
@@ -978,13 +1019,24 @@ router.post('/', verifyToken, async (req, res) => {
     console.error('❌ DEBUG POST: Error code:', error.code);
     console.error('❌ DEBUG POST: Error detail:', error.detail);
     
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella creazione iniziativa popolare',
-      details: error.message,
-      code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Errore nella creazione iniziativa popolare',
+        details: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  } finally {
+    // Garantisce sempre il release del client, anche in caso di errori
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseError) {
+        console.error('❌ Errore nel rilasciare client database:', releaseError);
+      }
+    }
   }
 });
 
@@ -1125,7 +1177,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
 // POST /api/iniziative-popolari/vota - Salva i voti dell'utente
 router.post('/vota', verifyToken, async (req, res) => {
-  const client = await pool.connect();
+  let client = null;
   
   try {
     // Usa req.userId come negli altri endpoint, con fallback a req.user.id
@@ -1143,6 +1195,9 @@ router.post('/vota', verifyToken, async (req, res) => {
         error: 'Autenticazione richiesta'
       });
     }
+    
+    // Acquisisci client dopo le validazioni iniziali
+    client = await pool.connect();
     
     // Limita a massimo 1 voto come da limite configurato
     const votiDaSalvare = Array.isArray(voti) ? voti.slice(0, 1) : [];
@@ -1173,10 +1228,10 @@ router.post('/vota', verifyToken, async (req, res) => {
       `;
       const iniziativeCheckResultPopolari = await client.query(iniziativeCheckQueryPopolari, [votiDaSalvare]);
       
-      // Combina i risultati
+      // Combina i risultati con controlli null safety
       const allFoundIds = [
-        ...iniziativeCheckResultMinistero.rows.map(r => r.id),
-        ...iniziativeCheckResultPopolari.rows.map(r => r.id)
+        ...(iniziativeCheckResultMinistero?.rows || []).map(r => r?.id).filter(Boolean),
+        ...(iniziativeCheckResultPopolari?.rows || []).map(r => r?.id).filter(Boolean)
       ];
       
       console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate in iniziative_ministero:', iniziativeCheckResultMinistero.rows.map(r => r.id));
@@ -1261,9 +1316,16 @@ router.post('/vota', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    await client.query('ROLLBACK').catch(err => {
-      console.error('❌ Errore nel ROLLBACK:', err);
-    });
+    if (client) {
+      try {
+        await client.query('ROLLBACK').catch(err => {
+          console.error('❌ Errore nel ROLLBACK:', err);
+        });
+      } catch (rollbackError) {
+        console.error('❌ Errore durante tentativo di rollback:', rollbackError);
+      }
+    }
+    
     console.error('❌ Errore nel salvataggio voti iniziative popolari:', error);
     console.error('❌ Stack trace:', error.stack);
     console.error('❌ Error details:', {
@@ -1281,13 +1343,20 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     }
   } finally {
-    client.release();
+    // Garantisce sempre il release del client
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseError) {
+        console.error('❌ Errore nel rilasciare client database:', releaseError);
+      }
+    }
   }
 });
 
 // DELETE /api/iniziative-popolari/vota - Cancella il voto dell'utente
 router.delete('/vota', verifyToken, async (req, res) => {
-  const client = await pool.connect();
+  let client = null;
   
   try {
     const userId = req.userId || req.user?.id;
@@ -1298,6 +1367,9 @@ router.delete('/vota', verifyToken, async (req, res) => {
         error: 'Autenticazione richiesta'
       });
     }
+    
+    // Acquisisci client dopo le validazioni iniziali
+    client = await pool.connect();
     
     // Verifica se l'utente è admin (gli admin possono sempre cancellare)
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
@@ -1349,9 +1421,16 @@ router.delete('/vota', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    await client.query('ROLLBACK').catch(err => {
-      console.error('❌ Errore nel ROLLBACK:', err);
-    });
+    if (client) {
+      try {
+        await client.query('ROLLBACK').catch(err => {
+          console.error('❌ Errore nel ROLLBACK:', err);
+        });
+      } catch (rollbackError) {
+        console.error('❌ Errore durante tentativo di rollback:', rollbackError);
+      }
+    }
+    
     console.error('❌ Errore nella cancellazione voto iniziative popolari:', error);
     console.error('❌ Stack trace:', error.stack);
     
@@ -1363,7 +1442,14 @@ router.delete('/vota', verifyToken, async (req, res) => {
       });
     }
   } finally {
-    client.release();
+    // Garantisce sempre il release del client
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseError) {
+        console.error('❌ Errore nel rilasciare client database:', releaseError);
+      }
+    }
   }
 });
 
