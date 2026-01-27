@@ -563,6 +563,7 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
 /**
  * Recupera le ultime votazioni dal database
  * Ordina per data decrescente e filtra per escludere votazioni troppo vecchie
+ * Se non ci sono votazioni recenti, restituisce comunque le più recenti disponibili
  */
 async function getUltimeVotazioni(limit = 10) {
   try {
@@ -574,7 +575,8 @@ async function getUltimeVotazioni(limit = 10) {
     dataMinima.setMonth(dataMinima.getMonth() - 6);
     const dataMinimaStr = dataMinima.toISOString().split('T')[0];
     
-    const result = await pool.query(`
+    // Prima prova a recuperare solo votazioni recenti (ultimi 6 mesi)
+    let result = await pool.query(`
       SELECT 
         id, uri, votazione_id, titolo, descrizione, data_votazione,
         esito, sessione_id, sessione_data, sessione_label,
@@ -595,14 +597,42 @@ async function getUltimeVotazioni(limit = 10) {
       LIMIT $1
     `, [limit, dataMinimaStr]);
     
-    console.log(`📊 Recuperate ${result.rows.length} votazioni dal database (filtro data minima: ${dataMinimaStr})`);
+    console.log(`📊 Recuperate ${result.rows.length} votazioni recenti (filtro data minima: ${dataMinimaStr})`);
+    
+    // Se non ci sono votazioni recenti, recupera comunque le più recenti disponibili
+    // (anche se più vecchie di 6 mesi) per evitare di restituire array vuoto
+    if (result.rows.length === 0) {
+      console.log(`⚠️ Nessuna votazione recente trovata, recupero le più recenti disponibili...`);
+      result = await pool.query(`
+        SELECT 
+          id, uri, votazione_id, titolo, descrizione, data_votazione,
+          esito, sessione_id, sessione_data, sessione_label,
+          favorevoli, contrari, astenuti, presenti, votanti,
+          termine_parlamentare, metadati,
+          created_at, updated_at, data_sincronizzazione
+        FROM parlamento_europeo
+        WHERE titolo IS NOT NULL 
+          AND titolo != ''
+        ORDER BY 
+          COALESCE(data_votazione, data_sincronizzazione) DESC NULLS LAST,
+          data_sincronizzazione DESC NULLS LAST,
+          id DESC
+        LIMIT $1
+      `, [limit]);
+      
+      console.log(`📊 Recuperate ${result.rows.length} votazioni totali (senza filtro data)`);
+    }
     
     // Log delle date delle votazioni recuperate per debug
     if (result.rows.length > 0) {
       console.log(`📅 Date delle votazioni recuperate:`);
       result.rows.forEach((votazione, index) => {
-        console.log(`   ${index + 1}. ${votazione.titolo?.substring(0, 50)}... - Data: ${votazione.data_votazione || votazione.data_sincronizzazione || 'N/A'}`);
+        const dataVotazione = votazione.data_votazione || votazione.data_sincronizzazione || 'N/A';
+        const isVecchia = votazione.data_votazione && new Date(votazione.data_votazione) < dataMinima;
+        console.log(`   ${index + 1}. ${votazione.titolo?.substring(0, 50)}... - Data: ${dataVotazione} ${isVecchia ? '(vecchia)' : ''}`);
       });
+    } else {
+      console.log(`⚠️ Nessuna votazione trovata nel database`);
     }
     
     return result.rows;
