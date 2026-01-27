@@ -644,6 +644,8 @@ async function getDettagliVotazione(uri) {
 
 /**
  * Recupera i voti nominali dei MEP italiani per una votazione
+ * Usa prima l'API ufficiale (/vote-results con votedFor/votedAgainst/votedAbstained)
+ * Se non disponibile, usa il fallback con fonti esterne
  */
 async function getVotiNominaliMEPItaliani(uriVotazione) {
   try {
@@ -696,7 +698,161 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
       return voti;
     }
     
-    // Recupera informazioni sulla votazione per costruire il link al documento PDF
+    // NUOVO APPROCCIO: Prova prima con l'API ufficiale usando /vote-results
+    try {
+      console.log('📡 Tentativo recupero voti da API ufficiale /vote-results...');
+      
+      // Recupera la lista dei MEP italiani (con cache)
+      const mepMap = await fetchMEPItaliani();
+      
+      if (mepMap.size === 0) {
+        console.log('⚠️ Nessun MEP italiano trovato, uso fallback');
+        throw new Error('Nessun MEP italiano disponibile');
+      }
+      
+      // Estrai l'ID della votazione dall'URI
+      const votazioneId = uriVotazione.split('/').pop();
+      
+      // Prova a recuperare il risultato della votazione direttamente
+      // L'endpoint potrebbe essere /vote-results/{id} o simile
+      try {
+        const voteResultResponse = await axios.get(`${API_BASE}/vote-results/${encodeURIComponent(votazioneId)}`, {
+          headers: {
+            'Accept': 'application/ld+json',
+            'User-Agent': 'DemosApp-1.0.0'
+          },
+          timeout: 10000
+        });
+        
+        const voteResult = Array.isArray(voteResultResponse.data) 
+          ? voteResultResponse.data[0] 
+          : voteResultResponse.data;
+        
+        if (voteResult) {
+          const votiItaliani = await estraiVotiMEPItalianiDaVoteResult(voteResult, mepMap);
+          
+          if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
+            console.log(`✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti dall'API ufficiale`);
+            
+            // Salva nel database per la prossima volta
+            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            
+            return {
+              ...votiItaliani,
+              disponibili: true
+            };
+          }
+        }
+      } catch (apiError) {
+        // Se l'endpoint specifico non esiste, prova a cercare nella lista generale
+        console.log(`⚠️ Endpoint specifico non disponibile, provo ricerca nella lista generale: ${apiError.message}`);
+        
+        // Cerca nella lista generale dei vote-results
+        const allVoteResults = await fetchUltimeVotazioniDefinitive(50); // Recupera più risultati per trovare quello giusto
+        const matchingVote = allVoteResults.find(vr => {
+          const vrId = vr.id || vr['@id'] || vr.activity_id || '';
+          return vrId === uriVotazione || vrId.includes(votazioneId) || votazioneId.includes(vrId.split('/').pop());
+        });
+        
+        if (matchingVote) {
+          const votiItaliani = await estraiVotiMEPItalianiDaVoteResult(matchingVote, mepMap);
+          
+          if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
+            console.log(`✅ Trovati voti dalla lista generale: ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+            
+            // Salva nel database per la prossima volta
+            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            
+            return {
+              ...votiItaliani,
+              disponibili: true
+            };
+          }
+        }
+      }
+    } catch (officialApiError) {
+      console.log(`⚠️ Approccio API ufficiale fallito, uso fallback: ${officialApiError.message}`);
+      // Continua con il fallback esistente
+    }
+    
+    // NUOVO APPROCCIO: Prova prima con l'API ufficiale usando /vote-results
+    try {
+      console.log('📡 Tentativo recupero voti da API ufficiale /vote-results...');
+      
+      // Recupera la lista dei MEP italiani (con cache)
+      const mepMap = await fetchMEPItaliani();
+      
+      if (mepMap.size === 0) {
+        console.log('⚠️ Nessun MEP italiano trovato, uso fallback');
+        throw new Error('Nessun MEP italiano disponibile');
+      }
+      
+      // Estrai l'ID della votazione dall'URI
+      const votazioneId = uriVotazione.split('/').pop();
+      
+      // Prova a recuperare il risultato della votazione direttamente
+      // L'endpoint potrebbe essere /vote-results/{id} o simile
+      try {
+        const voteResultResponse = await axios.get(`${API_BASE}/vote-results/${encodeURIComponent(votazioneId)}`, {
+          headers: {
+            'Accept': 'application/ld+json',
+            'User-Agent': 'DemosApp-1.0.0'
+          },
+          timeout: 10000
+        });
+        
+        const voteResult = Array.isArray(voteResultResponse.data) 
+          ? voteResultResponse.data[0] 
+          : voteResultResponse.data;
+        
+        if (voteResult) {
+          const votiItaliani = await estraiVotiMEPItalianiDaVoteResult(voteResult, mepMap);
+          
+          if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
+            console.log(`✅ Trovati ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti dall'API ufficiale`);
+            
+            // Salva nel database per la prossima volta
+            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            
+            return {
+              ...votiItaliani,
+              disponibili: true
+            };
+          }
+        }
+      } catch (apiError) {
+        // Se l'endpoint specifico non esiste, prova a cercare nella lista generale
+        console.log(`⚠️ Endpoint specifico non disponibile, provo ricerca nella lista generale: ${apiError.message}`);
+        
+        // Cerca nella lista generale dei vote-results
+        const allVoteResults = await fetchUltimeVotazioniDefinitive(50); // Recupera più risultati per trovare quello giusto
+        const matchingVote = allVoteResults.find(vr => {
+          const vrId = vr.id || vr['@id'] || vr.activity_id || '';
+          return vrId === uriVotazione || vrId.includes(votazioneId) || votazioneId.includes(vrId.split('/').pop());
+        });
+        
+        if (matchingVote) {
+          const votiItaliani = await estraiVotiMEPItalianiDaVoteResult(matchingVote, mepMap);
+          
+          if (votiItaliani.favorevoli.length > 0 || votiItaliani.contrari.length > 0 || votiItaliani.astenuti.length > 0) {
+            console.log(`✅ Trovati voti dalla lista generale: ${votiItaliani.favorevoli.length} favorevoli, ${votiItaliani.contrari.length} contrari, ${votiItaliani.astenuti.length} astenuti`);
+            
+            // Salva nel database per la prossima volta
+            await salvaVotiMEPItaliani(uriVotazione, votiItaliani);
+            
+            return {
+              ...votiItaliani,
+              disponibili: true
+            };
+          }
+        }
+      }
+    } catch (officialApiError) {
+      console.log(`⚠️ Approccio API ufficiale fallito, uso fallback: ${officialApiError.message}`);
+      // Continua con il fallback esistente
+    }
+    
+    // FALLBACK: Recupera informazioni sulla votazione per costruire il link al documento PDF
     const votazioneResult = await pool.query(`
       SELECT 
         votazione_id,
@@ -725,7 +881,7 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
     
     // Se non ci sono dati in cache, prova a recuperare da fonti esterne
     try {
-      console.log('📡 Tentativo di recupero voti da fonti esterne...');
+      console.log('📡 Tentativo di recupero voti da fonti esterne (fallback)...');
       if (votazioneResult.rows.length > 0) {
         // Usa l'URI completo invece del solo votazione_id per una migliore corrispondenza
         const votazioneId = uriVotazione || votazioneResult.rows[0].votazione_id;
@@ -779,6 +935,247 @@ async function getVotiNominaliMEPItaliani(uriVotazione) {
   }
 }
 
+/**
+ * Recupera la lista dei MEP italiani dall'API del PE
+ * Salva in cache per evitare chiamate ripetute
+ */
+async function fetchMEPItaliani() {
+  try {
+    console.log(`📡 Recupero MEP italiani da ${API_BASE}/meps`);
+    
+    const response = await axios.get(`${API_BASE}/meps`, {
+      params: {
+        limit: 1000, // Dovrebbero essere circa 76 MEP italiani
+        offset: 0
+      },
+      headers: {
+        'Accept': 'application/ld+json',
+        'User-Agent': 'DemosApp-1.0.0'
+      }
+    });
+    
+    // Estrai i dati dalla risposta
+    let meps = [];
+    if (Array.isArray(response.data)) {
+      meps = response.data;
+    } else if (response.data && Array.isArray(response.data)) {
+      meps = response.data;
+    } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      meps = response.data.data;
+    } else if (response.data && response.data['@graph'] && Array.isArray(response.data['@graph'])) {
+      meps = response.data['@graph'];
+    }
+    
+    // Filtra solo i MEP italiani
+    const mepItaliani = meps.filter(mep => {
+      const citizenship = mep.citizenship || mep.country || mep.nationality || mep['citizenship'] || mep['country'];
+      const countryCode = mep.country_code || mep['country_code'];
+      
+      // Verifica se è italiano
+      if (typeof citizenship === 'string') {
+        return citizenship.toLowerCase().includes('italy') || 
+               citizenship.toLowerCase().includes('italia') ||
+               citizenship === 'IT' || citizenship === 'ITA';
+      }
+      if (typeof citizenship === 'object' && citizenship !== null) {
+        const citValue = citizenship['@value'] || citizenship.value || citizenship.id;
+        if (citValue) {
+          return citValue.toLowerCase().includes('italy') || 
+                 citValue.toLowerCase().includes('italia') ||
+                 citValue === 'IT' || citValue === 'ITA';
+        }
+      }
+      if (countryCode) {
+        return countryCode === 'IT' || countryCode === 'ITA';
+      }
+      
+      return false;
+    });
+    
+    // Crea una mappa ID -> nome per facilitare la ricerca
+    const mepMap = new Map();
+    mepItaliani.forEach(mep => {
+      const mepId = mep.id || mep['@id'] || mep.person_id;
+      const label = mep.label || mep['rdfs:label'] || mep.name || mep.full_name;
+      
+      if (mepId && label) {
+        // Estrai nome e cognome se possibile
+        const labelStr = typeof label === 'string' ? label : (label.it || label.en || label.fr || '');
+        const parts = labelStr.split(' ');
+        const nome = parts[0] || '';
+        const cognome = parts.slice(1).join(' ') || '';
+        
+        mepMap.set(mepId, {
+          id: mepId,
+          nome_completo: labelStr,
+          nome: nome,
+          cognome: cognome,
+          gruppo_politico: mep.political_group || mep.group || null
+        });
+      }
+    });
+    
+    console.log(`✅ Trovati ${mepItaliani.length} MEP italiani`);
+    return mepMap;
+  } catch (error) {
+    console.error('❌ Errore nel recupero MEP italiani:', error.message);
+    if (error.response) {
+      console.error('   Status:', error.response.status);
+      console.error('   Data:', JSON.stringify(error.response.data).substring(0, 500));
+    }
+    // Restituisci mappa vuota invece di fallire
+    return new Map();
+  }
+}
+
+/**
+ * Recupera le ultime votazioni definitive usando /vote-results
+ * Approccio diretto e più affidabile rispetto a /meetings
+ */
+async function fetchUltimeVotazioniDefinitive(limit = 3) {
+  try {
+    console.log(`📡 Recupero ultime ${limit} votazioni definitive da ${API_BASE}/vote-results`);
+    
+    const response = await axios.get(`${API_BASE}/vote-results`, {
+      params: {
+        limit: limit * 3, // Recupera più risultati per filtrare meglio
+        offset: 0,
+        sort: '-date' // Ordinamento decrescente per data
+      },
+      headers: {
+        'Accept': 'application/ld+json',
+        'User-Agent': 'DemosApp-1.0.0'
+      }
+    });
+    
+    // Estrai i dati dalla risposta
+    let voteResults = [];
+    if (Array.isArray(response.data)) {
+      voteResults = response.data;
+    } else if (response.data && Array.isArray(response.data)) {
+      voteResults = response.data;
+    } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      voteResults = response.data.data;
+    } else if (response.data && response.data['@graph'] && Array.isArray(response.data['@graph'])) {
+      voteResults = response.data['@graph'];
+    }
+    
+    // Filtra per votazioni definitive
+    // Le votazioni definitive sono solitamente associate a "Text Adopted" o hanno metadati specifici
+    const votazioniDefinitive = voteResults.filter(vote => {
+      // Cerca indicatori di votazione definitiva
+      const activityType = vote.activity_type || vote['activity_type'] || vote.type;
+      const label = vote.label || vote['rdfs:label'] || vote.title;
+      const labelStr = typeof label === 'string' ? label : (label?.it || label?.en || '');
+      
+      // Verifica se è una votazione definitiva
+      // Le votazioni definitive spesso hanno "Final" o "Text Adopted" nel label
+      const isFinal = labelStr && (
+        labelStr.toLowerCase().includes('final') ||
+        labelStr.toLowerCase().includes('text adopted') ||
+        labelStr.toLowerCase().includes('adopted')
+      );
+      
+      // Oppure verifica il tipo di attività
+      const isVoteType = activityType && (
+        activityType.includes('VOT') ||
+        activityType.includes('vote') ||
+        activityType.includes('Vote')
+      );
+      
+      return isVoteType && (isFinal || !labelStr); // Se non ha label, assumiamo sia una votazione normale
+    });
+    
+    // Prendi solo le prime 'limit' votazioni uniche (per ID)
+    const uniqueVotes = new Map();
+    for (const vote of votazioniDefinitive) {
+      const voteId = vote.id || vote['@id'] || vote.activity_id;
+      if (voteId && !uniqueVotes.has(voteId)) {
+        uniqueVotes.set(voteId, vote);
+        if (uniqueVotes.size >= limit) break;
+      }
+    }
+    
+    const result = Array.from(uniqueVotes.values());
+    console.log(`✅ Trovate ${result.length} votazioni definitive`);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ Errore nel recupero votazioni definitive:', error.message);
+    if (error.response) {
+      console.error('   Status:', error.response.status);
+      console.error('   Data:', JSON.stringify(error.response.data).substring(0, 500));
+    }
+    return [];
+  }
+}
+
+/**
+ * Estrae i voti dei MEP italiani da una votazione usando l'API ufficiale
+ * Usa votedFor, votedAgainst, votedAbstained
+ */
+async function estraiVotiMEPItalianiDaVoteResult(voteResult, mepMap) {
+  const voti = {
+    favorevoli: [],
+    contrari: [],
+    astenuti: [],
+    assenti: []
+  };
+  
+  if (!voteResult || !mepMap || mepMap.size === 0) {
+    return voti;
+  }
+  
+  // Estrai le liste di votanti
+  const votedFor = voteResult.votedFor || voteResult['votedFor'] || voteResult['eli-dl:votedFor'] || [];
+  const votedAgainst = voteResult.votedAgainst || voteResult['votedAgainst'] || voteResult['eli-dl:votedAgainst'] || [];
+  const votedAbstained = voteResult.votedAbstained || voteResult['votedAbstained'] || voteResult['eli-dl:votedAbstained'] || [];
+  
+  // Normalizza gli array (potrebbero essere array di ID o array di oggetti)
+  const normalizeIds = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map(item => {
+      if (typeof item === 'string') return item;
+      if (typeof item === 'object' && item !== null) {
+        return item.id || item['@id'] || item.person_id || item.mep_id;
+      }
+      return null;
+    }).filter(Boolean);
+  };
+  
+  const forIds = normalizeIds(votedFor);
+  const againstIds = normalizeIds(votedAgainst);
+  const abstainedIds = normalizeIds(votedAbstained);
+  
+  // Confronta con la mappa dei MEP italiani
+  for (const [mepId, mepInfo] of mepMap.entries()) {
+    // Normalizza l'ID per il confronto (potrebbero avere formati diversi)
+    const mepIdNormalized = mepId.split('/').pop(); // Prendi solo l'ultima parte
+    
+    if (forIds.some(id => {
+      const idNormalized = typeof id === 'string' ? id.split('/').pop() : String(id);
+      return idNormalized === mepIdNormalized || id === mepId || id.includes(mepIdNormalized);
+    })) {
+      voti.favorevoli.push(mepInfo);
+    } else if (againstIds.some(id => {
+      const idNormalized = typeof id === 'string' ? id.split('/').pop() : String(id);
+      return idNormalized === mepIdNormalized || id === mepId || id.includes(mepIdNormalized);
+    })) {
+      voti.contrari.push(mepInfo);
+    } else if (abstainedIds.some(id => {
+      const idNormalized = typeof id === 'string' ? id.split('/').pop() : String(id);
+      return idNormalized === mepIdNormalized || id === mepId || id.includes(mepIdNormalized);
+    })) {
+      voti.astenuti.push(mepInfo);
+    } else {
+      // Se non è in nessuna lista, è assente
+      voti.assenti.push(mepInfo);
+    }
+  }
+  
+  return voti;
+}
+
 module.exports = {
   ensureTableExists,
   fetchUltimeSessioni,
@@ -789,5 +1186,8 @@ module.exports = {
   getDettagliVotazione,
   getVotiNominaliMEPItaliani,
   fetchDettagliVotazioneDiretta,
-  estraiTitoloVotazione
+  estraiTitoloVotazione,
+  fetchMEPItaliani,
+  fetchUltimeVotazioniDefinitive,
+  estraiVotiMEPItalianiDaVoteResult
 };
