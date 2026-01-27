@@ -524,11 +524,11 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
       console.log(`📡 Tentativo sincronizzazione da /vote-results (metodo principale)...`);
       const limitVotazioni = limitSessioni * 10; // Recupera più votazioni per filtrare
       
-      // Costruisci URL con filtri temporali espliciti
+      // Costruisci URL con filtri temporali espliciti (parametri corretti per API v2)
       const url = `${API_BASE}/vote-results`;
       const params = {
-        'voted-date-min': dataMinimaStr, // Filtro temporale esplicito
-        'sort': '-votedDate', // Prova prima con votedDate
+        'date-min': dataMinimaStr, // Filtro temporale corretto per API v2
+        'sort': '-date', // Ordinamento corretto per API v2
         'limit': limitVotazioni * 2
       };
       
@@ -536,42 +536,33 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
       const urlCompleto = `${url}?${new URLSearchParams(params).toString()}`;
       console.log(`🔗 URL completo chiamata API: ${urlCompleto}`);
       
-      let response;
-      try {
-        response = await axios.get(url, {
-          params: params,
-          headers: {
-            'Accept': 'application/ld+json',
-            'User-Agent': 'DemosApp-1.0.0'
-          },
-          timeout: 30000
-        });
-      } catch (sortError) {
-        // Se sort=-votedDate non funziona, prova con sort=-date
-        console.log(`⚠️ Sort=-votedDate non accettato, provo con sort=-date`);
-        params['sort'] = '-date';
-        const urlCompleto2 = `${url}?${new URLSearchParams(params).toString()}`;
-        console.log(`🔗 URL completo chiamata API (retry): ${urlCompleto2}`);
-        response = await axios.get(url, {
-          params: params,
-          headers: {
-            'Accept': 'application/ld+json',
-            'User-Agent': 'DemosApp-1.0.0'
-          },
-          timeout: 30000
-        });
-      }
+      const response = await axios.get(url, {
+        params: params,
+        headers: {
+          'Accept': 'application/ld+json',
+          'User-Agent': 'DemosApp-1.0.0'
+        },
+        timeout: 30000
+      });
       
-      // Estrai i dati dalla risposta JSON-LD
+      // Log della risposta grezza per debugging
+      const rispostaGrezza = JSON.stringify(response.data).substring(0, 500);
+      console.log(`📦 Risposta grezza API (primi 500 caratteri): ${rispostaGrezza}`);
+      
+      // Estrai i dati dalla risposta JSON-LD (verifica @graph e hydra:member per API v2)
       let voteResults = [];
       if (Array.isArray(response.data)) {
         voteResults = response.data;
+        console.log(`✅ Dati estratti come array diretto: ${voteResults.length} elementi`);
       } else if (response.data && response.data['@graph'] && Array.isArray(response.data['@graph'])) {
         voteResults = response.data['@graph'];
+        console.log(`✅ Dati estratti da @graph: ${voteResults.length} elementi`);
       } else if (response.data && response.data['hydra:member'] && Array.isArray(response.data['hydra:member'])) {
         voteResults = response.data['hydra:member'];
+        console.log(`✅ Dati estratti da hydra:member: ${voteResults.length} elementi`);
       } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
         voteResults = response.data.data;
+        console.log(`✅ Dati estratti da data.data: ${voteResults.length} elementi`);
       } else if (response.data && typeof response.data === 'object') {
         console.log('⚠️ Formato risposta non riconosciuto, chiavi disponibili:', Object.keys(response.data));
         // Prova a cercare in altre strutture possibili
@@ -579,10 +570,14 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
         for (const key of keys) {
           if (Array.isArray(response.data[key])) {
             voteResults = response.data[key];
-            console.log(`✅ Dati trovati nella chiave: ${key}`);
+            console.log(`✅ Dati trovati nella chiave: ${key}, ${voteResults.length} elementi`);
             break;
           }
         }
+      }
+      
+      if (voteResults.length === 0) {
+        console.log(`⚠️ Nessun dato estratto dalla risposta. Struttura completa:`, JSON.stringify(response.data).substring(0, 1000));
       }
       
       console.log(`📊 Votazioni recuperate da /vote-results: ${voteResults.length}`);
@@ -592,22 +587,38 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
         console.log(`🔍 DEBUG - Prime 2 votazioni ricevute dall'API:`);
         for (let i = 0; i < Math.min(2, voteResults.length); i++) {
           const vote = voteResults[i];
-          const voteDate = vote.date || vote['date'] || vote.votedDate || vote['votedDate'] || vote.activity_date || vote['activity_date'];
-          const voteTitle = vote.label?.it || vote.label?.en || vote['rdfs:label']?.it || vote['rdfs:label']?.en || vote.title?.it || vote.title?.en || vote.id || vote['@id'] || 'N/A';
-          console.log(`   ${i + 1}. Data: ${voteDate}, Titolo: ${typeof voteTitle === 'string' ? voteTitle.substring(0, 80) : JSON.stringify(voteTitle).substring(0, 80)}`);
+          const voteDate = vote.activity_date || vote['activity_date'] || vote.date || vote['date'] || vote.votedDate || vote['votedDate'];
+          const activityLabel = vote.activity_label || vote['activity_label'] || {};
+          const voteTitle = activityLabel.it || activityLabel.en || 
+                          vote.label?.it || vote.label?.en || 
+                          vote['rdfs:label']?.it || vote['rdfs:label']?.en || 
+                          vote.title?.it || vote.title?.en || 
+                          vote.id || vote['@id'] || 'N/A';
+          const activityType = vote.activity_type || vote['activity_type'] || vote.had_activity_type || vote['had_activity_type'] || '';
+          console.log(`   ${i + 1}. Data: ${voteDate}, Titolo: ${typeof voteTitle === 'string' ? voteTitle.substring(0, 80) : JSON.stringify(voteTitle).substring(0, 80)}, Tipo: ${activityType}`);
         }
       }
       
       // Filtra per "Voto finale" e solo votazioni dal 2025 in poi
       const votazioniRecenti = voteResults.filter(vote => {
-        // Estrai la data della votazione
-        const voteDate = vote.date || vote['date'] || vote.votedDate || vote['votedDate'] || vote.activity_date || vote['activity_date'];
+        // Estrai la data della votazione (campo corretto per API v2: activity_date o date)
+        const voteDate = vote.activity_date || vote['activity_date'] || vote.date || vote['date'] || vote.votedDate || vote['votedDate'];
         let dataVotazione = null;
         
         if (voteDate) {
+          // Gestisci formato ISO 8601 o date semplici
           dataVotazione = new Date(voteDate);
-        } else {
-          // Prova a estrarre dall'ID
+          if (isNaN(dataVotazione.getTime())) {
+            // Se il parsing fallisce, prova a estrarre solo la parte data
+            const dateMatch = voteDate.match(/(\d{4}-\d{2}-\d{2})/);
+            if (dateMatch) {
+              dataVotazione = new Date(dateMatch[1]);
+            }
+          }
+        }
+        
+        // Se non abbiamo ancora la data, prova a estrarre dall'ID
+        if (!dataVotazione || isNaN(dataVotazione.getTime())) {
           const voteId = vote.id || vote['@id'] || vote.activity_id || '';
           const match = voteId.match(/(\d{4})-(\d{2})-(\d{2})/);
           if (match) {
@@ -617,42 +628,212 @@ async function sincronizzaVotazioniPE(limitSessioni = 5) {
         }
         
         // Filtra solo votazioni dal 2025 in poi
-        if (!dataVotazione || dataVotazione < dataMinima) {
+        if (!dataVotazione || isNaN(dataVotazione.getTime()) || dataVotazione < dataMinima) {
           return false;
         }
         
-        // Filtra per "Voto finale" o votazioni legislative
-        const selectionMode = vote.selectionMode || vote['selectionMode'] || '';
-        const activityType = vote.activity_type || vote['activity_type'] || vote.type || '';
-        const label = vote.label?.it || vote.label?.en || vote['rdfs:label']?.it || vote['rdfs:label']?.en || vote.title?.it || vote.title?.en || '';
+        // Filtra per "Voto finale" o votazioni legislative usando activity_type
+        const activityType = vote.activity_type || vote['activity_type'] || vote.had_activity_type || vote['had_activity_type'] || vote.type || '';
+        const activityTypeStr = typeof activityType === 'string' ? activityType : (activityType['@id'] || activityType.id || '');
+        
+        // Estrai label per verificare contenuto
+        const activityLabel = vote.activity_label || vote['activity_label'] || {};
+        const label = activityLabel.it || activityLabel.en || activityLabel['rdfs:label']?.it || activityLabel['rdfs:label']?.en || 
+                     vote.label?.it || vote.label?.en || vote['rdfs:label']?.it || vote['rdfs:label']?.en || 
+                     vote.title?.it || vote.title?.en || '';
         const labelStr = typeof label === 'string' ? label.toLowerCase() : '';
         
         // Cerca indicatori di voto finale/legislativo
+        const isPlenaryVote = activityTypeStr.includes('PLENARY_VOTE_RESULTS') || activityTypeStr.includes('PLENARY');
         const isFinalVote = 
+          isPlenaryVote ||
           labelStr.includes('voto finale') ||
           labelStr.includes('final vote') ||
           labelStr.includes('text adopted') ||
           labelStr.includes('testo adottato') ||
-          activityType.includes('LEGISLATIVE') ||
-          activityType.includes('RESOLUTION') ||
-          selectionMode === 'FINAL' ||
-          selectionMode === 'FINAL_VOTE';
+          labelStr.includes('testo approvato') ||
+          labelStr.includes('progetto di risoluzione') ||
+          activityTypeStr.includes('LEGISLATIVE') ||
+          activityTypeStr.includes('RESOLUTION');
         
-        // Se non è chiaramente un voto finale, includilo comunque se è recente (potrebbe essere comunque importante)
-        // Ma priorità ai voti finali
-        return isFinalVote || (!labelStr.includes('emendamento') && !labelStr.includes('amendment'));
+        // Se è un voto plenario o finale, includilo
+        // Altrimenti includilo solo se non è chiaramente un emendamento
+        return isFinalVote || (!labelStr.includes('emendamento') && !labelStr.includes('amendment') && !labelStr.includes('modifica'));
       }).slice(0, limitVotazioni);
       
       console.log(`📊 Votazioni recenti (dal 2025, filtrate per voto finale): ${votazioniRecenti.length}`);
       
       if (votazioniRecenti.length === 0) {
-        console.log(`⚠️ Nessuna votazione recente trovata da /vote-results. La sincronizzazione non ha recuperato dati validi.`);
-        // NON fare fallback su dati vecchi - restituisci errore invece
+        console.log(`⚠️ Nessuna votazione recente trovata da /vote-results. Provo fallback a /meetings...`);
+        
+        // FALLBACK: Prova a recuperare tramite /meetings
+        try {
+          const meetingsUrl = `${API_BASE}/meetings`;
+          const meetingsParams = {
+            'date-min': dataMinimaStr,
+            'sort': '-date',
+            'limit': 20
+          };
+          const meetingsUrlCompleto = `${meetingsUrl}?${new URLSearchParams(meetingsParams).toString()}`;
+          console.log(`🔗 Fallback - URL completo chiamata API /meetings: ${meetingsUrlCompleto}`);
+          
+          const meetingsResponse = await axios.get(meetingsUrl, {
+            params: meetingsParams,
+            headers: {
+              'Accept': 'application/ld+json',
+              'User-Agent': 'DemosApp-1.0.0'
+            },
+            timeout: 30000
+          });
+          
+          // Log risposta grezza meetings
+          const meetingsRispostaGrezza = JSON.stringify(meetingsResponse.data).substring(0, 500);
+          console.log(`📦 Risposta grezza API /meetings (primi 500 caratteri): ${meetingsRispostaGrezza}`);
+          
+          // Estrai sessioni dalla risposta
+          let sessioni = [];
+          if (Array.isArray(meetingsResponse.data)) {
+            sessioni = meetingsResponse.data;
+          } else if (meetingsResponse.data && meetingsResponse.data['@graph']) {
+            sessioni = meetingsResponse.data['@graph'];
+          } else if (meetingsResponse.data && meetingsResponse.data['hydra:member']) {
+            sessioni = meetingsResponse.data['hydra:member'];
+          }
+          
+          console.log(`📊 Sessioni recuperate da /meetings: ${sessioni.length}`);
+          
+          if (sessioni.length > 0) {
+            // Per ogni sessione, recupera i vote-results
+            let salvate = 0;
+            let errori = 0;
+            
+            for (const sessione of sessioni.slice(0, 5)) { // Limita a 5 sessioni per non sovraccaricare
+              try {
+                const sessioneId = sessione.id || sessione['@id'] || sessione.activity_id;
+                if (!sessioneId) continue;
+                
+                // Estrai solo l'ID senza prefisso URL se presente
+                const sessioneIdShort = sessioneId.split('/').pop();
+                const voteResultsUrl = `${API_BASE}/meetings/${sessioneIdShort}/vote-results`;
+                console.log(`🔗 Recupero vote-results per sessione: ${voteResultsUrl}`);
+                
+                try {
+                  const sessionVoteResponse = await axios.get(voteResultsUrl, {
+                    headers: {
+                      'Accept': 'application/ld+json',
+                      'User-Agent': 'DemosApp-1.0.0'
+                    },
+                    timeout: 15000
+                  });
+                  
+                  // Estrai votazioni dalla risposta
+                  let sessionVotes = [];
+                  if (Array.isArray(sessionVoteResponse.data)) {
+                    sessionVotes = sessionVoteResponse.data;
+                  } else if (sessionVoteResponse.data && sessionVoteResponse.data['@graph']) {
+                    sessionVotes = sessionVoteResponse.data['@graph'];
+                  } else if (sessionVoteResponse.data && sessionVoteResponse.data['hydra:member']) {
+                    sessionVotes = sessionVoteResponse.data['hydra:member'];
+                  }
+                  
+                  console.log(`   📊 Votazioni trovate per sessione ${sessioneIdShort}: ${sessionVotes.length}`);
+                  
+                  // Processa le votazioni di questa sessione (stesso codice di prima)
+                  for (const voteResult of sessionVotes.slice(0, 10)) {
+                    try {
+                      const voteId = voteResult.id || voteResult['@id'] || voteResult.activity_id;
+                      if (!voteId) continue;
+                      
+                      const uri = voteId.startsWith('http') ? voteId : `eli/dl/event/${voteId}`;
+                      const dettagli = await estraiDettagliVotazione(uri, { ...voteResult, ...sessione });
+                      
+                      if (!dettagli || !dettagli.votazione_id) continue;
+                      
+                      // Verifica data >= 2025
+                      if (dettagli.data_votazione) {
+                        const dataVotazione = new Date(dettagli.data_votazione);
+                        if (dataVotazione < dataMinima) continue;
+                      }
+                      
+                      // Salva nel database (stesso codice di prima)
+                      const favorevoli = voteResult.votedFor?.length || voteResult['votedFor']?.length || null;
+                      const contrari = voteResult.votedAgainst?.length || voteResult['votedAgainst']?.length || null;
+                      const astenuti = voteResult.votedAbstained?.length || voteResult['votedAbstained']?.length || null;
+                      const votanti = (favorevoli || 0) + (contrari || 0) + (astenuti || 0);
+                      
+                      await pool.query(`
+                        INSERT INTO parlamento_europeo (
+                          uri, votazione_id, titolo, descrizione, data_votazione, esito,
+                          sessione_id, sessione_data, sessione_label, termine_parlamentare,
+                          favorevoli, contrari, astenuti, presenti, votanti, metadati,
+                          data_sincronizzazione
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
+                        ON CONFLICT (uri) DO UPDATE SET
+                          titolo = EXCLUDED.titolo,
+                          descrizione = EXCLUDED.descrizione,
+                          data_votazione = EXCLUDED.data_votazione,
+                          esito = EXCLUDED.esito,
+                          sessione_id = EXCLUDED.sessione_id,
+                          sessione_data = EXCLUDED.sessione_data,
+                          sessione_label = EXCLUDED.sessione_label,
+                          termine_parlamentare = EXCLUDED.termine_parlamentare,
+                          favorevoli = COALESCE(EXCLUDED.favorevoli, parlamento_europeo.favorevoli),
+                          contrari = COALESCE(EXCLUDED.contrari, parlamento_europeo.contrari),
+                          astenuti = COALESCE(EXCLUDED.astenuti, parlamento_europeo.astenuti),
+                          presenti = COALESCE(EXCLUDED.presenti, parlamento_europeo.presenti),
+                          votanti = COALESCE(EXCLUDED.votanti, parlamento_europeo.votanti),
+                          metadati = EXCLUDED.metadati,
+                          updated_at = CURRENT_TIMESTAMP,
+                          data_sincronizzazione = CURRENT_TIMESTAMP
+                      `, [
+                        dettagli.uri,
+                        dettagli.votazione_id,
+                        dettagli.titolo,
+                        dettagli.descrizione,
+                        dettagli.data_votazione,
+                        dettagli.esito,
+                        dettagli.sessione_id,
+                        dettagli.sessione_data,
+                        dettagli.sessione_label,
+                        dettagli.termine_parlamentare,
+                        favorevoli || dettagli.favorevoli,
+                        contrari || dettagli.contrari,
+                        astenuti || dettagli.astenuti,
+                        dettagli.presenti,
+                        votanti || dettagli.votanti,
+                        JSON.stringify({ ...dettagli.metadati, vote_result: voteResult })
+                      ]);
+                      
+                      salvate++;
+                      console.log(`   ✅ Salvata votazione ${dettagli.votazione_id}: ${dettagli.titolo?.substring(0, 50)}`);
+                    } catch (votError) {
+                      errori++;
+                      console.error(`   ❌ Errore nel salvare votazione:`, votError.message);
+                    }
+                  }
+                } catch (sessionVoteError) {
+                  console.log(`   ⚠️ Errore nel recupero vote-results per sessione ${sessioneIdShort}:`, sessionVoteError.message);
+                }
+              } catch (sessError) {
+                console.error(`❌ Errore nell'elaborare sessione:`, sessError.message);
+              }
+            }
+            
+            if (salvate > 0) {
+              console.log(`✅ Sincronizzazione da /meetings completata: ${salvate} votazioni salvate, ${errori} errori`);
+              return { salvate, errori, metodo: 'meetings-fallback' };
+            }
+          }
+        } catch (meetingsError) {
+          console.error(`❌ Errore nel fallback a /meetings:`, meetingsError.message);
+        }
+        
+        // Se anche il fallback fallisce, restituisci errore
         return { 
           salvate: 0, 
           errori: 0, 
           messaggio: 'Nessuna votazione recente trovata. Verificare i parametri API o la disponibilità dei dati.',
-          metodo: 'vote-results',
+          metodo: 'vote-results-fallback',
           errore: 'Nessun dato recente disponibile'
         };
       }
