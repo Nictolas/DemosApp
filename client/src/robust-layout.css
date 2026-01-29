@@ -33,8 +33,9 @@
   overflow-y: auto !important;
   overflow-x: hidden;
   background: white; /* Sfondo bianco di base - ogni pagina gestisce il proprio sfondo */
-  /* Scroll behavior moderno */
-  scroll-behavior: smooth;
+  /* scroll-behavior: auto su tutti i dispositivi: smooth su Chrome/PC con rotellina
+     può causare molti repaint e crash; Safari (iPhone) gestisce già bene il touch */
+  scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
   overscroll-behavior-x: none;
@@ -42,11 +43,11 @@
   min-height: 0; /* Importante per Flexbox */
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
-  /* Assicura che lo scroll con la rotellina funzioni */
   touch-action: pan-y !important;
   -ms-overflow-style: -ms-autohiding-scrollbar;
-  /* Permetti lo scroll con la rotellina del mouse */
   pointer-events: auto !important;
+  /* Isola layout/paint dello scroll: riduce lavoro su Chrome/PC durante wheel scroll */
+  contain: layout paint;
 }
 
 /* Assicuriamo che la pagina menu non venga tagliata */
