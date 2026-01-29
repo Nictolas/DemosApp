@@ -1,46 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import './ProssimaIniziativaRiquadro.css';
 import { apiRequest } from '@/lib/queryClient';
 
 const ProssimaIniziativaRiquadro = () => {
-  const [iniziativa, setIniziativa] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchProssimaIniziativa = async () => {
-      try {
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
-        
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-        
-        const response = await apiRequest('GET', '/api/iniziative-popolari/prossima');
-        
-        if (!response.ok) {
-          throw new Error(`Errore HTTP: ${response.status}`);
-        }
-
-        const data = response.data;
-        
-        if (data.success && data.data) {
-          setIniziativa(data.data);
-        } else {
-          setIniziativa(null);
-        }
-      } catch (err) {
-        console.error('❌ ProssimaIniziativaRiquadro - Errore:', err);
-        setError('Errore nel caricamento dell\'iniziativa');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProssimaIniziativa();
-  }, []);
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken') : null;
+  const { data: iniziativa, isLoading: loading, isError } = useQuery({
+    queryKey: ['menu-prossima-iniziativa'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/iniziative-popolari/prossima');
+      if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+      const data = response.data;
+      return data.success && data.data ? data.data : null;
+    },
+    enabled: !!token,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const error = isError ? 'Errore nel caricamento dell\'iniziativa' : null;
 
   // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {

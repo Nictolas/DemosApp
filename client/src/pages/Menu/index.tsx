@@ -7,7 +7,6 @@ import { useMenuActions } from "./hooks/useMenuActions";
 import { MenuHeader } from "./components/MenuHeader";
 import { MenuGrid } from "./components/MenuGrid";
 import { PageContainer } from "@/components/PageContainer";
-import { useQueryClient } from "@tanstack/react-query";
 import ProssimoEventoRiquadro from "@/components/ProssimoEventoRiquadro";
 import ProssimaIniziativaRiquadro from "@/components/ProssimaIniziativaRiquadro";
 import ProssimoReferendumRiquadro from "@/components/ProssimoReferendumRiquadro";
@@ -16,63 +15,15 @@ import UltimaNotificaRiquadro from "@/components/UltimaNotificaRiquadro";
 export default function Menu() {
   const { user, isLoading, isAdmin, hasAdvancedAccess, hasLimitedAccess } = useMenuData();
   const { navigateWithButtonReset, setLocation } = useMenuActions();
-  const queryClient = useQueryClient();
   const [isAndroid, setIsAndroid] = useState(false);
 
   // Debug logging rimosso per evitare re-render
 
-  // Debug DOM - Controlla se gli elementi sono nel DOM
-  useEffect(() => {
-    const checkDOM = () => {
-      const menuTitle = document.querySelector('[data-testid="menu-title"]');
-      const menuButtons = document.querySelectorAll('[data-testid="menu-button"]');
-      const menuLogo = document.querySelector('[data-testid="menu-logo"]');
-      
-      console.log('🔍 DOM Check - Elementi trovati:', {
-        menuTitle: !!menuTitle,
-        menuButtons: menuButtons.length,
-        menuLogo: !!menuLogo,
-        menuTitleText: menuTitle?.textContent,
-        menuButtonsText: Array.from(menuButtons).map(btn => btn.textContent)
-      });
-    };
-
-    // Controlla immediatamente
-    checkDOM();
-    
-    // Controlla dopo un delay
-    const timer = setTimeout(checkDOM, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [user, hasAdvancedAccess]);
-
-  // Forza re-render quando l'utente è disponibile
-  useEffect(() => {
-    if (user && !isLoading) {
-      console.log('🔄 Menu - Utente disponibile, forzando re-render');
-      // Forza un re-render del componente
-      const timer = setTimeout(() => {
-        console.log('🔄 Menu - Re-render completato');
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [user, isLoading]);
 
   // Rileva se è un dispositivo Android
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
     setIsAndroid(userAgent.includes('android'));
-  }, []);
-
-  // Forza il refetch dei dati utente quando il componente viene montato
-  useEffect(() => {
-    queryClient.invalidateQueries(['user']);
-  }, [queryClient]);
-
-  // Debug: verifica che i riquadri vengano renderizzati
-  useEffect(() => {
-    console.log('🔍 Menu - Componente montato, riquadri dovrebbero essere visibili');
   }, []);
 
   // Redirect to auth page if not logged in (ma solo se non c'è token)
@@ -107,7 +58,7 @@ export default function Menu() {
           </Card>
           <div className="mt-0 flex flex-col">
             <MenuGrid 
-              key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
+              key="menu-grid"
               hasAdvancedAccess={hasAdvancedAccess}
               hasLimitedAccess={hasLimitedAccess}
               userRole={user?.ruolo}

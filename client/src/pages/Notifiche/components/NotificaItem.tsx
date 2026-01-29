@@ -22,16 +22,19 @@ import { Vote, CheckCircle2, XCircle, MinusCircle, Users, Info, BookOpen, Trendi
 
 export const NotificaItem: React.FC<NotificaItemProps> = ({
   notifica,
-  deleteSegnalazioneMutation
+  deleteSegnalazioneMutation,
+  initialReazioni,
+  initialUserReaction,
 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [userReaction, setUserReaction] = useState<string | null>(null);
-  const [likes, setLikes] = useState(notifica.likes || 0);
-  const [dislikes, setDislikes] = useState(notifica.dislikes || 0);
+  const hasBatchData = initialReazioni !== undefined || initialUserReaction !== undefined;
+  const [userReaction, setUserReaction] = useState<string | null>(initialUserReaction ?? null);
+  const [likes, setLikes] = useState(initialReazioni?.likes ?? notifica.likes ?? 0);
+  const [dislikes, setDislikes] = useState(initialReazioni?.dislikes ?? notifica.dislikes ?? 0);
 
-  // Carica reazioni e reazione utente per voto_comune, voto_parlamento e comunicazione
   const shouldLoadReactions = Boolean((notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'voto_parlamento' || notifica.tipo_notifica === 'comunicazione') && user?.id);
+  const usePerItemQueries = shouldLoadReactions && !hasBatchData;
 
   const { data: reactionsData } = useQuery({
     queryKey: ['reazioni', notifica.id],
@@ -39,7 +42,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const response = await apiRequest("GET", `/api/reazioni-comunicazioni/${notifica.id}`);
       return response?.data || { likes: 0, dislikes: 0 };
     },
-    enabled: shouldLoadReactions,
+    enabled: usePerItemQueries,
     refetchOnWindowFocus: false
   });
 
@@ -49,24 +52,34 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const response = await apiRequest("GET", `/api/reazioni-comunicazioni/user/${user?.id}/${notifica.id}`);
       return response?.data || null;
     },
-    enabled: shouldLoadReactions,
+    enabled: usePerItemQueries,
     refetchOnWindowFocus: false
   });
 
-  // Aggiorna likes/dislikes quando arrivano i dati
   useEffect(() => {
-    if (reactionsData) {
+    if (hasBatchData) {
+      if (initialReazioni != null) {
+        setLikes(initialReazioni.likes ?? 0);
+        setDislikes(initialReazioni.dislikes ?? 0);
+      }
+      if (initialUserReaction !== undefined) {
+        setUserReaction(initialUserReaction);
+      }
+    }
+  }, [hasBatchData, initialReazioni, initialUserReaction]);
+
+  useEffect(() => {
+    if (!hasBatchData && reactionsData) {
       setLikes(reactionsData.likes || 0);
       setDislikes(reactionsData.dislikes || 0);
     }
-  }, [reactionsData]);
+  }, [hasBatchData, reactionsData]);
 
-  // Aggiorna reazione utente quando arrivano i dati
   useEffect(() => {
-    if (userReactionData !== undefined) {
+    if (!hasBatchData && userReactionData !== undefined) {
       setUserReaction(userReactionData);
     }
-  }, [userReactionData]);
+  }, [hasBatchData, userReactionData]);
 
   // Mutazione per gestire like/dislike
   const reactionMutation = useMutation({
@@ -82,9 +95,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       return response;
     },
     onSuccess: (data) => {
-      // Invalida le query per ricaricare i dati
       queryClient.invalidateQueries({ queryKey: ['reazioni', notifica.id] });
       queryClient.invalidateQueries({ queryKey: ['reazione-utente', user?.id, notifica.id] });
+      queryClient.invalidateQueries({ queryKey: ['reazioni-batch'] });
+      queryClient.invalidateQueries({ queryKey: ['reazioni-user-batch'] });
       
       // Aggiorna lo stato locale
       if (data.action === 'added') {

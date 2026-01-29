@@ -59,4 +59,8 @@ export interface ConfirmDialogState {
 export interface NotificaItemProps {
   notifica: Notifica;
   deleteSegnalazioneMutation?: any;
+  /** Dati reazioni (likes/dislikes) da batch: evita N richieste per N notifiche */
+  initialReazioni?: { likes: number; dislikes: number } | null;
+  /** Reazione utente (like/dislike) da batch */
+  initialUserReaction?: string | null;
 }

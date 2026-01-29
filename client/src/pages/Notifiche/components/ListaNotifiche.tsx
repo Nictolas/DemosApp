@@ -10,13 +10,17 @@ interface ListaNotificheProps {
   isLoading: boolean;
   error: any;
   deleteSegnalazioneMutation: any;
+  reazioniMap?: Record<string, { likes: number; dislikes: number }>;
+  userReazioniMap?: Record<string, string | null>;
 }
 
 export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   data,
   isLoading,
   error,
-  deleteSegnalazioneMutation
+  deleteSegnalazioneMutation,
+  reazioniMap,
+  userReazioniMap,
 }) => {
   return (
     <Card className="bg-white">
@@ -49,6 +53,8 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
                 key={notifica.id}
                 notifica={notifica}
                 deleteSegnalazioneMutation={deleteSegnalazioneMutation}
+                initialReazioni={reazioniMap?.[notifica.id]}
+                initialUserReaction={userReazioniMap?.[notifica.id] ?? undefined}
               />
             ))}
           </div>
