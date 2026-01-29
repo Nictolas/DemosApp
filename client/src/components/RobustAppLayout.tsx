@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth-neon';
 import { useAndroidDetection } from '@/hooks/useAndroidDetection';
 import Navbar from './Navbar';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface RobustAppLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,9 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const lastScrollYRef = useRef(0);
+  const lastNavbarVisibleRef = useRef(true);
+  const isMountedRef = useRef(true);
+  const rafIdRef = useRef<number | null>(null);
   
   // Rileva dispositivi Android
   useAndroidDetection();
@@ -31,9 +35,23 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
     location !== '/gdpr';
 
   // Gestione scroll per mostrare/nascondere navbar
+  // CRITICO: setState solo quando la visibilità cambia + nessun setState dopo unmount,
+  // per evitare re-render a ogni frame e crash "setState on unmounted component"
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (rafIdRef.current != null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!shouldShowNavbar) {
       setIsNavbarVisible(true);
+      lastNavbarVisibleRef.current = true;
       return;
     }
 
@@ -41,43 +59,43 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
     const handleScroll = () => {
       if (!ticking) {
-        window.requestAnimationFrame(() => {
+        ticking = true;
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = null;
+          ticking = false;
+          if (!isMountedRef.current) return;
+
           const mainContent = document.querySelector('.app-main');
-          if (!mainContent) {
-            ticking = false;
+          if (!mainContent) return;
+
+          const currentScrollY = mainContent.scrollTop;
+          const scrollThreshold = 10;
+
+          let nextVisible: boolean;
+          if (currentScrollY <= scrollThreshold) {
+            nextVisible = true;
+          } else if (currentScrollY > lastScrollYRef.current) {
+            nextVisible = true;
+          } else if (currentScrollY < lastScrollYRef.current) {
+            nextVisible = false;
+          } else {
+            lastScrollYRef.current = currentScrollY;
             return;
           }
 
-          const currentScrollY = mainContent.scrollTop;
-          const scrollThreshold = 10; // Soglia minima per evitare flickering
-
-          // In cima = mostra sempre la navbar
-          if (currentScrollY <= scrollThreshold) {
-            setIsNavbarVisible(true);
-          }
-          // Scorrere verso il basso = mostra navbar
-          else if (currentScrollY > lastScrollYRef.current) {
-            setIsNavbarVisible(true);
-          }
-          // Scorrere verso l'alto = nascondi navbar
-          else if (currentScrollY < lastScrollYRef.current) {
-            setIsNavbarVisible(false);
-          }
-
           lastScrollYRef.current = currentScrollY;
-          ticking = false;
+          if (nextVisible !== lastNavbarVisibleRef.current && isMountedRef.current) {
+            lastNavbarVisibleRef.current = nextVisible;
+            setIsNavbarVisible(nextVisible);
+          }
         });
-        ticking = true;
       }
     };
 
     const mainContent = document.querySelector('.app-main');
     if (mainContent) {
-      // Inizializza la posizione
       lastScrollYRef.current = mainContent.scrollTop;
-      
       mainContent.addEventListener('scroll', handleScroll, { passive: true });
-      
       return () => {
         mainContent.removeEventListener('scroll', handleScroll);
       };
@@ -123,9 +141,11 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
         {/* Header content se necessario */}
       </header>
       
-      {/* Main content area */}
+      {/* Main content area - ErrorBoundary evita che un crash in una pagina faccia cadere l'intera app */}
       <main className="app-main">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
       
       {/* Navbar area - Appare/Scompare con scroll */}
