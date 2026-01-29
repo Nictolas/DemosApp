@@ -14,8 +14,6 @@ router.get('/', async (req, res) => {
   try {
     const { user_id } = req.query;
     
-    console.log('🔍 DEBUG: Recupero notifiche per user_id:', user_id);
-    
     if (!user_id) {
       return res.status(400).json({
         success: false,
@@ -31,10 +29,6 @@ router.get('/', async (req, res) => {
     
     const isAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin === true;
     const userComuneResidenza = userResult.rows.length > 0 ? userResult.rows[0].comune_residenza : null;
-    
-    // Recupera le notifiche da tutte e tre le tabelle
-    console.log(`🔍 Query notifiche per user_id: ${user_id}`);
-    console.log(`🔍 Comune residenza utente: ${userComuneResidenza}`);
     
     let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult;
     
@@ -86,7 +80,6 @@ router.get('/', async (req, res) => {
           `;
           
           votiParlamentoResult = await pool.query(votiParlamentoQuery, [rappresentantiIds]);
-          console.log(`✅ Notifiche voti parlamento recuperate: ${votiParlamentoResult.rows.length}`);
         } else {
           votiParlamentoResult = { rows: [] };
         }
@@ -120,50 +113,63 @@ router.get('/', async (req, res) => {
         LIMIT 50
       `;
       
-      console.log('📋 Query base notifiche_voti_comuni');
       votiComuniResult = await pool.query(baseQuery);
-      console.log(`✅ Notifiche voti comuni recuperate: ${votiComuniResult.rows.length}`);
       
-      // Se ci sono risultati, aggiungi i dati del politico con un secondo query
+      // Se ci sono risultati, recupera i dati di tutti i politici con 1-2 query batch (evita N+1)
       if (votiComuniResult.rows.length > 0) {
-        console.log('📋 Prime 3 notifiche voti comuni:', votiComuniResult.rows.slice(0, 3).map(n => ({
-          id: n.id,
-          titolo: n.titolo,
-          politico: n.politico
-        })));
-        
-        // Per ogni notifica, recupera i dati del politico se presente
-        for (let i = 0; i < votiComuniResult.rows.length; i++) {
-          const notifica = votiComuniResult.rows[i];
-          if (notifica.politico) {
-            try {
-              // Prova prima come UUID
-              let politicoResult;
-              if (notifica.politico.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                politicoResult = await pool.query(
-                  'SELECT id, nome, cognome, avatar_config, genere FROM users WHERE id = $1',
-                  [notifica.politico]
-                );
-              } else {
-                // Prova come nome e cognome
-                politicoResult = await pool.query(
-                  `SELECT id, nome, cognome, avatar_config, genere FROM users 
-                   WHERE nome || ' ' || cognome = $1 OR nome = $1 OR cognome = $1
-                   LIMIT 1`,
-                  [notifica.politico]
-                );
-              }
-              
-              if (politicoResult.rows.length > 0) {
-                const politico = politicoResult.rows[0];
-                notifica.politico_avatar_config = politico.avatar_config;
-                notifica.politico_nome = politico.nome;
-                notifica.politico_cognome = politico.cognome;
-                notifica.politico_genere = politico.genere; // "d" = donna, "u" = uomo (per consigliera/consigliere comunale)
-              }
-            } catch (politicoError) {
-              console.warn(`⚠️ Errore nel recupero dati politico per notifica ${notifica.id}:`, politicoError.message);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const politicoIds = [];
+        const politicoNames = [];
+        const seenIds = new Set();
+        const seenNames = new Set();
+        for (const n of votiComuniResult.rows) {
+          if (!n.politico) continue;
+          const p = String(n.politico).trim();
+          if (uuidRegex.test(p)) {
+            if (!seenIds.has(p)) { seenIds.add(p); politicoIds.push(p); }
+          } else {
+            if (!seenNames.has(p)) { seenNames.add(p); politicoNames.push(p); }
+          }
+        }
+        const politicoByKey = new Map(); // chiave: id (uuid) o nome "Nome Cognome"
+        if (politicoIds.length > 0) {
+          try {
+            const byId = await pool.query(
+              'SELECT id, nome, cognome, avatar_config, genere FROM users WHERE id = ANY($1::uuid[])',
+              [politicoIds]
+            );
+            for (const row of byId.rows) {
+              politicoByKey.set(row.id, row);
             }
+          } catch (e) {
+            console.warn('⚠️ Errore batch politici per UUID:', e.message);
+          }
+        }
+        if (politicoNames.length > 0) {
+          try {
+            const byName = await pool.query(
+              `SELECT id, nome, cognome, avatar_config, genere FROM users 
+               WHERE (nome || ' ' || cognome) = ANY($1::text[]) OR nome = ANY($1::text[]) OR cognome = ANY($1::text[])`,
+              [politicoNames]
+            );
+            for (const row of byName.rows) {
+              const key = `${row.nome || ''} ${row.cognome || ''}`.trim();
+              if (key && !politicoByKey.has(key)) politicoByKey.set(key, row);
+              if (row.id && !politicoByKey.has(row.id)) politicoByKey.set(row.id, row);
+            }
+          } catch (e) {
+            console.warn('⚠️ Errore batch politici per nome:', e.message);
+          }
+        }
+        for (const notifica of votiComuniResult.rows) {
+          if (!notifica.politico) continue;
+          const p = String(notifica.politico).trim();
+          const politico = politicoByKey.get(p) || politicoByKey.get(p.split(' ').slice(0, 2).join(' '));
+          if (politico) {
+            notifica.politico_avatar_config = politico.avatar_config;
+            notifica.politico_nome = politico.nome;
+            notifica.politico_cognome = politico.cognome;
+            notifica.politico_genere = politico.genere;
           }
         }
       } else {
@@ -188,8 +194,6 @@ router.get('/', async (req, res) => {
         WHERE table_name = 'notifiche_demos'
       `);
       const demosCols = demosColumns.rows.map(r => r.column_name);
-      console.log('📋 Colonne disponibili in notifiche_demos:', demosCols);
-      
       if (!demosCols.includes('titolo') || !demosCols.includes('testo')) {
         console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_demos');
         demosResult = { rows: [] };
@@ -208,12 +212,6 @@ router.get('/', async (req, res) => {
           ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 50
         `);
-        console.log(`✅ Notifiche demos recuperate: ${demosResult.rows.length}`);
-        // Log di debug per verificare data_creazione
-        if (demosResult.rows.length > 0) {
-          console.log(`📅 Esempio data_creazione (prima notifica): ${demosResult.rows[0].data_creazione}`);
-          console.log(`📅 Esempio data (prima notifica): ${demosResult.rows[0].data}`);
-        }
       }
     } catch (err) {
       console.error('❌ Errore query notifiche_demos:', err);
@@ -234,8 +232,6 @@ router.get('/', async (req, res) => {
         WHERE table_name = 'notifiche_comunali'
       `);
       const existingColumns = columnCheck.rows.map(r => r.column_name);
-      console.log('📋 Colonne disponibili in notifiche_comunali:', existingColumns);
-      
       // Costruisci la query in base alle colonne disponibili
       let selectParts = ['id', 'id_utente'];
       
@@ -301,9 +297,7 @@ router.get('/', async (req, res) => {
         LIMIT 50
       `;
       
-      console.log('📋 Query notifiche_comunali:', query);
       comunaliResult = await pool.query(query);
-      console.log(`✅ Notifiche comunali recuperate: ${comunaliResult.rows.length}`);
     } catch (err) {
       console.error('❌ Errore query notifiche_comunali:', err);
       console.error('❌ Error details:', {
@@ -334,8 +328,6 @@ router.get('/', async (req, res) => {
           AND table_schema = 'public'
         `);
         const availableColumns = columnsResult.rows.map(r => r.column_name);
-        console.log('📋 Colonne disponibili in notifiche_avvistamenti:', availableColumns);
-        
         // Costruisci la query solo con colonne esistenti (escludi esplicitamente 'testo' e 'titolo')
         const selectColumns = [
           'id',
@@ -386,13 +378,7 @@ router.get('/', async (req, res) => {
           console.error('❌ ERRORE: La query contiene ancora "testo"!', queryText);
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
-        
-        console.log('📋 Query notifiche_avvistamenti:', queryText);
-        console.log('📋 Parametri query:', queryParams);
-        console.log('📋 Colonne selezionate:', selectColumns);
-        console.log('📋 Comune residenza utente:', userComuneResidenza);
         avvistamentiResult = await pool.query(queryText, queryParams);
-        console.log(`✅ Notifiche avvistamenti recuperate: ${avvistamentiResult.rows.length}`);
       } else {
         console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
       }
@@ -421,19 +407,6 @@ router.get('/', async (req, res) => {
       ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' })),
       ...avvistamentiRows.map(n => ({ ...n, tipo_notifica: 'avvistamento' }))
     ];
-    
-    console.log(`📊 Notifiche raw combinate: voti_comuni=${votiComuniRows.length}, voti_parlamento=${votiParlamentoRows.length}, demos=${demosRows.length}, comunali=${comunaliRows.length}, avvistamenti=${avvistamentiRows.length}, totale=${allNotificheRaw.length}`);
-    
-    if (votiComuniRows.length > 0) {
-      console.log('📋 Esempio notifica voto_comune:', {
-        id: votiComuniRows[0].id,
-        titolo: votiComuniRows[0].titolo,
-        tipo_notifica: 'voto_comune',
-        politico: votiComuniRows[0].politico,
-        politico_nome: votiComuniRows[0].politico_nome,
-        politico_cognome: votiComuniRows[0].politico_cognome
-      });
-    }
     
     // Mappa le notifiche nel formato atteso dal frontend
     const comunicazioni = allNotificheRaw.map(c => {
@@ -565,21 +538,6 @@ router.get('/', async (req, res) => {
       };
     });
     
-    console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuniResult.rows.length}, voti_parlamento=${votiParlamentoResult?.rows?.length || 0}, demos=${demosResult.rows.length}, comunali=${comunaliResult.rows.length}, totale=${comunicazioni.length}`);
-    
-    // Debug: verifica notifiche parlamentari
-    const notificheParlamento = comunicazioni.filter(c => c.tipo_notifica === 'voto_parlamento');
-    if (notificheParlamento.length > 0) {
-      console.log('🔍 DEBUG - Notifiche parlamentari trovate:', notificheParlamento.map(n => ({
-        id: n.id?.substring(0, 8),
-        tipo_notifica: n.tipo_notifica,
-        politico: n.politico,
-        politico_avatar_config: n.politico_avatar_config ? 'Presente' : 'Mancante',
-        politico_nome: n.politico_nome,
-        politico_cognome: n.politico_cognome
-      })));
-    }
-
     // Se l'utente è admin, recupera anche le segnalazioni
     let segnalazioni = [];
     if (isAdmin) {
@@ -637,10 +595,6 @@ router.get('/', async (req, res) => {
       const dateB = b.data_creazione ? new Date(b.data_creazione) : (b.data ? new Date(b.data) : new Date(0));
       return dateB.getTime() - dateA.getTime(); // Ordine decrescente (più recenti prima)
     });
-    
-    console.log('🔍 DEBUG: Comunicazioni trovate:', comunicazioni.length);
-    console.log('🔍 DEBUG: Segnalazioni trovate:', segnalazioni.length);
-    console.log('🔍 DEBUG: Totale notifiche:', allNotifiche.length);
     
     res.json({
       success: true,
