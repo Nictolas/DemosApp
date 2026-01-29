@@ -145,13 +145,13 @@ router.get('/', async (req, res) => {
           ORDER BY created_at DESC
         `;
       } else if (soloInCorso) {
-        // Per listing: solo quelle con status = 'pending' o 'in attesa' o NULL (in corso)
+        // Per listing: solo quelle con status = 'pending' o 'in attesa' o NULL (in corso), ordinate per firme (più firme in alto)
         iniziativePopolariQuery = `
           SELECT *
           FROM iniziative_popolari
           WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
             AND quorum != 'proposta'
-          ORDER BY created_at DESC
+          ORDER BY firme DESC NULLS LAST, created_at DESC
         `;
       } else {
         // Per admin o altre viste: tutte tranne le proposte (quorum != 'proposta')
@@ -665,6 +665,13 @@ router.get('/', async (req, res) => {
       }
     }
     
+    // Ordina sempre per numero di firme (decrescente): in alto quelle con più firme
+    normalizedData.sort((a, b) => {
+      const firmeA = Number(a.firme ?? a.firme_raccolte ?? 0);
+      const firmeB = Number(b.firme ?? b.firme_raccolte ?? 0);
+      return firmeB - firmeA;
+    });
+
     const debugInfo = {
       query: query, // Query completa
       params: params,
