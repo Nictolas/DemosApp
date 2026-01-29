@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import './ProssimoEventoRiquadro.css';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -12,7 +13,6 @@ const ProssimoEventoRiquadro = () => {
       try {
         console.log('🔍 ProssimoEventoRiquadro - Inizio fetch');
         
-        // Ottieni il token dal localStorage
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
@@ -21,15 +21,7 @@ const ProssimoEventoRiquadro = () => {
           return;
         }
         
-        console.log('🔍 ProssimoEventoRiquadro - Token trovato, effettuo richiesta');
-        
         const response = await apiRequest('GET', '/api/eventi/prossimo');
-        
-        console.log('🔍 ProssimoEventoRiquadro - Risposta ricevuta:', {
-          ok: response.ok,
-          status: response.status,
-          hasData: !!response.data
-        });
         
         if (!response.ok) {
           throw new Error(`Errore HTTP: ${response.status}`);
@@ -37,16 +29,9 @@ const ProssimoEventoRiquadro = () => {
 
         const data = response.data;
         
-        console.log('🔍 ProssimoEventoRiquadro - Dati parsati:', {
-          success: data?.success,
-          hasEvento: !!data?.data
-        });
-        
         if (data.success && data.data) {
-          console.log('✅ ProssimoEventoRiquadro - Evento trovato:', data.data.nome_evento);
           setEvento(data.data);
         } else {
-          console.log('ℹ️ ProssimoEventoRiquadro - Nessun evento disponibile');
           setEvento(null);
         }
       } catch (err) {
@@ -59,24 +44,6 @@ const ProssimoEventoRiquadro = () => {
 
     fetchProssimoEvento();
   }, []);
-
-  if (loading) {
-    return (
-      <div className="prossimo-evento-riquadro loading">
-        <p>Caricamento prossimo evento...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    console.error('❌ ProssimoEventoRiquadro - Errore:', error);
-    return null; // Non mostrare nulla se c'è un errore
-  }
-
-  if (!evento) {
-    console.log('ℹ️ ProssimoEventoRiquadro - Nessun evento disponibile, non mostro il riquadro');
-    return null; // Non mostrare nulla se non c'è un evento
-  }
 
   // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
@@ -128,6 +95,54 @@ const ProssimoEventoRiquadro = () => {
     handleClick();
   };
 
+  // Contenuto dinamico: solo questa parte si aggiorna (titolo riquadro sempre visibile)
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="prossimo-evento-content prossimo-evento-content-loading">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-border" />
+          <p>Caricamento...</p>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="prossimo-evento-content">
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      );
+    }
+    if (!evento) {
+      return (
+        <div className="prossimo-evento-content">
+          <p className="text-sm text-muted-foreground">Nessun evento in programma.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="prossimo-evento-content">
+        <h4>{evento.nome_evento}</h4>
+        <div className="prossimo-evento-info">
+          {(evento.comune_evento || evento.indirizzo_evento) && (
+            <p className="luogo-indirizzo">
+              {evento.comune_evento}
+              {evento.indirizzo_evento && ` - ${evento.indirizzo_evento}`}
+            </p>
+          )}
+          <p className="data">
+            {formattaData(evento.giorno_inizio)}
+          </p>
+          {evento.orario_inizio && (
+            <p className="orario">
+              {formattaOrario(evento.orario_inizio)}
+              {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div 
       className="prossimo-evento-riquadro clickable transition-transform"
@@ -148,27 +163,7 @@ const ProssimoEventoRiquadro = () => {
       <div className="prossimo-evento-header">
         <h3>Prossimo Evento</h3>
       </div>
-      <div className="prossimo-evento-content">
-        <h4>{evento.nome_evento}</h4>
-        
-        <div className="prossimo-evento-info">
-          {(evento.comune_evento || evento.indirizzo_evento) && (
-            <p className="luogo-indirizzo">
-              {evento.comune_evento}
-              {evento.indirizzo_evento && ` - ${evento.indirizzo_evento}`}
-            </p>
-          )}
-          <p className="data">
-            {formattaData(evento.giorno_inizio)}
-          </p>
-          {evento.orario_inizio && (
-            <p className="orario">
-              {formattaOrario(evento.orario_inizio)}
-              {evento.orario_fine && ` - ${formattaOrario(evento.orario_fine)}`}
-            </p>
-          )}
-        </div>
-      </div>
+      {renderContent()}
     </div>
   );
 };

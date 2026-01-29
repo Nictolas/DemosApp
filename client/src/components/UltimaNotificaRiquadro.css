@@ -75,3 +75,14 @@
   text-align: center;
   padding: 40px;
 }
+
+.ultima-notifica-content-loading {
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.ultima-notifica-content-loading p {
+  margin: 0;
+  font-size: 0.85em;
+  color: #666;
+}

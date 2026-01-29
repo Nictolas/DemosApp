@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import './ProssimaIniziativaRiquadro.css';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -10,26 +11,14 @@ const ProssimaIniziativaRiquadro = () => {
   useEffect(() => {
     const fetchProssimaIniziativa = async () => {
       try {
-        console.log('🔍 ProssimaIniziativaRiquadro - Inizio fetch');
-        
-        // Ottieni il token dal localStorage
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
-          console.log('⚠️ ProssimaIniziativaRiquadro - Token non trovato');
           setLoading(false);
           return;
         }
         
-        console.log('🔍 ProssimaIniziativaRiquadro - Token trovato, effettuo richiesta');
-        
         const response = await apiRequest('GET', '/api/iniziative-popolari/prossima');
-        
-        console.log('🔍 ProssimaIniziativaRiquadro - Risposta ricevuta:', {
-          ok: response.ok,
-          status: response.status,
-          hasData: !!response.data
-        });
         
         if (!response.ok) {
           throw new Error(`Errore HTTP: ${response.status}`);
@@ -37,27 +26,9 @@ const ProssimaIniziativaRiquadro = () => {
 
         const data = response.data;
         
-        console.log('🔍 ProssimaIniziativaRiquadro - Dati parsati:', {
-          success: data?.success,
-          hasIniziativa: !!data?.data,
-          dataKeys: data?.data ? Object.keys(data.data) : [],
-          fullData: data?.data
-        });
-        
         if (data.success && data.data) {
-          console.log('✅ ProssimaIniziativaRiquadro - Iniziativa trovata:', {
-            nome: data.data.nome || data.data.titolo,
-            data_fine: data.data.data_fine || data.data.dataFine,
-            firme: data.data.firme || data.data.firme_raccolte,
-            source: data.data.source
-          });
           setIniziativa(data.data);
         } else {
-          console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile', {
-            success: data?.success,
-            message: data?.message,
-            dataIsNull: data?.data === null
-          });
           setIniziativa(null);
         }
       } catch (err) {
@@ -70,24 +41,6 @@ const ProssimaIniziativaRiquadro = () => {
 
     fetchProssimaIniziativa();
   }, []);
-
-  if (loading) {
-    return (
-      <div className="prossima-iniziativa-riquadro loading">
-        <p>Caricamento iniziativa...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    console.error('❌ ProssimaIniziativaRiquadro - Errore:', error);
-    // Mostra il riquadro anche in caso di errore, con un messaggio
-  }
-
-  if (!iniziativa && !error) {
-    console.log('ℹ️ ProssimaIniziativaRiquadro - Nessuna iniziativa disponibile, mostro riquadro vuoto');
-    // Mostra il riquadro anche se non c'è un'iniziativa, con un messaggio
-  }
 
   // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
@@ -144,19 +97,83 @@ const ProssimaIniziativaRiquadro = () => {
 
   const nomeIniziativa = iniziativa?.nome || iniziativa?.titolo || 'Nessuna iniziativa disponibile';
   const firme = iniziativa?.firme_raccolte || iniziativa?.firme || 0;
-  const emoji = iniziativa?.emoji || '📋';
-  
-  // Debug: verifica i campi disponibili
-  console.log('🔍 ProssimaIniziativaRiquadro - Rendering con dati:', {
-    nomeIniziativa,
-    firme,
-    emoji,
-    data_fine: iniziativa?.data_fine || iniziativa?.dataFine,
-    hasDataFine: !!(iniziativa?.data_fine || iniziativa?.dataFine),
-    allKeys: iniziativa ? Object.keys(iniziativa) : [],
-    hasIniziativa: !!iniziativa,
-    hasError: !!error
-  });
+
+  // Solo il contenuto interno si aggiorna; riquadro e titolo sono sempre visibili
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="prossima-iniziativa-content prossima-iniziativa-content-loading">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-border" />
+          <p>Caricamento...</p>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="prossima-iniziativa-content">
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      );
+    }
+    if (!iniziativa) {
+      return (
+        <div className="prossima-iniziativa-content">
+          <div className="prossima-iniziativa-info">
+            <p>Nessuna iniziativa popolare in corso al momento.</p>
+          </div>
+        </div>
+      );
+    }
+    const firmeRaccolte = firme;
+    const totaleMinimo = 50000;
+    const percentuale = Math.min((firmeRaccolte / totaleMinimo) * 100, 100);
+    const haSuperatoQuorum = firmeRaccolte >= totaleMinimo;
+
+    return (
+      <div className="prossima-iniziativa-content">
+        <h4>{nomeIniziativa}</h4>
+        <div className="prossima-iniziativa-info">
+          {(iniziativa.data_fine || iniziativa.dataFine) && (
+            <p className="scadenza-firme">
+              {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
+              <span className="ml-2">{formattaFirme(firme)}</span>
+            </p>
+          )}
+        </div>
+        <div className="prossima-iniziativa-progress" style={{ marginTop: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            fontSize: '0.75em',
+            marginBottom: '4px',
+            opacity: 0.9,
+            color: '#333'
+          }}>
+            <span>Progresso verso quorum</span>
+            <span style={{ fontWeight: 600 }}>{percentuale.toFixed(1)}%</span>
+          </div>
+          <div style={{
+            width: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: '10px',
+            height: '6px',
+            overflow: 'hidden'
+          }}>
+            <div
+              style={{
+                height: '100%',
+                borderRadius: '10px',
+                transition: 'width 0.5s ease, background-color 0.5s ease',
+                width: `${percentuale}%`,
+                backgroundColor: haSuperatoQuorum ? '#10b981' : '#3b82f6'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div 
@@ -178,68 +195,7 @@ const ProssimaIniziativaRiquadro = () => {
       <div className="prossima-iniziativa-header">
         <h3>Iniziativa Popolare</h3>
       </div>
-      <div className="prossima-iniziativa-content">
-        <h4>{nomeIniziativa}</h4>
-        
-        {iniziativa ? (
-          <>
-            <div className="prossima-iniziativa-info">
-              {(iniziativa.data_fine || iniziativa.dataFine) && (
-                <p className="scadenza-firme">
-                  {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
-                  <span className="ml-2">{formattaFirme(firme)}</span>
-                </p>
-              )}
-            </div>
-            
-            {/* Barra di completamento */}
-            {(() => {
-              const firmeRaccolte = firme;
-              const totaleMinimo = 50000;
-              const percentuale = Math.min((firmeRaccolte / totaleMinimo) * 100, 100);
-              const haSuperatoQuorum = firmeRaccolte >= totaleMinimo;
-              
-              return (
-                <div className="prossima-iniziativa-progress" style={{ marginTop: '8px' }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    fontSize: '0.75em',
-                    marginBottom: '4px',
-                    opacity: 0.9,
-                    color: '#333'
-                  }}>
-                    <span>Progresso verso quorum</span>
-                    <span style={{ fontWeight: 600 }}>{percentuale.toFixed(1)}%</span>
-                  </div>
-                  <div style={{
-                    width: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                    borderRadius: '10px',
-                    height: '6px',
-                    overflow: 'hidden'
-                  }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        borderRadius: '10px',
-                        transition: 'width 0.5s ease, background-color 0.5s ease',
-                        width: `${percentuale}%`,
-                        backgroundColor: haSuperatoQuorum ? '#10b981' : '#3b82f6'
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
-          </>
-        ) : (
-          <div className="prossima-iniziativa-info">
-            <p>Nessuna iniziativa popolare in corso al momento.</p>
-          </div>
-        )}
-      </div>
+      {renderContent()}
     </div>
   );
 };
