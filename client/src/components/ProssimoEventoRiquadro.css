@@ -77,3 +77,14 @@
   text-align: center;
   padding: 40px;
 }
+
+.prossimo-evento-content-loading {
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.prossimo-evento-content-loading p {
+  margin: 0;
+  font-size: 0.85em;
+  color: #666;
+}

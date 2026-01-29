@@ -75,3 +75,14 @@
   text-align: center;
   padding: 40px;
 }
+
+.prossima-iniziativa-content-loading {
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.prossima-iniziativa-content-loading p {
+  margin: 0;
+  font-size: 0.85em;
+  color: #666;
+}

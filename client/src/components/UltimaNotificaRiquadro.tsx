@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import './UltimaNotificaRiquadro.css';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -10,26 +11,14 @@ const UltimaNotificaRiquadro = () => {
   useEffect(() => {
     const fetchUltimaNotifica = async () => {
       try {
-        console.log('🔍 UltimaNotificaRiquadro - Inizio fetch');
-        
-        // Ottieni il token dal localStorage
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
-          console.log('⚠️ UltimaNotificaRiquadro - Token non trovato');
           setLoading(false);
           return;
         }
         
-        console.log('🔍 UltimaNotificaRiquadro - Token trovato, effettuo richiesta');
-        
         const response = await apiRequest('GET', '/api/notifiche/ultima');
-        
-        console.log('🔍 UltimaNotificaRiquadro - Risposta ricevuta:', {
-          ok: response.ok,
-          status: response.status,
-          hasData: !!response.data
-        });
         
         if (!response.ok) {
           throw new Error(`Errore HTTP: ${response.status}`);
@@ -37,16 +26,9 @@ const UltimaNotificaRiquadro = () => {
 
         const data = response.data;
         
-        console.log('🔍 UltimaNotificaRiquadro - Dati parsati:', {
-          success: data?.success,
-          hasNotifica: !!data?.data
-        });
-        
         if (data.success && data.data) {
-          console.log('✅ UltimaNotificaRiquadro - Notifica trovata:', data.data.titolo);
           setNotifica(data.data);
         } else {
-          console.log('ℹ️ UltimaNotificaRiquadro - Nessuna notifica disponibile');
           setNotifica(null);
         }
       } catch (err) {
@@ -59,24 +41,6 @@ const UltimaNotificaRiquadro = () => {
 
     fetchUltimaNotifica();
   }, []);
-
-  if (loading) {
-    return (
-      <div className="ultima-notifica-riquadro loading">
-        <p>Caricamento ultima notifica...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    console.error('❌ UltimaNotificaRiquadro - Errore:', error);
-    return null; // Non mostrare nulla se c'è un errore
-  }
-
-  if (!notifica) {
-    console.log('ℹ️ UltimaNotificaRiquadro - Nessuna notifica disponibile, non mostro il riquadro');
-    return null; // Non mostrare nulla se non c'è una notifica
-  }
 
   // Funzione helper per formattare il titolo in modo compatto (stessa logica di NotificaItem.tsx)
   const formattaTitoloCompatto = (titolo: string): string => {
@@ -173,11 +137,55 @@ const UltimaNotificaRiquadro = () => {
       .replace(/\bIndeciso\b/gi, '🤷');
   };
 
-  const titoloOriginale = notifica.titolo || 'Notifica';
-  const titolo = formattaTitoloCompatto(titoloOriginale);
-  const messaggio = notifica.messaggio || notifica.testo || '';
-  const messaggioConEmoji = sostituisciVotoConEmoji(messaggio);
-  const messaggioBreve = messaggioConEmoji.length > 100 ? `${messaggioConEmoji.substring(0, 100)}...` : messaggioConEmoji;
+  // Solo il contenuto interno si aggiorna; riquadro e titolo sono sempre visibili
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="ultima-notifica-content ultima-notifica-content-loading">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-border" />
+          <p>Caricamento...</p>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="ultima-notifica-content">
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      );
+    }
+    if (!notifica) {
+      return (
+        <div className="ultima-notifica-content">
+          <p className="text-sm text-muted-foreground">Nessuna notifica recente.</p>
+        </div>
+      );
+    }
+    const titoloOriginale = notifica.titolo || 'Notifica';
+    const titolo = formattaTitoloCompatto(titoloOriginale);
+    const messaggio = notifica.messaggio || notifica.testo || '';
+    const messaggioConEmoji = sostituisciVotoConEmoji(messaggio);
+    const messaggioBreve = messaggioConEmoji.length > 100 ? `${messaggioConEmoji.substring(0, 100)}...` : messaggioConEmoji;
+
+    return (
+      <div className="ultima-notifica-content">
+        <h4>{titolo}</h4>
+        <div className="ultima-notifica-info">
+          {notifica.data_creazione && (
+            <p className="data-orario">
+              {formattaData(notifica.data_creazione)}
+              <span className="ml-2">{formattaOrario(notifica.data_creazione)}</span>
+            </p>
+          )}
+          {messaggio && (
+            <p className="messaggio">
+              {messaggioBreve}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div 
@@ -199,24 +207,7 @@ const UltimaNotificaRiquadro = () => {
       <div className="ultima-notifica-header">
         <h3>Ultima Notifica</h3>
       </div>
-      <div className="ultima-notifica-content">
-        <h4>{titolo}</h4>
-        
-        <div className="ultima-notifica-info">
-          {notifica.data_creazione && (
-            <p className="data-orario">
-              {formattaData(notifica.data_creazione)}
-              <span className="ml-2">{formattaOrario(notifica.data_creazione)}</span>
-            </p>
-          )}
-          
-          {messaggio && (
-            <p className="messaggio">
-              {messaggioBreve}
-            </p>
-          )}
-        </div>
-      </div>
+      {renderContent()}
     </div>
   );
 };

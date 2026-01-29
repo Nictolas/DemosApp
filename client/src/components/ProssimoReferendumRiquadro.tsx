@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import './ProssimoReferendumRiquadro.css';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -10,26 +11,14 @@ const ProssimoReferendumRiquadro = () => {
   useEffect(() => {
     const fetchProssimoReferendum = async () => {
       try {
-        console.log('🔍 ProssimoReferendumRiquadro - Inizio fetch');
-        
-        // Ottieni il token dal localStorage
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
         
         if (!token) {
-          console.log('⚠️ ProssimoReferendumRiquadro - Token non trovato');
           setLoading(false);
           return;
         }
         
-        console.log('🔍 ProssimoReferendumRiquadro - Token trovato, effettuo richiesta');
-        
         const response = await apiRequest('GET', '/api/referendum-abrogativi/prossima');
-        
-        console.log('🔍 ProssimoReferendumRiquadro - Risposta ricevuta:', {
-          ok: response.ok,
-          status: response.status,
-          hasData: !!response.data
-        });
         
         if (!response.ok) {
           throw new Error(`Errore HTTP: ${response.status}`);
@@ -37,27 +26,9 @@ const ProssimoReferendumRiquadro = () => {
 
         const data = response.data;
         
-        console.log('🔍 ProssimoReferendumRiquadro - Dati parsati:', {
-          success: data?.success,
-          hasReferendum: !!data?.data,
-          dataKeys: data?.data ? Object.keys(data.data) : [],
-          fullData: data?.data
-        });
-        
         if (data.success && data.data) {
-          console.log('✅ ProssimoReferendumRiquadro - Referendum trovato:', {
-            nome: data.data.nome || data.data.titolo,
-            data_fine: data.data.data_fine || data.data.dataFine,
-            firme: data.data.firme || data.data.firme_raccolte,
-            source: data.data.source
-          });
           setReferendum(data.data);
         } else {
-          console.log('ℹ️ ProssimoReferendumRiquadro - Nessun referendum disponibile', {
-            success: data?.success,
-            message: data?.message,
-            dataIsNull: data?.data === null
-          });
           setReferendum(null);
         }
       } catch (err) {
@@ -70,24 +41,6 @@ const ProssimoReferendumRiquadro = () => {
 
     fetchProssimoReferendum();
   }, []);
-
-  if (loading) {
-    return (
-      <div className="prossimo-referendum-riquadro loading">
-        <p>Caricamento referendum...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    console.error('❌ ProssimoReferendumRiquadro - Errore:', error);
-    // Mostra il riquadro anche in caso di errore, con un messaggio
-  }
-
-  if (!referendum && !error) {
-    console.log('ℹ️ ProssimoReferendumRiquadro - Nessun referendum disponibile, mostro riquadro vuoto');
-    // Mostra il riquadro anche se non c'è un referendum, con un messaggio
-  }
 
   // Formatta la data in formato DD/MM/YYYY
   const formattaData = (dataString: string) => {
@@ -144,19 +97,47 @@ const ProssimoReferendumRiquadro = () => {
 
   const nomeReferendum = referendum?.nome || referendum?.titolo || 'Nessun referendum disponibile';
   const firme = referendum?.firme_raccolte || referendum?.firme || 0;
-  const emoji = referendum?.emoji || '🗳️';
-  
-  // Debug: verifica i campi disponibili
-  console.log('🔍 ProssimoReferendumRiquadro - Rendering con dati:', {
-    nomeReferendum,
-    firme,
-    emoji,
-    data_fine: referendum?.data_fine || referendum?.dataFine,
-    hasDataFine: !!(referendum?.data_fine || referendum?.dataFine),
-    allKeys: referendum ? Object.keys(referendum) : [],
-    hasReferendum: !!referendum,
-    hasError: !!error
-  });
+
+  // Solo il contenuto interno si aggiorna; riquadro e titolo sono sempre visibili
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="prossimo-referendum-content prossimo-referendum-content-loading">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-border" />
+          <p>Caricamento...</p>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="prossimo-referendum-content">
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      );
+    }
+    if (!referendum) {
+      return (
+        <div className="prossimo-referendum-content">
+          <div className="prossimo-referendum-info">
+            <p>Nessun referendum in corso al momento.</p>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="prossimo-referendum-content">
+        <h4>{nomeReferendum}</h4>
+        <div className="prossimo-referendum-info">
+          {(referendum.data_fine || referendum.dataFine) && (
+            <p className="scadenza-firme">
+              {formattaData(referendum.data_fine || referendum.dataFine)}
+              <span className="ml-2">{formattaFirme(firme)}</span>
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div 
@@ -178,24 +159,7 @@ const ProssimoReferendumRiquadro = () => {
       <div className="prossimo-referendum-header">
         <h3>Referendum</h3>
       </div>
-      <div className="prossimo-referendum-content">
-        <h4>{nomeReferendum}</h4>
-        
-        {referendum ? (
-          <div className="prossimo-referendum-info">
-            {(referendum.data_fine || referendum.dataFine) && (
-              <p className="scadenza-firme">
-                {formattaData(referendum.data_fine || referendum.dataFine)}
-                <span className="ml-2">{formattaFirme(firme)}</span>
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="prossimo-referendum-info">
-            <p>Nessun referendum in corso al momento.</p>
-          </div>
-        )}
-      </div>
+      {renderContent()}
     </div>
   );
 };
