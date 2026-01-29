@@ -29,9 +29,9 @@ export const useNotificationBadge = () => {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000, // Aggiorna ogni 30 secondi (era 10)
-    staleTime: 15000, // Considera i dati obsoleti dopo 15 secondi (era 5)
-    refetchOnWindowFocus: true, // Aggiorna quando si torna alla finestra
+    refetchInterval: 45000, // 45 secondi: riduce carico backend
+    staleTime: 30000, // 30 secondi: evita refetch continui durante scroll
+    refetchOnWindowFocus: true,
   });
 
   return {

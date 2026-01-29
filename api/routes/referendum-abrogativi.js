@@ -788,33 +788,33 @@ router.get('/', async (req, res) => {
         }
         
         // Se la query UNION non ha trovato risultati ma ci sono referendum in normalizedData,
-        // crea la classifica direttamente contando i voti per ogni referendum mostrato
+        // crea la classifica con una singola query batch invece di N query (evita N+1)
         if (classificaResult.rows.length === 0 && votaOnly && normalizedData.length > 0) {
-          console.warn('⚠️ DEBUG - Query UNION non ha trovato risultati, creo classifica da normalizedData');
-          
-          const classificaDaNormalized = await Promise.all(normalizedData.map(async (ref) => {
+          const refIds = normalizedData.map(r => String(r.id));
+          const refIdsNoDash = refIds.map(id => id.replace(/-/g, ''));
+          const votiBatchResult = await pool.query(`
+            SELECT referendum_id::text as rid, REPLACE(referendum_id::text, '-', '') as rid_nd, COUNT(*) as count
+            FROM voti_referendum_abrogativi
+            WHERE referendum_id::text = ANY($1::text[]) OR REPLACE(referendum_id::text, '-', '') = ANY($2::text[])
+            GROUP BY referendum_id
+          `, [refIds, refIdsNoDash]);
+          const countByKey = new Map();
+          for (const row of votiBatchResult.rows) {
+            const c = parseInt(row.count || 0);
+            countByKey.set(row.rid, c);
+            if (row.rid_nd && row.rid_nd !== row.rid) countByKey.set(row.rid_nd, c);
+          }
+          const classificaDaNormalized = normalizedData.map((ref) => {
             const refId = String(ref.id);
             const refIdNoDash = refId.replace(/-/g, '');
-            const votiQuery = `
-              SELECT COUNT(*) as count 
-              FROM voti_referendum_abrogativi 
-              WHERE referendum_id::text = $1 
-                 OR REPLACE(referendum_id::text, '-', '') = $2
-                 OR referendum_id::text = $3
-                 OR REPLACE(referendum_id::text, '-', '') = $4
-            `;
-            const votiResult = await pool.query(votiQuery, [refId, refIdNoDash, refIdNoDash, refId]);
-            const votiCount = parseInt(votiResult.rows[0]?.count || 0);
-            
+            const votiCount = countByKey.get(refId) ?? countByKey.get(refIdNoDash) ?? 0;
             return {
               nome: ref.nome || ref.titolo,
               sitoWeb: ref.sitoWeb || ref.sito_web || ref.sitoweb,
               voti: votiCount,
               emoji: ref.emoji || getEmojiAutomaticaReferendum(ref)
             };
-          }));
-          
-          // Ordina per voti (decrescente) e poi per firme (decrescente)
+          });
           classificaDaNormalized.sort((a, b) => {
             if (b.voti !== a.voti) return b.voti - a.voti;
             const refA = normalizedData.find(r => (r.nome || r.titolo) === a.nome);
@@ -823,8 +823,6 @@ router.get('/', async (req, res) => {
             const firmeB = refB?.firme_raccolte || refB?.firme || 0;
             return firmeB - firmeA;
           });
-          
-          console.log(`✅ DEBUG - Classifica creata da normalizedData con ${classificaDaNormalized.length} referendum:`, classificaDaNormalized.map(c => ({ nome: c.nome?.substring(0, 50), voti: c.voti })));
           classifica = classificaDaNormalized;
         } else {
           // Usa sempre i risultati della query SQL UNION (stessa logica delle iniziative)
