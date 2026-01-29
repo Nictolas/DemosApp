@@ -183,14 +183,48 @@ export function useGlobalRecovery() {
   }
   
   useEffect(() => {
-    // Solo su mobile
-    if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-      return
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    // 5. Monitora errori JavaScript (su TUTTI i dispositivi: PC/Chrome crashano, iPhone no - serve recovery anche su desktop)
+    const errorHandler = (event: ErrorEvent) => {
+      console.error('🚨 Errore JavaScript rilevato:', event.error)
+      setTimeout(() => {
+        if (checkPageIntegrity()) {
+          if (isMobile) console.log('✅ Pagina integra dopo errore')
+        } else {
+          console.log('🚨 Pagina corrotta dopo errore, attivo recovery')
+          recoverPage()
+        }
+      }, 100)
     }
     
-    console.log('🛡️ SISTEMA DI RECOVERY GLOBALE ATTIVATO')
+    // 6. Monitora promise rejection (su TUTTI i dispositivi)
+    const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+      console.error('🚨 Promise rejection rilevata:', event.reason)
+      setTimeout(() => {
+        if (checkPageIntegrity()) {
+          if (isMobile) console.log('✅ Pagina integra dopo promise rejection')
+        } else {
+          console.log('🚨 Pagina corrotta dopo promise rejection, attivo recovery')
+          recoverPage()
+        }
+      }, 100)
+    }
     
-    // 🎯 RIPRISTINA STATO SE DISPONIBILE (dopo reload)
+    window.addEventListener('error', errorHandler)
+    window.addEventListener('unhandledrejection', unhandledRejectionHandler)
+    
+    // Su desktop ci fermiamo qui: error + unhandledrejection per tentare recovery in caso di crash
+    if (!isMobile) {
+      return () => {
+        window.removeEventListener('error', errorHandler)
+        window.removeEventListener('unhandledrejection', unhandledRejectionHandler)
+      }
+    }
+    
+    console.log('🛡️ SISTEMA DI RECOVERY GLOBALE ATTIVATO (mobile)')
+    
+    // 🎯 RIPRISTINA STATO SE DISPONIBILE (dopo reload) - solo mobile
     const restoreOnLoad = () => {
       try {
         const savedState = localStorage.getItem('app-page-state')
@@ -275,55 +309,18 @@ export function useGlobalRecovery() {
     
     window.addEventListener('force-rerender', forceRerenderHandler)
     
-    // 5. Monitora errori JavaScript
-    const errorHandler = (event: ErrorEvent) => {
-      console.error('🚨 Errore JavaScript rilevato:', event.error)
-      setTimeout(() => {
-        if (checkPageIntegrity()) {
-          console.log('✅ Pagina integra dopo errore')
-        } else {
-          console.log('🚨 Pagina corrotta dopo errore, attivo recovery')
-          recoverPage()
-        }
-      }, 100)
-    }
-    
-    window.addEventListener('error', errorHandler)
-    
-    // 6. Monitora promise rejection
-    const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
-      console.error('🚨 Promise rejection rilevata:', event.reason)
-      setTimeout(() => {
-        if (checkPageIntegrity()) {
-          console.log('✅ Pagina integra dopo promise rejection')
-        } else {
-          console.log('🚨 Pagina corrotta dopo promise rejection, attivo recovery')
-          recoverPage()
-        }
-      }, 100)
-    }
-    
-    window.addEventListener('unhandledrejection', unhandledRejectionHandler)
-    
-    // Cleanup
+    // Cleanup (mobile: error/unhandledrejection già registrati in cima all'effect)
     return () => {
-      // Rimuovi event listeners
+      window.removeEventListener('error', errorHandler)
+      window.removeEventListener('unhandledrejection', unhandledRejectionHandler)
       eventHandlers.forEach(({ event, handler }) => {
         window.removeEventListener(event, handler)
       })
-      
-      // Ferma observer
       observer.disconnect()
-      
-      // Ferma intervalli
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current)
       }
-      
-      // Rimuovi event listeners personalizzati
       window.removeEventListener('force-rerender', forceRerenderHandler)
-      window.removeEventListener('error', errorHandler)
-      window.removeEventListener('unhandledrejection', unhandledRejectionHandler)
       window.removeEventListener('load', restoreOnLoad)
     }
   }, [])
