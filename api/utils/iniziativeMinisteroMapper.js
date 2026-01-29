@@ -341,6 +341,7 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
           FROM iniziative_ministero
           WHERE ${tipoCondition}
             AND stato = 'in_corso'
+            AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)
           ORDER BY firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
         `,
         params: params
@@ -401,11 +402,12 @@ function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false
         const params = tipoValue === null ? [] : [`%${tipoValue}%`];
         
         if (soloInCorso) {
-          // Per la pagina listing, mostra solo quelli in corso
+          // Per la pagina listing, mostra solo quelli in corso e non scaduti (data_fine >= oggi)
           // Filtriamo per id_ministero IS NOT NULL per mostrare solo quelli ufficiali
           whereClause = `${tipoCondition}
             AND id_ministero IS NOT NULL
-            AND stato = 'in_corso'`;
+            AND stato = 'in_corso'
+            AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)`;
           // Ordina per firme_raccolte in ordine decrescente (più firme in alto)
           orderClause = `firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
         } else {
