@@ -90,13 +90,14 @@ function mapIniziativePopolariToLegacyFormat(row) {
   const dataFine = row.dataFine || row.data_fine;
   const sitoWeb = row.sitoWeb || row.sito_web;
   
-  // Mappa status a stato
-  const stato = mapStatusToStato(row.status);
+  // Mappa status/stato (tabella può avere "stato" dopo migrazione che rimuove "status")
+  const stato = row.stato || mapStatusToStato(row.status);
   
-  // Determina quorum_raggiunto basandosi su quorum
-  // Se quorum è 'ok' o un numero > 0, consideralo raggiunto
+  // Determina quorum_raggiunto basandosi su quorum o quorum_raggiunto
   let quorum_raggiunto = false;
-  if (row.quorum === 'ok' || row.quorum === 'OK') {
+  if (row.quorum_raggiunto === true) {
+    quorum_raggiunto = true;
+  } else if (row.quorum === 'ok' || row.quorum === 'OK') {
     quorum_raggiunto = true;
   } else if (typeof row.quorum === 'number' && row.quorum > 0) {
     quorum_raggiunto = true;
@@ -104,9 +105,11 @@ function mapIniziativePopolariToLegacyFormat(row) {
     quorum_raggiunto = true;
   }
   
-  // Mappa esito da status o quorum
+  // Mappa esito da stato/status o quorum
   let esito = 'In Attesa';
-  if (row.status) {
+  if (row.stato === 'conclusa') {
+    esito = 'Conclusa';
+  } else if (row.status) {
     esito = mapStatusToEsito(row.status);
   } else if (row.quorum === 'ok' || row.quorum === 'OK') {
     esito = 'Approvata';
@@ -137,7 +140,7 @@ function mapIniziativePopolariToLegacyFormat(row) {
     stato: stato,
     quorum_raggiunto: quorum_raggiunto,
     userId: row.userId || row.userid,
-    status: row.status
+    status: row.status || row.stato
   };
 }
 
