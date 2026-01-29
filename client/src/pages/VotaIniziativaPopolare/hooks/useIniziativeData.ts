@@ -21,6 +21,7 @@ export const useIniziativeData = (user: any) => {
     },
     enabled: !!user && !!localStorage.getItem('auth_token'),
     retry: 1,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    staleTime: 90 * 1000, // 90 secondi: evita refetch continui durante scroll
   });
 };

@@ -175,52 +175,15 @@ router.get('/', async (req, res) => {
     // Debug: verifica cosa restituisce la query
     if (votaOnly) {
       console.log(`🔍 DEBUG VOTA: result.rows.length = ${result.rows.length}`);
-      if (result.rows.length === 0) {
-        console.warn(`⚠️ ATTENZIONE: La query per votaOnly non ha restituito risultati. Verificando nel database...`);
-        console.warn(`⚠️ Query eseguita:`, query);
-        console.warn(`⚠️ Parametri:`, params);
-        // Query di debug per vedere cosa c'è nel database
-        const debugQuery = `
-          SELECT 
-            COUNT(*) as totale,
-            COUNT(*) FILTER (WHERE quorum_raggiunto = true) as con_quorum,
-            COUNT(*) FILTER (WHERE stato = 'in_corso') as in_corso,
-            COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000) as valide,
-            COUNT(*) FILTER (WHERE tipo LIKE $1 AND quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000 AND id_ministero IS NOT NULL) as valide_complete
-          FROM iniziative_ministero
-          WHERE tipo LIKE $1 AND id_ministero IS NOT NULL
-        `;
+      if (result.rows.length === 0 && process.env.NODE_ENV !== 'production') {
+        const debugQuery = `SELECT COUNT(*) as totale,
+          COUNT(*) FILTER (WHERE quorum_raggiunto = true AND stato = 'conclusa' AND firme_raccolte >= 50000) as valide
+          FROM iniziative_ministero WHERE tipo LIKE $1 AND id_ministero IS NOT NULL`;
         const debugResult = await pool.query(debugQuery, params);
-        console.log(`🔍 DEBUG VOTA: Statistiche database:`, debugResult.rows[0]);
-        
-        // Query di test diretta per vedere se ci sono risultati
-        const testQuery = `
-          SELECT id, titolo, tipo, stato, id_ministero, quorum_raggiunto, firme_raccolte
-          FROM iniziative_ministero
-          WHERE tipo LIKE $1
-            AND quorum_raggiunto = true 
-            AND stato = 'conclusa' 
-            AND firme_raccolte >= 50000
-            AND id_ministero IS NOT NULL
-          LIMIT 5
-        `;
-        const testResult = await pool.query(testQuery, params);
-        console.log(`🔍 DEBUG VOTA: Test query diretta restituisce ${testResult.rows.length} risultati:`, testResult.rows.map(r => ({
-          id: r.id,
-          titolo: r.titolo?.substring(0, 50),
-          tipo: r.tipo,
-          stato: r.stato,
-          id_ministero: r.id_ministero,
-          quorum_raggiunto: r.quorum_raggiunto,
-          firme_raccolte: r.firme_raccolte
-        })));
-      } else {
-        console.log(`🔍 DEBUG VOTA: Prime 3 righe prima del filtro:`, result.rows.slice(0, 3).map(r => ({ 
-          id: r.id, 
-          titolo: r.titolo?.substring(0, 50), 
-          quorum_raggiunto: r.quorum_raggiunto,
-          stato: r.stato 
-        })));
+        console.warn('VOTA: nessun risultato, statistiche DB:', debugResult.rows[0]);
+      }
+      if (result.rows.length > 0 && process.env.NODE_ENV !== 'production') {
+        console.log(`🔍 DEBUG VOTA: Prime 3 righe:`, result.rows.slice(0, 3).map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), quorum_raggiunto: r.quorum_raggiunto, stato: r.stato })));
       }
     }
     
@@ -346,14 +309,7 @@ router.get('/', async (req, res) => {
           throw new Error('UserId non presente nel token');
         }
         
-        console.log(`🔍 DEBUG: UserId dal token: ${userId}`);
-        
-        // Prima verifica tutti i voti esistenti per debug
-        const debugQuery = `SELECT userid, iniziativa_id FROM voti_iniziative_popolari LIMIT 10`;
-        const debugResult = await pool.query(debugQuery);
-        console.log(`🔍 DEBUG: Voti totali nel DB (primi 10):`, debugResult.rows.map(r => ({ userid: r.userid, iniziativa_id: r.iniziativa_id })));
-        
-        // Query semplificata e più robusta per recuperare i voti dell'utente
+        // Query per recuperare i voti dell'utente
         // Prova prima come UUID, poi come text se non trova risultati
         let userVotiResult = null;
         
@@ -367,12 +323,9 @@ router.get('/', async (req, res) => {
             LIMIT 1
           `;
           userVotiResult = await pool.query(userVotiQueryUUID, [userId]);
-          console.log(`🔍 DEBUG: Query UUID risultato per userId ${userId}:`, userVotiResult.rows);
         } catch (uuidError) {
-          console.log(`⚠️ DEBUG: Errore query UUID, provo come text:`, uuidError.message);
+          // fallback a query text
         }
-        
-        // Se non trova voti come UUID, prova come text
         if (!userVotiResult || userVotiResult.rows.length === 0) {
           const userVotiQueryText = `
             SELECT iniziativa_id 
@@ -382,7 +335,6 @@ router.get('/', async (req, res) => {
             LIMIT 1
           `;
           userVotiResult = await pool.query(userVotiQueryText, [userId]);
-          console.log(`🔍 DEBUG: Query text risultato per userId ${userId}:`, userVotiResult.rows);
         }
         
         // Estrai gli ID delle iniziative con controlli null safety
@@ -399,8 +351,6 @@ router.get('/', async (req, res) => {
         
         // Limita a massimo 1 voto (per sicurezza)
         mieiVoti = mieiVoti.slice(0, 1);
-        
-        console.log(`✅ Recuperati ${mieiVoti.length} voti utente:`, mieiVoti);
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
         // Log solo se non è un errore di token mancante (normale per richieste non autenticate)
@@ -468,112 +418,59 @@ router.get('/', async (req, res) => {
       };
     });
     
-    // Se l'iniziativa votata non è nella lista delle iniziative disponibili (per esempio, non rispetta i filtri),
-    // cerca di recuperarla comunque per mostrarla all'utente
+    // Se l'iniziativa votata non è nella lista, recuperala con al massimo 3 query (batch) invece di 6 per voto
     if (mieiVoti.length > 0) {
-      for (let i = 0; i < mieiVoti.length; i++) {
-        const votoId = String(mieiVoti[i]);
-        const votoEsisteInNormalized = normalizedData.some(iniz => String(iniz.id) === votoId);
-        
-        if (!votoEsisteInNormalized) {
-          console.log(`⚠️ DEBUG: Voto ${votoId} non trovato nelle iniziative normalizzate. Cercando nel database...`);
-          
-          // Cerca l'iniziativa nel database anche se non rispetta i filtri
-          // Usa una ricerca più flessibile che gestisce anche ID senza trattini
-          try {
-            const votoIdNoDashes = votoId.replace(/-/g, '');
-            
-            // 1. Cerca in iniziative_ministero (id è VARCHAR(255), non UUID)
-            // Prova prima con ID esatto, poi senza trattini
-            let iniziativaMinisteroResult = await pool.query(
-              `SELECT * FROM iniziative_ministero WHERE id = $1 LIMIT 1`,
+      const votoId = String(mieiVoti[0]);
+      const votoEsisteInNormalized = normalizedData.some(iniz => String(iniz.id) === votoId);
+      if (!votoEsisteInNormalized) {
+        try {
+          const votoIdNoDashes = votoId.replace(/-/g, '');
+          // 1. Una query ministero: id esatto o senza trattini
+          let row = null;
+          let src = null;
+          const ministeroResult = await pool.query(
+            `SELECT *, 'ministero' as _src FROM iniziative_ministero WHERE id = $1 OR (LENGTH($2) > 10 AND REPLACE(id, '-', '') = $2) LIMIT 1`,
+            [votoId, votoIdNoDashes]
+          );
+          if (ministeroResult.rows.length > 0) {
+            row = ministeroResult.rows[0];
+            src = 'ministero';
+          }
+          if (!row) {
+            // 2. Una query popolari: id text, no-dash, oppure uuid se valido
+            let popolariResult = await pool.query(
+              `SELECT *, 'popolari' as _src FROM iniziative_popolari WHERE id::text = $1 OR REPLACE(id::text, '-', '') = $2 LIMIT 1`,
+              [votoId, votoIdNoDashes]
+            );
+            if (popolariResult.rows.length === 0 && votoId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+              try {
+                popolariResult = await pool.query(`SELECT *, 'popolari' as _src FROM iniziative_popolari WHERE id = $1::uuid LIMIT 1`, [votoId]);
+              } catch (_) { /* ignore invalid uuid */ }
+            }
+            if (popolariResult.rows.length > 0) {
+              row = popolariResult.rows[0];
+              src = 'popolari';
+            }
+          }
+          if (!row && votoId.length > 10 && !votoId.match(/^[0-9a-f-]+$/i)) {
+            const byNome = await pool.query(
+              `SELECT *, 'popolari' as _src FROM iniziative_popolari WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) LIMIT 1`,
               [votoId]
             );
-            
-            // Se non trova, prova senza trattini
-            if (iniziativaMinisteroResult.rows.length === 0 && votoIdNoDashes.length > 10) {
-              iniziativaMinisteroResult = await pool.query(
-                `SELECT * FROM iniziative_ministero WHERE REPLACE(id, '-', '') = $1 LIMIT 1`,
-                [votoIdNoDashes]
-              );
+            if (byNome.rows.length > 0) {
+              row = byNome.rows[0];
+              src = 'popolari';
             }
-            
-            if (iniziativaMinisteroResult.rows.length > 0) {
-              const row = iniziativaMinisteroResult.rows[0];
-              const mapped = mapToLegacyFormat(row, 'iniziativa');
-              mapped.emoji = getEmojiAutomatica(mapped);
-              normalizedData.push(mapped);
-              // Aggiorna mieiVoti con l'ID corretto dell'iniziativa trovata
-              mieiVoti[i] = String(mapped.id);
-              console.log(`✅ DEBUG: Iniziativa votata trovata in iniziative_ministero: ${mapped.nome} (ID: ${mapped.id})`);
-              console.log(`✅ DEBUG: mieiVoti[${i}] aggiornato da ${votoId} a ${mapped.id}`);
-            } else {
-              // 2. Cerca in iniziative_popolari (id potrebbe essere UUID o VARCHAR)
-              // Prova prima con ID esatto, poi senza trattini, poi come UUID
-              let iniziativaPopolariResult = await pool.query(
-                `SELECT * FROM iniziative_popolari WHERE id::text = $1 OR id = $1 LIMIT 1`,
-                [votoId]
-              );
-              
-              // Se non trova, prova senza trattini
-              if (iniziativaPopolariResult.rows.length === 0 && votoIdNoDashes.length > 10) {
-                iniziativaPopolariResult = await pool.query(
-                  `SELECT * FROM iniziative_popolari WHERE REPLACE(id::text, '-', '') = $1 LIMIT 1`,
-                  [votoIdNoDashes]
-                );
-              }
-              
-              // Se non trova, prova come UUID (se l'ID è un UUID valido)
-              if (iniziativaPopolariResult.rows.length === 0 && votoId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                try {
-                  iniziativaPopolariResult = await pool.query(
-                    `SELECT * FROM iniziative_popolari WHERE id = $1::uuid LIMIT 1`,
-                    [votoId]
-                  );
-                } catch (uuidError) {
-                  // Se fallisce, continua senza questo tentativo
-                  console.log(`⚠️ DEBUG: Tentativo UUID fallito per ${votoId}:`, uuidError.message);
-                }
-              }
-              
-              if (iniziativaPopolariResult.rows.length > 0) {
-                const row = iniziativaPopolariResult.rows[0];
-                const mapped = mapIniziativePopolariToLegacyFormat(row);
-                mapped.emoji = getEmojiAutomatica(mapped);
-                normalizedData.push(mapped);
-                // Aggiorna mieiVoti con l'ID corretto dell'iniziativa trovata
-                mieiVoti[i] = String(mapped.id);
-                console.log(`✅ DEBUG: Iniziativa votata trovata in iniziative_popolari: ${mapped.nome} (ID: ${mapped.id})`);
-                console.log(`✅ DEBUG: mieiVoti[${i}] aggiornato da ${votoId} a ${mapped.id}`);
-              } else {
-                // 3. Ultimo tentativo: cerca per nome se l'ID sembra essere un nome
-                // (gestisce il caso in cui iniziativa_id nel database è un nome invece di un ID)
-                if (votoId.length > 10 && !votoId.match(/^[0-9a-f-]+$/i)) {
-                  const iniziativaByNomeResult = await pool.query(
-                    `SELECT * FROM iniziative_popolari WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) LIMIT 1`,
-                    [votoId]
-                  );
-                  
-                  if (iniziativaByNomeResult.rows.length > 0) {
-                    const row = iniziativaByNomeResult.rows[0];
-                    const mapped = mapIniziativePopolariToLegacyFormat(row);
-                    mapped.emoji = getEmojiAutomatica(mapped);
-                    normalizedData.push(mapped);
-                    // Aggiorna mieiVoti con l'ID corretto dell'iniziativa trovata
-                    mieiVoti[i] = String(mapped.id);
-                    console.log(`✅ DEBUG: Iniziativa votata trovata per nome in iniziative_popolari: ${mapped.nome} (ID: ${mapped.id})`);
-                    console.log(`✅ DEBUG: mieiVoti[${i}] aggiornato da ${votoId} a ${mapped.id}`);
-                  } else {
-                    console.warn(`❌ DEBUG: Iniziativa con ID ${votoId} non trovata in nessuna tabella (né per ID né per nome)`);
-                  }
-                } else {
-                  console.warn(`❌ DEBUG: Iniziativa con ID ${votoId} non trovata in nessuna tabella`);
-                }
-              }
-            }
-          } catch (error) {
-            console.error(`❌ DEBUG: Errore nel cercare iniziativa votata ${votoId}:`, error.message);
-            console.error(`❌ DEBUG: Stack trace:`, error.stack);
+          }
+          if (row && src) {
+            const mapped = src === 'ministero' ? mapToLegacyFormat(row, 'iniziativa') : mapIniziativePopolariToLegacyFormat(row);
+            mapped.emoji = getEmojiAutomatica(mapped);
+            normalizedData.push(mapped);
+            mieiVoti[0] = String(mapped.id);
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('Errore recupero iniziativa votata:', error.message);
           }
         }
       }
@@ -586,80 +483,29 @@ router.get('/', async (req, res) => {
       const normalizedIds = normalizedData.map(i => String(i.id));
       const normalizedNomi = normalizedData.map(i => String(i.nome || '').toLowerCase().trim());
       
-      console.log(`🔍 DEBUG: Normalizzazione mieiVoti - ${mieiVoti.length} voti da normalizzare`);
-      console.log(`🔍 DEBUG: mieiVoti prima normalizzazione:`, mieiVoti);
-      console.log(`🔍 DEBUG: normalizedIds disponibili (primi 3):`, normalizedIds.slice(0, 3));
-      console.log(`🔍 DEBUG: normalizedNomi disponibili (primi 3):`, normalizedNomi.slice(0, 3));
-      
       mieiVoti = mieiVoti.map(votoId => {
         const votoIdStr = String(votoId);
         const votoIdNoDashes = votoIdStr.replace(/-/g, '');
         const votoIdLower = votoIdStr.toLowerCase().trim();
         
-        // 1. Cerca corrispondenza esatta per ID
-        if (normalizedIds.includes(votoIdStr)) {
-          console.log(`✅ DEBUG: Trovata corrispondenza esatta per ID: ${votoIdStr}`);
-          return votoIdStr;
-        }
-        
-        // 2. Cerca corrispondenza senza trattini per ID
-        const matchById = normalizedIds.find(id => {
-          return id.replace(/-/g, '') === votoIdNoDashes;
-        });
-        
-        if (matchById) {
-          console.log(`✅ DEBUG: ID normalizzato da ${votoIdStr} a ${matchById} (senza trattini)`);
-          return matchById;
-        }
-        
-        // 3. Se non trova corrispondenza per ID, prova a cercare per nome
-        // Questo gestisce il caso in cui iniziativa_id nel database è un nome invece di un ID
+        if (normalizedIds.includes(votoIdStr)) return votoIdStr;
+        const matchById = normalizedIds.find(id => id.replace(/-/g, '') === votoIdNoDashes);
+        if (matchById) return matchById;
         const matchByNome = normalizedData.find(i => {
           const nomeNormalized = String(i.nome || '').toLowerCase().trim();
           return nomeNormalized === votoIdLower || nomeNormalized.includes(votoIdLower) || votoIdLower.includes(nomeNormalized);
         });
-        
-        if (matchByNome) {
-          console.log(`✅ DEBUG: Trovata corrispondenza per nome: "${votoIdStr}" -> ID: ${matchByNome.id} (nome: "${matchByNome.nome}")`);
-          return String(matchByNome.id);
-        }
-        
-        // 4. Se non trova corrispondenza né per ID né per nome, mantieni l'ID originale
-        // ma logga un warning per debug
-        console.log(`⚠️ DEBUG: Nessuna corrispondenza trovata per votoId "${votoIdStr}" (né per ID né per nome)`);
-        console.log(`⚠️ DEBUG: Tentativo ricerca parziale per nome...`);
-        
-        // Ultimo tentativo: ricerca parziale per nome
+        if (matchByNome) return String(matchByNome.id);
         const matchParziale = normalizedData.find(i => {
           const nomeNormalized = String(i.nome || '').toLowerCase().trim();
-          // Cerca se il votoId è contenuto nel nome o viceversa (almeno 10 caratteri per evitare match casuali)
           if (votoIdStr.length >= 10 && nomeNormalized.length >= 10) {
             return nomeNormalized.includes(votoIdLower) || votoIdLower.includes(nomeNormalized);
           }
           return false;
         });
-        
-        if (matchParziale) {
-          console.log(`✅ DEBUG: Trovata corrispondenza parziale per nome: "${votoIdStr}" -> ID: ${matchParziale.id} (nome: "${matchParziale.nome}")`);
-          return String(matchParziale.id);
-        }
-        
-        console.log(`❌ DEBUG: Nessuna corrispondenza trovata per votoId "${votoIdStr}" - verrà mantenuto l'ID originale`);
+        if (matchParziale) return String(matchParziale.id);
         return votoIdStr;
       });
-      
-      console.log(`✅ mieiVoti dopo normalizzazione:`, mieiVoti);
-      
-      // Verifica finale: controlla se tutti i voti hanno una corrispondenza nelle iniziative
-      const votiNonTrovati = mieiVoti.filter(votoId => {
-        const votoIdStr = String(votoId);
-        return !normalizedData.some(i => String(i.id) === votoIdStr);
-      });
-      
-      if (votiNonTrovati.length > 0) {
-        console.warn(`⚠️ ATTENZIONE: ${votiNonTrovati.length} voti non hanno corrispondenza nelle iniziative normalizzate:`, votiNonTrovati);
-        console.warn(`⚠️ Questo potrebbe causare problemi nel frontend (mostrerà "Caricamento...")`);
-      }
     }
 
     // Genera la classifica basata sui voti da ENTRAMBE le tabelle

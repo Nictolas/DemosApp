@@ -34,6 +34,7 @@ export const useNotificheData = (user: any) => {
     },
     enabled: !!user && !!user?.id && isValidUUID(user.id),
     refetchInterval: 60000, // Ricarica i dati ogni minuto
+    staleTime: 90 * 1000, // 90 secondi: evita refetch continui durante scroll/navigazione
   });
 
   // Mutazione per cancellare segnalazione (solo per admin)
