@@ -15,7 +15,7 @@ type SortOption = "firme" | "scadenza" | null;
 export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("firme");
 
   const { 
     listaIniziative, 
