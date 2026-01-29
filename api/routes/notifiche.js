@@ -141,13 +141,13 @@ router.get('/', async (req, res) => {
               let politicoResult;
               if (notifica.politico.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
                 politicoResult = await pool.query(
-                  'SELECT id, nome, cognome, avatar_config FROM users WHERE id = $1',
+                  'SELECT id, nome, cognome, avatar_config, genere FROM users WHERE id = $1',
                   [notifica.politico]
                 );
               } else {
                 // Prova come nome e cognome
                 politicoResult = await pool.query(
-                  `SELECT id, nome, cognome, avatar_config FROM users 
+                  `SELECT id, nome, cognome, avatar_config, genere FROM users 
                    WHERE nome || ' ' || cognome = $1 OR nome = $1 OR cognome = $1
                    LIMIT 1`,
                   [notifica.politico]
@@ -159,6 +159,7 @@ router.get('/', async (req, res) => {
                 notifica.politico_avatar_config = politico.avatar_config;
                 notifica.politico_nome = politico.nome;
                 notifica.politico_cognome = politico.cognome;
+                notifica.politico_genere = politico.genere; // "d" = donna, "u" = uomo (per consigliera/consigliere comunale)
               }
             } catch (politicoError) {
               console.warn(`⚠️ Errore nel recupero dati politico per notifica ${notifica.id}:`, politicoError.message);
@@ -493,8 +494,13 @@ router.get('/', async (req, res) => {
             }
           }
         } else {
-          // Per voto_comune, usa formato generico
-          articoloETitolo = 'Il politico';
+          // Per voto_comune: "Il consigliere comunale" / "La consigliera comunale" in base al genere
+          const genere = c.politico_genere; // "d" = donna, "u" = uomo, "a" = altro/null
+          if (genere === 'd') {
+            articoloETitolo = 'La consigliera comunale';
+          } else {
+            articoloETitolo = 'Il consigliere comunale';
+          }
         }
         
         // Abbrevia il titolo della votazione (es: "Disegno di legge n. 1718..." -> "DDL 1718")
