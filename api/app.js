@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
 const cors = require('cors');
 const path = require('path');
 const { securityHeaders, securityMiddleware, securityLogger } = require('./middleware/security');
@@ -456,11 +457,11 @@ app.use('*', (req, res) => {
   });
 });
 
-// Middleware gestione errori globale
+// Middleware gestione errori globale (riceve errori da route async grazie a express-async-errors)
 app.use((error, req, res, next) => {
   console.error('💥 Errore globale:', error);
-  
-  // Log dell'errore con il sistema centralizzato
+  if (error && error.stack) console.error('💥 Stack:', error.stack);
+
   logger.logError(error, req, {
     globalError: true,
     endpoint: req.originalUrl,
@@ -468,12 +469,14 @@ app.use((error, req, res, next) => {
   }).catch(logError => {
     console.error('❌ Errore logging errore globale:', logError);
   });
-  
-  res.status(500).json({
-    success: false,
-    error: 'Errore interno del server',
-    message: 'Si è verificato un errore imprevisto'
-  });
+
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Si è verificato un errore imprevisto'
+    });
+  }
 });
 
 // Avvia sistema di audit logging
