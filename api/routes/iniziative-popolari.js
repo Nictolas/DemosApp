@@ -145,12 +145,13 @@ router.get('/', async (req, res) => {
           ORDER BY created_at DESC
         `;
       } else if (soloInCorso) {
-        // Per listing: solo quelle con status = 'pending' o 'in attesa' o NULL (in corso), ordinate per firme (più firme in alto)
+        // Per listing: solo quelle in corso, non scadute (data_fine >= oggi), ordinate per firme (più firme in alto)
         iniziativePopolariQuery = `
           SELECT *
           FROM iniziative_popolari
           WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
             AND quorum != 'proposta'
+            AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)
           ORDER BY firme DESC NULLS LAST, created_at DESC
         `;
       } else {
@@ -259,24 +260,31 @@ router.get('/', async (req, res) => {
         }
       }
     } else if (soloInCorso) {
-      // Filtro di sicurezza per la pagina listing: ESCLUDE TUTTE quelle con stato != 'in_corso'
+      // Filtro di sicurezza per la pagina listing: ESCLUDE quelle con stato != 'in_corso' e quelle scadute (data_fine < oggi)
+      const todayStr = new Date().toISOString().slice(0, 10);
       const beforeFilter = filteredRows.length;
       filteredRows = filteredRows.filter(row => {
-        return row.stato === 'in_corso';
+        if (row.stato !== 'in_corso') return false;
+        const dataFine = row.data_fine;
+        if (!dataFine) return true;
+        const fineStr = typeof dataFine === 'string' ? dataFine.slice(0, 10) : new Date(dataFine).toISOString().slice(0, 10);
+        return fineStr >= todayStr;
       });
       const afterFilter = filteredRows.length;
       
       if (beforeFilter !== afterFilter) {
-        console.warn(`⚠️ FILTRO SICUREZZA LISTING: Rimosse ${beforeFilter - afterFilter} iniziative che non hanno stato='in_corso' (prima: ${beforeFilter}, dopo: ${afterFilter})`);
-        const removed = result.rows.filter(row => row.stato !== 'in_corso');
-        console.warn(`⚠️ Iniziative rimosse (stato != 'in_corso'):`, removed.map(r => ({ 
-          id: r.id, 
-          titolo: r.titolo?.substring(0, 50), 
-          stato: r.stato 
-        })));
+        console.warn(`⚠️ FILTRO SICUREZZA LISTING: Rimosse ${beforeFilter - afterFilter} iniziative (stato != 'in_corso' o scadute, oggi=${todayStr}) (prima: ${beforeFilter}, dopo: ${afterFilter})`);
+        const removed = result.rows.filter(row => {
+          if (row.stato !== 'in_corso') return true;
+          const dataFine = row.data_fine;
+          if (!dataFine) return false;
+          const fineStr = typeof dataFine === 'string' ? dataFine.slice(0, 10) : new Date(dataFine).toISOString().slice(0, 10);
+          return fineStr < todayStr;
+        });
+        console.warn(`⚠️ Iniziative rimosse (scadute o non in corso):`, removed.map(r => ({ id: r.id, titolo: r.titolo?.substring(0, 50), stato: r.stato, data_fine: r.data_fine })));
       }
       
-      // Debug: verifica che tutte le iniziative abbiano stato = 'in_corso'
+      // Debug: verifica che tutte le iniziative abbiano stato = 'in_corso' e non siano scadute
       if (filteredRows.length > 0) {
         const notInCorso = filteredRows.filter(r => r.stato !== 'in_corso');
         if (notInCorso.length > 0) {
@@ -379,10 +387,15 @@ router.get('/', async (req, res) => {
           return row.quorum_raggiunto === true;
         });
       } else if (soloInCorso) {
-        // Filtro sicurezza: solo quelle in corso
+        // Filtro sicurezza: solo quelle in corso e non scadute (data_fine >= oggi)
+        const todayStrPop = new Date().toISOString().slice(0, 10);
         filteredPopolari = filteredPopolari.filter(row => {
           const status = row.status ? row.status.toLowerCase() : '';
-          return !status || status === 'pending' || status === 'in attesa' || status === 'in_corso';
+          if (status && status !== 'pending' && status !== 'in attesa' && status !== 'in_corso') return false;
+          const dataFine = row.data_fine;
+          if (!dataFine) return true;
+          const fineStr = typeof dataFine === 'string' ? dataFine.slice(0, 10) : new Date(dataFine).toISOString().slice(0, 10);
+          return fineStr >= todayStrPop;
         });
       }
       
