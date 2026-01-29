@@ -145,12 +145,11 @@ router.get('/', async (req, res) => {
           ORDER BY created_at DESC
         `;
       } else if (soloInCorso) {
-        // Per listing: solo quelle in corso, non scadute (data_fine >= oggi), ordinate per firme (più firme in alto)
+        // Per listing: solo quelle in corso (stato; colonna "status" rimossa da migrazione), non scadute (data_fine >= oggi), ordinate per firme
         iniziativePopolariQuery = `
           SELECT *
           FROM iniziative_popolari
-          WHERE (status IS NULL OR status = 'pending' OR status = 'in attesa' OR status = 'in_corso')
-            AND quorum != 'proposta'
+          WHERE (stato IS NULL OR stato = 'in_corso')
             AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)
           ORDER BY firme DESC NULLS LAST, created_at DESC
         `;
@@ -387,11 +386,11 @@ router.get('/', async (req, res) => {
           return row.quorum_raggiunto === true;
         });
       } else if (soloInCorso) {
-        // Filtro sicurezza: solo quelle in corso e non scadute (data_fine >= oggi)
+        // Filtro sicurezza: solo quelle in corso (stato) e non scadute (data_fine >= oggi)
         const todayStrPop = new Date().toISOString().slice(0, 10);
         filteredPopolari = filteredPopolari.filter(row => {
-          const status = row.status ? row.status.toLowerCase() : '';
-          if (status && status !== 'pending' && status !== 'in attesa' && status !== 'in_corso') return false;
+          const stato = (row.stato || row.status || '').toString().toLowerCase();
+          if (stato && stato !== 'pending' && stato !== 'in attesa' && stato !== 'in_corso') return false;
           const dataFine = row.data_fine;
           if (!dataFine) return true;
           const fineStr = typeof dataFine === 'string' ? dataFine.slice(0, 10) : new Date(dataFine).toISOString().slice(0, 10);
@@ -478,7 +477,12 @@ router.get('/', async (req, res) => {
           if (row && src) {
             const mapped = src === 'ministero' ? mapToLegacyFormat(row, 'iniziativa') : mapIniziativePopolariToLegacyFormat(row);
             mapped.emoji = getEmojiAutomatica(mapped);
-            normalizedData.push(mapped);
+            // In listing (soloInCorso), non aggiungere alla lista se l'iniziativa votata è scaduta
+            const dataFine = mapped.data_fine ?? mapped.dataFine;
+            const isExpired = dataFine && (typeof dataFine === 'string' ? dataFine.slice(0, 10) : new Date(dataFine).toISOString().slice(0, 10)) < new Date().toISOString().slice(0, 10);
+            if (!soloInCorso || !isExpired) {
+              normalizedData.push(mapped);
+            }
             mieiVoti[0] = String(mapped.id);
           }
         } catch (error) {
@@ -532,9 +536,10 @@ router.get('/', async (req, res) => {
           ? 'AND im.quorum_raggiunto = true AND im.stato = \'conclusa\' AND im.firme_raccolte >= 50000'
           : 'AND im.stato = \'in_corso\'';
         
+        // Tabella iniziative_popolari usa "stato" (colonna "status" rimossa da migrazione); per listing solo non scadute
         const quorumFilterPopolari = votaOnly
           ? `ip.quorum_raggiunto = true`
-          : `(ip.status IS NULL OR ip.status = 'pending' OR ip.status = 'in attesa' OR ip.status = 'in_corso') AND ip.quorum != 'proposta'`;
+          : `(ip.stato IS NULL OR ip.stato = 'in_corso') AND (ip.data_fine IS NULL OR ip.data_fine >= CURRENT_DATE)`;
         
         const classificaQuery = `
           (
