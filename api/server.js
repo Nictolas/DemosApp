@@ -62,16 +62,13 @@ server.on('error', (err) => {
   }
 });
 
-// Gestione errori non catturati
+// Gestione errori non catturati: non fare exit per evitare crash a catena
 process.on('uncaughtException', (error) => {
   console.error('❌ Errore non catturato (uncaughtException):', error);
   console.error('❌ Stack trace:', error.stack);
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  } else {
-    process.exit(1);
+  // Non fare exit: logga e continua così il server non crasha.
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ uncaughtException in produzione - loggato, server resta in esecuzione');
   }
 });
 

@@ -3,12 +3,13 @@ const express = require('express');
 const router = express.Router();
 
 // Endpoint diretto per opinioni-list (compatibilità frontend)
+const isDev = process.env.NODE_ENV !== 'production';
+
 router.get('/opinioni-list', async (req, res) => {
   try {
-    console.log('🔍 GET /api/opinioni-list - Richiesta diretta (compatibilità frontend)');
-    console.log('🔑 Headers ricevuti:', req.headers);
-    console.log('🔍 Query params:', req.query);
-    
+    if (isDev) {
+      console.log('🔍 GET /api/opinioni-list - Richiesta diretta');
+    }
     // Implementa direttamente la logica invece di reindirizzare
     const { pool } = require('../middleware/auth');
     
@@ -65,10 +66,8 @@ router.get('/opinioni-list', async (req, res) => {
     const { grado } = req.query;
     const userId = user.id;
     
-    console.log('🔍 GET /api/opinioni-list - Richiesta opinioni per grado:', grado);
-    console.log('👤 User ID:', userId);
-    console.log('🔍 DEBUG - Inizio query opinioni...');
-    
+    if (isDev) console.log('🔍 GET /api/opinioni-list - grado:', grado);
+
     if (!grado) {
       return res.status(400).json({
         success: false,
@@ -86,14 +85,9 @@ router.get('/opinioni-list', async (req, res) => {
     `;
     
     const opinionResult = await pool.query(opinionQuery, [grado]);
-    
-    console.log(`🔍 DEBUG - Query per grado ${grado}:`, opinionQuery);
-    console.log(`🔍 DEBUG - Parametri query:`, [grado]);
-    console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
-    console.log(`🔍 DEBUG - Prime 5 opinioni trovate:`, opinionResult.rows.slice(0, 5).map(o => ({ text: o.text, gradi: o.gradi_opinione })));
-    
+
     if (opinionResult.rows.length === 0) {
-      console.log(`⚠️ Nessuna opinione trovata per il grado: ${grado}`);
+      if (isDev) console.log(`⚠️ Nessuna opinione per grado: ${grado}`);
       return res.json({
         success: true,
         data: [],
@@ -111,27 +105,12 @@ router.get('/opinioni-list', async (req, res) => {
     const userAnswers = {};
     
     if (userAnswersResult.rows.length > 0) {
-      // Prendi la prima (e unica) riga dell'utente
       const userRow = userAnswersResult.rows[0];
-      const availableColumns = Object.keys(userRow).filter(k => k !== 'user_id' && k !== 'fonti_opinioni');
-      
-      console.log('🔍 DEBUG - Colonne disponibili in opinioni_risposte:', availableColumns);
-      console.log('🔍 DEBUG - Valori nelle colonne:');
-      availableColumns.forEach(col => {
-        if (userRow[col] !== null && userRow[col] !== undefined && userRow[col] !== '') {
-          console.log(`  ${col} = ${userRow[col]}`);
-        }
-      });
-      
-      // Per ogni opinione, cerca la risposta nella colonna corrispondente
       opinionResult.rows.forEach(opinion => {
         const opinionId = opinion.id;
-        // Prendi il valore dalla colonna corrispondente usando l'ID
         if (userRow.hasOwnProperty(opinionId)) {
           userAnswers[opinionId] = userRow[opinionId];
-          console.log(`✅ DEBUG - Risposta trovata per ${opinionId}: ${userRow[opinionId]}`);
         } else {
-          // Prova anche con varianti del nome (per gestire errori di ortografia)
           const variants = [
             opinionId.replace('obbligatoria', 'obbliatoria'),
             opinionId.replace('obbliatoria', 'obbligatoria')
@@ -140,40 +119,24 @@ router.get('/opinioni-list', async (req, res) => {
           for (const variant of variants) {
             if (userRow.hasOwnProperty(variant)) {
               userAnswers[opinionId] = userRow[variant];
-              console.log(`✅ DEBUG - Risposta trovata per ${opinionId} (variante ${variant}): ${userRow[variant]}`);
               found = true;
               break;
             }
           }
-          if (!found) {
-            console.log(`⚠️ DEBUG - Colonna ${opinionId} non trovata in opinioni_risposte`);
-            console.log(`⚠️ DEBUG - Colonne simili cercate:`, variants);
-            userAnswers[opinionId] = null;
-          }
+          if (!found) userAnswers[opinionId] = null;
         }
       });
-      
-      console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
-    } else {
-      console.log('⚠️ DEBUG - Nessuna riga trovata in opinioni_risposte per utente:', userId);
     }
-    
-    console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
-    
+
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
-      const userAnswer = userAnswers[opinion.id]; // Usa l'ID per trovare la risposta
-      
-      // Restituisci direttamente i valori compressi dal database
+      const userAnswer = userAnswers[opinion.id];
       let frontendAnswer = null;
       if (userAnswer === 'f' || userAnswer === 'c' || userAnswer === 'i') {
         frontendAnswer = userAnswer;
       } else if (userAnswer === null || userAnswer === undefined || userAnswer === '') {
         frontendAnswer = null;
       }
-      
-      console.log(`🔍 DEBUG - Formattando opinione: id=${opinion.id}, text="${opinion.text}", userAnswer=${userAnswer}`);
-      
       return {
         id: opinion.id, // USA L'ID DIRETTO DAL DATABASE (opinioni_domande.id)
         text: opinion.text,
@@ -181,9 +144,9 @@ router.get('/opinioni-list', async (req, res) => {
         userAnswer: frontendAnswer
       };
     });
-    
-    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per grado: ${grado}`);
-    
+
+    if (isDev) console.log(`✅ opinioni-list grado=${grado} count=${formattedOpinions.length}`);
+
     res.json({
       success: true,
       data: formattedOpinions,
