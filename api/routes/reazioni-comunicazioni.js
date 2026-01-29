@@ -84,6 +84,64 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/reazioni-comunicazioni/batch?ids=id1,id2,id3 - Reazioni (likes/dislikes) per più comunicazioni in una richiesta
+router.get('/batch', async (req, res) => {
+  try {
+    const idsParam = req.query.ids;
+    if (!idsParam || typeof idsParam !== 'string') {
+      return res.json({ success: true, data: {} });
+    }
+    const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+    if (ids.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+    const result = await pool.query(
+      `SELECT comunicazione_id, tipo, COUNT(*)::int as count
+       FROM reazioni
+       WHERE comunicazione_id = ANY($1::text[])
+       GROUP BY comunicazione_id, tipo`,
+      [ids]
+    );
+    const data = {};
+    ids.forEach(id => { data[id] = { likes: 0, dislikes: 0 }; });
+    result.rows.forEach(row => {
+      if (!data[row.comunicazione_id]) data[row.comunicazione_id] = { likes: 0, dislikes: 0 };
+      if (row.tipo === 'like') data[row.comunicazione_id].likes = row.count;
+      else if (row.tipo === 'dislike') data[row.comunicazione_id].dislikes = row.count;
+    });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Errore batch reazioni:', error);
+    res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+// GET /api/reazioni-comunicazioni/user/:utente_id/batch?ids=id1,id2,id3 - Reazione utente per più comunicazioni
+router.get('/user/:utente_id/batch', async (req, res) => {
+  try {
+    const { utente_id } = req.params;
+    const idsParam = req.query.ids;
+    if (!idsParam || typeof idsParam !== 'string') {
+      return res.json({ success: true, data: {} });
+    }
+    const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
+    if (ids.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+    const result = await pool.query(
+      'SELECT comunicazione_id, tipo FROM reazioni WHERE utente_id = $1 AND comunicazione_id = ANY($2::text[])',
+      [utente_id, ids]
+    );
+    const data = {};
+    ids.forEach(id => { data[id] = null; });
+    result.rows.forEach(row => { data[row.comunicazione_id] = row.tipo; });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Errore batch reazione utente:', error);
+    res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 // GET /api/reazioni-comunicazioni/:comunicazione_id - Ottieni reazioni per una comunicazione
 router.get('/:comunicazione_id', async (req, res) => {
   try {

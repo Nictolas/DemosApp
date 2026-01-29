@@ -1,46 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import './UltimaNotificaRiquadro.css';
 import { apiRequest } from '@/lib/queryClient';
 
 const UltimaNotificaRiquadro = () => {
-  const [notifica, setNotifica] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUltimaNotifica = async () => {
-      try {
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken');
-        
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-        
-        const response = await apiRequest('GET', '/api/notifiche/ultima');
-        
-        if (!response.ok) {
-          throw new Error(`Errore HTTP: ${response.status}`);
-        }
-
-        const data = response.data;
-        
-        if (data.success && data.data) {
-          setNotifica(data.data);
-        } else {
-          setNotifica(null);
-        }
-      } catch (err) {
-        console.error('❌ UltimaNotificaRiquadro - Errore:', err);
-        setError('Errore nel caricamento della notifica');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUltimaNotifica();
-  }, []);
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('authToken') : null;
+  const { data: notifica, isLoading: loading, isError } = useQuery({
+    queryKey: ['menu-ultima-notifica'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/notifiche/ultima');
+      if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+      const data = response.data;
+      return data.success && data.data ? data.data : null;
+    },
+    enabled: !!token,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const errorMsg = isError ? 'Errore nel caricamento della notifica' : null;
 
   // Funzione helper per formattare il titolo in modo compatto (stessa logica di NotificaItem.tsx)
   const formattaTitoloCompatto = (titolo: string): string => {
@@ -147,10 +125,10 @@ const UltimaNotificaRiquadro = () => {
         </div>
       );
     }
-    if (error) {
+    if (errorMsg) {
       return (
         <div className="ultima-notifica-content">
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground">{errorMsg}</p>
         </div>
       );
     }
