@@ -134,6 +134,7 @@ export default function ECI() {
               <CardTitle>Lista ECI e numero di firme</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Iniziative dei Cittadini Europei (ECI) da Decidim, ordinate per numero di firme.
+                {eciData?.source === "eu_official" && " Fonte: API ufficiali EU (citizens-initiative.europa.eu)."}
                 {eciData?.source === "decidim_graphql" && " Fonte: API GraphQL Decidim."}
                 {eciData?.source === "eci_table" && " Fonte: cache (tabella ECI)."}
               </p>
