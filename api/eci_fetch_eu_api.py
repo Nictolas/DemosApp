@@ -3,9 +3,9 @@
 Script per recuperare in tempo reale i dati delle Iniziative dei Cittadini Europei (ECI)
 tramite le API ufficiali della Commissione Europea.
 
-Endpoint:
-- In corso: https://citizens-initiative.europa.eu/api/register/search/ONGOING/IT/0/100
-- Tutte (per successi): https://citizens-initiative.europa.eu/api/register/search/ALL/IT/0/200
+Endpoint (query params):
+- In corso: https://citizens-initiative.europa.eu/api/initiatives/search?section=ONGOING&language=it&page=0&pageSize=100
+- Tutte (per successi): https://citizens-initiative.europa.eu/api/initiatives/search?section=ALL&language=it&page=0&pageSize=100
 """
 
 import requests
@@ -77,9 +77,9 @@ def fetch_eci(endpoint, label):
 
 
 def main():
-    BASE = "https://citizens-initiative.europa.eu/api/register/search"
-    ONGOING_URL = f"{BASE}/ONGOING/IT/0/100"
-    ALL_URL = f"{BASE}/ALL/IT/0/200"
+    BASE = "https://citizens-initiative.europa.eu/api/initiatives/search"
+    ONGOING_URL = f"{BASE}?section=ONGOING&language=it&page=0&pageSize=100"
+    ALL_URL = f"{BASE}?section=ALL&language=it&page=0&pageSize=100"
 
     print("=" * 70)
     print("  INIZIATIVE DEI CITTADINI EUROPEI (ECI) - Dati in tempo reale")
