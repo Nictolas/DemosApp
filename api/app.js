@@ -222,29 +222,29 @@ app.options('*', (req, res) => {
 
 app.use(cors(corsOptions));
 
-// DEBUG: Middleware di logging universale per catturare TUTTE le richieste
-app.use((req, res, next) => {
-  console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
-  // Log specifico per send-demos-notification
-  if (req.originalUrl.includes('send-demos-notification')) {
-    console.log(`🔴 ========== UNIVERSAL LOG: RICHIESTA send-demos-notification ==========`);
-    console.log(`🔴 Method: ${req.method}`);
-    console.log(`🔴 URL: ${req.originalUrl}`);
-    console.log(`🔴 Path: ${req.path}`);
-    console.log(`🔴 Headers: ${JSON.stringify(req.headers)}`);
-  }
-  // Log specifico per send-user-notification
-  if (req.originalUrl.includes('send-user-notification')) {
-    console.log(`🟣 ========== UNIVERSAL LOG: RICHIESTA send-user-notification ==========`);
-    console.log(`🟣 Method: ${req.method}`);
-    console.log(`🟣 URL: ${req.originalUrl}`);
-    console.log(`🟣 Path: ${req.path}`);
-    console.log(`🟣 Base URL: ${req.baseUrl}`);
-    console.log(`🟣 Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
-    console.log(`🟣 Body: ${JSON.stringify(req.body)}`);
-  }
-  next();
-});
+// DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+    if (req.originalUrl.includes('send-demos-notification')) {
+      console.log(`🔴 ========== UNIVERSAL LOG: RICHIESTA send-demos-notification ==========`);
+      console.log(`🔴 Method: ${req.method}`);
+      console.log(`🔴 URL: ${req.originalUrl}`);
+      console.log(`🔴 Path: ${req.path}`);
+      console.log(`🔴 Headers: ${JSON.stringify(req.headers)}`);
+    }
+    if (req.originalUrl.includes('send-user-notification')) {
+      console.log(`🟣 ========== UNIVERSAL LOG: RICHIESTA send-user-notification ==========`);
+      console.log(`🟣 Method: ${req.method}`);
+      console.log(`🟣 URL: ${req.originalUrl}`);
+      console.log(`🟣 Path: ${req.path}`);
+      console.log(`🟣 Base URL: ${req.baseUrl}`);
+      console.log(`🟣 Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
+      console.log(`🟣 Body: ${JSON.stringify(req.body)}`);
+    }
+    next();
+  });
+}
 
 // Middleware di sicurezza
 app.use(securityHeaders);
@@ -276,40 +276,33 @@ app.head('/', (req, res) => {
 });
 
 
-// Logging middleware
-app.use((req, res, next) => {
-  console.log(`📡 ${req.method} ${req.path} - ${new Date().toISOString()}`);
-  console.log(`🌐 Origin: ${req.headers.origin || 'Nessuna'}`);
-  console.log(`🔗 Referer: ${req.headers.referer || 'Nessuna'}`);
-  
-  // Debug specifico per le richieste di registrazione
-  if (req.path === '/api/auth/register' && req.method === 'POST') {
-    console.log('🚨 DEBUG: Richiesta POST /api/auth/register rilevata!');
-    console.log('🚨 DEBUG: Headers:', req.headers);
-    console.log('🚨 DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
-  }
-  
-  // Debug per tutte le richieste POST a /api/auth/*
-  if (req.path.startsWith('/api/auth/') && req.method === 'POST') {
-    console.log('🔍 DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
-    console.log('🔍 DEBUG: Body presente:', !!req.body);
-    console.log('🔍 DEBUG: Content-Type:', req.headers['content-type']);
-  }
-  
-  // Debug specifico per login
-  if (req.path === '/api/auth/login' || req.path === '/auth/login') {
-    console.log('🔐 LOGIN REQUEST DETECTED:', req.method, req.path);
-  }
-  
-  // Debug per POST referendum-abrogativi
-  if (req.path === '/api/referendum-abrogativi' && req.method === 'POST') {
-    console.log('📋 REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
-    console.log('📋 REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
-    console.log('📋 REFERENDUM POST - Body:', JSON.stringify(req.body));
-  }
-  
-  next();
-});
+// Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`📡 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    console.log(`🌐 Origin: ${req.headers.origin || 'Nessuna'}`);
+    console.log(`🔗 Referer: ${req.headers.referer || 'Nessuna'}`);
+    if (req.path === '/api/auth/register' && req.method === 'POST') {
+      console.log('🚨 DEBUG: Richiesta POST /api/auth/register rilevata!');
+      console.log('🚨 DEBUG: Headers:', req.headers);
+      console.log('🚨 DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
+    }
+    if (req.path.startsWith('/api/auth/') && req.method === 'POST') {
+      console.log('🔍 DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
+      console.log('🔍 DEBUG: Body presente:', !!req.body);
+      console.log('🔍 DEBUG: Content-Type:', req.headers['content-type']);
+    }
+    if (req.path === '/api/auth/login' || req.path === '/auth/login') {
+      console.log('🔐 LOGIN REQUEST DETECTED:', req.method, req.path);
+    }
+    if (req.path === '/api/referendum-abrogativi' && req.method === 'POST') {
+      console.log('📋 REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
+      console.log('📋 REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
+      console.log('📋 REFERENDUM POST - Body:', JSON.stringify(req.body));
+    }
+    next();
+  });
+}
 
 // Route di base
 app.use('/api', healthRoutes);

@@ -474,6 +474,8 @@ class CentralizedLogger {
     }
 
     // Endpoint che NON accedono a dati personali - NON loggare per GDPR
+    // Include le GET del menu (prossimo evento, prossima iniziativa, prossimo referendum)
+    // per evitare accumulo di log su ogni visita alla pagina menu
     const publicEndpoints = [
       '/api/health',
       '/api/ministero/iniziative',
@@ -483,7 +485,10 @@ class CentralizedLogger {
       '/api/statistiche',
       '/api/statistiche/',
       '/api/services',
-      '/api/compatibility'
+      '/api/compatibility',
+      '/api/eventi/prossimo',              // menu: prossimo evento (dati non personali)
+      '/api/iniziative-popolari/prossima', // menu: prossima iniziativa (dati non personali)
+      '/api/referendum-abrogativi/prossima' // menu: prossimo referendum (dati non personali)
     ];
 
     // Verifica se è un endpoint pubblico
