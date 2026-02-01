@@ -12,13 +12,18 @@ const SUCCESSI_MIN_FIRME = 1000000;
 
 /** Estrae lista da risposta JSON API EU (struttura flessibile). */
 function extractListFromEuResponse(data) {
+  if (!data || typeof data !== 'object') return [];
   if (Array.isArray(data)) return data;
   var keys = ['content', 'items', 'initiatives', 'data', 'results', 'searchResult'];
   for (var k = 0; k < keys.length; k++) {
     var val = data[keys[k]];
     if (Array.isArray(val)) return val;
-    if (val && typeof val === 'object' && Array.isArray(val.content)) return val.content;
-    if (val && typeof val === 'object' && Array.isArray(val.items)) return val.items;
+    if (val && typeof val === 'object') {
+      if (Array.isArray(val.content)) return val.content;
+      if (Array.isArray(val.items)) return val.items;
+      if (Array.isArray(val.initiatives)) return val.initiatives;
+      if (Array.isArray(val.results)) return val.results;
+    }
   }
   return [];
 }
@@ -41,19 +46,80 @@ function getEuItemId(item) {
   return String(item.identifier != null ? item.identifier : (item.id != null ? item.id : (item.code || Math.random().toString(36).slice(2))));
 }
 
+/** Fetch con timeout (ms). */
+function fetchWithTimeout(url, ms) {
+  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var timeoutId = null;
+  if (controller && ms > 0) {
+    timeoutId = setTimeout(function () { controller.abort(); }, ms);
+  }
+  var opts = { method: 'GET', headers: { 'Accept': 'application/json' } };
+  if (controller && controller.signal) opts.signal = controller.signal;
+  var p = fetch(url, opts);
+  if (timeoutId) {
+    p = p.finally(function () { clearTimeout(timeoutId); });
+  }
+  return p;
+}
+
 /**
  * Recupera ECI in tempo reale dalle API ufficiali EU:
  * - ONGOING: iniziative in corso
  * - ALL: filtra solo quelle con totalSupporters >= 1.000.000 (successi).
  */
 async function fetchFromEuOfficialApi() {
-  var ongoingRes = await fetch(EU_ECI_ONGOING_URL, { method: 'GET', headers: { 'Accept': 'application/json' } });
-  if (!ongoingRes.ok) throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
+  var EU_API_TIMEOUT_MS = 20000;
+  var ongoingRes;
+  var allRes;
+  try {
+    ongoingRes = await fetchWithTimeout(EU_ECI_ONGOING_URL, EU_API_TIMEOUT_MS);
+  } catch (err) {
+    console.warn('⚠️ ECI: EU API ONGOING richiesta fallita:', err.message);
+    throw new Error('EU API non raggiungibile (timeout o rete): ' + err.message);
+  }
+  if (!ongoingRes.ok) {
+    console.warn('⚠️ ECI: EU API ONGOING HTTP', ongoingRes.status);
+    throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
+  }
   var ongoingJson = await ongoingRes.json().catch(function () { return {}; });
   var ongoingList = extractListFromEuResponse(ongoingJson);
+  if (ongoingList.length === 0 && typeof ongoingJson === 'object') {
+    console.warn('⚠️ ECI: EU API ONGOING 200 ma lista vuota. Chiavi risposta:', Object.keys(ongoingJson).join(', '));
+  }
 
-  var allRes = await fetch(EU_ECI_ALL_URL, { method: 'GET', headers: { 'Accept': 'application/json' } });
-  if (!allRes.ok) throw new Error('EU API ALL HTTP ' + allRes.status);
+  try {
+    allRes = await fetchWithTimeout(EU_ECI_ALL_URL, EU_API_TIMEOUT_MS);
+  } catch (err) {
+    console.warn('⚠️ ECI: EU API ALL richiesta fallita:', err.message);
+    if (ongoingList.length > 0) {
+      var byId = {};
+      for (var o = 0; o < ongoingList.length; o++) {
+        var it = ongoingList[o];
+        var id = getEuItemId(it);
+        byId[id] = { id: id, title: getTitleFromEuItem(it), signature_count: getSupportersFromEuItem(it), slug: id };
+      }
+      var out = [];
+      for (id in byId) out.push(byId[id]);
+      out.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
+      return out;
+    }
+    throw new Error('EU API non raggiungibile: ' + err.message);
+  }
+  if (!allRes.ok) {
+    if (ongoingList.length > 0) {
+      var byId2 = {};
+      for (var o2 = 0; o2 < ongoingList.length; o2++) {
+        var it2 = ongoingList[o2];
+        var id2 = getEuItemId(it2);
+        byId2[id2] = { id: id2, title: getTitleFromEuItem(it2), signature_count: getSupportersFromEuItem(it2), slug: id2 };
+      }
+      var out2 = [];
+      for (id2 in byId2) out2.push(byId2[id2]);
+      out2.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
+      return out2;
+    }
+    throw new Error('EU API ALL HTTP ' + allRes.status);
+  }
   var allJson = await allRes.json().catch(function () { return {}; });
   var allList = extractListFromEuResponse(allJson);
 
