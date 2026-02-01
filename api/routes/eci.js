@@ -4,118 +4,211 @@ const { pool } = require('../middleware/auth');
 const router = express.Router();
 
 const DECIDIM_GRAPHQL_URL = process.env.DECIDIM_GRAPHQL_URL || 'https://www.demos.community/api';
+const DECIDIM_ECI_ASSEMBLY_ID = process.env.DECIDIM_ECI_ASSEMBLY_ID; // ID dello spazio partecipativo che contiene le ECI (es. 3 per EU portal)
 
-// Query GraphQL Decidim secondo la documentazione: URL/api, POST, Content-Type: application/json.
-// Le collezioni di spazi partecipativi (participatoryProcesses, assemblies, conferences, initiatives)
-// possono restituire un array diretto O una connection (edges/nodes). Gestiamo entrambi.
-// Titolo: TranslatedField con translation(locale: "it").
-const INITIATIVES_QUERY = `query ECIInitiatives {
-  initiatives {
-    slug
-    title {
-      translation(locale: "it")
-    }
+const EU_ECI_ONGOING_URL = 'https://citizens-initiative.europa.eu/api/register/search/ONGOING/IT/0/100';
+const EU_ECI_ALL_URL = 'https://citizens-initiative.europa.eu/api/register/search/ALL/IT/0/200';
+const SUCCESSI_MIN_FIRME = 1000000;
+
+/** Estrae lista da risposta JSON API EU (struttura flessibile). */
+function extractListFromEuResponse(data) {
+  if (Array.isArray(data)) return data;
+  var keys = ['content', 'items', 'initiatives', 'data', 'results', 'searchResult'];
+  for (var k = 0; k < keys.length; k++) {
+    var val = data[keys[k]];
+    if (Array.isArray(val)) return val;
+    if (val && typeof val === 'object' && Array.isArray(val.content)) return val.content;
+    if (val && typeof val === 'object' && Array.isArray(val.items)) return val.items;
   }
-}`;
+  return [];
+}
 
-// Variante con filter/order (come negli appunti: filter e order sono tipi InitiativeFilter, InitiativeSort).
-// Se l'istanza supporta first/edges/node (connection), usiamo quella.
-const INITIATIVES_QUERY_CONNECTION = `query ECIInitiativesConnection {
-  initiatives(first: 100) {
-    edges {
-      node {
-        id
-        slug
-        title {
-          translation(locale: "it")
+function getTitleFromEuItem(item) {
+  var title = item.title || item.initiativeTitle || item.name || item.titleIt || item.titleEn;
+  if (typeof title === 'string') return title;
+  if (title && typeof title === 'object') return title.it || title.en || title.title || '';
+  return 'Senza titolo';
+}
+
+function getSupportersFromEuItem(item) {
+  var n = item.totalSupporters != null ? item.totalSupporters : (item.supporters != null ? item.supporters : (item.signatures != null ? item.signatures : item.signatureCount));
+  if (n == null) return 0;
+  n = parseInt(n, 10);
+  return isNaN(n) ? 0 : n;
+}
+
+function getEuItemId(item) {
+  return String(item.identifier != null ? item.identifier : (item.id != null ? item.id : (item.code || Math.random().toString(36).slice(2))));
+}
+
+/**
+ * Recupera ECI in tempo reale dalle API ufficiali EU:
+ * - ONGOING: iniziative in corso
+ * - ALL: filtra solo quelle con totalSupporters >= 1.000.000 (successi).
+ */
+async function fetchFromEuOfficialApi() {
+  var ongoingRes = await fetch(EU_ECI_ONGOING_URL, { method: 'GET', headers: { 'Accept': 'application/json' } });
+  if (!ongoingRes.ok) throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
+  var ongoingJson = await ongoingRes.json().catch(function () { return {}; });
+  var ongoingList = extractListFromEuResponse(ongoingJson);
+
+  var allRes = await fetch(EU_ECI_ALL_URL, { method: 'GET', headers: { 'Accept': 'application/json' } });
+  if (!allRes.ok) throw new Error('EU API ALL HTTP ' + allRes.status);
+  var allJson = await allRes.json().catch(function () { return {}; });
+  var allList = extractListFromEuResponse(allJson);
+
+  var byId = {};
+  var i, item, id, title, supporters;
+  for (i = 0; i < ongoingList.length; i++) {
+    item = ongoingList[i];
+    id = getEuItemId(item);
+    title = getTitleFromEuItem(item);
+    supporters = getSupportersFromEuItem(item);
+    byId[id] = { id: id, title: title, signature_count: supporters, slug: id };
+  }
+  for (i = 0; i < allList.length; i++) {
+    item = allList[i];
+    if (getSupportersFromEuItem(item) < SUCCESSI_MIN_FIRME) continue;
+    id = getEuItemId(item);
+    if (byId[id]) continue;
+    title = getTitleFromEuItem(item);
+    supporters = getSupportersFromEuItem(item);
+    byId[id] = { id: id, title: title, signature_count: supporters, slug: id };
+  }
+  var list = [];
+  for (id in byId) list.push(byId[id]);
+  list.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
+  return list;
+}
+
+// ECI su Decidim sono Proposals dentro un assembly (o processo partecipativo).
+// Query: assembly(id) -> components(type: Proposals) -> proposals con endorsementCount / endorsements.
+// Paginazione: first, after, pageInfo.endCursor, hasNextPage.
+const ECI_PROPOSALS_QUERY = `
+query ECIProposals($assemblyId: ID!, $first: Int!, $after: String) {
+  assembly(id: $assemblyId) {
+    components(filter: { type: "Proposals" }) {
+      id
+      name { translation(locale: "it") }
+      ... on Proposals {
+        proposals(first: $first, after: $after) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            node {
+              id
+              title { translation(locale: "it") }
+              endorsementCount
+              endorsements { id }
+            }
+          }
         }
       }
     }
   }
-}`;
+}
+`;
 
-function normalizeItem(nodeOrItem) {
-  const item = nodeOrItem || {};
-  const titleVal = (item.title && item.title.translation) != null
-    ? item.title.translation
-    : (typeof item.title === 'string' ? item.title : '');
+/** Normalizza un node proposta: titolo e numero firme (endorsementCount o len(endorsements)). */
+function normalizeProposalNode(node) {
+  if (!node) return null;
+  const titleObj = node.title;
+  const titleVal = (titleObj && titleObj.translation) != null
+    ? titleObj.translation
+    : (typeof titleObj === 'string' ? titleObj : '');
   const title = titleVal || 'Senza titolo';
-  const sig = item.signatureCount != null ? parseInt(item.signatureCount, 10) : (item.onlineVotesCount != null ? parseInt(item.onlineVotesCount, 10) : 0);
-  const off = item.offlineVotesCount != null ? parseInt(item.offlineVotesCount, 10) : 0;
-  const firme = (Number.isNaN(sig) ? 0 : sig) + (Number.isNaN(off) ? 0 : off);
+  let firme = 0;
+  if (node.endorsementCount != null) {
+    firme = parseInt(node.endorsementCount, 10);
+  } else if (node.endorsements && Array.isArray(node.endorsements)) {
+    firme = node.endorsements.length;
+  }
+  if (Number.isNaN(firme)) firme = 0;
   return {
-    id: String(item.id || item.slug || Math.random().toString(36).slice(2)),
+    id: String(node.id),
     title: title,
     signature_count: firme,
-    slug: item.slug || item.id,
-    state: item.state,
+    slug: node.slug || node.id,
   };
 }
 
-/** Estrae lista initiative da data secondo la doc: array diretto O edges[].node */
-function parseInitiativesFromResponse(data) {
-  const list = [];
-  // Formato connection (edges/nodes) come per proposals
-  const initiatives = data.initiatives;
-  const edges = initiatives && initiatives.edges;
-  if (Array.isArray(edges)) {
-    for (let i = 0; i < edges.length; i++) {
-      const edge = edges[i];
-      const node = edge && edge.node;
-      if (node) list.push(normalizeItem(node));
-    }
-    return list;
-  }
-  // Formato array diretto come participatoryProcesses negli appunti: initiatives: [ { slug, title } ]
-  const arr = data.initiatives;
-  if (Array.isArray(arr)) {
-    for (const item of arr) list.push(normalizeItem(item));
-    return list;
-  }
-  return list;
-}
-
 /**
- * Chiama l'API GraphQL Decidim come da documentazione:
- * - Richieste su URL/api in POST con Content-Type: application/json e body {"query": "..."}.
+ * Chiama Decidim GraphQL: assembly(id) -> Proposals -> proposals con paginazione.
+ * Richiede DECIDIM_GRAPHQL_URL e DECIDIM_ECI_ASSEMBLY_ID.
  */
 async function fetchFromDecidimGraphQL() {
-  const endpoint = DECIDIM_GRAPHQL_URL.replace(/\/$/, '');
-  const apiUrl = endpoint.endsWith('/api') ? endpoint : `${endpoint}/api`;
-
-  // Prova prima query minima (array diretto), poi con connection se necessario
-  const queries = [INITIATIVES_QUERY, INITIATIVES_QUERY_CONNECTION];
-  let lastError = null;
-
-  for (const query of queries) {
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-      if (!res.ok) {
-        lastError = new Error(`GraphQL HTTP ${res.status}`);
-        continue;
-      }
-      const json = await res.json().catch(() => ({}));
-      if (json.errors && json.errors.length > 0) {
-        lastError = new Error(json.errors.map((e) => e.message).join('; '));
-        continue;
-      }
-      const data = json.data;
-      if (!data) {
-        lastError = new Error('Risposta senza data');
-        continue;
-      }
-      const list = parseInitiativesFromResponse(data);
-      if (list.length > 0) return list;
-      lastError = new Error('Nessuna initiative nella risposta');
-    } catch (err) {
-      lastError = err;
-    }
+  const assemblyId = DECIDIM_ECI_ASSEMBLY_ID;
+  if (!assemblyId) {
+    throw new Error('DECIDIM_ECI_ASSEMBLY_ID non configurato. Imposta l\'ID dello spazio partecipativo che contiene le ECI.');
   }
-  throw lastError || new Error('Decidim GraphQL non raggiungibile');
+
+  const endpoint = DECIDIM_GRAPHQL_URL.replace(/\/$/, '');
+  const apiUrl = endpoint.endsWith('/api') ? endpoint : endpoint + '/api';
+
+  const PAGE_SIZE = 50;
+  let after = null;
+  const allResults = [];
+
+  for (;;) {
+    const variables = {
+      assemblyId: String(assemblyId),
+      first: PAGE_SIZE,
+      after: after,
+    };
+    const body = { query: ECI_PROPOSALS_QUERY, variables: variables };
+
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error('GraphQL HTTP ' + res.status);
+    }
+
+    const json = await res.json().catch(function () { return {}; });
+    if (json.errors && json.errors.length > 0) {
+      throw new Error(json.errors.map(function (e) { return e.message; }).join('; '));
+    }
+
+    const data = json.data;
+    if (!data || !data.assembly || !data.assembly.components) {
+      break;
+    }
+
+    const components = data.assembly.components;
+    let nextCursor = null;
+    let hasMore = false;
+
+    for (let c = 0; c < components.length; c++) {
+      const comp = components[c];
+      const proposals = comp && comp.proposals;
+      if (!proposals || !proposals.edges) continue;
+
+      const edges = proposals.edges;
+      for (let i = 0; i < edges.length; i++) {
+        const node = edges[i] && edges[i].node;
+        const item = normalizeProposalNode(node);
+        if (item) allResults.push(item);
+      }
+
+      const pageInfo = proposals.pageInfo;
+      if (pageInfo && pageInfo.hasNextPage && pageInfo.endCursor) {
+        hasMore = true;
+        nextCursor = pageInfo.endCursor;
+      }
+      break;
+    }
+
+    if (!hasMore || !nextCursor) break;
+    after = nextCursor;
+  }
+
+  allResults.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
+  return allResults;
 }
 
 /**
@@ -179,8 +272,8 @@ router.get('/', async (req, res) => {
     let source = 'eci_table';
 
     try {
-      list = await fetchFromDecidimGraphQL();
-      source = 'decidim_graphql';
+      list = await fetchFromEuOfficialApi();
+      source = 'eu_official';
       if (list.length > 0 && pool) {
         try {
           await upsertEciTable(list);
@@ -188,25 +281,37 @@ router.get('/', async (req, res) => {
           console.warn('⚠️ ECI: upsert in tabella ECI fallito (tabella assente?):', upsertErr.message);
         }
       }
-    } catch (graphqlErr) {
-      console.warn('⚠️ ECI: Decidim GraphQL non disponibile, uso tabella ECI:', graphqlErr.message);
+    } catch (euErr) {
       try {
-        list = await fetchFromEciTable();
-        if (list.length === 0) {
+        list = await fetchFromDecidimGraphQL();
+        source = 'decidim_graphql';
+        if (list.length > 0 && pool) {
           try {
-            await seedEciTableIfEmpty();
-            list = await fetchFromEciTable();
-          } catch (seedErr) {
-            console.warn('⚠️ ECI: seed tabella fallito:', seedErr.message);
+            await upsertEciTable(list);
+          } catch (upsertErr) {
+            console.warn('⚠️ ECI: upsert in tabella ECI fallito (tabella assente?):', upsertErr.message);
           }
         }
-      } catch (dbErr) {
-        console.error('❌ ECI: né GraphQL né tabella ECI disponibili:', dbErr.message);
-        return res.status(503).json({
-          success: false,
-          error: 'Dati ECI non disponibili. Configura DECIDIM_GRAPHQL_URL o crea la tabella ECI.',
-          details: graphqlErr.message,
-        });
+      } catch (graphqlErr) {
+        console.warn('⚠️ ECI: EU API e Decidim non disponibili, uso tabella ECI:', euErr.message);
+        try {
+          list = await fetchFromEciTable();
+          if (list.length === 0) {
+            try {
+              await seedEciTableIfEmpty();
+              list = await fetchFromEciTable();
+            } catch (seedErr) {
+              console.warn('⚠️ ECI: seed tabella fallito:', seedErr.message);
+            }
+          }
+        } catch (dbErr) {
+          console.error('❌ ECI: né EU API né Decidim né tabella ECI disponibili:', dbErr.message);
+          return res.status(503).json({
+            success: false,
+            error: 'Dati ECI non disponibili. Verifica connessione alle API EU o popola la tabella ECI.',
+            details: euErr.message,
+          });
+        }
       }
     }
 
