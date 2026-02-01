@@ -88,6 +88,7 @@ import Sostenitori from "./pages/Sostenitori";
 import VotiPolitici from "./pages/VotiPolitici";
 import VotiParlamento from "./pages/VotiParlamento";
 import VotiParlamentoEuropeo from "./pages/VotiParlamentoEuropeo";
+import ECI from "./pages/ECI";
 import Comunica from "./pages/Comunica";
 import Evento from "./pages/Evento";
 import Programma from "./pages/Programma";
@@ -208,6 +209,7 @@ function useTouchNavigation() {
         '/governo': '/menu',
         '/elezioni': '/menu',
         '/ice': '/menu',
+        '/eci': '/menu',
         '/iniziative-popolari': '/menu',
         '/referendum-abrogativi': '/menu',
         '/grazia': '/menu',
@@ -844,6 +846,13 @@ export default function App() {
               <Route path="/ice">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/ice" component={ICE} />
+                </PageTransition>
+              </Route>
+
+              {/* Route ECI - Lista ICE e numero firme */}
+              <Route path="/eci">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/eci" component={ECI} />
                 </PageTransition>
               </Route>
 
