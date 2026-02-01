@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe, FileSignature } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -143,4 +143,14 @@ export const gestisciSections: GestisciSection[] = [
       route: "/voti-parlamento-europeo",
       buttonText: "Parlamento Europeo"
     },
-];
+    {
+      id: "eci",
+      title: "ECI",
+      description: "Lista delle Iniziative dei Cittadini Europei (ICE) e numero di firme",
+      icon: FileSignature,
+      color: "text-teal-600 group-hover:text-teal-800",
+      buttonColor: "bg-teal-500 hover:bg-teal-600",
+      route: "/eci",
+      buttonText: "ECI"
+    },
+  ];

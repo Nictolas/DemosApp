@@ -59,6 +59,23 @@ router.get('/', async (req, res) => {
     const result = await pool.query(query);
     console.log(`✅ Recuperati ${result.rows.length} record da ice`);
     
+    // Conteggio firme (voti/sostenitori) per ogni ICE da voti_ice
+    let firmePerIce = new Map();
+    try {
+      const countResult = await pool.query(`
+        SELECT ice_id, COUNT(*)::int AS firme FROM voti_ice GROUP BY ice_id
+      `);
+      countResult.rows.forEach((row) => {
+        firmePerIce.set(row.ice_id, row.firme);
+      });
+    } catch (countErr) {
+      console.warn('⚠️ Conteggio firme voti_ice non disponibile:', countErr.message);
+    }
+    const richiesteConFirme = result.rows.map((row) => ({
+      ...row,
+      firme: firmePerIce.get(row.id) ?? row.firme ?? 0
+    }));
+    
     // Se l'utente è autenticato, ottieni i suoi voti
     let mieiVoti = [];
     if (req.headers.authorization) {
@@ -82,7 +99,7 @@ router.get('/', async (req, res) => {
     
     res.json({
       success: true,
-      richieste: result.rows,
+      richieste: richiesteConFirme,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
