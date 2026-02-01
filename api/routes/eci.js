@@ -6,9 +6,14 @@ const router = express.Router();
 const DECIDIM_GRAPHQL_URL = process.env.DECIDIM_GRAPHQL_URL || 'https://www.demos.community/api';
 const DECIDIM_ECI_ASSEMBLY_ID = process.env.DECIDIM_ECI_ASSEMBLY_ID; // ID dello spazio partecipativo che contiene le ECI (es. 3 per EU portal)
 
-const EU_ECI_ONGOING_URL = 'https://citizens-initiative.europa.eu/api/register/search/ONGOING/IT/0/100';
-const EU_ECI_ALL_URL = 'https://citizens-initiative.europa.eu/api/register/search/ALL/IT/0/200';
-const SUCCESSI_MIN_FIRME = 1000000;
+// API EU ECI: endpoint possono essere spostati dalla Commissione (es. 404). Override con env.
+var EU_BASE = process.env.EU_ECI_API_BASE || 'https://citizens-initiative.europa.eu';
+var EU_ECI_ONGOING_URL = process.env.EU_ECI_ONGOING_URL || (EU_BASE + '/api/register/search/ONGOING/IT/0/100');
+var EU_ECI_ALL_URL = process.env.EU_ECI_ALL_URL || (EU_BASE + '/api/register/search/ALL/IT/0/200');
+// URL alternativi da provare in caso di 404 (path senza /register/)
+var EU_ECI_ONGOING_ALT = EU_BASE + '/api/search/ONGOING/IT/0/100';
+var EU_ECI_ALL_ALT = EU_BASE + '/api/search/ALL/IT/0/200';
+var SUCCESSI_MIN_FIRME = 1000000;
 
 /** Estrae lista da risposta JSON API EU (struttura flessibile). */
 function extractListFromEuResponse(data) {
@@ -78,8 +83,14 @@ async function fetchFromEuOfficialApi() {
     throw new Error('EU API non raggiungibile (timeout o rete): ' + err.message);
   }
   if (!ongoingRes.ok) {
-    console.warn('⚠️ ECI: EU API ONGOING HTTP', ongoingRes.status);
-    throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
+    if (ongoingRes.status === 404 && EU_ECI_ONGOING_URL !== EU_ECI_ONGOING_ALT) {
+      console.warn('⚠️ ECI: EU API ONGOING 404, provo URL alternativo:', EU_ECI_ONGOING_ALT);
+      ongoingRes = await fetchWithTimeout(EU_ECI_ONGOING_ALT, EU_API_TIMEOUT_MS);
+    }
+    if (!ongoingRes.ok) {
+      console.warn('⚠️ ECI: EU API ONGOING HTTP', ongoingRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
+      throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
+    }
   }
   var ongoingJson = await ongoingRes.json().catch(function () { return {}; });
   var ongoingList = extractListFromEuResponse(ongoingJson);
@@ -106,19 +117,26 @@ async function fetchFromEuOfficialApi() {
     throw new Error('EU API non raggiungibile: ' + err.message);
   }
   if (!allRes.ok) {
-    if (ongoingList.length > 0) {
-      var byId2 = {};
-      for (var o2 = 0; o2 < ongoingList.length; o2++) {
-        var it2 = ongoingList[o2];
-        var id2 = getEuItemId(it2);
-        byId2[id2] = { id: id2, title: getTitleFromEuItem(it2), signature_count: getSupportersFromEuItem(it2), slug: id2 };
-      }
-      var out2 = [];
-      for (id2 in byId2) out2.push(byId2[id2]);
-      out2.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
-      return out2;
+    if (allRes.status === 404 && EU_ECI_ALL_URL !== EU_ECI_ALL_ALT) {
+      console.warn('⚠️ ECI: EU API ALL 404, provo URL alternativo:', EU_ECI_ALL_ALT);
+      allRes = await fetchWithTimeout(EU_ECI_ALL_ALT, EU_API_TIMEOUT_MS);
     }
-    throw new Error('EU API ALL HTTP ' + allRes.status);
+    if (!allRes.ok) {
+      if (ongoingList.length > 0) {
+        var byId2 = {};
+        for (var o2 = 0; o2 < ongoingList.length; o2++) {
+          var it2 = ongoingList[o2];
+          var id2 = getEuItemId(it2);
+          byId2[id2] = { id: id2, title: getTitleFromEuItem(it2), signature_count: getSupportersFromEuItem(it2), slug: id2 };
+        }
+        var out2 = [];
+        for (id2 in byId2) out2.push(byId2[id2]);
+        out2.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
+        return out2;
+      }
+      console.warn('⚠️ ECI: EU API ALL HTTP', allRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
+      throw new Error('EU API ALL HTTP ' + allRes.status);
+    }
   }
   var allJson = await allRes.json().catch(function () { return {}; });
   var allList = extractListFromEuResponse(allJson);
