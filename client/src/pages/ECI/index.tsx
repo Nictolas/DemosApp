@@ -9,22 +9,18 @@ import { PageContainer } from "@/components/PageContainer";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, ArrowLeft, FileSignature, AlertCircle, RefreshCw } from "lucide-react";
 
-interface ICEItem {
+interface ECIItem {
   id: string;
-  nome: string;
-  descrizione?: string;
-  quorum?: string;
-  sitoWeb?: string;
-  dataInizio?: string;
-  dataFine?: string;
-  firme?: number;
-  votiIces?: number;
+  title: string;
+  firme: number;
+  signature_count?: number;
+  slug?: string;
 }
 
-interface ICEDataResponse {
+interface ECIDataResponse {
   success: boolean;
-  richieste: ICEItem[];
-  mieiVoti?: string[];
+  source?: string;
+  initiatives: ECIItem[];
 }
 
 export default function ECI() {
@@ -32,32 +28,34 @@ export default function ECI() {
   const [, setLocation] = useLocation();
 
   const {
-    data: iceData,
+    data: eciData,
     isLoading,
     isError,
     error,
     refetch
-  } = useQuery<ICEDataResponse>({
-    queryKey: ["eci", "ice-list"],
+  } = useQuery<ECIDataResponse>({
+    queryKey: ["eci", "initiatives"],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/ice");
+      const response = await apiRequest("GET", "/api/eci");
       if (!response?.ok || !response?.data) {
-        throw new Error(response?.data?.error || response?.data?.message || "Errore nel caricamento delle ICE");
+        throw new Error(response?.data?.error || response?.data?.message || "Errore nel caricamento delle ECI");
       }
       const result = response.data;
       if (result && !result.success && result.success !== undefined) {
-        throw new Error(result.error || result.message || "Errore nel caricamento delle ICE");
+        throw new Error(result.error || result.message || "Errore nel caricamento delle ECI");
       }
-      return { ...result, success: true, richieste: result.richieste || [] };
+      return { ...result, success: true, initiatives: result.initiatives || [] };
     },
     enabled: !!user,
     retry: 1,
   });
 
-  const listaICE: ICEItem[] = (iceData?.richieste || []).map((item: any) => ({
-    ...item,
-    firme: item.firme ?? item.votiIces ?? 0,
-  })).sort((a, b) => (b.firme ?? 0) - (a.firme ?? 0));
+  const list: ECIItem[] = (eciData?.initiatives || []).map((item: any) => ({
+    id: item.id,
+    title: item.title || "Senza titolo",
+    firme: item.firme ?? item.signature_count ?? 0,
+    slug: item.slug,
+  })).sort((a, b) => b.firme - a.firme);
 
   if (isAuthLoading) {
     return (
@@ -114,7 +112,7 @@ export default function ECI() {
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error instanceof Error ? error.message : "Errore nel caricamento delle ICE."}
+              {error instanceof Error ? error.message : "Errore nel caricamento delle ECI."}
             </AlertDescription>
           </Alert>
         )}
@@ -124,43 +122,45 @@ export default function ECI() {
           <Card>
             <CardContent className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-              <p className="ml-4 text-muted-foreground">Caricamento lista ICE...</p>
+              <p className="ml-4 text-muted-foreground">Caricamento lista ECI (Decidim GraphQL)...</p>
             </CardContent>
           </Card>
         )}
 
-        {/* Lista ICE e firme */}
+        {/* Lista ECI e firme (da Decidim GraphQL) */}
         {!isLoading && !isError && (
           <Card>
             <CardHeader>
-              <CardTitle>Lista ICE e numero di firme</CardTitle>
+              <CardTitle>Lista ECI e numero di firme</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Le Iniziative dei Cittadini Europei (ICE) ordinate per numero di firme raccolte.
+                Iniziative dei Cittadini Europei (ECI) da Decidim, ordinate per numero di firme.
+                {eciData?.source === "decidim_graphql" && " Fonte: API GraphQL Decidim."}
+                {eciData?.source === "eci_table" && " Fonte: cache (tabella ECI)."}
               </p>
             </CardHeader>
             <CardContent>
-              {listaICE.length === 0 ? (
+              {list.length === 0 ? (
                 <p className="text-center py-8 text-muted-foreground">
-                  Nessuna ICE disponibile.
+                  Nessuna ECI disponibile. Configura DECIDIM_GRAPHQL_URL o popola la tabella ECI.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="text-left p-3 font-medium">Iniziativa (ICE)</th>
+                        <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
                         <th className="text-right p-3 font-medium">N° firme</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {listaICE.map((ice) => (
-                        <tr key={ice.id} className="border-b hover:bg-muted/30 transition-colors">
+                      {list.map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
                           <td className="p-3">
-                            <span className="font-medium">{ice.nome}</span>
+                            <span className="font-medium">{item.title}</span>
                           </td>
                           <td className="p-3 text-right">
                             <span className="font-semibold text-teal-600">
-                              {(ice.firme ?? 0).toLocaleString("it-IT")}
+                              {item.firme.toLocaleString("it-IT")}
                             </span>
                           </td>
                         </tr>
