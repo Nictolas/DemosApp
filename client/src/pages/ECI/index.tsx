@@ -20,7 +20,9 @@ interface ECIItem {
 interface ECIDataResponse {
   success: boolean;
   source?: string;
-  initiatives: ECIItem[];
+  initiatives?: ECIItem[];
+  ongoing?: ECIItem[];
+  successi?: ECIItem[];
 }
 
 export default function ECI() {
@@ -44,18 +46,28 @@ export default function ECI() {
       if (result && !result.success && result.success !== undefined) {
         throw new Error(result.error || result.message || "Errore nel caricamento delle ECI");
       }
-      return { ...result, success: true, initiatives: result.initiatives || [] };
+      return {
+        ...result,
+        success: true,
+        initiatives: result.initiatives || [],
+        ongoing: result.ongoing || [],
+        successi: result.successi || [],
+      };
     },
     enabled: !!user,
     retry: 1,
   });
 
-  const list: ECIItem[] = (eciData?.initiatives || []).map((item: any) => ({
+  const toItem = (item: any): ECIItem => ({
     id: item.id,
     title: item.title || "Senza titolo",
     firme: item.firme ?? item.signature_count ?? 0,
     slug: item.slug,
-  })).sort((a, b) => b.firme - a.firme);
+  });
+  const ongoing: ECIItem[] = (eciData?.ongoing || []).map(toItem).sort((a, b) => b.firme - a.firme);
+  const successi: ECIItem[] = (eciData?.successi || []).map(toItem).sort((a, b) => b.firme - a.firme);
+  const hasSections = (eciData?.ongoing ?? eciData?.successi) !== undefined;
+  const list: ECIItem[] = hasSections ? [...ongoing, ...successi] : (eciData?.initiatives || []).map(toItem).sort((a, b) => b.firme - a.firme);
 
   if (isAuthLoading) {
     return (
@@ -122,56 +134,143 @@ export default function ECI() {
           <Card>
             <CardContent className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-              <p className="ml-4 text-muted-foreground">Caricamento lista ECI (Decidim GraphQL)...</p>
+              <p className="ml-4 text-muted-foreground">Caricamento iniziative ECI...</p>
             </CardContent>
           </Card>
         )}
 
-        {/* Lista ECI e firme (da Decidim GraphQL) */}
+        {/* Sezioni ECI: In corso e Successi (≥ 1 milione) */}
         {!isLoading && !isError && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Lista ECI e numero di firme</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Iniziative dei Cittadini Europei (ECI) da Decidim, ordinate per numero di firme.
-                {eciData?.source === "eu_official" && " Fonte: API ufficiali EU (citizens-initiative.europa.eu)."}
-                {eciData?.source === "decidim_graphql" && " Fonte: API GraphQL Decidim."}
-                {eciData?.source === "eci_table" && " Fonte: cache (tabella ECI)."}
-              </p>
-            </CardHeader>
-            <CardContent>
-              {list.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">
-                  Nessuna ECI disponibile. Configura DECIDIM_GRAPHQL_URL o popola la tabella ECI.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
-                        <th className="text-right p-3 font-medium">N° firme</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {list.map((item) => (
-                        <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
-                          <td className="p-3">
-                            <span className="font-medium">{item.title}</span>
-                          </td>
-                          <td className="p-3 text-right">
-                            <span className="font-semibold text-teal-600">
-                              {item.firme.toLocaleString("it-IT")}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <>
+            <p className="text-sm text-muted-foreground mb-4">
+              {eciData?.source === "eu_official" && "Fonte: API ufficiali EU (citizens-initiative.europa.eu)."}
+              {eciData?.source === "decidim_graphql" && "Fonte: API GraphQL Decidim."}
+              {eciData?.source === "eci_table" && "Fonte: cache (tabella ECI)."}
+            </p>
+
+            {hasSections ? (
+              <>
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>In corso</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Iniziative dei Cittadini Europei attualmente in raccolta firme.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {ongoing.length === 0 ? (
+                      <p className="text-center py-6 text-muted-foreground">Nessuna iniziativa in corso.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
+                              <th className="text-right p-3 font-medium">N° firme</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ongoing.map((item) => (
+                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
+                                <td className="p-3">
+                                  <span className="font-medium">{item.title}</span>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <span className="font-semibold text-teal-600">
+                                    {item.firme.toLocaleString("it-IT")}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Successi (≥ 1 milione di firme)</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Iniziative che hanno raggiunto almeno 1.000.000 di firme.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {successi.length === 0 ? (
+                      <p className="text-center py-6 text-muted-foreground">Nessuna iniziativa con almeno 1 milione di firme.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
+                              <th className="text-right p-3 font-medium">N° firme</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {successi.map((item) => (
+                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
+                                <td className="p-3">
+                                  <span className="font-medium">{item.title}</span>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <span className="font-semibold text-teal-600">
+                                    {item.firme.toLocaleString("it-IT")}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lista ECI e numero di firme</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Iniziative dei Cittadini Europei (ECI), ordinate per numero di firme.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {list.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">
+                      Nessuna ECI disponibile. Verifica la connessione alle API EU o popola la tabella ECI.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
+                            <th className="text-right p-3 font-medium">N° firme</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {list.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
+                              <td className="p-3">
+                                <span className="font-medium">{item.title}</span>
+                              </td>
+                              <td className="p-3 text-right">
+                                <span className="font-semibold text-teal-600">
+                                  {item.firme.toLocaleString("it-IT")}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </div>
     </PageContainer>

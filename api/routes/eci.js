@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const { pool } = require('../middleware/auth');
 
 const router = express.Router();
@@ -6,13 +6,10 @@ const router = express.Router();
 const DECIDIM_GRAPHQL_URL = process.env.DECIDIM_GRAPHQL_URL || 'https://www.demos.community/api';
 const DECIDIM_ECI_ASSEMBLY_ID = process.env.DECIDIM_ECI_ASSEMBLY_ID; // ID dello spazio partecipativo che contiene le ECI (es. 3 per EU portal)
 
-// API EU ECI: endpoint possono essere spostati dalla Commissione (es. 404). Override con env.
+// API EU ECI: endpoint con query params (aggiornati dalla Commissione EU). Override con env.
 var EU_BASE = process.env.EU_ECI_API_BASE || 'https://citizens-initiative.europa.eu';
-var EU_ECI_ONGOING_URL = process.env.EU_ECI_ONGOING_URL || (EU_BASE + '/api/register/search/ONGOING/IT/0/100');
-var EU_ECI_ALL_URL = process.env.EU_ECI_ALL_URL || (EU_BASE + '/api/register/search/ALL/IT/0/200');
-// URL alternativi da provare in caso di 404 (path senza /register/)
-var EU_ECI_ONGOING_ALT = EU_BASE + '/api/search/ONGOING/IT/0/100';
-var EU_ECI_ALL_ALT = EU_BASE + '/api/search/ALL/IT/0/200';
+var EU_ECI_ONGOING_URL = process.env.EU_ECI_ONGOING_URL || (EU_BASE + '/api/initiatives/search?section=ONGOING&language=it&page=0&pageSize=100');
+var EU_ECI_ALL_URL = process.env.EU_ECI_ALL_URL || (EU_BASE + '/api/initiatives/search?section=ALL&language=it&page=0&pageSize=100');
 var SUCCESSI_MIN_FIRME = 1000000;
 
 /** Estrae lista da risposta JSON API EU (struttura flessibile). */
@@ -68,9 +65,10 @@ function fetchWithTimeout(url, ms) {
 }
 
 /**
- * Recupera ECI in tempo reale dalle API ufficiali EU:
- * - ONGOING: iniziative in corso
+ * Recupera ECI in tempo reale dalle API ufficiali EU (nuovi endpoint a query params):
+ * - ONGOING: iniziative in corso (section=ONGOING)
  * - ALL: filtra solo quelle con totalSupporters >= 1.000.000 (successi).
+ * Restituisce { ongoing: [...], successi: [...] }.
  */
 async function fetchFromEuOfficialApi() {
   var EU_API_TIMEOUT_MS = 20000;
@@ -79,90 +77,55 @@ async function fetchFromEuOfficialApi() {
   try {
     ongoingRes = await fetchWithTimeout(EU_ECI_ONGOING_URL, EU_API_TIMEOUT_MS);
   } catch (err) {
-    console.warn('⚠️ ECI: EU API ONGOING richiesta fallita:', err.message);
+    console.warn('âš ï¸ ECI: EU API ONGOING richiesta fallita:', err.message);
     throw new Error('EU API non raggiungibile (timeout o rete): ' + err.message);
   }
   if (!ongoingRes.ok) {
-    if (ongoingRes.status === 404 && EU_ECI_ONGOING_URL !== EU_ECI_ONGOING_ALT) {
-      console.warn('⚠️ ECI: EU API ONGOING 404, provo URL alternativo:', EU_ECI_ONGOING_ALT);
-      ongoingRes = await fetchWithTimeout(EU_ECI_ONGOING_ALT, EU_API_TIMEOUT_MS);
-    }
-    if (!ongoingRes.ok) {
-      console.warn('⚠️ ECI: EU API ONGOING HTTP', ongoingRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
-      throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
-    }
+    console.warn('âš ï¸ ECI: EU API ONGOING HTTP', ongoingRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
+    throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
   }
   var ongoingJson = await ongoingRes.json().catch(function () { return {}; });
   var ongoingList = extractListFromEuResponse(ongoingJson);
   if (ongoingList.length === 0 && typeof ongoingJson === 'object') {
-    console.warn('⚠️ ECI: EU API ONGOING 200 ma lista vuota. Chiavi risposta:', Object.keys(ongoingJson).join(', '));
+    console.warn('âš ï¸ ECI: EU API ONGOING 200 ma lista vuota. Chiavi risposta:', Object.keys(ongoingJson).join(', '));
   }
+
+  var ongoing = [];
+  var o, it, id, title, supporters;
+  for (o = 0; o < ongoingList.length; o++) {
+    it = ongoingList[o];
+    id = getEuItemId(it);
+    title = getTitleFromEuItem(it);
+    supporters = getSupportersFromEuItem(it);
+    ongoing.push({ id: id, title: title, signature_count: supporters, slug: id });
+  }
+  ongoing.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
 
   try {
     allRes = await fetchWithTimeout(EU_ECI_ALL_URL, EU_API_TIMEOUT_MS);
   } catch (err) {
-    console.warn('⚠️ ECI: EU API ALL richiesta fallita:', err.message);
-    if (ongoingList.length > 0) {
-      var byId = {};
-      for (var o = 0; o < ongoingList.length; o++) {
-        var it = ongoingList[o];
-        var id = getEuItemId(it);
-        byId[id] = { id: id, title: getTitleFromEuItem(it), signature_count: getSupportersFromEuItem(it), slug: id };
-      }
-      var out = [];
-      for (id in byId) out.push(byId[id]);
-      out.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
-      return out;
-    }
-    throw new Error('EU API non raggiungibile: ' + err.message);
+    console.warn('âš ï¸ ECI: EU API ALL richiesta fallita:', err.message);
+    return { ongoing: ongoing, successi: [] };
   }
   if (!allRes.ok) {
-    if (allRes.status === 404 && EU_ECI_ALL_URL !== EU_ECI_ALL_ALT) {
-      console.warn('⚠️ ECI: EU API ALL 404, provo URL alternativo:', EU_ECI_ALL_ALT);
-      allRes = await fetchWithTimeout(EU_ECI_ALL_ALT, EU_API_TIMEOUT_MS);
-    }
-    if (!allRes.ok) {
-      if (ongoingList.length > 0) {
-        var byId2 = {};
-        for (var o2 = 0; o2 < ongoingList.length; o2++) {
-          var it2 = ongoingList[o2];
-          var id2 = getEuItemId(it2);
-          byId2[id2] = { id: id2, title: getTitleFromEuItem(it2), signature_count: getSupportersFromEuItem(it2), slug: id2 };
-        }
-        var out2 = [];
-        for (id2 in byId2) out2.push(byId2[id2]);
-        out2.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
-        return out2;
-      }
-      console.warn('⚠️ ECI: EU API ALL HTTP', allRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
-      throw new Error('EU API ALL HTTP ' + allRes.status);
-    }
+    console.warn('âš ï¸ ECI: EU API ALL HTTP', allRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
+    return { ongoing: ongoing, successi: [] };
   }
   var allJson = await allRes.json().catch(function () { return {}; });
   var allList = extractListFromEuResponse(allJson);
 
-  var byId = {};
-  var i, item, id, title, supporters;
-  for (i = 0; i < ongoingList.length; i++) {
-    item = ongoingList[i];
-    id = getEuItemId(item);
-    title = getTitleFromEuItem(item);
-    supporters = getSupportersFromEuItem(item);
-    byId[id] = { id: id, title: title, signature_count: supporters, slug: id };
+  var successi = [];
+  for (o = 0; o < allList.length; o++) {
+    it = allList[o];
+    if (getSupportersFromEuItem(it) < SUCCESSI_MIN_FIRME) continue;
+    id = getEuItemId(it);
+    title = getTitleFromEuItem(it);
+    supporters = getSupportersFromEuItem(it);
+    successi.push({ id: id, title: title, signature_count: supporters, slug: id });
   }
-  for (i = 0; i < allList.length; i++) {
-    item = allList[i];
-    if (getSupportersFromEuItem(item) < SUCCESSI_MIN_FIRME) continue;
-    id = getEuItemId(item);
-    if (byId[id]) continue;
-    title = getTitleFromEuItem(item);
-    supporters = getSupportersFromEuItem(item);
-    byId[id] = { id: id, title: title, signature_count: supporters, slug: id };
-  }
-  var list = [];
-  for (id in byId) list.push(byId[id]);
-  list.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
-  return list;
+  successi.sort(function (a, b) { return (b.signature_count || 0) - (a.signature_count || 0); });
+
+  return { ongoing: ongoing, successi: successi };
 }
 
 // ECI su Decidim sono Proposals dentro un assembly (o processo partecipativo).
@@ -331,18 +294,6 @@ async function upsertEciTable(items) {
   }
 }
 
-/** Seed iniziale in tabella ECI se vuota (dati di esempio finché non c’è Decidim o import reale). */
-async function seedEciTableIfEmpty() {
-  if (!pool) return;
-  const countResult = await pool.query('SELECT COUNT(*)::int AS n FROM eci');
-  if (countResult.rows[0].n > 0) return;
-  const examples = [
-    { id: 'eci-esempio-1', title: 'Esempio ECI 1 – Iniziativa dei Cittadini Europei', signature_count: 0, slug: 'esempio-1' },
-    { id: 'eci-esempio-2', title: 'Esempio ECI 2 – Popola la tabella ECI o configura DECIDIM_GRAPHQL_URL', signature_count: 0, slug: 'esempio-2' },
-  ];
-  await upsertEciTable(examples);
-}
-
 // GET /api/eci - Lista ECI (Iniziative Cittadini Europei) da Decidim GraphQL, con fallback su tabella ECI
 router.get('/', async (req, res) => {
   try {
@@ -356,15 +307,31 @@ router.get('/', async (req, res) => {
     let source = 'eci_table';
 
     try {
-      list = await fetchFromEuOfficialApi();
+      var euResult = await fetchFromEuOfficialApi();
+      var ongoing = euResult.ongoing || [];
+      var successi = euResult.successi || [];
       source = 'eu_official';
-      if (list.length > 0 && pool) {
+      var allFromEu = ongoing.concat(successi);
+      if (allFromEu.length > 0 && pool) {
         try {
-          await upsertEciTable(list);
+          await upsertEciTable(allFromEu);
         } catch (upsertErr) {
-          console.warn('⚠️ ECI: upsert in tabella ECI fallito (tabella assente?):', upsertErr.message);
+          console.warn('âš ï¸ ECI: upsert in tabella ECI fallito (tabella assente?):', upsertErr.message);
         }
       }
+      return res.json({
+        success: true,
+        source: source,
+        ongoing: ongoing.map(function (item) {
+          return { id: item.id, title: item.title, firme: item.signature_count, signature_count: item.signature_count, slug: item.slug };
+        }),
+        successi: successi.map(function (item) {
+          return { id: item.id, title: item.title, firme: item.signature_count, signature_count: item.signature_count, slug: item.slug };
+        }),
+        initiatives: allFromEu.map(function (item) {
+          return { id: item.id, title: item.title, firme: item.signature_count, signature_count: item.signature_count, slug: item.slug };
+        }),
+      });
     } catch (euErr) {
       try {
         list = await fetchFromDecidimGraphQL();
@@ -373,23 +340,15 @@ router.get('/', async (req, res) => {
           try {
             await upsertEciTable(list);
           } catch (upsertErr) {
-            console.warn('⚠️ ECI: upsert in tabella ECI fallito (tabella assente?):', upsertErr.message);
+            console.warn('âš ï¸ ECI: upsert in tabella ECI fallito (tabella assente?):', upsertErr.message);
           }
         }
       } catch (graphqlErr) {
-        console.warn('⚠️ ECI: EU API e Decidim non disponibili, uso tabella ECI:', euErr.message);
+        console.warn('âš ï¸ ECI: EU API e Decidim non disponibili, uso tabella ECI:', euErr.message);
         try {
           list = await fetchFromEciTable();
-          if (list.length === 0) {
-            try {
-              await seedEciTableIfEmpty();
-              list = await fetchFromEciTable();
-            } catch (seedErr) {
-              console.warn('⚠️ ECI: seed tabella fallito:', seedErr.message);
-            }
-          }
         } catch (dbErr) {
-          console.error('❌ ECI: né EU API né Decidim né tabella ECI disponibili:', dbErr.message);
+          console.error('âŒ ECI: nÃ© EU API nÃ© Decidim nÃ© tabella ECI disponibili:', dbErr.message);
           return res.status(503).json({
             success: false,
             error: 'Dati ECI non disponibili. Verifica connessione alle API EU o popola la tabella ECI.',
@@ -399,19 +358,33 @@ router.get('/', async (req, res) => {
       }
     }
 
+    var ongoingFallback = [];
+    var successiFallback = [];
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      var count = it.signature_count != null ? parseInt(it.signature_count, 10) : 0;
+      if (count >= SUCCESSI_MIN_FIRME) {
+        successiFallback.push({ id: it.id, title: it.title, firme: count, signature_count: count, slug: it.slug });
+      } else {
+        ongoingFallback.push({ id: it.id, title: it.title, firme: count, signature_count: count, slug: it.slug });
+      }
+    }
     res.json({
       success: true,
-      source,
-      initiatives: list.map((item) => ({
-        id: item.id,
-        title: item.title,
-        firme: item.signature_count,
-        signature_count: item.signature_count,
-        slug: item.slug,
-      })),
+      source: source,
+      ongoing: ongoingFallback.map(function (item) {
+        return { id: item.id, title: item.title, firme: item.firme, signature_count: item.signature_count, slug: item.slug };
+      }),
+      successi: successiFallback.map(function (item) {
+        return { id: item.id, title: item.title, firme: item.firme, signature_count: item.signature_count, slug: item.slug };
+      }),
+      initiatives: list.map(function (item) {
+        var c = item.signature_count != null ? parseInt(item.signature_count, 10) : 0;
+        return { id: item.id, title: item.title, firme: c, signature_count: c, slug: item.slug };
+      }),
     });
   } catch (error) {
-    console.error('❌ Errore GET /api/eci:', error);
+    console.error('âŒ Errore GET /api/eci:', error);
     res.status(500).json({
       success: false,
       error: 'Errore nel caricamento delle ECI',
