@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { pool } = require('../middleware/auth');
 
 const router = express.Router();
@@ -74,6 +74,7 @@ async function fetchFromEuOfficialApi() {
   var EU_API_TIMEOUT_MS = 20000;
   var ongoingRes;
   var allRes;
+  console.log('ECI: Chiamata API EU ONGOING:', EU_ECI_ONGOING_URL);
   try {
     ongoingRes = await fetchWithTimeout(EU_ECI_ONGOING_URL, EU_API_TIMEOUT_MS);
   } catch (err) {
@@ -81,7 +82,7 @@ async function fetchFromEuOfficialApi() {
     throw new Error('EU API non raggiungibile (timeout o rete): ' + err.message);
   }
   if (!ongoingRes.ok) {
-    console.warn('âš ï¸ ECI: EU API ONGOING HTTP', ongoingRes.status, '(endpoint potrebbe essere cambiato dalla Commissione EU)');
+    console.warn('âš ï¸ ECI: EU API ONGOING HTTP', ongoingRes.status, 'URL:', EU_ECI_ONGOING_URL);
     throw new Error('EU API ONGOING HTTP ' + ongoingRes.status);
   }
   var ongoingJson = await ongoingRes.json().catch(function () { return {}; });
