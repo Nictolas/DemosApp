@@ -36,13 +36,16 @@ const INITIATIVES_QUERY_CONNECTION = `query ECIInitiativesConnection {
 
 function normalizeItem(nodeOrItem) {
   const item = nodeOrItem || {};
-  const title = item.title?.translation ?? (typeof item.title === 'string' ? item.title : '') || 'Senza titolo';
+  const titleVal = (item.title && item.title.translation) != null
+    ? item.title.translation
+    : (typeof item.title === 'string' ? item.title : '');
+  const title = titleVal || 'Senza titolo';
   const sig = item.signatureCount != null ? parseInt(item.signatureCount, 10) : (item.onlineVotesCount != null ? parseInt(item.onlineVotesCount, 10) : 0);
   const off = item.offlineVotesCount != null ? parseInt(item.offlineVotesCount, 10) : 0;
   const firme = (Number.isNaN(sig) ? 0 : sig) + (Number.isNaN(off) ? 0 : off);
   return {
     id: String(item.id || item.slug || Math.random().toString(36).slice(2)),
-    title,
+    title: title,
     signature_count: firme,
     slug: item.slug || item.id,
     state: item.state,
@@ -53,10 +56,12 @@ function normalizeItem(nodeOrItem) {
 function parseInitiativesFromResponse(data) {
   const list = [];
   // Formato connection (edges/nodes) come per proposals
-  const edges = data.initiatives?.edges;
+  const initiatives = data.initiatives;
+  const edges = initiatives && initiatives.edges;
   if (Array.isArray(edges)) {
-    for (const edge of edges) {
-      const node = edge?.node;
+    for (let i = 0; i < edges.length; i++) {
+      const edge = edges[i];
+      const node = edge && edge.node;
       if (node) list.push(normalizeItem(node));
     }
     return list;
