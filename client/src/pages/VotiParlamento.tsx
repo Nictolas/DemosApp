@@ -468,7 +468,97 @@ export default function VotiParlamento() {
               </Card>
             ) : (
               <div className="space-y-6">
-                {/* Sezione Camera */}
+                {/* Due colonne: Senato (sinistra) | Camera (destra) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Colonna sinistra: Senato */}
+                  <div>
+                    {votazioniSenato.length > 0 && (
+                      <>
+                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                          <Building2 className="h-6 w-6 text-purple-600" />
+                          Senato della Repubblica
+                        </h2>
+                        <div className="space-y-4">
+                          {votazioniSenato.map((votazione, index) => (
+                            <Card
+                              key={`senato-${votazione.votazione_id}`}
+                              className={`transition-all hover:shadow-lg ${
+                                index === 0 ? "border-2 border-green-500 shadow-md" : "border"
+                              }`}
+                            >
+                              <CardHeader>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <CardTitle className="text-xl">
+                                        {formattaTitoloCompatto(votazione.titolo_votazione || votazione.descrizione || "Votazione senza titolo")}
+                                      </CardTitle>
+                                      {index === 0 && (
+                                        <Badge className="bg-green-600 text-white">PIÙ RECENTE</Badge>
+                                      )}
+                                    </div>
+                                    <CardDescription className="flex items-center gap-4 flex-wrap mt-2">
+                                      <div className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4" />
+                                        <Badge variant="outline" className={getCameraColor(votazione.camera)}>
+                                          {votazione.camera || "N/A"}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4" />
+                                        <span className="text-sm">{formatDate(votazione.data_votazione)}</span>
+                                      </div>
+                                      {votazione.esito && (
+                                        <Badge variant="outline" className={getEsitoColor(votazione.esito)}>
+                                          {votazione.esito}
+                                        </Badge>
+                                      )}
+                                    </CardDescription>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                {votazione.descrizione && (
+                                  <div>
+                                    <p className="text-sm text-gray-700 leading-relaxed">{votazione.descrizione}</p>
+                                  </div>
+                                )}
+                                <div className="flex flex-wrap gap-2">
+                                  {votazione.legislatura && (
+                                    <Badge variant="outline" className="text-xs">📜 Legislatura {votazione.legislatura}</Badge>
+                                  )}
+                                  {votazione.tipo_atto && (
+                                    <Badge variant="outline" className="text-xs">📄 {votazione.tipo_atto}</Badge>
+                                  )}
+                                  {votazione.sigla_atto && votazione.numero_atto && (
+                                    <Badge variant="outline" className="text-xs">{votazione.sigla_atto} n. {votazione.numero_atto}</Badge>
+                                  )}
+                                </div>
+                                {votazione.spiegazione && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Sparkles className="h-4 w-4 text-blue-600" />
+                                      <span className="text-sm font-semibold text-blue-900">Spiegazione AI</span>
+                                    </div>
+                                    <p className="text-sm text-blue-900 leading-relaxed">{votazione.spiegazione}</p>
+                                  </div>
+                                )}
+                                <div className="pt-4 border-t">
+                                  <Button onClick={() => handleVotazioneClick(votazione)} variant="outline" className="w-full">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Dettagli
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Colonna destra: Camera */}
+                  <div>
                 {votazioniCamera.length > 0 && (
                   <div>
                     <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
@@ -679,128 +769,10 @@ export default function VotiParlamento() {
                     </div>
                   </div>
                 )}
-
-                {/* Sezione Senato */}
-                {votazioniSenato.length > 0 && (
-                  <div>
-                    <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                      <Building2 className="h-6 w-6 text-purple-600" />
-                      Senato della Repubblica
-                    </h2>
-                    <div className="space-y-4">
-                      {votazioniSenato.map((votazione, index) => (
-                        <Card
-                          key={`senato-${votazione.votazione_id}`}
-                          className={`transition-all hover:shadow-lg ${
-                            index === 0
-                              ? "border-2 border-green-500 shadow-md"
-                              : "border"
-                          }`}
-                        >
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <CardTitle className="text-xl">
-                                    {formattaTitoloCompatto(votazione.titolo_votazione || votazione.descrizione || "Votazione senza titolo")}
-                                  </CardTitle>
-                                  {index === 0 && (
-                                    <Badge className="bg-green-600 text-white">
-                                      PIÙ RECENTE
-                                    </Badge>
-                                  )}
-                                </div>
-                                <CardDescription className="flex items-center gap-4 flex-wrap mt-2">
-                                  <div className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4" />
-                                    <Badge
-                                      variant="outline"
-                                      className={getCameraColor(votazione.camera)}
-                                    >
-                                      {votazione.camera || "N/A"}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
-                                    <span className="text-sm">
-                                      {formatDate(votazione.data_votazione)}
-                                    </span>
-                                  </div>
-                                  {votazione.esito && (
-                                    <Badge
-                                      variant="outline"
-                                      className={getEsitoColor(votazione.esito)}
-                                    >
-                                      {votazione.esito}
-                                    </Badge>
-                                  )}
-                                </CardDescription>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {/* Descrizione */}
-                            {votazione.descrizione && (
-                              <div>
-                                <p className="text-sm text-gray-700 leading-relaxed">
-                                  {votazione.descrizione}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Dettagli aggiuntivi */}
-                            <div className="flex flex-wrap gap-2">
-                              {votazione.legislatura && (
-                                <Badge variant="outline" className="text-xs">
-                                  📜 Legislatura {votazione.legislatura}
-                                </Badge>
-                              )}
-                              {votazione.tipo_atto && (
-                                <Badge variant="outline" className="text-xs">
-                                  📄 {votazione.tipo_atto}
-                                </Badge>
-                              )}
-                              {votazione.sigla_atto && votazione.numero_atto && (
-                                <Badge variant="outline" className="text-xs">
-                                  {votazione.sigla_atto} n. {votazione.numero_atto}
-                                </Badge>
-                              )}
-                            </div>
-
-                            {/* Spiegazione AI */}
-                            {votazione.spiegazione && (
-                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Sparkles className="h-4 w-4 text-blue-600" />
-                                  <span className="text-sm font-semibold text-blue-900">
-                                    Spiegazione AI
-                                  </span>
-                                </div>
-                                <p className="text-sm text-blue-900 leading-relaxed">
-                                  {votazione.spiegazione}
-                                </p>
-                              </div>
-                            )}
-                            
-                            {/* Pulsante Dettagli */}
-                            <div className="pt-4 border-t">
-                              <Button
-                                onClick={() => handleVotazioneClick(votazione)}
-                                variant="outline"
-                                className="w-full"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Dettagli
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
                   </div>
-                )}
+                </div>
 
-                {/* Sezione Dati combinati */}
+                {/* Sezione Dati combinati - due colonne: Senato | Camera */}
                 {(combinedCamera.length > 0 || combinedSenato.length > 0) && (
                   <div>
                     <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
@@ -810,78 +782,9 @@ export default function VotiParlamento() {
                     <p className="text-muted-foreground mb-4 text-sm">
                       Votazioni unificate da SPARQL/DB e Openpolis (votazioni finali decisive), abbinate per data e camera.
                     </p>
-                    {combinedCamera.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                          <Building2 className="h-5 w-5 text-blue-600" />
-                          Camera dei Deputati
-                        </h3>
-                        <div className="space-y-4">
-                          {combinedCamera.map((votazione, index) => (
-                            <Card
-                              key={`combined-camera-${votazione.votazione_id ?? index}`}
-                              className={`transition-all hover:shadow-lg ${index === 0 ? "border-2 border-amber-500 shadow-md" : "border"}`}
-                            >
-                              <CardHeader>
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <CardTitle className="text-xl">
-                                        {formattaTitoloCompatto(votazione.titolo_votazione || votazione.descrizione_votazione || "Votazione senza titolo")}
-                                      </CardTitle>
-                                      {(votazione as { source?: string }).source === "combined" && (
-                                        <Badge className="bg-amber-100 text-amber-800 border-amber-300">Combinato</Badge>
-                                      )}
-                                    </div>
-                                    <CardDescription className="flex items-center gap-4 flex-wrap mt-2">
-                                      <div className="flex items-center gap-2">
-                                        <Building2 className="h-4 w-4" />
-                                        <Badge variant="outline" className={getCameraColor(votazione.camera)}>
-                                          {votazione.camera || "N/A"}
-                                        </Badge>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4" />
-                                        <span className="text-sm">{formatDate(votazione.data_votazione)}</span>
-                                      </div>
-                                      {votazione.esito && (
-                                        <Badge variant="outline" className={getEsitoColor(votazione.esito)}>
-                                          {votazione.esito}
-                                        </Badge>
-                                      )}
-                                    </CardDescription>
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                {(votazione.descrizione_votazione || votazione.descrizione) && (
-                                  <p className="text-sm text-gray-700 leading-relaxed">
-                                    {votazione.descrizione_votazione || votazione.descrizione}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap gap-2">
-                                  {votazione.legislatura && (
-                                    <Badge variant="outline" className="text-xs">📜 Legislatura {votazione.legislatura}</Badge>
-                                  )}
-                                  {(votazione as { source?: string }).source === "combined" && (
-                                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
-                                      ✨ SPARQL + Openpolis
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="pt-4 border-t">
-                                  <Button onClick={() => handleVotazioneClick(votazione)} variant="outline" className="w-full">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Dettagli
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {combinedSenato.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Colonna sinistra: Senato combinato */}
+                      {combinedSenato.length > 0 && (
                       <div>
                         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                           <Building2 className="h-5 w-5 text-purple-600" />
@@ -951,7 +854,80 @@ export default function VotiParlamento() {
                           ))}
                         </div>
                       </div>
-                    )}
+                      )}
+                      {/* Colonna destra: Camera combinata */}
+                      {combinedCamera.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <Building2 className="h-5 w-5 text-blue-600" />
+                          Camera dei Deputati
+                        </h3>
+                        <div className="space-y-4">
+                          {combinedCamera.map((votazione, index) => (
+                            <Card
+                              key={`combined-camera-${votazione.votazione_id ?? index}`}
+                              className={`transition-all hover:shadow-lg ${index === 0 ? "border-2 border-amber-500 shadow-md" : "border"}`}
+                            >
+                              <CardHeader>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <CardTitle className="text-xl">
+                                        {formattaTitoloCompatto(votazione.titolo_votazione || votazione.descrizione_votazione || "Votazione senza titolo")}
+                                      </CardTitle>
+                                      {(votazione as { source?: string }).source === "combined" && (
+                                        <Badge className="bg-amber-100 text-amber-800 border-amber-300">Combinato</Badge>
+                                      )}
+                                    </div>
+                                    <CardDescription className="flex items-center gap-4 flex-wrap mt-2">
+                                      <div className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4" />
+                                        <Badge variant="outline" className={getCameraColor(votazione.camera)}>
+                                          {votazione.camera || "N/A"}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4" />
+                                        <span className="text-sm">{formatDate(votazione.data_votazione)}</span>
+                                      </div>
+                                      {votazione.esito && (
+                                        <Badge variant="outline" className={getEsitoColor(votazione.esito)}>
+                                          {votazione.esito}
+                                        </Badge>
+                                      )}
+                                    </CardDescription>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                {(votazione.descrizione_votazione || votazione.descrizione) && (
+                                  <p className="text-sm text-gray-700 leading-relaxed">
+                                    {votazione.descrizione_votazione || votazione.descrizione}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-2">
+                                  {votazione.legislatura && (
+                                    <Badge variant="outline" className="text-xs">📜 Legislatura {votazione.legislatura}</Badge>
+                                  )}
+                                  {(votazione as { source?: string }).source === "combined" && (
+                                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
+                                      ✨ SPARQL + Openpolis
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="pt-4 border-t">
+                                  <Button onClick={() => handleVotazioneClick(votazione)} variant="outline" className="w-full">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Dettagli
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
