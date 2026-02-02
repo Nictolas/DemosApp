@@ -42,8 +42,10 @@ interface VotazioneParlamento {
   approvato: number | null;
   // Flag
   dati_arricchiti?: boolean;
-  // URI per dettagli
+  // URI per dettagli (o link Openpolis se source === 'openpolis')
   uri?: string;
+  url_votazione?: string | null;
+  source?: string;
 }
 
 interface AnalisiLegge {
@@ -312,13 +314,21 @@ export default function VotiParlamento() {
     }
   };
 
+  // Votazioni da Openpolis (ultimi DDL approvati): apri link in nuova scheda
+  const isOpenpolisVotazione = (v: VotazioneParlamento) =>
+    (v as { source?: string }).source === "openpolis" ||
+    (v.uri && String(v.uri).startsWith("https://parlamento19.openpolis.it"));
+
   // Funzione per caricare i dettagli di una votazione
   const handleVotazioneClick = async (votazione: VotazioneParlamento, forceRegenerate = false) => {
+    if (isOpenpolisVotazione(votazione)) {
+      const url = votazione.uri || (votazione as { url_votazione?: string }).url_votazione;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
     console.log('🔍 Click su votazione:', votazione);
-    console.log('🔍 URI disponibile:', votazione.uri);
-    
     if (!votazione.uri) {
-      console.error('❌ URI non disponibile nella votazione:', votazione);
       toast({
         title: "Errore",
         description: "URI della votazione non disponibile",
