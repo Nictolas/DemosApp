@@ -2,7 +2,7 @@ const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 const { getPool } = require('../config/database');
-const { loadFromDb: loadOpenpolisUltimiDdl } = require('../services/openpolisCosaSuccedeService');
+const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
 const axios = require('axios');
 
 const router = express.Router();
@@ -1235,7 +1235,22 @@ router.get('/ultime', verifyToken, async (req, res) => {
     ]);
 
     // Arricchisci con ultimi DDL approvati da Openpolis "Cosa succede" (titoli descrittivi)
-    const openpolisDdl = await loadOpenpolisUltimiDdl(pool);
+    let openpolisDdl = await loadOpenpolisUltimiDdl(pool);
+    // Se tabella vuota, fetch una volta da Openpolis e salva in background
+    if (!openpolisDdl.camera && !openpolisDdl.senato) {
+      try {
+        const fetched = await Promise.race([
+          fetchUltimiDdlApprovati(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 20000))
+        ]);
+        openpolisDdl = fetched;
+        if (fetched.camera || fetched.senato) {
+          setImmediate(() => saveOpenpolisDdlToDb(fetched, pool).catch(() => {}));
+        }
+      } catch (e) {
+        console.warn('⚠️ Fallback fetch Openpolis ultimi DDL:', e.message);
+      }
+    }
     const openpolisItem = (row, camera) => ({
       id: null,
       uri: row.url_dettaglio,
