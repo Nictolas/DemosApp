@@ -1361,19 +1361,98 @@ router.get('/ultime', verifyToken, async (req, res) => {
     } else {
       result.senato = votazioniSenato;
     }
-    
+
+    // Dati combinati: merge SPARQL/DB + Openpolis (votazioni finali decisive) per data + camera
+    const openpolisFinali = await loadOpenpolisVotazioniFinali(pool, 50);
+    const normDate = (d) => (d && (typeof d === 'string' ? d.split('T')[0] : d)) || '';
+
+    const openpolisFinaliItem = (row) => ({
+      id: null,
+      uri: row.url_dettaglio,
+      votazione_id: row.openpolis_id || null,
+      legislatura: 19,
+      data_votazione: row.data_votazione || null,
+      titolo_votazione: row.titolo,
+      descrizione: row.titolo,
+      descrizione_votazione: row.titolo,
+      descrizione_completa: row.titolo,
+      esito: row.esito || null,
+      camera: row.camera,
+      url_votazione: row.url_dettaglio,
+      source: 'openpolis',
+      dati_arricchiti: true,
+      favorevoli: null,
+      contrari: null,
+      presenti: null,
+      votanti: null,
+      maggioranza: null,
+      approvato: null,
+      astenuti: null,
+      numero_legale: null,
+      presidente: null,
+      tipo_seduta: null,
+      metadati: {},
+      spiegazione: null
+    });
+
+    function buildCombined(list, openpolisRows, cameraLabel, maxItems) {
+      const usedOpenpolisIds = new Set();
+      const combined = [];
+      for (const v of list) {
+        const dateKey = normDate(v.data_votazione);
+        const openpolisMatch = openpolisRows.find(
+          (r) => !usedOpenpolisIds.has(r.id) && normDate(r.data_votazione) === dateKey
+        );
+        if (openpolisMatch) {
+          usedOpenpolisIds.add(openpolisMatch.id);
+          combined.push({
+            ...v,
+            titolo_votazione: openpolisMatch.titolo,
+            descrizione_votazione: openpolisMatch.titolo,
+            descrizione: openpolisMatch.titolo,
+            descrizione_completa: openpolisMatch.titolo,
+            url_votazione: openpolisMatch.url_dettaglio,
+            source: 'combined',
+            dati_arricchiti: true
+          });
+        } else {
+          combined.push(v);
+        }
+      }
+      for (const r of openpolisRows) {
+        if (usedOpenpolisIds.has(r.id)) continue;
+        combined.push(openpolisFinaliItem(r));
+      }
+      combined.sort((a, b) => {
+        const da = a.data_votazione ? new Date(a.data_votazione) : new Date(0);
+        const db = b.data_votazione ? new Date(b.data_votazione) : new Date(0);
+        return db - da;
+      });
+      return combined.slice(0, maxItems);
+    }
+
+    const openpolisCamera = (openpolisFinali || []).filter((r) => r.camera === 'Camera');
+    const openpolisSenato = (openpolisFinali || []).filter((r) => r.camera === 'Senato');
+    result.combined = {
+      camera: buildCombined(result.camera, openpolisCamera, 'Camera', limit),
+      senato: buildCombined(result.senato, openpolisSenato, 'Senato', limit)
+    };
+
     const totalCount = result.camera.length + result.senato.length;
     
-    if (totalCount === 0) {
+    if (totalCount === 0 && (!result.combined?.camera?.length && !result.combined?.senato?.length)) {
       return res.json({
         success: true,
         data: result,
         camera: result.camera,
         senato: result.senato,
+        combined: result.combined || { camera: [], senato: [] },
         count: {
           camera: result.camera.length,
           senato: result.senato.length,
-          total: totalCount
+          combined_camera: result.combined?.camera?.length ?? 0,
+          combined_senato: result.combined?.senato?.length ?? 0,
+          total: 0
         },
         message: 'Nessuna votazione trovata. Gli endpoint SPARQL potrebbero non restituire risultati per la XIX legislatura.'
       });
@@ -1391,9 +1470,12 @@ router.get('/ultime', verifyToken, async (req, res) => {
       data: result,
       camera: result.camera,
       senato: result.senato,
+      combined: result.combined,
       count: {
         camera: result.camera.length,
         senato: result.senato.length,
+        combined_camera: result.combined?.camera?.length ?? 0,
+        combined_senato: result.combined?.senato?.length ?? 0,
         total: totalCount
       }
     });
