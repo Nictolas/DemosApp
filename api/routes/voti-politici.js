@@ -1314,8 +1314,13 @@ router.get('/ultime', verifyToken, async (req, res) => {
       });
     }
     
-    console.log(`✅ Restituite ${result.camera.length} votazioni Camera e ${result.senato.length} votazioni Senato`);
-    
+    const hasOpenpolisCamera = result.camera.length > 0 && result.camera[0].source === 'openpolis';
+    const hasOpenpolisSenato = result.senato.length > 0 && result.senato[0].source === 'openpolis';
+    if (hasOpenpolisCamera || hasOpenpolisSenato) {
+      res.setHeader('X-Voti-Parlamento-Openpolis', [hasOpenpolisCamera && 'camera', hasOpenpolisSenato && 'senato'].filter(Boolean).join(','));
+    }
+    console.log(`✅ Restituite ${result.camera.length} votazioni Camera e ${result.senato.length} votazioni Senato${hasOpenpolisCamera || hasOpenpolisSenato ? ' (con DDL Openpolis)' : ''}`);
+
     return res.json({
       success: true,
       data: result,
