@@ -2,6 +2,7 @@ const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 const { getPool } = require('../config/database');
+const { loadFromDb: loadOpenpolisUltimiDdl } = require('../services/openpolisCosaSuccedeService');
 const axios = require('axios');
 
 const router = express.Router();
@@ -977,6 +978,29 @@ router.post('/sync', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/voti-politici/sync-openpolis-ultimi-ddl - Sincronizza manualmente ultimi DDL approvati da Openpolis "Cosa succede"
+router.post('/sync-openpolis-ultimi-ddl', verifyToken, async (req, res) => {
+  try {
+    console.log('🔄 POST /api/voti-politici/sync-openpolis-ultimi-ddl - Sync manuale Openpolis ultimi DDL');
+    const { runOpenpolisCosaSuccedeSync } = require('../jobs/openpolisCosaSuccedeJob');
+    await runOpenpolisCosaSuccedeSync();
+    const openpolisDdl = await loadOpenpolisUltimiDdl(pool);
+    return res.json({
+      success: true,
+      message: 'Sync Openpolis ultimi DDL completato',
+      camera: openpolisDdl.camera || null,
+      senato: openpolisDdl.senato || null
+    });
+  } catch (error) {
+    console.error('❌ Errore sync Openpolis ultimi DDL:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nella sincronizzazione Openpolis ultimi DDL',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/voti-politici/ultime - Ottieni le ultime N votazioni (default: 3) da Camera e Senato separatamente
 router.get('/ultime', verifyToken, async (req, res) => {
   try {
@@ -1209,11 +1233,56 @@ router.get('/ultime', verifyToken, async (req, res) => {
       getVotazioni('Camera', limit),
       getVotazioni('Senato', limit)
     ]);
+
+    // Arricchisci con ultimi DDL approvati da Openpolis "Cosa succede" (titoli descrittivi)
+    const openpolisDdl = await loadOpenpolisUltimiDdl(pool);
+    const openpolisItem = (row, camera) => ({
+      id: null,
+      uri: row.url_dettaglio,
+      votazione_id: row.codice_ddl || null,
+      legislatura: 19,
+      data_votazione: row.data_approvazione || null,
+      titolo_votazione: row.titolo,
+      descrizione: row.titolo,
+      descrizione_votazione: row.titolo,
+      descrizione_completa: row.titolo,
+      esito: 'Approvato',
+      sigla_atto: null,
+      numero_atto: null,
+      tipo_atto: null,
+      camera: camera,
+      spiegazione: null,
+      url_votazione: row.url_dettaglio,
+      numero_seduta: null,
+      titolo_seduta: null,
+      favorevoli: null,
+      contrari: null,
+      presenti: null,
+      votanti: null,
+      maggioranza: null,
+      approvato: 1,
+      astenuti: null,
+      numero_legale: null,
+      presidente: null,
+      tipo_seduta: null,
+      metadati: {},
+      data_sincronizzazione: row.data_scraping ? new Date(row.data_scraping).toISOString() : null,
+      data_aggiornamento: null,
+      source: 'openpolis',
+      dati_arricchiti: true
+    });
+    if (openpolisDdl.camera) {
+      result.camera = [openpolisItem(openpolisDdl.camera, 'Camera'), ...votazioniCamera].slice(0, limit);
+    } else {
+      result.camera = votazioniCamera;
+    }
+    if (openpolisDdl.senato) {
+      result.senato = [openpolisItem(openpolisDdl.senato, 'Senato'), ...votazioniSenato].slice(0, limit);
+    } else {
+      result.senato = votazioniSenato;
+    }
     
-    result.camera = votazioniCamera;
-    result.senato = votazioniSenato;
-    
-    const totalCount = votazioniCamera.length + votazioniSenato.length;
+    const totalCount = result.camera.length + result.senato.length;
     
     if (totalCount === 0) {
       return res.json({
@@ -1230,7 +1299,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
       });
     }
     
-    console.log(`✅ Restituite ${votazioniCamera.length} votazioni Camera e ${votazioniSenato.length} votazioni Senato`);
+    console.log(`✅ Restituite ${result.camera.length} votazioni Camera e ${result.senato.length} votazioni Senato`);
     
     return res.json({
       success: true,

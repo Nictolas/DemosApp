@@ -147,6 +147,17 @@ const gracefulShutdown = async () => {
     } catch (error) {
       console.error('⚠️ Errore fermando voti parlamento sync job:', error.message);
     }
+
+    // Ferma job Openpolis Cosa succede
+    try {
+      const { stopOpenpolisCosaSuccedeJob } = require('./jobs/openpolisCosaSuccedeJob');
+      if (stopOpenpolisCosaSuccedeJob && typeof stopOpenpolisCosaSuccedeJob === 'function') {
+        stopOpenpolisCosaSuccedeJob();
+        console.log('✅ Openpolis Cosa succede job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando Openpolis Cosa succede job:', error.message);
+    }
     
     // Ferma job di backup
     try {

@@ -108,6 +108,7 @@ const violationMonitoringJob = require('./jobs/violationMonitoringJob');
 const backupJob = require('./jobs/backupJob');
 const ministeroSyncJob = require('./jobs/ministeroSyncJob');
 const { startVotiParlamentoSyncJob } = require('./jobs/votiParlamentoSyncJob');
+const { startOpenpolisCosaSuccedeJob } = require('./jobs/openpolisCosaSuccedeJob');
 
 // Import rate limiting middleware
 const {
@@ -508,6 +509,14 @@ if (process.env.ENABLE_MINISTERO_SYNC !== 'false') {
 // Avvia job di sincronizzazione votazioni parlamentari (sempre attivo)
 if (process.env.ENABLE_VOTI_PARLAMENTO_SYNC !== 'false') {
   startVotiParlamentoSyncJob();
+}
+
+// Avvia job Openpolis "Cosa succede" (ultimi DDL approvati per titoli descrittivi)
+if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC !== 'false') {
+  startOpenpolisCosaSuccedeJob();
+  // Esegui un sync iniziale in background così la prima richiesta ha già i titoli
+  const { runOpenpolisCosaSuccedeSync } = require('./jobs/openpolisCosaSuccedeJob');
+  setImmediate(() => runOpenpolisCosaSuccedeSync().catch(() => {}));
 }
 
 module.exports = app;
