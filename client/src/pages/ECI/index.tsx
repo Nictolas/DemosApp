@@ -330,23 +330,23 @@ export default function ECI() {
         </CardContent>
       </Card>
 
-      {/* Dialog dettaglio (come ViewDialog Iniziative Popolari) */}
+      {/* Dialog dettaglio: stesso stile ViewDialog Iniziative Popolari (full screen) */}
       <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none left-0 top-0 translate-x-0 translate-y-0 rounded-none bg-white overflow-y-auto p-6">
+          <DialogHeader className="bg-white">
             <DialogTitle className="text-2xl font-bold text-gray-900">
               {viewItem?.title}
             </DialogTitle>
             <DialogDescription className="text-gray-600">
-              Dettagli iniziativa cittadini europei
+              Dettagli dell'iniziativa cittadini europei
             </DialogDescription>
           </DialogHeader>
           {viewItem && (
-            <div className="space-y-4">
+            <div className="space-y-4 bg-white overflow-y-auto">
               {viewItem.obiettivi && (
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Obiettivi</h4>
-                  <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                  <p className="text-gray-700 whitespace-pre-wrap">
                     {viewItem.obiettivi}
                   </p>
                 </div>
@@ -368,7 +368,7 @@ export default function ECI() {
                 )}
               </div>
               {viewItem.url && (
-                <div className="pt-2">
+                <div>
                   <a
                     href={viewItem.url}
                     target="_blank"
@@ -376,7 +376,8 @@ export default function ECI() {
                   >
                     <Button
                       variant="default"
-                      className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto"
+                      size="sm"
+                      className="bg-teal-600 hover:bg-teal-700 text-white"
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Apri sul portale UE
@@ -386,7 +387,8 @@ export default function ECI() {
               )}
             </div>
           )}
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-between mt-4 bg-white">
+            <div />
             <Button variant="outline" onClick={() => setViewItem(null)}>
               Chiudi
             </Button>
