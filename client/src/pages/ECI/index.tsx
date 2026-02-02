@@ -1,13 +1,29 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useQuery } from "@tanstack/react-query";
 import { Redirect, useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { PageContainer } from "@/components/PageContainer";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, ArrowLeft, FileSignature, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  FileSignature,
+  AlertCircle,
+  RefreshCw,
+  ExternalLink,
+  Search,
+  ArrowUpDown,
+} from "lucide-react";
 
 interface ECIItem {
   id: string;
@@ -28,26 +44,37 @@ interface ECIDataResponse {
   successi?: ECIItem[];
 }
 
+type SortOption = "firme" | "scadenza" | null;
+
 export default function ECI() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("firme");
+  const [viewItem, setViewItem] = useState<ECIItem | null>(null);
 
   const {
     data: eciData,
     isLoading,
     isError,
     error,
-    refetch
+    refetch,
   } = useQuery<ECIDataResponse>({
     queryKey: ["eci", "initiatives"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/eci");
       if (!response?.ok || !response?.data) {
-        throw new Error(response?.data?.error || response?.data?.message || "Errore nel caricamento delle ECI");
+        throw new Error(
+          response?.data?.error ||
+            response?.data?.message ||
+            "Errore nel caricamento delle ECI"
+        );
       }
       const result = response.data;
       if (result && !result.success && result.success !== undefined) {
-        throw new Error(result.error || result.message || "Errore nel caricamento delle ECI");
+        throw new Error(
+          result.error || result.message || "Errore nel caricamento delle ECI"
+        );
       }
       return {
         ...result,
@@ -76,16 +103,43 @@ export default function ECI() {
     const [y, m, day] = d.split("-");
     return day && m && y ? `${day}/${m}/${y}` : d;
   };
+
   const ongoing: ECIItem[] = (eciData?.ongoing || []).map(toItem).sort((a, b) => b.firme - a.firme);
-  const successi: ECIItem[] = (eciData?.successi || []).map(toItem).sort((a, b) => b.firme - a.firme);
   const hasSections = (eciData?.ongoing ?? eciData?.successi) !== undefined;
-  const list: ECIItem[] = hasSections ? [...ongoing, ...successi] : (eciData?.initiatives || []).map(toItem).sort((a, b) => b.firme - a.firme);
+  const baseList: ECIItem[] = hasSections
+    ? ongoing
+    : (eciData?.initiatives || []).map(toItem).sort((a, b) => b.firme - a.firme);
+
+  const displayList = useMemo(() => {
+    let list = [...baseList];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (item) =>
+          item.title?.toLowerCase().includes(q) ||
+          item.obiettivi?.toLowerCase().includes(q)
+      );
+    }
+    if (sortBy === "firme") {
+      list.sort((a, b) => b.firme - a.firme);
+    } else if (sortBy === "scadenza") {
+      list.sort((a, b) => {
+        const da = a.end_date || "";
+        const db = b.end_date || "";
+        if (!da && !db) return 0;
+        if (!da) return 1;
+        if (!db) return -1;
+        return da.localeCompare(db);
+      });
+    }
+    return list;
+  }, [baseList, searchQuery, sortBy]);
 
   if (isAuthLoading) {
     return (
-      <PageContainer className="flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </PageContainer>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
     );
   }
 
@@ -94,11 +148,11 @@ export default function ECI() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-teal-50 to-white">
-      <div className="w-full px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+    <div className="container mx-auto px-4 py-8">
+      <Card className="w-full rounded-2xl shadow-lg bg-white">
+        <CardContent className="p-6">
+          {/* Top bar: back + refresh */}
+          <div className="flex items-center justify-between mb-6">
             <Button
               variant="outline"
               size="icon"
@@ -107,244 +161,238 @@ export default function ECI() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <FileSignature className="h-8 w-8 text-teal-600" />
-                ECI
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Iniziative dei Cittadini Europei (ICE) e numero di firme
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Aggiorna
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Aggiorna
-          </Button>
-        </div>
 
-        {/* Error */}
-        {isError && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {error instanceof Error ? error.message : "Errore nel caricamento delle ECI."}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Loading */}
-        {isLoading && (
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-              <p className="ml-4 text-muted-foreground">Caricamento iniziative ECI...</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Sezioni ECI: In corso e Successi (≥ 1 milione) */}
-        {!isLoading && !isError && (
-          <>
-            <p className="text-sm text-muted-foreground mb-4">
-              {eciData?.source === "eu_official" && "Fonte: API ufficiali EU (citizens-initiative.europa.eu)."}
-              {eciData?.source === "decidim_graphql" && "Fonte: API GraphQL Decidim."}
-              {eciData?.source === "eci_table" && "Fonte: cache (tabella ECI)."}
+          {/* Header come Iniziative Popolari */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <FileSignature className="h-8 w-8 text-teal-600 mr-3" />
+              <h1 className="text-3xl font-bold text-gray-900">ECI</h1>
+            </div>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Iniziative dei Cittadini Europei (ICE) in raccolta firme. Firma sul portale ufficiale UE.
             </p>
+          </div>
 
-            {hasSections ? (
-              <>
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle>In corso</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Iniziative dei Cittadini Europei attualmente in raccolta firme.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    {ongoing.length === 0 ? (
-                      <p className="text-center py-6 text-muted-foreground">Nessuna iniziativa in corso.</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="border-b bg-muted/50">
-                              <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
-                              <th className="text-right p-3 font-medium">N° firme</th>
-                              <th className="text-center p-3 font-medium">Scadenza</th>
-                              <th className="text-left p-3 font-medium">Obiettivi</th>
-                              <th className="text-center p-3 font-medium">Link</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {ongoing.map((item) => (
-                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
-                                <td className="p-3">
-                                  <span className="font-medium">{item.title}</span>
-                                </td>
-                                <td className="p-3 text-right">
-                                  <span className="font-semibold text-teal-600">
-                                    {item.firme.toLocaleString("it-IT")}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-center text-muted-foreground whitespace-nowrap">
-                                  {formatScadenza(item.end_date)}
-                                </td>
-                                <td className="p-3 max-w-xs">
-                                  <span className="line-clamp-2 text-sm text-muted-foreground" title={item.obiettivi || undefined}>
-                                    {item.obiettivi ? (item.obiettivi.length > 120 ? `${item.obiettivi.slice(0, 120)}…` : item.obiettivi) : "—"}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-center">
-                                  {item.url ? (
-                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">
-                                      <ExternalLink className="h-4 w-4" />
-                                    </a>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+          {isError && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error instanceof Error ? error.message : "Errore nel caricamento delle ECI."}
+              </AlertDescription>
+            </Alert>
+          )}
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Successi (≥ 1 milione di firme)</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Iniziative che hanno raggiunto almeno 1.000.000 di firme.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    {successi.length === 0 ? (
-                      <p className="text-center py-6 text-muted-foreground">Nessuna iniziativa con almeno 1 milione di firme.</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="border-b bg-muted/50">
-                              <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
-                              <th className="text-right p-3 font-medium">N° firme</th>
-                              <th className="text-center p-3 font-medium">Scadenza</th>
-                              <th className="text-left p-3 font-medium">Obiettivi</th>
-                              <th className="text-center p-3 font-medium">Link</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {successi.map((item) => (
-                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
-                                <td className="p-3">
-                                  <span className="font-medium">{item.title}</span>
-                                </td>
-                                <td className="p-3 text-right">
-                                  <span className="font-semibold text-teal-600">
-                                    {item.firme.toLocaleString("it-IT")}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-center text-muted-foreground whitespace-nowrap">
-                                  {formatScadenza(item.end_date)}
-                                </td>
-                                <td className="p-3 max-w-xs">
-                                  <span className="line-clamp-2 text-sm text-muted-foreground" title={item.obiettivi || undefined}>
-                                    {item.obiettivi ? (item.obiettivi.length > 120 ? `${item.obiettivi.slice(0, 120)}…` : item.obiettivi) : "—"}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-center">
-                                  {item.url ? (
-                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">
-                                      <ExternalLink className="h-4 w-4" />
-                                    </a>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Lista ECI e numero di firme</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Iniziative dei Cittadini Europei (ECI), ordinate per numero di firme.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  {list.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">
-                      Nessuna ECI disponibile. Verifica la connessione alle API EU o popola la tabella ECI.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b bg-muted/50">
-                            <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
-                            <th className="text-right p-3 font-medium">N° firme</th>
-                            <th className="text-center p-3 font-medium">Scadenza</th>
-                            <th className="text-left p-3 font-medium">Obiettivi</th>
-                            <th className="text-center p-3 font-medium">Link</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {list.map((item) => (
-                            <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
-                              <td className="p-3">
-                                <span className="font-medium">{item.title}</span>
-                              </td>
-                              <td className="p-3 text-right">
-                                <span className="font-semibold text-teal-600">
-                                  {item.firme.toLocaleString("it-IT")}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center text-muted-foreground whitespace-nowrap">
-                                {formatScadenza(item.end_date)}
-                              </td>
-                              <td className="p-3 max-w-xs">
-                                <span className="line-clamp-2 text-sm text-muted-foreground" title={item.obiettivi || undefined}>
-                                  {item.obiettivi ? (item.obiettivi.length > 120 ? `${item.obiettivi.slice(0, 120)}…` : item.obiettivi) : "—"}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center">
-                                {item.url ? (
-                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">
-                                    <ExternalLink className="h-4 w-4" />
-                                  </a>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+          {!isError && (
+            <>
+              {/* Search + Sort come Iniziative Popolari */}
+              <div className="space-y-4 mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Cerca per titolo o obiettivi..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-full"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={sortBy === "firme" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSortBy(sortBy === "firme" ? null : "firme")}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                    Ordina per Firme
+                  </Button>
+                  <Button
+                    variant={sortBy === "scadenza" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSortBy(sortBy === "scadenza" ? null : "scadenza")}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                    Ordina per Scadenza
+                  </Button>
+                  {sortBy && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSortBy(null)}
+                      className="text-gray-500"
+                    >
+                      Rimuovi filtro
+                    </Button>
                   )}
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-      </div>
-    </PageContainer>
+                </div>
+              </div>
+
+              {/* Lista: card come Iniziative Popolari */}
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+                </div>
+              ) : displayList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Nessuna iniziativa in corso.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {displayList.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white"
+                      onClick={() => setViewItem(item)}
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {item.title}
+                        </h3>
+                        <div className="flex flex-col items-center gap-2 text-sm text-gray-500 mt-3">
+                          <span>
+                            Firme raccolte:{" "}
+                            <strong className="text-teal-600">
+                              {item.firme.toLocaleString("it-IT")}
+                            </strong>
+                          </span>
+                          {item.end_date && (
+                            <span>
+                              Scadenza:{" "}
+                              <strong>{formatScadenza(item.end_date)}</strong>
+                            </span>
+                          )}
+                        </div>
+                        {/* Progresso verso 1M (ECI quorum) */}
+                        <div className="mt-4 w-full max-w-md mx-auto">
+                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>Progresso verso 1.000.000 firme</span>
+                            <span className="font-semibold">
+                              {Math.min(
+                                (item.firme / 1_000_000) * 100,
+                                100
+                              ).toFixed(1)}
+                              %
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500 bg-teal-500"
+                              style={{
+                                width: `${Math.min(
+                                  (item.firme / 1_000_000) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        {item.url && (
+                          <div className="mt-4">
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="bg-teal-600 hover:bg-teal-700 text-white"
+                              >
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Vai al sito UE
+                              </Button>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog dettaglio (come ViewDialog Iniziative Popolari) */}
+      <Dialog open={!!viewItem} onOpenChange={() => setViewItem(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-gray-900">
+              {viewItem?.title}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Dettagli iniziativa cittadini europei
+            </DialogDescription>
+          </DialogHeader>
+          {viewItem && (
+            <div className="space-y-4">
+              {viewItem.obiettivi && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Obiettivi</h4>
+                  <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                    {viewItem.obiettivi}
+                  </p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-1">Firme raccolte</h4>
+                  <p className="text-gray-700 font-semibold text-teal-600">
+                    {viewItem.firme.toLocaleString("it-IT")}
+                  </p>
+                </div>
+                {viewItem.end_date && (
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Scadenza</h4>
+                    <p className="text-gray-700">
+                      {formatScadenza(viewItem.end_date)}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {viewItem.url && (
+                <div className="pt-2">
+                  <a
+                    href={viewItem.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      variant="default"
+                      className="bg-teal-600 hover:bg-teal-700 text-white w-full sm:w-auto"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Apri sul portale UE
+                    </Button>
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" onClick={() => setViewItem(null)}>
+              Chiudi
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
