@@ -202,8 +202,10 @@ async function saveToDb(result, pool) {
   if (!pool) return;
   const client = await pool.connect();
   try {
-    for (const [camera, row] of Object.entries(result)) {
+    for (const [key, row] of Object.entries(result)) {
       if (!row || !row.titolo || !row.url_dettaglio) continue;
+      const camera = key === 'camera' ? 'Camera' : key === 'senato' ? 'Senato' : null;
+      if (!camera) continue;
       await client.query(
         `INSERT INTO openpolis_ultimi_ddl_approvati (camera, titolo, codice_ddl, url_dettaglio, data_approvazione, data_scraping, updated_at)
          VALUES ($1, $2, $3, $4, $5::date, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
