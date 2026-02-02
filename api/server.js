@@ -158,6 +158,17 @@ const gracefulShutdown = async () => {
     } catch (error) {
       console.error('⚠️ Errore fermando Openpolis Cosa succede job:', error.message);
     }
+
+    // Ferma job Openpolis votazioni finali decisive
+    try {
+      const { stopOpenpolisVotazioniFinaliJob } = require('./jobs/openpolisVotazioniFinaliJob');
+      if (stopOpenpolisVotazioniFinaliJob && typeof stopOpenpolisVotazioniFinaliJob === 'function') {
+        stopOpenpolisVotazioniFinaliJob();
+        console.log('✅ Openpolis votazioni finali job fermato');
+      }
+    } catch (error) {
+      console.error('⚠️ Errore fermando Openpolis votazioni finali job:', error.message);
+    }
     
     // Ferma job di backup
     try {

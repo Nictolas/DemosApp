@@ -3,6 +3,7 @@ const { verifyToken } = require('../middleware/auth');
 const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 const { getPool } = require('../config/database');
 const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
+const { loadFromDb: loadOpenpolisVotazioniFinali, fetchVotazioniFinaliDecisive, saveToDb: saveOpenpolisVotazioniFinaliToDb } = require('../services/openpolisVotazioniFinaliService');
 const axios = require('axios');
 
 const router = express.Router();
@@ -996,6 +997,70 @@ router.post('/sync-openpolis-ultimi-ddl', verifyToken, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Errore nella sincronizzazione Openpolis ultimi DDL',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/voti-politici/votazioni-finali-decisive - Solo votazioni finali decisive (Openpolis, main_vote_type=is_final)
+router.get('/votazioni-finali-decisive', verifyToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    let rows = await loadOpenpolisVotazioniFinali(pool, limit);
+    if (rows.length === 0) {
+      try {
+        const items = await fetchVotazioniFinaliDecisive(limit);
+        if (items.length > 0) {
+          await saveOpenpolisVotazioniFinaliToDb(items, pool);
+          rows = await loadOpenpolisVotazioniFinali(pool, limit);
+        }
+      } catch (e) {
+        console.warn('⚠️ Fallback fetch votazioni finali:', e.message);
+      }
+    }
+    const data = rows.map(r => ({
+      id: r.id,
+      openpolis_id: r.openpolis_id,
+      camera: r.camera,
+      titolo: r.titolo,
+      url_dettaglio: r.url_dettaglio,
+      esito: r.esito,
+      data_votazione: r.data_votazione,
+      data_scraping: r.data_scraping
+    }));
+    return res.json({
+      success: true,
+      data,
+      count: data.length,
+      source: 'openpolis'
+    });
+  } catch (error) {
+    console.error('❌ Errore votazioni finali decisive:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero votazioni finali decisive',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/voti-politici/sync-votazioni-finali-decisive - Sincronizza manualmente votazioni finali decisive da Openpolis
+router.post('/sync-votazioni-finali-decisive', verifyToken, async (req, res) => {
+  try {
+    console.log('🔄 POST /api/voti-politici/sync-votazioni-finali-decisive - Sync manuale votazioni finali decisive');
+    const { runOpenpolisVotazioniFinaliSync } = require('../jobs/openpolisVotazioniFinaliJob');
+    await runOpenpolisVotazioniFinaliSync();
+    const rows = await loadOpenpolisVotazioniFinali(pool, 50);
+    return res.json({
+      success: true,
+      message: 'Sync votazioni finali decisive completato',
+      count: rows.length
+    });
+  } catch (error) {
+    console.error('❌ Errore sync votazioni finali decisive:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nella sincronizzazione',
       message: error.message
     });
   }

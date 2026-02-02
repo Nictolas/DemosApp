@@ -109,6 +109,7 @@ const backupJob = require('./jobs/backupJob');
 const ministeroSyncJob = require('./jobs/ministeroSyncJob');
 const { startVotiParlamentoSyncJob } = require('./jobs/votiParlamentoSyncJob');
 const { startOpenpolisCosaSuccedeJob } = require('./jobs/openpolisCosaSuccedeJob');
+const { startOpenpolisVotazioniFinaliJob } = require('./jobs/openpolisVotazioniFinaliJob');
 
 // Import rate limiting middleware
 const {
@@ -517,6 +518,10 @@ if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC !== 'false') {
   // Esegui un sync iniziale in background così la prima richiesta ha già i titoli
   const { runOpenpolisCosaSuccedeSync } = require('./jobs/openpolisCosaSuccedeJob');
   setImmediate(() => runOpenpolisCosaSuccedeSync().catch(() => {}));
+
+  startOpenpolisVotazioniFinaliJob();
+  const { runOpenpolisVotazioniFinaliSync } = require('./jobs/openpolisVotazioniFinaliJob');
+  setImmediate(() => runOpenpolisVotazioniFinaliSync().catch(() => {}));
 }
 
 module.exports = app;
