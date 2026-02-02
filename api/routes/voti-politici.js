@@ -1395,6 +1395,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
       spiegazione: null
     });
 
+    /** Combined: solo record effettivamente abbinati (stessa data + camera). Nessun sparql-only né openpolis-only. */
     function buildCombined(list, openpolisRows, cameraLabel, maxItems) {
       const usedOpenpolisIds = new Set();
       const combined = [];
@@ -1415,13 +1416,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
             source: 'combined',
             dati_arricchiti: true
           });
-        } else {
-          combined.push(v);
         }
-      }
-      for (const r of openpolisRows) {
-        if (usedOpenpolisIds.has(r.id)) continue;
-        combined.push(openpolisFinaliItem(r));
       }
       combined.sort((a, b) => {
         const da = a.data_votazione ? new Date(a.data_votazione) : new Date(0);
