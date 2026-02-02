@@ -131,16 +131,25 @@ async function fetchDettaglioDdl(url) {
     });
     const $ = cheerio.load(data);
 
-    let titolo = $('h1').first().text().trim() || $('h3').first().text().trim();
-    if (!titolo) {
-      $('h1, h2, h3').each((_, el) => {
-        const t = $(el).text().trim();
-        if (t && t.length > 5 && !/C\.\d+|S\.\d+/.test(t) && !/Natura:|Tipologia:/.test(t)) {
-          titolo = t;
-          return false;
-        }
-      });
-    }
+    // Su Openpolis: h1 = "Disegno di legge" (generico), il titolo vero è in h2/h3 sotto (es. "Disciplina dell'attività...")
+    const skipPatterns = [
+      /^Disegno\s+di\s+legge$/i,
+      /^Decreto\s+legge$/i,
+      /Natura:\s*Legge/i,
+      /Tipo\s+di\s+iniziativa/i,
+      /^Camera$|^Senato$/i,
+      /^C\.\d+$|^S\.\d+$/,
+      /Legge\s+ordinaria/i
+    ];
+    let titolo = null;
+    $('h1, h2, h3').each((_, el) => {
+      const t = $(el).text().trim();
+      if (!t || t.length < 15) return true; // titolo specifico è lungo
+      if (skipPatterns.some(p => p.test(t))) return true;
+      if (/^[CS]\.\d+/.test(t) || t.includes('|')) return true; // riga con codice o metadata
+      titolo = t;
+      return false; // stop al primo titolo valido
+    });
     if (!titolo) titolo = $('title').text().split(' - ')[0].trim() || 'Disegno di legge';
 
     let dataApprovazione = null;
