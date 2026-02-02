@@ -540,6 +540,41 @@ export default function VotiParlamento() {
                         )}
                       </div>
                     </div>
+                    {/* Terza card: Combinato (sempre visibile) */}
+                    <div className="mt-4">
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">Combinato</h3>
+                      {combinedSenato[0] ? (
+                        <Card className="transition-all hover:shadow-lg border-2 border-amber-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">
+                              {formattaTitoloCompatto(combinedSenato[0].titolo_votazione || combinedSenato[0].descrizione || "Votazione")}
+                            </CardTitle>
+                            <CardDescription className="flex items-center gap-2 flex-wrap text-xs">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(combinedSenato[0].data_votazione)}
+                              {combinedSenato[0].esito && (
+                                <Badge variant="outline" className={getEsitoColor(combinedSenato[0].esito)}>{combinedSenato[0].esito}</Badge>
+                              )}
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-300">SPARQL + Openpolis</Badge>
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-0 space-y-2">
+                            {(combinedSenato[0].descrizione || combinedSenato[0].descrizione_votazione) && (
+                              <p className="text-xs text-gray-600 line-clamp-3">{combinedSenato[0].descrizione || combinedSenato[0].descrizione_votazione}</p>
+                            )}
+                            <Button onClick={() => handleVotazioneClick(combinedSenato[0])} variant="outline" size="sm" className="w-full">
+                              <Eye className="h-3 w-3 mr-1" /> Dettagli
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <Card className="border-amber-200 border-dashed">
+                          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                            Non siamo riusciti a combinare i dati per il Senato (nessun abbinamento per data e camera tra SPARQL e Openpolis).
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
                   </div>
 
                   {/* Colonna destra: Camera (2 sotto-colonne: SPARQL | Openpolis) */}
@@ -607,6 +642,41 @@ export default function VotiParlamento() {
                           <Card className="border-dashed"><CardContent className="py-6 text-center text-sm text-muted-foreground">Nessuna da Openpolis</CardContent></Card>
                         )}
                       </div>
+                    </div>
+                    {/* Terza card: Combinato (sempre visibile) */}
+                    <div className="mt-4">
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-2">Combinato</h3>
+                      {combinedCamera[0] ? (
+                        <Card className="transition-all hover:shadow-lg border-2 border-amber-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">
+                              {formattaTitoloCompatto(combinedCamera[0].titolo_votazione || combinedCamera[0].descrizione_votazione || "Votazione")}
+                            </CardTitle>
+                            <CardDescription className="flex items-center gap-2 flex-wrap text-xs">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(combinedCamera[0].data_votazione)}
+                              {combinedCamera[0].esito && (
+                                <Badge variant="outline" className={getEsitoColor(combinedCamera[0].esito)}>{combinedCamera[0].esito}</Badge>
+                              )}
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-300">SPARQL + Openpolis</Badge>
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-0 space-y-2">
+                            {(combinedCamera[0].descrizione_votazione || combinedCamera[0].descrizione) && (
+                              <p className="text-xs text-gray-600 line-clamp-3">{combinedCamera[0].descrizione_votazione || combinedCamera[0].descrizione}</p>
+                            )}
+                            <Button onClick={() => handleVotazioneClick(combinedCamera[0])} variant="outline" size="sm" className="w-full">
+                              <Eye className="h-3 w-3 mr-1" /> Dettagli
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <Card className="border-amber-200 border-dashed">
+                          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                            Non siamo riusciti a combinare i dati per la Camera (nessun abbinamento per data e camera tra SPARQL e Openpolis).
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   </div>
                 </div>
