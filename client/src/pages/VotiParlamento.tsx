@@ -314,7 +314,7 @@ export default function VotiParlamento() {
     }
   };
 
-  // Votazioni da Openpolis (ultimi DDL approvati): apri link in nuova scheda
+  // Votazioni da Openpolis (ultimi DDL approvati): mostra dialog con dati card + link a Openpolis
   const isOpenpolisVotazione = (v: VotazioneParlamento) =>
     (v as { source?: string }).source === "openpolis" ||
     (v.uri && String(v.uri).startsWith("https://parlamento19.openpolis.it"));
@@ -322,8 +322,13 @@ export default function VotiParlamento() {
   // Funzione per caricare i dettagli di una votazione
   const handleVotazioneClick = async (votazione: VotazioneParlamento, forceRegenerate = false) => {
     if (isOpenpolisVotazione(votazione)) {
-      const url = votazione.uri || (votazione as { url_votazione?: string }).url_votazione;
-      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      setSelectedVotazione(votazione);
+      setLoadingDettagli(false);
+      setDettagliVotazione({
+        ...votazione,
+        titolo: votazione.titolo_votazione ?? votazione.descrizione_votazione ?? votazione.descrizione ?? "Votazione",
+        descrizione: votazione.descrizione_votazione ?? votazione.descrizione ?? null,
+      } as DettagliVotazione);
       return;
     }
 
@@ -800,13 +805,33 @@ export default function VotiParlamento() {
         <Dialog open={!!selectedVotazione} onOpenChange={(open) => !open && setSelectedVotazione(null)}>
           <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !m-0 !rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 overflow-hidden flex flex-col p-6">
             <DialogHeader>
-              <DialogTitle className="text-2xl flex items-center gap-2">
-                <Vote className="h-6 w-6 text-green-600" />
-                {formattaTitoloCompatto(dettagliVotazione?.titolo || selectedVotazione?.titolo_votazione || "Dettagli Votazione")}
-              </DialogTitle>
-              <DialogDescription>
-                Informazioni complete sulla votazione parlamentare
-              </DialogDescription>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <DialogTitle className="text-2xl flex items-center gap-2">
+                    <Vote className="h-6 w-6 text-green-600 flex-shrink-0" />
+                    {formattaTitoloCompatto(dettagliVotazione?.titolo || selectedVotazione?.titolo_votazione || "Dettagli Votazione")}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Informazioni complete sulla votazione parlamentare
+                  </DialogDescription>
+                </div>
+                {selectedVotazione && isOpenpolisVotazione(selectedVotazione) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-shrink-0"
+                    asChild
+                  >
+                    <a
+                      href={selectedVotazione.uri || (selectedVotazione as { url_votazione?: string }).url_votazione || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Vedi su Openpolis →
+                    </a>
+                  </Button>
+                )}
+              </div>
             </DialogHeader>
 
             <ScrollArea className="flex-1 pr-4">
@@ -1126,7 +1151,9 @@ export default function VotiParlamento() {
                     </>
                   )}
 
-                  {/* Analisi Legge */}
+                  {/* Analisi Legge (nascosta per votazioni Openpolis) */}
+                  {selectedVotazione && !isOpenpolisVotazione(selectedVotazione) && (
+                  <>
                   <Separator />
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1387,6 +1414,8 @@ export default function VotiParlamento() {
                       </div>
                     </div>
                   </div>
+                  </>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">
