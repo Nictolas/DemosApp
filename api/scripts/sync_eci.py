@@ -46,28 +46,59 @@ def _extract_detail_links(html):
     return links
 
 
+def _parse_scadenza(text):
+    """Estrae 'Scadenza: DD/MM/YYYY' e ritorna 'YYYY-MM-DD' o None."""
+    m = re.search(r"Scadenza\s*:\s*(\d{1,2})/(\d{1,2})/(\d{4})", text, re.IGNORECASE)
+    if m:
+        d, mon, y = m.group(1).zfill(2), m.group(2).zfill(2), m.group(3)
+        try:
+            return f"{y}-{mon}-{d}"
+        except Exception:
+            return None
+    return None
+
+
+def _extract_obiettivi(soup):
+    """Estrae il testo della sezione Obiettivi dalla pagina di dettaglio."""
+    text_full = soup.get_text(" ", strip=True)
+    m = re.search(r"Obiettivi\s*(.+?)(?=Informazioni|Clausola|Scadenza|Numero totale|$)", text_full, re.DOTALL | re.IGNORECASE)
+    if m:
+        block = (m.group(1) or "").strip()
+        block = re.sub(r"\s+", " ", block)[:8000]
+        return block if len(block) > 10 else None
+    return None
+
+
 def _scrape_detail(html, eid):
-    """Estrae titolo e numero firme dalla pagina di dettaglio."""
+    """Estrae titolo, firme, scadenza e obiettivi dalla pagina di dettaglio (HTML già renderizzato)."""
     soup = BeautifulSoup(html, "html.parser")
+    text = soup.get_text(" ", strip=True)
 
     title = "Senza titolo"
     for h1 in soup.find_all("h1"):
         t = (h1.get_text() or "").strip()
-        if t and len(t) > 2 and "iniziativa" not in t.lower()[:30]:
+        if t and len(t) > 15 and "informazioni" not in t.lower()[:25] and "iniziativa dei cittadini" not in t.lower()[:30]:
             title = t[:500]
             break
+    if title == "Senza titolo":
+        main = soup.find(attrs={"role": "main"}) or soup.find("main")
+        if main:
+            for h in main.find_all(["h1", "h2"]):
+                t = (h.get_text() or "").strip()
+                if t and len(t) > 15 and "iniziativa" not in t.lower()[:20]:
+                    title = t[:500]
+                    break
     if title == "Senza titolo":
         meta = soup.find("meta", property="og:title")
         if meta and meta.get("content"):
             title = (meta["content"] or "").strip()[:500] or title
 
     count = 0
-    text = soup.get_text(" ", strip=True)
-    # Cerca numero con separatori migliaia (1.234.567 o 1,234,567) vicino a "firme" / "supporti"
     for pattern in [
-        r"([\d.,]+)\s*(?:firme|supporti|signature)",
+        r"Numero totale di firmatari\s*[\s\t]*([\d.,]+)",
+        r"firmatari\s+([\d.,]+)",
+        r"([\d.,]+)\s*(?:firmatari|firme|supporti|signature)",
         r"(?:firme|supporti|signature)[:\s]*([\d.,]+)",
-        r"([\d]{1,3}(?:[.,]\d{3})*)\s*(?:firme|supporti)",
     ]:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
@@ -75,14 +106,10 @@ def _scrape_detail(html, eid):
             if raw.isdigit():
                 count = int(raw)
                 break
-    if count == 0 and "firme" in text.lower():
-        m = re.search(r"(\d[\d.,]*)\s*firme", text, re.IGNORECASE)
-        if m:
-            raw = m.group(1).replace(".", "").replace(",", "")
-            if raw.isdigit():
-                count = int(raw)
 
-    return title, count
+    end_date = _parse_scadenza(text)
+    obiettivi = _extract_obiettivi(soup)
+    return title, count, end_date, obiettivi
 
 
 def _fetch_list_html():
@@ -90,8 +117,8 @@ def _fetch_list_html():
     return _get_html(LIST_URL, LIST_PARAMS)
 
 
-def _fetch_list_html_playwright():
-    """Fallback: rende la pagina lista con Playwright e ritorna HTML (se lista vuota con requests)."""
+def _fetch_html_playwright(url, wait_extra=2):
+    """Rende la pagina con Playwright e ritorna HTML (per liste e dettagli JS-rendered)."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -99,11 +126,18 @@ def _fetch_list_html_playwright():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(f"{LIST_URL}?CATEGORY%5B0%5D=any&STATUS%5B0%5D=ONGOING&SECTION=ALL", wait_until="networkidle", timeout=25000)
-        time.sleep(2)
+        page.goto(url, wait_until="networkidle", timeout=25000)
+        time.sleep(wait_extra)
         html = page.content()
         browser.close()
     return html
+
+
+def _fetch_list_html_playwright():
+    """Fallback: rende la pagina lista con Playwright."""
+    return _fetch_html_playwright(
+        f"{LIST_URL}?CATEGORY%5B0%5D=any&STATUS%5B0%5D=ONGOING&SECTION=ALL"
+    )
 
 
 def sync():
@@ -131,19 +165,34 @@ def sync():
         print("[ERR] Impossibile ottenere link alle iniziative.")
         return
 
-    print(f"[OK] Trovate {len(detail_links)} iniziative. Scraping dettagli...")
+    print(f"[OK] Trovate {len(detail_links)} iniziative. Scraping dettagli (Playwright per contenuto reale)...")
 
     to_insert = []
-    for i, item in enumerate(detail_links):
-        try:
-            html_detail = _get_html(item["url"])
-            title, count = _scrape_detail(html_detail, item["eid"])
-            status = "SUCCESS" if count >= 1000000 else "ONGOING"
-            slug = f"eci-{item['eid']}"
-            to_insert.append((item["eid"], title, count, slug, status))
-        except Exception as e:
-            print(f"[!] Saltata {item['url']}: {e}")
-        time.sleep(0.5)
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("[ERR] Playwright non disponibile. Installa: pip install playwright && playwright install chromium")
+        return
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        for i, item in enumerate(detail_links):
+            try:
+                page = browser.new_page()
+                page.goto(item["url"], wait_until="networkidle", timeout=20000)
+                time.sleep(1)
+                html_detail = page.content()
+                page.close()
+                title, count, end_date, obiettivi = _scrape_detail(html_detail, item["eid"])
+                status = "SUCCESS" if count >= 1000000 else "ONGOING"
+                slug = f"eci-{item['eid']}"
+                url = item["url"]
+                to_insert.append((item["eid"], title, count, slug, status, end_date, obiettivi, url))
+                print(f"    [{item['eid']}] {title[:50]}... | {count} firme | scadenza {end_date or '—'}")
+            except Exception as e:
+                print(f"[!] Saltata {item['url']}: {e}")
+            time.sleep(0.5)
+        browser.close()
 
     if not to_insert:
         print("[ERR] Nessun dettaglio estratto.")
@@ -156,7 +205,7 @@ def sync():
         cur.execute("DELETE FROM eci")
         execute_values(
             cur,
-            "INSERT INTO eci (id, title, signature_count, slug, status) VALUES %s",
+            "INSERT INTO eci (id, title, signature_count, slug, status, end_date, obiettivi, url) VALUES %s",
             to_insert,
         )
         conn.commit()

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageContainer } from "@/components/PageContainer";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, ArrowLeft, FileSignature, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, FileSignature, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 
 interface ECIItem {
   id: string;
@@ -15,6 +15,9 @@ interface ECIItem {
   firme: number;
   signature_count?: number;
   slug?: string;
+  end_date?: string | null;
+  obiettivi?: string | null;
+  url?: string | null;
 }
 
 interface ECIDataResponse {
@@ -63,7 +66,16 @@ export default function ECI() {
     title: item.title || "Senza titolo",
     firme: item.firme ?? item.signature_count ?? 0,
     slug: item.slug,
+    end_date: item.end_date ?? null,
+    obiettivi: item.obiettivi ?? null,
+    url: item.url ?? null,
   });
+
+  const formatScadenza = (d: string | null | undefined): string => {
+    if (!d) return "—";
+    const [y, m, day] = d.split("-");
+    return day && m && y ? `${day}/${m}/${y}` : d;
+  };
   const ongoing: ECIItem[] = (eciData?.ongoing || []).map(toItem).sort((a, b) => b.firme - a.firme);
   const successi: ECIItem[] = (eciData?.successi || []).map(toItem).sort((a, b) => b.firme - a.firme);
   const hasSections = (eciData?.ongoing ?? eciData?.successi) !== undefined;
@@ -167,6 +179,9 @@ export default function ECI() {
                             <tr className="border-b bg-muted/50">
                               <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
                               <th className="text-right p-3 font-medium">N° firme</th>
+                              <th className="text-center p-3 font-medium">Scadenza</th>
+                              <th className="text-left p-3 font-medium">Obiettivi</th>
+                              <th className="text-center p-3 font-medium">Link</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -179,6 +194,23 @@ export default function ECI() {
                                   <span className="font-semibold text-teal-600">
                                     {item.firme.toLocaleString("it-IT")}
                                   </span>
+                                </td>
+                                <td className="p-3 text-center text-muted-foreground whitespace-nowrap">
+                                  {formatScadenza(item.end_date)}
+                                </td>
+                                <td className="p-3 max-w-xs">
+                                  <span className="line-clamp-2 text-sm text-muted-foreground" title={item.obiettivi || undefined}>
+                                    {item.obiettivi ? (item.obiettivi.length > 120 ? `${item.obiettivi.slice(0, 120)}…` : item.obiettivi) : "—"}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-center">
+                                  {item.url ? (
+                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  ) : (
+                                    "—"
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -206,6 +238,9 @@ export default function ECI() {
                             <tr className="border-b bg-muted/50">
                               <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
                               <th className="text-right p-3 font-medium">N° firme</th>
+                              <th className="text-center p-3 font-medium">Scadenza</th>
+                              <th className="text-left p-3 font-medium">Obiettivi</th>
+                              <th className="text-center p-3 font-medium">Link</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -218,6 +253,23 @@ export default function ECI() {
                                   <span className="font-semibold text-teal-600">
                                     {item.firme.toLocaleString("it-IT")}
                                   </span>
+                                </td>
+                                <td className="p-3 text-center text-muted-foreground whitespace-nowrap">
+                                  {formatScadenza(item.end_date)}
+                                </td>
+                                <td className="p-3 max-w-xs">
+                                  <span className="line-clamp-2 text-sm text-muted-foreground" title={item.obiettivi || undefined}>
+                                    {item.obiettivi ? (item.obiettivi.length > 120 ? `${item.obiettivi.slice(0, 120)}…` : item.obiettivi) : "—"}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-center">
+                                  {item.url ? (
+                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  ) : (
+                                    "—"
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -248,6 +300,9 @@ export default function ECI() {
                           <tr className="border-b bg-muted/50">
                             <th className="text-left p-3 font-medium">Iniziativa (ECI)</th>
                             <th className="text-right p-3 font-medium">N° firme</th>
+                            <th className="text-center p-3 font-medium">Scadenza</th>
+                            <th className="text-left p-3 font-medium">Obiettivi</th>
+                            <th className="text-center p-3 font-medium">Link</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -260,6 +315,23 @@ export default function ECI() {
                                 <span className="font-semibold text-teal-600">
                                   {item.firme.toLocaleString("it-IT")}
                                 </span>
+                              </td>
+                              <td className="p-3 text-center text-muted-foreground whitespace-nowrap">
+                                {formatScadenza(item.end_date)}
+                              </td>
+                              <td className="p-3 max-w-xs">
+                                <span className="line-clamp-2 text-sm text-muted-foreground" title={item.obiettivi || undefined}>
+                                  {item.obiettivi ? (item.obiettivi.length > 120 ? `${item.obiettivi.slice(0, 120)}…` : item.obiettivi) : "—"}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center">
+                                {item.url ? (
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                ) : (
+                                  "—"
+                                )}
                               </td>
                             </tr>
                           ))}
