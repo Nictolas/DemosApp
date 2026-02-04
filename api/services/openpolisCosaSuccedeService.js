@@ -302,7 +302,7 @@ async function fetchUltimiDdlApprovati() {
       titolo: dettaglio?.titolo || evCamera.titolo,
       url_dettaglio: evCamera.url,
       codice_ddl: dettaglio?.codice_ddl || evCamera.codice_ddl,
-      data_approvazione: dettaglio?.data_approvazione || evCamera.dateStr
+      data_approvazione: evCamera.dateStr || dettaglio?.data_approvazione
     };
   }
 
@@ -312,7 +312,7 @@ async function fetchUltimiDdlApprovati() {
       titolo: dettaglio?.titolo || evSenato.titolo,
       url_dettaglio: evSenato.url,
       codice_ddl: dettaglio?.codice_ddl || evSenato.codice_ddl,
-      data_approvazione: dettaglio?.data_approvazione || evSenato.dateStr
+      data_approvazione: evSenato.dateStr || dettaglio?.data_approvazione
     };
   }
 
