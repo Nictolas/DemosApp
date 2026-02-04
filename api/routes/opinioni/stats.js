@@ -122,6 +122,7 @@ router.get('/stats/:opinionId', async (req, res) => {
       'esercito_comune_europeo': 'esercito_comune_europeo',
       'esercito_comune_ue': 'esercito_comune_ue',
       'esercito_ue': 'esercito_ue',
+      'esercito_europeo': 'esercito_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -266,6 +267,7 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       'esercito_comune_europeo': 'esercito_comune_europeo',
       'esercito_comune_ue': 'esercito_comune_ue',
       'esercito_ue': 'esercito_ue',
+      'esercito_europeo': 'esercito_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -399,6 +401,7 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       'esercito_comune_europeo': 'esercito_comune_europeo',
       'esercito_comune_ue': 'esercito_comune_ue',
       'esercito_ue': 'esercito_ue',
+      'esercito_europeo': 'esercito_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -528,6 +531,7 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       'esercito_comune_europeo': 'esercito_comune_europeo',
       'esercito_comune_ue': 'esercito_comune_ue',
       'esercito_ue': 'esercito_ue',
+      'esercito_europeo': 'esercito_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
