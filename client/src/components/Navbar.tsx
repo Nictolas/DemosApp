@@ -33,10 +33,12 @@ export default function Navbar() {
   return (
     <nav className="bg-white flex justify-center items-center h-24 pt-3 pb-4 select-none px-4" style={{ boxShadow: '0 -1px 8px 0 rgba(0,0,0,0.03)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', borderTop: 'none' }}>
       <div className="flex items-center justify-center gap-10 max-w-md">
-        <Link href="/menu" className={getLinkClasses("/menu")} style={{marginTop: 0}}>
-          <Home className={`h-7 w-7 mb-1 ${isActive("/menu") ? "drop-shadow-lg text-blue-600" : ""}`} />
-          <span className={`text-xs hidden md:block ${isActive("/menu") ? "text-blue-600 font-semibold" : ""}`}>Menu</span>
-        </Link>
+        {userRole === "AD" && (
+          <Link href="/menu" className={getLinkClasses("/menu")} style={{marginTop: 0}}>
+            <Home className={`h-7 w-7 mb-1 ${isActive("/menu") ? "drop-shadow-lg text-blue-600" : ""}`} />
+            <span className={`text-xs hidden md:block ${isActive("/menu") ? "text-blue-600 font-semibold" : ""}`}>Menu</span>
+          </Link>
+        )}
         {userRole !== "I" && (
           <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
             <Star className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
