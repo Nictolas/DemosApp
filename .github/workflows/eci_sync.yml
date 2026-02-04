@@ -2,8 +2,8 @@ name: Sync ECI (Iniziative Cittadini Europei)
 
 on:
   schedule:
-    # Ogni 6 ore
-    - cron: '0 */6 * * *'
+    # Ogni 2 ore (firme più aggiornate)
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
 jobs:

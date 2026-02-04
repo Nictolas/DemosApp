@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useQuery } from "@tanstack/react-query";
-import { Redirect, useLocation } from "wouter";
+import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import {
   Loader2,
-  ArrowLeft,
   FileSignature,
   AlertCircle,
   RefreshCw,
@@ -48,7 +47,6 @@ type SortOption = "firme" | "scadenza" | null;
 
 export default function ECI() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("firme");
   const [viewItem, setViewItem] = useState<ECIItem | null>(null);
@@ -151,16 +149,8 @@ export default function ECI() {
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
-          {/* Top bar: back + refresh */}
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setLocation("/gestisci")}
-              className="flex-shrink-0"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+          {/* Top bar: refresh */}
+          <div className="flex items-center justify-end mb-6">
             <Button
               variant="outline"
               size="sm"
@@ -184,6 +174,9 @@ export default function ECI() {
             </div>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Le Iniziative dei Cittadini Europei (ECI) sono uno strumento per permettere ai cittadini europei di proporre nuove leggi. Devono essere raccolte un milione di firme, in un anno, in almeno 7 paesi dell'Unione Europea.
+            </p>
+            <p className="text-gray-500 text-sm max-w-2xl mx-auto mt-2">
+              I numeri delle firme vengono aggiornati ogni 2 ore. Per il dato in tempo reale usa il pulsante &quot;Vai al sito UE&quot; sotto ogni iniziativa.
             </p>
           </div>
 

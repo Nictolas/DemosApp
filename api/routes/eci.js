@@ -6,7 +6,7 @@ var SUCCESSI_MIN_FIRME = 1000000;
 
 /**
  * Legge dalla tabella ECI su Neon. I dati sono popolati dallo script scripts/sync_eci.py
- * (GitHub Actions ogni 6 ore) che chiama l'API EU con User-Agent valido.
+ * (GitHub Actions ogni 2 ore) che chiama l'API EU con User-Agent valido.
  */
 async function fetchFromEciTable() {
   const client = pool;
