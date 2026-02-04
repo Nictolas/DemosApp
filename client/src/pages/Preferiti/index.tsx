@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, useLocation } from "wouter";
-import { Heart, Users, Award, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
+import { Star, Users, Award, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
@@ -281,7 +281,7 @@ export default function Preferiti() {
           <Card className="w-full flex-shrink-0">
             <div className="p-3 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
-                <Heart className="h-6 w-6 text-red-500" />
+                <Star className="h-6 w-6 text-blue-600 drop-shadow-sm" />
                 <h1 className="text-xl font-bold text-gray-900" data-testid="preferiti-title">Preferiti</h1>
               </div>
               <p className="text-gray-600 text-sm">

@@ -183,7 +183,7 @@ export default function ECI() {
               <h1 className="text-3xl font-bold text-gray-900">ECI</h1>
             </div>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Iniziative dei Cittadini Europei (ICE) in raccolta firme. Firma sul portale ufficiale UE.
+              Le Iniziative dei Cittadini Europei (ECI) sono uno strumento per permettere ai cittadini europei di proporre nuove leggi. Devono essere raccolte un milione di firme, in un anno, in almeno 7 paesi dell'Unione Europea.
             </p>
           </div>
 

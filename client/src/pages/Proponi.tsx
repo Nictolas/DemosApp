@@ -81,11 +81,11 @@ export default function Proponi() {
               <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per cancellare una legge ingiusta.</div>
             </div>
           </button>
-          {/* ICE */}
+          {/* ECI */}
           <button
             type="button"
             className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => window.location.href = "/ice"}
+            onClick={() => window.location.href = "/eci"}
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -97,7 +97,7 @@ export default function Proponi() {
                 <Globe2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                 <Globe2 className="h-8 w-8 text-blue-600 relative z-10" />
               </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">ICE</div>
+              <div className="text-gray-700 font-semibold text-lg select-none">ECI</div>
               <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per proporre una nuova legge europea.</div>
             </div>
           </button>
