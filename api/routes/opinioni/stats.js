@@ -117,6 +117,9 @@ router.get('/stats/:opinionId', async (req, res) => {
       'metabo_law': 'metabo_law',
       'fuochi_d_artificio': 'fuochi_d_artificio',
       'rilascio_di_palloncini': 'rilascio_di_palloncini',
+      'ponte_sullo_stretto': 'ponte_sullo_stretto',
+      'corrida': 'corrida',
+      'esercito_comune_europeo': 'esercito_comune_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -256,6 +259,9 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       'metabo_law': 'metabo_law',
       'fuochi_d_artificio': 'fuochi_d_artificio',
       'rilascio_di_palloncini': 'rilascio_di_palloncini',
+      'ponte_sullo_stretto': 'ponte_sullo_stretto',
+      'corrida': 'corrida',
+      'esercito_comune_europeo': 'esercito_comune_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -384,6 +390,9 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       'metabo_law': 'metabo_law',
       'fuochi_d_artificio': 'fuochi_d_artificio',
       'rilascio_di_palloncini': 'rilascio_di_palloncini',
+      'ponte_sullo_stretto': 'ponte_sullo_stretto',
+      'corrida': 'corrida',
+      'esercito_comune_europeo': 'esercito_comune_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -508,6 +517,9 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       'metabo_law': 'metabo_law',
       'fuochi_d_artificio': 'fuochi_d_artificio',
       'rilascio_di_palloncini': 'rilascio_di_palloncini',
+      'ponte_sullo_stretto': 'ponte_sullo_stretto',
+      'corrida': 'corrida',
+      'esercito_comune_europeo': 'esercito_comune_europeo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
