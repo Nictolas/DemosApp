@@ -44,13 +44,18 @@ function parseCosaSuccede(html) {
     const codice_ddl = match ? match[1].replace(/_/g, '.') : null; // C_2336 -> C.2336
     const titoloLink = $a.text().trim();
 
-    // Contesto: testo del contenitore (li, div, p) che contiene il link
-    let $block = $a.closest('li, div[class*="event"], article, .card, [class*="timeline"]').first();
+    // Contesto: preferire il singolo <li> per non mescolare eventi diversi (es. "presentato" vs "approvato")
+    let $block = $a.closest('li').first();
+    if ($block.length === 0) $block = $a.closest('div[class*="event"], article, .card, [class*="timeline"]').first();
     if ($block.length === 0) $block = $a.parent();
     const blockText = $block.length ? $block.text() : $a.parent().text();
 
-    const isApprovato = /(?:il\s+disegno\s+di\s+legge|è\s+stato\s+approvato|èstata\s+approvata\s+la\s+legge)/i.test(blockText);
-    if (!isApprovato) return;
+    // Solo "Il disegno di legge X è stato approvato" (o "è stata approvata la legge").
+    // Escludere "Il governo X ha presentato il disegno di legge" (presentazione, non approvazione).
+    const hasApprovato = /(?:è\s+stato\s+approvato|è\s+stata\s+approvata\s+(?:la\s+legge|il\s+disegno))/i.test(blockText);
+    const hasPresentato = /(?:ha\s+presentato|presentato)\s+(?:il\s+)?disegno\s+di\s+legge/i.test(blockText);
+    const hasGovernoPresentato = /\bil\s+governo\b.*?(?:ha\s+presentato|presentato).*?disegno\s+di\s+legge/is.test(blockText);
+    if (!hasApprovato || hasPresentato || hasGovernoPresentato) return;
 
     // Ramo: cerca "Camera" o "Senato" nel blocco o nei fratelli successivi (badge dell'evento)
     let ramo = null;
