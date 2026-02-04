@@ -66,6 +66,8 @@ async function main() {
     if (result.senato) {
       console.log('✅ Senato:', result.senato.titolo?.substring(0, 60) + '...');
       console.log('   URL:', result.senato.url_dettaglio);
+    } else {
+      console.log('⚠️ Senato: nessun DDL approvato in questa sessione (la pagina Openpolis può restituire solo i primi eventi).');
     }
 
     await saveToDb(result, pool);
