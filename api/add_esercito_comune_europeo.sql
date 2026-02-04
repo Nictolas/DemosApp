@@ -16,6 +16,10 @@ ON CONFLICT (id) DO UPDATE SET
 ALTER TABLE opinioni_risposte 
   ADD COLUMN IF NOT EXISTS "esercito_comune_europeo" TEXT;
 
+-- Colonna con id effettivo usato in opinioni_domande
+ALTER TABLE opinioni_risposte 
+  ADD COLUMN IF NOT EXISTS "esercito_europeo" TEXT;
+
 -- Varianti id/colonna per compatibilità
 ALTER TABLE opinioni_risposte 
   ADD COLUMN IF NOT EXISTS "esercito_comune_ue" TEXT,
