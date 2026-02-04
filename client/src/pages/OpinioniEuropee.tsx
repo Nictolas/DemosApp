@@ -11,6 +11,7 @@ import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
 import { vibrateShort } from '@/utils/vibration';
 import { PoliticalOpinionsConsentModal } from '@/components/PoliticalOpinionsConsentModal';
+import { OpinionStatsBar } from '@/components/OpinionStatsBar';
 
 const options = [
   { value: 'f', color: 'bg-green-500 text-white', label: 'Favorevole' },
@@ -245,6 +246,10 @@ export default function OpinioniEuropee() {
                             ))}
                           </div>
                         </div>
+                        <OpinionStatsBar
+                          opinionId={question.id}
+                          show={normalizeAnswer(opinions[question.id]) !== null}
+                        />
                       </div>
                     ))}
                   </div>
@@ -279,6 +284,10 @@ export default function OpinioniEuropee() {
                             ))}
                           </div>
                         </div>
+                        <OpinionStatsBar
+                          opinionId={question.id}
+                          show={normalizeAnswer(opinions[question.id]) !== null}
+                        />
                       </div>
                     ))}
                   </div>
