@@ -141,19 +141,35 @@ function parseCosaSuccede(html) {
     }
     if (!ramo) return;
 
-    // Data: da intestazione tipo "### 21 gennaio 2026" sopra il blocco
+    // Data: dall'intestazione di sezione (h3/h4) che precede questo evento nel DOM (es. "28 gennaio 2026")
+    // Non usare il primo h3 della pagina (es. "3 febbraio") altrimenti tutti gli eventi prendono quella data.
+    const datePattern = /(\d{1,2})\s*(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s*(\d{4})/i;
     let dateStr = null;
-    $block.parent().find('h3, h4, .date, [class*="date"]').each((__, h) => {
-      const t = $(h).text().replace(/\s+/g, ' ').trim();
-      const dataMatch = t.match(/(\d{1,2})\s*(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s*(\d{4})/i);
-      if (dataMatch) dateStr = `${dataMatch[3]}-${meseToNum(dataMatch[2])}-${dataMatch[1].padStart(2, '0')}`;
-      return false;
-    });
-    const rootDates = $('h3').filter((_, h) => $(h).text().match(/\d{1,2}\s*(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s*\d{4}/i));
-    if (!dateStr && rootDates.length) {
-      const t = $(rootDates[0]).text();
-      const dataMatch = t.replace(/\s+/g, ' ').match(/(\d{1,2})\s*(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s*(\d{4})/i);
-      if (dataMatch) dateStr = `${dataMatch[3]}-${meseToNum(dataMatch[2])}-${dataMatch[1].padStart(2, '0')}`;
+    let $container = $block.parent();
+    while ($container.length && !dateStr) {
+      const $prev = $container.prevAll('h3, h4').first();
+      if ($prev.length) {
+        const t = $prev.text().replace(/\s+/g, ' ').trim();
+        const dataMatch = t.match(datePattern);
+        if (dataMatch) dateStr = `${dataMatch[3]}-${meseToNum(dataMatch[2])}-${dataMatch[1].padStart(2, '0')}`;
+      }
+      $container = $container.parent();
+    }
+    if (!dateStr) {
+      $block.parent().find('h3, h4, .date, [class*="date"]').each((__, h) => {
+        const t = $(h).text().replace(/\s+/g, ' ').trim();
+        const dataMatch = t.match(datePattern);
+        if (dataMatch) dateStr = `${dataMatch[3]}-${meseToNum(dataMatch[2])}-${dataMatch[1].padStart(2, '0')}`;
+        return false;
+      });
+    }
+    if (!dateStr && $('h3').length) {
+      const rootDates = $('h3').filter((_, h) => $(h).text().match(datePattern));
+      if (rootDates.length) {
+        const t = $(rootDates[0]).text();
+        const dataMatch = t.replace(/\s+/g, ' ').match(datePattern);
+        if (dataMatch) dateStr = `${dataMatch[3]}-${meseToNum(dataMatch[2])}-${dataMatch[1].padStart(2, '0')}`;
+      }
     }
 
     seenUrls.add(href);
