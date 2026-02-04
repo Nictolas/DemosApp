@@ -326,13 +326,8 @@ async function saveToDb(result, pool) {
   if (!pool) return;
   const client = await pool.connect();
   try {
-    // Rimuovi righe per cui non abbiamo più un evento "approvato" (evita dati obsoleti tipo "ha presentato")
-    if (!result.camera || !result.camera.titolo) {
-      await client.query(`DELETE FROM openpolis_ultimi_ddl_approvati WHERE camera = 'Camera'`);
-    }
-    if (!result.senato || !result.senato.titolo) {
-      await client.query(`DELETE FROM openpolis_ultimi_ddl_approvati WHERE camera = 'Senato'`);
-    }
+    // Aggiorna solo quando abbiamo dati; non cancellare se la sync non trova nulla (es. senza Puppeteer in prod)
+    // così l'ultima votazione Senato/Camera salvata resta visibile finché non ne scrapiamo una nuova.
     for (const [key, row] of Object.entries(result)) {
       if (!row || !row.titolo || !row.url_dettaglio) continue;
       const camera = key === 'camera' ? 'Camera' : key === 'senato' ? 'Senato' : null;
