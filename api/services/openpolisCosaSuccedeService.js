@@ -8,19 +8,40 @@ const cheerio = require('cheerio');
 
 const OPENPOLIS_BASE = 'https://parlamento19.openpolis.it';
 
+const FETCH_OPTS = {
+  headers: {
+    'Accept': 'text/html',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  },
+  timeout: 15000,
+  validateStatus: (s) => s < 500
+};
+
 /**
  * Fetch della homepage Openpolis (sezione Cosa succede)
  */
 async function fetchHomepage() {
-  const { data } = await axios.get(OPENPOLIS_BASE, {
-    headers: {
-      'Accept': 'text/html',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    },
-    timeout: 15000,
-    validateStatus: (s) => s < 500
-  });
+  const { data } = await axios.get(OPENPOLIS_BASE, FETCH_OPTS);
   return data;
+}
+
+/**
+ * Fetch della stessa pagina con filtro "Mostra solo eventi prioritari" attivo.
+ * Con questo filtro la lista può includere eventi (es. approvazioni Senato) che
+ * nella vista default compaiono solo dopo "Visualizza altri".
+ * Prova più nomi parametro usati da Openpolis per il checkbox.
+ */
+async function fetchHomepageEventiPrioritari() {
+  const params = ['prioritari=1', 'solo_prioritari=1', 'only_priority=1'];
+  for (const q of params) {
+    try {
+      const { data } = await axios.get(`${OPENPOLIS_BASE}/?${q}`, FETCH_OPTS);
+      if (data && data.includes('disegni_di_legge') && data.includes('è stato approvato')) {
+        return data;
+      }
+    } catch (_) { /* skip */ }
+  }
+  return '';
 }
 
 /**
@@ -176,13 +197,47 @@ async function fetchDettaglioDdl(url) {
 }
 
 /**
- * Esegue lo scraping completo: homepage -> ultimi DDL Camera/Senato -> dettagli.
+ * Unisce due liste di eventi per URL (niente duplicati), mantenendo l'ordine cronologico.
+ */
+function mergeEvents(eventsA, eventsB) {
+  const seen = new Set();
+  const out = [];
+  for (const e of eventsA) {
+    const key = e.url || e.titolo;
+    if (!seen.has(key)) { seen.add(key); out.push(e); }
+  }
+  for (const e of eventsB) {
+    const key = e.url || e.titolo;
+    if (!seen.has(key)) { seen.add(key); out.push(e); }
+  }
+  return out;
+}
+
+/**
+ * Esegue lo scraping completo: homepage + vista "eventi prioritari" -> merge -> ultimi DDL Camera/Senato -> dettagli.
+ * La vista con "eventi prioritari" può includere approvazioni Senato che nella default compaiono dopo "Visualizza altri".
  * Ritorna { camera: { titolo, url_dettaglio, codice_ddl, data_approvazione }, senato: { ... } }.
  */
 async function fetchUltimiDdlApprovati() {
-  const html = await fetchHomepage();
-  const events = parseCosaSuccede(html);
-  const { camera: evCamera, senato: evSenato } = findUltimiDdl(events);
+  const [html, htmlPrioritari] = await Promise.all([
+    fetchHomepage(),
+    fetchHomepageEventiPrioritari().catch(() => '')
+  ]);
+  const eventsDefault = parseCosaSuccede(html);
+  const eventsPrioritari = htmlPrioritari ? parseCosaSuccede(htmlPrioritari) : [];
+  let events = mergeEvents(eventsDefault, eventsPrioritari);
+  let { camera: evCamera, senato: evSenato } = findUltimiDdl(events);
+  // Se dopo il merge manca il Senato, usa il primo "approvato" Senato da una delle due viste
+  if (!evSenato) {
+    const fromPrioritari = (eventsPrioritari || []).filter((e) => e.ramo === 'Senato');
+    const fromDefault = (eventsDefault || []).filter((e) => e.ramo === 'Senato');
+    const firstSenato = fromPrioritari[0] || fromDefault[0];
+    if (firstSenato) evSenato = firstSenato;
+  }
+  if (!evCamera && (eventsDefault || []).length > 0) {
+    const firstCamera = (eventsDefault || []).find((e) => e.ramo === 'Camera');
+    if (firstCamera) evCamera = firstCamera;
+  }
 
   const result = { camera: null, senato: null };
 
@@ -216,6 +271,13 @@ async function saveToDb(result, pool) {
   if (!pool) return;
   const client = await pool.connect();
   try {
+    // Rimuovi righe per cui non abbiamo più un evento "approvato" (evita dati obsoleti tipo "ha presentato")
+    if (!result.camera || !result.camera.titolo) {
+      await client.query(`DELETE FROM openpolis_ultimi_ddl_approvati WHERE camera = 'Camera'`);
+    }
+    if (!result.senato || !result.senato.titolo) {
+      await client.query(`DELETE FROM openpolis_ultimi_ddl_approvati WHERE camera = 'Senato'`);
+    }
     for (const [key, row] of Object.entries(result)) {
       if (!row || !row.titolo || !row.url_dettaglio) continue;
       const camera = key === 'camera' ? 'Camera' : key === 'senato' ? 'Senato' : null;
@@ -267,6 +329,7 @@ async function loadFromDb(pool) {
 
 module.exports = {
   fetchHomepage,
+  fetchHomepageEventiPrioritari,
   parseCosaSuccede,
   findUltimiDdl,
   fetchDettaglioDdl,
