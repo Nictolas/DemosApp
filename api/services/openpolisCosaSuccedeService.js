@@ -45,6 +45,52 @@ async function fetchHomepageEventiPrioritari() {
 }
 
 /**
+ * Fetch della homepage Openpolis con browser headless (Puppeteer).
+ * Carica la pagina, clicca "Visualizza altri" per espandere l'elenco, poi restituisce l'HTML.
+ * Usato come fallback per ottenere eventi Senato che nel primo chunk HTTP non compaiono.
+ * Ritorna '' se Puppeteer non è disponibile o in caso di errore.
+ */
+async function fetchHomepageWithBrowser() {
+  let puppeteer;
+  try {
+    puppeteer = require('puppeteer');
+  } catch (_) {
+    return '';
+  }
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.goto(OPENPOLIS_BASE, { waitUntil: 'networkidle2', timeout: 20000 });
+
+    // Attendi che la sezione eventi sia presente
+    await page.waitForSelector('a[href*="/attivita_legislativa/disegni_di_legge/"]', { timeout: 10000 }).catch(() => {});
+
+    // Clicca "Visualizza altri" se presente (carica altri eventi, es. Senato)
+    const clicked = await page.evaluate(() => {
+      const el = Array.from(document.querySelectorAll('a, button')).find(
+        (e) => (e.textContent || '').trim() === 'Visualizza altri'
+      );
+      if (el) { el.click(); return true; }
+      return false;
+    });
+    if (clicked) await new Promise((r) => setTimeout(r, 2500));
+
+    const html = await page.content();
+    await browser.close();
+    return html || '';
+  } catch (err) {
+    if (browser) try { await browser.close(); } catch (_) {}
+    console.warn('[openpolisCosaSuccede] fetchHomepageWithBrowser:', err.message);
+    return '';
+  }
+}
+
+/**
  * Dalla homepage estrae gli eventi "disegno di legge ... è stato approvato" / "Èstata approvata la legge"
  * con link a disegni_di_legge e ramo (Camera/Senato).
  * Ritorna array { titolo, url, codice_ddl, ramo, dateStr } in ordine cronologico (primo = più recente).
@@ -234,6 +280,15 @@ async function fetchUltimiDdlApprovati() {
     const firstSenato = fromPrioritari[0] || fromDefault[0];
     if (firstSenato) evSenato = firstSenato;
   }
+  // Fallback headless: se ancora manca il Senato, carichiamo la pagina con Puppeteer e "Visualizza altri"
+  if (!evSenato) {
+    const htmlBrowser = await fetchHomepageWithBrowser();
+    if (htmlBrowser) {
+      const eventsBrowser = parseCosaSuccede(htmlBrowser);
+      const firstSenatoBrowser = (eventsBrowser || []).filter((e) => e.ramo === 'Senato')[0];
+      if (firstSenatoBrowser) evSenato = firstSenatoBrowser;
+    }
+  }
   if (!evCamera && (eventsDefault || []).length > 0) {
     const firstCamera = (eventsDefault || []).find((e) => e.ramo === 'Camera');
     if (firstCamera) evCamera = firstCamera;
@@ -330,6 +385,7 @@ async function loadFromDb(pool) {
 module.exports = {
   fetchHomepage,
   fetchHomepageEventiPrioritari,
+  fetchHomepageWithBrowser,
   parseCosaSuccede,
   findUltimiDdl,
   fetchDettaglioDdl,
