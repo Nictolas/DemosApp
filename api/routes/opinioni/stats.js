@@ -104,6 +104,8 @@ router.get('/stats/:opinionId', async (req, res) => {
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
       'omobitransfobia': 'omobitransfobia',
+      'abolizione_contante': 'abolizione_contante',
+      'antifascismo': 'antifascismo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -230,6 +232,8 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
       'omobitransfobia': 'omobitransfobia',
+      'abolizione_contante': 'abolizione_contante',
+      'antifascismo': 'antifascismo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -345,6 +349,8 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
       'omobitransfobia': 'omobitransfobia',
+      'abolizione_contante': 'abolizione_contante',
+      'antifascismo': 'antifascismo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
@@ -456,6 +462,8 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
       'omobitransfobia': 'omobitransfobia',
+      'abolizione_contante': 'abolizione_contante',
+      'antifascismo': 'antifascismo',
       
       // Opinion regionali/comunali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',
