@@ -44,7 +44,7 @@ export function OpinionStatsBar({ opinionId, show, className = "" }: OpinionStat
   }
   if (isError || !data?.success || !data.data) return null;
 
-  const { stats } = data.data;
+  const { stats, totaleUtenti } = data.data;
   const favorevole = stats.favorevole ?? 0;
   const contrario = stats.contrario ?? 0;
   const indeciso = stats.indeciso ?? 0;
@@ -54,10 +54,11 @@ export function OpinionStatsBar({ opinionId, show, className = "" }: OpinionStat
   const pFav = (favorevole / total) * 100;
   const pInd = (indeciso / total) * 100;
   const pCon = (contrario / total) * 100;
+  const campione = totaleUtenti ?? total;
 
   return (
     <div className={`mt-3 space-y-1.5 ${className}`}>
-      <p className="text-xs font-medium text-muted-foreground">A livello nazionale</p>
+      <p className="text-xs font-medium text-muted-foreground">Campione di {campione} persone.</p>
       <div className="flex h-6 w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100">
         {pFav > 0 && (
           <div
