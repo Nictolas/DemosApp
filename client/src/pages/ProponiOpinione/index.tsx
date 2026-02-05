@@ -18,6 +18,7 @@ export default function ProponiOpinione() {
     opinioni,
     loadingData,
     userVoti,
+    haGiaProposto,
     handleProponi,
     handleVota,
     handleRimuoviVoto,
@@ -125,6 +126,7 @@ export default function ProponiOpinione() {
                   onSubmit={handleProponiSubmit}
                   onInputChange={(value) => updateField('testoInput', value)}
                   opinioniEsistenti={opinioni.map(op => op.testo)}
+                  haGiaProposto={haGiaProposto}
                 />
 
                 <OpinioniList

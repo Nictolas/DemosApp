@@ -10,7 +10,8 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
   submitting,
   onSubmit,
   onInputChange,
-  opinioniEsistenti = []
+  opinioniEsistenti = [],
+  haGiaProposto = false
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -91,10 +92,17 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
           <span>Proponi una nuova opinione</span>
         </CardTitle>
         <CardDescription>
-          Inserisci il testo della nuova opinione che vorresti proporre.
+          {haGiaProposto
+            ? "Hai già proposto un'opinione. Puoi proporne solo una."
+            : "Inserisci il testo della nuova opinione che vorresti proporre."}
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {haGiaProposto ? (
+          <p className="text-sm text-muted-foreground py-2">
+            Puoi comunque votare le opinioni proposte da altri.
+          </p>
+        ) : (
         <form 
           onSubmit={(e) => {
             e.preventDefault();
@@ -169,6 +177,7 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
             </Button>
           </div>
         </form>
+        )}
       </CardContent>
     </Card>
   );

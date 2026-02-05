@@ -301,9 +301,29 @@ router.get('/', async (req, res) => {
       voti: (typeof row.voti === 'number' ? row.voti : parseInt(row.voti, 10)) || 0
     }));
     
+    // Se l'utente è autenticato, indica se ha già proposto un'opinione (limite 1 per utente)
+    let haGiaProposto = false;
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const uid = decoded.userId;
+        const r = await pool.query(
+          'SELECT opinione_proposta_id FROM users WHERE id = $1',
+          [uid]
+        );
+        haGiaProposto = !!(r.rows[0] && r.rows[0].opinione_proposta_id);
+      } catch (e) {
+        if (e.code === '42703') { /* colonna opinione_proposta_id non esiste */ }
+        // token assente o non valido: ignora
+      }
+    }
+
     res.json({
       success: true,
-      data: mappedData
+      data: mappedData,
+      ha_gia_proposto: haGiaProposto
     });
     
   } catch (error) {
@@ -316,30 +336,32 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/opinioni-proposte - Crea una nuova opinione proposta nella tabella opinioni
-router.post('/', async (req, res) => {
+// POST /api/opinioni-proposte - Crea una nuova opinione proposta (max 1 per utente, richiede auth)
+router.post('/', verifyToken, async (req, res) => {
   try {
+    const userId = req.userId;
     console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
     console.log('🔍 Body ricevuto:', req.body);
-    console.log('🔍 Headers:', req.headers);
+    console.log('🔍 User ID:', userId);
     
     const { testo, titolo, descrizione, categoria } = req.body;
     
-    // Estrae userId dal token se presente
-    let userId = null;
-    if (req.headers.authorization) {
-      try {
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
-      } catch (error) {
-        console.log('⚠️ Token non valido, continuo senza userId');
+    // Limite 1 proposta per utente: verifica colonna users.opinione_proposta_id
+    try {
+      const r = await pool.query(
+        'SELECT opinione_proposta_id FROM users WHERE id = $1',
+        [userId]
+      );
+      if (r.rows[0] && r.rows[0].opinione_proposta_id) {
+        return res.status(403).json({
+          success: false,
+          error: 'Hai già proposto un\'opinione. Puoi proporne solo una.'
+        });
       }
+    } catch (e) {
+      if (e.code !== '42703') throw e;
+      // colonna non esiste ancora: continua (retrocompatibilità)
     }
-    
-    console.log('🔍 Testo estratto:', testo);
-    console.log('🔍 User ID:', userId);
     
     if (!testo || !testo.trim()) {
       return res.status(400).json({
@@ -501,6 +523,16 @@ router.post('/', async (req, res) => {
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
         lockHeld = false; // Marca il lock come rilasciato
         console.log('🔓 Lock rilasciato dopo commit');
+        
+        // Registra in users che l'utente ha proposto questa opinione (max 1 per utente)
+        try {
+          await pool.query(
+            'UPDATE users SET opinione_proposta_id = $1 WHERE id = $2',
+            [id, userId]
+          );
+        } catch (e) {
+          if (e.code !== '42703') console.error('❌ Errore aggiornamento users.opinione_proposta_id:', e);
+        }
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
         const checkDuplicateQueryFinal = `

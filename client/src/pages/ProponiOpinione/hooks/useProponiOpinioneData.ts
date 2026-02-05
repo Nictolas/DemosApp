@@ -9,6 +9,7 @@ export const useProponiOpinioneData = (user: any) => {
   const [opinioni, setOpinioni] = useState<OpinioneProposta[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [userVoti, setUserVoti] = useState<string[]>([]);
+  const [haGiaProposto, setHaGiaProposto] = useState(false);
 
   // Carica opinioni proposte e voti utente dall'API Neon
   const loadData = useCallback(async () => {
@@ -36,6 +37,7 @@ export const useProponiOpinioneData = (user: any) => {
         const opinioniOrdinate = opinioniMapped.sort((a, b) => b.voti - a.voti);
         
         setOpinioni(opinioniOrdinate);
+        setHaGiaProposto(!!body.ha_gia_proposto);
         
         // Carica i voti dell'utente
         console.log('🔍 Caricamento voti utente...');
@@ -55,6 +57,7 @@ export const useProponiOpinioneData = (user: any) => {
         setOpinioni([]);
         setUserVoti([]);
       }
+      if (body && typeof body.ha_gia_proposto === 'boolean') setHaGiaProposto(body.ha_gia_proposto);
     } catch (error) {
       console.error('❌ Errore nel caricamento opinioni proposte:', error);
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
@@ -65,8 +68,12 @@ export const useProponiOpinioneData = (user: any) => {
     }
   }, [user, toast]);
 
-  // Proponi nuova opinione tramite API Neon
+  // Proponi nuova opinione tramite API Neon (max 1 per utente)
   const handleProponi = async (testoInput: string) => {
+    if (haGiaProposto) {
+      toast({ title: "Limite raggiunto", description: "Hai già proposto un'opinione. Puoi proporne solo una.", variant: "destructive" });
+      return false;
+    }
     if (!testoInput.trim()) return false;
     
     // Verifica se l'opinione esiste già localmente prima di inviare
@@ -95,16 +102,21 @@ export const useProponiOpinioneData = (user: any) => {
         description: "La tua opinione è stata proposta con successo!" 
       });
       
-      // Ricarica i dati per mostrare la nuova opinione
+      setHaGiaProposto(true); // limite 1: non può proporne altre
       await loadData();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Errore nell\'invio proposta:', error);
-      toast({ 
-        title: "Errore", 
-        description: error instanceof Error ? error.message : "Errore nell'invio della proposta", 
-        variant: "destructive" 
-      });
+      if (error?.status === 403 || error?.data?.error?.includes('già proposto')) {
+        setHaGiaProposto(true);
+        toast({ title: "Limite raggiunto", description: "Hai già proposto un'opinione. Puoi proporne solo una.", variant: "destructive" });
+      } else {
+        toast({ 
+          title: "Errore", 
+          description: error instanceof Error ? error.message : "Errore nell'invio della proposta", 
+          variant: "destructive" 
+        });
+      }
       return false;
     }
   };
@@ -278,6 +290,7 @@ export const useProponiOpinioneData = (user: any) => {
     opinioni,
     loadingData,
     userVoti,
+    haGiaProposto,
     loadData,
     handleProponi,
     handleVota,
