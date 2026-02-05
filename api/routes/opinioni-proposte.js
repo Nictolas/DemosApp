@@ -215,27 +215,49 @@ router.get('/voti-utente', verifyToken, async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
-    
-    // Query per ottenere le opinioni "da approvare" con conteggio voti
-    // Usa CAST per assicurarsi che gli ID siano dello stesso tipo per il JOIN
-    const query = `
-      SELECT 
-        o.id, 
-        o.text as testo, 
-        o.gradi_opinione, 
-        o.approfondimento,
-        COALESCE(v.voti_count, 0) as voti
-      FROM opinioni_domande o
+
+    // Leggi da opinioni_proposte se esiste, altrimenti da opinioni_domande (proposte "da approvare")
+    const fromProposte = `
+      SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
+      FROM opinioni_proposte o
       LEFT JOIN (
-        SELECT opinione_id, COUNT(*) as voti_count
-        FROM voti_opinioni_proposte
-        GROUP BY opinione_id
+        SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
       ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
-      WHERE 'da approvare' = ANY(o.gradi_opinione)
+      ORDER BY o.text`;
+    const fromDomandeWhere = `(
+      ('da approvare' = ANY(o.gradi_opinione)) OR (o.gradi_opinione::text LIKE '%da approvare%')
+    )`;
+    const queryBaseDomande = `
+      SELECT o.id, o.text as testo, o.approfondimento
+      FROM opinioni_domande o
+      WHERE ${fromDomandeWhere}
       ORDER BY o.text
     `;
-    
-    const result = await pool.query(query);
+    const queryDomandeWithVoti = `
+      SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
+      FROM opinioni_domande o
+      LEFT JOIN (
+        SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
+      ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
+      WHERE ${fromDomandeWhere}
+      ORDER BY o.text
+    `;
+
+    let result;
+    try {
+      result = await pool.query(fromProposte);
+    } catch (err) {
+      if (err.code === '42P01' && err.message && err.message.includes('opinioni_proposte')) {
+        try {
+          result = await pool.query(queryDomandeWithVoti);
+        } catch (e2) {
+          result = await pool.query(queryBaseDomande);
+          result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
+        }
+      } else {
+        throw err;
+      }
+    }
     console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
     // Debug: mostra i primi 3 ID per verificare il formato
@@ -257,7 +279,7 @@ router.get('/', async (req, res) => {
       nome: null,
       cognome: null,
       email: null,
-      voti: parseInt(row.voti) // Conteggio voti reale
+      voti: (typeof row.voti === 'number' ? row.voti : parseInt(row.voti, 10)) || 0
     }));
     
     res.json({
@@ -376,20 +398,22 @@ router.post('/', async (req, res) => {
         const gradiOpinione = ['da approvare'];
         const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
-        // Verifica duplicati PRIMA dell'insert con un lock più robusto
-        // Usa SELECT FOR UPDATE SKIP LOCKED per evitare deadlock
-        const checkDuplicateQuery = `
-          SELECT id FROM opinioni_domande 
-          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
-          AND 'da approvare' = ANY(gradi_opinione)
-          FOR UPDATE SKIP LOCKED
-          LIMIT 1
+        // Verifica duplicati: prima in opinioni_proposte, poi in opinioni_domande
+        let checkDuplicateQuery = `
+          SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1
         `;
-        
+        try {
+          var duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
+        } catch (e) {
+          if (e.code === '42P01' && e.message && e.message.includes('opinioni_proposte')) {
+            checkDuplicateQuery = `
+              SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione) FOR UPDATE SKIP LOCKED LIMIT 1
+            `;
+            duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
+          } else throw e;
+        }
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         console.log('🔍 Lock key utilizzato:', lockKey);
-        
-        const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Risultato controllo duplicati:', {
           righeTrovate: duplicateCheck.rows.length,
           duplicati: duplicateCheck.rows
@@ -404,46 +428,39 @@ router.post('/', async (req, res) => {
           });
         }
         
-        // Inserisce nella tabella opinioni_domande
-        // Il controllo duplicati è già stato fatto sopra con lock + SELECT FOR UPDATE
-        // Se l'indice UNIQUE esiste, anche quello previene duplicati a livello database
-        const insertQuery = `
+        // Inserisce in opinioni_proposte se esiste, altrimenti in opinioni_domande
+        const insertQueryProposte = `
+          INSERT INTO opinioni_proposte (id, text, approfondimento)
+          VALUES ($1, $2, $3)
+          RETURNING id, text
+        `;
+        const insertQueryDomande = `
           INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
           VALUES ($1, $2, $3::text[], $4)
           RETURNING id, text
         `;
-        
         console.log('🔍 Tentativo inserimento con parametri:', {
           id,
-          testo: testoNormalizzato,
-          gradiOpinione,
-          tipoGradiOpinione: Array.isArray(gradiOpinione) ? 'array' : typeof gradiOpinione,
+          testo: testoNormalizzato.substring(0, 50) + '...',
           approfondimento: approfondimento.substring(0, 50) + '...'
         });
-        
+
         let insertResult;
         try {
-          insertResult = await client.query(insertQuery, [
-            id,
-            testoNormalizzato,
-            gradiOpinione,
-            approfondimento
-          ]);
+          insertResult = await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento]);
         } catch (error) {
-          // Se c'è un errore di constraint unique, trattalo come duplicato
-          // Questo è il backup finale se il lock advisory e SELECT FOR UPDATE non hanno funzionato
-          if (error.code === '23505') { // unique_violation
+          if (error.code === '42P01' && error.message && error.message.includes('opinioni_proposte')) {
+            insertResult = await client.query(insertQueryDomande, [id, testoNormalizzato, gradiOpinione, approfondimento]);
+          } else if (error.code === '23505') {
             await client.query('ROLLBACK');
-            console.log('⚠️ Insert fallito: violazione constraint UNIQUE (duplicato)');
-            console.log('⚠️ Error detail:', error.detail);
             return res.status(409).json({
               success: false,
               error: 'Un\'opinione con questo testo è già stata proposta'
             });
+          } else {
+            console.error('❌ Errore durante INSERT:', error);
+            throw error;
           }
-          // Se c'è un altro errore, rilancia
-          console.error('❌ Errore durante INSERT:', error);
-          throw error;
         }
         
         console.log('✅ Insert eseguito. Righe inserite:', insertResult.rowCount);
@@ -585,18 +602,14 @@ router.post('/:id/vota', verifyToken, async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    // Prima assicurati che la tabella voti esista
     await ensureVotiTableExists();
-    
-    // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
-    const checkQuery = `
-      SELECT id FROM opinioni_domande 
-      WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
-    `;
-    
-    console.log('🔍 Verifica esistenza opinione...');
-    const checkResult = await pool.query(checkQuery, [id]);
-    
+    let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      checkResult = await pool.query(
+        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
+        [id]
+      );
+    }
     if (checkResult.rows.length === 0) {
       console.log('❌ Opinione non trovata o non in stato da approvare');
       return res.status(404).json({
@@ -604,7 +617,6 @@ router.post('/:id/vota', verifyToken, async (req, res) => {
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
-    
     console.log('✅ Opinione trovata, procedo con il voto...');
     
     // Inserisci il voto nella tabella voti_opinioni_proposte
@@ -647,26 +659,20 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    // Prima assicurati che la tabella voti esista
     await ensureVotiTableExists();
-    
-    // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
-    const checkQuery = `
-      SELECT id FROM opinioni_domande 
-      WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
-    `;
-    
-    console.log('🔍 Verifica esistenza opinione...');
-    const checkResult = await pool.query(checkQuery, [id]);
-    
+    let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
-      console.log('❌ Opinione non trovata o non in stato da approvare');
+      checkResult = await pool.query(
+        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
+        [id]
+      );
+    }
+    if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
-    
     console.log('✅ Opinione trovata, procedo con la rimozione del voto...');
     
     // Assicurati che la tabella esista
@@ -775,32 +781,25 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
     
-    // Verifica se l'opinione esiste
-    const checkQuery = `
-      SELECT id FROM opinioni_domande 
-      WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
-    `;
-    
-    const checkResult = await pool.query(checkQuery, [id]);
-    
+    // Verifica esistenza e cancella da opinioni_proposte o opinioni_domande
+    let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      checkResult = await pool.query(
+        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
+        [id]
+      );
+    }
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
-    
-    // Cancella i voti associati
-    await pool.query(
-      'DELETE FROM voti_opinioni_proposte WHERE opinione_id = $1',
-      [id]
-    );
-    
-    // Cancella l'opinione
-    const deleteResult = await pool.query(
-      'DELETE FROM opinioni_domande WHERE id = $1',
-      [id]
-    );
+    await pool.query('DELETE FROM voti_opinioni_proposte WHERE opinione_id = $1', [id]);
+    let deleteResult = await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
+    if (deleteResult.rowCount === 0) {
+      deleteResult = await pool.query('DELETE FROM opinioni_domande WHERE id = $1', [id]);
+    }
     
     console.log('✅ Opinione cancellata con successo:', id);
     
