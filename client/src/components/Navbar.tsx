@@ -1,4 +1,4 @@
-import { Settings, Megaphone, Star, Binoculars, PenLine } from "lucide-react";
+import { Settings, Megaphone, Star, Binoculars, PenLine, Bell } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 
@@ -37,6 +37,10 @@ export default function Navbar() {
         <Link href="/firma" className={getLinkClasses("/firma")} style={{marginTop: 0}}>
           <PenLine className={`h-7 w-7 mb-1 ${isActive("/firma") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/firma") ? "text-blue-600 font-semibold" : ""}`}>Firma</span>
+        </Link>
+        <Link href="/notifiche" className={getLinkClasses("/notifiche")} style={{marginTop: 0}}>
+          <Bell className={`h-7 w-7 mb-1 ${isActive("/notifiche") ? "drop-shadow-lg text-blue-600" : ""}`} />
+          <span className={`text-xs hidden md:block ${isActive("/notifiche") ? "text-blue-600 font-semibold" : ""}`}>Notifiche</span>
         </Link>
         {hasAdvancedAccess && (
           <Link href="/strumenti" className={getLinkClasses("/strumenti")} style={{marginTop: 0}}>
