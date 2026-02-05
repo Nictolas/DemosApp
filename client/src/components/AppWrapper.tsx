@@ -48,10 +48,10 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     }
   }, [isAuthLoading, isAppReady]);
 
-  // Redirect automatico se l'utente è autenticato e siamo sulla home
+  // Redirect automatico: tutti gli utenti autenticati vanno ai preferiti
   useEffect(() => {
     if (!isAuthLoading && user && location === '/') {
-      setLocation('/menu');
+      setLocation('/preferiti');
     }
   }, [isAuthLoading, user, location, setLocation]);
 

@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaphone, Calendar, BookOpen, Users, Bell, Share2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaphone, Calendar, BookOpen, Users, Bell, Share2, Home } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
@@ -236,10 +236,10 @@ export default function Strumenti() {
           <div className="flex items-center justify-between">
             <Button
               variant="outline"
-              onClick={() => setLocation("/menu")}
+              onClick={() => setLocation("/preferiti")}
               className="flex items-center gap-2"
             >
-              Torna al Menu
+              Torna ai Preferiti
             </Button>
           </div>
 
@@ -296,6 +296,25 @@ export default function Strumenti() {
 
         {/* Pulsanti Navigazione - Layout verticale con descrizioni */}
         <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
+          {/* Menu (Bacheca) - accesso alla pagina Menu */}
+          <button
+            type="button"
+            className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
+            onClick={() => setLocation("/menu")}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <div className="relative z-10 flex items-center justify-between h-full px-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <Home className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <div className="text-gray-900 font-semibold text-base">Menu</div>
+                  <div className="text-gray-600 text-sm">Bacheca, eventi, iniziative e notifiche</div>
+                </div>
+              </div>
+            </div>
+          </button>
           {/* Comunica - solo per Istituzione e Admin, NON per Politico/Candidato/Candidato Politico */}
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
