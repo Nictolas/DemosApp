@@ -60,7 +60,12 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
           <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">
             <div className="flex flex-col">
               <span className="font-medium">{op.testo}</span>
-              <span className="text-xs text-muted-foreground">Voti: {op.voti}</span>
+              <span className="text-xs text-muted-foreground">
+                Voti: {op.voti}
+                {op.proponente && (
+                  <> · Proposta da: {op.proponente}</>
+                )}
+              </span>
             </div>
             <div className="flex gap-2">
               <Button 

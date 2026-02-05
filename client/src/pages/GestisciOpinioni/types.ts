@@ -9,6 +9,8 @@ export interface OpinioneProposta {
   id: string;
   testo: string;
   voti: number;
+  /** Nome e cognome o email dell'utente che ha proposto l'opinione */
+  proponente?: string;
 }
 
 export const GRADI_OPINIONE = ['Europeo', 'Nazionale', 'Regionale', 'Comunale'] as const;
