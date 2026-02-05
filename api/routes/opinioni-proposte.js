@@ -863,7 +863,17 @@ router.delete('/:id', verifyToken, async (req, res) => {
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
+    // Rimuovi tutti i voti (incluso quello del proponente)
     await pool.query('DELETE FROM voti_opinioni_proposte WHERE opinione_id = $1', [id]);
+    // Libera la "proposta" dell'utente che l'aveva proposta (così può proporne un'altra)
+    try {
+      await pool.query(
+        'UPDATE users SET opinione_proposta_id = NULL WHERE opinione_proposta_id = $1',
+        [id]
+      );
+    } catch (e) {
+      if (e.code !== '42703') console.error('Errore reset opinione_proposta_id:', e);
+    }
     let deleteResult = await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
     if (deleteResult.rowCount === 0) {
       deleteResult = await pool.query('DELETE FROM opinioni_domande WHERE id = $1', [id]);
