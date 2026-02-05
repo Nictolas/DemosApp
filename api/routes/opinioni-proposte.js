@@ -224,36 +224,55 @@ router.get('/', async (req, res) => {
         SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
       ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
       ORDER BY o.text`;
-    const fromDomandeWhere = `(
-      ('da approvare' = ANY(o.gradi_opinione)) OR (o.gradi_opinione::text LIKE '%da approvare%')
-    )`;
-    const queryBaseDomande = `
+    // Supporto sia gradi_opinione che gradi_opinioni (Neon può avere l'uno o l'altro)
+    const whereGradi = (col) => `((o.${col}::text LIKE '%da approvare%'))`;
+    const queryBaseDomande = (col) => `
       SELECT o.id, o.text as testo, o.approfondimento
       FROM opinioni_domande o
-      WHERE ${fromDomandeWhere}
-      ORDER BY o.text
-    `;
-    const queryDomandeWithVoti = `
+      WHERE ${whereGradi(col)}
+      ORDER BY o.text`;
+    const queryDomandeWithVoti = (col) => `
       SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
       FROM opinioni_domande o
       LEFT JOIN (
         SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
       ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
-      WHERE ${fromDomandeWhere}
-      ORDER BY o.text
-    `;
+      WHERE ${whereGradi(col)}
+      ORDER BY o.text`;
 
     let result;
     try {
       result = await pool.query(fromProposte);
     } catch (err) {
       if (err.code === '42P01' && err.message && err.message.includes('opinioni_proposte')) {
-        try {
-          result = await pool.query(queryDomandeWithVoti);
-        } catch (e2) {
-          result = await pool.query(queryBaseDomande);
-          result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
+        // Fallback: leggi da opinioni_domande. Prova prima gradi_opinioni (Neon), poi gradi_opinione
+        const cols = ['gradi_opinioni', 'gradi_opinione'];
+        for (const col of cols) {
+          try {
+            result = await pool.query(queryDomandeWithVoti(col));
+            break;
+          } catch (e2) {
+            if (e2.code === '42703') continue; // colonna inesistente, prova l'altra
+            try {
+              result = await pool.query(queryBaseDomande(col));
+              result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
+              break;
+            } catch (e3) {
+              if (e3.code === '42703') continue;
+              throw e3;
+            }
+          }
         }
+        if (!result) {
+          for (const col of cols) {
+            try {
+              result = await pool.query(queryBaseDomande(col));
+              result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
+              break;
+            } catch (_) { continue; }
+          }
+        }
+        if (!result) throw err;
       } else {
         throw err;
       }
