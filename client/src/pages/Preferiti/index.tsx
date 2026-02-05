@@ -277,15 +277,32 @@ export default function Preferiti() {
     <PageContainer className="preferiti-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
       <div className="container mx-auto px-4 py-2 flex flex-col">
         <div className="w-full max-w-4xl mx-auto flex flex-col">
-          {/* Logo app (come in /menu) */}
+          {/* Logo app: cliccabile solo per AD → /gestisci */}
           <Card className="w-full flex-shrink-0 mb-2">
             <CardHeader className="text-center flex-shrink-0 pt-3 pb-1">
-              <img
-                src="/icona.png"
-                alt="Logo Demos"
-                className="w-24 h-24 mx-auto"
-                data-testid="preferiti-logo"
-              />
+              {user?.ruolo === "AD" ? (
+                <button
+                  type="button"
+                  onClick={() => setLocation("/gestisci")}
+                  className="block mx-auto cursor-pointer hover:opacity-80 hover:scale-105 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
+                  title="Clicca per accedere alla sezione Gestisci"
+                  aria-label="Vai a Gestisci"
+                >
+                  <img
+                    src="/icona.png"
+                    alt="Logo Demos"
+                    className="w-24 h-24 mx-auto"
+                    data-testid="preferiti-logo"
+                  />
+                </button>
+              ) : (
+                <img
+                  src="/icona.png"
+                  alt="Logo Demos"
+                  className="w-24 h-24 mx-auto"
+                  data-testid="preferiti-logo"
+                />
+              )}
             </CardHeader>
           </Card>
 
