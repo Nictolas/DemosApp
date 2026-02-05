@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ProponiFormProps } from "../types";
 
 export const ProponiForm: React.FC<ProponiFormProps> = ({
@@ -85,100 +84,69 @@ export const ProponiForm: React.FC<ProponiFormProps> = ({
   };
 
   return (
-    <Card className="bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MessageSquare className="h-5 w-5" />
-          <span>Proponi una nuova opinione</span>
-        </CardTitle>
-        <CardDescription>
-          {haGiaProposto
-            ? "Hai già proposto un'opinione. Puoi proporne solo una."
-            : "Inserisci il testo della nuova opinione che vorresti proporre."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {haGiaProposto ? (
-          <p className="text-sm text-muted-foreground py-2">
-            Puoi comunque votare le opinioni proposte da altri.
-          </p>
-        ) : (
-        <form 
+    <div className="space-y-4">
+      {haGiaProposto ? (
+        <p className="text-sm text-muted-foreground">
+          Hai già proposto un'opinione. Puoi proporne solo una. Puoi comunque votare le opinioni proposte da altri.
+        </p>
+      ) : (
+        <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Previeni doppi submit
-            if (formSubmittedRef.current || submitting) {
-              return;
-            }
+            if (formSubmittedRef.current || submitting) return;
             formSubmittedRef.current = true;
-            
-            // Chiama onSubmit direttamente - il componente padre gestisce async
             const result = onSubmit(e);
-            
-            // Se restituisce una Promise, reset dopo che completa
             if (result && typeof result === 'object' && 'then' in result) {
               Promise.resolve(result).finally(() => {
-                setTimeout(() => {
-                  formSubmittedRef.current = false;
-                }, 1000);
+                setTimeout(() => { formSubmittedRef.current = false; }, 1000);
               });
             } else {
-              // Se è sincrono, reset dopo un breve delay
-              setTimeout(() => {
-                formSubmittedRef.current = false;
-              }, 1000);
+              setTimeout(() => { formSubmittedRef.current = false; }, 1000);
             }
-          }} 
-          className="space-y-4"
+          }}
+          className="flex flex-wrap items-center gap-2"
         >
-          <div className="relative flex space-x-2">
-            <div className="flex-1 relative">
-              <Input
-                ref={inputRef}
-                placeholder="Testo della nuova opinione..."
-                value={testoInput}
-                onChange={e => handleInputChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onFocus={() => {
-                  if (suggestions.length > 0) {
-                    setShowSuggestions(true);
-                  }
-                }}
-                disabled={submitting}
-              />
-              {showSuggestions && suggestions.length > 0 && (
-                <div
-                  ref={suggestionsRef}
-                  className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
-                >
-                  {suggestions.map((suggestion, index) => (
-                    <div
-                      key={index}
-                      className={`px-4 py-2 cursor-pointer hover:bg-fuchsia-50 ${
-                        index === selectedIndex ? "bg-fuchsia-100" : ""
-                      } ${index === 0 ? "rounded-t-md" : ""} ${
-                        index === suggestions.length - 1 ? "rounded-b-md" : ""
-                      }`}
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                    >
-                      <span className="text-sm">{suggestion}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Button 
-              type="submit" 
-              disabled={submitting || !testoInput.trim()} 
-              className="bg-fuchsia-600 hover:bg-fuchsia-700"
-            >
-              <Plus className="h-4 w-4 mr-1" /> Proponi
-            </Button>
+          <div className="flex-1 min-w-[200px] relative">
+            <Input
+              ref={inputRef}
+              placeholder="Testo della nuova opinione..."
+              value={testoInput}
+              onChange={e => handleInputChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              disabled={submitting}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+              >
+                {suggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className={`px-4 py-2 cursor-pointer hover:bg-fuchsia-50 ${
+                      index === selectedIndex ? "bg-fuchsia-100" : ""
+                    } ${index === 0 ? "rounded-t-md" : ""} ${
+                      index === suggestions.length - 1 ? "rounded-b-md" : ""
+                    }`}
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                  >
+                    <span className="text-sm">{suggestion}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+          <Button
+            type="submit"
+            disabled={submitting || !testoInput.trim()}
+            className="bg-fuchsia-600 hover:bg-fuchsia-700"
+          >
+            <Plus className="h-4 w-4 mr-1" /> Proponi
+          </Button>
         </form>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
