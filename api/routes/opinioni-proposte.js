@@ -279,27 +279,44 @@ router.get('/', async (req, res) => {
     }
     console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
-    // Debug: mostra i primi 3 ID per verificare il formato
+    // Chi ha proposto ogni opinione (users.opinione_proposta_id)
+    let proposersByOpinionId = {};
     if (result.rows.length > 0) {
-      console.log('🔍 DEBUG - Prime 3 ID opinioni:', result.rows.slice(0, 3).map(r => ({ id: r.id, idType: typeof r.id, idLength: r.id?.length })));
+      try {
+        const ids = result.rows.map(r => String(r.id));
+        const propQuery = await pool.query(
+          `SELECT opinione_proposta_id, nome, cognome, email FROM users WHERE opinione_proposta_id = ANY($1::text[])`,
+          [ids]
+        );
+        propQuery.rows.forEach((r) => {
+          const label = [r.nome, r.cognome].filter(Boolean).join(' ') || r.email || null;
+          if (r.opinione_proposta_id) proposersByOpinionId[r.opinione_proposta_id] = label;
+        });
+      } catch (e) {
+        if (e.code !== '42703') console.error('Errore lettura proponenti:', e);
+      }
     }
     
     // Mappa i dati per compatibilità con il frontend
-    const mappedData = result.rows.map(row => ({
-      id: String(row.id), // Assicura che sia sempre una stringa
-      testo: row.testo,
-      utente_id: null,
-      titolo: null,
-      descrizione: null,
-      categoria: null,
-      fonte: 'proposta',
-      data_creazione: new Date().toISOString(),
-      data_aggiornamento: new Date().toISOString(),
-      nome: null,
-      cognome: null,
-      email: null,
-      voti: (typeof row.voti === 'number' ? row.voti : parseInt(row.voti, 10)) || 0
-    }));
+    const mappedData = result.rows.map(row => {
+      const idStr = String(row.id);
+      return {
+        id: idStr,
+        testo: row.testo,
+        utente_id: null,
+        titolo: null,
+        descrizione: null,
+        categoria: null,
+        fonte: 'proposta',
+        data_creazione: new Date().toISOString(),
+        data_aggiornamento: new Date().toISOString(),
+        nome: null,
+        cognome: null,
+        email: null,
+        voti: (typeof row.voti === 'number' ? row.voti : parseInt(row.voti, 10)) || 0,
+        proponente: proposersByOpinionId[idStr] || null
+      };
+    });
     
     // Se l'utente è autenticato, indica se ha già proposto un'opinione (limite 1 per utente)
     let haGiaProposto = false;
