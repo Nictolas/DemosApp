@@ -16,11 +16,12 @@ export const useProponiOpinioneData = (user: any) => {
     setLoadingData(true);
     try {
       console.log('🔍 Caricamento opinioni proposte...');
-      const data = await apiRequest('GET', '/api/opinioni-proposte');
-      console.log('📊 Dati ricevuti:', data);
+      const res = await apiRequest('GET', '/api/opinioni-proposte');
+      const body = res?.data; // body = { success, data: [...] }
+      console.log('📊 Dati ricevuti:', body);
       
-      if (data.success && data.data) {
-        const opinioniMapped = data.data.map((op: any) => ({
+      if (body?.success && Array.isArray(body.data)) {
+        const opinioniMapped = body.data.map((op: any) => ({
           id: op.id,
           testo: op.testo,
           voti: op.voti || 0,
@@ -39,9 +40,10 @@ export const useProponiOpinioneData = (user: any) => {
         // Carica i voti dell'utente
         console.log('🔍 Caricamento voti utente...');
         try {
-          const votiData = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
-          setUserVoti(votiData.data || []);
-          console.log('✅ Voti utente caricati:', votiData.data);
+          const votiRes = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
+          const votiBody = votiRes?.data;
+          setUserVoti(Array.isArray(votiBody?.data) ? votiBody.data : []);
+          console.log('✅ Voti utente caricati:', votiBody?.data);
         } catch (error) {
           console.log('⚠️ Errore nel caricare voti utente:', error);
           setUserVoti([]);
