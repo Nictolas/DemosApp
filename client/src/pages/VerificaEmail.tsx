@@ -87,8 +87,8 @@ const VerificaEmail: React.FC = () => {
         // Aggiorna lo status dell'utente nel localStorage
         localStorage.setItem('user_status', 'verified');
         
-        // Reindirizza al menu
-        router.push('/menu');
+        // Reindirizza ai preferiti
+        router.push('/preferiti');
       } else {
         toast({
           title: "Errore nella verifica",

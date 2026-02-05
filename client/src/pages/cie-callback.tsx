@@ -120,10 +120,10 @@ export default function CIECallback() {
           variant: "default"
         });
 
-        // Reindirizza al menu dopo 1 secondo
+        // Reindirizza ai preferiti dopo 1 secondo
         setTimeout(() => {
           // Forza il refresh della pagina per aggiornare lo stato dell'autenticazione
-          window.location.href = '/menu';
+          window.location.href = '/preferiti';
         }, 1000);
       } catch (err: any) {
         console.error('❌ Errore durante exchange CIE:', err);
@@ -144,9 +144,9 @@ export default function CIECallback() {
     exchangeCode();
   }, [setLocation, toast]);
 
-  // Se l'utente è già autenticato, reindirizza al menu
+  // Se l'utente è già autenticato, reindirizza ai preferiti
   if (user) {
-    return <Redirect to="/menu" />;
+    return <Redirect to="/preferiti" />;
   }
 
   return (
