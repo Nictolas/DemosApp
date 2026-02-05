@@ -112,14 +112,13 @@ export default function ProponiOpinione() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
-        <Card>
-          <CardContent className="p-6">
-            <Header />
-            
+        <Card className="bg-white">
+          <Header />
+          <CardContent className="p-6 pt-0 space-y-6">
             {loadingData ? (
               <LoadingState />
             ) : (
-              <div className="space-y-6">
+              <>
                 <ProponiForm
                   testoInput={proponiOpinioneState.testoInput}
                   submitting={proponiOpinioneState.submitting}
@@ -138,7 +137,7 @@ export default function ProponiOpinione() {
                   onCancella={handleCancellaOpinione}
                   isAdmin={user?.ruolo === 'AD'}
                 />
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
