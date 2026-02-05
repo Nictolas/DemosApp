@@ -54,8 +54,8 @@ const VerificaEmailStandalone: React.FC = () => {
         // Aggiorna lo status dell'utente nel localStorage
         localStorage.setItem('user_status', 'verified');
         
-        // Reindirizza al menu
-        window.location.href = '/menu';
+        // Reindirizza ai preferiti
+        window.location.href = '/preferiti';
       } else {
         toast({
           title: "Errore nella verifica",

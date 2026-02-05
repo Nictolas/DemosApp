@@ -276,10 +276,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "default"
       });
       
-      // Reindirizza al menu dopo il login di successo
+      // Reindirizza ai preferiti dopo il login di successo
       // Usa un piccolo delay per assicurarsi che i dati siano salvati
       setTimeout(() => {
-        window.location.href = '/menu';
+        window.location.href = '/preferiti';
       }, 100);
     },
     onError: (error) => {
@@ -388,8 +388,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "default"
       });
       
-      // Reindirizza al menu dopo la registrazione completata
-      window.location.href = '/menu';
+      // Reindirizza ai preferiti dopo la registrazione completata
+      window.location.href = '/preferiti';
     },
   });
 

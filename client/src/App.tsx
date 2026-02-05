@@ -178,8 +178,8 @@ function useTouchNavigation() {
           if (previousPath) {
             setLocation(previousPath);
           } else {
-            // Fallback: vai alla home (menu o preferiti secondo redirect in LandingPage/AppWrapper)
-            setLocation('/menu');
+            // Fallback: vai alla home (preferiti per utenti autenticati)
+            setLocation('/preferiti');
           }
           
           // Reset dopo un breve delay
