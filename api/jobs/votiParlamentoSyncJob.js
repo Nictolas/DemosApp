@@ -17,6 +17,7 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
   let sparqlEndpoint;
   
   if (camera === 'Senato') {
+    // Solo XIX legislatura (come da indicazione datamaster@senato.it)
     sparqlQuery = `
       PREFIX osr: <http://dati.senato.it/osr/>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -26,6 +27,8 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
                       ?tipoVotazione ?seduta ?sedutaData ?sedutaNumero ?sedutaLegislatura
       WHERE {
         ?votazione a osr:Votazione .
+        ?votazione osr:seduta ?seduta .
+        ?seduta osr:legislatura 19 .
         OPTIONAL { ?votazione rdfs:label ?label . }
         OPTIONAL { ?votazione osr:favorevoli ?favorevoli . }
         OPTIONAL { ?votazione osr:contrari ?contrari . }
@@ -33,40 +36,41 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
         OPTIONAL { ?votazione osr:votanti ?votanti . }
         OPTIONAL { ?votazione osr:maggioranza ?maggioranza . }
         OPTIONAL { ?votazione osr:tipoVotazione ?tipoVotazione . }
-        OPTIONAL { 
-          ?votazione osr:seduta ?seduta .
-          OPTIONAL { ?seduta osr:dataSeduta ?sedutaData . }
-          OPTIONAL { ?seduta osr:numeroSeduta ?sedutaNumero . }
-          OPTIONAL { ?seduta osr:legislatura ?sedutaLegislatura . }
-        }
+        OPTIONAL { ?seduta osr:dataSeduta ?sedutaData . }
+        OPTIONAL { ?seduta osr:numeroSeduta ?sedutaNumero . }
+        OPTIONAL { ?seduta osr:legislatura ?sedutaLegislatura . }
       }
-      ORDER BY DESC(?sedutaData) DESC(?votazione)
+      ORDER BY DESC(?sedutaData) DESC(?sedutaNumero) DESC(?votazione)
       LIMIT ${limit}
     `;
     sparqlEndpoint = 'https://dati.senato.it/sparql';
   } else {
+    // Camera: solo XIX legislatura (ocd:rif_legislatura); data da ocd:data o dc:date
     sparqlQuery = `
       PREFIX ocd: <http://dati.camera.it/ocd/>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+      PREFIX dc: <http://purl.org/dc/elements/1.1/>
       
-      SELECT DISTINCT ?votazione ?label ?approvato ?seduta ?sedutaData ?sedutaNumero ?sedutaTitle ?sedutaLegislatura
+      SELECT DISTINCT ?votazione ?label ?approvato ?seduta ?sedutaData ?sedutaDataDc ?sedutaNumero ?sedutaTitle ?sedutaLegislatura
       WHERE {
         ?votazione a <http://dati.camera.it/ocd/votazione> .
-        FILTER(CONTAINS(STR(?votazione), "vs19"))
+        ?votazione ocd:rif_legislatura ?legislatura .
+        ?legislatura ocd:numero 19 .
         OPTIONAL { ?votazione rdfs:label ?label . }
         OPTIONAL { ?votazione ocd:approvato ?approvato . }
         OPTIONAL { 
           ?votazione ocd:rif_seduta ?seduta .
           OPTIONAL { ?seduta ocd:data ?sedutaData . }
+          OPTIONAL { ?seduta dc:date ?sedutaDataDc . }
           OPTIONAL { ?seduta ocd:identifier ?sedutaNumero . }
           OPTIONAL { ?seduta ocd:title ?sedutaTitle . }
           OPTIONAL { 
-            ?seduta ocd:rif_leg ?legislatura .
-            OPTIONAL { ?legislatura ocd:numero ?sedutaLegislatura . }
+            ?seduta ocd:rif_leg ?leg .
+            OPTIONAL { ?leg ocd:numero ?sedutaLegislatura . }
           }
         }
       }
-      ORDER BY DESC(?sedutaData) DESC(?votazione)
+      ORDER BY DESC(?sedutaData) DESC(?sedutaDataDc) DESC(?votazione)
       LIMIT ${limit}
     `;
     sparqlEndpoint = 'http://dati.camera.it/sparql';
@@ -135,14 +139,17 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
       
       // Estrai data dalla seduta
       let dataVotazione = null;
-      if (camera === 'Camera' && result.sedutaData?.value) {
-        // Camera: formato YYYYMMDD
-        const dateStr = result.sedutaData.value;
-        if (dateStr.match(/^\d{8}$/)) {
-          const year = dateStr.substring(0, 4);
-          const month = dateStr.substring(4, 6);
-          const day = dateStr.substring(6, 8);
-          dataVotazione = `${year}-${month}-${day}`;
+      if (camera === 'Camera') {
+        const dateStr = result.sedutaData?.value || result.sedutaDataDc?.value;
+        if (dateStr) {
+          if (dateStr.match(/^\d{8}$/)) {
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            dataVotazione = `${year}-${month}-${day}`;
+          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+            dataVotazione = dateStr.split('T')[0];
+          }
         }
       } else if (camera === 'Senato' && result.sedutaData?.value) {
         // Senato: formato YYYY-MM-DD

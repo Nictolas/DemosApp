@@ -16,6 +16,8 @@ async function testSparqlRecenti() {
                     ?tipoVotazione ?seduta ?sedutaData ?sedutaNumero ?sedutaLegislatura
     WHERE {
       ?votazione a osr:Votazione .
+      ?votazione osr:seduta ?seduta .
+      ?seduta osr:legislatura 19 .
       OPTIONAL { ?votazione rdfs:label ?label . }
       OPTIONAL { ?votazione osr:favorevoli ?favorevoli . }
       OPTIONAL { ?votazione osr:contrari ?contrari . }
@@ -23,14 +25,11 @@ async function testSparqlRecenti() {
       OPTIONAL { ?votazione osr:votanti ?votanti . }
       OPTIONAL { ?votazione osr:maggioranza ?maggioranza . }
       OPTIONAL { ?votazione osr:tipoVotazione ?tipoVotazione . }
-      OPTIONAL { 
-        ?votazione osr:seduta ?seduta .
-        OPTIONAL { ?seduta osr:dataSeduta ?sedutaData . }
-        OPTIONAL { ?seduta osr:numeroSeduta ?sedutaNumero . }
-        OPTIONAL { ?seduta osr:legislatura ?sedutaLegislatura . }
-      }
+      OPTIONAL { ?seduta osr:dataSeduta ?sedutaData . }
+      OPTIONAL { ?seduta osr:numeroSeduta ?sedutaNumero . }
+      OPTIONAL { ?seduta osr:legislatura ?sedutaLegislatura . }
     }
-    ORDER BY DESC(?sedutaData) DESC(?votazione)
+    ORDER BY DESC(?sedutaData) DESC(?sedutaNumero) DESC(?votazione)
     LIMIT 10
   `;
   
