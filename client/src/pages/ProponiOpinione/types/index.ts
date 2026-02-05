@@ -35,6 +35,8 @@ export interface ProponiFormProps {
   onSubmit: (e: React.FormEvent) => void | Promise<void>;
   onInputChange: (value: string) => void;
   opinioniEsistenti?: string[];
+  /** Se true, l'utente ha già proposto un'opinione (max 1) e il form va disabilitato */
+  haGiaProposto?: boolean;
 }
 
 export interface OpinioniListProps {
