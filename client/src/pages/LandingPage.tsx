@@ -11,9 +11,9 @@ export default function LandingPage() {
   const { isInstallable, isInstalled, isMobile, installApp, showInstallInstructions } = usePWAInstall();
   
   
-  // Redirect to menu if user is authenticated
+  // Redirect: tutti gli utenti autenticati vanno ai preferiti
   if (user && !isLoading) {
-    return <Redirect to="/menu" />;
+    return <Redirect to="/preferiti" />;
   }
 
   // Show loading indicator while checking auth state
@@ -46,9 +46,9 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 {user ? (
-                  <Link href="/menu">
+                  <Link href="/preferiti">
                     <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                      Vai al Menu
+                      Vai ai Preferiti
                     </Button>
                   </Link>
                 ) : (

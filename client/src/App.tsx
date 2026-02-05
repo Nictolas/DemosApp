@@ -178,7 +178,7 @@ function useTouchNavigation() {
           if (previousPath) {
             setLocation(previousPath);
           } else {
-            // Fallback: vai al menu
+            // Fallback: vai alla home (menu o preferiti secondo redirect in LandingPage/AppWrapper)
             setLocation('/menu');
           }
           
@@ -201,7 +201,8 @@ function useTouchNavigation() {
     // Funzione helper per determinare il percorso precedente
     const getPreviousPath = (currentPath: string): string | null => {
     const pathMap: { [key: string]: string } = {
-      '/menu': '/',
+      '/menu': '/strumenti',
+      '/preferiti': '/',
       '/profilo': '/menu',
       '/menu/profilo': '/menu',
         '/opinioni': '/menu',

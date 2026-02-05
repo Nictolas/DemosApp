@@ -1,4 +1,7 @@
 /* ===== FIX SPECIFICO PER DISPOSITIVI ANDROID ===== */
+/* Su Huawei e altri Android con "Aggiungi a schermata home" la barra del browser
+   può restare visibile e env(safe-area-inset-bottom) è 0. Usiamo max(..., 56px)
+   come fallback per tenere navbar e contenuto sopra la barra. */
 
 /* Rilevamento Android tramite user agent */
 @media screen and (-webkit-min-device-pixel-ratio: 0) {
@@ -14,7 +17,7 @@
     .app-navbar nav {
       height: 6rem !important;
       padding: 1rem 0 !important;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     /* Aggiungi padding extra al contenuto per evitare sovrapposizione */
@@ -23,11 +26,11 @@
     }
     
     .page-with-navbar {
-      padding-bottom: calc(6rem + 2rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .menu-page .container {
-      padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
   }
   
@@ -41,15 +44,15 @@
     .app-navbar nav {
       height: 6rem !important;
       padding: 1rem 0 !important;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .page-with-navbar {
-      padding-bottom: calc(6rem + 2rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .menu-page .container {
-      padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
   }
   
@@ -63,15 +66,15 @@
     .app-navbar nav {
       height: 6rem !important;
       padding: 1rem 0 !important;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .page-with-navbar {
-      padding-bottom: calc(6rem + 2rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .menu-page .container {
-      padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
   }
   
@@ -85,15 +88,15 @@
     .app-navbar nav {
       height: 6rem !important;
       padding: 1rem 0 !important;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .page-with-navbar {
-      padding-bottom: calc(6rem + 2rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .menu-page .container {
-      padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
   }
   
@@ -107,15 +110,15 @@
     .app-navbar nav {
       height: 6rem !important;
       padding: 1rem 0 !important;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .page-with-navbar {
-      padding-bottom: calc(6rem + 2rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .menu-page .container {
-      padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
   }
   
@@ -129,15 +132,15 @@
     .app-navbar nav {
       height: 6rem !important;
       padding: 1rem 0 !important;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .page-with-navbar {
-      padding-bottom: calc(6rem + 2rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
     
     .menu-page .container {
-      padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
     }
   }
 }
@@ -164,7 +167,7 @@
   
   /* Padding dinamico per le pagine - altezza originale + spazio extra */
   .page-with-navbar {
-    padding-bottom: calc(6rem + 1rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(6rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   /* Menu page specifico - padding unificato gestito in index.css */
@@ -172,14 +175,14 @@
   
   /* Pulsanti del menu - altezza ridotta per mobile per evitare che finiscano dietro la navbar */
   .menu-button {
-    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 250px) / 2) !important;
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 250px) / 2) !important;
     min-height: 100px !important;
     max-height: 180px !important;
   }
   
   /* Card dei candidati - altezza originale */
   .candidato-card {
-    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 200px) / 2) !important;
     min-height: 200px !important;
     max-height: 300px !important;
   }
@@ -209,25 +212,25 @@
   .app-navbar nav {
     height: 6rem !important;
     padding: 1rem 0 !important;
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .page-with-navbar {
-    padding-bottom: calc(6rem + 1rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(6rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .menu-page .container {
-    padding-bottom: calc(6rem + 3rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .menu-button {
-    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 200px) / 2) !important;
     min-height: 120px !important;
     max-height: 200px !important;
   }
   
   .candidato-card {
-    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 200px) / 2) !important;
     min-height: 200px !important;
     max-height: 300px !important;
   }
@@ -245,25 +248,25 @@
   .app-navbar nav {
     height: 5rem !important;
     padding: 0.75rem 0 !important;
-    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(0.75rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .page-with-navbar {
-    padding-bottom: calc(5rem + 1rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(5rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .menu-page .container {
-    padding-bottom: calc(5rem + 2rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(5rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .menu-button {
-    height: calc((100vh - 5rem - env(safe-area-inset-bottom) - 150px) / 2) !important;
+    height: calc((100vh - 5rem - max(env(safe-area-inset-bottom), 56px) - 150px) / 2) !important;
     min-height: 80px !important;
     max-height: 120px !important;
   }
   
   .candidato-card {
-    height: calc((100vh - 5rem - env(safe-area-inset-bottom) - 150px) / 2) !important;
+    height: calc((100vh - 5rem - max(env(safe-area-inset-bottom), 56px) - 150px) / 2) !important;
     min-height: 120px !important;
     max-height: 180px !important;
   }
@@ -280,15 +283,15 @@
   .app-navbar nav {
     height: 4rem !important;
     padding: 0.5rem 0 !important;
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(0.5rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .page-with-navbar {
-    padding-bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(4rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
   
   .menu-page .container {
-    padding-bottom: calc(4rem + 2rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(4rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
   }
 }
 

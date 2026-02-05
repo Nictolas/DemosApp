@@ -59,24 +59,24 @@
 .app-main .strumenti-page {
   overflow: hidden !important;
   overflow-y: hidden !important;
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
+  max-height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
 }
 
 /* Pagina Preferiti - blocca scroll verticale */
 .app-main .preferiti-page {
   overflow: hidden !important;
   overflow-y: hidden !important;
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
+  max-height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
 }
 
 /* Pagina Impostazioni - blocca scroll verticale */
 .app-main .impostazioni-page {
   overflow: hidden !important;
   overflow-y: hidden !important;
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
+  max-height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
 }
 
 /* Navbar area - Appare/Scompare con scroll */
@@ -96,14 +96,15 @@
   margin-bottom: 0 !important;
   transition: transform 0.3s ease-in-out, max-height 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
   max-height: 200px; /* Altezza massima quando visibile */
-  padding-bottom: max(0px, env(safe-area-inset-bottom));
+  /* Fallback 56px per barra browser su Huawei/Android (Aggiungi a home) */
+  padding-bottom: max(56px, env(safe-area-inset-bottom));
 }
 
 /* Navbar visibile - mostra */
 .app-navbar.navbar-visible {
   transform: translateY(0);
   max-height: 200px;
-  padding-bottom: max(0px, env(safe-area-inset-bottom));
+  padding-bottom: max(56px, env(safe-area-inset-bottom));
 }
 
 /* Navbar nascosta - nascondi sotto lo schermo E non occupare spazio */
@@ -167,10 +168,10 @@
 
 /* ===== SUPPORTO PER SAFE AREAS ===== */
 
-/* Supporto per dispositivi con notch */
+/* Supporto per dispositivi con notch + fallback per barra browser (Huawei, Android) */
 @supports (padding: max(0px)) {
   .app-navbar {
-    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    padding-bottom: max(56px, env(safe-area-inset-bottom));
   }
   
   /* Quando la navbar è nascosta, rimuovi COMPLETAMENTE il padding-bottom per evitare spazio bianco */
