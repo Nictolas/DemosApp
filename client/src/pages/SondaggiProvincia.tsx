@@ -1,0 +1,23 @@
+import React from "react";
+import { Redirect, useParams } from "wouter";
+import { useAuth } from "@/hooks/use-auth-neon";
+import { Loader2 } from "lucide-react";
+import SondaggiContent from "@/components/SondaggiContent";
+
+export default function SondaggiProvincia() {
+  const { regione, provincia } = useParams();
+  const { user, isLoading: isAuthLoading } = useAuth();
+
+  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!user) return <Redirect to="/auth" />;
+  
+  // Controllo più flessibile per l'accesso ai sondaggi
+  const userRole = user.ruolo;
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
+  if (!hasAdvancedAccess) return <Redirect to="/menu" />;
+
+  // Costruisci filterPath solo se i parametri sono validi
+  const filterPath = regione && provincia ? `${regione}/${provincia}` : regione || undefined;
+
+  return <SondaggiContent filterPath={filterPath} />;
+}

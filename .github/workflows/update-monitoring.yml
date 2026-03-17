@@ -1,0 +1,27 @@
+name: Aggiorna Monitoring Data
+
+on:
+  schedule:
+    - cron: '0 * * * *' # ogni ora
+  workflow_dispatch:
+
+jobs:
+  update-monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Installa dipendenze
+        run: npm install
+      - name: Esegui script di aggiornamento
+        run: node api/update-monitoring-data.js
+      - name: Commit e push dei dati aggiornati
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add api/monitoring-data.json
+          git commit -m "Aggiorna monitoring-data.json [bot]" || echo "Nessuna modifica"
+          git push 

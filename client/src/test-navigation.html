@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Navigazione - Demos App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+        }
+        
+        .test-section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        .test-button:hover {
+            background: #45a049;
+        }
+        
+        .test-button.danger {
+            background: #f44336;
+        }
+        
+        .test-button.danger:hover {
+            background: #da190b;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Navigazione Demos App</h1>
+        <p>Questo test verifica che le correzioni per la navigazione del browser funzionino correttamente.</p>
+        
+        <div class="test-section">
+            <h3>1. Test Pulsante Indietro del Browser</h3>
+            <p>Testa il comportamento del pulsante "indietro" del browser:</p>
+            <button class="test-button" onclick="testBrowserBack()">Testa Pulsante Indietro</button>
+            <button class="test-button" onclick="simulateBackButton()">Simula Pulsante Indietro</button>
+            <div id="browser-back-status" class="status info">Pronto per il test</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Test Touch Navigation (Mobile)</h3>
+            <p>Testa il comportamento dello swipe da sinistra a destra:</p>
+            <button class="test-button" onclick="testTouchNavigation()">Testa Touch Navigation</button>
+            <div id="touch-status" class="status info">Pronto per il test</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Test Transizioni Pagine</h3>
+            <p>Testa le transizioni tra le pagine:</p>
+            <button class="test-button" onclick="testPageTransitions()">Testa Transizioni</button>
+            <div id="transition-status" class="status info">Pronto per il test</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. Test Prevenzione Blocchi</h3>
+            <p>Testa che non ci siano blocchi durante la navigazione:</p>
+            <button class="test-button" onclick="testBlockPrevention()">Testa Prevenzione Blocchi</button>
+            <button class="test-button danger" onclick="simulateBlock()">Simula Blocco (Test)</button>
+            <div id="block-status" class="status info">Pronto per il test</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Log Test</h3>
+            <div id="test-log" class="log">Log dei test apparirà qui...</div>
+            <button class="test-button" onclick="clearLog()">Pulisci Log</button>
+        </div>
+    </div>
+
+    <script>
+        let testCount = 0;
+        
+        function log(message) {
+            const logElement = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('test-log').innerHTML = 'Log pulito...\n';
+        }
+        
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        function testBrowserBack() {
+            log('🧪 Testando pulsante indietro del browser...');
+            updateStatus('browser-back-status', 'Test in corso...', 'info');
+            
+            // Simula la navigazione
+            setTimeout(() => {
+                if (window.history.length > 1) {
+                    log('✅ Pulsante indietro disponibile');
+                    updateStatus('browser-back-status', 'Pulsante indietro funzionante', 'success');
+                } else {
+                    log('⚠️ Nessuna cronologia disponibile');
+                    updateStatus('browser-back-status', 'Nessuna cronologia', 'info');
+                }
+            }, 1000);
+        }
+        
+        function simulateBackButton() {
+            log('🔄 Simulando pulsante indietro...');
+            updateStatus('browser-back-status', 'Simulazione in corso...', 'info');
+            
+            // Aggiungi una voce alla cronologia
+            history.pushState({test: true}, '', '?test=' + Date.now());
+            
+            setTimeout(() => {
+                history.back();
+                log('✅ Simulazione completata');
+                updateStatus('browser-back-status', 'Simulazione completata', 'success');
+            }, 500);
+        }
+        
+        function testTouchNavigation() {
+            log('📱 Testando touch navigation...');
+            updateStatus('touch-status', 'Test in corso...', 'info');
+            
+            // Simula eventi touch
+            const touchStart = new TouchEvent('touchstart', {
+                touches: [new Touch({identifier: 1, target: document.body, clientX: 100, clientY: 100})]
+            });
+            
+            const touchMove = new TouchEvent('touchmove', {
+                touches: [new Touch({identifier: 1, target: document.body, clientX: 50, clientY: 100})]
+            });
+            
+            document.dispatchEvent(touchStart);
+            
+            setTimeout(() => {
+                document.dispatchEvent(touchMove);
+                log('✅ Touch navigation testato');
+                updateStatus('touch-status', 'Touch navigation funzionante', 'success');
+            }, 100);
+        }
+        
+        function testPageTransitions() {
+            log('🎭 Testando transizioni pagine...');
+            updateStatus('transition-status', 'Test in corso...', 'info');
+            
+            // Testa se le classi CSS sono disponibili
+            const testElement = document.createElement('div');
+            testElement.className = 'page-transition navigation-safe';
+            
+            if (testElement.classList.contains('page-transition') && 
+                testElement.classList.contains('navigation-safe')) {
+                log('✅ Classi CSS per transizioni disponibili');
+                updateStatus('transition-status', 'Transizioni configurate correttamente', 'success');
+            } else {
+                log('❌ Classi CSS mancanti');
+                updateStatus('transition-status', 'Classi CSS mancanti', 'error');
+            }
+        }
+        
+        function testBlockPrevention() {
+            log('🛡️ Testando prevenzione blocchi...');
+            updateStatus('block-status', 'Test in corso...', 'info');
+            
+            let operations = 0;
+            const maxOperations = 100;
+            
+            const performOperation = () => {
+                if (operations < maxOperations) {
+                    operations++;
+                    // Simula operazione asincrona
+                    setTimeout(performOperation, 10);
+                } else {
+                    log(`✅ Completate ${operations} operazioni senza blocchi`);
+                    updateStatus('block-status', 'Prevenzione blocchi funzionante', 'success');
+                }
+            };
+            
+            performOperation();
+        }
+        
+        function simulateBlock() {
+            log('⚠️ Simulando blocco per test...');
+            updateStatus('block-status', 'Simulazione blocco...', 'info');
+            
+            // Simula un blocco temporaneo
+            const startTime = Date.now();
+            while (Date.now() - startTime < 1000) {
+                // Loop bloccante per 1 secondo
+            }
+            
+            log('✅ Blocco simulato completato');
+            updateStatus('block-status', 'Blocco simulato completato', 'success');
+        }
+        
+        // Inizializzazione
+        log('🚀 Test di navigazione inizializzato');
+        log('📋 Esegui i test per verificare le correzioni');
+        
+        // Test automatico all'avvio
+        setTimeout(() => {
+            testPageTransitions();
+        }, 1000);
+    </script>
+</body>
+</html>

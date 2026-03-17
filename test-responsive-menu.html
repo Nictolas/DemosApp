@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Test Responsive Menu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Simula la navbar */
+        .navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            height: 6rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 1rem;
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03);
+        }
+
+        .navbar-content {
+            display: flex;
+            gap: 2.5rem;
+            max-width: 28rem;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            color: #3b82f6;
+            transform: scale(1.05);
+        }
+
+        .nav-icon {
+            width: 1.75rem;
+            height: 1.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Contenuto della pagina */
+        .page-content {
+            padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 64rem;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .menu-button {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #374151;
+            transition: all 0.2s;
+            height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2);
+            min-height: 120px;
+            max-height: 200px;
+        }
+
+        .menu-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-icon {
+            width: 3rem;
+            height: 3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .menu-label {
+            font-size: 1.125rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Media queries per schermi piccoli */
+        @media screen and (max-height: 600px) {
+            .menu-button {
+                height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 150px) / 2);
+                min-height: 100px;
+                max-height: 150px;
+            }
+        }
+
+        @media screen and (max-height: 500px) {
+            .menu-button {
+                height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 120px) / 2);
+                min-height: 80px;
+                max-height: 120px;
+            }
+            
+            .menu-icon {
+                width: 2rem;
+                height: 2rem;
+            }
+            
+            .menu-label {
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Debug info */
+        .debug-info {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        <div>Viewport: <span id="viewport"></span></div>
+        <div>Safe Area: <span id="safeArea"></span></div>
+        <div>Navbar Height: <span id="navbarHeight"></span></div>
+    </div>
+
+    <div class="page-content">
+        <div class="container">
+            <div class="menu-grid">
+                <a href="#" class="menu-button">
+                    <div class="menu-icon">📊</div>
+                    <div class="menu-label">Test</div>
+                </a>
+                <a href="#" class="menu-button">
+                    <div class="menu-icon">📢</div>
+                    <div class="menu-label">Eventi</div>
+                </a>
+                <a href="#" class="menu-button">
+                    <div class="menu-icon">📝</div>
+                    <div class="menu-label">Proponi</div>
+                </a>
+                <a href="#" class="menu-button">
+                    <div class="menu-icon">🗳️</div>
+                    <div class="menu-label">Vota</div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="#" class="nav-item">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Menu</div>
+            </a>
+            <a href="#" class="nav-item">
+                <div class="nav-icon">💬</div>
+                <div class="nav-label">Opinioni</div>
+            </a>
+            <a href="#" class="nav-item">
+                <div class="nav-icon">👥</div>
+                <div class="nav-label">Rappresentanti</div>
+            </a>
+            <a href="#" class="nav-item">
+                <div class="nav-icon">🔔</div>
+                <div class="nav-label">Notifiche</div>
+            </a>
+            <a href="#" class="nav-item">
+                <div class="nav-icon">⚙️</div>
+                <div class="nav-label">Impostazioni</div>
+            </a>
+        </div>
+    </nav>
+
+    <script>
+        function updateDebugInfo() {
+            const viewport = `${window.innerWidth}x${window.innerHeight}`;
+            const safeArea = `bottom: ${CSS.supports('padding-bottom: env(safe-area-inset-bottom)') ? 'supported' : 'not supported'}`;
+            const navbar = document.querySelector('.navbar');
+            const navbarHeight = navbar ? navbar.offsetHeight : 'unknown';
+            
+            document.getElementById('viewport').textContent = viewport;
+            document.getElementById('safeArea').textContent = safeArea;
+            document.getElementById('navbarHeight').textContent = `${navbarHeight}px`;
+        }
+
+        updateDebugInfo();
+        window.addEventListener('resize', updateDebugInfo);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateDebugInfo, 100);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+[1mdiff --git a/api/routes/governo.js b/api/routes/governo.js[m
+[1mindex 06a0d8b..8d1d1ab 100644[m
+[1m--- a/api/routes/governo.js[m
+[1m+++ b/api/routes/governo.js[m
+[36m@@ -45,7 +45,7 @@[m [mrouter.get('/voti', verifyToken, async (req, res) => {[m
+     const mieiVotiQuery = `[m
+       SELECT categoria, nome_display as nome[m
+       FROM voti_ministri [m
+[31m-      WHERE utente_id = $1[m
+[32m+[m[32m      WHERE userid = $1[m
+     `;[m
+ [m
+     const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);[m
+[36m@@ -59,12 +59,12 @@[m [mrouter.get('/voti', verifyToken, async (req, res) => {[m
+       SELECT [m
+         categoria,[m
+         CASE [m
+[31m-          WHEN MAX(data_voto) > NOW() - INTERVAL '7 days' THEN true[m
+[32m+[m[32m          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true[m
+           ELSE false[m
+         END as is_blocked,[m
+[31m-        MAX(data_voto) + INTERVAL '7 days' as unlock_date[m
+[32m+[m[32m        MAX(timesta) + INTERVAL '7 days' as unlock_date[m
+       FROM voti_ministri [m
+[31m-      WHERE utente_id = $1[m
+[32m+[m[32m      WHERE userid = $1[m
+       GROUP BY categoria[m
+     `;[m
+ [m
+[36m@@ -106,11 +106,11 @@[m [mrouter.post('/vota', verifyToken, async (req, res) => {[m
+     const bloccoQuery = `[m
+       SELECT [m
+         CASE [m
+[31m-          WHEN MAX(data_voto) > NOW() - INTERVAL '7 days' THEN true[m
+[32m+[m[32m          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true[m
+           ELSE false[m
+         END as is_blocked[m
+       FROM voti_ministri [m
+[31m-      WHERE utente_id = $1[m
+[32m+[m[32m      WHERE userid = $1[m
+     `;[m
+ [m
+     const bloccoResult = await pool.query(bloccoQuery, [userId]);[m
+[36m@@ -130,7 +130,7 @@[m [mrouter.post('/vota', verifyToken, async (req, res) => {[m
+ [m
+       // Elimina tutti i voti esistenti dell'utente[m
+       await client.query([m
+[31m-        'DELETE FROM voti_ministri WHERE utente_id = $1',[m
+[32m+[m[32m        'DELETE FROM voti_ministri WHERE userid = $1',[m
+         [userId][m
+       );[m
+ [m
+[36m@@ -143,7 +143,7 @@[m [mrouter.post('/vota', verifyToken, async (req, res) => {[m
+           ).join(' ');[m
+ [m
+           await client.query([m
+[31m-            `INSERT INTO voti_ministri (id, utente_id, categoria, nome_ministro, nome_display, data_voto) [m
+[32m+[m[32m            `INSERT INTO voti_ministri (id, userid, categoria, nome_ministro, nome_display, timesta)[m[41m [m
+              VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())`,[m
+             [userId, categoria, nomeKey, nomeDisplay][m
+           );[m

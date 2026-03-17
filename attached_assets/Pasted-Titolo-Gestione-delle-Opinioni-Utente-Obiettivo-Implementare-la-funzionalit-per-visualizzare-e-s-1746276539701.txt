@@ -1,0 +1,67 @@
+Titolo: Gestione delle Opinioni Utente
+
+Obiettivo: Implementare la funzionalità per visualizzare e salvare le risposte alle opinioni degli utenti, e consentire agli admin di modificare le risposte degli utenti.
+
+1. Creazione della Pagina "Opinioni"
+Aggiungi un nuovo pulsante nel menu principale chiamato "Opinioni". Quando l'utente ci clicca, deve essere reindirizzato alla pagina "Opinioni", dove verranno visualizzate le 5 domande con tre opzioni di risposta:
+
+Domande:
+
+Energia Nucleare
+
+Sperimentazione Animale
+
+Legalizzazione Canapa
+
+Caccia
+
+Unione Europea
+
+Opzioni di risposta:
+
+Favorevole
+
+Indeciso
+
+Contrario
+
+Stato iniziale: Le risposte devono essere vuote all'inizio (nessuna selezione), e ogni opzione deve essere ben visibile con colori e design chiari.
+
+2. Salvataggio delle Risposte
+Salvataggio su Supabase: Quando l'utente seleziona una risposta per ciascuna domanda e clicca su "Salva", le risposte devono essere salvate nella tabella "opinioni" su Supabase. Assicurati che ogni risposta corrisponda al utente_id dell'utente autenticato.
+
+Il salvataggio deve avvenire con un'istruzione simile a questa:
+
+sql
+Copia
+Modifica
+INSERT INTO opinioni (utente_id, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea)
+VALUES ('USER_UUID', 'Favorevole', 'Indeciso', 'Contrario', 'Favorevole', 'Indeciso');
+Sostituisci USER_UUID con l'ID dell'utente che sta interagendo.
+
+Se un utente ha già risposto: Se l'utente ha già dato le risposte in precedenza, mostra le risposte salvate nelle opzioni corrispondenti. Consenti loro di modificarle, e salva le nuove risposte quando vengono cambiate.
+
+3. Gestione per gli Admin
+Gli admin devono avere la possibilità di visualizzare e modificare le risposte di qualsiasi utente:
+
+Aggiungi una sezione nella pagina "Gestione Utenti" dove l'admin può selezionare un utente e vedere/modificare le sue risposte.
+
+L'admin può modificare le risposte e salvarle, aggiornando così la tabella "opinioni".
+
+Ogni modifica deve essere correttamente registrata nel database.
+
+4. Protezioni e Politiche di Accesso
+Protezione di accesso: Solo gli utenti autenticati possono rispondere alle domande.
+
+Admin: Solo gli utenti con ruolo admin possono modificare le risposte di altri utenti.
+
+Utenti normali: Possono solo modificare le proprie risposte.
+
+5. Design e User Experience
+Assicurati che le opzioni di risposta siano visivamente piacevoli e ben differenziate (es. con colori per ogni risposta: verde per "Favorevole", giallo per "Indeciso", rosso per "Contrario").
+
+La pagina "Opinioni" deve avere una buona disposizione dei pulsanti, chiara e facile da navigare.
+
+Aggiungi un messaggio toast che notifichi l'utente quando il salvataggio delle risposte è avvenuto con successo.
+
+Conclusione: Una volta implementato, gli utenti avranno una pagina per rispondere a delle opinioni, mentre gli admin potranno visualizzare e modificare tutte le risposte, il tutto sincronizzato con Supabase.

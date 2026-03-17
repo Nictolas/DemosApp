@@ -1,0 +1,64 @@
+.prossimoEventoRiquadro {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.prossimoEventoHeader h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.prossimoEventoContent h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.5em;
+  font-weight: 700;
+}
+
+.prossimoEventoContent .tipologia {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9em;
+  margin-bottom: 15px;
+}
+
+.prossimoEventoInfo {
+  margin: 15px 0;
+}
+
+.prossimoEventoInfo p {
+  margin: 8px 0;
+  font-size: 0.95em;
+}
+
+.prossimoEventoInfo strong {
+  margin-right: 8px;
+}
+
+.vediTuttiEventiBtn {
+  display: inline-block;
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: white;
+  color: #667eea;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: transform 0.2s;
+}
+
+.vediTuttiEventiBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.prossimoEventoRiquadro.loading {
+  text-align: center;
+  padding: 40px;
+}

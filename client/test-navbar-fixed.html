@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Navbar Sempre Fissa - DemosApp</title>
+    <style>
+        /* Import del layout robusto */
+        @import url('./robust-layout.css');
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f0f4ff;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .test-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+        
+        .test-description {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .test-button {
+            width: 100%;
+            padding: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        .device-info {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 20px 0;
+        }
+        
+        /* Simulazione della navbar */
+        .test-navbar {
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03);
+        }
+        
+        .test-navbar button {
+            background: none;
+            border: none;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        
+        .test-navbar button:hover {
+            background: #f3f4f6;
+        }
+        
+        .test-navbar button.active {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        /* Simulazione del contenuto */
+        .test-content {
+            padding: 2rem;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .test-card {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        /* Debug mode toggle */
+        .debug-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1f2937;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            z-index: 10000;
+        }
+        
+        .debug-toggle:hover {
+            background: #374151;
+        }
+        
+        /* Test specifico per navbar fissa */
+        .navbar-test {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            z-index: 10001;
+        }
+        
+        .navbar-test.fixed {
+            background: #10b981;
+        }
+        
+        @media (max-width: 768px) {
+            .test-container {
+                margin: 10px;
+                padding: 15px;
+            }
+            
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="debug-toggle" onclick="toggleDebug()">🔍 Debug Layout</button>
+    <div class="navbar-test" id="navbar-test">❌ Navbar NON FISSA</div>
+    
+    <div class="robust-app-layout">
+        <!-- Header area -->
+        <header class="app-header">
+            <div class="test-container">
+                <h1 style="text-align: center; color: #1f2937; margin: 0; padding: 1rem 0;">
+                    🔒 Test Navbar Sempre Fissa
+                </h1>
+            </div>
+        </header>
+        
+        <!-- Main content area -->
+        <main class="app-main">
+            <div class="test-container">
+                <div class="test-section">
+                    <div class="test-title">🔒 Test Navbar Sempre Fissa</div>
+                    <div class="test-description">
+                        Questo test verifica che la navbar sia SEMPRE fissa e MAI scrollabile su tutti i dispositivi.
+                    </div>
+                    
+                    <div class="test-button" onclick="testNavbarFixed()">🧪 Test Navbar Fissa</div>
+                    <div id="navbar-status" class="status"></div>
+                </div>
+                
+                <div class="test-section">
+                    <div class="test-title">📊 Informazioni Dispositivo</div>
+                    <div class="test-description">
+                        Informazioni sul dispositivo e sul layout applicato.
+                    </div>
+                    <div class="device-info" id="device-info">
+                        Caricamento informazioni dispositivo...
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <div class="test-title">🔍 Test Scroll Intensivo</div>
+                    <div class="test-description">
+                        Scrolla verso il basso per testare che la navbar rimanga SEMPRE fissa.
+                    </div>
+                    
+                    <!-- Contenuto extra per testare lo scroll -->
+                    <div style="height: 300vh; background: linear-gradient(to bottom, #f0f4ff, #b3c6ff); padding: 2rem; border-radius: 8px;">
+                        <h3>Contenuto Extra per Test Scroll Intensivo</h3>
+                        <p>Questo contenuto è molto alto per testare lo scroll intensivo.</p>
+                        <p>La navbar deve rimanere SEMPRE fissa in basso.</p>
+                        <p>Scrolla verso il basso per verificare che la navbar non diventi mai scrollabile.</p>
+                        
+                        <div style="margin-top: 50vh; padding: 2rem; background: white; border-radius: 8px;">
+                            <h4>Sezione Intermedia</h4>
+                            <p>Se riesci a vedere questa sezione, continua a scrollare per testare la navbar.</p>
+                        </div>
+                        
+                        <div style="margin-top: 50vh; padding: 2rem; background: white; border-radius: 8px;">
+                            <h4>Sezione Finale</h4>
+                            <p>Se riesci a vedere questa sezione senza che la navbar sia scrollabile, il test è superato!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Navbar area - DEVE ESSERE SEMPRE FISSA -->
+        <nav class="app-navbar" style="position: sticky !important; bottom: 0 !important; z-index: 9999 !important; flex-shrink: 0 !important;">
+            <div class="test-navbar">
+                <button class="active" onclick="setActive(this)">🏠 Menu</button>
+                <button onclick="setActive(this)">📅 Eventi</button>
+                <button onclick="setActive(this)">❤️ Preferiti</button>
+                <button onclick="setActive(this)">🔔 Notifiche</button>
+                <button onclick="setActive(this)">⚙️ Impostazioni</button>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        function updateDeviceInfo() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const screenWidth = window.screen.width;
+            const screenHeight = window.screen.height;
+            const userAgent = navigator.userAgent;
+            
+            document.getElementById('device-info').innerHTML = `
+                <strong>Viewport:</strong> ${viewportWidth}x${viewportHeight}<br>
+                <strong>Screen:</strong> ${screenWidth}x${screenHeight}<br>
+                <strong>Device Pixel Ratio:</strong> ${window.devicePixelRatio}<br>
+                <strong>User Agent:</strong> ${userAgent.substring(0, 50)}...<br>
+                <strong>Orientation:</strong> ${viewportHeight > viewportWidth ? 'Portrait' : 'Landscape'}<br>
+                <strong>Layout:</strong> Flexbox Robusto<br>
+                <strong>Navbar:</strong> Sticky Bottom - SEMPRE FISSA
+            `;
+        }
+        
+        function testNavbarFixed() {
+            const status = document.getElementById('navbar-status');
+            const navbar = document.querySelector('.app-navbar');
+            const navbarTest = document.getElementById('navbar-test');
+            
+            if (navbar) {
+                const navbarStyle = window.getComputedStyle(navbar);
+                const position = navbarStyle.position;
+                const bottom = navbarStyle.bottom;
+                const zIndex = navbarStyle.zIndex;
+                const flexShrink = navbarStyle.flexShrink;
+                
+                const isSticky = position === 'sticky';
+                const isBottom = bottom === '0px';
+                const hasHighZIndex = parseInt(zIndex) >= 9999;
+                const isFlexShrink = flexShrink === '0';
+                
+                if (isSticky && isBottom && hasHighZIndex && isFlexShrink) {
+                    status.className = 'status success';
+                    status.textContent = '✅ Navbar SEMPRE FISSA - Test superato!';
+                    navbarTest.className = 'navbar-test fixed';
+                    navbarTest.textContent = '✅ Navbar SEMPRE FISSA';
+                } else {
+                    status.className = 'status error';
+                    status.textContent = `❌ Navbar NON FISSA - Position: ${position}, Bottom: ${bottom}, Z-Index: ${zIndex}, Flex-Shrink: ${flexShrink}`;
+                    navbarTest.className = 'navbar-test';
+                    navbarTest.textContent = '❌ Navbar NON FISSA';
+                }
+            } else {
+                status.className = 'status error';
+                status.textContent = '❌ Navbar non trovata';
+                navbarTest.className = 'navbar-test';
+                navbarTest.textContent = '❌ Navbar NON TROVATA';
+            }
+        }
+        
+        function setActive(button) {
+            document.querySelectorAll('.test-navbar button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+        }
+        
+        function toggleDebug() {
+            const layout = document.querySelector('.robust-app-layout');
+            if (layout) {
+                layout.classList.toggle('debug-layout');
+            }
+        }
+        
+        // Monitora continuamente lo stato della navbar
+        function monitorNavbar() {
+            const navbar = document.querySelector('.app-navbar');
+            const navbarTest = document.getElementById('navbar-test');
+            
+            if (navbar) {
+                const navbarStyle = window.getComputedStyle(navbar);
+                const position = navbarStyle.position;
+                const bottom = navbarStyle.bottom;
+                
+                if (position === 'sticky' && bottom === '0px') {
+                    navbarTest.className = 'navbar-test fixed';
+                    navbarTest.textContent = '✅ Navbar SEMPRE FISSA';
+                } else {
+                    navbarTest.className = 'navbar-test';
+                    navbarTest.textContent = '❌ Navbar NON FISSA';
+                }
+            }
+        }
+        
+        // Inizializzazione
+        window.addEventListener('load', () => {
+            updateDeviceInfo();
+            testNavbarFixed();
+            monitorNavbar();
+        });
+        
+        window.addEventListener('resize', () => {
+            updateDeviceInfo();
+            setTimeout(monitorNavbar, 100);
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                updateDeviceInfo();
+                monitorNavbar();
+            }, 500);
+        });
+        
+        // Monitora continuamente
+        setInterval(monitorNavbar, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+Crea un'app chiamata DEMOS in JavaScript (React o HTML+JS semplice va bene) che salvi i dati degli utenti su Supabase.
+
+Collegati al seguente progetto Supabase:
+- URL: https://iamzgdykwpnffqhrdfti.supabase.co
+- API Key: <REDACTED_JWT>
+
+Usa la libreria `@supabase/supabase-js` per interagire con il database.
+
+L’app deve avere un form per inserire i seguenti campi utente e salvare i dati nella tabella `utenti` su Supabase:
+
+- Nome
+- Cognome
+- Data di Nascita (come campo `date`)
+- Genere (Uomo, Donna, Altro)
+- Cittadinanza (con select che contenga tutte le cittadinanze possibili, anche solo Italia per ora)
+- Paese di Residenza
+- Regione di Residenza
+- Provincia di Residenza
+- Comune di Residenza
+- Paese di Elezione
+- Regione di Elezione
+- Provincia di Elezione
+- Comune di Elezione
+- Paese di Candidatura
+- Regione di Candidatura
+- Provincia di Candidatura
+- Comune di Candidatura
+- Grado Elezione (Parlamento Europeo, Parlamento Italiano, Regione, Comune)
+- Grado Candidatura (stesse opzioni sopra)
+- Ruolo (Elettore, Politico, Candidato, Politico Candidato, Admin)
+
+Nel form, ogni campo deve avere una label chiara. I `select` devono avere opzioni di esempio o caricarsi da JSON statici.
+
+Al click sul pulsante “Invia”, i dati devono essere salvati nella tabella `utenti` di Supabase.
+
+Mostra anche un messaggio di conferma o errore dopo l’invio.
+
+L’app deve chiamarsi "DEMOS" (titolo visibile).
+
+---
+
+### Aggiungi il seguente file JSON con le regioni, province e comuni italiani. Usa questo file per popolare dinamicamente i campi di selezione (select) quando l'utente seleziona un Paese, Regione o Provincia:
+
+```json
+{
+  "Italia": {
+    "regioni": [
+      {
+        "nome": "Lazio",
+        "province": [
+          {
+            "nome": "Roma",
+            "comuni": [
+              "Roma",
+              "Fiumicino",
+              "Ciampino"
+            ]
+          },
+          {
+            "nome": "Viterbo",
+            "comuni": [
+              "Viterbo",
+              "Tarquinia",
+              "Tuscania"
+            ]
+          }
+        ]
+      },
+      {
+        "nome": "Lombardia",
+        "province": [
+          {
+            "nome": "Milano",
+            "comuni": [
+              "Milano",
+              "Sesto San Giovanni",
+              "Cinisello Balsamo"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

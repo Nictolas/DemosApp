@@ -1,0 +1,670 @@
+const express = require('express');
+const { verifyToken } = require('../middleware/auth');
+const { pool } = require('../middleware/auth');
+const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
+const { decompressGender } = require('../utils/genderUtils');
+
+const router = express.Router();
+
+// GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
+router.get('/', async (req, res) => {
+  try {
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Log per debug: verifica se l'opinione "Leva obbligatoria" viene trovata
+      if (questionText && questionText.toLowerCase().includes('leva')) {
+        console.log(`🔍 DEBUG - Trovata opinione "Leva": ID=${questionId}, Text="${questionText}"`);
+      }
+      
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId} (text: "${questionText}"), salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
+      
+      // Log per debug: verifica se la colonna viene trovata per "Leva obbligatoria"
+      if (questionText && questionText.toLowerCase().includes('leva')) {
+        console.log(`✅ DEBUG: Colonna trovata per opinione "Leva": ${columnName}`);
+      }
+      
+      // Query per contare le risposte per questa opinione dalla tabella opinioni_risposte
+      // Usa virgolette doppie per quotare correttamente il nome della colonna
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        WHERE orr."${columnName}" IS NOT NULL
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery);
+        const row = statsResult.rows[0];
+        
+        // Log per debug: verifica i risultati per "Leva obbligatoria"
+        if (questionText && questionText.toLowerCase().includes('leva')) {
+          console.log(`📊 DEBUG: Statistiche per "Leva obbligatoria":`, {
+            totale_voti: row.totale_voti,
+            favorevole: row.favorevole,
+            contrario: row.contrario,
+            indeciso: row.indeciso
+          });
+        }
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+        
+        // Log per debug: verifica se l'opinione viene aggiunta alla lista
+        if (questionText && questionText.toLowerCase().includes('leva')) {
+          console.log(`✅ DEBUG: Opinione "Leva obbligatoria" aggiunta alla lista questions`);
+        }
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} (text: "${questionText}"):`, statsError.message);
+        // Se la colonna non esiste, salta questa opinione
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi'
+    });
+  }
+});
+
+// GET /api/sondaggi/stats - Statistiche generali
+router.get('/stats', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) as totale_utenti,
+        COUNT(CASE WHEN status = 'A' OR status = 'a' THEN 1 END) as utenti_attivi,
+        COUNT(CASE WHEN status = 'P' OR status = 'p' THEN 1 END) as utenti_in_attesa
+      FROM users
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      stats: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche sondaggi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche sondaggi'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere - Statistiche per genere
+router.get('/genere', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    // Decomprimi i generi per il frontend
+    const decompressedStats = result.rows.map(row => ({
+      ...row,
+      genere: decompressGender(row.genere) || row.genere
+    }));
+    
+    res.json({
+      success: true,
+      stats: decompressedStats
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione - Statistiche per genere per regione
+router.get('/genere/:regione', async (req, res) => {
+  try {
+    const { regione } = req.params;
+    
+    // Converte slug in nome regione (es. "toscana" -> "Toscana")
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regionCode]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per regione'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione/:provincia - Statistiche per genere per provincia
+router.get('/genere/:regione/:provincia', async (req, res) => {
+  try {
+    const { regione, provincia } = req.params;
+    
+    // Converte slug in nome regione e provincia
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      AND provincia_residenza = $2
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regionCode, provinciaCode]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per provincia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per provincia'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione/:provincia/:comune - Statistiche per genere per comune
+router.get('/genere/:regione/:provincia/:comune', async (req, res) => {
+  try {
+    const { regione, provincia, comune } = req.params;
+    
+    // Converte slug in nome regione, provincia e comune
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      AND provincia_residenza = $2
+      AND comune_residenza = $3
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regionCode, provinciaCode, comuneName]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per comune:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per comune'
+    });
+  }
+});
+
+// GET /api/sondaggi/:regione - Statistiche per regione
+router.get('/:regione', async (req, res) => {
+  try {
+    const { regione } = req.params;
+    
+    // Converte slug in nome regione (es. "toscana" -> "Toscana")
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
+    
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la regione
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
+      
+      // Query per contare le risposte per questa opinione nella regione specifica
+      // Usa quote_ident per quotare correttamente il nome della colonna
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr."${columnName}" IS NOT NULL 
+        AND u.regione_residenza = $1
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [regionCode]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in regione ${regionName}:`, statsError.message);
+        // Se la colonna non esiste, salta questa opinione
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'regione',
+          value: regionName
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi regionali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi regionali'
+    });
+  }
+});
+
+// GET /api/sondaggi/:regione/:provincia - Statistiche per provincia
+router.get('/:regione/:provincia', async (req, res) => {
+  try {
+    const { regione, provincia } = req.params;
+    
+    // Converte slug in nome regione e provincia
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
+    
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la provincia
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
+
+      // Usa quote_ident per quotare correttamente il nome della colonna
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_utenti,
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr."${columnName}" IS NOT NULL
+        AND u.regione_residenza = $1
+        AND u.provincia_residenza = $2
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in provincia ${provinciaName}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'provincia',
+          value: provinciaName,
+          regione: regionName,
+          provincia: provinciaName
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi provinciali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi provinciali'
+    });
+  }
+});
+
+// GET /api/sondaggi/:regione/:provincia/:comune - Statistiche per comune
+router.get('/:regione/:provincia/:comune', async (req, res) => {
+  try {
+    const { regione, provincia, comune } = req.params;
+    
+    // Converte slug in nome regione, provincia e comune
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
+    
+    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni_domande 
+      WHERE NOT ('da approvare' = ANY(gradi_opinione))
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per il comune
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
+      // Verifica che la colonna esista prima di usarla
+      let columnName = questionId;
+      
+      // Verifica che la colonna esista nella tabella opinioni_risposte
+      const columnCheckQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
+        continue; // Salta questa opinione se la colonna non esiste
+      }
+
+      // Usa quote_ident per quotare correttamente il nome della colonna
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_utenti,
+          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr."${columnName}" IS NOT NULL
+        AND u.regione_residenza = $1
+        AND u.provincia_residenza = $2
+        AND u.comune_residenza = $3
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode, comuneName]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in comune ${comuneName}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'comune',
+          value: comuneName,
+          regione: regionName,
+          provincia: provinciaName,
+          comune: comuneName
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi comunali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi comunali'
+    });
+  }
+});
+
+module.exports = router;
