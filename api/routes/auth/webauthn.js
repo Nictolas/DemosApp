@@ -1,0 +1,546 @@
+const express = require('express');
+const {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} = require('@simplewebauthn/server');
+const { v4: uuidv4 } = require('uuid');
+const { getPool } = require('../../config/database');
+const { generateTokenPair } = require('../../utils/jwt');
+
+const router = express.Router();
+const pool = getPool();
+
+// In-memory store per challenge di registrazione/login
+// In futuro si può sostituire con storage persistente o cache distribuita
+const pendingRegistrations = new Map();
+const pendingLogins = new Map();
+
+// Configurazione Relying Party per Demos
+const rpID = process.env.WEBAUTHN_RP_ID || 'demos.community';
+const rpName = process.env.WEBAUTHN_RP_NAME || 'Demos';
+// Consenti sia dominio con www che senza. expectedOrigin può essere stringa o array (simplewebauthn accetta entrambi).
+const expectedOrigin = process.env.WEBAUTHN_EXPECTED_ORIGIN
+  ? process.env.WEBAUTHN_EXPECTED_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
+  : ['https://demos.community', 'https://www.demos.community'];
+const expectedOriginFinal = expectedOrigin.length === 1 ? expectedOrigin[0] : expectedOrigin;
+
+/**
+ * POST /api/auth/webauthn/device/status
+ * Indica se questo dispositivo ha già un account passkey lato server.
+ * Usato dal client per evitare di aprire il prompt iOS (QR/chiave) quando non serve.
+ */
+router.post('/webauthn/device/status', async (req, res) => {
+  try {
+    const { deviceId } = req.body || {};
+    if (!deviceId || typeof deviceId !== 'string' || !deviceId.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'deviceId richiesto',
+      });
+    }
+    const result = await pool.query(
+      `SELECT 1
+       FROM users
+       WHERE webauthn_device_id = $1
+         AND webauthn_credential_id IS NOT NULL
+         AND webauthn_credential_id <> ''
+       LIMIT 1`,
+      [deviceId.trim()],
+    );
+    return res.json({ success: true, hasAccount: result.rows.length > 0 });
+  } catch (error) {
+    console.error('❌ Errore in /webauthn/device/status:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Errore nel recupero stato dispositivo',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/webauthn/register/options
+ * Genera le options per la creazione di una nuova passkey
+ */
+router.post('/webauthn/register/options', async (req, res) => {
+  try {
+    const { ruolo, deviceId } = req.body || {};
+
+    // Un solo account passkey per dispositivo
+    if (deviceId && typeof deviceId === 'string' && deviceId.trim()) {
+      const existing = await pool.query(
+        'SELECT id FROM users WHERE webauthn_device_id = $1 LIMIT 1',
+        [deviceId.trim()],
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Questo dispositivo ha già un account',
+          code: 'DEVICE_ALREADY_REGISTERED',
+          message: 'Su questo dispositivo è già stato creato un account con passkey. Accedi con la passkey esistente invece di registrarti di nuovo.',
+        });
+      }
+    }
+
+    // Ruolo di default: Elettore (E)
+    const userRole = ruolo || 'E';
+
+    const userId = uuidv4();
+    const userHandleBuffer = Buffer.from(userId, 'utf8');
+
+    // v10 richiede userID come Buffer/Uint8Array (non stringa); generateRegistrationOptions è async
+    const options = await generateRegistrationOptions({
+      rpID,
+      rpName,
+      userID: userHandleBuffer,
+      userName: `user-${userId}`,
+      userDisplayName: 'Demos user',
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        // 'discouraged' evita l'errore "User verification required, but user could not be verified"
+        // (es. Face ID annullato o non disponibile); la passkey si crea comunque.
+        userVerification: 'discouraged',
+        // Passkey sul dispositivo (iPhone = Face ID, Android = impronta, ecc.)
+        authenticatorAttachment: 'platform',
+      },
+      attestationType: 'none',
+    });
+
+    pendingRegistrations.set(userId, {
+      challenge: options.challenge,
+      userHandle: userHandleBuffer.toString('base64url'),
+      ruolo: userRole,
+      deviceId: deviceId && typeof deviceId === 'string' ? deviceId.trim() : null,
+    });
+
+    // Options già serializzabili (challenge e user.id sono stringhe base64url)
+    res.json({
+      success: true,
+      userId,
+      publicKey: options,
+    });
+  } catch (error) {
+    console.error('❌ Errore in /webauthn/register/options:', error?.message || error, error?.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella generazione delle options WebAuthn',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/webauthn/register/verify
+ * Verifica la risposta di registrazione e crea l'utente
+ */
+router.post('/webauthn/register/verify', async (req, res) => {
+  try {
+    const { userId, attestation, deviceId } = req.body || {};
+
+    if (!userId || !attestation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametri mancanti',
+        message: 'userId e attestation sono richiesti',
+      });
+    }
+
+    const deviceIdTrimmed = deviceId && typeof deviceId === 'string' ? deviceId.trim() : null;
+    if (deviceIdTrimmed) {
+      const existing = await pool.query(
+        'SELECT id FROM users WHERE webauthn_device_id = $1 LIMIT 1',
+        [deviceIdTrimmed],
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Questo dispositivo ha già un account',
+          code: 'DEVICE_ALREADY_REGISTERED',
+          message: 'Su questo dispositivo è già stato creato un account con passkey. Accedi con la passkey esistente.',
+        });
+      }
+    }
+
+    const pending = pendingRegistrations.get(userId);
+    if (!pending) {
+      return res.status(400).json({
+        success: false,
+        error: 'Registrazione non trovata o scaduta',
+      });
+    }
+
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response: attestation,
+        expectedChallenge: pending.challenge,
+        expectedOrigin: expectedOriginFinal,
+        expectedRPID: rpID,
+        // Coerente con userVerification: 'discouraged' in register/options: non esigere UV in verifica
+        requireUserVerification: false,
+      });
+    } catch (verifyErr) {
+      console.error('❌ verifyRegistrationResponse fallita:', verifyErr?.message || verifyErr);
+      return res.status(400).json({
+        success: false,
+        error: 'Verifica passkey non riuscita',
+        message: verifyErr?.message || 'La verifica della passkey è fallita. Riprova.',
+      });
+    }
+
+    if (!verification.verified || !verification.registrationInfo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Registrazione WebAuthn non valida',
+      });
+    }
+
+    const { credentialPublicKey, credentialID, counter } =
+      verification.registrationInfo;
+
+    // Usa il credential ID inviato dal client (attestation.rawId) così al login il match è garantito
+    const credentialIdBase64 =
+      (attestation.rawId && String(attestation.rawId).trim()) ||
+      Buffer.from(credentialID).toString('base64url');
+    const publicKeyBase64 = Buffer.from(credentialPublicKey).toString(
+      'base64url',
+    );
+
+    const client = await pool.connect();
+    const regDeviceId = deviceIdTrimmed || pending.deviceId || null;
+    try {
+      await client.query('BEGIN');
+
+      const insertQuery = `
+        INSERT INTO users (
+          id,
+          ruolo,
+          webauthn_user_handle,
+          webauthn_credential_id,
+          webauthn_public_key,
+          webauthn_sign_count,
+          webauthn_device_id,
+          status,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7,
+          'a',
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          webauthn_user_handle = EXCLUDED.webauthn_user_handle,
+          webauthn_credential_id = EXCLUDED.webauthn_credential_id,
+          webauthn_public_key = EXCLUDED.webauthn_public_key,
+          webauthn_sign_count = EXCLUDED.webauthn_sign_count,
+          webauthn_device_id = EXCLUDED.webauthn_device_id,
+          ruolo = EXCLUDED.ruolo,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id, ruolo
+      `;
+
+      const result = await client.query(insertQuery, [
+        userId,
+        pending.ruolo,
+        pending.userHandle,
+        credentialIdBase64,
+        publicKeyBase64,
+        counter,
+        regDeviceId,
+      ]);
+
+      await client.query('COMMIT');
+
+      pendingRegistrations.delete(userId);
+
+      const user = result.rows[0];
+
+      const tokenPayload = {
+        userId: user.id,
+        role: user.ruolo,
+      };
+
+      const tokens = generateTokenPair(tokenPayload);
+
+      res.json({
+        success: true,
+        message: 'Registrazione con passkey completata',
+        user: {
+          id: user.id,
+          ruolo: user.ruolo,
+        },
+        ...tokens,
+      });
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      console.error('❌ Errore DB in /webauthn/register/verify:', dbError);
+      res.status(500).json({
+        success: false,
+        error: 'Errore nel salvataggio dell\'utente WebAuthn',
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('❌ Errore in /webauthn/register/verify:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella verifica della registrazione WebAuthn',
+      message: error?.message || 'Si è verificato un errore. Riprova.',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/webauthn/login/options
+ * Genera le options per il login con passkey.
+ * Senza userId = "discovery": allowCredentials vuoto → il browser mostra le passkey del dispositivo (Face ID su iPhone).
+ * Con userId = flusso classico (per compatibilità).
+ */
+router.post('/webauthn/login/options', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+
+    let allowCredentials = [];
+    let loginKey; // userId (flusso classico) o sessionKey (discovery)
+
+    if (userId) {
+      const userQuery = `
+        SELECT id, webauthn_credential_id
+        FROM users
+        WHERE id = $1
+      `;
+      const userResult = await pool.query(userQuery, [userId]);
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Utente non trovato',
+        });
+      }
+      const user = userResult.rows[0];
+      if (user.webauthn_credential_id) {
+        allowCredentials = [{ id: user.webauthn_credential_id, type: 'public-key' }];
+      }
+      loginKey = user.id;
+    } else {
+      loginKey = uuidv4();
+    }
+
+    const options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials,
+      userVerification: 'preferred',
+    });
+
+    pendingLogins.set(loginKey, {
+      challenge: options.challenge,
+    });
+
+    const body = {
+      success: true,
+      publicKey: options,
+    };
+    if (!userId) {
+      body.sessionKey = loginKey;
+    }
+    res.json(body);
+  } catch (error) {
+    console.error('❌ Errore in /webauthn/login/options:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella generazione delle options di login WebAuthn',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/webauthn/login/verify
+ * Verifica la risposta di login e genera i token.
+ * Accetta userId (flusso classico) oppure sessionKey (flusso discovery: lookup utente per credential id).
+ */
+router.post('/webauthn/login/verify', async (req, res) => {
+  try {
+    const { userId, sessionKey, assertion } = req.body || {};
+
+    if (!assertion) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametri mancanti',
+        message: 'assertion è richiesta (e userId oppure sessionKey)',
+      });
+    }
+
+    const loginKey = sessionKey || userId;
+    if (!loginKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametri mancanti',
+        message: 'Specifica userId oppure sessionKey',
+      });
+    }
+
+    const pending = pendingLogins.get(loginKey);
+    if (!pending) {
+      return res.status(400).json({
+        success: false,
+        error: 'Richiesta di login non trovata o scaduta',
+      });
+    }
+
+    let user;
+    if (sessionKey) {
+      const rawId = assertion.rawId ? String(assertion.rawId).trim() : null;
+      const id = assertion.id ? String(assertion.id).trim() : null;
+      if (!rawId && !id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Credential ID mancante nella risposta',
+        });
+      }
+      const idsToTry = [...new Set([rawId, id].filter(Boolean))];
+      let rows = [];
+      try {
+        const q = await pool.query(
+          `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+           FROM users
+           WHERE webauthn_credential_id = ANY($1::text[])`,
+          [idsToTry],
+        );
+        rows = q.rows;
+      } catch (_) {}
+
+      if (rows.length === 0 && (rawId || id)) {
+        const first = rawId || id;
+        const withoutPadding = first.replace(/=+$/, '');
+        const r2 = await pool.query(
+          `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+           FROM users
+           WHERE webauthn_credential_id = $1 OR REPLACE(webauthn_credential_id, '=', '') = $2`,
+          [first, withoutPadding],
+        );
+        rows = r2.rows;
+      }
+      if (rows.length === 0 && (rawId || id)) {
+        try {
+          const canonical = Buffer.from(rawId || id, 'base64url').toString('base64url');
+          const r3 = await pool.query(
+            `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+             FROM users WHERE webauthn_credential_id = $1`,
+            [canonical],
+          );
+          rows = r3.rows;
+        } catch (_) {}
+      }
+      if (rows.length === 0 && (rawId || id)) {
+        const receivedBuf = Buffer.from(rawId || id, 'base64url');
+        const allWithCred = await pool.query(
+          `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+           FROM users WHERE webauthn_credential_id IS NOT NULL AND webauthn_credential_id != ''`,
+        );
+        const match = allWithCred.rows.find((row) => {
+          try {
+            const stored = Buffer.from(row.webauthn_credential_id, 'base64url');
+            return stored.length === receivedBuf.length && stored.equals(receivedBuf);
+          } catch {
+            return false;
+          }
+        });
+        if (match) rows = [match];
+      }
+      if (rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Nessun utente associato a questa passkey',
+          code: 'PASSKEY_NOT_FOUND',
+          hint: 'Rimuovi le passkey obsolete: Impostazioni > Password > demos.community. Poi accedi con l\'ultima passkey creata o registrati di nuovo.',
+        });
+      }
+      user = rows[0];
+    } else {
+      const userResult = await pool.query(
+        `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+         FROM users WHERE id = $1`,
+        [userId],
+      );
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Utente non trovato',
+        });
+      }
+      user = userResult.rows[0];
+    }
+
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: assertion,
+        expectedChallenge: pending.challenge,
+        expectedOrigin,
+        expectedRPID: rpID,
+        authenticator: {
+          credentialID: Buffer.from(user.webauthn_credential_id, 'base64url'),
+          credentialPublicKey: Buffer.from(user.webauthn_public_key, 'base64url'),
+          counter: user.webauthn_sign_count || 0,
+        },
+        // Come per la registrazione, non rendiamo obbligatoria la user verification
+        requireUserVerification: false,
+      });
+    } catch (verifyErr) {
+      console.error('❌ verifyAuthenticationResponse fallita:', verifyErr?.message || verifyErr);
+      return res.status(400).json({
+        success: false,
+        error: 'Verifica del login con passkey non riuscita',
+        message: verifyErr?.message || 'La verifica del login con passkey è fallita. Riprova.',
+      });
+    }
+
+    if (!verification.verified || !verification.authenticationInfo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Login WebAuthn non valido',
+      });
+    }
+
+    const { newCounter } = verification.authenticationInfo;
+
+    await pool.query(
+      `
+        UPDATE users
+        SET webauthn_sign_count = $1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `,
+      [newCounter, user.id],
+    );
+
+    pendingLogins.delete(loginKey);
+
+    const tokenPayload = {
+      userId: user.id,
+      role: user.ruolo,
+    };
+
+    const tokens = generateTokenPair(tokenPayload);
+
+    res.json({
+      success: true,
+      message: 'Login con passkey effettuato con successo',
+      user: {
+        id: user.id,
+        ruolo: user.ruolo,
+      },
+      ...tokens,
+    });
+  } catch (error) {
+    console.error('❌ Errore in /webauthn/login/verify:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella verifica del login WebAuthn',
+    });
+  }
+});
+
+module.exports = router;
+

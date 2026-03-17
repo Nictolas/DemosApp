@@ -1,0 +1,323 @@
+/* ===== FIX SPECIFICO PER DISPOSITIVI ANDROID ===== */
+/* Su Huawei e altri Android con "Aggiungi a schermata home" la barra del browser
+   può restare visibile e env(safe-area-inset-bottom) è 0. Usiamo max(..., 56px)
+   come fallback per tenere navbar e contenuto sopra la barra. */
+
+/* Rilevamento Android tramite user agent */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  /* Dispositivi Android comuni in Italia */
+  
+  /* Samsung Galaxy A16 5G - 720x1600 */
+  @media screen and (max-width: 720px) and (max-height: 1600px) {
+    .app-navbar {
+      height: 6rem !important; /* 96px - altezza originale */
+      min-height: 6rem !important;
+    }
+    
+    .app-navbar nav {
+      height: 6rem !important;
+      padding: 1rem 0 !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    /* Aggiungi padding extra al contenuto per evitare sovrapposizione */
+    .app-main {
+      padding-bottom: 1rem !important;
+    }
+    
+    .page-with-navbar {
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .menu-page .container {
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+  }
+  
+  /* Samsung Galaxy A06 4G - 720x1600 */
+  @media screen and (max-width: 720px) and (max-height: 1600px) {
+    .app-navbar {
+      height: 6rem !important; /* 96px - altezza originale */
+      min-height: 6rem !important;
+    }
+    
+    .app-navbar nav {
+      height: 6rem !important;
+      padding: 1rem 0 !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .page-with-navbar {
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .menu-page .container {
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+  }
+  
+  /* Dispositivi Android generici con risoluzione 720x1600 */
+  @media screen and (max-width: 720px) and (max-height: 1600px) {
+    .app-navbar {
+      height: 6rem !important; /* 96px - altezza originale */
+      min-height: 6rem !important;
+    }
+    
+    .app-navbar nav {
+      height: 6rem !important;
+      padding: 1rem 0 !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .page-with-navbar {
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .menu-page .container {
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+  }
+  
+  /* Dispositivi Android con risoluzione 1080x2400 (più comuni) */
+  @media screen and (max-width: 1080px) and (max-height: 2400px) {
+    .app-navbar {
+      height: 6rem !important; /* 96px - altezza originale */
+      min-height: 6rem !important;
+    }
+    
+    .app-navbar nav {
+      height: 6rem !important;
+      padding: 1rem 0 !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .page-with-navbar {
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .menu-page .container {
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+  }
+  
+  /* Dispositivi Android con risoluzione 1080x2340 */
+  @media screen and (max-width: 1080px) and (max-height: 2340px) {
+    .app-navbar {
+      height: 6rem !important; /* 96px - altezza originale */
+      min-height: 6rem !important;
+    }
+    
+    .app-navbar nav {
+      height: 6rem !important;
+      padding: 1rem 0 !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .page-with-navbar {
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .menu-page .container {
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+  }
+  
+  /* Dispositivi Android con risoluzione 1080x2280 */
+  @media screen and (max-width: 1080px) and (max-height: 2280px) {
+    .app-navbar {
+      height: 6rem !important; /* 96px - altezza originale */
+      min-height: 6rem !important;
+    }
+    
+    .app-navbar nav {
+      height: 6rem !important;
+      padding: 1rem 0 !important;
+      padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .page-with-navbar {
+      padding-bottom: calc(6rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+    
+    .menu-page .container {
+      padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+    }
+  }
+}
+
+/* ===== FIX SPECIFICO PER NAVBAR ANDROID ===== */
+
+/* Forza la navbar a rimanere sempre visibile su Android */
+@media screen and (max-width: 768px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    background: white !important;
+    box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* Assicura che il contenuto non finisca dietro la navbar */
+  .app-main {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    /* Rimosso margin-bottom che creava spazio bianco */
+  }
+  
+  /* Padding dinamico per le pagine - altezza originale + spazio extra */
+  .page-with-navbar {
+    padding-bottom: calc(6rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  /* Menu page specifico - padding unificato gestito in index.css */
+  /* Rimuoviamo qui per evitare conflitti - il padding è gestito in index.css */
+  
+  /* Pulsanti del menu - altezza ridotta per mobile per evitare che finiscano dietro la navbar */
+  .menu-button {
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 250px) / 2) !important;
+    min-height: 100px !important;
+    max-height: 180px !important;
+  }
+  
+  /* Card dei candidati - altezza originale */
+  .candidato-card {
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 200px) / 2) !important;
+    min-height: 200px !important;
+    max-height: 300px !important;
+  }
+  
+  /* Fix specifico per contenitori con scroll */
+  .app-main .container,
+  .app-main .page-container {
+    padding-bottom: 2rem !important;
+  }
+  
+  /* Fix per liste e contenuti scrollabili */
+  .app-main .overflow-y-auto,
+  .app-main .overflow-auto {
+    padding-bottom: 2rem !important;
+  }
+}
+
+/* ===== FIX PER DISPOSITIVI ANDROID CON NAVBAR SISTEMA ALTA ===== */
+
+/* Dispositivi Android con navbar di sistema alta (come alcuni Samsung) */
+@media screen and (max-width: 768px) and (min-height: 600px) {
+  .app-navbar {
+    height: 6rem !important; /* 96px - altezza originale */
+    min-height: 6rem !important;
+  }
+  
+  .app-navbar nav {
+    height: 6rem !important;
+    padding: 1rem 0 !important;
+    padding-bottom: calc(1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .page-with-navbar {
+    padding-bottom: calc(6rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .menu-page .container {
+    padding-bottom: calc(6rem + 3rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .menu-button {
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 200px) / 2) !important;
+    min-height: 120px !important;
+    max-height: 200px !important;
+  }
+  
+  .candidato-card {
+    height: calc((100vh - 6rem - max(env(safe-area-inset-bottom), 56px) - 200px) / 2) !important;
+    min-height: 200px !important;
+    max-height: 300px !important;
+  }
+}
+
+/* ===== FIX PER DISPOSITIVI ANDROID CON SCREEN MOLTO PICCOLI ===== */
+
+/* Dispositivi Android con schermo molto piccolo (altezza < 600px) */
+@media screen and (max-width: 768px) and (max-height: 600px) {
+  .app-navbar {
+    height: 5rem !important; /* 80px - ridotto per schermi piccoli */
+    min-height: 5rem !important;
+  }
+  
+  .app-navbar nav {
+    height: 5rem !important;
+    padding: 0.75rem 0 !important;
+    padding-bottom: calc(0.75rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .page-with-navbar {
+    padding-bottom: calc(5rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .menu-page .container {
+    padding-bottom: calc(5rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .menu-button {
+    height: calc((100vh - 5rem - max(env(safe-area-inset-bottom), 56px) - 150px) / 2) !important;
+    min-height: 80px !important;
+    max-height: 120px !important;
+  }
+  
+  .candidato-card {
+    height: calc((100vh - 5rem - max(env(safe-area-inset-bottom), 56px) - 150px) / 2) !important;
+    min-height: 120px !important;
+    max-height: 180px !important;
+  }
+}
+
+/* ===== FIX PER DISPOSITIVI ANDROID IN LANDSCAPE ===== */
+
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  .app-navbar {
+    height: 4rem !important; /* 64px - ridotto in landscape */
+    min-height: 4rem !important;
+  }
+  
+  .app-navbar nav {
+    height: 4rem !important;
+    padding: 0.5rem 0 !important;
+    padding-bottom: calc(0.5rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .page-with-navbar {
+    padding-bottom: calc(4rem + 1rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+  
+  .menu-page .container {
+    padding-bottom: calc(4rem + 2rem + max(env(safe-area-inset-bottom), 56px)) !important;
+  }
+}
+
+/* ===== DEBUG PER ANDROID ===== */
+
+/* Mostra informazioni debug solo su Android in modalità sviluppo */
+@media screen and (max-width: 768px) {
+  .android-debug {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: monospace;
+    z-index: 10000;
+    max-width: 200px;
+    line-height: 1.2;
+  }
+  
+  .android-debug::before {
+    content: "Android Debug:";
+    display: block;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+}

@@ -1,0 +1,53 @@
+:
+
+🟨 PROMPT PER REPLIT AGENT:
+
+Vorrei aggiungere due nuovi pulsanti nel Menu dell’app DEMOS: "Rappresentanti" e "Elezioni".
+
+🔹 1. Pulsante "Rappresentanti"
+Deve portare a una pagina chiamata "Rappresentanti".
+
+In questa pagina ci sono 5 sezioni: Europeo, Camera, Senato, Regione, Comune.
+
+In ognuna di queste sezioni c'è un pulsante chiamato "Scegli Rappresentante".
+
+Quando l'utente clicca su ad esempio "Scegli Rappresentante Europeo", deve essere reindirizzato a una nuova pagina che mostra i 3 utenti del database utenti:
+
+che hanno più opinioni in comune con l’utente corrente
+
+che hanno ruolo = "politico" oppure "politico candidato"
+
+che hanno grado_elezione = "Europeo"
+
+Per ognuno di questi 3 utenti, deve esserci un pulsante "Scegli".
+
+Quando clicchi "Scegli", quell’utente viene salvato come rappresentante Europeo nella pagina "Rappresentanti" dell’utente.
+
+Questa logica si applica anche alle sezioni Camera, Senato, Regione, Comune (cambiando ovviamente il filtro grado_elezione).
+
+🔹 2. Pulsante "Elezioni"
+Deve portare a una pagina chiamata "Elezioni".
+
+Anche qui ci sono 5 sezioni: Europeo, Camera, Senato, Regione, Comune.
+
+In ogni sezione c’è un pulsante "Scegli Candidato".
+
+Quando si clicca, ad esempio, su "Scegli Candidato Europeo", si viene portati in una nuova pagina dove vengono mostrati i 3 utenti del database utenti:
+
+che hanno più opinioni in comune con l’utente corrente
+
+che hanno ruolo = "candidato" oppure "politico candidato"
+
+che hanno grado_candidatura = "Europeo"
+
+Anche qui, sotto ognuno dei 3 utenti deve esserci un pulsante "Scegli".
+
+Quando l'utente clicca, quel candidato viene salvato nel riquadro Europeo della pagina "Elezioni" dell’utente.
+
+La logica è la stessa per Camera, Senato, Regione, Comune (filtrando per grado_candidatura).
+
+⚠️ Requisiti Tecnici:
+Il calcolo delle opinioni comuni si basa su un confronto tra le risposte nella tabella "opinioni" dell’utente corrente e quelle degli altri utenti.
+
+Gli utenti visualizzati devono sempre rispettare i filtri di ruolo e grado_elezione o grado_candidatura, a seconda del contesto.
+

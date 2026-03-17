@@ -1,0 +1,147 @@
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+import { ReferendumFormProps } from "../types";
+import { referendumSchema } from "../types";
+
+export const ReferendumForm: React.FC<ReferendumFormProps> = ({ onSubmit, onCancel, isLoading }) => {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  const form = useForm({
+    resolver: zodResolver(referendumSchema),
+    defaultValues: {
+      nome: "",
+      descrizione: "",
+      dataInizio: "",
+      dataFine: "",
+      sitoWeb: ""
+    }
+  });
+
+  const handleSubmit = React.useCallback((data: any) => {
+    // Previeni doppi submit
+    if (isSubmitting || isLoading) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    onSubmit(data);
+    
+    // Reset dopo un delay per permettere al loading di essere gestito
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 2000);
+  }, [isSubmitting, isLoading, onSubmit]);
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle>Proponi Referendum Abrogativo</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            <strong>ATTENZIONE:</strong> Per proporre un'iniziativa popolare farlo sul sito del Ministero di Giustizia. 
+            In questo modulo puoi aggiungere i referendum abrogativi che hanno la raccolta firme già in corso.
+          </AlertDescription>
+        </Alert>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome del referendum abrogativo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="descrizione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrizione</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Descrizione del referendum abrogativo" 
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="dataInizio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data Inizio</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="dataFine"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data Fine</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <FormField
+              control={form.control}
+              name="sitoWeb"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sito Web</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={isLoading || isSubmitting}>
+                {isLoading || isSubmitting ? "Salvando..." : "Salva"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+};

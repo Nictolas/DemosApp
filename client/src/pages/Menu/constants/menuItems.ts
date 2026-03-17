@@ -1,0 +1,34 @@
+import { Vote, MessageSquare, User } from "lucide-react";
+
+export const menuItems = [
+  {
+    id: "profilo",
+    path: "/profilo",
+    icon: User,
+    label: "Profilo",
+    color: {
+      bg: "#f3e8ff",
+      icon: "#9333ea"
+    }
+  },
+  {
+    id: "opinioni",
+    path: "/opinioni",
+    icon: MessageSquare,
+    label: "Opinioni",
+    color: {
+      bg: "#e0f2fe",
+      icon: "#0891b2"
+    }
+  },
+  {
+    id: "vota",
+    path: "/vota",
+    icon: Vote,
+    label: "Vota",
+    color: {
+      bg: "#dcfce7",
+      icon: "#16a34a"
+    }
+  }
+];

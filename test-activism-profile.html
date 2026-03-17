@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Tipologie di Attivismo - Profilo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-title {
+            color: #2563eb;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        .activism-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            margin: 4px;
+            border-radius: 6px;
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+        }
+        .activism-type.selected {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+        .emoji {
+            font-size: 18px;
+        }
+        .type-name {
+            font-weight: 500;
+        }
+        .test-button {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .test-button:hover {
+            background-color: #059669;
+        }
+        .test-result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            background-color: #f0f9ff;
+            border: 1px solid #0ea5e9;
+        }
+        .validation-message {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .validation-warning {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+        }
+        .validation-info {
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 class="test-title">🧪 Test Tipologie di Attivismo - Profilo</h1>
+        
+        <div class="test-section">
+            <h3>📋 Simulazione Sezione Tipologie di Attivismo</h3>
+            <p>Questa è una simulazione della sezione che apparirà nel form di modifica profilo per utenti con ruolo "Attivista" o "Admin".</p>
+            
+            <div>
+                <label><strong>Tipologie Selezionate (0/5):</strong></label>
+                <div id="selected-types" style="margin-top: 10px;">
+                    <div style="color: #6b7280; font-style: italic;">Nessuna tipologia selezionata</div>
+                </div>
+            </div>
+            
+            <button class="test-button" onclick="toggleSelector()">
+                <span id="selector-button-text">Seleziona Tipologie di Attivismo</span>
+            </button>
+            
+            <div id="type-selector" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
+                <h4>Seleziona le tue tipologie di attivismo</h4>
+                <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">
+                    Puoi selezionare fino a 5 tipologie. Ogni tipologia rappresenta un'area di interesse per il tuo attivismo.
+                </p>
+                
+                <div id="types-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">
+                    <!-- Le tipologie verranno generate qui -->
+                </div>
+            </div>
+            
+            <div id="validation-messages"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔍 Test API</h3>
+            <p>Simula la chiamata API per salvare le tipologie di attivismo.</p>
+            <button class="test-button" onclick="testSaveAPI()">Test Salvataggio API</button>
+            <div id="api-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Risultato Finale</h3>
+            <p>Le tipologie selezionate verranno mostrate nel profilo utente con emoji e colori.</p>
+            <div id="final-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Tipologie di attivismo disponibili
+        const tipologieAttivismo = [
+            { tipo: "ambiente", emoji: "🌱", nome: "Ambiente e Sostenibilità", colore: "#22c55e" },
+            { tipo: "diritti_umani", emoji: "🤝", nome: "Diritti Umani", colore: "#3b82f6" },
+            { tipo: "educazione", emoji: "📚", nome: "Educazione", colore: "#8b5cf6" },
+            { tipo: "sanita", emoji: "🏥", nome: "Sanità", colore: "#ef4444" },
+            { tipo: "lavoro", emoji: "💼", nome: "Lavoro e Economia", colore: "#f59e0b" },
+            { tipo: "cultura", emoji: "🎭", nome: "Cultura e Arte", colore: "#ec4899" },
+            { tipo: "sport", emoji: "⚽", nome: "Sport", colore: "#10b981" },
+            { tipo: "volontariato", emoji: "❤️", nome: "Volontariato", colore: "#f97316" },
+            { tipo: "politica", emoji: "🏛️", nome: "Politica e Istituzioni", colore: "#6b7280" },
+            { tipo: "tecnologia", emoji: "💻", nome: "Tecnologia e Innovazione", colore: "#6366f1" },
+            { tipo: "animali", emoji: "🐕", nome: "Diritti degli Animali", colore: "#84cc16" },
+            { tipo: "giustizia", emoji: "⚖️", nome: "Giustizia", colore: "#374151" }
+        ];
+
+        let selectedTypes = [];
+        let isSelectorOpen = false;
+
+        // Inizializza la griglia delle tipologie
+        function initializeTypesGrid() {
+            const grid = document.getElementById('types-grid');
+            grid.innerHTML = '';
+            
+            tipologieAttivismo.forEach(tipologia => {
+                const isSelected = selectedTypes.includes(tipologia.tipo);
+                const isDisabled = !isSelected && selectedTypes.length >= 5;
+                
+                const typeElement = document.createElement('div');
+                typeElement.className = `activism-type ${isSelected ? 'selected' : ''}`;
+                typeElement.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
+                typeElement.style.opacity = isDisabled ? '0.5' : '1';
+                typeElement.onclick = () => toggleType(tipologia.tipo);
+                
+                typeElement.innerHTML = `
+                    <span class="emoji">${tipologia.emoji}</span>
+                    <div>
+                        <div class="type-name">${tipologia.nome}</div>
+                        <div style="font-size: 12px; color: #6b7280;">${tipologia.tipo}</div>
+                    </div>
+                    <span style="margin-left: auto;">${isSelected ? '✓' : ''}</span>
+                `;
+                
+                grid.appendChild(typeElement);
+            });
+        }
+
+        // Toggle di una tipologia
+        function toggleType(tipo) {
+            if (selectedTypes.includes(tipo)) {
+                selectedTypes = selectedTypes.filter(t => t !== tipo);
+            } else {
+                if (selectedTypes.length < 5) {
+                    selectedTypes.push(tipo);
+                }
+            }
+            
+            updateSelectedTypes();
+            initializeTypesGrid();
+            updateValidation();
+        }
+
+        // Aggiorna la visualizzazione delle tipologie selezionate
+        function updateSelectedTypes() {
+            const container = document.getElementById('selected-types');
+            
+            if (selectedTypes.length === 0) {
+                container.innerHTML = '<div style="color: #6b7280; font-style: italic;">Nessuna tipologia selezionata</div>';
+            } else {
+                container.innerHTML = selectedTypes.map(tipo => {
+                    const tipologia = tipologieAttivismo.find(t => t.tipo === tipo);
+                    return `
+                        <div class="activism-type selected" style="background-color: ${tipologia.colore}20; color: ${tipologia.colore}; border-color: ${tipologia.colore};">
+                            <span class="emoji">${tipologia.emoji}</span>
+                            <span class="type-name">${tipologia.nome}</span>
+                            <span onclick="removeType('${tipo}')" style="margin-left: auto; cursor: pointer; font-weight: bold;">×</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Rimuovi una tipologia
+        function removeType(tipo) {
+            selectedTypes = selectedTypes.filter(t => t !== tipo);
+            updateSelectedTypes();
+            initializeTypesGrid();
+            updateValidation();
+        }
+
+        // Toggle del selettore
+        function toggleSelector() {
+            isSelectorOpen = !isSelectorOpen;
+            const selector = document.getElementById('type-selector');
+            const button = document.getElementById('selector-button-text');
+            
+            if (isSelectorOpen) {
+                selector.style.display = 'block';
+                button.textContent = 'Chiudi Selettore';
+                initializeTypesGrid();
+            } else {
+                selector.style.display = 'none';
+                button.textContent = 'Seleziona Tipologie di Attivismo';
+            }
+        }
+
+        // Aggiorna la validazione
+        function updateValidation() {
+            const container = document.getElementById('validation-messages');
+            container.innerHTML = '';
+            
+            if (selectedTypes.length === 0) {
+                container.innerHTML = `
+                    <div class="validation-message validation-warning">
+                        ⚠️ Seleziona almeno una tipologia di attivismo
+                    </div>
+                `;
+            } else if (selectedTypes.length >= 5) {
+                container.innerHTML = `
+                    <div class="validation-message validation-info">
+                        ℹ️ Hai raggiunto il limite massimo di 5 tipologie
+                    </div>
+                `;
+            }
+        }
+
+        // Test API
+        function testSaveAPI() {
+            const resultContainer = document.getElementById('api-result');
+            
+            if (selectedTypes.length === 0) {
+                resultContainer.innerHTML = `
+                    <div class="test-result" style="background-color: #fef2f2; border-color: #ef4444;">
+                        ❌ Errore: Seleziona almeno una tipologia prima di salvare
+                    </div>
+                `;
+                return;
+            }
+            
+            // Simula la chiamata API
+            resultContainer.innerHTML = `
+                <div class="test-result" style="background-color: #f0fdf4; border-color: #22c55e;">
+                    ✅ API Call simulata:<br>
+                    <strong>PUT /api/attivismo-tipologie/user123</strong><br>
+                    <strong>Body:</strong> ${JSON.stringify({ tipologie: selectedTypes }, null, 2)}
+                </div>
+            `;
+            
+            // Aggiorna il risultato finale
+            updateFinalResult();
+        }
+
+        // Aggiorna il risultato finale
+        function updateFinalResult() {
+            const container = document.getElementById('final-result');
+            
+            if (selectedTypes.length === 0) {
+                container.innerHTML = '<p style="color: #6b7280;">Nessuna tipologia selezionata</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <h4>Tipologie che appariranno nel profilo:</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                    ${selectedTypes.map(tipo => {
+                        const tipologia = tipologieAttivismo.find(t => t.tipo === tipo);
+                        return `
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; background-color: ${tipologia.colore}20; color: ${tipologia.colore}; border: 1px solid ${tipologia.colore};">
+                                <span style="font-size: 18px;">${tipologia.emoji}</span>
+                                <span style="font-weight: 500;">${tipologia.nome}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // Inizializza la pagina
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSelectedTypes();
+            updateValidation();
+        });
+    </script>
+</body>
+</html>
