@@ -1,0 +1,1228 @@
+/* Import del layout robusto */
+@import './robust-layout.css';
+
+/* Import del fix specifico per Android */
+@import './css/android-navbar-fix.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definizione custom delle classi border-border e text-foreground */
+@layer utilities {
+  .border-border {
+    border-color: hsl(214, 32%, 91%); /* valore simile a --border */
+  }
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+}
+
+/* --- BLOCCO OVERSCROLL MOBILE E SFONDO --- */
+html, body, #root {
+  min-height: 100vh;
+  height: 100%;
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+  overflow-x: hidden;
+  touch-action: pan-y;
+  overflow-y: auto;
+  background: white; /* Sfondo bianco - ogni pagina gestisce il proprio sfondo */
+  /* La navbar fissa in basso deve essere sempre visibile, non tagliata da overflow! */
+}
+
+/* Disabilita overscroll su tutti gli elementi */
+* {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su tutti gli elementi scrollabili */
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"],
+[class*="overflow-auto"],
+[class*="overflow-y-scroll"],
+[class*="overflow-x-scroll"],
+[class*="overflow-scroll"],
+div[style*="overflow-y"],
+div[style*="overflow-x"],
+div[style*="overflow"],
+pre[class*="overflow"],
+pre[style*="overflow"],
+dialog,
+[role="dialog"],
+[data-state="open"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su elementi con classi Tailwind overflow */
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto,
+.overflow-y-scroll,
+.overflow-x-scroll,
+.overflow-scroll {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su dialog, modal e popup */
+[data-radix-dialog-content],
+[data-radix-dialog-overlay],
+dialog,
+[role="dialog"],
+.modal,
+.popup,
+.DialogContent {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su elementi con max-height e overflow */
+[style*="max-height"][style*="overflow"],
+[class*="max-h-"][class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su ScrollArea e componenti Radix */
+[data-radix-scroll-area-viewport],
+[data-radix-scroll-area-root],
+.scroll-area,
+[class*="ScrollArea"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su contenitori flex con overflow */
+.flex-1[class*="overflow"],
+[class*="flex"][class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su tutti i div con overflow inline style */
+div[style*="overflow-y: auto"],
+div[style*="overflow-y: scroll"],
+div[style*="overflow-x: auto"],
+div[style*="overflow-x: scroll"],
+div[style*="overflow: auto"],
+div[style*="overflow: scroll"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su pre, code e tabelle */
+pre[class*="overflow"],
+code[class*="overflow"],
+table[class*="overflow"],
+tbody[class*="overflow"],
+thead[class*="overflow"],
+tr[class*="overflow"],
+td[class*="overflow"],
+th[class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Disabilita overscroll su elementi con min-h-screen e overflow */
+[class*="min-h-screen"][class*="overflow"],
+[class*="h-screen"][class*="overflow"] {
+  overscroll-behavior: none !important;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none !important;
+}
+
+/* Prevenzione scroll orizzontale su mobile */
+@media (max-width: 768px) {
+  * {
+    touch-action: pan-y !important;
+  }
+  
+  .overflow-x-auto {
+    touch-action: pan-y !important;
+  }
+}
+
+body {
+  min-height: 100vh;
+  height: 100%;
+  /* Permetti lo scroll solo del contenuto, non della pagina intera */
+  width: 100vw;
+  overflow-x: hidden;
+  /* overflow-y: auto;  // decommenta se vuoi lo scroll solo verticale */
+}
+
+/* --- CLASSI PER BLOCCARE SCROLL COMPLETAMENTE --- */
+.no-scroll {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  -webkit-overflow-scrolling: auto !important;
+}
+
+/* Blocca scroll per pagine specifiche */
+.page-no-scroll {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  -webkit-overflow-scrolling: auto !important;
+}
+
+/* Pagina Strumenti - senza scroll verticale */
+.strumenti-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* Pagina Preferiti - senza scroll verticale */
+.preferiti-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* Pagina Impostazioni - senza scroll verticale */
+.impostazioni-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* Blocca scroll anche per app-main quando contiene queste pagine */
+.app-main:has(.strumenti-page),
+.app-main:has(.preferiti-page),
+.app-main:has(.impostazioni-page) {
+  overflow-y: hidden !important;
+}
+
+/* Fallback per browser che non supportano :has() */
+.app-main .strumenti-page,
+.app-main .preferiti-page,
+.app-main .impostazioni-page {
+  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 159 100% 30%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
+
+  /* Rimuovo l'applicazione globale di border-border per evitare errori */
+  /* Se vuoi puoi aggiungere border-border a singoli elementi, non a * */
+
+  body {
+    @apply font-sans antialiased bg-gray-50 text-foreground;
+  }
+}
+
+.required-field::after {
+  content: "*";
+  color: hsl(var(--destructive));
+  margin-left: 3px;
+}
+
+/* Stili per le transizioni di pagina migliorati */
+.page-transition {
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1), 
+              transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+  /* Preveni blocchi durante le transizioni */
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Stili per i dropdown Select rimossi per evitare conflitti - ora gestiti da stili inline nei componenti */
+
+.page-transition {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  will-change: transform, opacity;
+}
+
+.page-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.page-hidden {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+}
+
+/* Transizioni fade-up migliorate */
+.fade-up-transition {
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateY(40px) scale(0.95);
+  opacity: 0;
+  filter: blur(2px);
+}
+
+.fade-up-visible {
+  opacity: 1;
+  transform: translateY(0px) scale(1);
+  filter: blur(0px);
+}
+
+/* Transizioni laterali */
+.fade-side-transition {
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  opacity: 0;
+  transform: translateX(60px);
+  filter: blur(1px);
+}
+
+.fade-side-visible {
+  opacity: 1;
+  transform: translateX(0px);
+  filter: blur(0px);
+}
+
+.fade-side-hidden {
+  opacity: 0;
+  transform: translateX(-60px);
+  filter: blur(1px);
+}
+
+/* Loader elegante */
+.page-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeInLoader 0.3s ease-out;
+}
+
+.loader-content {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  animation: slideUpLoader 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.loader-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loader-text {
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+@keyframes fadeInLoader {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUpLoader {
+  from { 
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Animazioni per card e contenuti */
+.animate-in {
+  animation: slideInUp 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.animate-in-delay {
+  animation: slideInUp 0.7s cubic-bezier(0.25, 0.1, 0.25, 1) 0.1s both;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
+.page-hidden {
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+/* Fade in dal basso all'alto */
+.fade-up-transition {
+  transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.fade-up-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fade in orizzontale */
+.fade-side-transition {
+  transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.fade-side-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Splash Screen */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+
+.splash-screen.logo-loaded {
+  animation: splashFadeIn 0.6s ease-out;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: splashSlideUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.splash-logo-container {
+  margin-bottom: 2rem;
+  animation: splashLogoPulse 2s ease-in-out infinite;
+}
+
+.splash-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+  animation: splashLogoScale 0.6s ease-out;
+}
+
+.splash-brand {
+  animation: splashBrandFadeIn 1s ease-out 0.3s both;
+}
+
+.splash-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #1E1E1E;
+  margin: 0;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #1E1E1E 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.splash-subtitle {
+  font-size: 1.1rem;
+  color: #6b7280;
+  margin: 0.5rem 0 0 0;
+  font-weight: 400;
+  letter-spacing: 0.025em;
+}
+
+.splash-loader {
+  position: absolute;
+  bottom: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 1px;
+  overflow: hidden;
+  animation: splashLoaderFadeIn 1s ease-out 0.5s both;
+}
+
+.splash-loader-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 1px;
+  animation: splashLoaderProgress 2s ease-out 0.5s both;
+}
+
+/* Animazioni */
+@keyframes splashFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes splashSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes splashLogoScale {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splashLogoPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes splashBrandFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splashLoaderFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes splashLoaderProgress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* Prevenzione blocchi durante la navigazione */
+.navigation-safe {
+  /* Assicura che gli elementi siano sempre renderizzati */
+  contain: layout style paint;
+  /* Preveni reflow durante le transizioni */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Gestione migliorata per le transizioni su mobile */
+@media (max-width: 768px) {
+  .page-transition {
+    /* Transizioni più veloci su mobile per evitare blocchi */
+    transition-duration: 0.3s;
+  }
+  
+  .fade-up-transition {
+    transition-duration: 0.4s;
+  }
+  
+  /* Preveni scroll durante le transizioni */
+  .page-transition.page-hidden {
+    pointer-events: none;
+  }
+}
+
+/* Messaggio elegante per ruotare il dispositivo su mobile */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  /* Sfondo nero che copre tutto lo schermo */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #000000;
+    z-index: 10000;
+  }
+  
+  /* Messaggio centrale per ruotare il dispositivo */
+  body::after {
+    content: "Ruota il dispositivo in verticale per una migliore esperienza";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    color: #000000;
+    padding: 1.5rem 2rem;
+    border-radius: 1rem;
+    z-index: 10001;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-width: 90vw;
+    line-height: 1.4;
+  }
+  
+  /* NON nascondere più il contenuto principale in orizzontale */
+  /* #root {
+    opacity: 0.1;
+    pointer-events: none;
+  } */
+}
+
+/* Approccio alternativo per forzare l'applicazione su mobile */
+@media screen and (max-width: 768px) {
+  @media screen and (orientation: landscape) {
+    /* Sfondo nero che copre tutto lo schermo */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000000 !important;
+      z-index: 10000;
+    }
+    
+    /* Messaggio centrale per ruotare il dispositivo */
+    body::after {
+      content: "Ruota il dispositivo in verticale per una migliore esperienza";
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.95);
+      color: #000000;
+      padding: 1.5rem 2rem;
+      border-radius: 1rem;
+      z-index: 10001;
+      font-size: 1.2rem;
+      font-weight: 500;
+      text-align: center;
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      max-width: 90vw;
+      line-height: 1.4;
+    }
+    
+    /* NON nascondere più il contenuto principale in orizzontale */
+    /* #root {
+      opacity: 0.1 !important;
+      pointer-events: none !important;
+    } */
+  }
+}
+
+/* Padding dinamico per le pagine con navbar fissa in basso */
+.page-with-navbar {
+  padding-bottom: var(--container-padding-bottom, calc(6rem + env(safe-area-inset-bottom))) !important;
+  transition: padding-bottom 0.3s ease;
+}
+
+/* Classi responsive per i container */
+.responsive-container {
+  padding-bottom: var(--container-padding-bottom, calc(6rem + env(safe-area-inset-bottom))) !important;
+  transition: padding-bottom 0.3s ease;
+}
+
+/* Assicura che il contenuto non finisca dietro la navbar */
+.min-h-screen {
+  min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
+/* Layout specifico per la pagina menu con padding dinamico unificato */
+.menu-page {
+  min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  width: 100% !important;
+  position: relative;
+  z-index: 1;
+  /* Rimuoviamo max-height per permettere al contenuto di espandersi */
+  overflow: visible !important;
+}
+
+/* Assicuriamo che il container non tagli i pulsanti */
+.menu-page .container {
+  overflow: visible !important;
+}
+
+/* Padding unificato per il container della pagina menu */
+/* Calcolo: navbar (6rem = 96px) + safe area + spazio minimo necessario */
+/* Riduciamo il padding per evitare spazio bianco eccessivo */
+.menu-page .container {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 1rem) !important; /* Solo 16px extra */
+  margin-bottom: 0 !important;
+}
+
+/* Soluzione unificata per mobile - padding minimo necessario */
+@media screen and (max-width: 768px) {
+  .menu-page .container {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 1.5rem) !important; /* Solo 24px extra */
+  }
+}
+
+/* Soluzione specifica per Android - padding minimo */
+@media screen and (max-width: 768px) {
+  .menu-page.android .container {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important; /* Solo 32px extra */
+  }
+  
+  .menu-page.android .menu-button {
+    height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+    min-height: 100px !important;
+    max-height: 180px !important;
+  }
+  
+  /* Stili per pagina rappresentanti */
+  .rappresentanti-page .container {
+    padding-bottom: 0 !important; /* Rimuovi padding-bottom di default */
+    margin-bottom: 0 !important;
+  }
+  
+  .rappresentanti-page.android .container {
+    padding-bottom: calc(6rem + 3rem + 1rem) !important; /* Spazio extra solo per Android */
+  }
+  
+  .rappresentanti-page.android .rappresentante-card {
+    height: calc((100vh - 9rem - 200px) / 2) !important;
+    min-height: 120px !important;
+    max-height: 200px !important;
+  }
+  
+  /* Soluzione per evitare contenuto dietro la navbar */
+  .page-with-navbar {
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* Assicura che la navbar sia sempre sopra tutto */
+  nav[class*="fixed"] {
+    z-index: 9999 !important;
+    background: white !important;
+    box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+  }
+  
+  /* Rimosso pseudo-elemento che creava spazio bianco sopra la navbar */
+}
+
+/* Assicura che i pulsanti del menu si adattino dinamicamente all'altezza dello schermo */
+/* Calcolo: (viewport height - navbar - safe area - spazio header/margini) / 2 righe */
+.menu-button {
+  height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--menu-button-min-height, 120px) !important;
+  max-height: var(--menu-button-max-height, 200px) !important;
+  transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+/* Su mobile, riduci leggermente l'altezza per garantire che i pulsanti non finiscano dietro la navbar */
+@media screen and (max-width: 768px) {
+  .menu-button {
+    height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 250px) / 2)) !important;
+    min-height: 100px !important;
+    max-height: 180px !important;
+  }
+}
+
+/* Classi responsive per i pulsanti */
+.responsive-button {
+  height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--menu-button-min-height, 120px) !important;
+  max-height: var(--menu-button-max-height, 200px) !important;
+  transition: all 0.3s ease;
+}
+
+/* Stili per pulsanti delle opinioni */
+.opinioni-button {
+  height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--menu-button-min-height, 120px) !important;
+  max-height: var(--menu-button-max-height, 200px) !important;
+  transition: all 0.3s ease;
+}
+
+/* Stili per pagine di opinione con contenuto scrollabile */
+.opinioni-page {
+  min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+}
+
+.opinioni-page .container {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+
+/* Stili per card dei candidati */
+.candidato-card {
+  height: var(--card-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--card-min-height, 200px) !important;
+  max-height: var(--card-max-height, 300px) !important;
+  transition: all 0.3s ease;
+}
+
+/* Classi responsive per le card */
+.responsive-card {
+  height: var(--card-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--card-min-height, 200px) !important;
+  max-height: var(--card-max-height, 300px) !important;
+  transition: all 0.3s ease;
+}
+
+/* Stili per card dei ministeri */
+.ministero-card {
+  height: var(--card-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 100px) / 3)) !important;
+  min-height: var(--card-min-height, 120px) !important;
+  max-height: var(--card-max-height, 200px) !important;
+  transition: all 0.3s ease;
+}
+
+/* Ottimizzazioni per schermi molto piccoli */
+@media screen and (max-height: 600px) {
+  .menu-button,
+  .opinioni-button {
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 150px) / 2) !important;
+    min-height: 100px !important;
+    max-height: 150px !important;
+  }
+  
+  .candidato-card {
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 150px) / 2) !important;
+    min-height: 150px !important;
+    max-height: 200px !important;
+  }
+  
+  .ministero-card {
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 80px) / 3) !important;
+    min-height: 100px !important;
+    max-height: 150px !important;
+  }
+}
+
+/* Ottimizzazioni per schermi estremamente piccoli */
+@media screen and (max-height: 500px) {
+  .menu-button,
+  .opinioni-button {
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 120px) / 2) !important;
+    min-height: 80px !important;
+    max-height: 120px !important;
+  }
+  
+  .candidato-card {
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 120px) / 2) !important;
+    min-height: 120px !important;
+    max-height: 150px !important;
+  }
+  
+  .ministero-card {
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 60px) / 3) !important;
+    min-height: 80px !important;
+    max-height: 120px !important;
+  }
+  
+  .menu-button .text-3xl,
+  .opinioni-button .text-2xl,
+  .opinioni-button .text-4xl {
+    font-size: 1.5rem !important; /* Riduci la dimensione del testo */
+  }
+  
+  .menu-button .w-16.h-16:not(svg),
+  .opinioni-button .h-12:not(svg),
+  .opinioni-button .h-16:not(svg) {
+    width: 3rem !important;
+    height: 3rem !important;
+  }
+  
+  .menu-button .h-14.w-14 {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+  }
+  
+  /* Regola specifica per gli SVG degli occhiali nei pulsanti */
+  .glasses-style-selector svg {
+    width: 5rem !important;
+    height: 5rem !important;
+  }
+  
+  /* Regola per i pulsanti degli occhiali più grandi */
+  .glasses-style-selector button {
+    width: 5rem !important;
+    height: 5rem !important;
+  }
+  
+  .menu-button .h-10.w-10 {
+    height: 1.75rem !important;
+    width: 1.75rem !important;
+  }
+}
+
+/* ===== CLASSI RESPONSIVE PER TIPI DI DISPOSITIVO ===== */
+
+/* Dispositivi molto piccoli (altezza < 600px) */
+.device-small-mobile {
+  --menu-button-height: 80px;
+  --menu-button-min-height: 80px;
+  --menu-button-max-height: 120px;
+  --card-height: 100px;
+  --card-min-height: 100px;
+  --card-max-height: 150px;
+  --container-padding-bottom: 120px;
+}
+
+.device-small-mobile .menu-button,
+.device-small-mobile .opinioni-button {
+  height: 80px !important;
+  min-height: 80px !important;
+  max-height: 120px !important;
+}
+
+.device-small-mobile .candidato-card,
+.device-small-mobile .rappresentante-card {
+  height: 100px !important;
+  min-height: 100px !important;
+  max-height: 150px !important;
+}
+
+.device-small-mobile .text-3xl {
+  font-size: 1.25rem !important; /* text-xl */
+}
+
+.device-small-mobile .text-2xl {
+  font-size: 1.125rem !important; /* text-lg */
+}
+
+.device-small-mobile .h-16.w-16 {
+  width: 3rem !important;
+  height: 3rem !important;
+}
+
+.device-small-mobile .h-14.w-14 {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+}
+
+.device-small-mobile .h-10.w-10 {
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+}
+
+/* Dispositivi mobili standard */
+.device-mobile {
+  --menu-button-height: 120px;
+  --menu-button-min-height: 120px;
+  --menu-button-max-height: 200px;
+  --card-height: 150px;
+  --card-min-height: 150px;
+  --card-max-height: 250px;
+  --container-padding-bottom: 140px;
+}
+
+.device-mobile .menu-button,
+.device-mobile .opinioni-button {
+  height: 120px !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-mobile .candidato-card,
+.device-mobile .rappresentante-card {
+  height: 150px !important;
+  min-height: 150px !important;
+  max-height: 250px !important;
+}
+
+/* Dispositivi Android - padding extra */
+.device-android .page-with-navbar,
+.device-android .menu-page .container {
+  padding-bottom: calc(var(--container-padding-bottom) + 24px) !important;
+}
+
+.device-android .menu-button,
+.device-android .opinioni-button {
+  height: calc(var(--menu-button-height) - 20px) !important;
+  min-height: calc(var(--menu-button-min-height) - 20px) !important;
+}
+
+/* Dispositivi con notch - padding extra per safe area */
+.device-has-notch .page-with-navbar,
+.device-has-notch .menu-page .container {
+  padding-bottom: calc(var(--container-padding-bottom) + var(--safe-area-inset-bottom)) !important;
+}
+
+/* Dispositivi tablet */
+.device-tablet {
+  --menu-button-height: 150px;
+  --menu-button-min-height: 150px;
+  --menu-button-max-height: 250px;
+  --card-height: 200px;
+  --card-min-height: 200px;
+  --card-max-height: 300px;
+  --container-padding-bottom: 160px;
+}
+
+.device-tablet .menu-button,
+.device-tablet .opinioni-button {
+  height: 150px !important;
+  min-height: 150px !important;
+  max-height: 250px !important;
+}
+
+.device-tablet .candidato-card,
+.device-tablet .rappresentante-card {
+  height: 200px !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+/* Dispositivi desktop */
+.device-desktop {
+  --menu-button-height: 200px;
+  --menu-button-min-height: 200px;
+  --menu-button-max-height: 300px;
+  --card-height: 250px;
+  --card-min-height: 250px;
+  --card-max-height: 350px;
+  --container-padding-bottom: 180px;
+}
+
+.device-desktop .menu-button,
+.device-desktop .opinioni-button {
+  height: 200px !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+.device-desktop .candidato-card,
+.device-desktop .rappresentante-card {
+  height: 250px !important;
+  min-height: 250px !important;
+  max-height: 350px !important;
+}
+
+/* Transizioni fluide per tutti i cambiamenti */
+.menu-button,
+.opinioni-button,
+.candidato-card,
+.rappresentante-card,
+.ministero-card,
+.page-with-navbar,
+.responsive-button,
+.responsive-card,
+.responsive-container {
+  transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease, padding-bottom 0.3s ease;
+}
+
+/* ===== CORREZIONI SPECIFICHE PER DISPOSITIVI PROBLEMATICI ===== */
+
+/* iPhone 15 Pro Max - Ripristina configurazione originale */
+.device-iphone15promax .menu-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-iphone15promax .opinioni-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-iphone15promax .candidato-card {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+.device-iphone15promax .page-with-navbar {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+}
+
+.device-iphone15promax .menu-page .container {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+
+/* Redmi - Correzione specifica per pulsanti tagliati */
+.device-redmi .menu-button {
+  height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 100px !important;
+  max-height: 180px !important;
+}
+
+.device-redmi .opinioni-button {
+  height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 100px !important;
+  max-height: 180px !important;
+}
+
+.device-redmi .candidato-card {
+  height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 150px !important;
+  max-height: 250px !important;
+}
+
+.device-redmi .page-with-navbar {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom) + 1rem) !important;
+}
+
+.device-redmi .menu-page .container {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom) + 3rem) !important;
+}
+
+/* Android generico - Miglioramenti per dispositivi con navbar alta */
+.device-android .menu-button {
+  height: calc((100vh - 7rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 110px !important;
+  max-height: 190px !important;
+}
+
+.device-android .opinioni-button {
+  height: calc((100vh - 7rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 110px !important;
+  max-height: 190px !important;
+}
+
+.device-android .page-with-navbar {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom) + 1rem) !important;
+}
+
+.device-android .menu-page .container {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+
+/* iOS generico - Configurazione ottimizzata */
+.device-ios .menu-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-ios .opinioni-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-ios .page-with-navbar {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+}
+
+.device-ios .menu-page .container {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dropdown Styles</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            background-color: white;
+            color: black;
+            font-size: 14px;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Stili forzati per i dropdown */
+        select option {
+            background-color: white !important;
+            color: black !important;
+            padding: 8px;
+        }
+        
+        select option:hover {
+            background-color: #f3f4f6 !important;
+        }
+        
+        select option:checked {
+            background-color: #eff6ff !important;
+            color: black !important;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Test Styling Dropdown</h1>
+        
+        <div class="form-group">
+            <label for="genere">Genere:</label>
+            <select id="genere">
+                <option value="">Seleziona genere</option>
+                <option value="uomo">Uomo</option>
+                <option value="donna">Donna</option>
+                <option value="altro">Altro</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="regione">Regione:</label>
+            <select id="regione">
+                <option value="">Seleziona regione</option>
+                <option value="lombardia">Lombardia</option>
+                <option value="lazio">Lazio</option>
+                <option value="campania">Campania</option>
+                <option value="sicilia">Sicilia</option>
+                <option value="veneto">Veneto</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="provincia">Provincia:</label>
+            <select id="provincia">
+                <option value="">Seleziona provincia</option>
+                <option value="milano">Milano</option>
+                <option value="roma">Roma</option>
+                <option value="napoli">Napoli</option>
+                <option value="palermo">Palermo</option>
+                <option value="venezia">Venezia</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="ruolo">Ruolo:</label>
+            <select id="ruolo">
+                <option value="">Seleziona ruolo</option>
+                <option value="elettore">Elettore</option>
+                <option value="candidato">Candidato</option>
+                <option value="politico">Politico</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        
+        <div id="status" class="status success">
+            ✅ I dropdown dovrebbero avere sfondo bianco e testo nero
+        </div>
+    </div>
+    
+    <script>
+        // Test per verificare che i dropdown funzionino
+        document.addEventListener('DOMContentLoaded', function() {
+            const selects = document.querySelectorAll('select');
+            const status = document.getElementById('status');
+            
+            selects.forEach(select => {
+                select.addEventListener('change', function() {
+                    console.log(`${this.id}: ${this.value}`);
+                    status.textContent = `✅ Selezionato: ${this.id} = ${this.value}`;
+                    status.className = 'status success';
+                });
+            });
+            
+            // Verifica che i dropdown abbiano il corretto styling
+            const computedStyles = window.getComputedStyle(selects[0]);
+            const backgroundColor = computedStyles.backgroundColor;
+            const color = computedStyles.color;
+            
+            console.log('Background color:', backgroundColor);
+            console.log('Text color:', color);
+            
+            if (backgroundColor.includes('255, 255, 255') || backgroundColor.includes('white')) {
+                status.textContent = '✅ Styling corretto: sfondo bianco e testo nero';
+                status.className = 'status success';
+            } else {
+                status.textContent = '❌ Problema con lo styling dei dropdown';
+                status.className = 'status error';
+            }
+        });
+    </script>
+</body>
+</html>

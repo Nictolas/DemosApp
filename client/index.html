@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+      <!-- Cookiebot RIMOSSO - Periodo di prova scaduto -->
+    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="google" content="notranslate">
+    <meta name="screen-orientation" content="portrait" />
+    <meta name="x5-orientation" content="portrait" />
+    <meta name="msapplication-orientation" content="portrait" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- ▼▼▼ CONFIGURAZIONE ICONE MOBILE ▼▼▼ -->
+    <!-- Favicon standard -->
+    <link rel="icon" type="image/png" href="/icona.png" />
+    
+    <!-- Apple Touch Icons per iOS -->
+    <link rel="apple-touch-icon" href="/icona.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icona.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icona.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icona.png" />
+    
+    <!-- Meta tag per iOS -->
+    <meta name="apple-mobile-web-app-title" content="Demos" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <!-- Meta tag per Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Demos" />
+    
+    <!-- Meta tag per Microsoft -->
+    <meta name="msapplication-TileImage" content="/icona.png" />
+    <meta name="msapplication-TileColor" content="#ffffff" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    <!-- ▲▲▲ FINE CONFIGURAZIONE ICONE MOBILE ▲▲▲ -->
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1E1E1E" />
+    <!-- Content Security Policy - Fallback se non applicato via header HTTP -->
+    <!-- Nota: frame-ancestors può essere impostato solo tramite header HTTP, non tramite meta tag -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; connect-src 'self' https:; font-src 'self' data: https:; object-src 'none'; base-uri 'self';">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- Script Replit rimosso per conformità GDPR -->
+  </body>
+</html>

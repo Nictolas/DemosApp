@@ -1,0 +1,209 @@
+const AuditService = require('../services/auditService');
+
+/**
+ * Middleware per logging automatico delle operazioni sui dati
+ * @param {Object} options - Opzioni di configurazione
+ * @param {string} options.resource - Nome della risorsa (es. 'users', 'votes', 'opinions')
+ * @param {string} options.action - Tipo di azione (es. 'DATA_ACCESS', 'DATA_MODIFY', 'DATA_DELETE')
+ * @param {Function} options.getResourceId - Funzione per estrarre l'ID della risorsa dalla richiesta
+ * @param {Function} options.getDetails - Funzione per estrarre dettagli aggiuntivi dalla richiesta
+ */
+const auditMiddleware = (options = {}) => {
+  return async (req, res, next) => {
+    const originalSend = res.send;
+    const originalJson = res.json;
+    
+    // Estrai informazioni dalla richiesta
+    const userId = req.userId || 'anonymous';
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    const method = req.method;
+    const path = req.originalUrl;
+    
+    // Determina l'azione basata sul metodo HTTP
+    let action = options.action;
+    if (!action) {
+      switch (method) {
+        case 'GET':
+          action = 'DATA_ACCESS';
+          break;
+        case 'POST':
+          action = 'DATA_CREATE';
+          break;
+        case 'PUT':
+        case 'PATCH':
+          action = 'DATA_MODIFY';
+          break;
+        case 'DELETE':
+          action = 'DATA_DELETE';
+          break;
+        default:
+          action = 'DATA_OPERATION';
+      }
+    }
+    
+    // Estrai ID risorsa se specificato
+    let resourceId = null;
+    if (options.getResourceId) {
+      try {
+        resourceId = options.getResourceId(req);
+      } catch (error) {
+        console.warn('Errore nell\'estrazione resourceId:', error);
+      }
+    } else {
+      // Estrazione automatica da params
+      resourceId = req.params.id || req.params.userId || req.params.opinioneId;
+    }
+    
+    // Estrai dettagli aggiuntivi se specificato
+    let details = {};
+    if (options.getDetails) {
+      try {
+        details = options.getDetails(req) || {};
+      } catch (error) {
+        console.warn('Errore nell\'estrazione dettagli:', error);
+      }
+    }
+    
+    // Aggiungi dettagli standard
+    details = {
+      ...details,
+      method,
+      path,
+      timestamp: new Date().toISOString(),
+      user_id: userId
+    };
+    
+    // Intercetta la risposta per determinare il successo
+    res.send = function(data) {
+      logAuditAction();
+      return originalSend.call(this, data);
+    };
+    
+    res.json = function(data) {
+      logAuditAction(data);
+      return originalJson.call(this, data);
+    };
+    
+    // Funzione per loggare l'azione
+    const logAuditAction = (responseData = null) => {
+      try {
+        // Determina se l'operazione è riuscita
+        const success = res.statusCode >= 200 && res.statusCode < 400;
+        let errorMessage = null;
+        
+        if (!success) {
+          errorMessage = `HTTP ${res.statusCode}`;
+          if (responseData && responseData.error) {
+            errorMessage += `: ${responseData.error}`;
+          }
+        }
+        
+        // Log dell'azione
+        AuditService.logAction({
+          userId,
+          action,
+          resource: options.resource || 'unknown',
+          resourceId,
+          details,
+          ipAddress,
+          userAgent,
+          success,
+          errorMessage
+        });
+      } catch (error) {
+        console.error('Errore nel logging audit:', error);
+        // Non bloccare la risposta per errori di audit
+      }
+    };
+    
+    next();
+  };
+};
+
+/**
+ * Middleware specifico per operazioni sui dati utente
+ */
+const userDataAuditMiddleware = auditMiddleware({
+  resource: 'users',
+  getResourceId: (req) => req.params.userId || req.params.id || req.userId,
+  getDetails: (req) => ({
+    operation: req.route?.path || req.path,
+    query_params: Object.keys(req.query).length > 0 ? req.query : undefined,
+    body_fields: req.body ? Object.keys(req.body) : undefined
+  })
+});
+
+/**
+ * Middleware specifico per operazioni sui voti
+ */
+const voteDataAuditMiddleware = auditMiddleware({
+  resource: 'votes',
+  getResourceId: (req) => req.params.voteId || req.params.id,
+  getDetails: (req) => ({
+    vote_type: req.params.voteType || 'unknown',
+    operation: req.route?.path || req.path
+  })
+});
+
+/**
+ * Middleware specifico per operazioni sulle opinioni
+ */
+const opinionDataAuditMiddleware = auditMiddleware({
+  resource: 'opinions',
+  getResourceId: (req) => req.params.opinioneId || req.params.id,
+  getDetails: (req) => ({
+    operation: req.route?.path || req.path,
+    opinion_type: req.body?.type || 'unknown'
+  })
+});
+
+/**
+ * Middleware specifico per operazioni sui rappresentanti
+ */
+const representativeDataAuditMiddleware = auditMiddleware({
+  resource: 'representatives',
+  getResourceId: (req) => req.params.representativeId || req.params.id,
+  getDetails: (req) => ({
+    operation: req.route?.path || req.path,
+    representative_type: req.body?.tipo || 'unknown'
+  })
+});
+
+/**
+ * Middleware per operazioni di amministrazione
+ */
+const adminAuditMiddleware = auditMiddleware({
+  resource: 'admin',
+  action: 'ADMIN_OPERATION',
+  getResourceId: (req) => req.params.id || req.userId,
+  getDetails: (req) => ({
+    operation: req.route?.path || req.path,
+    admin_action: req.body?.action || 'unknown',
+    target_resource: req.body?.target || 'unknown'
+  })
+});
+
+/**
+ * Middleware per operazioni di autenticazione
+ */
+const authAuditMiddleware = auditMiddleware({
+  resource: 'authentication',
+  action: 'AUTH_OPERATION',
+  getResourceId: (req) => req.userId || 'anonymous',
+  getDetails: (req) => ({
+    operation: req.route?.path || req.path,
+    auth_method: req.body?.method || 'unknown',
+    success: req.body?.success || false
+  })
+});
+
+module.exports = {
+  auditMiddleware,
+  userDataAuditMiddleware,
+  voteDataAuditMiddleware,
+  opinionDataAuditMiddleware,
+  representativeDataAuditMiddleware,
+  adminAuditMiddleware,
+  authAuditMiddleware
+};

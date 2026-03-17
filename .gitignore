@@ -1,0 +1,21 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Ignora i file .env in qualsiasi posizione
+.env
+.env.*
+*.env.local
+
+# Aggiungo per sicurezza esplicita il percorso del file .env del backend
+/api/.env
+
+# Keystore e password per firma release Android (Play Store)
+client/demos-release-key.keystore
+client/android/keystore.properties
+
+# Firebase service account (MAI committare)
+serviceAccountKey.json

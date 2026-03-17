@@ -1,0 +1,57 @@
+Implementa le seguenti funzionalità e correzioni nel progetto DEMOS:
+
+Pagina Statistiche Utenti
+Crea una nuova pagina chiamata "Statistiche Utenti" (il pulsante è già presente nel Menu). In questa pagina, mostra statistiche aggregate sugli utenti presenti nella tabella utenti di Supabase. Le statistiche devono includere almeno:
+
+Numero totale di utenti
+
+Numero di utenti per ruolo (elettore, politico, candidato, candidato politico, admin)
+
+Numero di utenti per genere (uomo, donna, altro)
+
+Numero di utenti per cittadinanza (mostra le prime 5 con più utenti)
+
+Grafici se possibile (es. a torta o a barre)
+
+Visibilità pulsante "Amministrazione"
+Correggi il comportamento del pulsante "Amministrazione" nel Menu. Deve essere visibile solo agli utenti che hanno ruolo = "Admin", come ad esempio l'utente con email nicolasmicheletti90@gmail.com.
+
+Pagina Statistiche Opinioni
+Aggiungi un nuovo pulsante "Statistiche Opinioni" nel Menu.
+Crea la pagina "Statistiche Opinioni" che mostra statistiche aggregate sulle opinioni prese dalla tabella utenti.
+Le statistiche devono includere il conteggio di:
+
+Quanti utenti sono Favorevoli, Indecisi o Contrari per ogni domanda:
+
+Energia Nucleare
+
+Sperimentazione Animale
+
+Legalizzazione Canapa
+
+Caccia
+
+Unione Europea
+Se possibile, usa grafici per visualizzare i risultati.
+
+Scelta Rappresentanti – filtro corretto
+Nella pagina /scegli-rappresentante/europeo (e tutte le pagine simili per gli altri livelli), modifica la logica di selezione:
+Devono essere mostrati 3 utenti presi tra coloro che hanno ruolo "politico" oppure "candidato politico", non solo "politico".
+
+Scelta Candidati – filtro corretto
+Nella pagina /scegli-candidato/europeo (e tutte le pagine simili per gli altri livelli), modifica la logica di selezione:
+Devono essere mostrati 3 utenti presi tra coloro che hanno ruolo "candidato" oppure "candidato politico", non solo "candidato".
+
+Visualizzazione rappresentanti e candidati scelti
+Quando un utente seleziona un rappresentante (ad esempio il "rappresentante europeo"), il nome della persona selezionata deve apparire nella pagina "I tuoi Rappresentanti" sotto il titolo corrispondente, per esempio:
+
+"Il tuo rappresentante europeo: [Nome Cognome]"
+
+Sotto deve rimanere il pulsante "Scegli Rappresentante"
+Lo stesso vale per i rappresentanti a tutti i livelli (camera, senato, regione, comune).
+
+Analogamente, quando un utente seleziona un candidato (ad esempio "candidato europeo"), il nome deve apparire nella pagina "Le tue Elezioni" sotto il titolo:
+
+"Il tuo candidato europeo: [Nome Cognome]"
+Anche in questo caso, il pulsante "Scegli Candidato" deve rimanere visibile.
+Il dato deve essere salvato nel campo corrispondente nel database Supabase (utenti) come già implementato finora.

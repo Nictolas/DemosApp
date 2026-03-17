@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confronto: Approccio Moderno vs Tradizionale - DemosApp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .approach-section {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .approach-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .approach-description {
+            color: #6b7280;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 20px 0;
+            height: 300px;
+        }
+        
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+            transform: scale(1.02);
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        .device-info {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 20px 0;
+        }
+        
+        .test-button {
+            width: 100%;
+            padding: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+        }
+        
+        /* Approccio Tradizionale */
+        .traditional .test-button {
+            height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2);
+            min-height: 120px;
+            max-height: 200px;
+        }
+        
+        /* Approccio Moderno */
+        .modern .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            height: calc(100vh - 6rem - env(safe-area-inset-bottom) - 200px);
+            container-type: inline-size;
+        }
+        
+        .modern .test-button {
+            height: 100%;
+            min-height: 120px;
+            max-height: 200px;
+        }
+        
+        /* Container queries per approccio moderno */
+        @container (max-height: 400px) {
+            .modern .test-button {
+                min-height: 80px;
+                max-height: 120px;
+            }
+        }
+        
+        @container (min-height: 401px) and (max-height: 600px) {
+            .modern .test-button {
+                min-height: 120px;
+                max-height: 200px;
+            }
+        }
+        
+        @container (min-height: 601px) {
+            .modern .test-button {
+                min-height: 150px;
+                max-height: 250px;
+            }
+        }
+        
+        /* Media queries per approccio tradizionale */
+        @media (max-height: 600px) {
+            .traditional .test-button {
+                height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 150px) / 2);
+                min-height: 100px;
+                max-height: 150px;
+            }
+        }
+        
+        @media (min-height: 601px) and (max-height: 800px) {
+            .traditional .test-button {
+                height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2);
+                min-height: 120px;
+                max-height: 200px;
+            }
+        }
+        
+        @media (min-height: 801px) {
+            .traditional .test-button {
+                height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 250px) / 2);
+                min-height: 150px;
+                max-height: 250px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-container {
+                margin: 10px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
+            🔬 Confronto: Approccio Moderno vs Tradizionale
+        </h1>
+        
+        <div class="device-info" id="device-info">
+            Caricamento informazioni dispositivo...
+        </div>
+        
+        <div class="comparison-grid">
+            <!-- Approccio Tradizionale -->
+            <div class="approach-section traditional">
+                <div class="approach-title">🔧 Approccio Tradizionale</div>
+                <div class="approach-description">
+                    Media queries + calcoli fissi + classi CSS specifiche per dispositivo
+                </div>
+                <div class="test-grid">
+                    <button class="test-button" onclick="testTraditional(1)">Button 1</button>
+                    <button class="test-button" onclick="testTraditional(2)">Button 2</button>
+                    <button class="test-button" onclick="testTraditional(3)">Button 3</button>
+                    <button class="test-button" onclick="testTraditional(4)">Button 4</button>
+                </div>
+                <div id="traditional-status" class="status"></div>
+            </div>
+            
+            <!-- Approccio Moderno -->
+            <div class="approach-section modern">
+                <div class="approach-title">🚀 Approccio Moderno</div>
+                <div class="approach-description">
+                    CSS Grid + Container Queries + Viewport Units + Design System
+                </div>
+                <div class="test-grid">
+                    <button class="test-button" onclick="testModern(1)">Button 1</button>
+                    <button class="test-button" onclick="testModern(2)">Button 2</button>
+                    <button class="test-button" onclick="testModern(3)">Button 3</button>
+                    <button class="test-button" onclick="testModern(4)">Button 4</button>
+                </div>
+                <div id="modern-status" class="status"></div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="test-button" onclick="runComparison()" style="max-width: 300px; margin: 0 auto;">
+                🔍 Esegui Confronto Completo
+            </button>
+        </div>
+        
+        <div id="comparison-results" class="status" style="display: none;"></div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #f9fafb; border-radius: 8px;">
+            <h3>📊 Analisi dei Due Approcci</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                <div>
+                    <h4>🔧 Tradizionale</h4>
+                    <ul>
+                        <li><strong>Vantaggi:</strong> Compatibilità universale, controllo preciso</li>
+                        <li><strong>Svantaggi:</strong> Codice complesso, difficile manutenzione</li>
+                        <li><strong>Uso:</strong> App esistenti, browser vecchi</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>🚀 Moderno</h4>
+                    <ul>
+                        <li><strong>Vantaggi:</strong> Codice pulito, adattamento automatico</li>
+                        <li><strong>Svantaggi:</strong> Supporto browser limitato</li>
+                        <li><strong>Uso:</strong> App nuove, browser moderni</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateDeviceInfo() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const screenWidth = window.screen.width;
+            const screenHeight = window.screen.height;
+            const userAgent = navigator.userAgent;
+            
+            document.getElementById('device-info').innerHTML = `
+                <strong>Viewport:</strong> ${viewportWidth}x${viewportHeight}<br>
+                <strong>Screen:</strong> ${screenWidth}x${screenHeight}<br>
+                <strong>Device Pixel Ratio:</strong> ${window.devicePixelRatio}<br>
+                <strong>User Agent:</strong> ${userAgent.substring(0, 50)}...<br>
+                <strong>Orientation:</strong> ${viewportHeight > viewportWidth ? 'Portrait' : 'Landscape'}
+            `;
+        }
+        
+        function testTraditional(buttonNumber) {
+            const status = document.getElementById('traditional-status');
+            const button = document.querySelector(`.traditional .test-button:nth-child(${buttonNumber})`);
+            
+            if (button) {
+                const computedStyle = window.getComputedStyle(button);
+                const height = computedStyle.height;
+                const minHeight = computedStyle.minHeight;
+                const maxHeight = computedStyle.maxHeight;
+                
+                status.className = 'status success';
+                status.textContent = `✅ Button ${buttonNumber}: ${height} (min: ${minHeight}, max: ${maxHeight})`;
+            }
+        }
+        
+        function testModern(buttonNumber) {
+            const status = document.getElementById('modern-status');
+            const button = document.querySelector(`.modern .test-button:nth-child(${buttonNumber})`);
+            
+            if (button) {
+                const computedStyle = window.getComputedStyle(button);
+                const height = computedStyle.height;
+                const minHeight = computedStyle.minHeight;
+                const maxHeight = computedStyle.maxHeight;
+                
+                status.className = 'status success';
+                status.textContent = `✅ Button ${buttonNumber}: ${height} (min: ${minHeight}, max: ${maxHeight})`;
+            }
+        }
+        
+        function runComparison() {
+            const results = document.getElementById('comparison-results');
+            const traditionalButtons = document.querySelectorAll('.traditional .test-button');
+            const modernButtons = document.querySelectorAll('.modern .test-button');
+            
+            let traditionalHeights = [];
+            let modernHeights = [];
+            
+            traditionalButtons.forEach(button => {
+                const height = window.getComputedStyle(button).height;
+                traditionalHeights.push(height);
+            });
+            
+            modernButtons.forEach(button => {
+                const height = window.getComputedStyle(button).height;
+                modernHeights.push(height);
+            });
+            
+            // Calcola varianza per vedere quale approccio è più consistente
+            const traditionalVariance = calculateVariance(traditionalHeights);
+            const modernVariance = calculateVariance(modernHeights);
+            
+            let winner = 'Pareggio';
+            if (traditionalVariance < modernVariance) {
+                winner = 'Tradizionale';
+            } else if (modernVariance < traditionalVariance) {
+                winner = 'Moderno';
+            }
+            
+            results.style.display = 'block';
+            results.className = 'status success';
+            results.innerHTML = `
+                <strong>📊 Risultati Confronto:</strong><br>
+                <strong>Tradizionale:</strong> ${traditionalHeights.join(', ')}<br>
+                <strong>Moderno:</strong> ${modernHeights.join(', ')}<br>
+                <strong>Varianza Tradizionale:</strong> ${traditionalVariance.toFixed(2)}<br>
+                <strong>Varianza Moderno:</strong> ${modernVariance.toFixed(2)}<br>
+                <strong>🏆 Vincitore:</strong> ${winner} (minore varianza = più consistente)
+            `;
+        }
+        
+        function calculateVariance(heights) {
+            const numericHeights = heights.map(h => parseFloat(h));
+            const mean = numericHeights.reduce((a, b) => a + b, 0) / numericHeights.length;
+            const variance = numericHeights.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / numericHeights.length;
+            return variance;
+        }
+        
+        // Inizializzazione
+        window.addEventListener('load', updateDeviceInfo);
+        window.addEventListener('resize', updateDeviceInfo);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateDeviceInfo, 500);
+        });
+    </script>
+</body>
+</html>

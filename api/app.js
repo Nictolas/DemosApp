@@ -1,0 +1,528 @@
+require('dotenv').config();
+const express = require('express');
+require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
+const cors = require('cors');
+const path = require('path');
+const { securityHeaders, securityMiddleware, securityLogger } = require('./middleware/security');
+const { requestLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/loggingMiddleware');
+const logger = require('./services/centralizedLogger');
+
+// Import moduli con gestione errori
+let healthRoutes, databaseRoutes, compatibilityRoutes, testOpinioniRoutes;
+let testAddOpinioneRoutes, servicesRoutes, authRoutes, clearTokenRoutes, userRoutes;
+let opinioniRoutes, opinioniProposteRoutes, governoRoutes, governoMinistroRoutes;
+let rappresentantiRoutes, notificheRoutes, notificheTotaliRoutes, fcmTokensRoutes;
+
+try {
+  console.log('📦 Caricamento moduli routes...');
+  healthRoutes = require('./routes/health');
+  databaseRoutes = require('./routes/database');
+  compatibilityRoutes = require('./routes/compatibility');
+  testOpinioniRoutes = require('./routes/test-opinioni-endpoints');
+  testAddOpinioneRoutes = require('./routes/test-add-opinione');
+  servicesRoutes = require('./routes/services');
+  authRoutes = require('./routes/auth/index');
+  clearTokenRoutes = require('./routes/auth/clear-token');
+  userRoutes = require('./routes/users/index');
+  opinioniRoutes = require('./routes/opinioni/index');
+  opinioniProposteRoutes = require('./routes/opinioni-proposte');
+  governoRoutes = require('./routes/governo');
+  governoMinistroRoutes = require('./routes/governo-ministro');
+  rappresentantiRoutes = require('./routes/rappresentanti');
+  notificheRoutes = require('./routes/notifiche');
+  notificheTotaliRoutes = require('./routes/notifiche-totali');
+  fcmTokensRoutes = require('./routes/fcm-tokens');
+  console.log('✅ Moduli routes base caricati correttamente');
+} catch (error) {
+  console.error('❌ Errore nel caricamento dei moduli routes base:', error);
+  console.error('❌ Stack trace:', error.stack);
+  throw error;
+}
+const testDbRoutes = require('./routes/test-db');
+const eventiRoutes = require('./routes/eventi');
+const graziaRoutes = require('./routes/grazia');
+const amnistiaRoutes = require('./routes/amnistia');
+const capoStatoRoutes = require('./routes/capo-stato');
+const elezioniRoutes = require('./routes/elezioni');
+const iceRoutes = require('./routes/ice');
+const eciRoutes = require('./routes/eci');
+const iniziativePopolariRoutes = require('./routes/iniziative-popolari');
+const referendumAbrogativiRoutes = require('./routes/referendum-abrogativi');
+const referendumRoutes = require('./routes/referendum');
+const comunicazioniRoutes = require('./routes/comunicazioni');
+const informaCittadiniRoutes = require('./routes/informa-cittadini');
+const avvistamentiRoutes = require('./routes/avvistamenti');
+const reazioniComunicazioniRoutes = require('./routes/reazioni-comunicazioni');
+const sostenitoriRoutes = require('./routes/sostenitori');
+const sostenitoriTotaleRoutes = require('./routes/sostenitori-totale');
+const rappresentantiSostenitoriRoutes = require('./routes/rappresentanti-sostenitori');
+const candidatiSostenitoriRoutes = require('./routes/candidati-sostenitori');
+const attivistiSostenitoriRoutes = require('./routes/attivisti-sostenitori');
+const migrateRoutes = require('./routes/migrate-columns');
+const sondaggiRoutes = require('./routes/sondaggi');
+const adminRoutes = require('./routes/admin/database');
+const candidatiRoutes = require('./routes/candidati');
+const fixDatabaseRoutes = require('./routes/fix-database');
+const debugOpinioniRoutes = require('./routes/debug-opinioni');
+const attivistiRoutes = require('./routes/attivisti');
+const organizzazioniRoutes = require('./routes/organizzazioni');
+const organizzazioniSostenitoriRoutes = require('./routes/organizzazioni-sostenitori');
+const attivismoTipologieRoutes = require('./routes/attivismo-tipologie');
+const gdprRightsRoutes = require('./routes/user/gdpr-rights');
+const politicalOpinionsConsentRoutes = require('./routes/user/political-opinions-consent');
+const registrationConsentsRoutes = require('./routes/user/registration-consents');
+const gdprRequestsRoutes = require('./routes/user/gdpr-requests');
+const downloadDataRoutes = require('./routes/user/download-data');
+const deleteAccountRoutes = require('./routes/user/delete-account');
+const privacySettingsRoutes = require('./routes/user/privacy-settings');
+const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
+const dataRetentionRoutes = require('./routes/admin/data-retention');
+const violationRoutes = require('./routes/admin/violations');
+const backupRoutes = require('./routes/admin/backup');
+const rateLimitingRoutes = require('./routes/admin/rate-limiting');
+const validationRoutes = require('./routes/admin/validation');
+const loggingRoutes = require('./routes/admin/logging');
+const monitoringRoutes = require('./routes/admin/monitoring');
+const securityMetricsRoutes = require('./routes/admin/security-metrics');
+const dataExportRoutes = require('./routes/admin/data-export');
+const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
+const axiomDataRoutes = require('./routes/admin/axiom-data');
+const migrationsRoutes = require('./routes/migrations');
+const cleanupRoutes = require('./routes/cleanup');
+const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
+const segnalazioniRoutes = require('./routes/segnalazioni');
+const programmaRoutes = require('./routes/programma');
+const riconoscimentiRoutes = require('./routes/riconoscimenti');
+const testPerformanceRoutes = require('./routes/test-performance');
+const statisticheRoutes = require('./routes/statistiche');
+const ministeroRoutes = require('./routes/ministero');
+const votiPoliticiRoutes = require('./routes/voti-politici');
+const votiCameraRoutes = require('./routes/voti-camera');
+const votiParlamentoEuropeoRoutes = require('./routes/voti-parlamento-europeo');
+const bachecaRoutes = require('./routes/bacheca');
+// const testMiddlewareRoutes = require('./routes/test-middleware');
+// const testSimpleRoutes = require('./routes/test-simple');
+// const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
+const auditManager = require('./services/auditManager');
+const dataRetentionJob = require('./jobs/dataRetentionJob');
+const violationMonitoringJob = require('./jobs/violationMonitoringJob');
+const backupJob = require('./jobs/backupJob');
+const ministeroSyncJob = require('./jobs/ministeroSyncJob');
+const { startVotiParlamentoSyncJob } = require('./jobs/votiParlamentoSyncJob');
+const { startOpenpolisCosaSuccedeJob } = require('./jobs/openpolisCosaSuccedeJob');
+const { startOpenpolisVotazioniFinaliJob } = require('./jobs/openpolisVotazioniFinaliJob');
+
+// Import rate limiting middleware
+const {
+  generalLimiter,
+  authLimiter,
+  registrationLimiter,
+  passwordResetLimiter,
+  adminLimiter,
+  userLimiter,
+  speedLimiter,
+  uploadLimiter,
+  publicLimiter
+} = require('./middleware/rateLimiting');
+
+const app = express();
+
+// Configurazione per proxy (necessario per rate limiting in produzione)
+// In produzione, fidati solo dei proxy di Render
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1); // Fidati solo del primo proxy (Render)
+} else {
+  app.set('trust proxy', false); // In sviluppo, non fidarti di proxy per evitare errori di rate limiting
+}
+
+// CORS - Configurazione semplificata e robusta
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Lista degli origin consentiti
+    const allowedOrigins = [
+      'https://www.demos.community',
+      'https://demos.community',
+      'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173'
+    ];
+    
+    // Permetti richieste senza origin (es. Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS: Origin autorizzato:', origin);
+      callback(null, true);
+    } else {
+      console.log('🚨 CORS: Origin non autorizzato:', origin);
+      callback(new Error('Non autorizzato da CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  optionsSuccessStatus: 200
+};
+
+// Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log('🌐 CORS Middleware - Origin:', origin);
+  
+  // Lista degli origin consentiti
+  const allowedOrigins = [
+    'https://www.demos.community',
+    'https://demos.community',
+    'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    console.log('✅ CORS: Header impostati per origin:', origin);
+  } else if (origin) {
+    console.log('🚨 CORS: Origin non autorizzato:', origin);
+  }
+  
+  next();
+});
+
+// Gestione esplicita delle richieste OPTIONS per CORS
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  console.log('🔍 CORS OPTIONS richiesta da:', origin);
+  
+  // Lista degli origin consentiti
+  const allowedOrigins = [
+    'https://www.demos.community',
+    'https://demos.community',
+    'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    console.log('✅ CORS OPTIONS: Header impostati per origin:', origin);
+  } else if (origin) {
+    console.log('🚨 CORS OPTIONS: Origin non autorizzato:', origin);
+  }
+  
+  res.status(200).end();
+});
+
+app.use(cors(corsOptions));
+
+// DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+    if (req.originalUrl.includes('send-demos-notification')) {
+      console.log(`🔴 ========== UNIVERSAL LOG: RICHIESTA send-demos-notification ==========`);
+      console.log(`🔴 Method: ${req.method}`);
+      console.log(`🔴 URL: ${req.originalUrl}`);
+      console.log(`🔴 Path: ${req.path}`);
+      console.log(`🔴 Headers: ${JSON.stringify(req.headers)}`);
+    }
+    if (req.originalUrl.includes('send-user-notification')) {
+      console.log(`🟣 ========== UNIVERSAL LOG: RICHIESTA send-user-notification ==========`);
+      console.log(`🟣 Method: ${req.method}`);
+      console.log(`🟣 URL: ${req.originalUrl}`);
+      console.log(`🟣 Path: ${req.path}`);
+      console.log(`🟣 Base URL: ${req.baseUrl}`);
+      console.log(`🟣 Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
+      console.log(`🟣 Body: ${JSON.stringify(req.body)}`);
+    }
+    next();
+  });
+}
+
+// Middleware di sicurezza
+app.use(securityHeaders);
+app.use(securityMiddleware);
+app.use(securityLogger);
+
+// Middleware di logging centralizzato
+app.use(requestLoggingMiddleware);
+
+// Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// RATE LIMITING - Applica limiti generali DOPO il CORS
+app.use(generalLimiter);
+app.use(speedLimiter);
+
+// Route di base per evitare errori "Route non trovata"
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Demos API Server', 
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.head('/', (req, res) => {
+  res.status(200).end();
+});
+
+
+// Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`📡 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    console.log(`🌐 Origin: ${req.headers.origin || 'Nessuna'}`);
+    console.log(`🔗 Referer: ${req.headers.referer || 'Nessuna'}`);
+    if (req.path === '/api/auth/register' && req.method === 'POST') {
+      console.log('🚨 DEBUG: Richiesta POST /api/auth/register rilevata!');
+      console.log('🚨 DEBUG: Headers:', req.headers);
+      console.log('🚨 DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
+    }
+    if (req.path.startsWith('/api/auth/') && req.method === 'POST') {
+      console.log('🔍 DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
+      console.log('🔍 DEBUG: Body presente:', !!req.body);
+      console.log('🔍 DEBUG: Content-Type:', req.headers['content-type']);
+    }
+    if (req.path === '/api/auth/login' || req.path === '/auth/login') {
+      console.log('🔐 LOGIN REQUEST DETECTED:', req.method, req.path);
+    }
+    if (req.path === '/api/referendum-abrogativi' && req.method === 'POST') {
+      console.log('📋 REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
+      console.log('📋 REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
+      console.log('📋 REFERENDUM POST - Body:', JSON.stringify(req.body));
+    }
+    next();
+  });
+}
+
+// Route di base
+app.use('/api', healthRoutes);
+
+// Route per database
+app.use('/api', databaseRoutes);
+
+// Route per compatibilità frontend
+app.use('/api', compatibilityRoutes);
+
+// Route per servizi
+app.use('/api', servicesRoutes);
+
+// Route di test
+app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
+app.use('/api/test-add-opinione', testAddOpinioneRoutes);
+
+// Route modulari con rate limiting specifico
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', clearTokenRoutes);
+app.use('/api/users', userLimiter, userRoutes);
+app.use('/api/opinioni', userLimiter, opinioniRoutes);
+app.use('/api/opinioni-proposte', publicLimiter, opinioniProposteRoutes);
+// Applica userLimiter per richieste autenticate, publicLimiter per quelle non autenticate
+// Il publicLimiter salta automaticamente le richieste con token Bearer
+app.use('/api/governo', publicLimiter, userLimiter, governoRoutes);
+app.use('/api/governo/ministro', publicLimiter, userLimiter, governoMinistroRoutes);
+app.use('/api/rappresentanti', publicLimiter, userLimiter, rappresentantiRoutes);
+app.use('/api/notifiche', publicLimiter, userLimiter, notificheRoutes);
+app.use('/api/notifiche-totali', userLimiter, notificheTotaliRoutes);
+app.use('/api/fcm-tokens', userLimiter, fcmTokensRoutes);
+app.use('/api/test-db', publicLimiter, testDbRoutes);
+app.use('/api/eventi', publicLimiter, eventiRoutes);
+app.use('/api/grazia', publicLimiter, graziaRoutes);
+app.use('/api/amnistia', publicLimiter, amnistiaRoutes);
+app.use('/api/capo-stato', publicLimiter, capoStatoRoutes);
+app.use('/api/elezioni', publicLimiter, elezioniRoutes);
+app.use('/api/elezioni-utente', publicLimiter, elezioniRoutes);
+app.use('/api/ice', iceRoutes);
+app.use('/api/eci', eciRoutes);
+app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
+app.use('/api/referendum-abrogativi', referendumAbrogativiRoutes);
+app.use('/api/referendum', referendumRoutes);
+app.use('/api/comunicazioni', comunicazioniRoutes);
+app.use('/api/informa-cittadini', informaCittadiniRoutes);
+app.use('/api/avvistamenti', avvistamentiRoutes);
+app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
+app.use('/api/sostenitori', sostenitoriRoutes);
+app.use('/api/sostenitori', sostenitoriTotaleRoutes);
+app.use('/api/rappresentanti', rappresentantiSostenitoriRoutes);
+app.use('/api/candidati', candidatiSostenitoriRoutes);
+app.use('/api/attivisti', attivistiSostenitoriRoutes);
+app.use('/api/organizzazioni', organizzazioniSostenitoriRoutes);
+app.use('/api/migrate', migrateRoutes);
+app.use('/api/sondaggi', sondaggiRoutes);
+app.use('/api/segnalazioni', segnalazioniRoutes);
+app.use('/api/programma', userLimiter, programmaRoutes);
+app.use('/api/test-performance', testPerformanceRoutes);
+app.use('/api/statistiche', publicLimiter, statisticheRoutes);
+app.use('/api/ministero', publicLimiter, ministeroRoutes);
+app.use('/api/voti-politici', userLimiter, votiPoliticiRoutes);
+app.use('/api/voti-parlamento-europeo', userLimiter, votiParlamentoEuropeoRoutes);
+app.use('/api/voti-camera', userLimiter, votiCameraRoutes);
+app.use('/api/bacheca', userLimiter, bachecaRoutes);
+// app.use('/api/test', testMiddlewareRoutes);
+// app.use('/api/test', testSimpleRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/candidati', candidatiRoutes);
+app.use('/api/fix-database', fixDatabaseRoutes);
+app.use('/api/debug-opinioni', debugOpinioniRoutes);
+app.use('/api/attivisti', attivistiRoutes);
+app.use('/api/organizzazioni', organizzazioniRoutes);
+app.use('/api/attivismo-tipologie', attivismoTipologieRoutes);
+app.use('/api/riconoscimenti', userLimiter, riconoscimentiRoutes);
+
+// Route per diritti GDPR
+app.use('/api/user', userLimiter, gdprRightsRoutes);
+app.use('/api/user/gdpr-requests', userLimiter, gdprRequestsRoutes);
+
+// Route per download dati
+app.use('/api/user/download-data', userLimiter, downloadDataRoutes);
+
+// Route per cancellazione account
+app.use('/api/user/delete-account', userLimiter, deleteAccountRoutes);
+
+// Route per impostazioni privacy
+app.use('/api/user/privacy-settings', userLimiter, privacySettingsRoutes);
+
+// Route per consenso opinioni politiche (GDPR Art. 9)
+app.use('/api/user/political-opinions-consent', userLimiter, politicalOpinionsConsentRoutes);
+// Route per consensi dati in fase di registrazione (privacy + termini)
+app.use('/api/user/registration-consents', userLimiter, registrationConsentsRoutes);
+
+// Route per dashboard audit
+app.use('/api/admin/audit-dashboard', adminLimiter, auditDashboardRoutes);
+
+// Route per data retention
+app.use('/api/admin/data-retention', adminLimiter, dataRetentionRoutes);
+
+// Route per violazioni e notifiche
+app.use('/api/admin/violations', adminLimiter, violationRoutes);
+
+// Route per backup e recovery
+app.use('/api/admin/backup', adminLimiter, backupRoutes);
+
+// Route per rate limiting dashboard
+app.use('/api/admin/rate-limiting', adminLimiter, rateLimitingRoutes);
+
+// Route per validation dashboard
+app.use('/api/admin/validation', adminLimiter, validationRoutes);
+
+// Route per logging centralizzato
+app.use('/api/admin/logging', adminLimiter, loggingRoutes);
+
+// Route per export dati
+app.use('/api/admin/data-export', adminLimiter, dataExportRoutes);
+
+// Route per migrazione Axiom
+app.use('/api/admin/axiom-migration', adminLimiter, axiomMigrationRoutes);
+
+// Route per dati Axiom (tabella)
+app.use('/api/admin/axiom-data', adminLimiter, axiomDataRoutes);
+
+// Route per monitoraggio performance e salute
+app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
+app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
+
+// Route per migrazioni database (TEMPORANEA - rimuovere dopo l'esecuzione)
+app.use('/api/migrations', migrationsRoutes);
+
+// Route per pulizia database (temporanea)
+app.use('/api/cleanup', cleanupRoutes);
+app.use('/api/cleanup', cleanupRateLimitRoutes);
+
+// Route per test rate limiting
+const testRateLimitRoutes = require('./routes/test-rate-limit');
+app.use('/api/test', testRateLimitRoutes);
+
+// Gestione errori 404
+app.use('*', (req, res) => {
+  console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    error: 'Route non trovata',
+    message: `La route ${req.method} ${req.originalUrl} non esiste`
+  });
+});
+
+// Middleware gestione errori globale (riceve errori da route async grazie a express-async-errors)
+app.use((error, req, res, next) => {
+  console.error('💥 Errore globale:', error);
+  if (error && error.stack) console.error('💥 Stack:', error.stack);
+
+  logger.logError(error, req, {
+    globalError: true,
+    endpoint: req.originalUrl,
+    method: req.method
+  }).catch(logError => {
+    console.error('❌ Errore logging errore globale:', logError);
+  });
+
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Si è verificato un errore imprevisto'
+    });
+  }
+});
+
+// Avvia sistema di audit logging
+auditManager.start();
+
+// Avvia sistema di monitoraggio performance
+const performanceMonitor = require('./services/performanceMonitor');
+performanceMonitor.start(30000); // 30 secondi
+
+// Avvia sistema di ottimizzazione performance
+const performanceOptimizer = require('./services/performanceOptimizer');
+performanceOptimizer.start();
+
+// Avvia job di data retention (solo se abilitato)
+if (process.env.ENABLE_DATA_RETENTION === 'true') {
+  dataRetentionJob.start();
+}
+
+// Avvia job di monitoraggio violazioni (solo se abilitato)
+if (process.env.ENABLE_VIOLATION_MONITORING === 'true') {
+  violationMonitoringJob.start();
+}
+
+// Avvia job di backup automatico (solo se abilitato)
+if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
+  backupJob.start();
+}
+
+// Avvia job di sincronizzazione Ministero (sempre attivo)
+if (process.env.ENABLE_MINISTERO_SYNC !== 'false') {
+  ministeroSyncJob.start();
+}
+
+// Avvia job di sincronizzazione votazioni parlamentari (sempre attivo)
+if (process.env.ENABLE_VOTI_PARLAMENTO_SYNC !== 'false') {
+  startVotiParlamentoSyncJob();
+}
+
+// Avvia job Openpolis "Cosa succede" (ultimi DDL approvati per titoli descrittivi)
+if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC !== 'false') {
+  startOpenpolisCosaSuccedeJob();
+  // Esegui un sync iniziale in background così la prima richiesta ha già i titoli
+  const { runOpenpolisCosaSuccedeSync } = require('./jobs/openpolisCosaSuccedeJob');
+  setImmediate(() => runOpenpolisCosaSuccedeSync().catch(() => {}));
+
+  startOpenpolisVotazioniFinaliJob();
+  const { runOpenpolisVotazioniFinaliSync } = require('./jobs/openpolisVotazioniFinaliJob');
+  setImmediate(() => runOpenpolisVotazioniFinaliSync().catch(() => {}));
+}
+
+module.exports = app;

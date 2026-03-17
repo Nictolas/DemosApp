@@ -1,0 +1,186 @@
+/* ===== SISTEMA RESPONSIVE MODERNO ===== */
+
+/* Variabili CSS moderne */
+:root {
+  --menu-button-height: 200px;
+  --menu-button-min-height: 120px;
+  --menu-button-max-height: 200px;
+  --container-padding-bottom: 96px;
+  --grid-gap: 12px;
+  --available-height: 400px;
+}
+
+/* Layout moderno con CSS Grid */
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(auto-fit, minmax(var(--menu-button-min-height), 1fr));
+  gap: var(--grid-gap);
+  height: var(--available-height);
+  container-type: inline-size;
+}
+
+/* Pulsanti del menu con altezza dinamica */
+.menu-button {
+  height: var(--menu-button-height);
+  min-height: var(--menu-button-min-height);
+  max-height: var(--menu-button-max-height);
+  transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Container queries per adattamento automatico */
+@container (max-height: 400px) {
+  .menu-button {
+    height: calc(var(--available-height) / 2 - var(--grid-gap));
+    min-height: 80px;
+    max-height: 120px;
+  }
+}
+
+@container (min-height: 401px) and (max-height: 600px) {
+  .menu-button {
+    height: calc(var(--available-height) / 2 - var(--grid-gap));
+    min-height: 120px;
+    max-height: 200px;
+  }
+}
+
+@container (min-height: 601px) {
+  .menu-button {
+    height: calc(var(--available-height) / 2 - var(--grid-gap));
+    min-height: 150px;
+    max-height: 250px;
+  }
+}
+
+/* Categorie dispositivo specifiche */
+.device-small-phone {
+  --menu-button-min-height: 80px;
+  --menu-button-max-height: 120px;
+  --grid-gap: 8px;
+}
+
+.device-phone {
+  --menu-button-min-height: 120px;
+  --menu-button-max-height: 200px;
+  --grid-gap: 12px;
+}
+
+.device-large-phone {
+  --menu-button-min-height: 150px;
+  --menu-button-max-height: 250px;
+  --grid-gap: 16px;
+}
+
+.device-tablet {
+  --menu-button-min-height: 180px;
+  --menu-button-max-height: 280px;
+  --grid-gap: 20px;
+}
+
+.device-desktop {
+  --menu-button-min-height: 200px;
+  --menu-button-max-height: 300px;
+  --grid-gap: 24px;
+}
+
+/* Container con padding dinamico */
+.page-with-navbar {
+  padding-bottom: var(--container-padding-bottom);
+  min-height: calc(100vh - var(--container-padding-bottom));
+}
+
+/* Supporto per safe areas */
+@supports (padding: max(0px)) {
+  .page-with-navbar {
+    padding-bottom: max(var(--container-padding-bottom), env(safe-area-inset-bottom));
+  }
+}
+
+/* Viewport units dinamici (nuovo standard) */
+@supports (height: 100dvh) {
+  .menu-grid {
+    height: calc(100dvh - 6rem - env(safe-area-inset-bottom) - 200px);
+  }
+}
+
+/* Fallback per browser che non supportano dvh */
+@supports not (height: 100dvh) {
+  .menu-grid {
+    height: calc(100vh - 6rem - env(safe-area-inset-bottom) - 200px);
+  }
+}
+
+/* Media queries moderne per breakpoints precisi */
+@media (max-width: 359px) {
+  .menu-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 360px) and (max-width: 413px) {
+  .menu-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 414px) and (max-width: 767px) {
+  .menu-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .menu-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .menu-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+/* Ottimizzazioni per orientamento */
+@media (orientation: landscape) and (max-height: 500px) {
+  .menu-grid {
+    height: calc(100vh - 4rem - env(safe-area-inset-bottom) - 150px);
+  }
+  
+  .menu-button {
+    min-height: 60px;
+    max-height: 100px;
+  }
+}
+
+/* Animazioni fluide */
+.menu-button,
+.menu-grid,
+.page-with-navbar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus e accessibilità */
+.menu-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Supporto per preferenze di movimento ridotto */
+@media (prefers-reduced-motion: reduce) {
+  .menu-button,
+  .menu-grid,
+  .page-with-navbar {
+    transition: none;
+  }
+}

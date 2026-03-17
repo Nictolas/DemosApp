@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend - DemosApp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Frontend - DemosApp</h1>
+    <p>Testa le funzionalità implementate nel frontend</p>
+
+    <div class="test-section">
+        <h2>1. Test Connessione API</h2>
+        <button class="test-button" onclick="testApiConnection()">Test Connessione</button>
+        <div id="api-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Pagine Legali</h2>
+        <button class="test-button" onclick="testLegalPages()">Test Pagine Legali</button>
+        <div id="legal-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test GDPR Rights</h2>
+        <button class="test-button" onclick="testGDPRRights()">Test GDPR Rights</button>
+        <div id="gdpr-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test Data Retention</h2>
+        <button class="test-button" onclick="testDataRetention()">Test Data Retention</button>
+        <div id="retention-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Test Responsive Design</h2>
+        <button class="test-button" onclick="testResponsive()">Test Responsive</button>
+        <div id="responsive-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. Test Performance</h2>
+        <button class="test-button" onclick="testPerformance()">Test Performance</button>
+        <div id="performance-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        async function testApiConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/candidati/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('api-result', `✅ API Connessa: ${data.message}`, 'success');
+                } else {
+                    showResult('api-result', `❌ Errore API: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('api-result', `❌ Errore di connessione: ${error.message}`, 'error');
+            }
+        }
+
+        function testLegalPages() {
+            const pages = [
+                '/privacy-policy',
+                '/terms-of-service',
+                '/cookie-policy',
+                '/security-measures'
+            ];
+            
+            let results = [];
+            
+            pages.forEach(page => {
+                const link = document.createElement('a');
+                link.href = page;
+                link.target = '_blank';
+                link.textContent = page;
+                link.style.display = 'block';
+                link.style.margin = '5px 0';
+                link.style.color = '#007bff';
+                
+                results.push(link.outerHTML);
+            });
+            
+            showResult('legal-result', `
+                <div class="result info">
+                    <strong>Pagine Legali Disponibili:</strong><br>
+                    ${results.join('')}
+                    <p><strong>Test:</strong> Clicca sui link per verificare che le pagine si carichino correttamente</p>
+                </div>
+            `, 'info');
+        }
+
+        function testGDPRRights() {
+            showResult('gdpr-result', `
+                <div class="result info">
+                    <strong>Test GDPR Rights:</strong><br>
+                    <a href="/gdpr-rights" target="_blank" style="color: #007bff;">/gdpr-rights</a><br>
+                    <p><strong>Verifica:</strong></p>
+                    <ul>
+                        <li>La pagina si carica senza errori</li>
+                        <li>I form sono funzionanti</li>
+                        <li>I pulsanti rispondono ai click</li>
+                        <li>Il design è responsive</li>
+                    </ul>
+                </div>
+            `, 'info');
+        }
+
+        function testDataRetention() {
+            showResult('retention-result', `
+                <div class="result info">
+                    <strong>Test Data Retention:</strong><br>
+                    <a href="/data-retention" target="_blank" style="color: #007bff;">/data-retention</a><br>
+                    <p><strong>Verifica:</strong></p>
+                    <ul>
+                        <li>La pagina si carica senza errori</li>
+                        <li>Le statistiche vengono visualizzate</li>
+                        <li>I pulsanti di controllo funzionano</li>
+                        <li>Le policy sono visibili</li>
+                    </ul>
+                </div>
+            `, 'info');
+        }
+
+        function testResponsive() {
+            const breakpoints = [
+                { name: 'Mobile', width: '375px' },
+                { name: 'Tablet', width: '768px' },
+                { name: 'Desktop', width: '1200px' }
+            ];
+            
+            let results = breakpoints.map(bp => 
+                `<div style="margin: 5px 0;">
+                    <strong>${bp.name}:</strong> 
+                    <button onclick="testBreakpoint('${bp.width}')" class="test-button" style="font-size: 12px; padding: 5px 10px;">
+                        Test ${bp.width}
+                    </button>
+                </div>`
+            ).join('');
+            
+            showResult('responsive-result', `
+                <div class="result info">
+                    <strong>Test Responsive Design:</strong><br>
+                    ${results}
+                    <p><strong>Istruzioni:</strong> Clicca sui pulsanti per testare diverse dimensioni di schermo</p>
+                </div>
+            `, 'info');
+        }
+
+        function testBreakpoint(width) {
+            const testWindow = window.open('', '_blank', `width=${width},height=600`);
+            testWindow.document.write(`
+                <html>
+                    <head><title>Test ${width}</title></head>
+                    <body>
+                        <h1>Test Responsive - ${width}</h1>
+                        <p>Questa finestra simula uno schermo di ${width} di larghezza</p>
+                        <p>Verifica che il layout sia corretto e responsive</p>
+                        <button onclick="window.close()">Chiudi</button>
+                    </body>
+                </html>
+            `);
+        }
+
+        function testPerformance() {
+            const startTime = performance.now();
+            
+            // Simula operazioni pesanti
+            setTimeout(() => {
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                let performanceLevel;
+                if (duration < 100) {
+                    performanceLevel = 'Ottimo';
+                } else if (duration < 500) {
+                    performanceLevel = 'Buono';
+                } else if (duration < 1000) {
+                    performanceLevel = 'Accettabile';
+                } else {
+                    performanceLevel = 'Lento';
+                }
+                
+                showResult('performance-result', `
+                    <div class="result ${duration < 500 ? 'success' : 'error'}">
+                        <strong>Test Performance:</strong><br>
+                        Tempo di risposta: ${duration.toFixed(2)}ms<br>
+                        Livello: ${performanceLevel}<br>
+                        <p><strong>Raccomandazioni:</strong></p>
+                        <ul>
+                            <li>Verifica la velocità di caricamento delle pagine</li>
+                            <li>Controlla le dimensioni delle immagini</li>
+                            <li>Ottimizza i CSS e JavaScript</li>
+                        </ul>
+                    </div>
+                `, duration < 500 ? 'success' : 'error');
+            }, 100);
+        }
+
+        // Test automatico all'avvio
+        window.onload = function() {
+            console.log('🧪 Test Frontend avviati automaticamente');
+            testApiConnection();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+# File di sviluppo
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+node_modules/
+client/node_modules/
+
+# Build artifacts
+client/dist/
+dist/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test files
+*.test.js
+*.spec.js
+test/
+tests/
+
+# Scripts di migrazione e utility
+*.cjs
+migrate-*.js
+check-*.js
+add-*.js
+fix-*.js
+test-*.js
+*.ipynb
+
+# Documentazione
+*.md
+!README.md
+
+# Firebase
+firebase/
+serviceAccountKey.json
+
+# Altri file
+build.sh

@@ -1,0 +1,87 @@
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useLocation } from "wouter";
+
+const cognomeSchema = z.object({
+  cognome: z.string().min(2, "Il cognome deve contenere almeno 2 caratteri").max(50, "Il cognome è troppo lungo"),
+});
+
+type CognomeValues = z.infer<typeof cognomeSchema>;
+
+export default function RegistrazioneCognome() {
+  const [, navigate] = useLocation();
+
+  const form = useForm<CognomeValues>({
+    resolver: zodResolver(cognomeSchema),
+    defaultValues: {
+      cognome: "",
+    },
+  });
+
+  const onSubmit = (data: CognomeValues) => {
+    localStorage.setItem("registrazione_cognome", data.cognome);
+    navigate("/registrazione-data-nascita");
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Registrazione</h1>
+          
+        </div>
+
+        <div className="text-center mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Qual è il tuo cognome?
+          </h2>
+          <p className="text-gray-600 text-sm">
+            Inserisci il tuo cognome di famiglia
+          </p>
+        </div>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="cognome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg font-medium">Cognome *</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Il tuo cognome"
+                      className="w-full h-12 text-lg text-center"
+                      autoFocus
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full h-12 text-lg">
+              Continua
+            </Button>
+          </form>
+        </Form>
+
+        <div className="text-center mt-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/registrazione-cittadinanza")}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ← Indietro
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
