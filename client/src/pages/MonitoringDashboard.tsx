@@ -68,7 +68,7 @@ const MonitoringDashboard: React.FC = () => {
   const loadSystemHealth = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/monitoring/health');
+      const response = await apiRequest('GET', '/admin/monitoring/health');
       if (response.success) {
         setSystemHealth(response.data);
       }
@@ -83,7 +83,7 @@ const MonitoringDashboard: React.FC = () => {
   const loadPerformanceMetrics = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/monitoring/performance');
+      const response = await apiRequest('GET', '/admin/monitoring/performance');
       if (response.success) {
         setPerformanceMetrics(response.data.metrics);
       }
@@ -98,7 +98,7 @@ const MonitoringDashboard: React.FC = () => {
   const loadSummary = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/monitoring/summary');
+      const response = await apiRequest('GET', '/admin/monitoring/summary');
       if (response.success) {
         setSummary(response.data);
       }
@@ -112,7 +112,7 @@ const MonitoringDashboard: React.FC = () => {
   // Carica stato monitoraggio
   const loadMonitoringStatus = async () => {
     try {
-      const response = await apiRequest('/admin/monitoring/status');
+      const response = await apiRequest('GET', '/admin/monitoring/status');
       if (response.success) {
         setIsMonitoring(response.data.isMonitoring);
       }
@@ -126,10 +126,10 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       if (isMonitoring) {
-        await apiRequest('/admin/monitoring/stop', 'POST');
+        await apiRequest('POST', '/admin/monitoring/stop');
         setIsMonitoring(false);
       } else {
-        await apiRequest('/admin/monitoring/start', 'POST', { intervalMs: 30000 });
+        await apiRequest('POST', '/admin/monitoring/start', { intervalMs: 30000 });
         setIsMonitoring(true);
       }
     } catch (err) {
