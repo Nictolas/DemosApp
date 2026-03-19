@@ -64,6 +64,16 @@ export const gestisciSections: GestisciSection[] = [
     buttonText: "Apri Dashboard Sicurezza"
   },
   {
+    id: "monitoring-dashboard",
+    title: "Monitoring Performance",
+    description: "Avvia/ferma il monitoraggio e vedi le metriche di performance del sistema",
+    icon: BarChart3,
+    color: "text-indigo-600 group-hover:text-indigo-800",
+    buttonColor: "bg-indigo-500 hover:bg-indigo-600",
+    route: "/monitoring-dashboard",
+    buttonText: "Apri Monitoring"
+  },
+  {
     id: "gdpr-legal-consolidated",
     title: "Gestione GDPR e Legale",
     description: "Gestisci diritti GDPR, data retention e documenti legali in un'unica interfaccia",
