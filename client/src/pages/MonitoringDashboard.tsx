@@ -69,10 +69,17 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/admin/monitoring/health');
-      const payload = response?.data;
-      if (payload?.success) {
-        setSystemHealth(payload.data);
+      const serverPayload = response?.data ?? response;
+      if (serverPayload?.success === true) {
+        setSystemHealth(serverPayload.data);
+        return;
       }
+      // Fallback: in alcuni casi la response può già contenere healthStatus direttamente
+      if (serverPayload?.summary && serverPayload?.checks) {
+        setSystemHealth(serverPayload);
+        return;
+      }
+      setError('Risposta non valida da /admin/monitoring/health');
     } catch (err) {
       setError('Errore caricamento stato salute');
     } finally {
@@ -85,10 +92,17 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/admin/monitoring/performance');
-      const payload = response?.data;
-      if (payload?.success) {
-        setPerformanceMetrics(payload.data.metrics);
+      const serverPayload = response?.data ?? response;
+      if (serverPayload?.success === true) {
+        setPerformanceMetrics(serverPayload.data.metrics);
+        return;
       }
+      // Fallback: prova a estrarre direttamente
+      if (serverPayload?.metrics) {
+        setPerformanceMetrics(serverPayload.metrics);
+        return;
+      }
+      setError('Risposta non valida da /admin/monitoring/performance');
     } catch (err) {
       setError('Errore caricamento metriche performance');
     } finally {
@@ -101,10 +115,16 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/admin/monitoring/summary');
-      const payload = response?.data;
-      if (payload?.success) {
-        setSummary(payload.data);
+      const serverPayload = response?.data ?? response;
+      if (serverPayload?.success === true) {
+        setSummary(serverPayload.data);
+        return;
       }
+      if (serverPayload?.last24h) {
+        setSummary(serverPayload);
+        return;
+      }
+      setError('Risposta non valida da /admin/monitoring/summary');
     } catch (err) {
       setError('Errore caricamento riepilogo');
     } finally {
@@ -116,9 +136,14 @@ const MonitoringDashboard: React.FC = () => {
   const loadMonitoringStatus = async () => {
     try {
       const response = await apiRequest('GET', '/admin/monitoring/status');
-      const payload = response?.data;
-      if (payload?.success) {
-        setIsMonitoring(payload.data.isMonitoring);
+      const serverPayload = response?.data ?? response;
+      if (serverPayload?.success === true) {
+        setIsMonitoring(!!serverPayload.data.isMonitoring);
+        return;
+      }
+      if (typeof serverPayload?.isMonitoring === 'boolean') {
+        setIsMonitoring(serverPayload.isMonitoring);
+        return;
       }
     } catch (err) {
       console.error('Errore caricamento stato monitoraggio:', err);
