@@ -69,8 +69,9 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/admin/monitoring/health');
-      if (response.success) {
-        setSystemHealth(response.data);
+      const payload = response?.data;
+      if (payload?.success) {
+        setSystemHealth(payload.data);
       }
     } catch (err) {
       setError('Errore caricamento stato salute');
@@ -84,8 +85,9 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/admin/monitoring/performance');
-      if (response.success) {
-        setPerformanceMetrics(response.data.metrics);
+      const payload = response?.data;
+      if (payload?.success) {
+        setPerformanceMetrics(payload.data.metrics);
       }
     } catch (err) {
       setError('Errore caricamento metriche performance');
@@ -99,8 +101,9 @@ const MonitoringDashboard: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiRequest('GET', '/admin/monitoring/summary');
-      if (response.success) {
-        setSummary(response.data);
+      const payload = response?.data;
+      if (payload?.success) {
+        setSummary(payload.data);
       }
     } catch (err) {
       setError('Errore caricamento riepilogo');
@@ -113,8 +116,9 @@ const MonitoringDashboard: React.FC = () => {
   const loadMonitoringStatus = async () => {
     try {
       const response = await apiRequest('GET', '/admin/monitoring/status');
-      if (response.success) {
-        setIsMonitoring(response.data.isMonitoring);
+      const payload = response?.data;
+      if (payload?.success) {
+        setIsMonitoring(payload.data.isMonitoring);
       }
     } catch (err) {
       console.error('Errore caricamento stato monitoraggio:', err);
