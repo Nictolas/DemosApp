@@ -201,9 +201,9 @@ router.get('/summary', auditMiddleware, async (req, res) => {
           }
         },
         trends: {
-          cpuTrend: this.calculateTrend(historicalMetrics.map(m => m.cpu_usage)),
-          memoryTrend: this.calculateTrend(historicalMetrics.map(m => m.memory_usage)),
-          errorTrend: this.calculateTrend(historicalMetrics.map(m => m.error_count))
+          cpuTrend: calculateTrend(historicalMetrics.map(m => m.cpu_usage)),
+          memoryTrend: calculateTrend(historicalMetrics.map(m => m.memory_usage)),
+          errorTrend: calculateTrend(historicalMetrics.map(m => m.error_count))
         }
       }
     });
