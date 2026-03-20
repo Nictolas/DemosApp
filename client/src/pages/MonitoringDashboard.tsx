@@ -72,7 +72,20 @@ const MonitoringDashboard: React.FC = () => {
       const response = await apiRequest('GET', '/admin/monitoring/health');
       const serverPayload = response?.data ?? response;
       if (serverPayload?.success === true) {
-        setSystemHealth(serverPayload.data);
+        // Validazione minima della shape attesa
+        if (serverPayload.data?.checks && serverPayload.data?.summary) {
+          setSystemHealth(serverPayload.data);
+          return;
+        }
+        setError('Risposta non valida da /admin/monitoring/health');
+        return;
+      }
+      if (serverPayload?.error) {
+        if (String(serverPayload.error).includes('401') || String(serverPayload.error).includes('403') || String(serverPayload.error).toLowerCase().includes('forbidden')) {
+          setError('Serve ruolo admin per leggere /admin/monitoring/*');
+          return;
+        }
+        setError(`Impossibile caricare /admin/monitoring/health: ${String(serverPayload.error)}`);
         return;
       }
       // Fallback: in alcuni casi la response può già contenere healthStatus direttamente
@@ -95,7 +108,20 @@ const MonitoringDashboard: React.FC = () => {
       const response = await apiRequest('GET', '/admin/monitoring/performance');
       const serverPayload = response?.data ?? response;
       if (serverPayload?.success === true) {
-        setPerformanceMetrics(serverPayload.data.metrics);
+        const metrics = serverPayload.data?.metrics;
+        if (metrics?.application && metrics?.database && metrics?.system && metrics?.memory) {
+          setPerformanceMetrics(metrics);
+          return;
+        }
+        setError('Risposta non valida da /admin/monitoring/performance');
+        return;
+      }
+      if (serverPayload?.error) {
+        if (String(serverPayload.error).includes('401') || String(serverPayload.error).includes('403') || String(serverPayload.error).toLowerCase().includes('forbidden')) {
+          setError('Serve ruolo admin per leggere /admin/monitoring/*');
+          return;
+        }
+        setError(`Impossibile caricare /admin/monitoring/performance: ${String(serverPayload.error)}`);
         return;
       }
       // Fallback: prova a estrarre direttamente
@@ -118,11 +144,24 @@ const MonitoringDashboard: React.FC = () => {
       const response = await apiRequest('GET', '/admin/monitoring/summary');
       const serverPayload = response?.data ?? response;
       if (serverPayload?.success === true) {
-        setSummary(serverPayload.data);
+        const summaryData = serverPayload.data;
+        if (summaryData?.current && summaryData?.last24h && summaryData?.trends) {
+          setSummary(summaryData);
+          return;
+        }
+        setError('Risposta non valida da /admin/monitoring/summary');
         return;
       }
       if (serverPayload?.last24h) {
         setSummary(serverPayload);
+        return;
+      }
+      if (serverPayload?.error) {
+        if (String(serverPayload.error).includes('401') || String(serverPayload.error).includes('403') || String(serverPayload.error).toLowerCase().includes('forbidden')) {
+          setError('Serve ruolo admin per leggere /admin/monitoring/*');
+          return;
+        }
+        setError(`Impossibile caricare /admin/monitoring/summary: ${String(serverPayload.error)}`);
         return;
       }
       setError('Risposta non valida da /admin/monitoring/summary');
@@ -145,6 +184,13 @@ const MonitoringDashboard: React.FC = () => {
       if (typeof serverPayload?.isMonitoring === 'boolean') {
         setIsMonitoring(serverPayload.isMonitoring);
         return;
+      }
+      if (serverPayload?.error) {
+        if (String(serverPayload.error).includes('401') || String(serverPayload.error).includes('403') || String(serverPayload.error).toLowerCase().includes('forbidden')) {
+          setError('Serve ruolo admin per leggere /admin/monitoring/*');
+          return;
+        }
+        setError(`Impossibile caricare /admin/monitoring/status: ${String(serverPayload.error)}`);
       }
     } catch (err) {
       console.error('Errore caricamento stato monitoraggio:', err);
