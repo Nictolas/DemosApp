@@ -156,13 +156,14 @@ const MonitoringDashboard: React.FC = () => {
       setLoading(true);
       if (isMonitoring) {
         await apiRequest('POST', '/admin/monitoring/stop');
-        setIsMonitoring(false);
       } else {
         await apiRequest('POST', '/admin/monitoring/start', { intervalMs: 30000 });
-        setIsMonitoring(true);
       }
+      // Aggiorna lo stato direttamente dal server, così il bottone cambia subito
+      await loadMonitoringStatus();
     } catch (err) {
-      setError('Errore controllo monitoraggio');
+      console.error('Errore controllo monitoraggio:', err);
+      setError((err as any)?.message || 'Errore controllo monitoraggio');
     } finally {
       setLoading(false);
     }
