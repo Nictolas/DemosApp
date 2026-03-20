@@ -1,6 +1,16 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api-config";
 
+/** Stesso fallback di api-request.ts / vari componenti: evita 401 se il JWT è solo sotto un altro nome. */
+function getStoredAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken")
+  );
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -13,9 +23,7 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     'Content-Type': 'application/json',
   };
   
-  // Usa token JWT dal localStorage invece di Firebase
-  const token = localStorage.getItem('auth_token');
-  
+  const token = getStoredAuthToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -156,9 +164,7 @@ export const getQueryFn: <T>(options: {
       'Content-Type': 'application/json',
     };
     
-    // Usa token JWT dal localStorage invece di Firebase
-    const token = localStorage.getItem('auth_token');
-    
+    const token = getStoredAuthToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
