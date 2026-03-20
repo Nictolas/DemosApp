@@ -503,18 +503,20 @@ if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
   backupJob.start();
 }
 
-// Avvia job di sincronizzazione Ministero (sempre attivo)
-if (process.env.ENABLE_MINISTERO_SYNC !== 'false') {
+// Avvia job di sincronizzazione Ministero (solo se esplicitamente abilitato)
+// Se ENABLE_MINISTERO_SYNC non è presente (undefined) oppure non è "true", il job resta disabilitato.
+if (process.env.ENABLE_MINISTERO_SYNC === 'true') {
   ministeroSyncJob.start();
 }
 
-// Avvia job di sincronizzazione votazioni parlamentari (sempre attivo)
-if (process.env.ENABLE_VOTI_PARLAMENTO_SYNC !== 'false') {
+// Avvia job di sincronizzazione votazioni parlamentari (solo se esplicitamente abilitato)
+if (process.env.ENABLE_VOTI_PARLAMENTO_SYNC === 'true') {
   startVotiParlamentoSyncJob();
 }
 
 // Avvia job Openpolis "Cosa succede" (ultimi DDL approvati per titoli descrittivi)
-if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC !== 'false') {
+// (include anche i job Openpolis votazioni finali) - solo se esplicitamente abilitato.
+if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC === 'true') {
   startOpenpolisCosaSuccedeJob();
   // Esegui un sync iniziale in background così la prima richiesta ha già i titoli
   const { runOpenpolisCosaSuccedeSync } = require('./jobs/openpolisCosaSuccedeJob');
