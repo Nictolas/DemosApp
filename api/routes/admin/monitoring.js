@@ -266,6 +266,9 @@ router.post('/start', auditMiddleware, async (req, res) => {
 router.post('/stop', auditMiddleware, async (req, res) => {
   try {
     performanceMonitor.stop();
+    // Anche l'optimizer fa query al DB (es. utenti attivi, error-rate) e può continuare a bruciare compute.
+    // Stopparlo insieme al monitoraggio evita che l'uso compute prosegua nonostante tu abbia fermato "Monitoring".
+    performanceOptimizer.stop();
     
     res.json({
       success: true,
