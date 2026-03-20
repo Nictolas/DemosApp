@@ -232,10 +232,16 @@ class CentralizedLogger {
       return;
     }
     
-    // Solo se Axiom non è abilitato, salva su Neon (fallback)
+    // Solo se Axiom non è abilitato, salva su Neon (fallback) — solo se la tabella esiste ancora
     if (!this.logToDatabase) return;
 
     try {
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      if (!(await isCentralizedLogsTableAvailable())) {
+        // Log migrati su Axiom: tabella Neon rimossa — niente fallback DB
+        return;
+      }
+
       const logEntry = this.formatMessage(level, message, meta);
       
       // Usa la tabella originale centralized_logs
@@ -265,6 +271,10 @@ class CentralizedLogger {
       
       await pool.query(query, values);
     } catch (error) {
+      // 42P01 = tabella assente (es. dopo migrazione ad Axiom)
+      if (error && error.code === '42P01') {
+        return;
+      }
       console.error('❌ Errore scrittura log su database:', error);
     }
   }

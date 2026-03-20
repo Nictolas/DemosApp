@@ -253,19 +253,7 @@ class PerformanceMonitor {
   // Metriche errori
   async getErrorMetrics() {
     try {
-      // Verifica se la tabella esiste
-      const tableExists = await this.checkTableExists();
-      if (!tableExists) {
-        return {
-          timestamp: new Date().toISOString(),
-          errorsLastHour: 0,
-          warningsLastHour: 0,
-          totalIssues: 0
-        };
-      }
-
-      // Conta errori recenti dal logging centralizzato
-      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      // Se Axiom è abilitato, leggi da Axiom (anche se la tabella Neon è stata eliminata)
       if (process.env.AXIOM_ENABLED === 'true') {
         try {
           const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
@@ -298,8 +286,18 @@ class PerformanceMonitor {
           };
         }
       }
+
+      // Fallback Neon: solo se la tabella esiste ancora
+      const tableExists = await this.checkTableExists();
+      if (!tableExists) {
+        return {
+          timestamp: new Date().toISOString(),
+          errorsLastHour: 0,
+          warningsLastHour: 0,
+          totalIssues: 0
+        };
+      }
       
-      // Fallback a Neon se Axiom non è abilitato
       const query = `
         SELECT 
           level,

@@ -249,7 +249,11 @@ class PerformanceOptimizer {
         return logs.filter(log => log.level === 'ERROR' || log.level === 'E').length;
       }
       
-      // Fallback a Neon
+      // Fallback a Neon solo se la tabella esiste ancora (dopo migrazione ad Axiom spesso no)
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      if (!(await isCentralizedLogsTableAvailable())) {
+        return 0;
+      }
       const pool = getPool();
       const result = await pool.query(`
         SELECT COUNT(*) as error_count 
@@ -259,6 +263,9 @@ class PerformanceOptimizer {
       `);
       return parseInt(result.rows[0].error_count);
     } catch (error) {
+      if (error && error.code === '42P01') {
+        return 0;
+      }
       console.error('❌ Errore calcolo tasso errori:', error);
       return 0;
     }
