@@ -61,6 +61,7 @@ const MonitoringDashboard: React.FC = () => {
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
 
@@ -153,7 +154,7 @@ const MonitoringDashboard: React.FC = () => {
   // Avvia/ferma monitoraggio
   const toggleMonitoring = async () => {
     try {
-      setLoading(true);
+      setIsToggling(true);
       if (isMonitoring) {
         await apiRequest('POST', '/admin/monitoring/stop');
       } else {
@@ -165,7 +166,7 @@ const MonitoringDashboard: React.FC = () => {
       console.error('Errore controllo monitoraggio:', err);
       setError((err as any)?.message || 'Errore controllo monitoraggio');
     } finally {
-      setLoading(false);
+      setIsToggling(false);
     }
   };
 
@@ -252,7 +253,7 @@ const MonitoringDashboard: React.FC = () => {
               </Badge>
               <Button 
                 onClick={toggleMonitoring} 
-                disabled={loading}
+                disabled={isToggling}
                 variant={isMonitoring ? 'destructive' : 'default'}
               >
                 {isMonitoring ? (
