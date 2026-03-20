@@ -274,7 +274,17 @@ class HealthCheckService {
         };
       }
       
-      // Fallback a Neon
+      // Fallback Neon solo se la tabella esiste (log migrati su Axiom)
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      if (!(await isCentralizedLogsTableAvailable())) {
+        return {
+          status: 'OK',
+          message: 'Sicurezza: log su Axiom (tabella Neon non presente)',
+          securityIssues: 0,
+          timestamp: new Date().toISOString()
+        };
+      }
+
       const securityErrorsQuery = `
         SELECT COUNT(*) as count
         FROM centralized_logs 
