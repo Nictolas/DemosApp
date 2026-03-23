@@ -31,7 +31,8 @@ function safeNumber(value) {
 }
 
 // GET /api/admin/monitoring/health - Stato salute sistema
-router.get('/health', auditMiddleware, async (req, res) => {
+// NOTE: niente auditMiddleware sulle GET di monitoring per evitare punti di blocco in catena.
+router.get('/health', async (req, res) => {
   try {
     const healthStatus = await withTimeout(
       healthCheckService.runAllChecks(),
@@ -63,7 +64,7 @@ router.get('/health', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/performance - Metriche performance correnti
-router.get('/performance', auditMiddleware, async (req, res) => {
+router.get('/performance', async (req, res) => {
   try {
     const metrics = performanceMonitor.getCurrentMetrics();
     const health = performanceMonitor.getSystemHealth();
@@ -89,7 +90,7 @@ router.get('/performance', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/metrics/historical - Metriche storiche
-router.get('/metrics/historical', auditMiddleware, async (req, res) => {
+router.get('/metrics/historical', async (req, res) => {
   try {
     const hours = parseInt(req.query.hours) || 24;
     const metrics = await withTimeout(
@@ -113,7 +114,7 @@ router.get('/metrics/historical', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/health/history - Storico controlli salute
-router.get('/health/history', auditMiddleware, async (req, res) => {
+router.get('/health/history', async (req, res) => {
   try {
     const hours = parseInt(req.query.hours) || 24;
     const history = await withTimeout(
@@ -137,7 +138,7 @@ router.get('/health/history', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/alerts - Alert recenti
-router.get('/alerts', auditMiddleware, async (req, res) => {
+router.get('/alerts', async (req, res) => {
   try {
     // Verifica se Axiom è configurato
     if (process.env.AXIOM_ENABLED !== 'true') {
@@ -186,7 +187,7 @@ router.get('/alerts', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/summary - Riepilogo sistema
-router.get('/summary', auditMiddleware, async (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     // Metriche correnti
     const currentMetrics = performanceMonitor.getCurrentMetrics();
@@ -321,7 +322,7 @@ router.post('/stop', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/status - Stato monitoraggio
-router.get('/status', auditMiddleware, async (req, res) => {
+router.get('/status', async (req, res) => {
   try {
     res.json({
       success: true,
@@ -341,7 +342,7 @@ router.get('/status', auditMiddleware, async (req, res) => {
 });
 
 // GET /api/admin/monitoring/database - Metriche database dettagliate
-router.get('/database', auditMiddleware, async (req, res) => {
+router.get('/database', async (req, res) => {
   try {
     const query = `
       SELECT 
