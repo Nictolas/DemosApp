@@ -66,7 +66,7 @@ export const gestisciSections: GestisciSection[] = [
     icon: BarChart3,
     color: "text-indigo-600 group-hover:text-indigo-800",
     buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-    route: "/admin/ops-center/monitoring",
+    route: "/admin/ops-center",
     buttonText: "Apri Ops Center"
   },
   {

@@ -499,6 +499,93 @@ router.get('/disk-breakdown', async (req, res) => {
   }
 });
 
+// GET /api/admin/monitoring/platform-usage - Parametri piattaforme (live dove possibile)
+router.get('/platform-usage', async (req, res) => {
+  try {
+    const generatedAt = new Date().toISOString();
+
+    // Render: usa check disco reale (df) con fallback stimato
+    const diskCheck = await withTimeout(
+      healthCheckService.checkDiskSpace(),
+      MONITORING_TIMEOUT_MS,
+      'platform usage disk check'
+    );
+
+    // Neon: dimensione DB + connessioni attive (live)
+    let neonDbSizeBytes = null;
+    let neonActiveConnections = null;
+    try {
+      const neonResult = await withTimeout(
+        pool.query(`
+          SELECT
+            pg_database_size(current_database())::bigint as database_size_bytes,
+            (
+              SELECT count(*)
+              FROM pg_stat_activity
+              WHERE datname = current_database() AND state = 'active'
+            )::int as active_connections
+        `),
+        MONITORING_TIMEOUT_MS,
+        'platform usage neon metrics'
+      );
+      neonDbSizeBytes = safeNumber(neonResult?.rows?.[0]?.database_size_bytes);
+      neonActiveConnections = safeNumber(neonResult?.rows?.[0]?.active_connections);
+    } catch (_error) {
+      // Non bloccare la risposta se una metrica Neon non è disponibile
+    }
+
+    // Axiom: stato integrazione live da env + dati minimi diagnostici
+    const axiomEnabled = process.env.AXIOM_ENABLED === 'true';
+    const hasAxiomToken = Boolean(process.env.AXIOM_API_TOKEN);
+    const hasAxiomOrg = Boolean(process.env.AXIOM_ORG_ID);
+
+    res.json({
+      success: true,
+      data: {
+        generatedAt,
+        sources: {
+          neon: 'PostgreSQL runtime queries',
+          render: 'Server filesystem check (df)',
+          axiom: 'Runtime environment configuration'
+        },
+        platforms: {
+          neon: {
+            updatedAt: generatedAt,
+            metrics: {
+              databaseSizeBytes: neonDbSizeBytes,
+              activeConnections: neonActiveConnections
+            }
+          },
+          render: {
+            updatedAt: diskCheck?.timestamp || generatedAt,
+            metrics: {
+              diskUsedBytes: safeNumber(diskCheck?.usedBytes),
+              diskTotalBytes: safeNumber(diskCheck?.totalBytes),
+              diskPercent: safeNumber(diskCheck?.diskPercent),
+              diskIsEstimated: !!diskCheck?.isEstimated
+            }
+          },
+          axiom: {
+            updatedAt: generatedAt,
+            metrics: {
+              integrationEnabled: axiomEnabled,
+              hasToken: hasAxiomToken,
+              hasOrg: hasAxiomOrg
+            }
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore recupero platform usage:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore recupero parametri piattaforme',
+      message: error.message
+    });
+  }
+});
+
 // Funzione helper per calcolare trend
 function calculateTrend(values) {
   if (!values || values.length < 2) return 'stable';
