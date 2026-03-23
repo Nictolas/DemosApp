@@ -8,6 +8,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl, API_CONFIG } from "@/lib/api-config";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
+import { clearSessionTokens, getAuthToken, setAuthToken } from "@/lib/auth-token";
 
 // Tipi per l'autenticazione
 interface User {
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(() => {
-    const storedToken = localStorage.getItem('auth_token');
+    const storedToken = getAuthToken();
     if (storedToken) {
       // Pulisci token scaduti prima di impostare il token
       const wasCleaned = cleanupExpiredTokens();
@@ -104,16 +105,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (response.status === 401) {
           console.log('🔍 DEBUG useAuth - Token non valido o scaduto, rimuovendo');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
+          clearSessionTokens();
           setToken(null);
           return null;
         }
 
         if (response.status === 404) {
           // Utente non trovato (es. account eliminato o token non più valido)
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
+          clearSessionTokens();
           return null;
         }
 
@@ -147,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Se abbiamo token ma /me ha restituito null (es. 404), sincronizza lo state
   useEffect(() => {
     if (!isLoading && userData === null && token) {
-      if (!localStorage.getItem('auth_token')) setToken(null);
+      if (!getAuthToken()) setToken(null);
     }
   }, [isLoading, userData, token]);
 
@@ -242,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Salva il token JWT reale
-        localStorage.setItem('auth_token', userToken);
+        setAuthToken(userToken);
         setToken(userToken);
         console.log('✅ LOGIN CLIENT: Token salvato con successo');
 
@@ -274,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       // Ottieni il token appena salvato
-      const userToken = localStorage.getItem('auth_token');
+      const userToken = getAuthToken();
       
       // Salva i dati utente con la queryKey corretta che include il token
       if (userToken) {
@@ -328,7 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation<void, Error, void>({
     mutationFn: async () => {
       // Rimuovi il token localmente
-      localStorage.removeItem('auth_token');
+      clearSessionTokens();
       setToken(null);
       
       // Opzionalmente, chiama endpoint di logout
@@ -381,7 +380,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Il backend ora attiva subito l'account e può restituire anche i token.
       const userToken = result.accessToken || result.token || null;
-      localStorage.setItem('auth_token', userToken);
+      setAuthToken(userToken);
       setToken(userToken);
 
       return result.user;
