@@ -2,6 +2,7 @@ import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock
 
 export interface GestisciSection {
   id: string;
+  category: "amministrazione" | "monitoraggio-sicurezza" | "comunicazione" | "istituzionale-dati";
   title: string;
   description: string;
   icon: any;
@@ -14,6 +15,7 @@ export interface GestisciSection {
 export const gestisciSections: GestisciSection[] = [
   {
     id: "utenti",
+    category: "amministrazione",
     title: "Utenti",
     description: "Gestisci utenti e visualizza statistiche",
     icon: Users,
@@ -24,6 +26,7 @@ export const gestisciSections: GestisciSection[] = [
   },
   {
     id: "opinioni",
+    category: "amministrazione",
     title: "Gestisci Opinioni",
     description: "Aggiungi o elimina le opinioni disponibili per gli utenti",
     icon: BookOpen,
@@ -34,6 +37,7 @@ export const gestisciSections: GestisciSection[] = [
   },
   {
     id: "governo",
+    category: "amministrazione",
     title: "Gestisci Governo",
     description: "Gestisci i dati e le funzionalità relative al Governo ideale",
     icon: Trophy,
@@ -44,6 +48,7 @@ export const gestisciSections: GestisciSection[] = [
   },
   {
     id: "test-ministero",
+    category: "istituzionale-dati",
     title: "Test Ministero",
     description: "Testa l'integrazione con l'API del Ministero della Giustizia per iniziative e firme",
     icon: Building2,
@@ -55,6 +60,7 @@ export const gestisciSections: GestisciSection[] = [
   // Sezioni consolidate
   {
     id: "security-dashboard-consolidated",
+    category: "monitoraggio-sicurezza",
     title: "Dashboard Sicurezza e Monitoraggio",
     description: "Panoramica completa di sicurezza, audit logs, violazioni, rate limiting, validazione e performance",
     icon: Shield,
@@ -65,6 +71,7 @@ export const gestisciSections: GestisciSection[] = [
   },
   {
     id: "monitoring-dashboard",
+    category: "monitoraggio-sicurezza",
     title: "Monitoring Performance",
     description: "Avvia/ferma il monitoraggio e vedi le metriche di performance del sistema",
     icon: BarChart3,
@@ -75,6 +82,7 @@ export const gestisciSections: GestisciSection[] = [
   },
   {
     id: "gdpr-legal-consolidated",
+    category: "monitoraggio-sicurezza",
     title: "Gestione GDPR e Legale",
     description: "Gestisci diritti GDPR, data retention e documenti legali in un'unica interfaccia",
     icon: Lock,
@@ -85,6 +93,7 @@ export const gestisciSections: GestisciSection[] = [
   },
   {
     id: "data-export",
+    category: "istituzionale-dati",
     title: "Export Dati su Hard Disk",
     description: "Esporta dati storici dal database Neon su hard disk esterno per alleggerire il database",
     icon: HardDrive,
@@ -95,6 +104,7 @@ export const gestisciSections: GestisciSection[] = [
   },
     {
       id: "backup-recovery",
+      category: "monitoraggio-sicurezza",
       title: "Backup e Recovery",
       description: "Gestisci backup automatici e manuali del database per continuità operativa",
       icon: HardDrive,
@@ -105,6 +115,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "notifiche-totali",
+      category: "comunicazione",
       title: "Notifiche Totali",
       description: "Visualizza e gestisci tutte le notifiche del sistema",
       icon: Bell,
@@ -115,6 +126,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "notifiche-demos",
+      category: "comunicazione",
       title: "Notifiche Demos",
       description: "Invia notifiche push a tutti gli utenti con preferenze Demos attivate",
       icon: Bell,
@@ -125,6 +137,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "voti-politici",
+      category: "istituzionale-dati",
       title: "Voti Politici",
       description: "Visualizza le votazioni della Camera dei Deputati dell'ultima legislatura",
       icon: Vote,
@@ -135,6 +148,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "voti-parlamento",
+      category: "istituzionale-dati",
       title: "Voti Parlamento",
       description: "Visualizza le ultime votazioni del Parlamento (Camera e Senato) in ordine cronologico",
       icon: Vote,
@@ -145,6 +159,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "voti-parlamento-europeo",
+      category: "istituzionale-dati",
       title: "Voti Parlamento Europeo",
       description: "Visualizza le ultime votazioni del Parlamento Europeo in ordine cronologico",
       icon: Globe,
@@ -155,6 +170,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "eci",
+      category: "istituzionale-dati",
       title: "ECI",
       description: "Lista delle Iniziative dei Cittadini Europei (ICE) e numero di firme",
       icon: FileSignature,
@@ -165,6 +181,7 @@ export const gestisciSections: GestisciSection[] = [
     },
     {
       id: "riconoscimenti",
+      category: "amministrazione",
       title: "Riconoscimenti",
       description: "Approva o rifiuta le richieste di riconoscimento come politico o candidato",
       icon: Award,
@@ -174,3 +191,29 @@ export const gestisciSections: GestisciSection[] = [
       buttonText: "Riconoscimenti"
     },
   ];
+
+export const gestisciCategoryOrder: Array<GestisciSection["category"]> = [
+  "amministrazione",
+  "monitoraggio-sicurezza",
+  "comunicazione",
+  "istituzionale-dati"
+];
+
+export const gestisciCategoryMeta: Record<GestisciSection["category"], { title: string; description: string }> = {
+  "amministrazione": {
+    title: "Amministrazione",
+    description: "Gestione utenti, riconoscimenti, opinioni e governo."
+  },
+  "monitoraggio-sicurezza": {
+    title: "Monitoraggio e Sicurezza",
+    description: "Controllo salute sistema, sicurezza, GDPR e backup."
+  },
+  "comunicazione": {
+    title: "Comunicazione",
+    description: "Gestione notifiche e comunicazioni verso utenti."
+  },
+  "istituzionale-dati": {
+    title: "Dati Istituzionali ed Export",
+    description: "Fonti istituzionali, votazioni, ECI e export dati."
+  }
+};
