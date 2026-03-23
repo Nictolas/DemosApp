@@ -373,6 +373,19 @@ export default function App() {
                   </PageTransition>
                 </Route>
                 <Route path="/monitoring-dashboard">
+                  <Redirect to="/monitoring-dashboard/overview" />
+                </Route>
+                <Route path="/monitoring-dashboard/overview">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/monitoring-dashboard/health">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/monitoring-dashboard/performance">
                   <PageTransition location={location} type="fade-up">
                     <MonitoringDashboard />
                   </PageTransition>
