@@ -115,6 +115,7 @@ import LoggingDashboard from "./pages/LoggingDashboard";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import AuditDashboard from "./pages/AuditDashboard";
 import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
+import OpsCenter from "./pages/Admin/OpsCenter";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
 import DataExport from "./pages/DataExport";
 import CentralizedLogs from "./pages/CentralizedLogs";
@@ -373,7 +374,7 @@ export default function App() {
                   </PageTransition>
                 </Route>
                 <Route path="/monitoring-dashboard">
-                  <Redirect to="/monitoring-dashboard/overview" />
+                  <Redirect to="/admin/ops-center/monitoring" />
                 </Route>
                 <Route path="/monitoring-dashboard/overview">
                   <PageTransition location={location} type="fade-up">
@@ -423,8 +424,14 @@ export default function App() {
 
                 {/* Route per Dashboard Sicurezza e Monitoraggio */}
                 <Route path="/admin/security-dashboard">
+                  <Redirect to="/admin/ops-center/security" />
+                </Route>
+                <Route path="/admin/ops-center">
+                  <Redirect to="/admin/ops-center/monitoring" />
+                </Route>
+                <Route path="/admin/ops-center/:section">
                   <PageTransition location={location} type="fade-up">
-                    <AdminSecurityDashboard />
+                    <OpsCenter />
                   </PageTransition>
                 </Route>
 
