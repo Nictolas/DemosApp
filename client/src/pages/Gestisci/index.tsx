@@ -20,10 +20,10 @@ export default function Gestisci() {
   }
 
   return (
-    <PageContainer className="menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
+    <PageContainer className="menu-page flex flex-col bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f8fbff_35%,_#ffffff_70%)] select-none">
       <div className="w-full px-4 py-4 flex-1 flex flex-col">
         <div className="w-full flex-1 flex flex-col min-h-0">
-          <div className="mt-4">
+          <div className="mt-2">
             <SectionsGrid />
           </div>
         </div>

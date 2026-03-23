@@ -398,23 +398,40 @@ const MonitoringDashboard: React.FC = () => {
                 ? 'services'
       : 'overview';
 
+  const viewMeta: Record<string, { title: string; subtitle: string }> = {
+    overview: { title: 'Panoramica', subtitle: 'KPI principali e stato generale del sistema' },
+    health: { title: 'Salute Sistema', subtitle: 'Controlli su servizi, rete, memoria e database' },
+    performance: { title: 'Performance', subtitle: 'Dettaglio risorse applicative e trend runtime' },
+    disk: { title: 'Spazio Disco', subtitle: 'Analisi filesystem server applicativo Render' },
+    database: { title: 'Database', subtitle: 'Connessioni, dimensioni e query lente (Neon)' },
+    memory: { title: 'Memoria', subtitle: 'Heap, RSS e consumo memoria del backend' },
+    security: { title: 'Sicurezza', subtitle: 'Eventi, stato controlli e indicatori sicurezza' },
+    services: { title: 'Servizi', subtitle: 'Stato dei servizi interni e disponibilita componenti' }
+  };
+
   return (
-    <div className="w-full mx-auto px-4 md:px-6 py-8 pt-20 bg-white min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4 flex items-center gap-2">
+    <div className="w-full mx-auto px-4 md:px-8 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef2ff_0%,_#f8fbff_38%,_#ffffff_72%)]">
+      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/80 backdrop-blur-sm shadow-sm p-5 md:p-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-3 flex items-center gap-2 text-slate-900">
           <Activity className="h-8 w-8" />
           Monitoraggio Performance e Salute Sistema
         </h1>
-        <p className="text-gray-600">
+        <p className="text-slate-600">
           Monitora le performance, la salute del sistema e rileva problemi proattivamente.
         </p>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-slate-500 mt-2">
           Nota: "Spazio disco" si riferisce al server applicativo (Render), non al database Neon.
         </p>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+          <Clock className="h-3.5 w-3.5" />
+          <span>{viewMeta[currentView]?.title}</span>
+          <span className="text-slate-400">-</span>
+          <span>{viewMeta[currentView]?.subtitle}</span>
+        </div>
       </div>
 
       {error && (
-        <Alert className="mb-6">
+        <Alert className="mb-6 border-amber-200 bg-amber-50/80">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Errore</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -422,21 +439,22 @@ const MonitoringDashboard: React.FC = () => {
       )}
 
       {/* Controlli Monitoraggio */}
-      <Card className="mb-6">
-        <CardHeader>
+      <Card className="mb-6 border-slate-200/70 bg-white/80 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-4">
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
               <Zap className="h-5 w-5" />
               Controlli Monitoraggio
             </span>
             <div className="flex items-center gap-2">
-              <Badge className={isMonitoring ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+              <Badge className={isMonitoring ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-700 border border-slate-300'}>
                 {isMonitoring ? 'Attivo' : 'Inattivo'}
               </Badge>
               <Button 
                 onClick={toggleMonitoring} 
                 disabled={isToggling}
                 variant={isMonitoring ? 'destructive' : 'default'}
+                className="shadow-sm"
               >
                 {isMonitoring ? (
                   <>
@@ -450,7 +468,7 @@ const MonitoringDashboard: React.FC = () => {
                   </>
                 )}
               </Button>
-              <Button onClick={loadAllData} disabled={loading}>
+              <Button onClick={loadAllData} disabled={loading} variant="outline" className="border-slate-300">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Aggiorna
               </Button>
@@ -460,19 +478,19 @@ const MonitoringDashboard: React.FC = () => {
       </Card>
 
       <div className="space-y-6">
-        <div className="grid w-full grid-cols-3 gap-2">
+        <div className="grid w-full grid-cols-3 gap-2 p-1 rounded-xl border border-slate-200/70 bg-white/80 backdrop-blur-sm">
           <Link href="/monitoring-dashboard/overview">
-            <Button variant={currentView === 'overview' ? 'default' : 'outline'} className="w-full">
+            <Button variant={currentView === 'overview' ? 'default' : 'ghost'} className="w-full rounded-lg">
               Panoramica
             </Button>
           </Link>
           <Link href="/monitoring-dashboard/health">
-            <Button variant={currentView === 'health' ? 'default' : 'outline'} className="w-full">
+            <Button variant={currentView === 'health' ? 'default' : 'ghost'} className="w-full rounded-lg">
               Salute Sistema
             </Button>
           </Link>
           <Link href="/monitoring-dashboard/performance">
-            <Button variant={currentView === 'performance' ? 'default' : 'outline'} className="w-full">
+            <Button variant={currentView === 'performance' ? 'default' : 'ghost'} className="w-full rounded-lg">
               Performance
             </Button>
           </Link>
@@ -483,7 +501,7 @@ const MonitoringDashboard: React.FC = () => {
           <div className="space-y-6">
           {/* Status Generale */}
           {systemHealth && (
-            <Card>
+            <Card className="border-slate-200/70 bg-white/85 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Heart className="h-5 w-5" />
@@ -510,8 +528,8 @@ const MonitoringDashboard: React.FC = () => {
 
           {/* Riepilogo Performance */}
           {summary && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-sm font-medium">CPU Media</CardTitle>
@@ -531,7 +549,7 @@ const MonitoringDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-sm font-medium">Memoria Media</CardTitle>
@@ -551,7 +569,7 @@ const MonitoringDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Errori</CardTitle>
                   <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -567,7 +585,7 @@ const MonitoringDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Uptime</CardTitle>
                   <CheckCircle className="h-4 w-4 text-green-500" />
@@ -589,7 +607,7 @@ const MonitoringDashboard: React.FC = () => {
         {/* SALUTE SISTEMA */}
         {currentView === 'health' && (
           <div className="space-y-6">
-          <Card>
+          <Card className="border-slate-200/70 bg-white/85 shadow-sm">
             <CardHeader>
               <CardTitle className="text-base">Come leggere "Spazio disco"</CardTitle>
               <CardDescription>
@@ -603,12 +621,12 @@ const MonitoringDashboard: React.FC = () => {
             </CardContent>
           </Card>
           {systemHealth && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(systemHealth.checks).map(([name, check]) => {
                 const IconComponent = getStatusIcon(check.status);
                 
                 const cardContent = (
-                  <Card key={name}>
+                  <Card key={name} className="border-slate-200/70 bg-white/90 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 justify-between">
                         <span className="flex items-center gap-2">
@@ -697,7 +715,7 @@ const MonitoringDashboard: React.FC = () => {
             </Card>
 
             {diskBreakdown ? (
-              <Card>
+              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -714,7 +732,7 @@ const MonitoringDashboard: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left border-b">
+                        <tr className="text-left border-b bg-slate-50">
                           <th className="py-2 pr-3">Cartella</th>
                           <th className="py-2 pr-3">Dimensione</th>
                           <th className="py-2 pr-3">% sul totale target</th>
@@ -722,7 +740,7 @@ const MonitoringDashboard: React.FC = () => {
                       </thead>
                       <tbody>
                         {diskBreakdown.entries.map((entry) => (
-                          <tr key={entry.path} className="border-b last:border-0">
+                          <tr key={entry.path} className="border-b last:border-0 hover:bg-slate-50/70">
                             <td className="py-2 pr-3 font-mono text-xs md:text-sm">{entry.path}</td>
                             <td className="py-2 pr-3">{entry.sizeHuman}</td>
                             <td className="py-2 pr-3">{entry.percentOfTarget.toFixed(2)}%</td>
@@ -747,7 +765,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'database' && (
           <div className="space-y-6">
-            <Card>
+            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -772,7 +790,7 @@ const MonitoringDashboard: React.FC = () => {
               </CardContent>
             </Card>
             {databaseDetails?.slowQueries?.length ? (
-              <Card>
+              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                 <CardHeader>
                   <CardTitle>Slow Queries (top)</CardTitle>
                 </CardHeader>
@@ -780,7 +798,7 @@ const MonitoringDashboard: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left border-b">
+                        <tr className="text-left border-b bg-slate-50">
                           <th className="py-2 pr-3">Query</th>
                           <th className="py-2 pr-3">Mean ms</th>
                           <th className="py-2 pr-3">Calls</th>
@@ -789,7 +807,7 @@ const MonitoringDashboard: React.FC = () => {
                       </thead>
                       <tbody>
                         {databaseDetails.slowQueries.map((q, i) => (
-                          <tr key={`${q.query}-${i}`} className="border-b last:border-0">
+                          <tr key={`${q.query}-${i}`} className="border-b last:border-0 hover:bg-slate-50/70">
                             <td className="py-2 pr-3 font-mono text-xs">{q.query}</td>
                             <td className="py-2 pr-3">{Number(q.mean_exec_time || 0).toFixed(2)}</td>
                             <td className="py-2 pr-3">{q.calls ?? 0}</td>
@@ -807,7 +825,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'memory' && (
           <div className="space-y-6">
-            <Card>
+            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -830,7 +848,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'security' && (
           <div className="space-y-6">
-            <Card>
+            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -853,7 +871,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'services' && (
           <div className="space-y-6">
-            <Card>
+            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -877,8 +895,8 @@ const MonitoringDashboard: React.FC = () => {
         {currentView === 'performance' && (
           <div className="space-y-6">
             {performanceMetrics && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -912,7 +930,7 @@ const MonitoringDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -952,7 +970,7 @@ const MonitoringDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -986,7 +1004,7 @@ const MonitoringDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
