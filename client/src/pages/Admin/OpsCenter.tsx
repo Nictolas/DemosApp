@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight } from "lucide-react";
+import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal } from "lucide-react";
 
 const OpsCenter: React.FC = () => {
   const [, setLocation] = useLocation();
@@ -61,6 +61,20 @@ const OpsCenter: React.FC = () => {
               </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/monitoring-dashboard/disk")}>
                 Apri Breakdown Disco <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5" /> Parametri Piani Free</CardTitle>
+              <CardDescription>Ti mostra i limiti delle piattaforme free con percentuali di utilizzo.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: vedere in un punto unico quanto margine resta su Cursor, Neon e altre voci operative.
+              </p>
+              <Button className="w-full justify-between" onClick={() => setLocation("/admin/parametri")}>
+                Apri Parametri <ArrowRight className="h-4 w-4" />
               </Button>
             </CardContent>
           </Card>
