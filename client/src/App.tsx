@@ -390,6 +390,11 @@ export default function App() {
                     <MonitoringDashboard />
                   </PageTransition>
                 </Route>
+                <Route path="/monitoring-dashboard/disk">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
                 <Route path="/audit-dashboard">
                   <PageTransition location={location} type="fade-up">
                     <AuditDashboard />
