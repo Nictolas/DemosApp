@@ -14,7 +14,7 @@ const OpsCenter: React.FC = () => {
         <Badge variant="outline" className="mb-3 text-indigo-700 border-indigo-300">Admin Hub</Badge>
         <h1 className="text-3xl font-bold mb-2">Ops Center</h1>
         <p className="text-slate-600 max-w-4xl">
-          Pagina unica per operativita, sicurezza e compliance. Ogni card descrive chiaramente cosa controlla e ti porta al dettaglio corretto.
+          Pagina unica per operativita, sicurezza e compliance, pensata anche per chi non e tecnico: ogni card spiega in modo semplice a cosa serve e cosa puoi farci.
         </p>
       </div>
 
@@ -24,10 +24,13 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Monitoraggio Sistema</CardTitle>
-              <CardDescription>Controlla salute piattaforma, performance runtime, memoria, servizi e trend 24h.</CardDescription>
+              <CardDescription>Ti mostra se il sistema sta funzionando bene oppure no.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Badge variant="outline">Operativita</Badge>
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: vedere subito problemi di salute/performance e capire quando intervenire.
+              </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/monitoring-dashboard/overview")}>
                 Apri Panoramica <ArrowRight className="h-4 w-4" />
               </Button>
@@ -36,9 +39,12 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Neon)</CardTitle>
-              <CardDescription>Mostra connessioni, dimensione database e query lente per identificare colli di bottiglia.</CardDescription>
+              <CardDescription>Ti aiuta a capire se il database e sotto stress o sta rallentando.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: controllare connessioni, dimensioni e query lente per prevenire blocchi.
+              </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/monitoring-dashboard/database")}>
                 Apri Dettaglio DB <ArrowRight className="h-4 w-4" />
               </Button>
@@ -47,9 +53,12 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><HardDrive className="h-5 w-5" /> Spazio Disco App</CardTitle>
-              <CardDescription>Analizza il filesystem del server app (Render), con breakdown cartelle piu pesanti.</CardDescription>
+              <CardDescription>Ti dice quanto spazio sta usando il server dell'applicazione.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: trovare le cartelle piu pesanti e capire dove liberare spazio.
+              </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/monitoring-dashboard/disk")}>
                 Apri Breakdown Disco <ArrowRight className="h-4 w-4" />
               </Button>
@@ -64,9 +73,12 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Security Dashboard</CardTitle>
-              <CardDescription>Raccoglie eventi sicurezza, indicatori di rischio e controlli di conformita operativa.</CardDescription>
+              <CardDescription>Raccoglie segnali di sicurezza per capire se ci sono rischi o anomalie.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: controllare rapidamente la situazione sicurezza e priorita di intervento.
+              </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/security-dashboard")}>
                 Apri Security Dashboard <ArrowRight className="h-4 w-4" />
               </Button>
@@ -75,9 +87,12 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Alert e Log</CardTitle>
-              <CardDescription>Permette di verificare log applicativi e alert critici per diagnosi rapida incidenti.</CardDescription>
+              <CardDescription>Mostra messaggi e avvisi del sistema quando qualcosa non va.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: cercare errori recenti, capire la causa di un problema e seguirne l'evoluzione.
+              </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/logging-dashboard")}>
                 Apri Logging <ArrowRight className="h-4 w-4" />
               </Button>
@@ -92,9 +107,12 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Scale className="h-5 w-5" /> GDPR e Legale</CardTitle>
-              <CardDescription>Gestione diritti GDPR, policy legali e processi documentali per conformita normativa.</CardDescription>
+              <CardDescription>Raccoglie strumenti per rispettare GDPR e obblighi legali.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: gestire richieste privacy, documenti legali e controlli di conformita.
+              </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/admin/gdpr-legal")}>
                 Apri Gestione GDPR <ArrowRight className="h-4 w-4" />
               </Button>
@@ -103,9 +121,12 @@ const OpsCenter: React.FC = () => {
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><HardDrive className="h-5 w-5" /> Backup e Export</CardTitle>
-              <CardDescription>Accesso a backup/recovery e strumenti export per governance e tracciabilita dati.</CardDescription>
+              <CardDescription>Ti permette di mettere al sicuro i dati e scaricarli quando serve.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
+              <p className="text-sm text-slate-600">
+                Cosa puoi farci: avviare backup, pianificare recupero e fare export per verifiche o report.
+              </p>
               <Button variant="outline" className="w-full justify-between" onClick={() => setLocation("/backup-dashboard")}>
                 Backup Dashboard <ArrowRight className="h-4 w-4" />
               </Button>
