@@ -2,6 +2,9 @@
 const { pool } = require('../middleware/auth');
 const performanceMonitor = require('./performanceMonitor');
 const logger = require('./centralizedLogger');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 
 class HealthCheckService {
   constructor() {
@@ -141,16 +144,37 @@ class HealthCheckService {
   // Controlla spazio disco
   async checkDiskSpace() {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      
-      // Controlla spazio disco corrente
-      const stats = fs.statSync(process.cwd());
-      const freeSpace = require('os').freemem(); // Approssimazione
-      
-      // Per un controllo più accurato, potresti usare una libreria come 'node-disk-info'
-      // Per ora usiamo una stima basata sulla memoria libera
-      const diskPercent = 100 - (freeSpace / require('os').totalmem() * 100);
+      let totalBytes = 0;
+      let freeBytes = 0;
+      let usedBytes = 0;
+      let diskPercent = 0;
+      let isEstimated = false;
+      let method = 'df';
+
+      try {
+        // Render/Linux: usa df per avere valori disco reali dell'host applicativo.
+        const { stdout } = await execFileAsync('df', ['-Pk', '/']);
+        const lines = stdout.trim().split('\n');
+        const dataLine = lines[lines.length - 1];
+        const cols = dataLine.trim().split(/\s+/);
+        // Colonne df -Pk: Filesystem 1024-blocks Used Available Capacity Mounted on
+        const totalKb = Number(cols[1] || 0);
+        const usedKb = Number(cols[2] || 0);
+        const availKb = Number(cols[3] || 0);
+        totalBytes = totalKb * 1024;
+        usedBytes = usedKb * 1024;
+        freeBytes = availKb * 1024;
+        diskPercent = totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0;
+      } catch (_dfError) {
+        // Fallback esplicito: stima su RAM (meno accurata), ma dichiarata in risposta.
+        const os = require('os');
+        freeBytes = os.freemem();
+        totalBytes = os.totalmem();
+        usedBytes = totalBytes - freeBytes;
+        diskPercent = totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0;
+        isEstimated = true;
+        method = 'memory-estimate';
+      }
       
       let status = 'OK';
       if (diskPercent > 95) {
@@ -161,8 +185,15 @@ class HealthCheckService {
       
       return {
         status,
-        message: `Spazio disco: ${diskPercent.toFixed(2)}% utilizzato`,
-        freeSpace: freeSpace,
+        message: `Spazio disco server app (Render): ${diskPercent.toFixed(2)}% utilizzato${isEstimated ? ' (stima)' : ''}`,
+        source: 'render-app-server',
+        sourceLabel: 'Server applicativo (Render) - NON Neon',
+        method,
+        isEstimated,
+        totalBytes,
+        usedBytes,
+        freeBytes,
+        freeSpace: freeBytes,
         diskPercent: diskPercent,
         timestamp: new Date().toISOString()
       };
