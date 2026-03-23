@@ -1,9 +1,9 @@
 // File: client/src/pages/MonitoringDashboard.tsx
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
   Activity, 
@@ -57,6 +57,7 @@ interface PerformanceMetrics {
 }
 
 const MonitoringDashboard: React.FC = () => {
+  const [location] = useLocation();
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const [summary, setSummary] = useState<any>(null);
@@ -273,6 +274,12 @@ const MonitoringDashboard: React.FC = () => {
     }
   };
 
+  const currentView = location.includes('/monitoring-dashboard/health')
+    ? 'health'
+    : location.includes('/monitoring-dashboard/performance')
+      ? 'performance'
+      : 'overview';
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pt-20 bg-white min-h-screen">
       <div className="mb-8">
@@ -331,16 +338,28 @@ const MonitoringDashboard: React.FC = () => {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Panoramica</TabsTrigger>
-          <TabsTrigger value="health">Salute Sistema</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="alerts">Alert e Log</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        <div className="grid w-full grid-cols-3 gap-2">
+          <Link href="/monitoring-dashboard/overview">
+            <Button variant={currentView === 'overview' ? 'default' : 'outline'} className="w-full">
+              Panoramica
+            </Button>
+          </Link>
+          <Link href="/monitoring-dashboard/health">
+            <Button variant={currentView === 'health' ? 'default' : 'outline'} className="w-full">
+              Salute Sistema
+            </Button>
+          </Link>
+          <Link href="/monitoring-dashboard/performance">
+            <Button variant={currentView === 'performance' ? 'default' : 'outline'} className="w-full">
+              Performance
+            </Button>
+          </Link>
+        </div>
 
         {/* PANORAMICA */}
-        <TabsContent value="overview" className="space-y-6">
+        {currentView === 'overview' && (
+          <div className="space-y-6">
           {/* Status Generale */}
           {systemHealth && (
             <Card>
@@ -435,10 +454,12 @@ const MonitoringDashboard: React.FC = () => {
               </Card>
             </div>
           )}
-        </TabsContent>
+          </div>
+        )}
 
         {/* SALUTE SISTEMA */}
-        <TabsContent value="health" className="space-y-6">
+        {currentView === 'health' && (
+          <div className="space-y-6">
           {systemHealth && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {Object.entries(systemHealth.checks).map(([name, check]) => {
@@ -475,173 +496,153 @@ const MonitoringDashboard: React.FC = () => {
               })}
             </div>
           )}
-        </TabsContent>
+          </div>
+        )}
 
-        {/* PERFORMANCE */}
-        <TabsContent value="performance" className="space-y-6">
-          {performanceMetrics && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Cpu className="h-5 w-5" />
-                    CPU
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Utilizzo:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.application.cpuUsage?.percent?.toFixed(2) || 0}%
-                      </span>
+        {currentView === 'performance' && (
+          <div className="space-y-6">
+            {performanceMetrics && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Cpu className="h-5 w-5" />
+                      CPU
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Utilizzo:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.application.cpuUsage?.percent?.toFixed(2) || 0}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>User Time:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.application.cpuUsage?.user?.toFixed(2) || 0}ms
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>System Time:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.application.cpuUsage?.system?.toFixed(2) || 0}ms
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>User Time:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.application.cpuUsage?.user?.toFixed(2) || 0}ms
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>System Time:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.application.cpuUsage?.system?.toFixed(2) || 0}ms
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <HardDrive className="h-5 w-5" />
-                    Memoria
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Heap Used:</span>
-                      <span className="font-mono">
-                        {(performanceMetrics.memory.heapUsed / 1024 / 1024).toFixed(2)} MB
-                      </span>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <HardDrive className="h-5 w-5" />
+                      Memoria
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Heap Used:</span>
+                        <span className="font-mono">
+                          {(performanceMetrics.memory.heapUsed / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Heap Total:</span>
+                        <span className="font-mono">
+                          {(performanceMetrics.memory.heapTotal / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>RSS:</span>
+                        <span className="font-mono">
+                          {(performanceMetrics.memory.rss / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Sistema Free:</span>
+                        <span className="font-mono">
+                          {(performanceMetrics.memory.systemFree / 1024 / 1024 / 1024).toFixed(2)} GB
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Heap Total:</span>
-                      <span className="font-mono">
-                        {(performanceMetrics.memory.heapTotal / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>RSS:</span>
-                      <span className="font-mono">
-                        {(performanceMetrics.memory.rss / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Sistema Free:</span>
-                      <span className="font-mono">
-                        {(performanceMetrics.memory.systemFree / 1024 / 1024 / 1024).toFixed(2)} GB
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    Database
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Connessioni Attive:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.database.activeConnections || 0}
-                      </span>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      Database
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Connessioni Attive:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.database.activeConnections || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Connessioni Idle:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.database.idleConnections || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Dimensione DB:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.database.databaseSize || 'N/A'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Connessioni Idle:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.database.idleConnections || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Dimensione DB:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.database.databaseSize || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Applicazione
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Uptime:</span>
-                      <span className="font-mono">
-                        {Math.floor(performanceMetrics.system.uptime / 3600)}h
-                      </span>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Applicazione
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Uptime:</span>
+                        <span className="font-mono">
+                          {Math.floor(performanceMetrics.system.uptime / 3600)}h
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Event Loop Delay:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.application.eventLoopDelay?.toFixed(2) || 0}ms
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Active Handles:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.application.activeHandles || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Active Requests:</span>
+                        <span className="font-mono">
+                          {performanceMetrics.application.activeRequests || 0}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Event Loop Delay:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.application.eventLoopDelay?.toFixed(2) || 0}ms
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Active Handles:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.application.activeHandles || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Active Requests:</span>
-                      <span className="font-mono">
-                        {performanceMetrics.application.activeRequests || 0}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ALERT E LOG */}
-        <TabsContent value="alerts" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Alert Recenti
-              </CardTitle>
-              <CardDescription>
-                Ultimi alert e warning del sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Caricamento alert in corso...</p>
-                <p className="text-sm">Questa sezione mostrerà gli alert più recenti</p>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
