@@ -395,6 +395,26 @@ export default function App() {
                     <MonitoringDashboard />
                   </PageTransition>
                 </Route>
+                <Route path="/monitoring-dashboard/database">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/monitoring-dashboard/memory">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/monitoring-dashboard/security">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/monitoring-dashboard/services">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
+                  </PageTransition>
+                </Route>
                 <Route path="/audit-dashboard">
                   <PageTransition location={location} type="fade-up">
                     <AuditDashboard />
