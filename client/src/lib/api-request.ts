@@ -1,6 +1,7 @@
 /**
  * Utility per le richieste API
  */
+import { getAuthToken } from "@/lib/auth-token";
 
 // Configurazione API che rispetta l'ambiente
 const resolveBaseUrl = (): string => {
@@ -46,7 +47,7 @@ class ApiRequest {
 
     // Aggiungi token di autenticazione se presente
     // Il token viene salvato come 'auth_token' nel localStorage
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+    const token = getAuthToken();
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,

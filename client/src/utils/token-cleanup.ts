@@ -5,10 +5,11 @@
  * e gestire meglio l'autenticazione.
  */
 
+import { clearSessionTokens, getAuthToken } from "@/lib/auth-token";
+
 export const cleanupExpiredTokens = () => {
   try {
-    const authToken = localStorage.getItem('auth_token');
-    const refreshToken = localStorage.getItem('refresh_token');
+    const authToken = getAuthToken();
     
     if (authToken) {
       try {
@@ -18,14 +19,12 @@ export const cleanupExpiredTokens = () => {
         
         if (payload.exp && payload.exp < now) {
           console.log('🧹 Token scaduto rilevato, pulizia in corso...');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
+          clearSessionTokens();
           return true; // Token rimosso
         }
       } catch (error) {
         console.log('🧹 Token malformato rilevato, pulizia in corso...');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
+        clearSessionTokens();
         return true; // Token rimosso
       }
     }
