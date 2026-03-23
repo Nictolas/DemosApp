@@ -7,6 +7,10 @@ const healthCheckService = require('../../services/healthCheckService');
 const { pool } = require('../../middleware/auth');
 const { auditMiddleware } = require('../../middleware/auditMiddleware');
 const { getCentralizedLogs } = require('../../utils/axiomQueryHelper');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const path = require('path');
+const execFileAsync = promisify(execFile);
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
@@ -28,6 +32,17 @@ async function withTimeout(promise, timeoutMs, label = 'operazione monitoring') 
 function safeNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function bytesToHuman(bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = safeNumber(bytes);
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return `${value.toFixed(2)} ${units[i]}`;
 }
 
 // GET /api/admin/monitoring/health - Stato salute sistema
@@ -395,6 +410,91 @@ router.get('/database', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore metriche database'
+    });
+  }
+});
+
+// GET /api/admin/monitoring/disk-breakdown - Top cartelle più pesanti su server app
+router.get('/disk-breakdown', async (req, res) => {
+  try {
+    // Root di analisi limitato per sicurezza
+    const defaultRoot = process.env.DISK_BREAKDOWN_ROOT || '/opt/render/project/src';
+    const requestedTarget = String(req.query.target || defaultRoot);
+    const maxEntries = Math.min(Math.max(parseInt(String(req.query.maxEntries || '15'), 10), 5), 50);
+    const root = path.resolve(defaultRoot);
+    const target = path.resolve(requestedTarget);
+
+    if (!target.startsWith(root)) {
+      return res.status(400).json({
+        success: false,
+        error: `target non consentito: ${target}`,
+        message: `Usa un path sotto ${root}`
+      });
+    }
+
+    let stdout;
+    try {
+      // du -k -d 1 <target> => dimensioni immediate figli + target totale
+      const result = await withTimeout(
+        execFileAsync('du', ['-k', '-d', '1', target]),
+        MONITORING_TIMEOUT_MS,
+        'disk breakdown'
+      );
+      stdout = result.stdout;
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Impossibile leggere uso disco sul server applicativo',
+        message: error.message,
+        hint: 'Comando du non disponibile o timeout'
+      });
+    }
+
+    const rows = String(stdout || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const parts = line.split(/\s+/);
+        const sizeKb = safeNumber(parts[0]);
+        const p = parts.slice(1).join(' ');
+        return { path: p, sizeBytes: sizeKb * 1024 };
+      })
+      .filter((r) => r.path);
+
+    const totalRow = rows.find((r) => path.resolve(r.path) === target);
+    const totalBytes = totalRow ? totalRow.sizeBytes : rows.reduce((sum, r) => sum + r.sizeBytes, 0);
+
+    const children = rows
+      .filter((r) => path.resolve(r.path) !== target)
+      .sort((a, b) => b.sizeBytes - a.sizeBytes)
+      .slice(0, maxEntries)
+      .map((r) => ({
+        path: r.path,
+        name: path.basename(r.path) || r.path,
+        sizeBytes: r.sizeBytes,
+        sizeHuman: bytesToHuman(r.sizeBytes),
+        percentOfTarget: totalBytes > 0 ? Number(((r.sizeBytes / totalBytes) * 100).toFixed(2)) : 0
+      }));
+
+    res.json({
+      success: true,
+      data: {
+        source: 'render-app-server',
+        sourceLabel: 'Filesystem server applicativo (Render) - NON Neon',
+        root,
+        target,
+        totalBytes,
+        totalHuman: bytesToHuman(totalBytes),
+        entries: children
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore disk breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore disk breakdown',
+      message: error.message
     });
   }
 });
