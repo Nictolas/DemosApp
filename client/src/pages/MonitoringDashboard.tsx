@@ -274,6 +274,33 @@ const MonitoringDashboard: React.FC = () => {
     }
   };
 
+  const getCheckDisplayName = (rawName: string) => {
+    const name = rawName.toLowerCase();
+    if (name === 'disk') return 'Spazio disco (server app)';
+    if (name === 'database') return 'Database (Neon)';
+    if (name === 'memory') return 'Memoria server app';
+    if (name === 'network') return 'Rete server app';
+    if (name === 'services') return 'Servizi interni';
+    if (name === 'security') return 'Sicurezza (eventi/log)';
+    return rawName.charAt(0).toUpperCase() + rawName.slice(1);
+  };
+
+  const getCheckHelpText = (rawName: string) => {
+    const name = rawName.toLowerCase();
+    if (name === 'disk') return 'Indica il disco della macchina server (Render), non lo storage del database Neon.';
+    if (name === 'database') return 'Indica la raggiungibilità/tempo risposta del database Neon.';
+    if (name === 'memory') return 'Memoria RAM usata dal processo backend.';
+    return null;
+  };
+
+  const getCheckSourceBadge = (rawName: string) => {
+    const name = rawName.toLowerCase();
+    if (name === 'database') {
+      return <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Neon</Badge>;
+    }
+    return <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>;
+  };
+
   const currentView = location.includes('/monitoring-dashboard/health')
     ? 'health'
     : location.includes('/monitoring-dashboard/performance')
@@ -289,6 +316,9 @@ const MonitoringDashboard: React.FC = () => {
         </h1>
         <p className="text-gray-600">
           Monitora le performance, la salute del sistema e rileva problemi proattivamente.
+        </p>
+        <p className="text-xs text-gray-500 mt-2">
+          Nota: "Spazio disco" si riferisce al server applicativo (Render), non al database Neon.
         </p>
       </div>
 
@@ -392,7 +422,10 @@ const MonitoringDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">CPU Media</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-medium">CPU Media</CardTitle>
+                    <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                  </div>
                   <Cpu className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -403,12 +436,16 @@ const MonitoringDashboard: React.FC = () => {
                     {getTrendIcon(summary.trends.cpuTrend)}
                     <span className="ml-1">Ultime 24h</span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Fonte: server app (Render)</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Memoria Media</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-medium">Memoria Media</CardTitle>
+                    <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                  </div>
                   <HardDrive className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -419,6 +456,7 @@ const MonitoringDashboard: React.FC = () => {
                     {getTrendIcon(summary.trends.memoryTrend)}
                     <span className="ml-1">Ultime 24h</span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Fonte: server app (Render)</p>
                 </CardContent>
               </Card>
 
@@ -468,9 +506,12 @@ const MonitoringDashboard: React.FC = () => {
                 return (
                   <Card key={name}>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <IconComponent className="h-5 w-5" />
-                        {name.charAt(0).toUpperCase() + name.slice(1)}
+                      <CardTitle className="flex items-center gap-2 justify-between">
+                        <span className="flex items-center gap-2">
+                          <IconComponent className="h-5 w-5" />
+                          {getCheckDisplayName(name)}
+                        </span>
+                        {getCheckSourceBadge(name)}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -484,6 +525,9 @@ const MonitoringDashboard: React.FC = () => {
                           </span>
                         </div>
                         <p className="text-sm">{check.message}</p>
+                        {getCheckHelpText(name) && (
+                          <p className="text-xs text-gray-500">{getCheckHelpText(name)}</p>
+                        )}
                         {check.responseTime && (
                           <p className="text-xs text-gray-500">
                             Tempo risposta: {check.responseTime}
@@ -505,10 +549,13 @@ const MonitoringDashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 justify-between">
+                    <span className="flex items-center gap-2">
                       <Cpu className="h-5 w-5" />
                       CPU
-                    </CardTitle>
+                    </span>
+                    <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                  </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -536,10 +583,13 @@ const MonitoringDashboard: React.FC = () => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 justify-between">
+                    <span className="flex items-center gap-2">
                       <HardDrive className="h-5 w-5" />
                       Memoria
-                    </CardTitle>
+                    </span>
+                    <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                  </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -573,10 +623,13 @@ const MonitoringDashboard: React.FC = () => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 justify-between">
+                    <span className="flex items-center gap-2">
                       <Database className="h-5 w-5" />
-                      Database
-                    </CardTitle>
+                    Database (Neon)
+                    </span>
+                    <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Neon</Badge>
+                  </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -604,10 +657,13 @@ const MonitoringDashboard: React.FC = () => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 justify-between">
+                    <span className="flex items-center gap-2">
                       <Activity className="h-5 w-5" />
                       Applicazione
-                    </CardTitle>
+                    </span>
+                    <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                  </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
