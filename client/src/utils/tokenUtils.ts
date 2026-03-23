@@ -1,3 +1,5 @@
+import { clearSessionTokens, getAuthToken } from "@/lib/auth-token";
+
 /**
  * 🧹 UTILITY PER GESTIONE TOKEN
  * 
@@ -11,10 +13,8 @@ export const clearAllTokens = () => {
   console.log('🧹 Pulizia token in corso...');
   
   // Rimuovi tutti i token dal localStorage
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('refresh_token');
+  clearSessionTokens();
   localStorage.removeItem('user_token');
-  localStorage.removeItem('token');
   
   // Rimuovi anche eventuali altri dati di sessione
   localStorage.removeItem('user');
@@ -63,7 +63,7 @@ export const isTokenValid = (token: string): boolean => {
  * Ottiene il token dal localStorage e verifica se è valido
  */
 export const getValidToken = (): string | null => {
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   
   if (!token) {
     console.log('🔍 Nessun token trovato');
