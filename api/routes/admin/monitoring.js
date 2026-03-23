@@ -11,13 +11,38 @@ const { getCentralizedLogs } = require('../../utils/axiomQueryHelper');
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
 
+const MONITORING_TIMEOUT_MS = parseInt(process.env.MONITORING_ROUTE_TIMEOUT_MS || '12000', 10);
+
+async function withTimeout(promise, timeoutMs, label = 'operazione monitoring') {
+  let timer;
+  try {
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timeout dopo ${timeoutMs}ms`)), timeoutMs);
+    });
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function safeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 // GET /api/admin/monitoring/health - Stato salute sistema
 router.get('/health', auditMiddleware, async (req, res) => {
   try {
-    const healthStatus = await healthCheckService.runAllChecks();
+    const healthStatus = await withTimeout(
+      healthCheckService.runAllChecks(),
+      MONITORING_TIMEOUT_MS,
+      'health checks'
+    );
     
-    // Salva stato salute per storico
-    await healthCheckService.saveHealthStatus(healthStatus);
+    // Salvataggio non bloccante: la risposta non deve restare pending se il DB è lento.
+    healthCheckService.saveHealthStatus(healthStatus).catch((saveError) => {
+      console.warn('⚠️ saveHealthStatus fallita (non bloccante):', saveError.message);
+    });
     
     res.json({
       success: true,
@@ -67,7 +92,11 @@ router.get('/performance', auditMiddleware, async (req, res) => {
 router.get('/metrics/historical', auditMiddleware, async (req, res) => {
   try {
     const hours = parseInt(req.query.hours) || 24;
-    const metrics = await performanceMonitor.getHistoricalMetrics(hours);
+    const metrics = await withTimeout(
+      performanceMonitor.getHistoricalMetrics(hours),
+      MONITORING_TIMEOUT_MS,
+      'metriche storiche'
+    );
     
     res.json({
       success: true,
@@ -87,7 +116,11 @@ router.get('/metrics/historical', auditMiddleware, async (req, res) => {
 router.get('/health/history', auditMiddleware, async (req, res) => {
   try {
     const hours = parseInt(req.query.hours) || 24;
-    const history = await healthCheckService.getHealthHistory(hours);
+    const history = await withTimeout(
+      healthCheckService.getHealthHistory(hours),
+      MONITORING_TIMEOUT_MS,
+      'storico salute'
+    );
     
     res.json({
       success: true,
@@ -120,11 +153,11 @@ router.get('/alerts', auditMiddleware, async (req, res) => {
     const endTime = new Date();
     
     // Ottieni log da Axiom
-    const logs = await getCentralizedLogs({
+    const logs = await withTimeout(getCentralizedLogs({
       startTime,
       endTime,
       limit: 1000
-    });
+    }), MONITORING_TIMEOUT_MS, 'alert da Axiom');
     
     // Filtra alert (WARN o ERROR con messaggi specifici)
     const alerts = logs
@@ -160,20 +193,24 @@ router.get('/summary', auditMiddleware, async (req, res) => {
     const systemHealth = performanceMonitor.getSystemHealth();
     
     // Statistiche ultime 24h
-    const historicalMetrics = await performanceMonitor.getHistoricalMetrics(24);
-    const healthHistory = await healthCheckService.getHealthHistory(24);
+    const [historicalResult, healthResult] = await Promise.allSettled([
+      withTimeout(performanceMonitor.getHistoricalMetrics(24), MONITORING_TIMEOUT_MS, 'summary metrics 24h'),
+      withTimeout(healthCheckService.getHealthHistory(24), MONITORING_TIMEOUT_MS, 'summary health history 24h')
+    ]);
+    const historicalMetrics = historicalResult.status === 'fulfilled' ? historicalResult.value : [];
+    const healthHistory = healthResult.status === 'fulfilled' ? healthResult.value : [];
     
     // Calcola medie
-    const avgCpu = historicalMetrics.length > 0 
-      ? historicalMetrics.reduce((sum, m) => sum + (m.cpu_usage || 0), 0) / historicalMetrics.length 
+    const avgCpu = historicalMetrics.length > 0
+      ? historicalMetrics.reduce((sum, m) => sum + safeNumber(m.cpu_usage), 0) / historicalMetrics.length
       : 0;
     
-    const avgMemory = historicalMetrics.length > 0 
-      ? historicalMetrics.reduce((sum, m) => sum + (m.memory_usage || 0), 0) / historicalMetrics.length 
+    const avgMemory = historicalMetrics.length > 0
+      ? historicalMetrics.reduce((sum, m) => sum + safeNumber(m.memory_usage), 0) / historicalMetrics.length
       : 0;
     
-    const totalErrors = historicalMetrics.reduce((sum, m) => sum + (m.error_count || 0), 0);
-    const totalWarnings = historicalMetrics.reduce((sum, m) => sum + (m.warning_count || 0), 0);
+    const totalErrors = historicalMetrics.reduce((sum, m) => sum + safeNumber(m.error_count), 0);
+    const totalWarnings = historicalMetrics.reduce((sum, m) => sum + safeNumber(m.warning_count), 0);
     
     // Status salute ultime 24h
     const healthStatuses = healthHistory.map(h => h.status);
@@ -197,7 +234,7 @@ router.get('/summary', auditMiddleware, async (req, res) => {
             healthy: healthyCount,
             degraded: degradedCount,
             unhealthy: unhealthyCount,
-            uptime: ((healthyCount / healthStatuses.length) * 100).toFixed(2) + '%'
+            uptime: (healthStatuses.length > 0 ? ((healthyCount / healthStatuses.length) * 100) : 100).toFixed(2) + '%'
           }
         },
         trends: {
@@ -363,14 +400,18 @@ router.get('/database', auditMiddleware, async (req, res) => {
 
 // Funzione helper per calcolare trend
 function calculateTrend(values) {
-  if (values.length < 2) return 'stable';
+  if (!values || values.length < 2) return 'stable';
+  const normalizedValues = values.map((v) => safeNumber(v));
   
-  const firstHalf = values.slice(0, Math.floor(values.length / 2));
-  const secondHalf = values.slice(Math.floor(values.length / 2));
+  const firstHalf = normalizedValues.slice(0, Math.floor(normalizedValues.length / 2));
+  const secondHalf = normalizedValues.slice(Math.floor(normalizedValues.length / 2));
   
   const firstAvg = firstHalf.reduce((sum, val) => sum + (val || 0), 0) / firstHalf.length;
   const secondAvg = secondHalf.reduce((sum, val) => sum + (val || 0), 0) / secondHalf.length;
   
+  if (firstAvg === 0) {
+    return secondAvg === 0 ? 'stable' : 'increasing';
+  }
   const change = ((secondAvg - firstAvg) / firstAvg) * 100;
   
   if (change > 10) return 'increasing';
