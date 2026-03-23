@@ -56,11 +56,30 @@ interface PerformanceMetrics {
   errors: any;
 }
 
+interface DiskBreakdownEntry {
+  path: string;
+  name: string;
+  sizeBytes: number;
+  sizeHuman: string;
+  percentOfTarget: number;
+}
+
+interface DiskBreakdownData {
+  source: string;
+  sourceLabel: string;
+  root: string;
+  target: string;
+  totalBytes: number;
+  totalHuman: string;
+  entries: DiskBreakdownEntry[];
+}
+
 const MonitoringDashboard: React.FC = () => {
   const [location] = useLocation();
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const [summary, setSummary] = useState<any>(null);
+  const [diskBreakdown, setDiskBreakdown] = useState<DiskBreakdownData | null>(null);
   const [loading, setLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,6 +217,20 @@ const MonitoringDashboard: React.FC = () => {
     }
   };
 
+  // Carica dettaglio spazio disco server app (top cartelle)
+  const loadDiskBreakdown = async () => {
+    try {
+      const response = await apiRequest('GET', '/admin/monitoring/disk-breakdown?maxEntries=12');
+      const serverPayload = response?.data ?? response;
+      if (serverPayload?.success === true && serverPayload?.data?.entries) {
+        setDiskBreakdown(serverPayload.data);
+      }
+    } catch (err) {
+      // Non bloccare dashboard se breakdown non disponibile
+      console.warn('Disk breakdown non disponibile:', err);
+    }
+  };
+
   // Avvia/ferma monitoraggio
   const toggleMonitoring = async () => {
     try {
@@ -226,7 +259,8 @@ const MonitoringDashboard: React.FC = () => {
     const results = await Promise.allSettled([
       loadSystemHealth(),
       loadPerformanceMetrics(),
-      loadSummary()
+      loadSummary(),
+      loadDiskBreakdown()
     ]);
 
     const rejected = results.filter(r => r.status === 'rejected');
@@ -575,6 +609,45 @@ const MonitoringDashboard: React.FC = () => {
                 );
               })}
             </div>
+          )}
+
+          {diskBreakdown && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <HardDrive className="h-5 w-5" />
+                    Breakdown spazio disco server app
+                  </span>
+                  <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Top cartelle più pesanti in <code>{diskBreakdown.target}</code> (totale: {diskBreakdown.totalHuman})
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-2 pr-3">Cartella</th>
+                        <th className="py-2 pr-3">Dimensione</th>
+                        <th className="py-2 pr-3">% sul totale target</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {diskBreakdown.entries.map((entry) => (
+                        <tr key={entry.path} className="border-b last:border-0">
+                          <td className="py-2 pr-3 font-mono text-xs md:text-sm">{entry.path}</td>
+                          <td className="py-2 pr-3">{entry.sizeHuman}</td>
+                          <td className="py-2 pr-3">{entry.percentOfTarget.toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           )}
           </div>
         )}
