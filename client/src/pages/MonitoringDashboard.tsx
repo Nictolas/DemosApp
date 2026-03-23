@@ -301,6 +301,18 @@ const MonitoringDashboard: React.FC = () => {
     return <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>;
   };
 
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || bytes <= 0) return 'N/D';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = bytes;
+    let i = 0;
+    while (value >= 1024 && i < units.length - 1) {
+      value /= 1024;
+      i++;
+    }
+    return `${value.toFixed(2)} ${units[i]}`;
+  };
+
   const currentView = location.includes('/monitoring-dashboard/health')
     ? 'health'
     : location.includes('/monitoring-dashboard/performance')
@@ -498,6 +510,19 @@ const MonitoringDashboard: React.FC = () => {
         {/* SALUTE SISTEMA */}
         {currentView === 'health' && (
           <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Come leggere "Spazio disco"</CardTitle>
+              <CardDescription>
+                "Spazio disco" indica il filesystem del server backend su Render, non il database Neon.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-gray-600 space-y-1">
+              <p>- Fonte: server applicativo (Render)</p>
+              <p>- Non misura lo storage del DB Neon</p>
+              <p>- Se vedi "(stima)", il valore usa un fallback meno accurato</p>
+            </CardContent>
+          </Card>
           {systemHealth && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {Object.entries(systemHealth.checks).map(([name, check]) => {
@@ -532,6 +557,17 @@ const MonitoringDashboard: React.FC = () => {
                           <p className="text-xs text-gray-500">
                             Tempo risposta: {check.responseTime}
                           </p>
+                        )}
+                        {name.toLowerCase() === 'disk' && (
+                          <div className="text-xs text-gray-500 space-y-1 pt-1 border-t">
+                            <p><strong>Origine:</strong> {check.sourceLabel || 'Server applicativo (Render) - NON Neon'}</p>
+                            <p>
+                              <strong>Utilizzato:</strong> {formatBytes(check.usedBytes)} / {formatBytes(check.totalBytes)}
+                              {' '}({typeof check.diskPercent === 'number' ? `${check.diskPercent.toFixed(2)}%` : 'N/D'})
+                            </p>
+                            <p><strong>Disponibile:</strong> {formatBytes(check.freeBytes || check.freeSpace)}</p>
+                            <p><strong>Metodo:</strong> {check.method === 'df' ? 'misura reale filesystem' : 'stima (fallback)'}</p>
+                          </div>
                         )}
                       </div>
                     </CardContent>
