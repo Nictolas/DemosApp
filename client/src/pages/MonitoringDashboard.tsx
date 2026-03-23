@@ -218,12 +218,20 @@ const MonitoringDashboard: React.FC = () => {
 
   // Carica tutti i dati
   const loadAllData = async () => {
-    await Promise.all([
+    // 1) Stato monitoraggio per primo: è la chiamata più importante per la UX del toggle.
+    await loadMonitoringStatus();
+
+    // 2) Le altre chiamate non devono bloccare tutta la pagina se una resta pending/errore.
+    const results = await Promise.allSettled([
       loadSystemHealth(),
       loadPerformanceMetrics(),
-      loadSummary(),
-      loadMonitoringStatus()
+      loadSummary()
     ]);
+
+    const rejected = results.filter(r => r.status === 'rejected');
+    if (rejected.length > 0 && !error) {
+      setError('Alcune metriche non sono disponibili al momento. Riprova con "Aggiorna".');
+    }
   };
 
   // Carica dati iniziali
