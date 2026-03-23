@@ -511,6 +511,25 @@ const MonitoringDashboard: React.FC = () => {
         {/* PANORAMICA */}
         {currentView === 'overview' && (
           <div className="space-y-6">
+          <Card className={surfaceCardClass}>
+            <CardHeader>
+              <CardTitle className="text-base">Come leggere la Panoramica</CardTitle>
+              <CardDescription>
+                Spiegazione veloce, non tecnica, dei numeri principali che vedi in questa schermata.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+              <div className="space-y-2">
+                <p><strong>CPU Media:</strong> quanto il server ha lavorato nelle ultime 24 ore. Se resta alta a lungo, il sistema e sotto carico.</p>
+                <p><strong>Memoria Media:</strong> quanta RAM ha usato il backend nelle ultime 24 ore. Se cresce troppo, possono arrivare rallentamenti.</p>
+              </div>
+              <div className="space-y-2">
+                <p><strong>Errori:</strong> numero totale errori nelle ultime 24 ore. Se aumenta, c'e un problema da analizzare.</p>
+                <p><strong>Uptime:</strong> quanto il servizio e rimasto attivo senza interruzioni. Piu e alto, maggiore e la stabilita.</p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Status Generale */}
           {systemHealth && (
             <Card className={surfaceCardClass}>
@@ -777,6 +796,29 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'database' && (
           <div className="space-y-6">
+            <Card className={surfaceCardClass}>
+              <CardHeader>
+                <CardTitle className="text-base">Come leggere i dati Database</CardTitle>
+                <CardDescription>
+                  Guida rapida, in linguaggio semplice, per capire a cosa servono le voci di questa pagina.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+                <div className="space-y-2">
+                  <p><strong>Connessioni totali:</strong> quante connessioni al DB sono aperte in questo momento.</p>
+                  <p><strong>Connessioni attive:</strong> quante stanno lavorando adesso (query in corso).</p>
+                  <p><strong>Connessioni idle:</strong> quante sono aperte ma ferme, in attesa di lavoro.</p>
+                  <p><strong>Idle in transaction:</strong> connessioni lasciate in transazione senza chiuderla; se sale troppo, e un campanello d'allarme.</p>
+                </div>
+                <div className="space-y-2">
+                  <p><strong>Dimensione DB:</strong> quanto spazio occupa l'intero database Neon.</p>
+                  <p><strong>Tabella users:</strong> quanto spazio usa solo la tabella utenti.</p>
+                  <p><strong>Dimensione users (bytes):</strong> la stessa misura in formato numerico grezzo.</p>
+                  <p><strong>Slow queries:</strong> query lente; servono per capire dove ottimizzare e ridurre carico/compute.</p>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
@@ -906,6 +948,27 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'performance' && (
           <div className="space-y-6">
+            <Card className={surfaceCardClass}>
+              <CardHeader>
+                <CardTitle className="text-base">Come leggere la sezione Performance</CardTitle>
+                <CardDescription>
+                  Guida rapida, in parole semplici, per interpretare i numeri tecnici di questa pagina.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+                <div className="space-y-2">
+                  <p><strong>CPU:</strong> misura quanto lavora il server. Se resta spesso alta, il sistema e sotto pressione.</p>
+                  <p><strong>Memoria:</strong> indica quanta RAM usa l'app. Se cresce continuamente, puo esserci un consumo anomalo.</p>
+                  <p><strong>Database:</strong> mostra connessioni e dimensioni del DB Neon; utile per capire se il DB e il collo di bottiglia.</p>
+                </div>
+                <div className="space-y-2">
+                  <p><strong>Uptime:</strong> da quanto tempo l'app e attiva senza riavvii.</p>
+                  <p><strong>Event Loop Delay:</strong> se alto, l'app risponde piu lentamente alle richieste.</p>
+                  <p><strong>Active Handles/Requests:</strong> quante operazioni sono aperte in quel momento; picchi prolungati indicano carico elevato.</p>
+                </div>
+              </CardContent>
+            </Card>
+
             {performanceMetrics && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card className={sectionCardClass}>
