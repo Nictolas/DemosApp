@@ -424,15 +424,15 @@ export default function App() {
 
                 {/* Route per Dashboard Sicurezza e Monitoraggio */}
                 <Route path="/admin/security-dashboard">
-                  <Redirect to="/admin/ops-center/security" />
+                  <Redirect to="/admin/ops-center" />
                 </Route>
                 <Route path="/admin/ops-center">
-                  <Redirect to="/admin/ops-center/monitoring" />
-                </Route>
-                <Route path="/admin/ops-center/:section">
                   <PageTransition location={location} type="fade-up">
                     <OpsCenter />
                   </PageTransition>
+                </Route>
+                <Route path="/admin/ops-center/:section">
+                  <Redirect to="/admin/ops-center" />
                 </Route>
 
                 {/* Route per Gestione GDPR e Legale */}
