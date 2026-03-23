@@ -24,7 +24,8 @@ import {
   Minus,
   BarChart3,
   Heart,
-  Zap
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import { apiRequest } from '../lib/queryClient';
 
@@ -409,15 +410,30 @@ const MonitoringDashboard: React.FC = () => {
     services: { title: 'Servizi', subtitle: 'Stato dei servizi interni e disponibilita componenti' }
   };
 
+  const navItems = [
+    { key: 'overview', label: 'Panoramica', href: '/monitoring-dashboard/overview', icon: BarChart3 },
+    { key: 'health', label: 'Salute Sistema', href: '/monitoring-dashboard/health', icon: Heart },
+    { key: 'performance', label: 'Performance', href: '/monitoring-dashboard/performance', icon: Activity }
+  ] as const;
+
+  const surfaceCardClass = 'border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm';
+  const sectionCardClass = 'border-slate-200/70 bg-white/90 shadow-sm';
+  const tableHeadClass = 'text-left border-b bg-slate-50 text-slate-700';
+  const tableRowClass = 'border-b last:border-0 hover:bg-slate-50/70 transition-colors';
+
   return (
     <div className="w-full mx-auto px-4 md:px-8 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef2ff_0%,_#f8fbff_38%,_#ffffff_72%)]">
-      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/80 backdrop-blur-sm shadow-sm p-5 md:p-6">
+      <div className={`mb-6 rounded-2xl p-5 md:p-6 ${surfaceCardClass}`}>
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+          Ops Monitoring Hub
+        </div>
         <h1 className="text-2xl md:text-3xl font-bold mb-3 flex items-center gap-2 text-slate-900">
-          <Activity className="h-8 w-8" />
-          Monitoraggio Performance e Salute Sistema
+          <Activity className="h-8 w-8 text-indigo-600" />
+          Monitoring Dashboard
         </h1>
-        <p className="text-slate-600">
-          Monitora le performance, la salute del sistema e rileva problemi proattivamente.
+        <p className="text-slate-600 max-w-4xl">
+          Vista unificata per monitorare performance, salute piattaforma e segnali di rischio in modo rapido e leggibile.
         </p>
         <p className="text-xs text-slate-500 mt-2">
           Nota: "Spazio disco" si riferisce al server applicativo (Render), non al database Neon.
@@ -439,14 +455,14 @@ const MonitoringDashboard: React.FC = () => {
       )}
 
       {/* Controlli Monitoraggio */}
-      <Card className="mb-6 border-slate-200/70 bg-white/80 backdrop-blur-sm shadow-sm">
+      <Card className={`mb-6 ${surfaceCardClass}`}>
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
+          <CardTitle className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <span className="flex items-center gap-2 text-slate-900">
               <Zap className="h-5 w-5" />
               Controlli Monitoraggio
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge className={isMonitoring ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-700 border border-slate-300'}>
                 {isMonitoring ? 'Attivo' : 'Inattivo'}
               </Badge>
@@ -478,22 +494,18 @@ const MonitoringDashboard: React.FC = () => {
       </Card>
 
       <div className="space-y-6">
-        <div className="grid w-full grid-cols-3 gap-2 p-1 rounded-xl border border-slate-200/70 bg-white/80 backdrop-blur-sm">
-          <Link href="/monitoring-dashboard/overview">
-            <Button variant={currentView === 'overview' ? 'default' : 'ghost'} className="w-full rounded-lg">
-              Panoramica
-            </Button>
-          </Link>
-          <Link href="/monitoring-dashboard/health">
-            <Button variant={currentView === 'health' ? 'default' : 'ghost'} className="w-full rounded-lg">
-              Salute Sistema
-            </Button>
-          </Link>
-          <Link href="/monitoring-dashboard/performance">
-            <Button variant={currentView === 'performance' ? 'default' : 'ghost'} className="w-full rounded-lg">
-              Performance
-            </Button>
-          </Link>
+        <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 p-1 rounded-xl border border-slate-200/70 bg-white/80 backdrop-blur-sm">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.key} href={item.href}>
+                <Button variant={currentView === item.key ? 'default' : 'ghost'} className="w-full rounded-lg justify-start sm:justify-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Button>
+              </Link>
+            );
+          })}
         </div>
 
         {/* PANORAMICA */}
@@ -501,7 +513,7 @@ const MonitoringDashboard: React.FC = () => {
           <div className="space-y-6">
           {/* Status Generale */}
           {systemHealth && (
-            <Card className="border-slate-200/70 bg-white/85 shadow-sm">
+            <Card className={surfaceCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Heart className="h-5 w-5" />
@@ -529,7 +541,7 @@ const MonitoringDashboard: React.FC = () => {
           {/* Riepilogo Performance */}
           {summary && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+              <Card className={sectionCardClass}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-sm font-medium">CPU Media</CardTitle>
@@ -549,7 +561,7 @@ const MonitoringDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+              <Card className={sectionCardClass}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-sm font-medium">Memoria Media</CardTitle>
@@ -569,7 +581,7 @@ const MonitoringDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+              <Card className={sectionCardClass}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Errori</CardTitle>
                   <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -585,7 +597,7 @@ const MonitoringDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+              <Card className={sectionCardClass}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Uptime</CardTitle>
                   <CheckCircle className="h-4 w-4 text-green-500" />
@@ -607,7 +619,7 @@ const MonitoringDashboard: React.FC = () => {
         {/* SALUTE SISTEMA */}
         {currentView === 'health' && (
           <div className="space-y-6">
-          <Card className="border-slate-200/70 bg-white/85 shadow-sm">
+          <Card className={surfaceCardClass}>
             <CardHeader>
               <CardTitle className="text-base">Come leggere "Spazio disco"</CardTitle>
               <CardDescription>
@@ -626,7 +638,7 @@ const MonitoringDashboard: React.FC = () => {
                 const IconComponent = getStatusIcon(check.status);
                 
                 const cardContent = (
-                  <Card key={name} className="border-slate-200/70 bg-white/90 shadow-sm hover:shadow-md transition-shadow">
+                  <Card key={name} className={`${sectionCardClass} hover:shadow-md transition-shadow`}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 justify-between">
                         <span className="flex items-center gap-2">
@@ -697,7 +709,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'disk' && (
           <div className="space-y-6">
-            <Card>
+            <Card className={surfaceCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <HardDrive className="h-5 w-5" />
@@ -715,7 +727,7 @@ const MonitoringDashboard: React.FC = () => {
             </Card>
 
             {diskBreakdown ? (
-              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+              <Card className={sectionCardClass}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -732,7 +744,7 @@ const MonitoringDashboard: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left border-b bg-slate-50">
+                        <tr className={tableHeadClass}>
                           <th className="py-2 pr-3">Cartella</th>
                           <th className="py-2 pr-3">Dimensione</th>
                           <th className="py-2 pr-3">% sul totale target</th>
@@ -740,7 +752,7 @@ const MonitoringDashboard: React.FC = () => {
                       </thead>
                       <tbody>
                         {diskBreakdown.entries.map((entry) => (
-                          <tr key={entry.path} className="border-b last:border-0 hover:bg-slate-50/70">
+                          <tr key={entry.path} className={tableRowClass}>
                             <td className="py-2 pr-3 font-mono text-xs md:text-sm">{entry.path}</td>
                             <td className="py-2 pr-3">{entry.sizeHuman}</td>
                             <td className="py-2 pr-3">{entry.percentOfTarget.toFixed(2)}%</td>
@@ -765,7 +777,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'database' && (
           <div className="space-y-6">
-            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -790,7 +802,7 @@ const MonitoringDashboard: React.FC = () => {
               </CardContent>
             </Card>
             {databaseDetails?.slowQueries?.length ? (
-              <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+              <Card className={sectionCardClass}>
                 <CardHeader>
                   <CardTitle>Slow Queries (top)</CardTitle>
                 </CardHeader>
@@ -798,7 +810,7 @@ const MonitoringDashboard: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left border-b bg-slate-50">
+                        <tr className={tableHeadClass}>
                           <th className="py-2 pr-3">Query</th>
                           <th className="py-2 pr-3">Mean ms</th>
                           <th className="py-2 pr-3">Calls</th>
@@ -807,7 +819,7 @@ const MonitoringDashboard: React.FC = () => {
                       </thead>
                       <tbody>
                         {databaseDetails.slowQueries.map((q, i) => (
-                          <tr key={`${q.query}-${i}`} className="border-b last:border-0 hover:bg-slate-50/70">
+                          <tr key={`${q.query}-${i}`} className={tableRowClass}>
                             <td className="py-2 pr-3 font-mono text-xs">{q.query}</td>
                             <td className="py-2 pr-3">{Number(q.mean_exec_time || 0).toFixed(2)}</td>
                             <td className="py-2 pr-3">{q.calls ?? 0}</td>
@@ -825,7 +837,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'memory' && (
           <div className="space-y-6">
-            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -848,7 +860,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'security' && (
           <div className="space-y-6">
-            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -871,7 +883,7 @@ const MonitoringDashboard: React.FC = () => {
 
         {currentView === 'services' && (
           <div className="space-y-6">
-            <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
@@ -896,7 +908,7 @@ const MonitoringDashboard: React.FC = () => {
           <div className="space-y-6">
             {performanceMetrics && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+                <Card className={sectionCardClass}>
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -930,7 +942,7 @@ const MonitoringDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+                <Card className={sectionCardClass}>
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -970,7 +982,7 @@ const MonitoringDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+                <Card className={sectionCardClass}>
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
@@ -1004,7 +1016,7 @@ const MonitoringDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+                <Card className={sectionCardClass}>
                   <CardHeader>
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
