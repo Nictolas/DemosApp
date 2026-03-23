@@ -74,12 +74,34 @@ interface DiskBreakdownData {
   entries: DiskBreakdownEntry[];
 }
 
+interface DatabaseDetails {
+  connections?: {
+    total_connections?: number;
+    active_connections?: number;
+    idle_connections?: number;
+    idle_in_transaction?: number;
+  };
+  size?: {
+    database_size?: string;
+    database_size_bytes?: number;
+    users_table_size?: string;
+    users_table_size_bytes?: number;
+  };
+  slowQueries?: Array<{
+    query: string;
+    mean_exec_time: number;
+    calls: number;
+    total_exec_time: number;
+  }>;
+}
+
 const MonitoringDashboard: React.FC = () => {
   const [location] = useLocation();
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
   const [summary, setSummary] = useState<any>(null);
   const [diskBreakdown, setDiskBreakdown] = useState<DiskBreakdownData | null>(null);
+  const [databaseDetails, setDatabaseDetails] = useState<DatabaseDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +253,18 @@ const MonitoringDashboard: React.FC = () => {
     }
   };
 
+  const loadDatabaseDetails = async () => {
+    try {
+      const response = await apiRequest('GET', '/admin/monitoring/database');
+      const serverPayload = response?.data ?? response;
+      if (serverPayload?.success === true && serverPayload?.data) {
+        setDatabaseDetails(serverPayload.data);
+      }
+    } catch (err) {
+      console.warn('Database details non disponibili:', err);
+    }
+  };
+
   // Avvia/ferma monitoraggio
   const toggleMonitoring = async () => {
     try {
@@ -260,7 +294,8 @@ const MonitoringDashboard: React.FC = () => {
       loadSystemHealth(),
       loadPerformanceMetrics(),
       loadSummary(),
-      loadDiskBreakdown()
+      loadDiskBreakdown(),
+      loadDatabaseDetails()
     ]);
 
     const rejected = results.filter(r => r.status === 'rejected');
@@ -353,6 +388,14 @@ const MonitoringDashboard: React.FC = () => {
       ? 'performance'
       : location.includes('/monitoring-dashboard/disk')
         ? 'disk'
+        : location.includes('/monitoring-dashboard/database')
+          ? 'database'
+          : location.includes('/monitoring-dashboard/memory')
+            ? 'memory'
+            : location.includes('/monitoring-dashboard/security')
+              ? 'security'
+              : location.includes('/monitoring-dashboard/services')
+                ? 'services'
       : 'overview';
 
   return (
@@ -614,9 +657,19 @@ const MonitoringDashboard: React.FC = () => {
                     </CardContent>
                   </Card>
                 );
-                return name.toLowerCase() === 'disk'
+                const lowerName = name.toLowerCase();
+                const detailsPathMap: Record<string, string> = {
+                  disk: '/monitoring-dashboard/disk',
+                  database: '/monitoring-dashboard/database',
+                  memory: '/monitoring-dashboard/memory',
+                  security: '/monitoring-dashboard/security',
+                  services: '/monitoring-dashboard/services'
+                };
+                const detailsPath = detailsPathMap[lowerName];
+
+                return detailsPath
                   ? (
-                    <Link key={name} href="/monitoring-dashboard/disk" className="block">
+                    <Link key={name} href={detailsPath} className="block">
                       <div className="cursor-pointer hover:opacity-95 transition-opacity" title="Apri dettaglio spazio disco">
                         {cardContent}
                       </div>
@@ -694,6 +747,135 @@ const MonitoringDashboard: React.FC = () => {
                 </AlertDescription>
               </Alert>
             )}
+          </div>
+        )}
+
+        {currentView === 'database' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    Approfondimento Database (Neon)
+                  </span>
+                  <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Neon</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p><strong>Connessioni totali:</strong> {databaseDetails?.connections?.total_connections ?? 'N/D'}</p>
+                  <p><strong>Connessioni attive:</strong> {databaseDetails?.connections?.active_connections ?? 'N/D'}</p>
+                  <p><strong>Connessioni idle:</strong> {databaseDetails?.connections?.idle_connections ?? 'N/D'}</p>
+                  <p><strong>Idle in transaction:</strong> {databaseDetails?.connections?.idle_in_transaction ?? 'N/D'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p><strong>Dimensione DB:</strong> {databaseDetails?.size?.database_size ?? 'N/D'}</p>
+                  <p><strong>Tabella users:</strong> {databaseDetails?.size?.users_table_size ?? 'N/D'}</p>
+                  <p><strong>Dimensione users (bytes):</strong> {databaseDetails?.size?.users_table_size_bytes ?? 'N/D'}</p>
+                </div>
+              </CardContent>
+            </Card>
+            {databaseDetails?.slowQueries?.length ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Slow Queries (top)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left border-b">
+                          <th className="py-2 pr-3">Query</th>
+                          <th className="py-2 pr-3">Mean ms</th>
+                          <th className="py-2 pr-3">Calls</th>
+                          <th className="py-2 pr-3">Total ms</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {databaseDetails.slowQueries.map((q, i) => (
+                          <tr key={`${q.query}-${i}`} className="border-b last:border-0">
+                            <td className="py-2 pr-3 font-mono text-xs">{q.query}</td>
+                            <td className="py-2 pr-3">{Number(q.mean_exec_time || 0).toFixed(2)}</td>
+                            <td className="py-2 pr-3">{q.calls ?? 0}</td>
+                            <td className="py-2 pr-3">{Number(q.total_exec_time || 0).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
+        )}
+
+        {currentView === 'memory' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <HardDrive className="h-5 w-5" />
+                    Approfondimento Memoria server app
+                  </span>
+                  <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p><strong>Heap Used:</strong> {formatBytes(performanceMetrics?.memory?.heapUsed)}</p>
+                <p><strong>Heap Total:</strong> {formatBytes(performanceMetrics?.memory?.heapTotal)}</p>
+                <p><strong>RSS:</strong> {formatBytes(performanceMetrics?.memory?.rss)}</p>
+                <p><strong>System Free:</strong> {formatBytes(performanceMetrics?.memory?.systemFree)}</p>
+                <p><strong>System Used:</strong> {formatBytes(performanceMetrics?.memory?.systemUsed)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {currentView === 'security' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Approfondimento Sicurezza (eventi/log)
+                  </span>
+                  <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render/Axiom</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <p><strong>Stato:</strong> {systemHealth?.checks?.security?.status ?? 'N/D'}</p>
+                <p><strong>Messaggio:</strong> {systemHealth?.checks?.security?.message ?? 'N/D'}</p>
+                <p className="text-gray-500 mt-2">
+                  Per analisi estesa usa anche la dashboard sicurezza amministrativa.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {currentView === 'services' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Approfondimento Servizi interni
+                  </span>
+                  <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <p><strong>Stato:</strong> {systemHealth?.checks?.services?.status ?? 'N/D'}</p>
+                <p><strong>Messaggio:</strong> {systemHealth?.checks?.services?.message ?? 'N/D'}</p>
+                {systemHealth?.checks?.services?.failedServices?.length > 0 && (
+                  <p><strong>Servizi non operativi:</strong> {systemHealth.checks.services.failedServices.join(', ')}</p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
