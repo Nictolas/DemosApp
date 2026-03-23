@@ -2,6 +2,8 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api-config";
 import { getAuthToken } from "@/lib/auth-token";
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 12000;
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -45,7 +47,11 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       cache: 'no-store'
     };
     
-    const response = await fetch(finalUrl, fetchOptions);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal }).finally(() => {
+      clearTimeout(timeoutId);
+    });
     
     // Leggi il body come testo prima di parsarlo
     const text = await response.text();
@@ -112,6 +118,9 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       data
     } as any;
   } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Timeout richiesta API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${url}`);
+    }
     // Se l'errore ha già status, rilancialo così com'è
     if (error.status !== undefined) {
       throw error;
@@ -162,9 +171,19 @@ export const getQueryFn: <T>(options: {
     
     const finalUrl = getApiUrl(queryKey[0] as string);
     
-    const res = await fetch(finalUrl, {
-      headers,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(finalUrl, { headers, signal: controller.signal });
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        throw new Error(`Timeout query API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${String(queryKey[0])}`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
