@@ -460,7 +460,7 @@ const MonitoringDashboard: React.FC = () => {
       </Card>
 
       <div className="space-y-6">
-        <div className="grid w-full grid-cols-4 gap-2">
+        <div className="grid w-full grid-cols-3 gap-2">
           <Link href="/monitoring-dashboard/overview">
             <Button variant={currentView === 'overview' ? 'default' : 'outline'} className="w-full">
               Panoramica
@@ -474,11 +474,6 @@ const MonitoringDashboard: React.FC = () => {
           <Link href="/monitoring-dashboard/performance">
             <Button variant={currentView === 'performance' ? 'default' : 'outline'} className="w-full">
               Performance
-            </Button>
-          </Link>
-          <Link href="/monitoring-dashboard/disk">
-            <Button variant={currentView === 'disk' ? 'default' : 'outline'} className="w-full">
-              Spazio Disco
             </Button>
           </Link>
         </div>

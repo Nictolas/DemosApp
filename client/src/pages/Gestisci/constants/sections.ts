@@ -59,37 +59,15 @@ export const gestisciSections: GestisciSection[] = [
   },
   // Sezioni consolidate
   {
-    id: "security-dashboard-consolidated",
+    id: "ops-center",
     category: "monitoraggio-sicurezza",
-    title: "Dashboard Sicurezza e Monitoraggio",
-    description: "Panoramica completa di sicurezza, audit logs, violazioni, rate limiting, validazione e performance",
-    icon: Shield,
-    color: "text-red-600 group-hover:text-red-800",
-    buttonColor: "bg-red-500 hover:bg-red-600",
-    route: "/admin/security-dashboard",
-    buttonText: "Apri Dashboard Sicurezza"
-  },
-  {
-    id: "monitoring-dashboard",
-    category: "monitoraggio-sicurezza",
-    title: "Monitoring Performance",
-    description: "Avvia/ferma il monitoraggio e vedi le metriche di performance del sistema",
+    title: "Ops Center",
+    description: "Hub unico per Monitoring, Security e Compliance",
     icon: BarChart3,
     color: "text-indigo-600 group-hover:text-indigo-800",
     buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-    route: "/monitoring-dashboard",
-    buttonText: "Apri Monitoring"
-  },
-  {
-    id: "gdpr-legal-consolidated",
-    category: "monitoraggio-sicurezza",
-    title: "Gestione GDPR e Legale",
-    description: "Gestisci diritti GDPR, data retention e documenti legali in un'unica interfaccia",
-    icon: Lock,
-    color: "text-emerald-600 group-hover:text-emerald-800",
-    buttonColor: "bg-emerald-500 hover:bg-emerald-600",
-    route: "/admin/gdpr-legal",
-    buttonText: "Apri Gestione GDPR"
+    route: "/admin/ops-center/monitoring",
+    buttonText: "Apri Ops Center"
   },
   {
     id: "data-export",
