@@ -15,16 +15,16 @@ export const SectionsGrid: React.FC = () => {
       {/* Desktop 16:9: layout compatto a colonne, tutte le voci visibili */}
       <div className="hidden xl:grid xl:grid-cols-4 gap-4">
         {groupedSections.map(({ category, sections }) => (
-          <div key={category} className="rounded-xl border bg-white/70 p-3 space-y-2">
-            <div className="border-b pb-2">
-              <h2 className="text-sm font-bold text-gray-900 leading-tight">
+          <div key={category} className="rounded-xl border bg-white/70 p-2.5 space-y-2">
+            <div className="border-b pb-1.5">
+              <h2 className="text-xs font-bold text-gray-900 leading-tight">
                 {gestisciCategoryMeta[category].title}
               </h2>
-              <p className="text-[11px] text-gray-600 leading-snug">
+              <p className="text-[10px] text-gray-600 leading-snug">
                 {gestisciCategoryMeta[category].description}
               </p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {sections.map((section) => (
                 <div key={section.id} className="w-full">
                   <SectionCard section={section} compact />

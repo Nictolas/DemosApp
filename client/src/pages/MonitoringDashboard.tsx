@@ -351,6 +351,8 @@ const MonitoringDashboard: React.FC = () => {
     ? 'health'
     : location.includes('/monitoring-dashboard/performance')
       ? 'performance'
+      : location.includes('/monitoring-dashboard/disk')
+        ? 'disk'
       : 'overview';
 
   return (
@@ -415,7 +417,7 @@ const MonitoringDashboard: React.FC = () => {
       </Card>
 
       <div className="space-y-6">
-        <div className="grid w-full grid-cols-3 gap-2">
+        <div className="grid w-full grid-cols-4 gap-2">
           <Link href="/monitoring-dashboard/overview">
             <Button variant={currentView === 'overview' ? 'default' : 'outline'} className="w-full">
               Panoramica
@@ -429,6 +431,11 @@ const MonitoringDashboard: React.FC = () => {
           <Link href="/monitoring-dashboard/performance">
             <Button variant={currentView === 'performance' ? 'default' : 'outline'} className="w-full">
               Performance
+            </Button>
+          </Link>
+          <Link href="/monitoring-dashboard/disk">
+            <Button variant={currentView === 'disk' ? 'default' : 'outline'} className="w-full">
+              Spazio Disco
             </Button>
           </Link>
         </div>
@@ -562,7 +569,7 @@ const MonitoringDashboard: React.FC = () => {
               {Object.entries(systemHealth.checks).map(([name, check]) => {
                 const IconComponent = getStatusIcon(check.status);
                 
-                return (
+                const cardContent = (
                   <Card key={name}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 justify-between">
@@ -607,48 +614,86 @@ const MonitoringDashboard: React.FC = () => {
                     </CardContent>
                   </Card>
                 );
+                return name.toLowerCase() === 'disk'
+                  ? (
+                    <Link key={name} href="/monitoring-dashboard/disk" className="block">
+                      <div className="cursor-pointer hover:opacity-95 transition-opacity" title="Apri dettaglio spazio disco">
+                        {cardContent}
+                      </div>
+                    </Link>
+                  )
+                  : cardContent;
               })}
             </div>
           )}
+          </div>
+        )}
 
-          {diskBreakdown && (
+        {currentView === 'disk' && (
+          <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 justify-between">
-                  <span className="flex items-center gap-2">
-                    <HardDrive className="h-5 w-5" />
-                    Breakdown spazio disco server app
-                  </span>
-                  <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                <CardTitle className="flex items-center gap-2">
+                  <HardDrive className="h-5 w-5" />
+                  Breakdown spazio disco server app
                 </CardTitle>
                 <CardDescription>
-                  Top cartelle più pesanti in <code>{diskBreakdown.target}</code> (totale: {diskBreakdown.totalHuman})
+                  Questa vista mostra il filesystem del server applicativo Render (NON Neon).
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left border-b">
-                        <th className="py-2 pr-3">Cartella</th>
-                        <th className="py-2 pr-3">Dimensione</th>
-                        <th className="py-2 pr-3">% sul totale target</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {diskBreakdown.entries.map((entry) => (
-                        <tr key={entry.path} className="border-b last:border-0">
-                          <td className="py-2 pr-3 font-mono text-xs md:text-sm">{entry.path}</td>
-                          <td className="py-2 pr-3">{entry.sizeHuman}</td>
-                          <td className="py-2 pr-3">{entry.percentOfTarget.toFixed(2)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <CardContent className="text-sm text-gray-600 space-y-1">
+                <p>- Origine: server backend Render</p>
+                <p>- Esclude il database Neon (storage separato)</p>
+                <p>- Clicca "Aggiorna" per ricaricare il breakdown</p>
               </CardContent>
             </Card>
-          )}
+
+            {diskBreakdown ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 justify-between">
+                    <span className="flex items-center gap-2">
+                      <HardDrive className="h-5 w-5" />
+                      Top cartelle più pesanti
+                    </span>
+                    <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Target: <code>{diskBreakdown.target}</code> | Totale: {diskBreakdown.totalHuman}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left border-b">
+                          <th className="py-2 pr-3">Cartella</th>
+                          <th className="py-2 pr-3">Dimensione</th>
+                          <th className="py-2 pr-3">% sul totale target</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {diskBreakdown.entries.map((entry) => (
+                          <tr key={entry.path} className="border-b last:border-0">
+                            <td className="py-2 pr-3 font-mono text-xs md:text-sm">{entry.path}</td>
+                            <td className="py-2 pr-3">{entry.sizeHuman}</td>
+                            <td className="py-2 pr-3">{entry.percentOfTarget.toFixed(2)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Dati non disponibili</AlertTitle>
+                <AlertDescription>
+                  Breakdown spazio disco non disponibile al momento. Premi "Aggiorna" per riprovare.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
 

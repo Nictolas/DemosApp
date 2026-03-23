@@ -71,7 +71,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section, compact = fal
     <button
       type="button"
       className={`menu-button relative w-full rounded-xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:shadow-xl ${
-        compact ? "min-h-[82px]" : "min-h-[140px]"
+        compact ? "min-h-[62px]" : "min-h-[140px]"
       }`}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
@@ -83,13 +83,13 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section, compact = fal
     >
       <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: 0.1 }}></div>
       <div className="absolute top-0 left-0 w-2 h-full" style={{ backgroundColor: bgColor }}></div>
-      <div className={`relative z-10 w-full h-full ${compact ? "p-3" : "p-4"}`}>
+      <div className={`relative z-10 w-full h-full ${compact ? "p-2.5" : "p-4"}`}>
         <div className={`w-full h-full ${compact ? "flex items-center gap-3" : "flex flex-col items-center justify-center gap-3"}`}>
-          <span className={`relative flex items-center justify-center flex-shrink-0 ${compact ? "w-9 h-9" : "w-12 h-12"}`}>
-            <IconComponent className={compact ? "h-7 w-7" : "h-10 w-10"} style={{ color: iconColor }} />
+          <span className={`relative flex items-center justify-center flex-shrink-0 ${compact ? "w-7 h-7" : "w-12 h-12"}`}>
+            <IconComponent className={compact ? "h-5 w-5" : "h-10 w-10"} style={{ color: iconColor }} />
           </span>
           <div className={`flex-1 ${compact ? "text-left min-w-0" : "text-center"}`}>
-            <div className={`${compact ? "text-base truncate" : "text-lg mb-1"} text-gray-900 font-bold select-none leading-tight`}>
+            <div className={`${compact ? "text-sm truncate" : "text-lg mb-1"} text-gray-900 font-bold select-none leading-tight`}>
               {section.title}
             </div>
             {!compact && (
