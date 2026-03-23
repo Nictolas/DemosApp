@@ -15,16 +15,16 @@ export const SectionsGrid: React.FC = () => {
       {/* Desktop 16:9: layout compatto a colonne, tutte le voci visibili */}
       <div className="hidden xl:grid xl:grid-cols-4 gap-3">
         {groupedSections.map(({ category, sections }) => (
-          <div key={category} className="rounded-lg border bg-white/70 p-2 space-y-1.5">
-            <div className="border-b pb-1">
-              <h2 className="text-[11px] font-bold text-gray-900 leading-tight">
+          <div key={category} className="rounded-2xl border border-white/60 bg-white/65 backdrop-blur-sm p-2.5 space-y-2 shadow-sm">
+            <div className="pb-1 border-b border-slate-200/70">
+              <h2 className="text-[11px] font-semibold tracking-wide text-slate-800 uppercase leading-tight">
                 {gestisciCategoryMeta[category].title}
               </h2>
-              <p className="text-[9px] text-gray-600 leading-snug">
+              <p className="text-[10px] text-slate-500 leading-snug mt-0.5">
                 {gestisciCategoryMeta[category].description}
               </p>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {sections.map((section) => (
                 <div key={section.id} className="w-full">
                   <SectionCard section={section} compact />
@@ -39,14 +39,15 @@ export const SectionsGrid: React.FC = () => {
       <div className="xl:hidden space-y-8">
         {groupedSections.map(({ category, sections }) => (
           <div key={category} className="space-y-3">
-            <div>
-              <h2 className="text-lg md:text-xl font-bold text-gray-900">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg md:text-xl font-bold text-slate-900">
                 {gestisciCategoryMeta[category].title}
               </h2>
-              <p className="text-sm text-gray-600">
-                {gestisciCategoryMeta[category].description}
-              </p>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                {sections.length} voci
+              </span>
             </div>
+            <p className="text-sm text-slate-600">{gestisciCategoryMeta[category].description}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 w-full">
               {sections.map((section) => (
                 <div key={section.id} className="w-full">
