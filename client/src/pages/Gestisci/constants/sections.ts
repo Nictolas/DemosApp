@@ -80,6 +80,17 @@ export const gestisciSections: GestisciSection[] = [
     route: "/admin/data-export",
     buttonText: "Gestisci Export"
   },
+  {
+    id: "parametri",
+    category: "monitoraggio-sicurezza",
+    title: "Parametri",
+    description: "Monitora limiti e utilizzo delle piattaforme free con barre percentuali",
+    icon: ClipboardList,
+    color: "text-cyan-600 group-hover:text-cyan-800",
+    buttonColor: "bg-cyan-500 hover:bg-cyan-600",
+    route: "/admin/parametri",
+    buttonText: "Apri Parametri"
+  },
     {
       id: "backup-recovery",
       category: "monitoraggio-sicurezza",
