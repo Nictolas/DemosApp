@@ -53,13 +53,17 @@ class PerformanceOptimizer {
       }, 30000);
     }
     
-    // Monitoraggio real-time ogni 10 secondi
+    // Metriche DB (es. COUNT su users): non ogni 10s — troppi tick = molte chiamate a Neon (vedi docs/DIAGNOSI_PICCHI_COMPUTE_NEON.md).
+    const metricsMs = Math.max(
+      15000,
+      parseInt(process.env.PERFORMANCE_OPTIMIZER_METRICS_INTERVAL_MS || '60000', 10)
+    );
     this.metricsInterval = setInterval(() => {
-      // Wrappare in Promise per gestire errori async
       Promise.resolve(this.updateMetrics()).catch(error => {
         console.error('❌ Errore non gestito in updateMetrics:', error);
       });
-    }, 10000);
+    }, metricsMs);
+    console.log(`📊 PerformanceOptimizer metrics ogni ${metricsMs}ms`);
   }
 
   // Esegue ottimizzazioni basate sulle metriche correnti
