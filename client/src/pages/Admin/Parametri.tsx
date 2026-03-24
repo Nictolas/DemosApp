@@ -107,7 +107,6 @@ const BASE_PLATFORMS: Platform[] = [
       { id: "play-console", label: "Limiti operativi account", used: null, limit: null, unit: "%", note: "Nessuna metrica di consumo diretta in app: usa note/manuale quando serve." },
       { id: "play-config", label: "Configurazione account review", used: null, limit: 1, unit: "stato", note: "1 = credenziali admin Play review presenti; 0 = mancanti." }
     ]
-  },
   }
 ];
 
