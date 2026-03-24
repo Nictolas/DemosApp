@@ -97,6 +97,7 @@ import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
 import ProponiICE from "./pages/ProponiICE";
 import Riconoscimento from "./pages/Riconoscimento";
 import Riconoscimenti from "./pages/Riconoscimenti";
+import RiduzioneCompute from "./pages/RiduzioneCompute";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
@@ -712,6 +713,13 @@ export default function App() {
               <Route path="/gestisci/riconoscimenti">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci/riconoscimenti" component={Riconoscimenti} />
+                </PageTransition>
+              </Route>
+
+              {/* Riduzione compute Neon (admin) */}
+              <Route path="/gestisci/riduzione-compute">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci/riduzione-compute" component={RiduzioneCompute} />
                 </PageTransition>
               </Route>
 

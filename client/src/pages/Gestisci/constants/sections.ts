@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, Cpu } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -80,17 +80,28 @@ export const gestisciSections: GestisciSection[] = [
     route: "/admin/data-export",
     buttonText: "Gestisci Export"
   },
-  {
-    id: "parametri",
-    category: "monitoraggio-sicurezza",
-    title: "Parametri",
-    description: "Monitora limiti e utilizzo delle piattaforme free con barre percentuali",
-    icon: ClipboardList,
-    color: "text-cyan-600 group-hover:text-cyan-800",
-    buttonColor: "bg-cyan-500 hover:bg-cyan-600",
-    route: "/admin/parametri",
-    buttonText: "Apri Parametri"
-  },
+    {
+      id: "parametri",
+      category: "monitoraggio-sicurezza",
+      title: "Parametri",
+      description: "Monitora limiti e utilizzo delle piattaforme free con barre percentuali",
+      icon: ClipboardList,
+      color: "text-cyan-600 group-hover:text-cyan-800",
+      buttonColor: "bg-cyan-500 hover:bg-cyan-600",
+      route: "/admin/parametri",
+      buttonText: "Apri Parametri"
+    },
+    {
+      id: "riduzione-compute",
+      category: "monitoraggio-sicurezza",
+      title: "Riduzione compute",
+      description: "Checklist e azioni per ridurre picchi e consumo CU sul database Neon",
+      icon: Cpu,
+      color: "text-violet-600 group-hover:text-violet-800",
+      buttonColor: "bg-violet-500 hover:bg-violet-600",
+      route: "/gestisci/riduzione-compute",
+      buttonText: "Riduzione compute"
+    },
     {
       id: "backup-recovery",
       category: "monitoraggio-sicurezza",

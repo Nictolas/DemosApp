@@ -60,8 +60,6 @@ const BASE_PLATFORMS: Platform[] = [
     name: "Neon (Database)",
     description: "Database PostgreSQL principale dell'app (fonte: DPIA + configurazione progetto).",
     metrics: [
-      { id: "neon-cu", label: "Compute allowance", used: null, limit: null, unit: "CU", note: "N/D: Neon non espone questo dato in modo affidabile qui senza endpoint dedicato del provider." },
-      { id: "neon-projects", label: "Progetti database", used: null, limit: null, unit: "progetti", note: "N/D: richiede API/account-level Neon, non disponibile dal DB applicativo." },
       { id: "neon-storage", label: "Storage database", used: null, limit: null, unit: "GB (live)", note: "Mostrato in tempo reale dal DB: nel piano attuale non abbiamo un limite storage ufficiale in app per calcolare la %." },
       { id: "neon-active-connections", label: "Connessioni attive DB", used: null, limit: 100, unit: "connessioni", note: "Dato live dal DB. Limite 100 usato come soglia operativa interna." }
     ]
@@ -71,44 +69,7 @@ const BASE_PLATFORMS: Platform[] = [
     name: "Render (Backend + Frontend)",
     description: "Hosting API e web app (fonte: DPIA architettura tecnica).",
     metrics: [
-      { id: "render-disk", label: "Disco server app", used: null, limit: null, unit: "GB", note: "Valore live dal server applicativo quando disponibile." },
-      { id: "render-monthly-usage", label: "Consumo risorse piano", used: null, limit: null, unit: "%", note: "Dato da inserire manualmente dal pannello Render se vuoi monitorarlo qui." }
-    ]
-  },
-  {
-    id: "firebase",
-    name: "Firebase Cloud Messaging",
-    description: "Invio notifiche push web/mobile (fonte: DPIA e configurazione FCM).",
-    metrics: [
-      { id: "firebase-push", label: "Utilizzo notifiche push", used: null, limit: null, unit: "%", note: "Inserisci il dato dal pannello Firebase quando vuoi monitorare soglie operative." },
-      { id: "firebase-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "1 = variabili Firebase server configurate; 0 = configurazione incompleta." }
-    ]
-  },
-  {
-    id: "resend",
-    name: "Resend (Email)",
-    description: "Email transazionali dell'app (fonte: DPIA + env).",
-    metrics: [
-      { id: "resend-emails", label: "Invii email", used: null, limit: null, unit: "%", note: "Collega o aggiorna manualmente dal pannello Resend." },
-      { id: "resend-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "1 = RESEND_API_KEY presente; 0 = chiave mancante." }
-    ]
-  },
-  {
-    id: "axiom",
-    name: "Axiom (Log e Audit)",
-    description: "Raccolta log centralizzati e audit GDPR (fonte: DPIA + env).",
-    metrics: [
-      { id: "axiom-ingest", label: "Volume ingest log", used: null, limit: null, unit: "%", note: "Compila con i dati del tuo piano Axiom per monitorare saturazione." },
-      { id: "axiom-integration", label: "Integrazione Axiom", used: null, limit: 1, unit: "stato", note: "1 = integrazione attiva e configurata; 0 = integrazione non completa." }
-    ]
-  },
-  {
-    id: "google-play",
-    name: "Google Play (Distribuzione app)",
-    description: "Canale pubblicazione mobile Android (fonte: DPIA).",
-    metrics: [
-      { id: "play-console", label: "Limiti operativi account", used: null, limit: null, unit: "%", note: "Nessuna metrica di consumo diretta in app: usa note/manuale quando serve." },
-      { id: "play-config", label: "Configurazione account review", used: null, limit: 1, unit: "stato", note: "1 = credenziali admin Play review presenti; 0 = mancanti." }
+      { id: "render-disk", label: "Disco server app", used: null, limit: null, unit: "GB", note: "Valore live dal server applicativo quando disponibile." }
     ]
   }
 ];
@@ -164,27 +125,12 @@ const Parametri: React.FC = () => {
     const neon = platformUsage?.platforms?.neon?.metrics;
     const render = platformUsage?.platforms?.render?.metrics;
     const axiom = platformUsage?.platforms?.axiom?.metrics;
-    const firebase = platformUsage?.platforms?.firebase?.metrics;
-    const resend = platformUsage?.platforms?.resend?.metrics;
-    const play = platformUsage?.platforms?.play?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
       ...platform,
       metrics: platform.metrics.map((metric) => {
         if (metric.id === "neon-storage") return { ...metric, used: bytesToGb(neon?.databaseSizeBytes), limit: null };
         if (metric.id === "neon-active-connections") return { ...metric, used: neon?.activeConnections ?? null };
-        if (metric.id === "neon-projects") return { ...metric, used: neon?.projectCount ?? null, limit: null };
-        if (metric.id === "neon-cu") {
-          const seconds = neon?.computeUnitSeconds30d;
-          const cuHours = typeof seconds === "number" ? Number((seconds / 3600).toFixed(2)) : null;
-          return {
-            ...metric,
-            used: cuHours,
-            limit: null,
-            unit: "CU-h",
-            note: "Consumo compute reale Neon (somma API consumption history)."
-          };
-        }
         if (metric.id === "render-disk") {
           return {
             ...metric,
@@ -193,13 +139,6 @@ const Parametri: React.FC = () => {
             note: render?.diskIsEstimated ? "Valore live stimato (fallback). Se possibile usa misura reale da server." : metric.note
           };
         }
-        if (metric.id === "axiom-integration") {
-          const complete = Boolean(axiom?.integrationEnabled && axiom?.hasToken && axiom?.hasOrg);
-          return { ...metric, used: complete ? 1 : 0 };
-        }
-        if (metric.id === "firebase-config") return { ...metric, used: firebase?.configured ? 1 : 0 };
-        if (metric.id === "resend-config") return { ...metric, used: resend?.configured ? 1 : 0 };
-        if (metric.id === "play-config") return { ...metric, used: play?.configured ? 1 : 0 };
         return metric;
       })
     }));
@@ -245,7 +184,7 @@ const Parametri: React.FC = () => {
       <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
         <CardHeader>
           <CardTitle className="text-base">Soglie alert configurabili</CardTitle>
-          <CardDescription>Personalizza le soglie che colorano lo stato (OK / Attenzione / Critico).</CardDescription>
+          <CardDescription>Queste soglie si applicano solo alle metriche live con limite disponibile.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -260,6 +199,21 @@ const Parametri: React.FC = () => {
             <div className="flex items-center justify-between text-sm"><span>Soglia Critico</span><span className="font-medium">{criticalThreshold}%</span></div>
             <input type="range" min={Math.max(50, warningThreshold + 1)} max={100} value={criticalThreshold} onChange={(e) => setCriticalThreshold(Number(e.target.value))} className="w-full" />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
+        <CardHeader>
+          <CardTitle className="text-base">Non disponibile con piano/API attuale</CardTitle>
+          <CardDescription>
+            Alcuni parametri non si possono leggere in modo affidabile dall'app con il piano free o senza API billing dedicate.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-slate-600 space-y-1">
+          <p>- Neon: percentuale/quota compute ufficiale del piano.</p>
+          <p>- Neon: conteggio progetti account-level con chiavi scope limitato.</p>
+          <p>- Render: usage/billing piano (non disponibile qui senza API billing dedicata).</p>
+          <p>- Firebase/Resend/Axiom/Google Play: quote consumo piano non esposte in modo uniforme via API usata dall'app.</p>
         </CardContent>
       </Card>
 
