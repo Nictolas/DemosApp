@@ -34,6 +34,18 @@ type PlatformUsageApi = {
     axiom?: {
       metrics?: { integrationEnabled?: boolean; hasToken?: boolean; hasOrg?: boolean };
     };
+    firebase?: {
+      metrics?: { configured?: boolean };
+    };
+    resend?: {
+      metrics?: { configured?: boolean };
+    };
+    cie?: {
+      metrics?: { configured?: boolean };
+    };
+    play?: {
+      metrics?: { configured?: boolean };
+    };
   };
 };
 
@@ -62,13 +74,19 @@ const BASE_PLATFORMS: Platform[] = [
     id: "firebase",
     name: "Firebase Cloud Messaging",
     description: "Invio notifiche push web/mobile (fonte: DPIA e configurazione FCM).",
-    metrics: [{ id: "firebase-push", label: "Utilizzo notifiche push", used: null, limit: null, unit: "%", note: "Inserisci il dato dal pannello Firebase quando vuoi monitorare soglie operative." }]
+    metrics: [
+      { id: "firebase-push", label: "Utilizzo notifiche push", used: null, limit: null, unit: "%", note: "Inserisci il dato dal pannello Firebase quando vuoi monitorare soglie operative." },
+      { id: "firebase-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "1 = variabili Firebase server configurate; 0 = configurazione incompleta." }
+    ]
   },
   {
     id: "resend",
     name: "Resend (Email)",
     description: "Email transazionali dell'app (fonte: DPIA + env).",
-    metrics: [{ id: "resend-emails", label: "Invii email", used: null, limit: null, unit: "%", note: "Collega o aggiorna manualmente dal pannello Resend." }]
+    metrics: [
+      { id: "resend-emails", label: "Invii email", used: null, limit: null, unit: "%", note: "Collega o aggiorna manualmente dal pannello Resend." },
+      { id: "resend-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "1 = RESEND_API_KEY presente; 0 = chiave mancante." }
+    ]
   },
   {
     id: "axiom",
@@ -83,13 +101,19 @@ const BASE_PLATFORMS: Platform[] = [
     id: "google-play",
     name: "Google Play (Distribuzione app)",
     description: "Canale pubblicazione mobile Android (fonte: DPIA).",
-    metrics: [{ id: "play-console", label: "Limiti operativi account", used: null, limit: null, unit: "%", note: "Nessuna metrica di consumo diretta in app: usa note/manuale quando serve." }]
+    metrics: [
+      { id: "play-console", label: "Limiti operativi account", used: null, limit: null, unit: "%", note: "Nessuna metrica di consumo diretta in app: usa note/manuale quando serve." },
+      { id: "play-config", label: "Configurazione account review", used: null, limit: 1, unit: "stato", note: "1 = credenziali admin Play review presenti; 0 = mancanti." }
+    ]
   },
   {
     id: "cie-oidc",
     name: "CIE/OIDC (Autenticazione)",
     description: "Provider autenticazione Carta d'Identita Elettronica.",
-    metrics: [{ id: "cie-availability", label: "Stato disponibilita servizio", used: null, limit: null, unit: "%", note: "Puoi usarlo come check manuale di disponibilita (up/down) finche non colleghiamo una metrica live." }]
+    metrics: [
+      { id: "cie-availability", label: "Stato disponibilita servizio", used: null, limit: null, unit: "%", note: "Puoi usarlo come check manuale di disponibilita (up/down) finche non colleghiamo una metrica live." },
+      { id: "cie-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "1 = parametri OIDC/CIE minimi presenti; 0 = configurazione incompleta." }
+    ]
   },
   {
     id: "cursor",
@@ -143,6 +167,10 @@ const Parametri: React.FC = () => {
     const neon = platformUsage?.platforms?.neon?.metrics;
     const render = platformUsage?.platforms?.render?.metrics;
     const axiom = platformUsage?.platforms?.axiom?.metrics;
+    const firebase = platformUsage?.platforms?.firebase?.metrics;
+    const resend = platformUsage?.platforms?.resend?.metrics;
+    const cie = platformUsage?.platforms?.cie?.metrics;
+    const play = platformUsage?.platforms?.play?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
       ...platform,
@@ -161,6 +189,10 @@ const Parametri: React.FC = () => {
           const complete = Boolean(axiom?.integrationEnabled && axiom?.hasToken && axiom?.hasOrg);
           return { ...metric, used: complete ? 1 : 0 };
         }
+        if (metric.id === "firebase-config") return { ...metric, used: firebase?.configured ? 1 : 0 };
+        if (metric.id === "resend-config") return { ...metric, used: resend?.configured ? 1 : 0 };
+        if (metric.id === "cie-config") return { ...metric, used: cie?.configured ? 1 : 0 };
+        if (metric.id === "play-config") return { ...metric, used: play?.configured ? 1 : 0 };
         return metric;
       })
     }));

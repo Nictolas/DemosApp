@@ -538,6 +538,21 @@ router.get('/platform-usage', async (req, res) => {
     const axiomEnabled = process.env.AXIOM_ENABLED === 'true';
     const hasAxiomToken = Boolean(process.env.AXIOM_API_TOKEN);
     const hasAxiomOrg = Boolean(process.env.AXIOM_ORG_ID);
+    const firebaseConfigured = Boolean(
+      process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_CLIENT_EMAIL &&
+      process.env.FIREBASE_PRIVATE_KEY
+    );
+    const resendConfigured = Boolean(process.env.RESEND_API_KEY);
+    const cieConfigured = Boolean(
+      (process.env.OIDC_ISSUER_URL || process.env.CIE_ISSUER_URL) &&
+      (process.env.OIDC_CLIENT_ID || process.env.CIE_CLIENT_ID) &&
+      (process.env.OIDC_CLIENT_SECRET || process.env.CIE_CLIENT_SECRET) &&
+      (process.env.OIDC_REDIRECT_URI || process.env.CIE_REDIRECT_URI)
+    );
+    const playAdminConfigured = Boolean(
+      process.env.PLAY_REVIEW_ADMIN_EMAIL && process.env.PLAY_REVIEW_ADMIN_PASSWORD
+    );
 
     res.json({
       success: true,
@@ -546,7 +561,11 @@ router.get('/platform-usage', async (req, res) => {
         sources: {
           neon: 'PostgreSQL runtime queries',
           render: 'Server filesystem check (df)',
-          axiom: 'Runtime environment configuration'
+          axiom: 'Runtime environment configuration',
+          firebase: 'Runtime environment configuration',
+          resend: 'Runtime environment configuration',
+          cie: 'Runtime environment configuration',
+          play: 'Runtime environment configuration'
         },
         platforms: {
           neon: {
@@ -571,6 +590,30 @@ router.get('/platform-usage', async (req, res) => {
               integrationEnabled: axiomEnabled,
               hasToken: hasAxiomToken,
               hasOrg: hasAxiomOrg
+            }
+          },
+          firebase: {
+            updatedAt: generatedAt,
+            metrics: {
+              configured: firebaseConfigured
+            }
+          },
+          resend: {
+            updatedAt: generatedAt,
+            metrics: {
+              configured: resendConfigured
+            }
+          },
+          cie: {
+            updatedAt: generatedAt,
+            metrics: {
+              configured: cieConfigured
+            }
+          },
+          play: {
+            updatedAt: generatedAt,
+            metrics: {
+              configured: playAdminConfigured
             }
           }
         }
