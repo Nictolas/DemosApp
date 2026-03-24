@@ -45,6 +45,24 @@ function bytesToHuman(bytes) {
   return `${value.toFixed(2)} ${units[i]}`;
 }
 
+function collectNumericValuesByKey(input, targetKey, out = []) {
+  if (!input || typeof input !== 'object') return out;
+  if (Array.isArray(input)) {
+    input.forEach((item) => collectNumericValuesByKey(item, targetKey, out));
+    return out;
+  }
+  for (const [key, value] of Object.entries(input)) {
+    if (key === targetKey) {
+      const n = Number(value);
+      if (Number.isFinite(n)) out.push(n);
+    }
+    if (value && typeof value === 'object') {
+      collectNumericValuesByKey(value, targetKey, out);
+    }
+  }
+  return out;
+}
+
 // GET /api/admin/monitoring/health - Stato salute sistema
 // NOTE: niente auditMiddleware sulle GET di monitoring per evitare punti di blocco in catena.
 router.get('/health', async (req, res) => {
@@ -514,6 +532,8 @@ router.get('/platform-usage', async (req, res) => {
     // Neon: dimensione DB + connessioni attive (live)
     let neonDbSizeBytes = null;
     let neonActiveConnections = null;
+    let neonProjectCount = null;
+    let neonComputeUnitSeconds30d = null;
     try {
       const neonResult = await withTimeout(
         pool.query(`
@@ -532,6 +552,48 @@ router.get('/platform-usage', async (req, res) => {
       neonActiveConnections = safeNumber(neonResult?.rows?.[0]?.active_connections);
     } catch (_error) {
       // Non bloccare la risposta se una metrica Neon non è disponibile
+    }
+
+    // Neon account-level API: project count + consumo compute (se disponibile per piano/API key)
+    if (process.env.NEON_API_KEY) {
+      const neonHeaders = {
+        Authorization: `Bearer ${process.env.NEON_API_KEY}`,
+        Accept: 'application/json'
+      };
+
+      // Numero progetti accessibili
+      try {
+        const projectsResp = await withTimeout(
+          fetch('https://console.neon.tech/api/v2/projects', { headers: neonHeaders }),
+          MONITORING_TIMEOUT_MS,
+          'neon list projects'
+        );
+        if (projectsResp.ok) {
+          const projectsJson = await projectsResp.json();
+          const projectsArray = Array.isArray(projectsJson?.projects) ? projectsJson.projects : [];
+          neonProjectCount = projectsArray.length;
+        }
+      } catch (_error) {
+        // Best effort
+      }
+
+      // Consumo compute: somma compute_unit_seconds dagli ultimi risultati disponibili
+      try {
+        const consumptionResp = await withTimeout(
+          fetch('https://console.neon.tech/api/v2/consumption_history/v2/projects', { headers: neonHeaders }),
+          MONITORING_TIMEOUT_MS,
+          'neon consumption history'
+        );
+        if (consumptionResp.ok) {
+          const consumptionJson = await consumptionResp.json();
+          const cuSeconds = collectNumericValuesByKey(consumptionJson, 'compute_unit_seconds');
+          if (cuSeconds.length > 0) {
+            neonComputeUnitSeconds30d = cuSeconds.reduce((sum, v) => sum + v, 0);
+          }
+        }
+      } catch (_error) {
+        // Best effort
+      }
     }
 
     // Axiom: stato integrazione live da env + dati minimi diagnostici
@@ -572,7 +634,9 @@ router.get('/platform-usage', async (req, res) => {
             updatedAt: generatedAt,
             metrics: {
               databaseSizeBytes: neonDbSizeBytes,
-              activeConnections: neonActiveConnections
+              activeConnections: neonActiveConnections,
+              projectCount: neonProjectCount,
+              computeUnitSeconds30d: neonComputeUnitSeconds30d
             }
           },
           render: {

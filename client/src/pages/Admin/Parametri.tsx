@@ -26,7 +26,12 @@ type PlatformUsageApi = {
   generatedAt?: string;
   platforms?: {
     neon?: {
-      metrics?: { databaseSizeBytes?: number | null; activeConnections?: number | null };
+      metrics?: {
+        databaseSizeBytes?: number | null;
+        activeConnections?: number | null;
+        projectCount?: number | null;
+        computeUnitSeconds30d?: number | null;
+      };
     };
     render?: {
       metrics?: { diskUsedBytes?: number | null; diskTotalBytes?: number | null; diskIsEstimated?: boolean };
@@ -38,9 +43,6 @@ type PlatformUsageApi = {
       metrics?: { configured?: boolean };
     };
     resend?: {
-      metrics?: { configured?: boolean };
-    };
-    cie?: {
       metrics?: { configured?: boolean };
     };
     play?: {
@@ -55,8 +57,8 @@ const BASE_PLATFORMS: Platform[] = [
     name: "Neon (Database)",
     description: "Database PostgreSQL principale dell'app (fonte: DPIA + configurazione progetto).",
     metrics: [
-      { id: "neon-cu", label: "Compute allowance", used: 2, limit: 2, unit: "CU", note: "Nel piano Free vedi il limite totale; il dettaglio avanzato puo richiedere upgrade." },
-      { id: "neon-projects", label: "Progetti database", used: 1, limit: 10, unit: "progetti", note: "Aggiorna questo valore quando crei nuovi progetti su Neon." },
+      { id: "neon-cu", label: "Compute allowance", used: null, limit: null, unit: "CU", note: "N/D: Neon non espone questo dato in modo affidabile qui senza endpoint dedicato del provider." },
+      { id: "neon-projects", label: "Progetti database", used: null, limit: null, unit: "progetti", note: "N/D: richiede API/account-level Neon, non disponibile dal DB applicativo." },
       { id: "neon-storage", label: "Storage database", used: null, limit: null, unit: "GB (live)", note: "Mostrato in tempo reale dal DB: nel piano attuale non abbiamo un limite storage ufficiale in app per calcolare la %." },
       { id: "neon-active-connections", label: "Connessioni attive DB", used: null, limit: 100, unit: "connessioni", note: "Dato live dal DB. Limite 100 usato come soglia operativa interna." }
     ]
@@ -66,7 +68,7 @@ const BASE_PLATFORMS: Platform[] = [
     name: "Render (Backend + Frontend)",
     description: "Hosting API e web app (fonte: DPIA architettura tecnica).",
     metrics: [
-      { id: "render-disk", label: "Disco server app", used: 318.01, limit: 386.43, unit: "GB", note: "Valore letto dal Monitoring Dashboard > Spazio disco." },
+      { id: "render-disk", label: "Disco server app", used: null, limit: null, unit: "GB", note: "Valore live dal server applicativo quando disponibile." },
       { id: "render-monthly-usage", label: "Consumo risorse piano", used: null, limit: null, unit: "%", note: "Dato da inserire manualmente dal pannello Render se vuoi monitorarlo qui." }
     ]
   },
@@ -106,20 +108,6 @@ const BASE_PLATFORMS: Platform[] = [
       { id: "play-config", label: "Configurazione account review", used: null, limit: 1, unit: "stato", note: "1 = credenziali admin Play review presenti; 0 = mancanti." }
     ]
   },
-  {
-    id: "cie-oidc",
-    name: "CIE/OIDC (Autenticazione)",
-    description: "Provider autenticazione Carta d'Identita Elettronica.",
-    metrics: [
-      { id: "cie-availability", label: "Stato disponibilita servizio", used: null, limit: null, unit: "%", note: "Puoi usarlo come check manuale di disponibilita (up/down) finche non colleghiamo una metrica live." },
-      { id: "cie-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "1 = parametri OIDC/CIE minimi presenti; 0 = configurazione incompleta." }
-    ]
-  },
-  {
-    id: "cursor",
-    name: "Cursor (Sviluppo)",
-    description: "Strumento di sviluppo usato dal team, non infrastruttura runtime dell'app.",
-    metrics: [{ id: "cursor-compute", label: "Compute mensile progetto", used: 97.6, limit: 100, unit: "%", note: "Dato letto dal banner 'Approaching limit' in Cursor." }]
   }
 ];
 
@@ -130,6 +118,10 @@ function getPercent(used: number | null, limit: number | null): number {
 
 function hasProgress(metric: FreeMetric): boolean {
   return metric.used !== null && metric.limit !== null && metric.limit > 0;
+}
+
+function hasLiveValueWithoutLimit(metric: FreeMetric): boolean {
+  return metric.used !== null && (metric.limit === null || metric.limit <= 0);
 }
 
 function bytesToGb(value: number | null | undefined): number | null {
@@ -169,7 +161,6 @@ const Parametri: React.FC = () => {
     const axiom = platformUsage?.platforms?.axiom?.metrics;
     const firebase = platformUsage?.platforms?.firebase?.metrics;
     const resend = platformUsage?.platforms?.resend?.metrics;
-    const cie = platformUsage?.platforms?.cie?.metrics;
     const play = platformUsage?.platforms?.play?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
@@ -177,6 +168,18 @@ const Parametri: React.FC = () => {
       metrics: platform.metrics.map((metric) => {
         if (metric.id === "neon-storage") return { ...metric, used: bytesToGb(neon?.databaseSizeBytes), limit: null };
         if (metric.id === "neon-active-connections") return { ...metric, used: neon?.activeConnections ?? null };
+        if (metric.id === "neon-projects") return { ...metric, used: neon?.projectCount ?? null, limit: null };
+        if (metric.id === "neon-cu") {
+          const seconds = neon?.computeUnitSeconds30d;
+          const cuHours = typeof seconds === "number" ? Number((seconds / 3600).toFixed(2)) : null;
+          return {
+            ...metric,
+            used: cuHours,
+            limit: null,
+            unit: "CU-h",
+            note: "Consumo compute reale Neon (somma API consumption history)."
+          };
+        }
         if (metric.id === "render-disk") {
           return {
             ...metric,
@@ -191,7 +194,6 @@ const Parametri: React.FC = () => {
         }
         if (metric.id === "firebase-config") return { ...metric, used: firebase?.configured ? 1 : 0 };
         if (metric.id === "resend-config") return { ...metric, used: resend?.configured ? 1 : 0 };
-        if (metric.id === "cie-config") return { ...metric, used: cie?.configured ? 1 : 0 };
         if (metric.id === "play-config") return { ...metric, used: play?.configured ? 1 : 0 };
         return metric;
       })
@@ -262,12 +264,16 @@ const Parametri: React.FC = () => {
               {platform.metrics.map((metric) => {
                 const percent = getPercent(metric.used, metric.limit);
                 const progressEnabled = hasProgress(metric);
+                const liveValueNoLimit = hasLiveValueWithoutLimit(metric);
                 const status = progressEnabled ? getStatus(percent) : { label: "Da configurare", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3.5 w-3.5" /> };
+                const finalStatus = liveValueNoLimit
+                  ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
+                  : status;
                 return (
                   <div key={metric.id} className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-slate-900">{metric.label}</p>
-                      <Badge variant="outline" className={`inline-flex items-center gap-1 ${status.tone}`}>{status.icon}{status.label}</Badge>
+                      <Badge variant="outline" className={`inline-flex items-center gap-1 ${finalStatus.tone}`}>{finalStatus.icon}{finalStatus.label}</Badge>
                     </div>
                     <Progress value={percent} className={`h-2.5 ${!progressEnabled ? "opacity-40" : ""}`} />
                     <div className="flex items-center justify-between text-xs text-slate-600">
@@ -275,6 +281,11 @@ const Parametri: React.FC = () => {
                         <>
                           <span>{metric.used} {metric.unit} su {metric.limit} {metric.unit}</span>
                           <span>{percent}%</span>
+                        </>
+                      ) : liveValueNoLimit ? (
+                        <>
+                          <span>{metric.used} {metric.unit}</span>
+                          <span>N/A quota</span>
                         </>
                       ) : (
                         <>
