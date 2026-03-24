@@ -24,6 +24,9 @@ type Platform = {
 
 type PlatformUsageApi = {
   generatedAt?: string;
+  diagnostics?: {
+    neon?: string[];
+  };
   platforms?: {
     neon?: {
       metrics?: {
@@ -131,18 +134,21 @@ function bytesToGb(value: number | null | undefined): number | null {
 const Parametri: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [platformUsage, setPlatformUsage] = useState<PlatformUsageApi | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [warningThreshold, setWarningThreshold] = useState(70);
   const [criticalThreshold, setCriticalThreshold] = useState(90);
 
   const loadPlatformUsage = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const response = await apiRequest("GET", "/admin/monitoring/platform-usage");
       const serverPayload = (response as any)?.data ?? response;
       const data = serverPayload?.data ?? serverPayload;
       if (serverPayload?.success === true && data) setPlatformUsage(data);
+      else setLoadError("Endpoint parametri non disponibile.");
     } catch (_error) {
-      // fallback su baseline
+      setLoadError("Impossibile caricare i parametri live dal backend.");
     } finally {
       setLoading(false);
     }
@@ -229,6 +235,11 @@ const Parametri: React.FC = () => {
             Aggiorna adesso
           </Button>
         </div>
+        {loadError && (
+          <p className="mt-3 text-sm text-amber-700">
+            {loadError}
+          </p>
+        )}
       </div>
 
       <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
@@ -258,6 +269,11 @@ const Parametri: React.FC = () => {
             <CardHeader>
               <CardTitle>{platform.name}</CardTitle>
               <CardDescription>{platform.description}</CardDescription>
+              {platform.id === "neon" && platformUsage?.diagnostics?.neon?.length ? (
+                <p className="text-xs text-amber-700 mt-1">
+                  Neon diagnostica: {platformUsage.diagnostics.neon.join(" | ")}
+                </p>
+              ) : null}
             </CardHeader>
             <CardContent className="space-y-5">
               {platform.metrics.map((metric) => {
