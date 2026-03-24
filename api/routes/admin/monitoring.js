@@ -521,6 +521,9 @@ router.get('/disk-breakdown', async (req, res) => {
 router.get('/platform-usage', async (req, res) => {
   try {
     const generatedAt = new Date().toISOString();
+    const diagnostics = {
+      neon: []
+    };
 
     // Render: usa check disco reale (df) con fallback stimato
     const diskCheck = await withTimeout(
@@ -560,11 +563,20 @@ router.get('/platform-usage', async (req, res) => {
         Authorization: `Bearer ${process.env.NEON_API_KEY}`,
         Accept: 'application/json'
       };
+      const configuredProjectId = process.env.NEON_PROJECT_ID || null;
+      const configuredOrgId = process.env.NEON_ORG_ID || null;
+      if (configuredProjectId) {
+        // Con chiave project-scoped il list potrebbe non funzionare: almeno sappiamo che 1 progetto è configurato.
+        neonProjectCount = 1;
+      }
 
       // Numero progetti accessibili
       try {
+        const projectsUrl = configuredOrgId
+          ? `https://console.neon.tech/api/v2/projects?org_id=${encodeURIComponent(configuredOrgId)}`
+          : 'https://console.neon.tech/api/v2/projects';
         const projectsResp = await withTimeout(
-          fetch('https://console.neon.tech/api/v2/projects', { headers: neonHeaders }),
+          fetch(projectsUrl, { headers: neonHeaders }),
           MONITORING_TIMEOUT_MS,
           'neon list projects'
         );
@@ -572,28 +584,43 @@ router.get('/platform-usage', async (req, res) => {
           const projectsJson = await projectsResp.json();
           const projectsArray = Array.isArray(projectsJson?.projects) ? projectsJson.projects : [];
           neonProjectCount = projectsArray.length;
+        } else {
+          diagnostics.neon.push(`list projects HTTP ${projectsResp.status}`);
         }
       } catch (_error) {
-        // Best effort
+        diagnostics.neon.push('list projects non disponibile con questa chiave/scope');
       }
 
       // Consumo compute: somma compute_unit_seconds dagli ultimi risultati disponibili
       try {
-        const consumptionResp = await withTimeout(
-          fetch('https://console.neon.tech/api/v2/consumption_history/v2/projects', { headers: neonHeaders }),
-          MONITORING_TIMEOUT_MS,
-          'neon consumption history'
-        );
-        if (consumptionResp.ok) {
+        const candidateUrls = [
+          configuredProjectId ? `https://console.neon.tech/api/v2/consumption_history/v2/projects?project_id=${encodeURIComponent(configuredProjectId)}` : null,
+          configuredProjectId ? `https://console.neon.tech/api/v2/consumption_history/v2/projects?project_ids=${encodeURIComponent(configuredProjectId)}` : null,
+          'https://console.neon.tech/api/v2/consumption_history/v2/projects'
+        ].filter(Boolean);
+
+        for (const url of candidateUrls) {
+          const consumptionResp = await withTimeout(
+            fetch(url, { headers: neonHeaders }),
+            MONITORING_TIMEOUT_MS,
+            'neon consumption history'
+          );
+          if (!consumptionResp.ok) {
+            diagnostics.neon.push(`consumption history HTTP ${consumptionResp.status} (${url})`);
+            continue;
+          }
           const consumptionJson = await consumptionResp.json();
           const cuSeconds = collectNumericValuesByKey(consumptionJson, 'compute_unit_seconds');
           if (cuSeconds.length > 0) {
             neonComputeUnitSeconds30d = cuSeconds.reduce((sum, v) => sum + v, 0);
+            break;
           }
         }
       } catch (_error) {
-        // Best effort
+        diagnostics.neon.push('consumption history non disponibile con questa chiave/scope');
       }
+    } else {
+      diagnostics.neon.push('NEON_API_KEY non configurata');
     }
 
     // Axiom: stato integrazione live da env + dati minimi diagnostici
@@ -680,7 +707,8 @@ router.get('/platform-usage', async (req, res) => {
               configured: playAdminConfigured
             }
           }
-        }
+        },
+        diagnostics
       }
     });
   } catch (error) {
