@@ -34,6 +34,13 @@ type PlatformUsageApi = {
         activeConnections?: number | null;
         projectCount?: number | null;
         computeUnitSeconds30d?: number | null;
+        dataTransferBytes30d?: number | null;
+      };
+      limits?: {
+        computeUnitSecondsLimit30d?: number | null;
+        databaseStorageBudgetBytes?: number | null;
+        dataTransferBudgetBytes?: number | null;
+        activeConnectionsLimit?: number | null;
       };
     };
     render?: {
@@ -60,8 +67,10 @@ const BASE_PLATFORMS: Platform[] = [
     name: "Neon (Database)",
     description: "Database PostgreSQL principale dell'app (fonte: DPIA + configurazione progetto).",
     metrics: [
-      { id: "neon-storage", label: "Storage database", used: null, limit: null, unit: "GB (live)", note: "Mostrato in tempo reale dal DB: nel piano attuale non abbiamo un limite storage ufficiale in app per calcolare la %." },
-      { id: "neon-active-connections", label: "Connessioni attive DB", used: null, limit: 100, unit: "connessioni", note: "Dato live dal DB. Limite 100 usato come soglia operativa interna." }
+      { id: "neon-compute-30d", label: "Compute (30 giorni)", used: null, limit: null, unit: "CU-hrs", note: "Consumo compute ultimi 30 giorni (Neon API), confrontato col limite del piano." },
+      { id: "neon-storage", label: "Storage database", used: null, limit: null, unit: "GB", note: "Dimensione live del DB, confrontata col budget storage configurato." },
+      { id: "neon-data-transfer-30d", label: "Data transfer (30 giorni)", used: null, limit: null, unit: "GB", note: "Traffico dati ultimi 30 giorni (Neon API), confrontato col limite del piano." },
+      { id: "neon-active-connections", label: "Connessioni attive DB", used: null, limit: null, unit: "connessioni", note: "Dato live dal DB, confrontato col limite configurato." }
     ]
   },
   {
@@ -70,6 +79,46 @@ const BASE_PLATFORMS: Platform[] = [
     description: "Hosting API e web app (fonte: DPIA architettura tecnica).",
     metrics: [
       { id: "render-disk", label: "Disco server app", used: null, limit: null, unit: "GB", note: "Valore live dal server applicativo quando disponibile." }
+    ]
+  },
+  {
+    id: "axiom",
+    name: "Axiom (Log centralizzati)",
+    description: "Integrazione log centralizzati e alert (stato configurazione runtime).",
+    metrics: [
+      { id: "axiom-config", label: "Configurazione integrazione", used: null, limit: 1, unit: "stato", note: "100% = AXIOM_ENABLED + token + org configurati. 0% = mancano variabili di ambiente." }
+    ]
+  },
+  {
+    id: "firebase",
+    name: "Firebase (push / servizi)",
+    description: "Configurazione servizi Firebase usati dall'app (stato runtime).",
+    metrics: [
+      { id: "firebase-config", label: "Configurazione", used: null, limit: 1, unit: "stato", note: "100% = variabili FIREBASE_* presenti. 0% = configurazione mancante." }
+    ]
+  },
+  {
+    id: "resend",
+    name: "Resend (Email)",
+    description: "Invio email transazionali (stato runtime).",
+    metrics: [
+      { id: "resend-config", label: "Configurazione", used: null, limit: 1, unit: "stato", note: "100% = RESEND_API_KEY presente. 0% = configurazione mancante." }
+    ]
+  },
+  {
+    id: "cie",
+    name: "CIE / OIDC (Login)",
+    description: "Configurazione login OIDC/CIE (stato runtime).",
+    metrics: [
+      { id: "cie-config", label: "Configurazione", used: null, limit: 1, unit: "stato", note: "100% = issuer + client id/secret + redirect configurati. 0% = configurazione mancante." }
+    ]
+  },
+  {
+    id: "play",
+    name: "Google Play (review/admin)",
+    description: "Credenziali admin per gestione review (stato runtime).",
+    metrics: [
+      { id: "play-config", label: "Configurazione", used: null, limit: 1, unit: "stato", note: "100% = email+password admin configurate. 0% = configurazione mancante." }
     ]
   }
 ];
@@ -90,6 +139,15 @@ function hasLiveValueWithoutLimit(metric: FreeMetric): boolean {
 function bytesToGb(value: number | null | undefined): number | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   return Number((value / 1024 / 1024 / 1024).toFixed(2));
+}
+
+function secondsToCuHours(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  return Number((value / 3600).toFixed(2));
+}
+
+function isConfiguredMetric(metricId: string): boolean {
+  return ["axiom-config", "firebase-config", "resend-config", "cie-config", "play-config"].includes(metricId);
 }
 
 const Parametri: React.FC = () => {
@@ -123,14 +181,59 @@ const Parametri: React.FC = () => {
 
   const platforms = useMemo(() => {
     const neon = platformUsage?.platforms?.neon?.metrics;
+    const neonLimits = platformUsage?.platforms?.neon?.limits;
     const render = platformUsage?.platforms?.render?.metrics;
     const axiom = platformUsage?.platforms?.axiom?.metrics;
+    const firebase = platformUsage?.platforms?.firebase?.metrics;
+    const resend = platformUsage?.platforms?.resend?.metrics;
+    const cie = platformUsage?.platforms?.cie?.metrics;
+    const play = platformUsage?.platforms?.play?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
       ...platform,
       metrics: platform.metrics.map((metric) => {
-        if (metric.id === "neon-storage") return { ...metric, used: bytesToGb(neon?.databaseSizeBytes), limit: null };
-        if (metric.id === "neon-active-connections") return { ...metric, used: neon?.activeConnections ?? null };
+        if (metric.id === "neon-compute-30d") {
+          return {
+            ...metric,
+            used: secondsToCuHours(neon?.computeUnitSeconds30d),
+            limit: secondsToCuHours(neonLimits?.computeUnitSecondsLimit30d),
+            note:
+              typeof neon?.computeUnitSeconds30d === "number"
+                ? metric.note
+                : "Dato non disponibile: verifica che la NEON_API_KEY abbia permessi per consumption history."
+          };
+        }
+        if (metric.id === "neon-storage") {
+          return {
+            ...metric,
+            used: bytesToGb(neon?.databaseSizeBytes),
+            limit: bytesToGb(neonLimits?.databaseStorageBudgetBytes),
+            note: neonLimits?.databaseStorageBudgetBytes
+              ? metric.note
+              : "Limite/budget non configurato: imposta NEON_DB_STORAGE_BUDGET_BYTES per avere la %."
+          };
+        }
+        if (metric.id === "neon-data-transfer-30d") {
+          return {
+            ...metric,
+            used: bytesToGb(neon?.dataTransferBytes30d),
+            limit: bytesToGb(neonLimits?.dataTransferBudgetBytes),
+            note:
+              typeof neon?.dataTransferBytes30d === "number"
+                ? metric.note
+                : "Dato non disponibile: l'API Neon potrebbe non esporre data transfer con questa chiave/scope."
+          };
+        }
+        if (metric.id === "neon-active-connections") {
+          return {
+            ...metric,
+            used: neon?.activeConnections ?? null,
+            limit: neonLimits?.activeConnectionsLimit ?? null,
+            note: neonLimits?.activeConnectionsLimit
+              ? metric.note
+              : "Limite non configurato: imposta NEON_ACTIVE_CONNECTIONS_LIMIT per avere la %."
+          };
+        }
         if (metric.id === "render-disk") {
           return {
             ...metric,
@@ -138,6 +241,26 @@ const Parametri: React.FC = () => {
             limit: bytesToGb(render?.diskTotalBytes),
             note: render?.diskIsEstimated ? "Valore live stimato (fallback). Se possibile usa misura reale da server." : metric.note
           };
+        }
+        if (metric.id === "axiom-config") {
+          const configured = Boolean(axiom?.integrationEnabled && axiom?.hasToken && axiom?.hasOrg);
+          return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione incompleta: verifica AXIOM_ENABLED, AXIOM_API_TOKEN, AXIOM_ORG_ID." };
+        }
+        if (metric.id === "firebase-config") {
+          const configured = Boolean(firebase?.configured);
+          return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica variabili FIREBASE_*." };
+        }
+        if (metric.id === "resend-config") {
+          const configured = Boolean(resend?.configured);
+          return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica RESEND_API_KEY." };
+        }
+        if (metric.id === "cie-config") {
+          const configured = Boolean(cie?.configured);
+          return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica OIDC_/CIE_ issuer, client id/secret, redirect." };
+        }
+        if (metric.id === "play-config") {
+          const configured = Boolean(play?.configured);
+          return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica PLAY_REVIEW_ADMIN_EMAIL e PLAY_REVIEW_ADMIN_PASSWORD." };
         }
         return metric;
       })
@@ -153,6 +276,27 @@ const Parametri: React.FC = () => {
   }, [platformUsage]);
 
   const lastUpdated = platformUsage?.generatedAt ? new Date(platformUsage.generatedAt).toLocaleString() : "N/D";
+
+  const overview = useMemo(() => {
+    const allMetrics = platforms.flatMap((p) => p.metrics);
+    const configuredMetrics = allMetrics.filter((m) => isConfiguredMetric(m.id));
+    const configuredDone = configuredMetrics.filter((m) => m.used === 1).length;
+    const configuredTotal = configuredMetrics.length || 0;
+    const configuredPercent = configuredTotal > 0 ? Number(((configuredDone / configuredTotal) * 100).toFixed(1)) : 0;
+
+    const progressMetrics = allMetrics.filter(hasProgress).filter((m) => !isConfiguredMetric(m.id));
+    const atRisk = progressMetrics
+      .map((m) => ({ metric: m, percent: getPercent(m.used, m.limit) }))
+      .sort((a, b) => b.percent - a.percent)[0];
+
+    return {
+      configuredDone,
+      configuredTotal,
+      configuredPercent,
+      highestUsage: atRisk?.percent ?? null,
+      highestUsageLabel: atRisk?.metric?.label ?? null
+    };
+  }, [platforms]);
 
   const getStatus = (percent: number): { label: string; tone: string; icon: React.ReactNode } => {
     if (percent >= criticalThreshold) return { label: "Critico", tone: "bg-red-100 text-red-700 border-red-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> };
@@ -180,6 +324,47 @@ const Parametri: React.FC = () => {
           </p>
         )}
       </div>
+
+      <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
+        <CardHeader>
+          <CardTitle className="text-base">Riepilogo completamento</CardTitle>
+          <CardDescription>Barre rapide per capire “a che punto siamo” sulla configurazione e sull’uso risorse.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-900">Integrazioni configurate</p>
+              <Badge variant="outline" className="text-slate-700 border-slate-300">
+                {overview.configuredDone}/{overview.configuredTotal}
+              </Badge>
+            </div>
+            <Progress value={overview.configuredPercent} className="h-2.5" />
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>{overview.configuredPercent}% completato</span>
+              <span>{overview.configuredTotal ? "Obiettivo: 100%" : "N/D"}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-900">Uso risorsa più alto</p>
+              {typeof overview.highestUsage === "number" ? (
+                <Badge variant="outline" className={`inline-flex items-center gap-1 ${getStatus(overview.highestUsage).tone}`}>
+                  {getStatus(overview.highestUsage).icon}
+                  {getStatus(overview.highestUsage).label}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-slate-700 border-slate-300">N/D</Badge>
+              )}
+            </div>
+            <Progress value={overview.highestUsage ?? 0} className={`h-2.5 ${overview.highestUsage === null ? "opacity-40" : ""}`} />
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>{overview.highestUsageLabel ?? "Nessuna metrica con quota disponibile"}</span>
+              <span>{overview.highestUsage !== null ? `${overview.highestUsage}%` : "N/D"}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
         <CardHeader>
@@ -234,10 +419,15 @@ const Parametri: React.FC = () => {
                 const percent = getPercent(metric.used, metric.limit);
                 const progressEnabled = hasProgress(metric);
                 const liveValueNoLimit = hasLiveValueWithoutLimit(metric);
+                const isConfig = isConfiguredMetric(metric.id);
                 const status = progressEnabled ? getStatus(percent) : { label: "Da configurare", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3.5 w-3.5" /> };
                 const finalStatus = liveValueNoLimit
                   ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
-                  : status;
+                  : isConfig
+                    ? (metric.used === 1
+                      ? { label: "Configurato", tone: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: <CheckCircle2 className="h-3.5 w-3.5" /> }
+                      : { label: "Non configurato", tone: "bg-amber-100 text-amber-700 border-amber-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> })
+                    : status;
                 return (
                   <div key={metric.id} className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -248,7 +438,11 @@ const Parametri: React.FC = () => {
                     <div className="flex items-center justify-between text-xs text-slate-600">
                       {progressEnabled ? (
                         <>
-                          <span>{metric.used} {metric.unit} su {metric.limit} {metric.unit}</span>
+                          <span>
+                            {isConfig
+                              ? (metric.used === 1 ? "OK" : "Manca configurazione")
+                              : `${metric.used} ${metric.unit} su ${metric.limit} ${metric.unit}`.trim()}
+                          </span>
                           <span>{percent}%</span>
                         </>
                       ) : liveValueNoLimit ? (
