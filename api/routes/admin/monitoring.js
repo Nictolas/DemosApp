@@ -63,6 +63,12 @@ function collectNumericValuesByKey(input, targetKey, out = []) {
   return out;
 }
 
+function collectNumericValuesByKeys(input, keys) {
+  const out = [];
+  for (const k of keys) collectNumericValuesByKey(input, k, out);
+  return out;
+}
+
 // GET /api/admin/monitoring/health - Stato salute sistema
 // NOTE: niente auditMiddleware sulle GET di monitoring per evitare punti di blocco in catena.
 router.get('/health', async (req, res) => {
@@ -625,14 +631,29 @@ router.get('/platform-usage', async (req, res) => {
             continue;
           }
           const consumptionJson = await consumptionResp.json();
-          const cuSeconds = collectNumericValuesByKey(consumptionJson, 'compute_unit_seconds');
-          const dataTransferBytes = collectNumericValuesByKey(consumptionJson, 'data_transfer_bytes');
+          const cuSeconds = collectNumericValuesByKeys(consumptionJson, [
+            'compute_unit_seconds',
+            'compute_units_seconds',
+            'cu_seconds'
+          ]);
+          const dataTransferBytes = collectNumericValuesByKeys(consumptionJson, [
+            'data_transfer_bytes',
+            'data_transfer',
+            'egress_bytes'
+          ]);
 
           if (cuSeconds.length > 0 && neonComputeUnitSeconds30d === null) {
             neonComputeUnitSeconds30d = cuSeconds.reduce((sum, v) => sum + v, 0);
           }
           if (dataTransferBytes.length > 0 && neonDataTransferBytes30d === null) {
             neonDataTransferBytes30d = dataTransferBytes.reduce((sum, v) => sum + v, 0);
+          }
+
+          if (cuSeconds.length === 0 && neonComputeUnitSeconds30d === null) {
+            diagnostics.neon.push('consumption history: campo compute_unit_seconds non trovato nella risposta');
+          }
+          if (dataTransferBytes.length === 0 && neonDataTransferBytes30d === null) {
+            diagnostics.neon.push('consumption history: campo data_transfer_bytes non trovato nella risposta');
           }
 
           // Se abbiamo già trovato almeno un valore, non continuiamo a ciclare candidateUrls.
