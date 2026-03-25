@@ -44,6 +44,13 @@ class PerformanceMonitor {
     this.isMonitoring = false;
     this.monitoringInterval = null;
     this.alertCooldown = new Map(); // Prevenzione spam alert
+
+    // Contatori/cache per ridurre query DB “pesanti” ad alta frequenza.
+    this.tickCount = 0;
+    this.dbMetricsCache = {
+      size: { at: 0, value: null },
+      slowQueries: { at: 0, value: null },
+    };
   }
 
   // Avvia monitoraggio
@@ -56,6 +63,7 @@ class PerformanceMonitor {
     this.isMonitoring = true;
     this.monitoringInterval = setInterval(async () => {
       try {
+        this.tickCount += 1;
         await this.collectMetrics();
         await this.checkThresholds();
         await this.logMetrics();
@@ -178,30 +186,59 @@ class PerformanceMonitor {
       `;
       
       const connections = await client.query(connectionsQuery);
-      
-      // Dimensioni database
-      const sizeQuery = `
-        SELECT pg_size_pretty(pg_database_size(current_database())) as database_size,
-               pg_database_size(current_database()) as database_size_bytes
-      `;
-      
-      const size = await client.query(sizeQuery);
-      
-      // Query lente
-      const slowQueriesQuery = `
-        SELECT query, mean_exec_time, calls, total_exec_time
-        FROM pg_stat_statements 
-        WHERE mean_exec_time > 1000 
-        ORDER BY mean_exec_time DESC 
-        LIMIT 5
-      `;
-      
+
+      // Sampling metriche “pesanti”: evita di interrogare size/statements ad ogni tick.
+      const heavyEveryNTicks = Math.max(
+        1,
+        parseInt(process.env.PERFORMANCE_MONITOR_HEAVY_DB_METRICS_EVERY_N_TICKS || '10', 10)
+      );
+      const isHeavyTick = this.tickCount % heavyEveryNTicks === 0;
+
+      // Dimensioni database (pesante): ricalcola solo su heavy tick, altrimenti usa cache.
+      let databaseSize = 'N/A';
+      let databaseSizeBytes = 0;
+      if (isHeavyTick || !this.dbMetricsCache.size.value) {
+        try {
+          const sizeQuery = `
+            SELECT pg_size_pretty(pg_database_size(current_database())) as database_size,
+                   pg_database_size(current_database()) as database_size_bytes
+          `;
+          const size = await client.query(sizeQuery);
+          databaseSize = size.rows[0]?.database_size || 'N/A';
+          databaseSizeBytes = parseInt(size.rows[0]?.database_size_bytes || 0);
+          this.dbMetricsCache.size = {
+            at: Date.now(),
+            value: { databaseSize, databaseSizeBytes },
+          };
+        } catch (_e) {
+          // Se fallisce, prova comunque cache precedente
+        }
+      }
+      if (this.dbMetricsCache.size.value) {
+        databaseSize = this.dbMetricsCache.size.value.databaseSize;
+        databaseSizeBytes = this.dbMetricsCache.size.value.databaseSizeBytes;
+      }
+
+      // Query lente (pg_stat_statements): ricalcola solo su heavy tick, altrimenti usa cache.
       let slowQueries = [];
-      try {
-        const slowQueriesResult = await client.query(slowQueriesQuery);
-        slowQueries = slowQueriesResult.rows;
-      } catch (error) {
-        // pg_stat_statements potrebbe non essere abilitato
+      if (isHeavyTick || !this.dbMetricsCache.slowQueries.value) {
+        try {
+          const slowQueriesQuery = `
+            SELECT query, mean_exec_time, calls, total_exec_time
+            FROM pg_stat_statements 
+            WHERE mean_exec_time > 1000 
+            ORDER BY mean_exec_time DESC 
+            LIMIT 5
+          `;
+          const slowQueriesResult = await client.query(slowQueriesQuery);
+          slowQueries = slowQueriesResult.rows;
+          this.dbMetricsCache.slowQueries = { at: Date.now(), value: slowQueries };
+        } catch (_error) {
+          // pg_stat_statements potrebbe non essere abilitato
+        }
+      }
+      if (!slowQueries.length && Array.isArray(this.dbMetricsCache.slowQueries.value)) {
+        slowQueries = this.dbMetricsCache.slowQueries.value;
       }
       
       return {
@@ -209,8 +246,8 @@ class PerformanceMonitor {
         totalConnections: parseInt(connections.rows[0]?.total_connections || 0),
         activeConnections: parseInt(connections.rows[0]?.active_connections || 0),
         idleConnections: parseInt(connections.rows[0]?.idle_connections || 0),
-        databaseSize: size.rows[0]?.database_size || 'N/A',
-        databaseSizeBytes: parseInt(size.rows[0]?.database_size_bytes || 0),
+        databaseSize,
+        databaseSizeBytes,
         slowQueries: slowQueries
       };
     } catch (error) {
