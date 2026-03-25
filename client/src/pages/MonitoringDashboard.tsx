@@ -1,5 +1,5 @@
 // File: client/src/pages/MonitoringDashboard.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,6 +107,11 @@ const MonitoringDashboard: React.FC = () => {
   const [isToggling, setIsToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const startedByThisPageRef = useRef(false);
+
+  // Intervallo più “gentile” in produzione: abbastanza per osservare senza tenere sempre sveglio il DB.
+  // Puoi sempre ridurlo manualmente dal bottone “Avvia” se necessario.
+  const MONITORING_INTERVAL_MS = 120000;
 
   // Carica stato salute sistema
   const loadSystemHealth = async () => {
@@ -272,8 +277,10 @@ const MonitoringDashboard: React.FC = () => {
       setIsToggling(true);
       if (isMonitoring) {
         await apiRequest('POST', '/admin/monitoring/stop');
+        startedByThisPageRef.current = false;
       } else {
-        await apiRequest('POST', '/admin/monitoring/start', { intervalMs: 30000 });
+        await apiRequest('POST', '/admin/monitoring/start', { intervalMs: MONITORING_INTERVAL_MS });
+        startedByThisPageRef.current = true;
       }
       // Aggiorna lo stato direttamente dal server, così il bottone cambia subito
       await loadMonitoringStatus();
@@ -307,7 +314,37 @@ const MonitoringDashboard: React.FC = () => {
 
   // Carica dati iniziali
   useEffect(() => {
-    loadAllData();
+    let mounted = true;
+    (async () => {
+      await loadAllData();
+
+      // On-demand: se il monitor non è attivo, lo avviamo automaticamente quando apri la dashboard.
+      // Questo evita di tenerlo sempre acceso lato backend in produzione.
+      try {
+        const response = await apiRequest('GET', '/admin/monitoring/status');
+        const serverPayload = response?.data ?? response;
+        const currentlyMonitoring =
+          serverPayload?.success === true ? !!serverPayload.data?.isMonitoring :
+          typeof serverPayload?.isMonitoring === 'boolean' ? serverPayload.isMonitoring :
+          false;
+
+        if (mounted && !currentlyMonitoring) {
+          await apiRequest('POST', '/admin/monitoring/start', { intervalMs: MONITORING_INTERVAL_MS });
+          startedByThisPageRef.current = true;
+          await loadMonitoringStatus();
+        }
+      } catch (_e) {
+        // Se non riesce ad avviare (es. non admin), non bloccare la pagina.
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      // Se questa pagina ha avviato il monitor, lo fermiamo quando esci per ridurre compute.
+      if (startedByThisPageRef.current) {
+        apiRequest('POST', '/admin/monitoring/stop').catch(() => {});
+      }
+    };
   }, []);
 
   const getStatusColor = (status: string) => {

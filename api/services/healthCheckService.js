@@ -77,14 +77,25 @@ class HealthCheckService {
       // Test query semplice
       const result = await client.query('SELECT 1 as test');
       client.release();
-      
-      // Test query complessa
-      const complexResult = await pool.query(`
-        SELECT 
-          count(*) as user_count,
-          count(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') as new_users_today
-        FROM users
-      `);
+      const includeCountsEnv = process.env.HEALTHCHECK_DB_INCLUDE_COUNTS;
+      const includeCounts =
+        includeCountsEnv === 'true' ? true :
+        includeCountsEnv === 'false' ? false :
+        process.env.NODE_ENV !== 'production';
+
+      let userCount = null;
+      let newUsersToday = null;
+      if (includeCounts) {
+        // Query più pesante: utile in debug, non necessaria per “sono vivo?”
+        const complexResult = await pool.query(`
+          SELECT 
+            count(*) as user_count,
+            count(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') as new_users_today
+          FROM users
+        `);
+        userCount = parseInt(complexResult.rows[0].user_count);
+        newUsersToday = parseInt(complexResult.rows[0].new_users_today);
+      }
       
       const responseTime = Date.now() - startTime;
       
@@ -92,8 +103,7 @@ class HealthCheckService {
         status: 'OK',
         message: 'Database operativo',
         responseTime: `${responseTime}ms`,
-        userCount: parseInt(complexResult.rows[0].user_count),
-        newUsersToday: parseInt(complexResult.rows[0].new_users_today),
+        ...(includeCounts ? { userCount, newUsersToday } : { countsSkipped: true }),
         timestamp: new Date().toISOString()
       };
     } catch (error) {
