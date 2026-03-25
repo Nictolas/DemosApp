@@ -482,7 +482,17 @@ auditManager.start();
 
 // Avvia sistema di monitoraggio performance
 const performanceMonitor = require('./services/performanceMonitor');
-performanceMonitor.start(30000); // 30 secondi
+const performanceMonitorEnabled = process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
+const defaultPerformanceMonitorIntervalMs = process.env.NODE_ENV === 'production' ? 120000 : 30000;
+const performanceMonitorIntervalMs = Math.max(
+  15000,
+  parseInt(process.env.PERFORMANCE_MONITOR_INTERVAL_MS || String(defaultPerformanceMonitorIntervalMs), 10)
+);
+if (performanceMonitorEnabled) {
+  performanceMonitor.start(performanceMonitorIntervalMs);
+} else {
+  console.log('📊 Performance monitoring disabilitato (PERFORMANCE_MONITOR_ENABLED=false)');
+}
 
 // Avvia sistema di ottimizzazione performance
 const performanceOptimizer = require('./services/performanceOptimizer');
