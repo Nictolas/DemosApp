@@ -69,6 +69,25 @@ function collectNumericValuesByKeys(input, keys) {
   return out;
 }
 
+function collectNeonMetricValues(payload, metricName, out = []) {
+  if (!payload || typeof payload !== 'object') return out;
+  if (Array.isArray(payload)) {
+    payload.forEach((item) => collectNeonMetricValues(item, metricName, out));
+    return out;
+  }
+
+  // Neon consumption API schema uses: { metric_name: string, value: number }
+  if (payload.metric_name === metricName) {
+    const n = Number(payload.value);
+    if (Number.isFinite(n)) out.push(n);
+  }
+
+  for (const value of Object.values(payload)) {
+    if (value && typeof value === 'object') collectNeonMetricValues(value, metricName, out);
+  }
+  return out;
+}
+
 function toRfc3339(value) {
   try {
     const d = value instanceof Date ? value : new Date(value);
@@ -645,11 +664,17 @@ router.get('/platform-usage', async (req, res) => {
           org_id: configuredOrgId,
           from,
           to,
-          granularity
+          granularity,
+          // Chiediamo solo le metriche che ci interessano
+          metrics: [
+            'compute_unit_seconds',
+            'public_network_transfer_bytes',
+            'private_network_transfer_bytes'
+          ].join(',')
         });
 
+        // NOTE: secondo docs Neon, il filtro e' project_ids (array / csv), non project_id.
         const candidateUrls = [
-          configuredProjectId ? `${base}?${new URLSearchParams({ ...Object.fromEntries(commonParams), project_id: configuredProjectId }).toString()}` : null,
           configuredProjectId ? `${base}?${new URLSearchParams({ ...Object.fromEntries(commonParams), project_ids: configuredProjectId }).toString()}` : null,
           `${base}?${commonParams.toString()}`
         ].filter(Boolean);
@@ -665,16 +690,10 @@ router.get('/platform-usage', async (req, res) => {
             continue;
           }
           const consumptionJson = await consumptionResp.json();
-          const cuSeconds = collectNumericValuesByKeys(consumptionJson, [
-            'compute_unit_seconds',
-            'compute_units_seconds',
-            'cu_seconds'
-          ]);
-          const dataTransferBytes = collectNumericValuesByKeys(consumptionJson, [
-            'data_transfer_bytes',
-            'data_transfer',
-            'egress_bytes'
-          ]);
+          const cuSeconds = collectNeonMetricValues(consumptionJson, 'compute_unit_seconds');
+          const publicTransfer = collectNeonMetricValues(consumptionJson, 'public_network_transfer_bytes');
+          const privateTransfer = collectNeonMetricValues(consumptionJson, 'private_network_transfer_bytes');
+          const dataTransferBytes = [...publicTransfer, ...privateTransfer];
 
           if (cuSeconds.length > 0 && neonComputeUnitSeconds30d === null) {
             neonComputeUnitSeconds30d = cuSeconds.reduce((sum, v) => sum + v, 0);
@@ -687,7 +706,7 @@ router.get('/platform-usage', async (req, res) => {
             diagnostics.neon.push('consumption history: campo compute_unit_seconds non trovato nella risposta');
           }
           if (dataTransferBytes.length === 0 && neonDataTransferBytes30d === null) {
-            diagnostics.neon.push('consumption history: campo data_transfer_bytes non trovato nella risposta');
+            diagnostics.neon.push('consumption history: campi public/private_network_transfer_bytes non trovati nella risposta');
           }
 
           // Se abbiamo già trovato almeno un valore, non continuiamo a ciclare candidateUrls.
