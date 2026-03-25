@@ -69,6 +69,22 @@ function collectNumericValuesByKeys(input, keys) {
   return out;
 }
 
+function toRfc3339(value) {
+  try {
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  } catch (_e) {
+    return null;
+  }
+}
+
+function subtractDays(date, days) {
+  const d = new Date(date.getTime());
+  d.setUTCDate(d.getUTCDate() - days);
+  return d;
+}
+
 // GET /api/admin/monitoring/health - Stato salute sistema
 // NOTE: niente auditMiddleware sulle GET di monitoring per evitare punti di blocco in catena.
 router.get('/health', async (req, res) => {
@@ -614,10 +630,28 @@ router.get('/platform-usage', async (req, res) => {
 
       // Consumo compute: somma compute_unit_seconds dagli ultimi risultati disponibili
       try {
+        if (!configuredOrgId) {
+          diagnostics.neon.push('NEON_ORG_ID non configurata: richiesta per consumption history (evita HTTP 400)');
+          throw new Error('missing NEON_ORG_ID for consumption history');
+        }
+
+        const now = new Date();
+        const from = toRfc3339(subtractDays(now, 30));
+        const to = toRfc3339(now);
+        const granularity = 'daily';
+
+        const base = 'https://console.neon.tech/api/v2/consumption_history/v2/projects';
+        const commonParams = new URLSearchParams({
+          org_id: configuredOrgId,
+          from,
+          to,
+          granularity
+        });
+
         const candidateUrls = [
-          configuredProjectId ? `https://console.neon.tech/api/v2/consumption_history/v2/projects?project_id=${encodeURIComponent(configuredProjectId)}` : null,
-          configuredProjectId ? `https://console.neon.tech/api/v2/consumption_history/v2/projects?project_ids=${encodeURIComponent(configuredProjectId)}` : null,
-          'https://console.neon.tech/api/v2/consumption_history/v2/projects'
+          configuredProjectId ? `${base}?${new URLSearchParams({ ...Object.fromEntries(commonParams), project_id: configuredProjectId }).toString()}` : null,
+          configuredProjectId ? `${base}?${new URLSearchParams({ ...Object.fromEntries(commonParams), project_ids: configuredProjectId }).toString()}` : null,
+          `${base}?${commonParams.toString()}`
         ].filter(Boolean);
 
         for (const url of candidateUrls) {
@@ -660,7 +694,9 @@ router.get('/platform-usage', async (req, res) => {
           if (neonComputeUnitSeconds30d !== null || neonDataTransferBytes30d !== null) break;
         }
       } catch (_error) {
-        diagnostics.neon.push('consumption history non disponibile con questa chiave/scope');
+        if (!diagnostics.neon.some((m) => String(m).includes('consumption history'))) {
+          diagnostics.neon.push('consumption history non disponibile con questa chiave/scope');
+        }
       }
     } else {
       diagnostics.neon.push('NEON_API_KEY non configurata');
