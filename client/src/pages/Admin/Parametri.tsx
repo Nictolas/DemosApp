@@ -27,8 +27,10 @@ type PlatformUsageApi = {
   diagnostics?: {
     neon?: string[];
   };
+  sources?: Record<string, string>;
   platforms?: {
     neon?: {
+      updatedAt?: string;
       metrics?: {
         databaseSizeBytes?: number | null;
         activeConnections?: number | null;
@@ -44,18 +46,27 @@ type PlatformUsageApi = {
       };
     };
     render?: {
+      updatedAt?: string;
       metrics?: { diskUsedBytes?: number | null; diskTotalBytes?: number | null; diskIsEstimated?: boolean };
     };
     axiom?: {
+      updatedAt?: string;
       metrics?: { integrationEnabled?: boolean; hasToken?: boolean; hasOrg?: boolean };
     };
     firebase?: {
+      updatedAt?: string;
       metrics?: { configured?: boolean };
     };
     resend?: {
+      updatedAt?: string;
       metrics?: { configured?: boolean };
     };
     play?: {
+      updatedAt?: string;
+      metrics?: { configured?: boolean };
+    };
+    cie?: {
+      updatedAt?: string;
       metrics?: { configured?: boolean };
     };
   };
@@ -148,6 +159,17 @@ function secondsToCuHours(value: number | null | undefined): number | null {
 
 function isConfiguredMetric(metricId: string): boolean {
   return ["axiom-config", "firebase-config", "resend-config", "cie-config", "play-config"].includes(metricId);
+}
+
+function getPlatformRiskPercent(platform: Platform): number | null {
+  const percents = platform.metrics.filter(hasProgress).map((m) => getPercent(m.used, m.limit));
+  return percents.length ? Math.max(...percents) : null;
+}
+
+function formatUpdatedAt(value?: string): string {
+  if (!value) return "N/D";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
 const Parametri: React.FC = () => {
@@ -313,6 +335,7 @@ const Parametri: React.FC = () => {
         <p className="text-xs text-slate-500 mt-2">Lista piattaforme ricavata da DPIA e configurazioni del progetto. Dove il provider non espone il consumo in-app, la voce e marcata come manuale.</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="text-slate-700 border-slate-300">Ultimo aggiornamento: {lastUpdated}</Badge>
+          <Badge variant="outline" className="text-slate-700 border-slate-300">Endpoint: /api/admin/monitoring/platform-usage</Badge>
           <Button variant="outline" size="sm" onClick={loadPlatformUsage} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Aggiorna adesso
@@ -407,7 +430,29 @@ const Parametri: React.FC = () => {
           <Card key={platform.id} className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle>{platform.name}</CardTitle>
-              <CardDescription>{platform.description}</CardDescription>
+              <CardDescription className="space-y-2">
+                <span className="block">{platform.description}</span>
+                <span className="block text-xs text-slate-500">
+                  Aggiornato:{" "}
+                  {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
+                </span>
+              </CardDescription>
+              {(() => {
+                const risk = getPlatformRiskPercent(platform);
+                if (risk === null) return null;
+                const status = getStatus(risk);
+                return (
+                  <div className="mt-3 rounded-xl border border-slate-200/70 bg-white/60 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-slate-700">Rischio massimo piattaforma</p>
+                      <Badge variant="outline" className={`inline-flex items-center gap-1 ${status.tone}`}>{status.icon}{status.label} · {risk}%</Badge>
+                    </div>
+                    <div className="mt-2">
+                      <Progress value={risk} className="h-2.5" />
+                    </div>
+                  </div>
+                );
+              })()}
               {platform.id === "neon" && platformUsage?.diagnostics?.neon?.length ? (
                 <p className="text-xs text-amber-700 mt-1">
                   Neon diagnostica: {platformUsage.diagnostics.neon.join(" | ")}
@@ -429,7 +474,7 @@ const Parametri: React.FC = () => {
                       : { label: "Non configurato", tone: "bg-amber-100 text-amber-700 border-amber-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> })
                     : status;
                 return (
-                  <div key={metric.id} className="space-y-2">
+                  <div key={metric.id} className="space-y-2 rounded-xl border border-slate-200/60 bg-white/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-slate-900">{metric.label}</p>
                       <Badge variant="outline" className={`inline-flex items-center gap-1 ${finalStatus.tone}`}>{finalStatus.icon}{finalStatus.label}</Badge>
