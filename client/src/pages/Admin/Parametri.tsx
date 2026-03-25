@@ -65,10 +65,6 @@ type PlatformUsageApi = {
       updatedAt?: string;
       metrics?: { configured?: boolean };
     };
-    cie?: {
-      updatedAt?: string;
-      metrics?: { configured?: boolean };
-    };
   };
 };
 
@@ -133,14 +129,6 @@ const BASE_PLATFORMS: Platform[] = [
     ]
   },
   {
-    id: "cie",
-    name: "CIE / OIDC (Login)",
-    description: "Configurazione login OIDC/CIE (stato runtime).",
-    metrics: [
-      { id: "cie-config", label: "Configurazione", used: null, limit: 1, unit: "stato", note: "100% = issuer + client id/secret + redirect configurati. 0% = configurazione mancante." }
-    ]
-  },
-  {
     id: "play",
     name: "Google Play (review/admin)",
     description: "Credenziali admin per gestione review (stato runtime).",
@@ -174,7 +162,32 @@ function secondsToCuHours(value: number | null | undefined): number | null {
 }
 
 function isConfiguredMetric(metricId: string): boolean {
-  return ["axiom-config", "firebase-config", "resend-config", "cie-config", "play-config"].includes(metricId);
+  return ["axiom-config", "firebase-config", "resend-config", "play-config"].includes(metricId);
+}
+
+/** Soglie fisse per uso risorse (quota): sotto 70% verde, 70–89% giallo, ≥90% rosso */
+const THRESHOLD_USAGE_WARN = 70;
+const THRESHOLD_USAGE_CRIT = 90;
+
+function usageQuotaBarClass(percent: number): string {
+  const p = Number(percent);
+  if (!Number.isFinite(p)) return "bg-emerald-500";
+  if (p >= THRESHOLD_USAGE_CRIT) return "bg-red-500";
+  if (p >= THRESHOLD_USAGE_WARN) return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
+/** Barra “completamento integrazioni”: più alto è meglio (100% = tutto ok). */
+function integrationCompletionBarClass(percent: number): string {
+  const p = Number(percent);
+  if (!Number.isFinite(p)) return "bg-slate-400";
+  if (p >= 100) return "bg-emerald-500";
+  if (p >= THRESHOLD_USAGE_WARN) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+function configStatusBarClass(percent: number): string {
+  return percent >= 100 ? "bg-emerald-500" : "bg-amber-500";
 }
 
 /** Metriche Neon che dipendono dall'API consumption (spesso non disponibile sul piano Free). */
@@ -205,8 +218,6 @@ const Parametri: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [platformUsage, setPlatformUsage] = useState<PlatformUsageApi | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [warningThreshold, setWarningThreshold] = useState(70);
-  const [criticalThreshold, setCriticalThreshold] = useState(90);
 
   const loadPlatformUsage = async () => {
     try {
@@ -237,7 +248,6 @@ const Parametri: React.FC = () => {
     const axiom = platformUsage?.platforms?.axiom?.metrics;
     const firebase = platformUsage?.platforms?.firebase?.metrics;
     const resend = platformUsage?.platforms?.resend?.metrics;
-    const cie = platformUsage?.platforms?.cie?.metrics;
     const play = platformUsage?.platforms?.play?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
@@ -305,10 +315,6 @@ const Parametri: React.FC = () => {
           const configured = Boolean(resend?.configured);
           return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica RESEND_API_KEY." };
         }
-        if (metric.id === "cie-config") {
-          const configured = Boolean(cie?.configured);
-          return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica OIDC_/CIE_ issuer, client id/secret, redirect." };
-        }
         if (metric.id === "play-config") {
           const configured = Boolean(play?.configured);
           return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica PLAY_REVIEW_ADMIN_EMAIL e PLAY_REVIEW_ADMIN_PASSWORD." };
@@ -355,14 +361,14 @@ const Parametri: React.FC = () => {
   }, [platforms]);
 
   const getStatus = (percent: number): { label: string; tone: string; icon: React.ReactNode } => {
-    if (percent >= criticalThreshold) return { label: "Critico", tone: "bg-red-100 text-red-700 border-red-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> };
-    if (percent >= warningThreshold) return { label: "Attenzione", tone: "bg-amber-100 text-amber-700 border-amber-300", icon: <Gauge className="h-3.5 w-3.5" /> };
+    if (percent >= THRESHOLD_USAGE_CRIT) return { label: "Critico", tone: "bg-red-100 text-red-700 border-red-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> };
+    if (percent >= THRESHOLD_USAGE_WARN) return { label: "Attenzione", tone: "bg-amber-100 text-amber-700 border-amber-300", icon: <Gauge className="h-3.5 w-3.5" /> };
     return { label: "OK", tone: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: <CheckCircle2 className="h-3.5 w-3.5" /> };
   };
 
   return (
     <div className="w-full min-h-screen bg-[radial-gradient(ellipse_at_top,_#e0f2fe_0%,_#f8fafc_42%,_#ffffff_100%)] pt-20 pb-12">
-      <div className="w-full max-w-[min(100%,88rem)] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-10 xl:px-12">
         {/* Intestazione: due colonne su desktop */}
         <div className="mb-8 rounded-2xl border border-slate-200/80 bg-white/90 p-5 sm:p-7 shadow-md shadow-slate-200/40 backdrop-blur-sm">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
@@ -371,11 +377,14 @@ const Parametri: React.FC = () => {
                 Parametri Piani Free
               </Badge>
               <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-2">Parametri</h1>
-              <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-3xl">
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-4xl">
                 Limiti principali delle piattaforme free usate nell&apos;app, con barre per vedere subito quanto margine resta.
               </p>
-              <p className="text-xs text-slate-500 mt-3 leading-relaxed max-w-3xl">
+              <p className="text-xs text-slate-500 mt-3 leading-relaxed max-w-4xl">
                 Lista piattaforme da DPIA e configurazioni progetto. Dove il provider non espone il consumo in-app, la voce è marcata come manuale.
+              </p>
+              <p className="text-xs text-slate-600 mt-2 font-medium max-w-4xl">
+                Uso risorse (quota): sotto {THRESHOLD_USAGE_WARN}% verde · {THRESHOLD_USAGE_WARN}–{THRESHOLD_USAGE_CRIT - 1}% giallo · {THRESHOLD_USAGE_CRIT}% o più rosso.
               </p>
             </div>
             <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end lg:min-w-[280px]">
@@ -394,14 +403,14 @@ const Parametri: React.FC = () => {
           {loadError && <p className="mt-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{loadError}</p>}
         </div>
 
-        {/* Riga superiore: tre colonne su xl */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-8">
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow xl:min-h-[220px]">
+        {/* Riga superiore: due colonne su lg */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-8 mb-8">
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow min-h-[200px]">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Riepilogo completamento</CardTitle>
               <CardDescription>Configurazione integrazioni e uso risorse con quota.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-slate-900">Integrazioni</p>
@@ -409,10 +418,14 @@ const Parametri: React.FC = () => {
                     {overview.configuredDone}/{overview.configuredTotal}
                   </Badge>
                 </div>
-                <Progress value={overview.configuredPercent} className="h-2.5" />
+                <Progress
+                  value={overview.configuredPercent}
+                  className="h-2.5"
+                  indicatorClassName={integrationCompletionBarClass(overview.configuredPercent)}
+                />
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span>{overview.configuredPercent}% completato</span>
-                  <span>{overview.configuredTotal ? "100%" : "N/D"}</span>
+                  <span>{overview.configuredTotal ? "obiettivo 100%" : "N/D"}</span>
                 </div>
               </div>
               <div className="space-y-2">
@@ -429,7 +442,11 @@ const Parametri: React.FC = () => {
                     </Badge>
                   )}
                 </div>
-                <Progress value={overview.highestUsage ?? 0} className={`h-2.5 ${overview.highestUsage === null ? "opacity-40" : ""}`} />
+                <Progress
+                  value={overview.highestUsage ?? 0}
+                  className={`h-2.5 ${overview.highestUsage === null ? "opacity-40" : ""}`}
+                  indicatorClassName={overview.highestUsage === null ? "bg-slate-400" : usageQuotaBarClass(overview.highestUsage)}
+                />
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span className="line-clamp-2">{overview.highestUsageLabel ?? "Nessuna quota"}</span>
                   <span>{overview.highestUsage !== null ? `${overview.highestUsage}%` : "N/D"}</span>
@@ -438,48 +455,7 @@ const Parametri: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow xl:min-h-[220px]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Soglie alert</CardTitle>
-              <CardDescription>Solo per metriche live con limite.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">Attenzione</span>
-                  <span className="font-semibold text-amber-800">{warningThreshold}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={40}
-                  max={95}
-                  value={warningThreshold}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    setWarningThreshold(value);
-                    if (value >= criticalThreshold) setCriticalThreshold(Math.min(99, value + 1));
-                  }}
-                  className="w-full accent-amber-600"
-                />
-              </div>
-              <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">Critico</span>
-                  <span className="font-semibold text-red-800">{criticalThreshold}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={Math.max(50, warningThreshold + 1)}
-                  max={100}
-                  value={criticalThreshold}
-                  onChange={(e) => setCriticalThreshold(Number(e.target.value))}
-                  className="w-full accent-red-600"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow xl:min-h-[220px] xl:row-span-1">
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow min-h-[200px]">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Limiti API / piano</CardTitle>
               <CardDescription>Cosa non è leggibile in automatico da qui.</CardDescription>
@@ -498,8 +474,8 @@ const Parametri: React.FC = () => {
           </Card>
         </div>
 
-        {/* Griglia piattaforme: 2 colonne lg, 3 su 2xl */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-5 lg:gap-6">
+        {/* Griglia piattaforme: 2 colonne su tablet, 3 su desktop largo */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 lg:gap-6">
         {platforms.map((platform) => (
           <Card key={platform.id} className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
             <CardHeader className="pb-3">
@@ -536,7 +512,7 @@ const Parametri: React.FC = () => {
                       </Badge>
                     </div>
                     <div className="mt-1.5">
-                      <Progress value={risk} className="h-2" />
+                      <Progress value={risk} className="h-2" indicatorClassName={usageQuotaBarClass(risk)} />
                     </div>
                   </div>
                 );
@@ -577,13 +553,25 @@ const Parametri: React.FC = () => {
                         ? { label: "Configurato", tone: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: <CheckCircle2 className="h-3.5 w-3.5" /> }
                         : { label: "Non configurato", tone: "bg-amber-100 text-amber-700 border-amber-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> })
                       : status;
+                const barTint =
+                  !progressEnabled
+                    ? undefined
+                    : premiumBlocked
+                      ? "bg-slate-400"
+                      : isConfig
+                        ? configStatusBarClass(percent)
+                        : usageQuotaBarClass(percent);
                 return (
                   <div key={metric.id} className="space-y-2 rounded-xl border border-slate-200/60 bg-white/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-slate-900">{metric.label}</p>
                       <Badge variant="outline" className={`inline-flex items-center gap-1 ${finalStatus.tone}`}>{finalStatus.icon}{finalStatus.label}</Badge>
                     </div>
-                    <Progress value={percent} className={`h-2.5 ${!progressEnabled ? "opacity-40" : ""}`} />
+                    <Progress
+                      value={percent}
+                      className={`h-2.5 ${!progressEnabled ? "opacity-40" : ""}`}
+                      indicatorClassName={barTint}
+                    />
                     <div className="flex items-center justify-between text-xs text-slate-600">
                       {progressEnabled ? (
                         <>
