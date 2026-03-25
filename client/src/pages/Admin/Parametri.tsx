@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertTriangle, CheckCircle2, Gauge, Info, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Gauge, Info, RefreshCw, XCircle } from "lucide-react";
 
 type FreeMetric = {
   id: string;
@@ -177,18 +177,6 @@ function usageQuotaBarClass(percent: number): string {
   return "bg-emerald-500";
 }
 
-/** Barra “completamento integrazioni”: più alto è meglio (100% = tutto ok). */
-function integrationCompletionBarClass(percent: number): string {
-  const p = Number(percent);
-  if (!Number.isFinite(p)) return "bg-slate-400";
-  if (p >= 100) return "bg-emerald-500";
-  if (p >= THRESHOLD_USAGE_WARN) return "bg-amber-500";
-  return "bg-red-500";
-}
-
-function configStatusBarClass(percent: number): string {
-  return percent >= 100 ? "bg-emerald-500" : "bg-amber-500";
-}
 
 /** Metriche Neon che dipendono dall'API consumption (spesso non disponibile sul piano Free). */
 function isNeonConsumptionApiMetric(metricId: string): boolean {
@@ -201,11 +189,6 @@ function isNeonConsumption403(diagnostics?: string[]): boolean {
     const s = String(line);
     return s.includes("consumption history HTTP 403") || (s.includes("consumption_history") && s.includes("HTTP 403"));
   });
-}
-
-function getPlatformRiskPercent(platform: Platform): number | null {
-  const percents = platform.metrics.filter(hasProgress).map((m) => getPercent(m.used, m.limit));
-  return percents.length ? Math.max(...percents) : null;
 }
 
 function formatUpdatedAt(value?: string): string {
@@ -324,11 +307,11 @@ const Parametri: React.FC = () => {
     }));
 
     return mapped.sort((a, b) => {
-      const risk = (p: Platform) => {
+      const maxQuota = (p: Platform) => {
         const values = p.metrics.filter(hasProgress).map((m) => getPercent(m.used, m.limit));
         return values.length ? Math.max(...values) : -1;
       };
-      return risk(b) - risk(a);
+      return maxQuota(b) - maxQuota(a);
     });
   }, [platformUsage]);
 
@@ -344,7 +327,6 @@ const Parametri: React.FC = () => {
     const configuredMetrics = allMetrics.filter((m) => isConfiguredMetric(m.id));
     const configuredDone = configuredMetrics.filter((m) => m.used === 1).length;
     const configuredTotal = configuredMetrics.length || 0;
-    const configuredPercent = configuredTotal > 0 ? Number(((configuredDone / configuredTotal) * 100).toFixed(1)) : 0;
 
     const progressMetrics = allMetrics.filter(hasProgress).filter((m) => !isConfiguredMetric(m.id));
     const atRisk = progressMetrics
@@ -354,7 +336,6 @@ const Parametri: React.FC = () => {
     return {
       configuredDone,
       configuredTotal,
-      configuredPercent,
       highestUsage: atRisk?.percent ?? null,
       highestUsageLabel: atRisk?.metric?.label ?? null
     };
@@ -411,22 +392,29 @@ const Parametri: React.FC = () => {
               <CardDescription>Configurazione integrazioni e uso risorse con quota.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm font-medium text-slate-900">Integrazioni</p>
-                  <Badge variant="outline" className="text-slate-700 border-slate-300">
-                    {overview.configuredDone}/{overview.configuredTotal}
-                  </Badge>
+                  {overview.configuredTotal > 0 ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {overview.configuredDone === overview.configuredTotal ? (
+                        <CheckCircle2 className="h-9 w-9 text-emerald-600" aria-label="Tutte le integrazioni configurate" />
+                      ) : (
+                        <>
+                          <span className="text-lg font-semibold tabular-nums text-slate-800">
+                            {overview.configuredDone}/{overview.configuredTotal}
+                          </span>
+                          <XCircle className="h-9 w-9 text-amber-500" aria-label="Alcune integrazioni mancanti" />
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <Badge variant="outline" className="text-slate-600 border-slate-300">
+                      N/D
+                    </Badge>
+                  )}
                 </div>
-                <Progress
-                  value={overview.configuredPercent}
-                  className="h-2.5"
-                  indicatorClassName={integrationCompletionBarClass(overview.configuredPercent)}
-                />
-                <div className="flex items-center justify-between text-xs text-slate-600">
-                  <span>{overview.configuredPercent}% completato</span>
-                  <span>{overview.configuredTotal ? "obiettivo 100%" : "N/D"}</span>
-                </div>
+                <p className="text-xs text-slate-500">Stato delle integrazioni (Axiom, Firebase, Resend, Play): check se tutto ok.</p>
               </div>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -479,44 +467,13 @@ const Parametri: React.FC = () => {
         {platforms.map((platform) => (
           <Card key={platform.id} className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <CardTitle className="text-lg leading-snug">{platform.name}</CardTitle>
-                {(() => {
-                  const risk = getPlatformRiskPercent(platform);
-                  if (risk === null) return null;
-                  const status = getStatus(risk);
-                  return (
-                    <Badge variant="outline" className={`shrink-0 inline-flex items-center gap-1 text-xs ${status.tone}`}>
-                      {status.icon}
-                      {risk}%
-                    </Badge>
-                  );
-                })()}
-              </div>
+              <CardTitle className="text-lg leading-snug">{platform.name}</CardTitle>
               <CardDescription className="space-y-2">
                 <span className="block text-sm">{platform.description}</span>
                 <span className="block text-xs text-slate-500">
                   Aggiornato: {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
                 </span>
               </CardDescription>
-              {(() => {
-                const risk = getPlatformRiskPercent(platform);
-                if (risk === null) return null;
-                const status = getStatus(risk);
-                return (
-                  <div className="mt-2 rounded-lg border border-slate-200/70 bg-gradient-to-r from-slate-50/90 to-cyan-50/40 p-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-medium text-slate-700">Rischio max piattaforma</p>
-                      <Badge variant="outline" className={`text-xs ${status.tone}`}>
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <div className="mt-1.5">
-                      <Progress value={risk} className="h-2" indicatorClassName={usageQuotaBarClass(risk)} />
-                    </div>
-                  </div>
-                );
-              })()}
               {platform.id === "neon" && neonConsumptionBlocked ? (
                 <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/90 p-3 text-xs text-violet-950">
                   <p className="font-medium">Compute / Data transfer</p>
@@ -543,43 +500,46 @@ const Parametri: React.FC = () => {
                   neonConsumptionBlocked &&
                   !progressEnabled &&
                   !liveValueNoLimit;
+
+                if (isConfig) {
+                  const ok = metric.used === 1;
+                  return (
+                    <div key={metric.id} className="rounded-xl border border-slate-200/60 bg-white/50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-slate-900">{metric.label}</p>
+                        {ok ? (
+                          <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" aria-label="Configurazione presente" />
+                        ) : (
+                          <XCircle className="h-8 w-8 text-amber-600 shrink-0" aria-label="Configurazione mancante o incompleta" />
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 inline-flex items-start gap-1.5">
+                        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <span>{metric.note}</span>
+                      </p>
+                    </div>
+                  );
+                }
+
                 const status = progressEnabled ? getStatus(percent) : { label: "Da configurare", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3.5 w-3.5" /> };
                 const finalStatus = premiumBlocked
                   ? { label: "Solo piano premium", tone: "bg-violet-100 text-violet-800 border-violet-300", icon: <Info className="h-3.5 w-3.5" /> }
                   : liveValueNoLimit
                     ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
-                    : isConfig
-                      ? (metric.used === 1
-                        ? { label: "Configurato", tone: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: <CheckCircle2 className="h-3.5 w-3.5" /> }
-                        : { label: "Non configurato", tone: "bg-amber-100 text-amber-700 border-amber-300", icon: <AlertTriangle className="h-3.5 w-3.5" /> })
-                      : status;
+                    : status;
                 const barTint =
-                  !progressEnabled
-                    ? undefined
-                    : premiumBlocked
-                      ? "bg-slate-400"
-                      : isConfig
-                        ? configStatusBarClass(percent)
-                        : usageQuotaBarClass(percent);
+                  !progressEnabled ? undefined : premiumBlocked ? "bg-slate-400" : usageQuotaBarClass(percent);
                 return (
                   <div key={metric.id} className="space-y-2 rounded-xl border border-slate-200/60 bg-white/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-slate-900">{metric.label}</p>
                       <Badge variant="outline" className={`inline-flex items-center gap-1 ${finalStatus.tone}`}>{finalStatus.icon}{finalStatus.label}</Badge>
                     </div>
-                    <Progress
-                      value={percent}
-                      className={`h-2.5 ${!progressEnabled ? "opacity-40" : ""}`}
-                      indicatorClassName={barTint}
-                    />
+                    {progressEnabled ? <Progress value={percent} className="h-2.5" indicatorClassName={barTint} /> : null}
                     <div className="flex items-center justify-between text-xs text-slate-600">
                       {progressEnabled ? (
                         <>
-                          <span>
-                            {isConfig
-                              ? (metric.used === 1 ? "OK" : "Manca configurazione")
-                              : `${metric.used} ${metric.unit} su ${metric.limit} ${metric.unit}`.trim()}
-                          </span>
+                          <span>{`${metric.used} ${metric.unit} su ${metric.limit} ${metric.unit}`.trim()}</span>
                           <span>{percent}%</span>
                         </>
                       ) : liveValueNoLimit ? (
