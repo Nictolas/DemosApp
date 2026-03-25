@@ -525,6 +525,20 @@ router.get('/platform-usage', async (req, res) => {
       neon: []
     };
 
+    // Limiti/budget Neon da env (per progress % reali)
+    const neonComputeUnitSecondsLimit30d = process.env.NEON_COMPUTE_UNIT_SECONDS_LIMIT_30D
+      ? safeNumber(process.env.NEON_COMPUTE_UNIT_SECONDS_LIMIT_30D)
+      : null;
+    const neonDbStorageBudgetBytes = process.env.NEON_DB_STORAGE_BUDGET_BYTES
+      ? safeNumber(process.env.NEON_DB_STORAGE_BUDGET_BYTES)
+      : null;
+    const neonDataTransferBudgetBytes = process.env.NEON_DATA_TRANSFER_BUDGET_BYTES
+      ? safeNumber(process.env.NEON_DATA_TRANSFER_BUDGET_BYTES)
+      : null;
+    const neonActiveConnectionsLimit = process.env.NEON_ACTIVE_CONNECTIONS_LIMIT
+      ? safeNumber(process.env.NEON_ACTIVE_CONNECTIONS_LIMIT)
+      : null;
+
     // Render: usa check disco reale (df) con fallback stimato
     const diskCheck = await withTimeout(
       healthCheckService.checkDiskSpace(),
@@ -537,6 +551,7 @@ router.get('/platform-usage', async (req, res) => {
     let neonActiveConnections = null;
     let neonProjectCount = null;
     let neonComputeUnitSeconds30d = null;
+    let neonDataTransferBytes30d = null;
     try {
       const neonResult = await withTimeout(
         pool.query(`
@@ -611,10 +626,17 @@ router.get('/platform-usage', async (req, res) => {
           }
           const consumptionJson = await consumptionResp.json();
           const cuSeconds = collectNumericValuesByKey(consumptionJson, 'compute_unit_seconds');
-          if (cuSeconds.length > 0) {
+          const dataTransferBytes = collectNumericValuesByKey(consumptionJson, 'data_transfer_bytes');
+
+          if (cuSeconds.length > 0 && neonComputeUnitSeconds30d === null) {
             neonComputeUnitSeconds30d = cuSeconds.reduce((sum, v) => sum + v, 0);
-            break;
           }
+          if (dataTransferBytes.length > 0 && neonDataTransferBytes30d === null) {
+            neonDataTransferBytes30d = dataTransferBytes.reduce((sum, v) => sum + v, 0);
+          }
+
+          // Se abbiamo già trovato almeno un valore, non continuiamo a ciclare candidateUrls.
+          if (neonComputeUnitSeconds30d !== null || neonDataTransferBytes30d !== null) break;
         }
       } catch (_error) {
         diagnostics.neon.push('consumption history non disponibile con questa chiave/scope');
@@ -663,7 +685,14 @@ router.get('/platform-usage', async (req, res) => {
               databaseSizeBytes: neonDbSizeBytes,
               activeConnections: neonActiveConnections,
               projectCount: neonProjectCount,
-              computeUnitSeconds30d: neonComputeUnitSeconds30d
+              computeUnitSeconds30d: neonComputeUnitSeconds30d,
+              dataTransferBytes30d: neonDataTransferBytes30d
+            },
+            limits: {
+              computeUnitSecondsLimit30d: neonComputeUnitSecondsLimit30d,
+              databaseStorageBudgetBytes: neonDbStorageBudgetBytes,
+              dataTransferBudgetBytes: neonDataTransferBudgetBytes,
+              activeConnectionsLimit: neonActiveConnectionsLimit
             }
           },
           render: {
