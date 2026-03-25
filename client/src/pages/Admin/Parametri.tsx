@@ -361,122 +361,166 @@ const Parametri: React.FC = () => {
   };
 
   return (
-    <div className="w-full mx-auto px-4 md:px-6 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#ecfeff_0%,_#f7fbff_35%,_#ffffff_70%)]">
-      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 p-5 md:p-6 shadow-sm backdrop-blur-sm">
-        <Badge variant="outline" className="mb-3 text-cyan-700 border-cyan-300">Parametri Piani Free</Badge>
-        <h1 className="text-3xl font-bold mb-2">Parametri</h1>
-        <p className="text-slate-600 max-w-4xl">Qui trovi i limiti principali delle piattaforme free usate nell&apos;app, con barre di completamento per capire subito quanto margine resta.</p>
-        <p className="text-xs text-slate-500 mt-2">Lista piattaforme ricavata da DPIA e configurazioni del progetto. Dove il provider non espone il consumo in-app, la voce e marcata come manuale.</p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="text-slate-700 border-slate-300">Ultimo aggiornamento: {lastUpdated}</Badge>
-          <Badge variant="outline" className="text-slate-700 border-slate-300">Endpoint: /api/admin/monitoring/platform-usage</Badge>
-          <Button variant="outline" size="sm" onClick={loadPlatformUsage} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Aggiorna adesso
-          </Button>
-        </div>
-        {loadError && (
-          <p className="mt-3 text-sm text-amber-700">
-            {loadError}
-          </p>
-        )}
-      </div>
-
-      <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
-        <CardHeader>
-          <CardTitle className="text-base">Riepilogo completamento</CardTitle>
-          <CardDescription>Barre rapide per capire “a che punto siamo” sulla configurazione e sull’uso risorse.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium text-slate-900">Integrazioni configurate</p>
-              <Badge variant="outline" className="text-slate-700 border-slate-300">
-                {overview.configuredDone}/{overview.configuredTotal}
+    <div className="w-full min-h-screen bg-[radial-gradient(ellipse_at_top,_#e0f2fe_0%,_#f8fafc_42%,_#ffffff_100%)] pt-20 pb-12">
+      <div className="w-full max-w-[min(100%,88rem)] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Intestazione: due colonne su desktop */}
+        <div className="mb-8 rounded-2xl border border-slate-200/80 bg-white/90 p-5 sm:p-7 shadow-md shadow-slate-200/40 backdrop-blur-sm">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div className="min-w-0 flex-1">
+              <Badge variant="outline" className="mb-3 text-cyan-700 border-cyan-300 bg-cyan-50/80">
+                Parametri Piani Free
               </Badge>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-2">Parametri</h1>
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-3xl">
+                Limiti principali delle piattaforme free usate nell&apos;app, con barre per vedere subito quanto margine resta.
+              </p>
+              <p className="text-xs text-slate-500 mt-3 leading-relaxed max-w-3xl">
+                Lista piattaforme da DPIA e configurazioni progetto. Dove il provider non espone il consumo in-app, la voce è marcata come manuale.
+              </p>
             </div>
-            <Progress value={overview.configuredPercent} className="h-2.5" />
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>{overview.configuredPercent}% completato</span>
-              <span>{overview.configuredTotal ? "Obiettivo: 100%" : "N/D"}</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium text-slate-900">Uso risorsa più alto</p>
-              {typeof overview.highestUsage === "number" ? (
-                <Badge variant="outline" className={`inline-flex items-center gap-1 ${getStatus(overview.highestUsage).tone}`}>
-                  {getStatus(overview.highestUsage).icon}
-                  {getStatus(overview.highestUsage).label}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-slate-700 border-slate-300">N/D</Badge>
-              )}
-            </div>
-            <Progress value={overview.highestUsage ?? 0} className={`h-2.5 ${overview.highestUsage === null ? "opacity-40" : ""}`} />
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>{overview.highestUsageLabel ?? "Nessuna metrica con quota disponibile"}</span>
-              <span>{overview.highestUsage !== null ? `${overview.highestUsage}%` : "N/D"}</span>
+            <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end lg:min-w-[280px]">
+              <Badge variant="outline" className="text-slate-700 border-slate-300 justify-center sm:justify-start">
+                Ultimo aggiornamento: {lastUpdated}
+              </Badge>
+              <Badge variant="outline" className="text-slate-600 border-slate-300 text-xs font-normal justify-center sm:justify-start break-all">
+                /api/admin/monitoring/platform-usage
+              </Badge>
+              <Button variant="default" size="sm" className="bg-cyan-700 hover:bg-cyan-800 w-full sm:w-auto" onClick={loadPlatformUsage} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Aggiorna adesso
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          {loadError && <p className="mt-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{loadError}</p>}
+        </div>
 
-      <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
-        <CardHeader>
-          <CardTitle className="text-base">Soglie alert configurabili</CardTitle>
-          <CardDescription>Queste soglie si applicano solo alle metriche live con limite disponibile.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm"><span>Soglia Attenzione</span><span className="font-medium">{warningThreshold}%</span></div>
-            <input type="range" min={40} max={95} value={warningThreshold} onChange={(e) => {
-              const value = Number(e.target.value);
-              setWarningThreshold(value);
-              if (value >= criticalThreshold) setCriticalThreshold(Math.min(99, value + 1));
-            }} className="w-full" />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm"><span>Soglia Critico</span><span className="font-medium">{criticalThreshold}%</span></div>
-            <input type="range" min={Math.max(50, warningThreshold + 1)} max={100} value={criticalThreshold} onChange={(e) => setCriticalThreshold(Number(e.target.value))} className="w-full" />
-          </div>
-        </CardContent>
-      </Card>
+        {/* Riga superiore: tre colonne su xl */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-8">
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow xl:min-h-[220px]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Riepilogo completamento</CardTitle>
+              <CardDescription>Configurazione integrazioni e uso risorse con quota.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-900">Integrazioni</p>
+                  <Badge variant="outline" className="text-slate-700 border-slate-300">
+                    {overview.configuredDone}/{overview.configuredTotal}
+                  </Badge>
+                </div>
+                <Progress value={overview.configuredPercent} className="h-2.5" />
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>{overview.configuredPercent}% completato</span>
+                  <span>{overview.configuredTotal ? "100%" : "N/D"}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-900">Risorsa più alta</p>
+                  {typeof overview.highestUsage === "number" ? (
+                    <Badge variant="outline" className={`inline-flex items-center gap-1 ${getStatus(overview.highestUsage).tone}`}>
+                      {getStatus(overview.highestUsage).icon}
+                      {getStatus(overview.highestUsage).label}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-slate-700 border-slate-300">
+                      N/D
+                    </Badge>
+                  )}
+                </div>
+                <Progress value={overview.highestUsage ?? 0} className={`h-2.5 ${overview.highestUsage === null ? "opacity-40" : ""}`} />
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span className="line-clamp-2">{overview.highestUsageLabel ?? "Nessuna quota"}</span>
+                  <span>{overview.highestUsage !== null ? `${overview.highestUsage}%` : "N/D"}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card className="border-slate-200/70 bg-white/90 shadow-sm mb-5">
-        <CardHeader>
-          <CardTitle className="text-base">Non disponibile con piano/API attuale</CardTitle>
-          <CardDescription>
-            Alcuni parametri non si possono leggere in modo affidabile dall'app con il piano free o senza API billing dedicate.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-slate-600 space-y-2">
-          <p>
-            <span className="font-medium text-slate-800">Neon (compute e data transfer automatici):</span>{" "}
-            l&apos;API ufficiale di consumo (<code className="text-xs bg-slate-100 px-1 rounded">/consumption_history/v2/projects</code>) è pensata per piani con
-            billing usage-based; sul piano Free spesso risponde 403 e non possiamo popolare le barre in automatico. Per valori live qui serve un piano Neon con accesso a quell&apos;API (es. Launch, Scale, Agent, Enterprise). Vedi{" "}
-            <a className="text-cyan-700 underline" href="https://neon.tech/docs/guides/consumption-metrics" target="_blank" rel="noreferrer">
-              Querying consumption metrics
-            </a>
-            .
-          </p>
-          <p>- Neon: conteggio progetti account-level con chiavi scope limitato.</p>
-          <p>- Render: usage/billing piano (non disponibile qui senza API billing dedicata).</p>
-          <p>- Firebase/Resend/Axiom/Google Play: quote consumo piano non esposte in modo uniforme via API usata dall&apos;app.</p>
-        </CardContent>
-      </Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow xl:min-h-[220px]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Soglie alert</CardTitle>
+              <CardDescription>Solo per metriche live con limite.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-700">Attenzione</span>
+                  <span className="font-semibold text-amber-800">{warningThreshold}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={40}
+                  max={95}
+                  value={warningThreshold}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setWarningThreshold(value);
+                    if (value >= criticalThreshold) setCriticalThreshold(Math.min(99, value + 1));
+                  }}
+                  className="w-full accent-amber-600"
+                />
+              </div>
+              <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-700">Critico</span>
+                  <span className="font-semibold text-red-800">{criticalThreshold}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={Math.max(50, warningThreshold + 1)}
+                  max={100}
+                  value={criticalThreshold}
+                  onChange={(e) => setCriticalThreshold(Number(e.target.value))}
+                  className="w-full accent-red-600"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      <div className="space-y-5">
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow xl:min-h-[220px] xl:row-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Limiti API / piano</CardTitle>
+              <CardDescription>Cosa non è leggibile in automatico da qui.</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-slate-600 space-y-2 max-h-[200px] xl:max-h-none overflow-y-auto xl:overflow-visible pr-1">
+              <p>
+                <span className="font-medium text-slate-800">Neon (consumption):</span> API{" "}
+                <code className="text-[11px] bg-slate-100 px-1 rounded">consumption_history</code> spesso 403 sul Free.{" "}
+                <a className="text-cyan-700 underline font-medium" href="https://neon.tech/docs/guides/consumption-metrics" target="_blank" rel="noreferrer">
+                  Guida Neon
+                </a>
+                .
+              </p>
+              <p className="text-xs text-slate-500">Render billing, Firebase/Resend quote: non esposte uniformemente qui.</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Griglia piattaforme: 2 colonne lg, 3 su 2xl */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-5 lg:gap-6">
         {platforms.map((platform) => (
-          <Card key={platform.id} className="border-slate-200/70 bg-white/90 shadow-sm">
-            <CardHeader>
-              <CardTitle>{platform.name}</CardTitle>
+          <Card key={platform.id} className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <CardTitle className="text-lg leading-snug">{platform.name}</CardTitle>
+                {(() => {
+                  const risk = getPlatformRiskPercent(platform);
+                  if (risk === null) return null;
+                  const status = getStatus(risk);
+                  return (
+                    <Badge variant="outline" className={`shrink-0 inline-flex items-center gap-1 text-xs ${status.tone}`}>
+                      {status.icon}
+                      {risk}%
+                    </Badge>
+                  );
+                })()}
+              </div>
               <CardDescription className="space-y-2">
-                <span className="block">{platform.description}</span>
+                <span className="block text-sm">{platform.description}</span>
                 <span className="block text-xs text-slate-500">
-                  Aggiornato:{" "}
-                  {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
+                  Aggiornato: {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
                 </span>
               </CardDescription>
               {(() => {
@@ -484,32 +528,34 @@ const Parametri: React.FC = () => {
                 if (risk === null) return null;
                 const status = getStatus(risk);
                 return (
-                  <div className="mt-3 rounded-xl border border-slate-200/70 bg-white/60 p-3">
+                  <div className="mt-2 rounded-lg border border-slate-200/70 bg-gradient-to-r from-slate-50/90 to-cyan-50/40 p-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-medium text-slate-700">Rischio massimo piattaforma</p>
-                      <Badge variant="outline" className={`inline-flex items-center gap-1 ${status.tone}`}>{status.icon}{status.label} · {risk}%</Badge>
+                      <p className="text-xs font-medium text-slate-700">Rischio max piattaforma</p>
+                      <Badge variant="outline" className={`text-xs ${status.tone}`}>
+                        {status.label}
+                      </Badge>
                     </div>
-                    <div className="mt-2">
-                      <Progress value={risk} className="h-2.5" />
+                    <div className="mt-1.5">
+                      <Progress value={risk} className="h-2" />
                     </div>
                   </div>
                 );
               })()}
               {platform.id === "neon" && neonConsumptionBlocked ? (
                 <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/90 p-3 text-xs text-violet-950">
-                  <p className="font-medium">Compute e Data transfer: aggiornamento automatico</p>
+                  <p className="font-medium">Compute / Data transfer</p>
                   <p className="mt-1.5 leading-relaxed text-violet-900/90">
-                    Su questo piano Neon l&apos;API di consumo risponde 403: non possiamo sincronizzare qui i valori in tempo reale. Per avere queste due metriche aggiornate automaticamente serve un piano Neon che esponga l&apos;API consumption ufficiale (es. Launch, Scale, Agent, Enterprise). I consumi restano consultabili nella console Neon.
+                    API consumo 403 su questo piano: valori live solo con piano che esponga l&apos;API consumption. Consulta la console Neon.
                   </p>
                 </div>
               ) : null}
               {platform.id === "neon" && !neonConsumptionBlocked && platformUsage?.diagnostics?.neon?.length ? (
-                <p className="text-xs text-amber-700 mt-1 break-words">
-                  Neon diagnostica: {platformUsage.diagnostics.neon.join(" | ")}
-                </p>
+                <p className="text-xs text-amber-700 mt-1 break-words">Neon: {platformUsage.diagnostics.neon.join(" | ")}</p>
               ) : null}
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent
+              className={`flex-1 pt-0 ${platform.metrics.length > 1 ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-4"}`}
+            >
               {platform.metrics.map((metric) => {
                 const percent = getPercent(metric.used, metric.limit);
                 const progressEnabled = hasProgress(metric);
@@ -572,6 +618,7 @@ const Parametri: React.FC = () => {
             </CardContent>
           </Card>
         ))}
+        </div>
       </div>
     </div>
   );
