@@ -2,15 +2,18 @@
 // Configurazione centralizzata del database per ottimizzare le performance
 const { Pool } = require('pg');
 
+const poolMax = Math.max(1, parseInt(process.env.DATABASE_POOL_MAX || '100', 10));
+const poolMin = Math.max(0, Math.min(parseInt(process.env.DATABASE_POOL_MIN || '10', 10), poolMax));
+
 // Configurazione ottimizzata per gestire molti utenti connessi
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
   ssl: { 
     rejectUnauthorized: process.env.NODE_ENV === 'production'
   },
-  // Aumento significativo delle connessioni per supportare molti utenti
-  max: 100,                    // Aumentato da 20 a 100 connessioni massime
-  min: 10,                     // Mantieni sempre 10 connessioni attive
+  // Override con DATABASE_POOL_MAX / DATABASE_POOL_MIN (su Neon: min basso = compute può sospendersi prima)
+  max: poolMax,
+  min: poolMin,
   idleTimeoutMillis: 60000,    // 1 minuto prima di chiudere connessioni idle
   connectionTimeoutMillis: 15000, // 15 secondi timeout per nuove connessioni
   query_timeout: 30000,        // 30 secondi timeout per query

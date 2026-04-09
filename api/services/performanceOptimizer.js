@@ -39,31 +39,44 @@ class PerformanceOptimizer {
   // Avvia ottimizzazioni automatiche
   start() {
     if (this.isOptimizing) return;
-    
+
+    const optimizerEnabled = process.env.ENABLE_PERFORMANCE_OPTIMIZER !== 'false';
+    const metricsEnabled =
+      optimizerEnabled && process.env.PERFORMANCE_OPTIMIZER_METRICS_ENABLED !== 'false';
+
+    if (!optimizerEnabled) {
+      console.log('⏭️ PerformanceOptimizer disabilitato (ENABLE_PERFORMANCE_OPTIMIZER=false)');
+      return;
+    }
+
     this.isOptimizing = true;
     console.log('🚀 Avvio ottimizzazioni performance automatiche...');
-    
-    // Ottimizzazioni ogni 30 secondi (solo se abilitato)
-    if (process.env.ENABLE_PERFORMANCE_OPTIMIZER !== 'false') {
-      this.optimizationInterval = setInterval(() => {
-        // Wrappare in Promise per gestire errori async
-        Promise.resolve(this.performOptimizations()).catch(error => {
-          console.error('❌ Errore non gestito in performOptimizations:', error);
-        });
-      }, 30000);
-    }
-    
-    // Metriche DB (es. COUNT su users): non ogni 10s — troppi tick = molte chiamate a Neon (vedi docs/DIAGNOSI_PICCHI_COMPUTE_NEON.md).
-    const metricsMs = Math.max(
-      15000,
-      parseInt(process.env.PERFORMANCE_OPTIMIZER_METRICS_INTERVAL_MS || '60000', 10)
-    );
-    this.metricsInterval = setInterval(() => {
-      Promise.resolve(this.updateMetrics()).catch(error => {
-        console.error('❌ Errore non gestito in updateMetrics:', error);
+
+    this.optimizationInterval = setInterval(() => {
+      Promise.resolve(this.performOptimizations()).catch(error => {
+        console.error('❌ Errore non gestito in performOptimizations:', error);
       });
-    }, metricsMs);
-    console.log(`📊 PerformanceOptimizer metrics ogni ${metricsMs}ms`);
+    }, 30000);
+
+    // Metriche (COUNT su users / Axiom o Neon per errori): solo se abilitate.
+    if (metricsEnabled) {
+      const metricsMs = Math.max(
+        15000,
+        parseInt(process.env.PERFORMANCE_OPTIMIZER_METRICS_INTERVAL_MS || '60000', 10)
+      );
+      this.metricsInterval = setInterval(() => {
+        Promise.resolve(this.updateMetrics()).catch(error => {
+          console.error('❌ Errore non gestito in updateMetrics:', error);
+        });
+      }, metricsMs);
+      const light = process.env.PERFORMANCE_OPTIMIZER_LIGHT_METRICS === 'true';
+      console.log(
+        `📊 PerformanceOptimizer metriche ogni ${metricsMs}ms` +
+          (light ? ' (LIGHT: nessuna query DB/Axiom per utenti/errori)' : '')
+      );
+    } else {
+      console.log('📊 PerformanceOptimizer metriche disabilitate (PERFORMANCE_OPTIMIZER_METRICS_ENABLED=false)');
+    }
   }
 
   // Esegue ottimizzazioni basate sulle metriche correnti
@@ -196,11 +209,19 @@ class PerformanceOptimizer {
     try {
       const poolStats = getPoolStats();
       const memoryUsage = process.memoryUsage();
-      
+      const light = process.env.PERFORMANCE_OPTIMIZER_LIGHT_METRICS === 'true';
+
+      let activeUsers = this.metrics.activeUsers;
+      let errorRate = this.metrics.errorRate;
+      if (!light) {
+        activeUsers = await this.getActiveUsersCount();
+        errorRate = await this.getErrorRate();
+      }
+
       this.metrics = {
-        activeUsers: await this.getActiveUsersCount(),
+        activeUsers,
         averageResponseTime: await this.getAverageResponseTime(),
-        errorRate: await this.getErrorRate(),
+        errorRate,
         memoryUsage: Math.round(memoryUsage.heapUsed / 1024 / 1024), // MB
         databaseConnections: poolStats ? poolStats.totalCount : 0,
         timestamp: new Date().toISOString()
