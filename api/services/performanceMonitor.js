@@ -51,6 +51,10 @@ class PerformanceMonitor {
       size: { at: 0, value: null },
       slowQueries: { at: 0, value: null },
     };
+    /** Ultimo snapshot DB riuscito (usato se PERFORMANCE_MONITOR_DB_METRICS_ENABLED=false). */
+    this._lastDatabaseMetrics = null;
+    /** Cache metriche errori (Axiom/Neon) tra un tick e l’altro. */
+    this._errorMetricsCache = null;
   }
 
   // Avvia monitoraggio
@@ -171,6 +175,26 @@ class PerformanceMonitor {
 
   // Metriche database
   async getDatabaseMetrics() {
+    if (process.env.PERFORMANCE_MONITOR_DB_METRICS_ENABLED === 'false') {
+      if (this._lastDatabaseMetrics) {
+        return {
+          ...this._lastDatabaseMetrics,
+          timestamp: new Date().toISOString(),
+          dbMetricsSkipped: true,
+        };
+      }
+      return {
+        timestamp: new Date().toISOString(),
+        totalConnections: 0,
+        activeConnections: 0,
+        idleConnections: 0,
+        databaseSize: 'N/A',
+        databaseSizeBytes: 0,
+        slowQueries: [],
+        dbMetricsSkipped: true,
+      };
+    }
+
     let client = null;
     try {
       client = await pool.connect();
@@ -241,7 +265,7 @@ class PerformanceMonitor {
         slowQueries = this.dbMetricsCache.slowQueries.value;
       }
       
-      return {
+      const out = {
         timestamp: new Date().toISOString(),
         totalConnections: parseInt(connections.rows[0]?.total_connections || 0),
         activeConnections: parseInt(connections.rows[0]?.active_connections || 0),
@@ -250,6 +274,9 @@ class PerformanceMonitor {
         databaseSizeBytes,
         slowQueries: slowQueries
       };
+      this._lastDatabaseMetrics = { ...out };
+      delete this._lastDatabaseMetrics.timestamp;
+      return out;
     } catch (error) {
       console.error('❌ Errore metriche database:', error);
       return {
@@ -289,6 +316,32 @@ class PerformanceMonitor {
 
   // Metriche errori
   async getErrorMetrics() {
+    if (process.env.PERFORMANCE_MONITOR_ERROR_METRICS_ENABLED === 'false') {
+      return {
+        timestamp: new Date().toISOString(),
+        errorsLastHour: 0,
+        warningsLastHour: 0,
+        totalIssues: 0,
+        errorMetricsSkipped: true
+      };
+    }
+
+    const errorEveryNTicks = Math.max(
+      1,
+      parseInt(process.env.PERFORMANCE_MONITOR_ERROR_METRICS_EVERY_N_TICKS || '1', 10)
+    );
+    if (
+      errorEveryNTicks > 1 &&
+      this._errorMetricsCache &&
+      this.tickCount % errorEveryNTicks !== 0
+    ) {
+      return {
+        ...this._errorMetricsCache,
+        timestamp: new Date().toISOString(),
+        errorMetricsCached: true
+      };
+    }
+
     try {
       // Se Axiom è abilitato, leggi da Axiom (anche se la tabella Neon è stata eliminata)
       if (process.env.AXIOM_ENABLED === 'true') {
@@ -296,23 +349,30 @@ class PerformanceMonitor {
           const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
           const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
           const endTime = new Date();
-          
+          const axiomLimit = Math.max(
+            100,
+            parseInt(process.env.PERFORMANCE_MONITOR_AXIOM_LOGS_LIMIT || '10000', 10)
+          );
+
           const logs = await getCentralizedLogs({
             startTime: oneHourAgo,
             endTime,
-            limit: 100000
+            limit: axiomLimit
           });
           
           // Filtra ERROR e WARN
           const errors = logs.filter(log => log.level === 'ERROR' || log.level === 'E').length;
           const warnings = logs.filter(log => log.level === 'WARN' || log.level === 'W').length;
           
-          return {
+          const axiomOut = {
             timestamp: new Date().toISOString(),
             errorsLastHour: errors,
             warningsLastHour: warnings,
             totalIssues: errors + warnings
           };
+          this._errorMetricsCache = { ...axiomOut };
+          delete this._errorMetricsCache.timestamp;
+          return axiomOut;
         } catch (error) {
           console.error('❌ Errore metriche errori da Axiom:', error);
           return {
@@ -324,9 +384,8 @@ class PerformanceMonitor {
         }
       }
 
-      // Fallback Neon: solo se la tabella esiste ancora
-      const tableExists = await this.checkTableExists();
-      if (!tableExists) {
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      if (!(await isCentralizedLogsTableAvailable())) {
         return {
           timestamp: new Date().toISOString(),
           errorsLastHour: 0,
@@ -351,12 +410,15 @@ class PerformanceMonitor {
         return acc;
       }, {});
 
-      return {
+      const neonOut = {
         timestamp: new Date().toISOString(),
         errorsLastHour: errorCounts.E || 0,
         warningsLastHour: errorCounts.W || 0,
         totalIssues: (errorCounts.E || 0) + (errorCounts.W || 0)
       };
+      this._errorMetricsCache = { ...neonOut };
+      delete this._errorMetricsCache.timestamp;
+      return neonOut;
     } catch (error) {
       console.error('❌ Errore metriche errori:', error);
       return {
@@ -365,24 +427,6 @@ class PerformanceMonitor {
         warningsLastHour: 0,
         totalIssues: 0
       };
-    }
-  }
-
-  async checkTableExists() {
-    try {
-      const { pool } = require('../middleware/auth');
-      const query = `
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'centralized_logs'
-        );
-      `;
-      const result = await pool.query(query);
-      return result.rows[0].exists;
-    } catch (error) {
-      console.error('❌ Errore verifica tabella centralized_logs:', error);
-      return false;
     }
   }
 
