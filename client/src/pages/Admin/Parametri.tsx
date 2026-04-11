@@ -69,6 +69,10 @@ type PlatformUsageApi = {
       updatedAt?: string;
       metrics?: { envConfigured?: boolean; pingOk?: boolean | null };
     };
+    cloudflare?: {
+      updatedAt?: string;
+      metrics?: { edgeRequestDetected?: boolean };
+    };
   };
 };
 
@@ -154,6 +158,22 @@ const BASE_PLATFORMS: Platform[] = [
         note: "100% = UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN su Render e PING REST riuscito."
       }
     ]
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare (proxy / CDN)",
+    description:
+      "Indica se la richiesta che carica questa pagina ha raggiunto l'API passando dal proxy Cloudflare (header CF-Ray). Utile dopo aver puntato i nameserver.",
+    metrics: [
+      {
+        id: "cloudflare-edge",
+        label: "Proxy rilevato (richiesta corrente)",
+        used: null,
+        limit: 1,
+        unit: "stato",
+        note: "100% = header CF-Ray presente sull'API. Se usi l'URL diretto Render senza dominio proxied, può risultare 0% anche se Cloudflare è ok sul sito."
+      }
+    ]
   }
 ];
 
@@ -181,7 +201,7 @@ function secondsToCuHours(value: number | null | undefined): number | null {
 }
 
 function isConfiguredMetric(metricId: string): boolean {
-  return ["axiom-config", "firebase-config", "resend-config", "play-config", "upstash-cache"].includes(metricId);
+  return ["axiom-config", "firebase-config", "resend-config", "play-config", "upstash-cache", "cloudflare-edge"].includes(metricId);
 }
 
 /** Soglie fisse per uso risorse (quota): sotto 70% verde, 70–89% giallo, ≥90% rosso */
@@ -252,6 +272,7 @@ const Parametri: React.FC = () => {
     const resend = platformUsage?.platforms?.resend?.metrics;
     const play = platformUsage?.platforms?.play?.metrics;
     const upstash = platformUsage?.platforms?.upstash?.metrics;
+    const cloudflare = platformUsage?.platforms?.cloudflare?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
       ...platform,
@@ -344,6 +365,18 @@ const Parametri: React.FC = () => {
             };
           }
           return { ...metric, used: 1, limit: 1, unit: "", note: "Cache Redis raggiungibile dall'API (PING OK)." };
+        }
+        if (metric.id === "cloudflare-edge") {
+          const ok = Boolean(cloudflare?.edgeRequestDetected);
+          return {
+            ...metric,
+            used: ok ? 1 : 0,
+            limit: 1,
+            unit: "",
+            note: ok
+              ? "L'API ha ricevuto questa richiesta con header CF-Ray: il traffico verso l'endpoint admin è passato da Cloudflare."
+              : "Nessun CF-Ray: il browser potrebbe chiamare l'API su un host non proxied (es. *.onrender.com) oppure i nameserver non sono ancora attivi. Verifica DNS e URL dell'API nel client."
+          };
         }
         return metric;
       })
@@ -457,7 +490,7 @@ const Parametri: React.FC = () => {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-slate-500">Stato delle integrazioni (Axiom, Firebase, Resend, Play, Upstash): check se tutto ok.</p>
+                <p className="text-xs text-slate-500">Stato delle integrazioni (Axiom, Firebase, Resend, Play, Upstash, Cloudflare): check se tutto ok.</p>
               </div>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
