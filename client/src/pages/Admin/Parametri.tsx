@@ -65,6 +65,10 @@ type PlatformUsageApi = {
       updatedAt?: string;
       metrics?: { configured?: boolean };
     };
+    upstash?: {
+      updatedAt?: string;
+      metrics?: { envConfigured?: boolean; pingOk?: boolean | null };
+    };
   };
 };
 
@@ -135,6 +139,21 @@ const BASE_PLATFORMS: Platform[] = [
     metrics: [
       { id: "play-config", label: "Configurazione", used: null, limit: 1, unit: "stato", note: "100% = email+password admin configurate. 0% = configurazione mancante." }
     ]
+  },
+  {
+    id: "upstash",
+    name: "Upstash Redis (cache)",
+    description: "Cache applicativa per ridurre letture ripetute su Neon (REST API, senza token in questa pagina).",
+    metrics: [
+      {
+        id: "upstash-cache",
+        label: "Operativa",
+        used: null,
+        limit: 1,
+        unit: "stato",
+        note: "100% = UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN su Render e PING REST riuscito."
+      }
+    ]
   }
 ];
 
@@ -162,7 +181,7 @@ function secondsToCuHours(value: number | null | undefined): number | null {
 }
 
 function isConfiguredMetric(metricId: string): boolean {
-  return ["axiom-config", "firebase-config", "resend-config", "play-config"].includes(metricId);
+  return ["axiom-config", "firebase-config", "resend-config", "play-config", "upstash-cache"].includes(metricId);
 }
 
 /** Soglie fisse per uso risorse (quota): sotto 70% verde, 70–89% giallo, ≥90% rosso */
@@ -232,6 +251,7 @@ const Parametri: React.FC = () => {
     const firebase = platformUsage?.platforms?.firebase?.metrics;
     const resend = platformUsage?.platforms?.resend?.metrics;
     const play = platformUsage?.platforms?.play?.metrics;
+    const upstash = platformUsage?.platforms?.upstash?.metrics;
 
     const mapped = BASE_PLATFORMS.map((platform) => ({
       ...platform,
@@ -301,6 +321,29 @@ const Parametri: React.FC = () => {
         if (metric.id === "play-config") {
           const configured = Boolean(play?.configured);
           return { ...metric, used: configured ? 1 : 0, limit: 1, unit: "", note: configured ? "Configurazione OK." : "Configurazione mancante: verifica PLAY_REVIEW_ADMIN_EMAIL e PLAY_REVIEW_ADMIN_PASSWORD." };
+        }
+        if (metric.id === "upstash-cache") {
+          const env = Boolean(upstash?.envConfigured);
+          const ping = upstash?.pingOk;
+          if (!env) {
+            return {
+              ...metric,
+              used: 0,
+              limit: 1,
+              unit: "",
+              note: "Imposta UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN nelle variabili d'ambiente del backend."
+            };
+          }
+          if (ping !== true) {
+            return {
+              ...metric,
+              used: 0,
+              limit: 1,
+              unit: "",
+              note: "Variabili presenti ma PING verso Upstash fallito o timeout: controlla token, rete o stato del database su console.upstash.com."
+            };
+          }
+          return { ...metric, used: 1, limit: 1, unit: "", note: "Cache Redis raggiungibile dall'API (PING OK)." };
         }
         return metric;
       })
@@ -414,7 +457,7 @@ const Parametri: React.FC = () => {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-slate-500">Stato delle integrazioni (Axiom, Firebase, Resend, Play): check se tutto ok.</p>
+                <p className="text-xs text-slate-500">Stato delle integrazioni (Axiom, Firebase, Resend, Play, Upstash): check se tutto ok.</p>
               </div>
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
