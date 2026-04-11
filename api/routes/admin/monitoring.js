@@ -11,6 +11,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const path = require('path');
 const execFileAsync = promisify(execFile);
+const redisCache = require('../../services/redisCache');
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
@@ -741,6 +742,23 @@ router.get('/platform-usage', async (req, res) => {
       process.env.PLAY_REVIEW_ADMIN_EMAIL && process.env.PLAY_REVIEW_ADMIN_PASSWORD
     );
 
+    const upstashEnvConfigured = Boolean(
+      process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    );
+    let upstashPingOk = null;
+    if (upstashEnvConfigured) {
+      try {
+        const pingResult = await withTimeout(
+          redisCache.ping(),
+          Math.min(MONITORING_TIMEOUT_MS, 5000),
+          'upstash redis ping'
+        );
+        upstashPingOk = pingResult?.ok === true;
+      } catch (_e) {
+        upstashPingOk = false;
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -752,7 +770,8 @@ router.get('/platform-usage', async (req, res) => {
           firebase: 'Runtime environment configuration',
           resend: 'Runtime environment configuration',
           cie: 'Runtime environment configuration',
-          play: 'Runtime environment configuration'
+          play: 'Runtime environment configuration',
+          upstash: 'Runtime environment + REST PING'
         },
         platforms: {
           neon: {
@@ -810,6 +829,13 @@ router.get('/platform-usage', async (req, res) => {
             updatedAt: generatedAt,
             metrics: {
               configured: playAdminConfigured
+            }
+          },
+          upstash: {
+            updatedAt: generatedAt,
+            metrics: {
+              envConfigured: upstashEnvConfigured,
+              pingOk: upstashPingOk
             }
           }
         },

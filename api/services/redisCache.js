@@ -80,6 +80,19 @@ async function invalidateMinisteroIniziativeCache() {
   await del(keys.ministeroIniziativeDb);
 }
 
+/** Health check verso Upstash (REST). Non espone segreti. */
+async function ping() {
+  const r = getClient();
+  if (!r) return { ok: false, reason: 'not_configured' };
+  try {
+    const pong = await r.ping();
+    const ok = pong === 'PONG' || pong === true;
+    return { ok };
+  } catch (err) {
+    return { ok: false, reason: 'error', message: err.message };
+  }
+}
+
 module.exports = {
   getClient,
   isEnabled,
@@ -87,6 +100,7 @@ module.exports = {
   setJson,
   del,
   remember,
+  ping,
   invalidateProgrammaCaches,
   invalidateMinisteroIniziativeCache,
   cacheKeys: keys,
