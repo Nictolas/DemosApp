@@ -742,6 +742,10 @@ router.get('/platform-usage', async (req, res) => {
       process.env.PLAY_REVIEW_ADMIN_EMAIL && process.env.PLAY_REVIEW_ADMIN_PASSWORD
     );
 
+    // Cloudflare: presenza CF-Ray sulla richiesta corrente = traffico passato dal proxy orange-cloud
+    const cfRayHeader = req.headers['cf-ray'] || req.headers['CF-Ray'];
+    const requestViaCloudflareEdge = Boolean(cfRayHeader);
+
     const upstashEnvConfigured = Boolean(
       process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
     );
@@ -771,7 +775,8 @@ router.get('/platform-usage', async (req, res) => {
           resend: 'Runtime environment configuration',
           cie: 'Runtime environment configuration',
           play: 'Runtime environment configuration',
-          upstash: 'Runtime environment + REST PING'
+          upstash: 'Runtime environment + REST PING',
+          cloudflare: 'HTTP header CF-Ray sulla richiesta a platform-usage'
         },
         platforms: {
           neon: {
@@ -836,6 +841,12 @@ router.get('/platform-usage', async (req, res) => {
             metrics: {
               envConfigured: upstashEnvConfigured,
               pingOk: upstashPingOk
+            }
+          },
+          cloudflare: {
+            updatedAt: generatedAt,
+            metrics: {
+              edgeRequestDetected: requestViaCloudflareEdge
             }
           }
         },
