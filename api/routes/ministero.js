@@ -3,6 +3,8 @@ const router = express.Router();
 const logger = require('../services/centralizedLogger');
 const ministeroSync = require('../services/ministeroSync');
 const ministeroSyncJob = require('../jobs/ministeroSyncJob');
+const { remember, isEnabled } = require('../services/redisCache');
+const { keys, ttl } = require('../config/cacheKeys');
 
 /**
  * Endpoint per recuperare i dati dal database (sincronizzati dal Ministero)
@@ -22,60 +24,67 @@ router.get('/iniziative', async (req, res) => {
       return await fetchFromMinisteroAPI(req, res);
     }
 
-    // Di default, recupera dal database (dati sincronizzati)
     console.log('📊 Recupero dati iniziative dal database (sincronizzati)...');
-    
-    const result = await pool.query(`
+
+    const payload = await remember(keys.ministeroIniziativeDb, ttl.ministeroIniziative, async () => {
+      const result = await pool.query(`
       SELECT * FROM iniziative_ministero 
       ORDER BY data_ultimo_aggiornamento DESC, created_at DESC
     `);
 
-    const iniziative = result.rows.map(row => ({
-      id: row.id,
-      id_ministero: row.id_ministero,
-      titolo: row.titolo,
-      descrizione: row.descrizione,
-      tipo: row.tipo,
-      stato: row.stato,
-      data_inizio: row.data_inizio,
-      data_fine: row.data_fine,
-      firme_raccolte: row.firme_raccolte,
-      sostenitori: row.firme_raccolte, // Per compatibilità con il frontend
-      quorum_raggiunto: row.quorum_raggiunto,
-      sito_web: row.sito_web,
-      data_ultimo_aggiornamento: row.data_ultimo_aggiornamento,
-      // Dati raw per compatibilità
-      idDecTipoIniziativa: { nome: row.tipo },
-      idDecStatoIniziativa: { nome: row.stato },
-      ...(row.dati_raw && typeof row.dati_raw === 'object' ? row.dati_raw : {})
-    }));
+      const iniziative = result.rows.map((row) => ({
+        id: row.id,
+        id_ministero: row.id_ministero,
+        titolo: row.titolo,
+        descrizione: row.descrizione,
+        tipo: row.tipo,
+        stato: row.stato,
+        data_inizio: row.data_inizio,
+        data_fine: row.data_fine,
+        firme_raccolte: row.firme_raccolte,
+        sostenitori: row.firme_raccolte,
+        quorum_raggiunto: row.quorum_raggiunto,
+        sito_web: row.sito_web,
+        data_ultimo_aggiornamento: row.data_ultimo_aggiornamento,
+        idDecTipoIniziativa: { nome: row.tipo },
+        idDecStatoIniziativa: { nome: row.stato },
+        ...(row.dati_raw && typeof row.dati_raw === 'object' ? row.dati_raw : {})
+      }));
 
-    // Calcola statistiche
-    const statistiche = {
-      totaleIniziative: iniziative.length,
-      totaleFirme: iniziative.reduce((sum, item) => sum + (item.firme_raccolte || 0), 0),
-      iniziativePerStato: {},
-      iniziativePerTipo: {}
-    };
+      const statistiche = {
+        totaleIniziative: iniziative.length,
+        totaleFirme: iniziative.reduce((sum, item) => sum + (item.firme_raccolte || 0), 0),
+        iniziativePerStato: {},
+        iniziativePerTipo: {}
+      };
 
-    iniziative.forEach((item) => {
-      if (item.stato) {
-        statistiche.iniziativePerStato[item.stato] = (statistiche.iniziativePerStato[item.stato] || 0) + 1;
-      }
-      if (item.tipo) {
-        statistiche.iniziativePerTipo[item.tipo] = (statistiche.iniziativePerTipo[item.tipo] || 0) + 1;
-      }
+      iniziative.forEach((item) => {
+        if (item.stato) {
+          statistiche.iniziativePerStato[item.stato] = (statistiche.iniziativePerStato[item.stato] || 0) + 1;
+        }
+        if (item.tipo) {
+          statistiche.iniziativePerTipo[item.tipo] = (statistiche.iniziativePerTipo[item.tipo] || 0) + 1;
+        }
+      });
+
+      return {
+        success: true,
+        data: { content: iniziative },
+        iniziative,
+        statistiche,
+        source: 'Database (sincronizzato dal Ministero)'
+      };
     });
 
-    console.log(`✅ Dati recuperati dal database: ${iniziative.length} iniziative`);
+    console.log(`✅ Dati recuperati dal database: ${payload.iniziative.length} iniziative`);
 
+    if (isEnabled()) {
+      const edge = Math.min(180, ttl.ministeroIniziative);
+      res.set('Cache-Control', `public, max-age=${edge}, s-maxage=${edge}`);
+    }
     res.json({
-      success: true,
-      data: { content: iniziative }, // Formato compatibile con il frontend
-      iniziative: iniziative,
-      statistiche: statistiche,
-      timestamp: new Date().toISOString(),
-      source: 'Database (sincronizzato dal Ministero)'
+      ...payload,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { remember, getJson, setJson, invalidateProgrammaCaches } = require('../services/redisCache');
+const { keys, ttl } = require('../config/cacheKeys');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -11,14 +13,23 @@ const pool = getPool();
 // GET /api/programma - Lista programmi
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM programmi ORDER BY data_creazione DESC'
-    );
-    
-    res.json({
-      success: true,
-      data: result.rows
+    const body = await remember(keys.programmiList, ttl.programmiList, async () => {
+      const result = await pool.query(
+        'SELECT * FROM programmi ORDER BY data_creazione DESC'
+      );
+      return {
+        success: true,
+        data: result.rows
+      };
     });
+
+    if (isEnabled()) {
+      res.set(
+        'Cache-Control',
+        `public, max-age=${Math.min(ttl.programmiList, 45)}, s-maxage=${Math.min(ttl.programmiList, 45)}`
+      );
+    }
+    res.json(body);
   } catch (error) {
     console.error('❌ Errore nel recupero programmi:', error);
     res.status(500).json({
@@ -40,38 +51,43 @@ router.get('/:userId', async (req, res) => {
       });
     }
     
-    const result = await pool.query(
-      'SELECT proposta_1, proposta_2, proposta_3, proposta_4, proposta_5, url_1, url_2, url_3, url_4, url_5, created_at, updated_at FROM programmi WHERE utente_id = $1',
-      [userId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Programma non trovato per questo utente'
-      });
-    }
-    
-    const programma = result.rows[0];
-    
-    const responseData = {
-      success: true,
-      data: {
-        proposta1: programma.proposta_1 || '',
-        proposta2: programma.proposta_2 || '',
-        proposta3: programma.proposta_3 || '',
-        proposta4: programma.proposta_4 || '',
-        proposta5: programma.proposta_5 || '',
-        url1: programma.url_1 || '',
-        url2: programma.url_2 || '',
-        url3: programma.url_3 || '',
-        url4: programma.url_4 || '',
-        url5: programma.url_5 || '',
-        data_creazione: programma.created_at,
-        data_modifica: programma.updated_at
+    const cacheKey = keys.programmaUser(userId);
+    let responseData = await getJson(cacheKey);
+    if (responseData == null) {
+      const result = await pool.query(
+        'SELECT proposta_1, proposta_2, proposta_3, proposta_4, proposta_5, url_1, url_2, url_3, url_4, url_5, created_at, updated_at FROM programmi WHERE utente_id = $1',
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Programma non trovato per questo utente'
+        });
       }
-    };
-    
+
+      const programma = result.rows[0];
+      responseData = {
+        success: true,
+        data: {
+          proposta1: programma.proposta_1 || '',
+          proposta2: programma.proposta_2 || '',
+          proposta3: programma.proposta_3 || '',
+          proposta4: programma.proposta_4 || '',
+          proposta5: programma.proposta_5 || '',
+          url1: programma.url_1 || '',
+          url2: programma.url_2 || '',
+          url3: programma.url_3 || '',
+          url4: programma.url_4 || '',
+          url5: programma.url_5 || '',
+          data_creazione: programma.created_at,
+          data_modifica: programma.updated_at
+        }
+      };
+      await setJson(cacheKey, responseData, ttl.programmaUser);
+    }
+
+    res.set('Cache-Control', 'private, max-age=15');
     res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recupero programma utente:', error);
@@ -124,6 +140,8 @@ router.post('/', async (req, res) => {
       url_1 || '', url_2 || '', url_3 || '', url_4 || '', url_5 || ''
     ]);
     
+    await invalidateProgrammaCaches(utente_id);
+
     res.status(201).json({
       success: true,
       data: result.rows[0]
