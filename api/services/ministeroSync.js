@@ -1,5 +1,6 @@
 const { pool } = require('../middleware/auth');
 const logger = require('./centralizedLogger');
+const { invalidateMinisteroIniziativeCache } = require('./redisCache');
 
 /**
  * Servizio per sincronizzare iniziative e referendum dal Ministero della Giustizia
@@ -617,6 +618,8 @@ class MinisteroSyncService {
           console.log(`🧹 GC finale: liberati ${freed}MB dopo sincronizzazione`);
         }
       }
+
+      await invalidateMinisteroIniziativeCache();
 
       return results;
     } catch (error) {
