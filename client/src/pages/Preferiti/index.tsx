@@ -149,41 +149,23 @@ export default function Preferiti() {
     return <Redirect to="/auth" />;
   }
 
-  // Funzione semplice per controllare se tutte le opinioni sono complete
-  const checkOpinioniComplete = async (): Promise<boolean> => {
-    console.log('🔍 DEBUG Preferiti - Controllo se tutte le opinioni sono complete');
-    
-    try {
-      // Controlla tutti i gradi: N, E, R, CO
-      const gradi = ['N', 'E', 'R', 'CO'];
-      
-      for (const grado of gradi) {
-        console.log(`🔍 DEBUG Preferiti - Controllo grado: ${grado}`);
-        const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-        
-        console.log(`🔍 DEBUG Preferiti - Risposta per grado ${grado}:`, response);
-        
-        // apiRequest restituisce { ok, status, data } dove data contiene la risposta JSON
-        if (!response?.ok || !response?.data) {
-          console.error(`❌ DEBUG Preferiti - Errore nella risposta per grado ${grado}`);
-          continue; // Continua con il prossimo grado invece di permettere l'accesso
-        }
-        
-        const apiData = response.data;
-        if (apiData.success && apiData.data && !apiData.data.isComplete) {
-          console.log(`⚠️ DEBUG Preferiti - Opinion incomplete trovate nel grado ${grado}:`, apiData.data);
-          return false; // Trovate opinioni incomplete
-        }
-      }
-      
-      console.log('✅ DEBUG Preferiti - Tutte le opinioni sono complete');
-      return true; // Tutte complete
-      
-    } catch (error) {
-      console.error("❌ Errore nel controllo opinioni:", error);
-      // In caso di errore, considera le opinioni incomplete per sicurezza
-      return false;
-    }
+  /** Un solo round-trip per N/E/R/CO (vedi GET /api/opinioni/check-missing-all). */
+  const fetchOpinioniCheckAggregated = async () => {
+    const response = await apiRequest("GET", "/api/opinioni/check-missing-all");
+    if (!response?.ok || !response?.data) return null;
+    const apiData = response.data as {
+      success?: boolean;
+      data?: {
+        allComplete: boolean;
+        totaleOpinioni: number;
+        opinioniRisposte: number;
+        opinioniMancanti: number;
+        percentualeCompletamento: number;
+        missingOpinions?: unknown[];
+      };
+    };
+    if (!apiData.success || !apiData.data) return null;
+    return apiData.data;
   };
 
   // Funzione per gestire la navigazione con controllo opinioni
@@ -202,51 +184,12 @@ export default function Preferiti() {
     
     if (richiedeOpinioniComplete) {
       console.log(`🔍 DEBUG handleNavigate - Path richiede controllo opinioni: ${path}`);
-      const tutteComplete = await checkOpinioniComplete();
-      console.log(`🔍 DEBUG handleNavigate - Tutte complete? ${tutteComplete}`);
-      
-      if (!tutteComplete) {
-        console.log('⚠️ DEBUG handleNavigate - Opinion incomplete, mostro alert');
-        // Calcola dati aggregati per l'alert
-        try {
-          const gradi = ['N', 'E', 'R', 'CO'];
-          let totaleOpinioni = 0;
-          let opinioniRisposte = 0;
-          let totaliMancanti = 0;
-          const allMissingOpinions: any[] = [];
-          
-          for (const grado of gradi) {
-            const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-            // apiRequest restituisce { ok, status, data } dove data contiene la risposta JSON
-            if (response?.ok && response?.data) {
-              const apiData = response.data;
-              if (apiData.success && apiData.data) {
-                totaleOpinioni += apiData.data.totaleOpinioni || 0;
-                opinioniRisposte += apiData.data.opinioniRisposte || 0;
-                totaliMancanti += apiData.data.opinioniMancanti || 0;
-                if (apiData.data.missingOpinions) {
-                  allMissingOpinions.push(...apiData.data.missingOpinions);
-                }
-              }
-            }
-          }
-          
-          const percentualeCompletamento = totaleOpinioni > 0 
-            ? Math.round((opinioniRisposte / totaleOpinioni) * 100)
-            : 0;
-          
-          setOpinioniAlertData({
-            grado: 'Tutti',
-            totaleOpinioni,
-            opinioniRisposte,
-            opinioniMancanti: totaliMancanti,
-            percentualeCompletamento,
-            isComplete: false,
-            missingOpinions: allMissingOpinions
-          });
-        } catch (error) {
-          console.error('❌ Errore nel calcolo dati alert:', error);
-          // Fallback con dati minimi
+      try {
+        const agg = await fetchOpinioniCheckAggregated();
+        const tutteComplete = agg?.allComplete === true;
+        console.log(`🔍 DEBUG handleNavigate - Tutte complete? ${tutteComplete}`);
+
+        if (!agg) {
           setOpinioniAlertData({
             grado: 'Tutti',
             totaleOpinioni: 0,
@@ -256,7 +199,35 @@ export default function Preferiti() {
             isComplete: false,
             missingOpinions: []
           });
+          setShowOpinioniAlert(true);
+          return;
         }
+
+        if (!tutteComplete) {
+          console.log('⚠️ DEBUG handleNavigate - Opinion incomplete, mostro alert');
+          setOpinioniAlertData({
+            grado: 'Tutti',
+            totaleOpinioni: agg.totaleOpinioni,
+            opinioniRisposte: agg.opinioniRisposte,
+            opinioniMancanti: agg.opinioniMancanti,
+            percentualeCompletamento: agg.percentualeCompletamento,
+            isComplete: false,
+            missingOpinions: (agg.missingOpinions || []) as any[]
+          });
+          setShowOpinioniAlert(true);
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Errore nel controllo opinioni aggregate:', error);
+        setOpinioniAlertData({
+          grado: 'Tutti',
+          totaleOpinioni: 0,
+          opinioniRisposte: 0,
+          opinioniMancanti: 0,
+          percentualeCompletamento: 0,
+          isComplete: false,
+          missingOpinions: []
+        });
         setShowOpinioniAlert(true);
         return;
       }

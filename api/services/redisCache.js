@@ -80,6 +80,12 @@ async function invalidateMinisteroIniziativeCache() {
   await del(keys.ministeroIniziativeDb);
 }
 
+/** Invalida la micro-cache verifyToken per un utente (logout / revoca). */
+async function invalidateAuthUserCache(userId) {
+  if (userId == null || userId === '') return;
+  await del(keys.authUser(String(userId)));
+}
+
 /** Health check verso Upstash (REST). Non espone segreti. */
 async function ping() {
   const r = getClient();
@@ -103,6 +109,7 @@ module.exports = {
   ping,
   invalidateProgrammaCaches,
   invalidateMinisteroIniziativeCache,
+  invalidateAuthUserCache,
   cacheKeys: keys,
   cacheTtl: ttl
 };

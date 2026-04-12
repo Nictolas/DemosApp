@@ -241,7 +241,15 @@ router.post('/logout',
       
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        // Revoca il token (aggiunge alla blacklist)
+        try {
+          const { verifyAccessToken } = require('../../utils/jwt');
+          const { invalidateAuthUserCache } = require('../../services/redisCache');
+          const decoded = verifyAccessToken(token);
+          const uid = decoded.userId || decoded.sub || decoded.id;
+          if (uid) await invalidateAuthUserCache(String(uid));
+        } catch (_) {
+          /* token scaduto/invalido: la revoca resta utile se decodificabile */
+        }
         require('../../utils/jwt').revokeToken(token);
       }
 

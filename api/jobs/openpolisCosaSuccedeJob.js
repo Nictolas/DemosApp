@@ -54,10 +54,9 @@ async function runOpenpolisCosaSuccedeSync() {
   }
 }
 
-/**
- * Cron: ogni 6 ore (in fase con voti parlamento)
- */
-const openpolisCosaSuccedeJob = cron.schedule('30 */6 * * *', runOpenpolisCosaSuccedeSync, {
+/** Default ogni 6 ore; override OPENPOLIS_COSA_SUCCEDE_CRON */
+const openpolisCosaSuccedeCron = process.env.OPENPOLIS_COSA_SUCCEDE_CRON || '30 */6 * * *';
+const openpolisCosaSuccedeJob = cron.schedule(openpolisCosaSuccedeCron, runOpenpolisCosaSuccedeSync, {
   scheduled: false,
   timezone: 'Europe/Rome'
 });
@@ -65,7 +64,7 @@ const openpolisCosaSuccedeJob = cron.schedule('30 */6 * * *', runOpenpolisCosaSu
 function startOpenpolisCosaSuccedeJob() {
   console.log('🚀 Avvio job Openpolis Cosa succede (ultimi DDL approvati)...');
   openpolisCosaSuccedeJob.start();
-  console.log('✅ Job Openpolis Cosa succede avviato (ogni 6 ore)');
+  console.log(`✅ Job Openpolis Cosa succede avviato (cron: ${openpolisCosaSuccedeCron})`);
 }
 
 function stopOpenpolisCosaSuccedeJob() {

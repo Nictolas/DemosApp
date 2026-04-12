@@ -53,7 +53,8 @@ async function runOpenpolisVotazioniFinaliSync() {
   }
 }
 
-const openpolisVotazioniFinaliJob = cron.schedule('45 */6 * * *', runOpenpolisVotazioniFinaliSync, {
+const openpolisVotazioniFinaliCron = process.env.OPENPOLIS_VOTAZIONI_FINALI_CRON || '45 */6 * * *';
+const openpolisVotazioniFinaliJob = cron.schedule(openpolisVotazioniFinaliCron, runOpenpolisVotazioniFinaliSync, {
   scheduled: false,
   timezone: 'Europe/Rome'
 });
@@ -61,7 +62,7 @@ const openpolisVotazioniFinaliJob = cron.schedule('45 */6 * * *', runOpenpolisVo
 function startOpenpolisVotazioniFinaliJob() {
   console.log('🚀 Avvio job Openpolis votazioni finali decisive...');
   openpolisVotazioniFinaliJob.start();
-  console.log('✅ Job Openpolis votazioni finali avviato (ogni 6 ore)');
+  console.log(`✅ Job Openpolis votazioni finali avviato (cron: ${openpolisVotazioniFinaliCron})`);
 }
 
 function stopOpenpolisVotazioniFinaliJob() {

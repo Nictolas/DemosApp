@@ -11,6 +11,15 @@ class DataRetentionJob {
     this.isRunning = false;
     this.cleanupInterval = null;
     this.notificationInterval = null;
+    /** Riduci wake su Neon: intervalli configurabili (ms), default 24h / 7 giorni */
+    this.cleanupIntervalMs = Math.max(
+      60 * 60 * 1000,
+      parseInt(process.env.DATA_RETENTION_CLEANUP_INTERVAL_MS || String(24 * 60 * 60 * 1000), 10)
+    );
+    this.notificationIntervalMs = Math.max(
+      60 * 60 * 1000,
+      parseInt(process.env.DATA_RETENTION_NOTIFICATION_INTERVAL_MS || String(7 * 24 * 60 * 60 * 1000), 10)
+    );
   }
 
   /**
@@ -25,23 +34,21 @@ class DataRetentionJob {
     console.log('🚀 Avvio job di data retention...');
     this.isRunning = true;
 
-    // Esegui pulizia ogni giorno alle 3:00 AM
     this.cleanupInterval = setInterval(() => {
-      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
       Promise.resolve(this.performDailyCleanup()).catch(error => {
         console.error('❌ Errore non gestito in performDailyCleanup():', error);
       });
-    }, 24 * 60 * 60 * 1000); // 24 ore
+    }, this.cleanupIntervalMs);
 
-    // Invia notifiche ogni settimana
     this.notificationInterval = setInterval(() => {
-      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
       Promise.resolve(this.sendWeeklyNotifications()).catch(error => {
         console.error('❌ Errore non gestito in sendWeeklyNotifications():', error);
       });
-    }, 7 * 24 * 60 * 60 * 1000); // 7 giorni
+    }, this.notificationIntervalMs);
 
-    console.log('✅ Job di data retention avviato');
+    console.log(
+      `✅ Job di data retention avviato (cleanup ogni ${this.cleanupIntervalMs} ms, notifiche ogni ${this.notificationIntervalMs} ms)`
+    );
   }
 
   /**
