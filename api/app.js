@@ -90,6 +90,7 @@ const axiomDataRoutes = require('./routes/admin/axiom-data');
 const migrationsRoutes = require('./routes/migrations');
 const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
+const testRateLimitRoutes = require('./routes/test-rate-limit');
 const segnalazioniRoutes = require('./routes/segnalazioni');
 const programmaRoutes = require('./routes/programma');
 const riconoscimentiRoutes = require('./routes/riconoscimenti');
@@ -124,6 +125,10 @@ const {
   uploadLimiter,
   publicLimiter
 } = require('./middleware/rateLimiting');
+
+/** In produzione le route test/migrate/cleanup/debug non sono montate salvo ALLOW_DEV_API_SURFACE=true */
+const isProductionApp = process.env.NODE_ENV === 'production';
+const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
 
 const app = express();
 
@@ -320,9 +325,11 @@ app.use('/api', compatibilityRoutes);
 // Route per servizi
 app.use('/api', servicesRoutes);
 
-// Route di test
-app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
-app.use('/api/test-add-opinione', testAddOpinioneRoutes);
+// Route di test (non in produzione senza ALLOW_DEV_API_SURFACE)
+if (mountDevApiSurface) {
+  app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
+  app.use('/api/test-add-opinione', testAddOpinioneRoutes);
+}
 
 // Route modulari con rate limiting specifico
 app.use('/api/auth', authLimiter, authRoutes);
@@ -338,7 +345,9 @@ app.use('/api/rappresentanti', publicLimiter, userLimiter, rappresentantiRoutes)
 app.use('/api/notifiche', publicLimiter, userLimiter, notificheRoutes);
 app.use('/api/notifiche-totali', userLimiter, notificheTotaliRoutes);
 app.use('/api/fcm-tokens', userLimiter, fcmTokensRoutes);
-app.use('/api/test-db', publicLimiter, testDbRoutes);
+if (mountDevApiSurface) {
+  app.use('/api/test-db', publicLimiter, testDbRoutes);
+}
 app.use('/api/eventi', publicLimiter, eventiRoutes);
 app.use('/api/grazia', publicLimiter, graziaRoutes);
 app.use('/api/amnistia', publicLimiter, amnistiaRoutes);
@@ -360,11 +369,15 @@ app.use('/api/rappresentanti', rappresentantiSostenitoriRoutes);
 app.use('/api/candidati', candidatiSostenitoriRoutes);
 app.use('/api/attivisti', attivistiSostenitoriRoutes);
 app.use('/api/organizzazioni', organizzazioniSostenitoriRoutes);
-app.use('/api/migrate', migrateRoutes);
+if (mountDevApiSurface) {
+  app.use('/api/migrate', migrateRoutes);
+}
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/segnalazioni', segnalazioniRoutes);
 app.use('/api/programma', userLimiter, programmaRoutes);
-app.use('/api/test-performance', testPerformanceRoutes);
+if (mountDevApiSurface) {
+  app.use('/api/test-performance', testPerformanceRoutes);
+}
 app.use('/api/statistiche', publicLimiter, statisticheRoutes);
 app.use('/api/ministero', publicLimiter, ministeroRoutes);
 app.use('/api/voti-politici', userLimiter, votiPoliticiRoutes);
@@ -375,8 +388,10 @@ app.use('/api/bacheca', userLimiter, bachecaRoutes);
 // app.use('/api/test', testSimpleRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/candidati', candidatiRoutes);
-app.use('/api/fix-database', fixDatabaseRoutes);
-app.use('/api/debug-opinioni', debugOpinioniRoutes);
+if (mountDevApiSurface) {
+  app.use('/api/fix-database', fixDatabaseRoutes);
+  app.use('/api/debug-opinioni', debugOpinioniRoutes);
+}
 app.use('/api/attivisti', attivistiRoutes);
 app.use('/api/organizzazioni', organizzazioniRoutes);
 app.use('/api/attivismo-tipologie', attivismoTipologieRoutes);
@@ -434,16 +449,19 @@ app.use('/api/admin/axiom-data', adminLimiter, axiomDataRoutes);
 app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
 app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
 
-// Route per migrazioni database (TEMPORANEA - rimuovere dopo l'esecuzione)
-app.use('/api/migrations', migrationsRoutes);
+// Route per migrazioni database / cleanup / test (non in produzione senza ALLOW_DEV_API_SURFACE)
+if (mountDevApiSurface) {
+  app.use('/api/migrations', migrationsRoutes);
+  app.use('/api/cleanup', cleanupRoutes);
+  app.use('/api/cleanup', cleanupRateLimitRoutes);
+  app.use('/api/test', testRateLimitRoutes);
+}
 
-// Route per pulizia database (temporanea)
-app.use('/api/cleanup', cleanupRoutes);
-app.use('/api/cleanup', cleanupRateLimitRoutes);
-
-// Route per test rate limiting
-const testRateLimitRoutes = require('./routes/test-rate-limit');
-app.use('/api/test', testRateLimitRoutes);
+if (isProductionApp && !mountDevApiSurface) {
+  console.log(
+    '🔒 Route API dev/test/migrate/cleanup non esposte. Per abilitarle: ALLOW_DEV_API_SURFACE=true'
+  );
+}
 
 // Gestione errori 404
 app.use('*', (req, res) => {
@@ -498,6 +516,15 @@ if (performanceMonitorEnabled) {
 const performanceOptimizer = require('./services/performanceOptimizer');
 performanceOptimizer.start();
 
+/**
+ * Job in background e impatto su Neon (compute autosuspend):
+ * - Data retention / violation: intervalli ms via DATA_RETENTION_*_INTERVAL_MS, VIOLATION_*_INTERVAL_MS
+ * - Backup: ore da BackupService (config)
+ * - Ministero: MINISTERO_SYNC_INTERVAL_MS, MINISTERO_SYNC_IN_CORSO_INTERVAL_MS (vedi ministeroSyncJob.js)
+ * - Voti parlamento: cron VOTI_PARLAMENTO_SYNC_CRON (default 6h)
+ * - Openpolis: OPENPOLIS_COSA_SUCCEDE_CRON, OPENPOLIS_VOTAZIONI_FINALI_CRON (default offset rispetto all’ora)
+ * Raggruppare sync meno frequenti o allineare le finestre riduce wake ripetuti del DB.
+ */
 // Avvia job di data retention (solo se abilitato)
 if (process.env.ENABLE_DATA_RETENTION === 'true') {
   dataRetentionJob.start();
