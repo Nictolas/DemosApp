@@ -263,8 +263,8 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
 }
 
 /**
- * Job per sincronizzare le votazioni parlamentari
- * Esegue ogni 6 ore (default); override: VOTI_PARLAMENTO_SYNC_CRON (es. "0 */12 * * *")
+ * Job per sincronizzare le votazioni parlamentari.
+ * Default ogni 6 ore; override con env VOTI_PARLAMENTO_SYNC_CRON (sintassi node-cron).
  */
 const votiParlamentoSyncCron = process.env.VOTI_PARLAMENTO_SYNC_CRON || '0 */6 * * *';
 const votiParlamentoSyncJob = cron.schedule(votiParlamentoSyncCron, async () => {
