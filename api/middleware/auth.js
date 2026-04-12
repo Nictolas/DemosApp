@@ -1,6 +1,8 @@
 // File: api/middleware/auth.js
-const { verifyAccessToken, revokeToken } = require('../utils/jwt');
+const { verifyAccessToken } = require('../utils/jwt');
 const { getPool } = require('../config/database');
+const redisCache = require('../services/redisCache');
+const { keys: cacheKeys, ttl: cacheTtl } = require('../config/cacheKeys');
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
@@ -57,29 +59,54 @@ const verifyToken = async (req, res, next) => {
         });
       }
 
-      let userResult;
-      try {
-        // La colonna email può non esistere più: selezioniamo solo i campi necessari all'autenticazione.
-        userResult = await pool.query(
-          'SELECT id, status, ruolo FROM users WHERE id = $1',
-          [userIdFromToken]
-        );
-        log('🔐 DEBUG verifyToken - Risultato query utente:', userResult.rows.length, 'righe');
-      } catch (dbError) {
-        logErr('❌ DEBUG verifyToken - Errore database:', dbError.message);
-        if (!isProduction) logErr('❌ DEBUG verifyToken - Stack database:', dbError.stack);
-        throw dbError;
+      const authCacheTtlSec = cacheTtl.authUser;
+      const authCacheKey =
+        redisCache.isEnabled() && authCacheTtlSec > 0
+          ? cacheKeys.authUser(String(userIdFromToken))
+          : null;
+
+      let user;
+      if (authCacheKey) {
+        const cached = await redisCache.getJson(authCacheKey);
+        if (cached && cached.id != null && cached.status != null && cached.ruolo != null) {
+          user = cached;
+          log('🔐 DEBUG verifyToken - Cache auth hit per user:', userIdFromToken);
+        }
       }
 
-      if (userResult.rows.length === 0) {
-        return res.status(401).json({
-          success: false,
-          error: 'Utente non trovato',
-          message: 'Effettua nuovamente il login'
-        });
-      }
+      if (!user) {
+        let userResult;
+        try {
+          // La colonna email può non esistere più: selezioniamo solo i campi necessari all'autenticazione.
+          userResult = await pool.query(
+            'SELECT id, status, ruolo FROM users WHERE id = $1',
+            [userIdFromToken]
+          );
+          log('🔐 DEBUG verifyToken - Risultato query utente:', userResult.rows.length, 'righe');
+        } catch (dbError) {
+          logErr('❌ DEBUG verifyToken - Errore database:', dbError.message);
+          if (!isProduction) logErr('❌ DEBUG verifyToken - Stack database:', dbError.stack);
+          throw dbError;
+        }
 
-      const user = userResult.rows[0];
+        if (userResult.rows.length === 0) {
+          return res.status(401).json({
+            success: false,
+            error: 'Utente non trovato',
+            message: 'Effettua nuovamente il login'
+          });
+        }
+
+        user = userResult.rows[0];
+
+        if (authCacheKey && authCacheTtlSec > 0) {
+          await redisCache.setJson(
+            authCacheKey,
+            { id: user.id, status: user.status, ruolo: user.ruolo },
+            authCacheTtlSec
+          );
+        }
+      }
 
       if (user.status !== 'a') {
         return res.status(401).json({

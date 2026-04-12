@@ -18,6 +18,15 @@ class ViolationMonitoringJob {
       MEDIUM: 0
     };
     this.lastSummaryDate = new Date().toDateString();
+    /** Default 5 min / 24h; aumenta gli intervalli per meno carico su Neon */
+    this.monitoringIntervalMs = Math.max(
+      60 * 1000,
+      parseInt(process.env.VIOLATION_MONITORING_INTERVAL_MS || String(5 * 60 * 1000), 10)
+    );
+    this.summaryIntervalMs = Math.max(
+      60 * 60 * 1000,
+      parseInt(process.env.VIOLATION_SUMMARY_INTERVAL_MS || String(24 * 60 * 60 * 1000), 10)
+    );
   }
 
   /**
@@ -32,23 +41,21 @@ class ViolationMonitoringJob {
     console.log('🚀 Avvio job di monitoraggio violazioni...');
     this.isRunning = true;
 
-    // Esegui monitoraggio ogni 5 minuti
     this.monitoringInterval = setInterval(() => {
-      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
       Promise.resolve(this.performMonitoring()).catch(error => {
         console.error('❌ Errore non gestito in performMonitoring():', error);
       });
-    }, 5 * 60 * 1000); // 5 minuti
+    }, this.monitoringIntervalMs);
 
-    // Invia riepilogo giornaliero alle 9:00 AM
     this.summaryInterval = setInterval(() => {
-      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
       Promise.resolve(this.sendDailySummary()).catch(error => {
         console.error('❌ Errore non gestito in sendDailySummary():', error);
       });
-    }, 24 * 60 * 60 * 1000); // 24 ore
+    }, this.summaryIntervalMs);
 
-    console.log('✅ Job di monitoraggio violazioni avviato');
+    console.log(
+      `✅ Job di monitoraggio violazioni avviato (scan ogni ${this.monitoringIntervalMs} ms, riepilogo ogni ${this.summaryIntervalMs} ms)`
+    );
   }
 
   /**
