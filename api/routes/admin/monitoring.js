@@ -12,6 +12,7 @@ const { promisify } = require('util');
 const path = require('path');
 const execFileAsync = promisify(execFile);
 const redisCache = require('../../services/redisCache');
+const requestMetrics = require('../../services/requestMetrics');
 
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
@@ -134,6 +135,40 @@ router.get('/health', async (req, res) => {
         message: error.message,
         timestamp: new Date().toISOString()
       }
+    });
+  }
+});
+
+// GET /api/admin/monitoring/request-endpoints — Fase 1: endpoint più chiamati e tempi (solo memoria del processo; si azzera al deploy)
+router.get('/request-endpoints', (req, res) => {
+  try {
+    const data = requestMetrics.getSnapshot();
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('❌ Errore snapshot request-endpoints:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore recupero metriche endpoint'
+    });
+  }
+});
+
+// POST /api/admin/monitoring/request-endpoints/reset — Azzera i contatori (stesso processo)
+router.post('/request-endpoints/reset', (req, res) => {
+  try {
+    requestMetrics.reset();
+    res.json({
+      success: true,
+      message: 'Contatori metriche richieste azzerati per questo processo.'
+    });
+  } catch (error) {
+    console.error('❌ Errore reset request-endpoints:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore reset metriche endpoint'
     });
   }
 });

@@ -1,5 +1,6 @@
 // File: api/middleware/loggingMiddleware.js
 const logger = require('../services/centralizedLogger');
+const requestMetrics = require('../services/requestMetrics');
 const crypto = require('crypto');
 
 // Middleware per logging richieste HTTP
@@ -14,6 +15,12 @@ const requestLoggingMiddleware = (req, res, next) => {
   const originalEnd = res.end;
   res.end = function(chunk, encoding) {
     const responseTime = Date.now() - startTime;
+
+    try {
+      requestMetrics.record(req, res, responseTime);
+    } catch (e) {
+      console.error('❌ Errore requestMetrics.record:', e);
+    }
     
     // Log della richiesta
     logger.logRequest(req, res, responseTime).catch(error => {
