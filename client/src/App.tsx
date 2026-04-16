@@ -98,6 +98,7 @@ import ProponiICE from "./pages/ProponiICE";
 import Riconoscimento from "./pages/Riconoscimento";
 import Riconoscimenti from "./pages/Riconoscimenti";
 import RiduzioneCompute from "./pages/RiduzioneCompute";
+import MetricheEndpoint from "./pages/MetricheEndpoint";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
@@ -720,6 +721,12 @@ export default function App() {
               <Route path="/gestisci/riduzione-compute">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci/riduzione-compute" component={RiduzioneCompute} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/gestisci/metriche-endpoint">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci/metriche-endpoint" component={MetricheEndpoint} />
                 </PageTransition>
               </Route>
 
