@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, Cpu } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, Cpu, PieChart } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -101,6 +101,17 @@ export const gestisciSections: GestisciSection[] = [
       buttonColor: "bg-violet-500 hover:bg-violet-600",
       route: "/gestisci/riduzione-compute",
       buttonText: "Riduzione compute"
+    },
+    {
+      id: "metriche-endpoint",
+      category: "monitoraggio-sicurezza",
+      title: "Metriche endpoint",
+      description: "Grafici a torta e classifica delle API piu chiamate e piu lente",
+      icon: PieChart,
+      color: "text-indigo-600 group-hover:text-indigo-800",
+      buttonColor: "bg-indigo-500 hover:bg-indigo-600",
+      route: "/gestisci/metriche-endpoint",
+      buttonText: "Apri metriche"
     },
     {
       id: "backup-recovery",
