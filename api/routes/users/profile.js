@@ -63,7 +63,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
           COALESCE(ur.candidato_senato, u.candidato_senato) AS candidato_senato,
           COALESCE(ur.candidato_regionale, u.candidato_regionale) AS candidato_regionale,
           COALESCE(ur.candidato_comune, u.candidato_comune) AS candidato_comune,
-          COALESCE(up.avatar_config, u.avatar_config) AS avatar_config,
+          COALESCE(up.avatar_config::text, u.avatar_config::text) AS avatar_config,
           COALESCE(up.facebook_url, u.facebook_url) AS facebook_url,
           COALESCE(up.twitter_url, u.twitter_url) AS twitter_url,
           COALESCE(up.instagram_url, u.instagram_url) AS instagram_url,
