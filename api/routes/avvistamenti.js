@@ -76,12 +76,32 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     // Trova tutti gli utenti con lo stesso comune_residenza (escludendo chi ha inviato la notifica)
     // Filtra direttamente nella query per utenti con animali attivi (default true se non specificato)
     const usersResult = await pool.query(
-      `SELECT u.id, u.fcm_tokens, COALESCE(np.animali, true) as animali
+      `SELECT
+         u.id,
+         COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
+         COALESCE(np.animali, true) as animali
        FROM users u
        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+       LEFT JOIN LATERAL (
+         SELECT ARRAY(
+           SELECT DISTINCT tok
+           FROM (
+             SELECT d.fcm_token as tok
+             FROM user_devices d
+             WHERE d.user_id = u.id
+               AND d.is_active = TRUE
+               AND d.fcm_token IS NOT NULL
+               AND btrim(d.fcm_token) <> ''
+             UNION
+             SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+           ) merged
+           WHERE tok IS NOT NULL AND btrim(tok) <> ''
+         ) as tokens
+       ) tokens ON TRUE
        WHERE u.comune_residenza = $1 
          AND u.id != $2 
          AND u.comune_residenza IS NOT NULL
+         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
          AND (np.animali = true OR np.animali IS NULL)`,
       [comuneResidenza, userId]
     );
@@ -188,6 +208,12 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
           // Se il token non è più valido, rimuovilo
           if (error.code === 'messaging/registration-token-not-registered' || 
               error.code === 'messaging/invalid-registration-token') {
+            await pool.query(
+              `UPDATE user_devices
+               SET is_active = FALSE, updated_at = NOW()
+               WHERE user_id = $1 AND fcm_token = $2`,
+              [targetUser.id, fcmToken]
+            );
             await pool.query(
               'UPDATE users SET fcm_tokens = array_remove(fcm_tokens, $1) WHERE id = $2',
               [fcmToken, targetUser.id]

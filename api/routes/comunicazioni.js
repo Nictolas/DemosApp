@@ -1561,13 +1561,9 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
           try {
             const userId = req.user?.id;
             if (userId) {
-              const userResult = await pool.query(
-                'SELECT fcm_tokens FROM users WHERE id = $1 AND fcm_tokens IS NOT NULL AND array_length(fcm_tokens, 1) > 0',
-                [userId]
-              );
-              
-              if (userResult.rows.length > 0 && userResult.rows[0].fcm_tokens && userResult.rows[0].fcm_tokens.length > 0) {
-                const testToken = userResult.rows[0].fcm_tokens[0];
+              const resolvedTokens = await getResolvedFcmTokensForUser(userId);
+              if (resolvedTokens.length > 0) {
+                const testToken = resolvedTokens[0];
                 console.log('🧪 Test invio notifica reale a token:', testToken.substring(0, 30) + '...');
                 
                 const testMessage = {
@@ -1673,8 +1669,8 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
         u.nome,
         u.cognome,
         u.status,
-        u.fcm_tokens,
-        array_length(u.fcm_tokens, 1) as num_tokens,
+        COALESCE(tokens.tokens, ARRAY[]::text[]) AS fcm_tokens,
+        array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) as num_tokens,
         np.demos as demos_preferenza,
         pg_typeof(np.demos) as demos_type,
         np.user_id as pref_user_id,
@@ -1685,15 +1681,31 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
           ELSE 'unknown'
         END as demos_status,
         CASE 
-          WHEN u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN true 
+          WHEN array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0 THEN true 
           ELSE false 
         END as ha_fcm_tokens,
         CASE 
-          WHEN np.demos = true AND u.fcm_tokens IS NOT NULL AND array_length(u.fcm_tokens, 1) > 0 THEN true 
+          WHEN np.demos = true AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0 THEN true 
           ELSE false 
         END as ricevera_notifiche
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+      LEFT JOIN LATERAL (
+        SELECT ARRAY(
+          SELECT DISTINCT tok
+          FROM (
+            SELECT d.fcm_token as tok
+            FROM user_devices d
+            WHERE d.user_id = u.id
+              AND d.is_active = TRUE
+              AND d.fcm_token IS NOT NULL
+              AND btrim(d.fcm_token) <> ''
+            UNION
+            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+          ) merged
+          WHERE tok IS NOT NULL AND btrim(tok) <> ''
+        ) as tokens
+      ) tokens ON TRUE
       WHERE u.id = $1
     `, [userId]);
     
@@ -1716,8 +1728,23 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
         COUNT(CASE WHEN np.demos IS NULL THEN 1 END) as utenti_demos_null
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE u.fcm_tokens IS NOT NULL 
-        AND array_length(u.fcm_tokens, 1) > 0
+      LEFT JOIN LATERAL (
+        SELECT ARRAY(
+          SELECT DISTINCT tok
+          FROM (
+            SELECT d.fcm_token as tok
+            FROM user_devices d
+            WHERE d.user_id = u.id
+              AND d.is_active = TRUE
+              AND d.fcm_token IS NOT NULL
+              AND btrim(d.fcm_token) <> ''
+            UNION
+            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+          ) merged
+          WHERE tok IS NOT NULL AND btrim(tok) <> ''
+        ) as tokens
+      ) tokens ON TRUE
+      WHERE array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `);
     
     res.json({
