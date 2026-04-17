@@ -325,14 +325,112 @@ router.post('/register',
     console.log('🔍 Parametri count:', queryParams.length);
     
     let result;
+    let client;
     try {
-      result = await pool.query(insertQuery, queryParams);
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      result = await client.query(insertQuery, queryParams);
       console.log('✅ Query INSERT completata con successo');
       console.log('📊 Risultato query:', result.rows);
+
+      const newUserId = result.rows[0].id;
+
+      // Dual-write nuovo schema: profilo esteso
+      await client.query(
+        `INSERT INTO user_profile (
+          user_id, genere, data_nascita, cittadinanza,
+          paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+          grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+          grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5, $6, $7, $8,
+          $9, $10, $11, $12, $13,
+          $14, $15, $16, $17, $18
+        )
+        ON CONFLICT (user_id) DO UPDATE SET
+          genere = EXCLUDED.genere,
+          data_nascita = EXCLUDED.data_nascita,
+          cittadinanza = EXCLUDED.cittadinanza,
+          paese_residenza = EXCLUDED.paese_residenza,
+          regione_residenza = EXCLUDED.regione_residenza,
+          provincia_residenza = EXCLUDED.provincia_residenza,
+          comune_residenza = EXCLUDED.comune_residenza,
+          grado_elezione = EXCLUDED.grado_elezione,
+          paese_elezione = EXCLUDED.paese_elezione,
+          regione_elezione = EXCLUDED.regione_elezione,
+          provincia_elezione = EXCLUDED.provincia_elezione,
+          comune_elezione = EXCLUDED.comune_elezione,
+          grado_candidatura = EXCLUDED.grado_candidatura,
+          paese_candidatura = EXCLUDED.paese_candidatura,
+          regione_candidatura = EXCLUDED.regione_candidatura,
+          provincia_candidatura = EXCLUDED.provincia_candidatura,
+          comune_candidatura = EXCLUDED.comune_candidatura,
+          updated_at = NOW()`,
+        [
+          newUserId,
+          compressedGenere || null,
+          formattedDataNascita,
+          compressedCittadinanza || null,
+          compressedPaeseResidenza || null,
+          compressedRegioneResidenza || null,
+          compressedProvinciaResidenza || null,
+          comune_residenza || null,
+          normalizedGradoElezione,
+          compressedPaeseElezione || null,
+          compressedRegioneElezione || null,
+          compressedProvinciaElezione || null,
+          comune_elezione || null,
+          normalizedGradoCandidatura,
+          compressedPaeseCandidatura || null,
+          compressedRegioneCandidatura || null,
+          compressedProvinciaCandidatura || null,
+          comune_candidatura || null
+        ]
+      );
+
+      // Dual-write nuovo schema: consensi
+      await client.query(
+        `INSERT INTO user_consents (
+          user_id,
+          privacy_policy_consent, terms_of_service_consent, consent_timestamp,
+          political_opinions_consent, political_opinions_consent_timestamp,
+          political_opinions_consent_ip_address, political_opinions_consent_user_agent
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (user_id) DO UPDATE SET
+          privacy_policy_consent = EXCLUDED.privacy_policy_consent,
+          terms_of_service_consent = EXCLUDED.terms_of_service_consent,
+          consent_timestamp = EXCLUDED.consent_timestamp,
+          political_opinions_consent = EXCLUDED.political_opinions_consent,
+          political_opinions_consent_timestamp = EXCLUDED.political_opinions_consent_timestamp,
+          political_opinions_consent_ip_address = EXCLUDED.political_opinions_consent_ip_address,
+          political_opinions_consent_user_agent = EXCLUDED.political_opinions_consent_user_agent,
+          updated_at = NOW()`,
+        [
+          newUserId,
+          privacy_policy_consent || false,
+          terms_of_service_consent || false,
+          new Date().toISOString(),
+          political_opinions_consent || false,
+          political_opinions_consent ? new Date().toISOString() : null,
+          political_opinions_consent ? (req.ip || req.connection.remoteAddress) : null,
+          political_opinions_consent ? req.get('User-Agent') : null
+        ]
+      );
+
+      await client.query('COMMIT');
     } catch (queryError) {
+      if (client) {
+        await client.query('ROLLBACK');
+      }
       console.error('❌ Errore nella query INSERT:', queryError);
       console.error('❌ Stack trace query:', queryError.stack);
       throw queryError;
+    } finally {
+      if (client) {
+        client.release();
+      }
     }
     
     const newUser = result.rows[0];
