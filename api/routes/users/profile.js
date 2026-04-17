@@ -6,6 +6,18 @@ const { compressUserLocation, decompressUserLocation } = require('../../utils/lo
 const { decompressGender } = require('../../utils/genderUtils');
 
 const router = express.Router();
+const PROFILE_FIELDS = new Set([
+  'genere', 'data_nascita', 'cittadinanza',
+  'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
+  'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
+  'grado_candidatura', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura',
+  'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url',
+  'avatar_config'
+]);
+const REPRESENTATIVE_FIELDS = new Set([
+  'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+  'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+]);
 
 // GET /api/users/me - Ottieni profilo utente autenticato
 router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
@@ -16,16 +28,48 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     
     // Recupera dati utente completi
     const result = await pool.query(`
-      SELECT id, email, nome, cognome, genere, data_nascita, cittadinanza, 
-             paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-             ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
-             grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
-             rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune,
-             candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune,
-             status, avatar_config, created_at, updated_at,
-             facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url
-      FROM users 
-      WHERE id = $1
+      SELECT
+        u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.created_at, u.updated_at,
+        COALESCE(up.genere, u.genere) AS genere,
+        COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
+        COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
+        COALESCE(up.paese_residenza, u.paese_residenza) AS paese_residenza,
+        COALESCE(up.regione_residenza, u.regione_residenza) AS regione_residenza,
+        COALESCE(up.provincia_residenza, u.provincia_residenza) AS provincia_residenza,
+        COALESCE(up.comune_residenza, u.comune_residenza) AS comune_residenza,
+        COALESCE(up.grado_elezione, u.grado_elezione) AS grado_elezione,
+        COALESCE(up.paese_elezione, u.paese_elezione) AS paese_elezione,
+        COALESCE(up.regione_elezione, u.regione_elezione) AS regione_elezione,
+        COALESCE(up.provincia_elezione, u.provincia_elezione) AS provincia_elezione,
+        COALESCE(up.comune_elezione, u.comune_elezione) AS comune_elezione,
+        COALESCE(up.grado_candidatura, u.grado_candidatura) AS grado_candidatura,
+        COALESCE(up.paese_candidatura, u.paese_candidatura) AS paese_candidatura,
+        COALESCE(up.regione_candidatura, u.regione_candidatura) AS regione_candidatura,
+        COALESCE(up.provincia_candidatura, u.provincia_candidatura) AS provincia_candidatura,
+        COALESCE(up.comune_candidatura, u.comune_candidatura) AS comune_candidatura,
+        COALESCE(ur.rappresentante_europeo, u.rappresentante_europeo) AS rappresentante_europeo,
+        COALESCE(ur.rappresentante_camera, u.rappresentante_camera) AS rappresentante_camera,
+        COALESCE(ur.rappresentante_senato, u.rappresentante_senato) AS rappresentante_senato,
+        COALESCE(ur.rappresentante_regionale, u.rappresentante_regionale) AS rappresentante_regionale,
+        COALESCE(ur.rappresentante_comune, u.rappresentante_comune) AS rappresentante_comune,
+        COALESCE(ur.candidato_europeo, u.candidato_europeo) AS candidato_europeo,
+        COALESCE(ur.candidato_camera, u.candidato_camera) AS candidato_camera,
+        COALESCE(ur.candidato_senato, u.candidato_senato) AS candidato_senato,
+        COALESCE(ur.candidato_regionale, u.candidato_regionale) AS candidato_regionale,
+        COALESCE(ur.candidato_comune, u.candidato_comune) AS candidato_comune,
+        COALESCE(up.avatar_config, u.avatar_config) AS avatar_config,
+        COALESCE(up.facebook_url, u.facebook_url) AS facebook_url,
+        COALESCE(up.twitter_url, u.twitter_url) AS twitter_url,
+        COALESCE(up.instagram_url, u.instagram_url) AS instagram_url,
+        COALESCE(up.linkedin_url, u.linkedin_url) AS linkedin_url,
+        COALESCE(up.telegram_url, u.telegram_url) AS telegram_url,
+        COALESCE(up.website_url, u.website_url) AS website_url,
+        COALESCE(up.twitch_url, u.twitch_url) AS twitch_url,
+        COALESCE(up.youtube_url, u.youtube_url) AS youtube_url
+      FROM users u
+      LEFT JOIN user_profile up ON up.user_id = u.id
+      LEFT JOIN user_representatives ur ON ur.user_id = u.id
+      WHERE u.id = $1
     `, [userId]);
     
     if (result.rows.length === 0) {
@@ -148,10 +192,29 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     }
     
     // Aggiorna la configurazione avatar
-    const result = await pool.query(
-      'UPDATE users SET avatar_config = $1, updated_at = NOW() WHERE id = $2 RETURNING avatar_config',
-      [avatar_config, userId]
-    );
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(
+        'UPDATE users SET avatar_config = $1, updated_at = NOW() WHERE id = $2 RETURNING avatar_config',
+        [avatar_config, userId]
+      );
+      await client.query(
+        `INSERT INTO user_profile (user_id, avatar_config)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET
+           avatar_config = EXCLUDED.avatar_config,
+           updated_at = NOW()`,
+        [userId, avatar_config]
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
     
     if (result.rowCount === 0) {
       return res.status(404).json({
@@ -272,7 +335,40 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     const values = Object.values(filteredData);
     const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
     
-    const result = await pool.query(query, [...values, userId]);
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -373,7 +469,30 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
     
     // Aggiorna il campo del rappresentante
     const query = `UPDATE users SET ${campo} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
-    const result = await pool.query(query, [rappresentanteId, userId]);
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(
+          `INSERT INTO user_representatives (user_id, ${campo})
+           VALUES ($1, $2)
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${campo} = EXCLUDED.${campo},
+             updated_at = NOW()`,
+          [userId, rappresentanteId]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({
