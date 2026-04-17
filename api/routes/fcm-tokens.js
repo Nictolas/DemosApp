@@ -7,6 +7,52 @@ require('dotenv').config();
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
+function isValidFcmToken(token) {
+  return !!(token && token.trim() && token.length > 100 && !token.startsWith('web_'));
+}
+
+async function getLegacyTokens(userId) {
+  const userResult = await pool.query(
+    'SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) return null;
+  return userResult.rows[0].fcm_tokens || [];
+}
+
+async function upsertUserDeviceToken(userId, token) {
+  await pool.query(
+    `INSERT INTO user_devices (user_id, fcm_token, is_active, last_seen_at, created_at, updated_at)
+     VALUES ($1, $2, TRUE, NOW(), NOW(), NOW())
+     ON CONFLICT (fcm_token) DO UPDATE SET
+       user_id = EXCLUDED.user_id,
+       is_active = TRUE,
+       last_seen_at = NOW(),
+       updated_at = NOW()`,
+    [userId, token]
+  );
+}
+
+async function deactivateOtherUserDeviceTokens(userId, tokenToKeep) {
+  await pool.query(
+    `UPDATE user_devices
+     SET is_active = FALSE, updated_at = NOW()
+     WHERE user_id = $1
+       AND fcm_token <> $2`,
+    [userId, tokenToKeep]
+  );
+}
+
+async function deactivateUserDeviceToken(userId, token) {
+  await pool.query(
+    `UPDATE user_devices
+     SET is_active = FALSE, updated_at = NOW()
+     WHERE user_id = $1 AND fcm_token = $2`,
+    [userId, token]
+  );
+}
+
 // POST /api/fcm-tokens - Salva o aggiorna token FCM per l'utente
 router.post('/', verifyToken, async (req, res) => {
   try {
@@ -53,41 +99,17 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    // Verifica se la colonna fcm_tokens esiste, altrimenti la crea
-    try {
-      await pool.query(`
-        DO $$ 
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'users' AND column_name = 'fcm_tokens'
-          ) THEN
-            ALTER TABLE users ADD COLUMN fcm_tokens TEXT[] DEFAULT ARRAY[]::TEXT[];
-          END IF;
-        END $$;
-      `);
-    } catch (alterError) {
-      console.warn('⚠️ Errore nel verificare/creare colonna fcm_tokens:', alterError.message);
-    }
-    
-    // Recupera i token esistenti
-    const userResult = await pool.query(
-      'SELECT fcm_tokens FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userResult.rows.length === 0) {
+    const existingTokens = await getLegacyTokens(userId);
+    if (existingTokens === null) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
-    
-    const existingTokens = userResult.rows[0].fcm_tokens || [];
-    
+
     // Filtra i token validi (solo quelli che sono token FCM reali, non device ID fittizi)
     const validExistingTokens = existingTokens.filter(t => 
-      t && t.length > 100 && !t.startsWith('web_')
+      isValidFcmToken(t)
     );
     
     // TOKEN SOLO PER MOBILE: Mantieni sempre solo 1 token (il più recente)
@@ -121,11 +143,15 @@ router.post('/', verifyToken, async (req, res) => {
       }
     }
     
-    // Salva i token aggiornati
+    // Salva su storage legacy (transitorio)
     await pool.query(
       'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
       [updatedTokens, userId]
     );
+
+    // Salva su nuovo storage (user_devices): mantieni un solo token attivo per utente
+    await upsertUserDeviceToken(userId, token);
+    await deactivateOtherUserDeviceTokens(userId, token);
     
     console.log(`✅ Token FCM salvato con successo per utente ${userId}`);
     
@@ -161,24 +187,17 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     
     console.log(`🧹 Pulizia token FCM duplicati per utente: ${userId}`);
     
-    // Recupera i token esistenti
-    const userResult = await pool.query(
-      'SELECT fcm_tokens FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userResult.rows.length === 0) {
+    const existingTokens = await getLegacyTokens(userId);
+    if (existingTokens === null) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
-    
-    const existingTokens = userResult.rows[0].fcm_tokens || [];
-    
+
     // Filtra i token validi
     const validTokens = existingTokens.filter(t => 
-      t && t.length > 100 && !t.startsWith('web_')
+      isValidFcmToken(t)
     );
     
     // Mantieni solo l'ultimo token (più recente)
@@ -193,11 +212,20 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       console.log(`   ℹ️ Nessun token duplicato trovato (${validTokens.length} token presente)`);
     }
     
-    // Salva i token puliti
+    // Salva i token puliti su storage legacy (transitorio)
     await pool.query(
       'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
       [cleanedTokens, userId]
     );
+
+    // Allinea nuovo storage: disattiva tutti i token user, poi attiva solo il più recente (se presente)
+    await pool.query(
+      `UPDATE user_devices SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1`,
+      [userId]
+    );
+    if (cleanedTokens.length > 0) {
+      await upsertUserDeviceToken(userId, cleanedTokens[0]);
+    }
     
     res.json({
       success: true,
@@ -232,21 +260,14 @@ router.delete('/:token', verifyToken, async (req, res) => {
       });
     }
     
-    // Recupera i token esistenti
-    const userResult = await pool.query(
-      'SELECT fcm_tokens FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userResult.rows.length === 0) {
+    const existingTokens = await getLegacyTokens(userId);
+    if (existingTokens === null) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
-    
-    const existingTokens = userResult.rows[0].fcm_tokens || [];
-    
+
     // Rimuovi il token
     const updatedTokens = existingTokens.filter(t => t !== token);
     
@@ -255,6 +276,9 @@ router.delete('/:token', verifyToken, async (req, res) => {
       'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
       [updatedTokens, userId]
     );
+
+    // Nuovo storage: disattiva token specifico
+    await deactivateUserDeviceToken(userId, token);
     
     res.json({
       success: true,
