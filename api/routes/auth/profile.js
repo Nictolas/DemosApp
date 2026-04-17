@@ -107,16 +107,7 @@ router.get('/me', async (req, res) => {
 
       console.warn('⚠️ Fallback query /auth/me su users (schema nuovo non disponibile):', queryError.message);
       result = await pool.query(
-        `SELECT id, email, nome, cognome, genere, data_nascita, cittadinanza,
-                paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-                ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
-                grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
-                rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune,
-                candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune,
-                status, created_at, updated_at,
-                facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url
-         FROM users
-         WHERE id = $1`,
+        `SELECT * FROM users WHERE id = $1`,
         [decoded.userId]
       );
     }
