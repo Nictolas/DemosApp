@@ -14,12 +14,13 @@ router.get('/', verifyToken, async (req, res) => {
     
     const query = `
       SELECT 
-        political_opinions_consent,
-        political_opinions_consent_timestamp,
-        political_opinions_consent_ip_address,
-        political_opinions_consent_user_agent
-      FROM users 
-      WHERE id = $1
+        COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent,
+        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp,
+        COALESCE(uc.political_opinions_consent_ip_address, u.political_opinions_consent_ip_address) AS political_opinions_consent_ip_address,
+        COALESCE(uc.political_opinions_consent_user_agent, u.political_opinions_consent_user_agent) AS political_opinions_consent_user_agent
+      FROM users u
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE u.id = $1
     `;
     
     const result = await pool.query(query, [userId]);
@@ -93,12 +94,39 @@ router.post('/', verifyToken, async (req, res) => {
         political_opinions_consent_timestamp
     `;
     
-    const result = await pool.query(updateQuery, [
-      true,
-      ipAddress,
-      userAgent,
-      userId
-    ]);
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(updateQuery, [
+        true,
+        ipAddress,
+        userAgent,
+        userId
+      ]);
+
+      if (result.rows.length > 0) {
+        await client.query(
+          `INSERT INTO user_consents (
+            user_id, political_opinions_consent, political_opinions_consent_timestamp,
+            political_opinions_consent_ip_address, political_opinions_consent_user_agent
+          ) VALUES ($1, true, NOW(), $2, $3)
+          ON CONFLICT (user_id) DO UPDATE SET
+            political_opinions_consent = true,
+            political_opinions_consent_timestamp = NOW(),
+            political_opinions_consent_ip_address = EXCLUDED.political_opinions_consent_ip_address,
+            political_opinions_consent_user_agent = EXCLUDED.political_opinions_consent_user_agent,
+            updated_at = NOW()`,
+          [userId, ipAddress, userAgent]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -179,7 +207,33 @@ router.put('/revoke', verifyToken, async (req, res) => {
       RETURNING id
     `;
     
-    const result = await pool.query(updateQuery, [userId]);
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(updateQuery, [userId]);
+      if (result.rows.length > 0) {
+        await client.query(
+          `INSERT INTO user_consents (
+            user_id, political_opinions_consent, political_opinions_consent_timestamp,
+            political_opinions_consent_ip_address, political_opinions_consent_user_agent
+          ) VALUES ($1, false, NULL, NULL, NULL)
+          ON CONFLICT (user_id) DO UPDATE SET
+            political_opinions_consent = false,
+            political_opinions_consent_timestamp = NULL,
+            political_opinions_consent_ip_address = NULL,
+            political_opinions_consent_user_agent = NULL,
+            updated_at = NOW()`,
+          [userId]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({

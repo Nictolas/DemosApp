@@ -63,8 +63,39 @@ router.put('/', verifyToken, async (req, res) => {
       WHERE id = $${userIdParamIndex}
       RETURNING id, privacy_policy_consent, terms_of_service_consent, consent_timestamp
     `;
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, values);
 
-    const result = await pool.query(query, values);
+      if (result.rows.length > 0) {
+        const updated = result.rows[0];
+        await client.query(
+          `INSERT INTO user_consents (
+            user_id, privacy_policy_consent, terms_of_service_consent, consent_timestamp
+          ) VALUES ($1, $2, $3, $4)
+          ON CONFLICT (user_id) DO UPDATE SET
+            privacy_policy_consent = EXCLUDED.privacy_policy_consent,
+            terms_of_service_consent = EXCLUDED.terms_of_service_consent,
+            consent_timestamp = EXCLUDED.consent_timestamp,
+            updated_at = NOW()`,
+          [
+            userId,
+            updated.privacy_policy_consent,
+            updated.terms_of_service_consent,
+            updated.consent_timestamp
+          ]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({

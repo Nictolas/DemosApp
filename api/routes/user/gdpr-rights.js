@@ -93,16 +93,35 @@ router.get('/data-export', async (req, res) => {
 
     // 1. Recupera dati utente principali (incl. OAuth: google_sub, apple_user_id)
     const userQuery = `
-      SELECT id, email, nome, cognome, data_nascita, genere, cittadinanza, ruolo,
-             paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-             paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
-             grado_elezione, paese_candidatura, regione_candidatura, provincia_candidatura,
-             comune_candidatura, grado_candidatura, status, premium, created_at, updated_at,
-             privacy_policy_consent, terms_of_service_consent,
-             consent_timestamp, consent_ip_address, consent_user_agent,
-             google_sub, apple_user_id
-      FROM users 
-      WHERE id = $1
+      SELECT
+        u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.premium, u.created_at, u.updated_at,
+        COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
+        COALESCE(up.genere, u.genere) AS genere,
+        COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
+        COALESCE(up.paese_residenza, u.paese_residenza) AS paese_residenza,
+        COALESCE(up.regione_residenza, u.regione_residenza) AS regione_residenza,
+        COALESCE(up.provincia_residenza, u.provincia_residenza) AS provincia_residenza,
+        COALESCE(up.comune_residenza, u.comune_residenza) AS comune_residenza,
+        COALESCE(up.paese_elezione, u.paese_elezione) AS paese_elezione,
+        COALESCE(up.regione_elezione, u.regione_elezione) AS regione_elezione,
+        COALESCE(up.provincia_elezione, u.provincia_elezione) AS provincia_elezione,
+        COALESCE(up.comune_elezione, u.comune_elezione) AS comune_elezione,
+        COALESCE(up.grado_elezione, u.grado_elezione) AS grado_elezione,
+        COALESCE(up.paese_candidatura, u.paese_candidatura) AS paese_candidatura,
+        COALESCE(up.regione_candidatura, u.regione_candidatura) AS regione_candidatura,
+        COALESCE(up.provincia_candidatura, u.provincia_candidatura) AS provincia_candidatura,
+        COALESCE(up.comune_candidatura, u.comune_candidatura) AS comune_candidatura,
+        COALESCE(up.grado_candidatura, u.grado_candidatura) AS grado_candidatura,
+        COALESCE(uc.privacy_policy_consent, u.privacy_policy_consent) AS privacy_policy_consent,
+        COALESCE(uc.terms_of_service_consent, u.terms_of_service_consent) AS terms_of_service_consent,
+        COALESCE(uc.consent_timestamp, u.consent_timestamp) AS consent_timestamp,
+        u.consent_ip_address,
+        u.consent_user_agent,
+        COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent
+      FROM users u
+      LEFT JOIN user_profile up ON up.user_id = u.id
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE u.id = $1
     `;
     
     const userResult = await pool.query(userQuery, [userId]);
@@ -170,10 +189,14 @@ router.get('/data-export', async (req, res) => {
     // 6. Recupera log di audit dell'utente
     const auditLogs = await AuditService.getUserAuditLogs(userId, { limit: 100 });
 
-    // 6b. Provider OAuth: letti da users (google_sub, apple_user_id)
-    const authProviders = [];
-    if (userData.google_sub) authProviders.push({ provider: 'google', provider_user_id: userData.google_sub });
-    if (userData.apple_user_id) authProviders.push({ provider: 'apple', provider_user_id: userData.apple_user_id });
+    // 6b. Provider OAuth: nuovo schema user_auth_providers + fallback legacy
+    const authProvidersResult = await pool.query(
+      `SELECT provider, provider_user_id
+       FROM user_auth_providers
+       WHERE user_id = $1`,
+      [userId]
+    );
+    const authProviders = authProvidersResult.rows || [];
 
     // 7. Compila il report completo
     const dataExport = {
