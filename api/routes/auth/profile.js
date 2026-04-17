@@ -51,7 +51,47 @@ router.get('/me', async (req, res) => {
 
     // Recupera dati utente
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza, ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune, candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune, status, created_at, updated_at, facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url FROM users WHERE id = $1',
+      `SELECT
+         u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.created_at, u.updated_at,
+         COALESCE(up.genere, u.genere) AS genere,
+         COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
+         COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
+         COALESCE(up.paese_residenza, u.paese_residenza) AS paese_residenza,
+         COALESCE(up.regione_residenza, u.regione_residenza) AS regione_residenza,
+         COALESCE(up.provincia_residenza, u.provincia_residenza) AS provincia_residenza,
+         COALESCE(up.comune_residenza, u.comune_residenza) AS comune_residenza,
+         COALESCE(up.grado_elezione, u.grado_elezione) AS grado_elezione,
+         COALESCE(up.paese_elezione, u.paese_elezione) AS paese_elezione,
+         COALESCE(up.regione_elezione, u.regione_elezione) AS regione_elezione,
+         COALESCE(up.provincia_elezione, u.provincia_elezione) AS provincia_elezione,
+         COALESCE(up.comune_elezione, u.comune_elezione) AS comune_elezione,
+         COALESCE(up.grado_candidatura, u.grado_candidatura) AS grado_candidatura,
+         COALESCE(up.paese_candidatura, u.paese_candidatura) AS paese_candidatura,
+         COALESCE(up.regione_candidatura, u.regione_candidatura) AS regione_candidatura,
+         COALESCE(up.provincia_candidatura, u.provincia_candidatura) AS provincia_candidatura,
+         COALESCE(up.comune_candidatura, u.comune_candidatura) AS comune_candidatura,
+         COALESCE(ur.rappresentante_europeo, u.rappresentante_europeo) AS rappresentante_europeo,
+         COALESCE(ur.rappresentante_camera, u.rappresentante_camera) AS rappresentante_camera,
+         COALESCE(ur.rappresentante_senato, u.rappresentante_senato) AS rappresentante_senato,
+         COALESCE(ur.rappresentante_regionale, u.rappresentante_regionale) AS rappresentante_regionale,
+         COALESCE(ur.rappresentante_comune, u.rappresentante_comune) AS rappresentante_comune,
+         COALESCE(ur.candidato_europeo, u.candidato_europeo) AS candidato_europeo,
+         COALESCE(ur.candidato_camera, u.candidato_camera) AS candidato_camera,
+         COALESCE(ur.candidato_senato, u.candidato_senato) AS candidato_senato,
+         COALESCE(ur.candidato_regionale, u.candidato_regionale) AS candidato_regionale,
+         COALESCE(ur.candidato_comune, u.candidato_comune) AS candidato_comune,
+         COALESCE(up.facebook_url, u.facebook_url) AS facebook_url,
+         COALESCE(up.twitter_url, u.twitter_url) AS twitter_url,
+         COALESCE(up.instagram_url, u.instagram_url) AS instagram_url,
+         COALESCE(up.linkedin_url, u.linkedin_url) AS linkedin_url,
+         COALESCE(up.telegram_url, u.telegram_url) AS telegram_url,
+         COALESCE(up.website_url, u.website_url) AS website_url,
+         COALESCE(up.twitch_url, u.twitch_url) AS twitch_url,
+         COALESCE(up.youtube_url, u.youtube_url) AS youtube_url
+       FROM users u
+       LEFT JOIN user_profile up ON up.user_id = u.id
+       LEFT JOIN user_representatives ur ON ur.user_id = u.id
+       WHERE u.id = $1`,
       [decoded.userId]
     );
 
