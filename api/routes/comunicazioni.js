@@ -7,6 +7,73 @@ require('dotenv').config();
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
+// Status utente considerati bloccati per invio notifiche push
+const BLOCKED_USER_STATUSES = ['banned', 'deleted', 'disabled', '2', '9'];
+
+async function getResolvedFcmTokensForUser(userId) {
+  // Sorgente primaria: user_devices (schema nuovo)
+  const deviceTokensResult = await pool.query(
+    `SELECT DISTINCT d.fcm_token
+     FROM user_devices d
+     WHERE d.user_id = $1
+       AND d.is_active = TRUE
+       AND d.fcm_token IS NOT NULL
+       AND btrim(d.fcm_token) <> ''`,
+    [userId]
+  );
+
+  const deviceTokens = deviceTokensResult.rows.map(r => r.fcm_token).filter(Boolean);
+  if (deviceTokens.length > 0) {
+    return deviceTokens;
+  }
+
+  // Fallback legacy: users.fcm_tokens
+  const legacyResult = await pool.query(
+    `SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
+     FROM users
+     WHERE id = $1`,
+    [userId]
+  );
+
+  if (legacyResult.rows.length === 0) return [];
+  const legacyTokens = legacyResult.rows[0].fcm_tokens || [];
+  return [...new Set(legacyTokens.filter(t => t && t.trim()))];
+}
+
+async function invalidateUserFcmTokens(userId, invalidTokens = []) {
+  if (!invalidTokens || invalidTokens.length === 0) return;
+  const cleanedInvalid = [...new Set(invalidTokens.filter(t => t && t.trim()))];
+  if (cleanedInvalid.length === 0) return;
+
+  // Nuovo storage: disattiva token in user_devices
+  try {
+    await pool.query(
+      `UPDATE user_devices
+       SET is_active = FALSE, updated_at = NOW()
+       WHERE user_id = $1
+         AND fcm_token = ANY($2::text[])`,
+      [userId, cleanedInvalid]
+    );
+  } catch (err) {
+    console.warn('⚠️ Impossibile invalidare token in user_devices:', err.message);
+  }
+
+  // Legacy storage: rimuovi token da users.fcm_tokens (fallback transitorio)
+  const legacyResult = await pool.query(
+    `SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
+     FROM users
+     WHERE id = $1`,
+    [userId]
+  );
+  if (legacyResult.rows.length === 0) return;
+  const currentLegacyTokens = legacyResult.rows[0].fcm_tokens || [];
+  const filteredLegacyTokens = currentLegacyTokens.filter(t => !cleanedInvalid.includes(t));
+  await pool.query(
+    'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
+    [filteredLegacyTokens, userId]
+  );
+}
+
 // NOTE: Le funzioni createNotificheUtente e updateNotificheUtente sono state rimosse
 // perché ora si usa la colonna read_by nella tabella comunicazioni per tracciare le notifiche lette
 // La tabella notifiche_utente non è più necessaria
@@ -205,7 +272,7 @@ router.post('/send-user-notification', (req, res, next) => {
 
     // Verifica che l'utente destinatario esista
     const userResult = await pool.query(
-      'SELECT id, email, nome, cognome, fcm_tokens, status FROM users WHERE id = $1',
+      'SELECT id, email, nome, cognome, status FROM users WHERE id = $1',
       [userId]
     );
 
@@ -217,7 +284,7 @@ router.post('/send-user-notification', (req, res, next) => {
     }
 
     const destinatario = userResult.rows[0];
-    const fcmTokens = destinatario.fcm_tokens || [];
+    const fcmTokens = await getResolvedFcmTokensForUser(userId);
     
     // Log dettagliato per debug
     console.log(`   📊 Token FCM nel database per ${destinatario.email}:`);
@@ -348,12 +415,8 @@ router.post('/send-user-notification', (req, res, next) => {
 
     // Rimuovi token non validi dal database
     if (invalidTokens.length > 0) {
-      const updatedTokens = fcmTokens.filter(t => !invalidTokens.includes(t));
-      await pool.query(
-        'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
-        [updatedTokens, userId]
-      );
-      console.log(`🧹 Rimossi ${invalidTokens.length} token FCM non validi per utente ${userId}`);
+      await invalidateUserFcmTokens(userId, invalidTokens);
+      console.log(`🧹 Rimossi/invalidati ${invalidTokens.length} token FCM non validi per utente ${userId}`);
     }
 
     console.log('\n');
@@ -638,28 +701,60 @@ router.post('/', async (req, res) => {
         // Usa la preferenza specifica per consigliere_comunale
         const utentiConRappresentante = isUUID
           ? await pool.query(
-              `SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome, 
+              `SELECT u.id, u.email, u.nome, u.cognome,
+                      COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
                       COALESCE(np.consigliere_comunale, false) as consigliere_comunale
                FROM users u
                LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+               LEFT JOIN LATERAL (
+                 SELECT ARRAY(
+                   SELECT DISTINCT tok
+                   FROM (
+                     SELECT d.fcm_token as tok
+                     FROM user_devices d
+                     WHERE d.user_id = u.id
+                       AND d.is_active = TRUE
+                       AND d.fcm_token IS NOT NULL
+                       AND btrim(d.fcm_token) <> ''
+                     UNION
+                     SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+                   ) merged
+                   WHERE tok IS NOT NULL AND btrim(tok) <> ''
+                 ) as tokens
+               ) tokens ON TRUE
                WHERE u.rappresentante_comune = $1::uuid
-                 AND (u.status = 'a' OR u.status IS NULL)
-                 AND u.fcm_tokens IS NOT NULL 
-                 AND array_length(u.fcm_tokens, 1) > 0
+                 AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($2::text[]))
+                 AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
                  AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
-              [utentePolitico.id]
+              [utentePolitico.id, BLOCKED_USER_STATUSES]
             )
           : await pool.query(
-              `SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+              `SELECT u.id, u.email, u.nome, u.cognome,
+                      COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
                       COALESCE(np.consigliere_comunale, false) as consigliere_comunale
                FROM users u
                LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+               LEFT JOIN LATERAL (
+                 SELECT ARRAY(
+                   SELECT DISTINCT tok
+                   FROM (
+                     SELECT d.fcm_token as tok
+                     FROM user_devices d
+                     WHERE d.user_id = u.id
+                       AND d.is_active = TRUE
+                       AND d.fcm_token IS NOT NULL
+                       AND btrim(d.fcm_token) <> ''
+                     UNION
+                     SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+                   ) merged
+                   WHERE tok IS NOT NULL AND btrim(tok) <> ''
+                 ) as tokens
+               ) tokens ON TRUE
                WHERE u.rappresentante_comune::text = $1::text
-                 AND (u.status = 'a' OR u.status IS NULL)
-                 AND u.fcm_tokens IS NOT NULL 
-                 AND array_length(u.fcm_tokens, 1) > 0
+                 AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($2::text[]))
+                 AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
                  AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
-              [utentePolitico.id]
+              [utentePolitico.id, BLOCKED_USER_STATUSES]
             );
 
         console.log(`📢 Trovati ${utentiConRappresentante.rows.length} utenti con rappresentante_comune = ${utentePolitico.id}`);
@@ -1036,10 +1131,25 @@ async function notifyAllUsers(titolo, commento) {
     const utentiConFCMResult = await pool.query(`
       SELECT COUNT(*) as count
       FROM users u
-      WHERE (u.status = $1 OR u.status IS NULL)
-        AND u.fcm_tokens IS NOT NULL 
-        AND array_length(u.fcm_tokens, 1) > 0
-    `, ['a']);
+      LEFT JOIN LATERAL (
+        SELECT ARRAY(
+          SELECT DISTINCT tok
+          FROM (
+            SELECT d.fcm_token as tok
+            FROM user_devices d
+            WHERE d.user_id = u.id
+              AND d.is_active = TRUE
+              AND d.fcm_token IS NOT NULL
+              AND btrim(d.fcm_token) <> ''
+            UNION
+            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+          ) merged
+          WHERE tok IS NOT NULL AND btrim(tok) <> ''
+        ) as tokens
+      ) tokens ON TRUE
+      WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
+        AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
+    `, [BLOCKED_USER_STATUSES]);
     console.log(`📊 Utenti con FCM tokens: ${utentiConFCMResult.rows[0].count}`);
 
     // Verifica quanti utenti hanno preferenze
@@ -1051,8 +1161,8 @@ async function notifyAllUsers(titolo, commento) {
         COUNT(CASE WHEN np.demos IS NULL THEN 1 END) as demos_null
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE (u.status = $1 OR u.status IS NULL)
-    `, ['a']);
+      WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
+    `, [BLOCKED_USER_STATUSES]);
     const prefStats = utentiConPreferenzeResult.rows[0];
     console.log(`📊 Statistiche preferenze Demos:`);
     console.log(`   - Totale utenti con preferenze: ${prefStats.totale}`);
@@ -1064,16 +1174,33 @@ async function notifyAllUsers(titolo, commento) {
     // Prova prima senza filtro status per vedere se è quello il problema
     console.log('🔍 Eseguendo query per utenti con demos=true e FCM tokens...');
     const utentiConPushResult = await pool.query(`
-      SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+      SELECT u.id, u.email, u.nome, u.cognome,
+             COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
              np.demos as demos,
              u.status,
              pg_typeof(np.demos) as demos_type
       FROM users u
       INNER JOIN notifiche_preferenze np ON u.id = np.user_id
+      LEFT JOIN LATERAL (
+        SELECT ARRAY(
+          SELECT DISTINCT tok
+          FROM (
+            SELECT d.fcm_token as tok
+            FROM user_devices d
+            WHERE d.user_id = u.id
+              AND d.is_active = TRUE
+              AND d.fcm_token IS NOT NULL
+              AND btrim(d.fcm_token) <> ''
+            UNION
+            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+          ) merged
+          WHERE tok IS NOT NULL AND btrim(tok) <> ''
+        ) as tokens
+      ) tokens ON TRUE
       WHERE np.demos = true
-        AND u.fcm_tokens IS NOT NULL 
-        AND array_length(u.fcm_tokens, 1) > 0
-    `);
+        AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
+        AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
+    `, [BLOCKED_USER_STATUSES]);
     
     console.log(`🔍 Query senza filtro status: trovati ${utentiConPushResult.rows.length} utenti`);
     
@@ -1081,16 +1208,33 @@ async function notifyAllUsers(titolo, commento) {
     if (utentiConPushResult.rows.length === 0) {
       console.log('⚠️ Nessun utente trovato con INNER JOIN, provo con LEFT JOIN...');
       const utentiConPushResult2 = await pool.query(`
-        SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+        SELECT u.id, u.email, u.nome, u.cognome,
+               COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
                np.demos as demos,
                u.status,
                pg_typeof(np.demos) as demos_type
         FROM users u
         LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
+        LEFT JOIN LATERAL (
+          SELECT ARRAY(
+            SELECT DISTINCT tok
+            FROM (
+              SELECT d.fcm_token as tok
+              FROM user_devices d
+              WHERE d.user_id = u.id
+                AND d.is_active = TRUE
+                AND d.fcm_token IS NOT NULL
+                AND btrim(d.fcm_token) <> ''
+              UNION
+              SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+            ) merged
+            WHERE tok IS NOT NULL AND btrim(tok) <> ''
+          ) as tokens
+        ) tokens ON TRUE
         WHERE COALESCE(np.demos, false) = true
-          AND u.fcm_tokens IS NOT NULL 
-          AND array_length(u.fcm_tokens, 1) > 0
-      `);
+          AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
+          AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
+      `, [BLOCKED_USER_STATUSES]);
       
       console.log(`🔍 Query con LEFT JOIN e COALESCE: trovati ${utentiConPushResult2.rows.length} utenti`);
       
@@ -1103,15 +1247,32 @@ async function notifyAllUsers(titolo, commento) {
     if (utentiConPushResult.rows.length === 0) {
       console.log('⚠️ Ancora nessun utente trovato, provo query semplificata...');
       const utentiConPushResult3 = await pool.query(`
-        SELECT u.id, u.fcm_tokens, u.email, u.nome, u.cognome,
+        SELECT u.id, u.email, u.nome, u.cognome,
+               COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
                np.demos as demos,
                u.status
-        FROM users u, notifiche_preferenze np
-        WHERE u.id = np.user_id
-          AND np.demos IS TRUE
-          AND u.fcm_tokens IS NOT NULL 
-          AND array_length(u.fcm_tokens, 1) > 0
-      `);
+        FROM users u
+        INNER JOIN notifiche_preferenze np ON u.id = np.user_id
+        LEFT JOIN LATERAL (
+          SELECT ARRAY(
+            SELECT DISTINCT tok
+            FROM (
+              SELECT d.fcm_token as tok
+              FROM user_devices d
+              WHERE d.user_id = u.id
+                AND d.is_active = TRUE
+                AND d.fcm_token IS NOT NULL
+                AND btrim(d.fcm_token) <> ''
+              UNION
+              SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
+            ) merged
+            WHERE tok IS NOT NULL AND btrim(tok) <> ''
+          ) as tokens
+        ) tokens ON TRUE
+        WHERE np.demos IS TRUE
+          AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
+          AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
+      `, [BLOCKED_USER_STATUSES]);
       
       console.log(`🔍 Query semplificata: trovati ${utentiConPushResult3.rows.length} utenti`);
       
@@ -1128,11 +1289,11 @@ async function notifyAllUsers(titolo, commento) {
              array_length(u.fcm_tokens, 1) as num_tokens
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE (u.status = $1 OR u.status IS NULL)
+      WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
         AND u.fcm_tokens IS NOT NULL 
         AND array_length(u.fcm_tokens, 1) > 0
       LIMIT 5
-    `, ['a']);
+    `, [BLOCKED_USER_STATUSES]);
     console.log(`🔍 Esempi utenti con FCM tokens (primi 5):`);
     debugUtentiResult.rows.forEach((utente, index) => {
       console.log(`   ${index + 1}. ${utente.email || utente.id}: demos=${utente.demos} (${typeof utente.demos}), tokens=${utente.num_tokens}`);
@@ -1165,11 +1326,11 @@ async function notifyAllUsers(titolo, commento) {
           COUNT(DISTINCT CASE WHEN np.demos = false THEN u.id END) as utenti_con_demos_false
         FROM users u
         LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-        WHERE (u.status = $1 OR u.status IS NULL)
+        WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
           AND u.fcm_tokens IS NOT NULL 
           AND array_length(u.fcm_tokens, 1) > 0
           AND (np.demos IS NULL OR np.demos = false)
-      `, ['a']);
+      `, [BLOCKED_USER_STATUSES]);
       
       const debug = debugResult.rows[0];
       console.log('🔍 Debug utenti con FCM ma senza demos=true:');
@@ -1252,10 +1413,7 @@ async function notifyAllUsers(titolo, commento) {
       // Rimuovi token non validi dal database
       if (invalidTokens.length > 0 && validTokens.length !== fcmTokens.length) {
         try {
-          await pool.query(
-            'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
-            [validTokens, utente.id]
-          );
+          await invalidateUserFcmTokens(utente.id, invalidTokens.map(t => t.token));
           console.log(`🧹 Rimossi ${fcmTokens.length - validTokens.length} token FCM non validi per utente ${utente.id}`);
         } catch (error) {
           console.error(`❌ Errore nella rimozione token FCM per utente ${utente.id}:`, error);

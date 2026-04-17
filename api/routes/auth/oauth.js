@@ -79,11 +79,26 @@ async function verifyAppleIdToken(identityToken) {
  * Se non trovato, la riga in users viene creata solo al completamento del wizard (complete-registration).
  */
 async function findUserByProvider(provider, providerUserId, profile) {
-  const col = provider === 'google' ? 'google_sub' : 'apple_user_id';
-  const result = await pool.query(
-    `SELECT id, ruolo, status FROM users WHERE ${col} = $1`,
-    [providerUserId]
+  // Nuovo schema: user_auth_providers
+  const providerResult = await pool.query(
+    `SELECT u.id, u.ruolo, u.status
+     FROM user_auth_providers uap
+     INNER JOIN users u ON u.id = uap.user_id
+     WHERE uap.provider = $1 AND uap.provider_user_id = $2
+     LIMIT 1`,
+    [provider, providerUserId]
   );
+
+  // Fallback legacy: colonne su users
+  const col = provider === 'google' ? 'google_sub' : 'apple_user_id';
+  const legacyResult = providerResult.rows.length > 0
+    ? { rows: [] }
+    : await pool.query(
+      `SELECT id, ruolo, status FROM users WHERE ${col} = $1`,
+      [providerUserId]
+    );
+
+  const result = providerResult.rows.length > 0 ? providerResult : legacyResult;
 
   if (result.rows.length > 0) {
     const u = result.rows[0];
@@ -276,10 +291,23 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
 
     // Se esiste già un utente con questo google_sub/apple_user_id (es. creato dal vecchio flusso o doppio invio),
     // aggiorniamo residenza/consensi e restituiamo i token senza fare INSERT (evita "duplicate key").
-    const existing = await pool.query(
-      `SELECT id, ruolo FROM users WHERE ${col} = $1`,
-      [provider_sub]
+    const existingByProvider = await pool.query(
+      `SELECT u.id, u.ruolo
+       FROM user_auth_providers uap
+       INNER JOIN users u ON u.id = uap.user_id
+       WHERE uap.provider = $1 AND uap.provider_user_id = $2
+       LIMIT 1`,
+      [provider, provider_sub]
     );
+
+    const existingByLegacy = existingByProvider.rows.length > 0
+      ? { rows: [] }
+      : await pool.query(
+        `SELECT id, ruolo FROM users WHERE ${col} = $1`,
+        [provider_sub]
+      );
+
+    const existing = existingByProvider.rows.length > 0 ? existingByProvider : existingByLegacy;
 
     let userId;
 
@@ -303,6 +331,73 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
             privacy_policy_consent === true,
             terms_of_service_consent === true,
             userId,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO user_profile (
+            user_id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza
+          ) VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (user_id) DO UPDATE SET
+            paese_residenza = EXCLUDED.paese_residenza,
+            regione_residenza = EXCLUDED.regione_residenza,
+            provincia_residenza = EXCLUDED.provincia_residenza,
+            comune_residenza = EXCLUDED.comune_residenza,
+            updated_at = NOW()`,
+          [
+            userId,
+            compressed.paese_residenza ?? null,
+            compressed.regione_residenza ?? null,
+            compressed.provincia_residenza ?? null,
+            compressed.comune_residenza ?? null,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO user_consents (
+            user_id, privacy_policy_consent, terms_of_service_consent, consent_timestamp,
+            political_opinions_consent, political_opinions_consent_timestamp,
+            political_opinions_consent_ip_address, political_opinions_consent_user_agent
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (user_id) DO UPDATE SET
+            privacy_policy_consent = EXCLUDED.privacy_policy_consent,
+            terms_of_service_consent = EXCLUDED.terms_of_service_consent,
+            consent_timestamp = EXCLUDED.consent_timestamp,
+            political_opinions_consent = EXCLUDED.political_opinions_consent,
+            political_opinions_consent_timestamp = EXCLUDED.political_opinions_consent_timestamp,
+            political_opinions_consent_ip_address = EXCLUDED.political_opinions_consent_ip_address,
+            political_opinions_consent_user_agent = EXCLUDED.political_opinions_consent_user_agent,
+            updated_at = NOW()`,
+          [
+            userId,
+            privacy_policy_consent === true,
+            terms_of_service_consent === true,
+            consentTs ? new Date().toISOString() : null,
+            political_opinions_consent === true,
+            political_opinions_consent === true ? new Date().toISOString() : null,
+            political_opinions_consent === true ? ipAddress : null,
+            political_opinions_consent === true ? userAgent : null,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO user_auth_providers (
+            user_id, provider, provider_user_id, provider_metadata
+          ) VALUES ($1, $2, $3, $4)
+          ON CONFLICT (provider, provider_user_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            provider_metadata = EXCLUDED.provider_metadata,
+            updated_at = NOW()`,
+          [
+            userId,
+            provider,
+            provider_sub,
+            JSON.stringify({
+              email: payload.email || null,
+              given_name: payload.given_name || null,
+              family_name: payload.family_name || null,
+              name: payload.name || null
+            })
           ]
         );
         if (political_opinions_consent === true) {
@@ -353,6 +448,73 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
             compressed.comune_residenza ?? null,
             privacy_policy_consent === true,
             terms_of_service_consent === true,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO user_profile (
+            user_id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza
+          ) VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (user_id) DO UPDATE SET
+            paese_residenza = EXCLUDED.paese_residenza,
+            regione_residenza = EXCLUDED.regione_residenza,
+            provincia_residenza = EXCLUDED.provincia_residenza,
+            comune_residenza = EXCLUDED.comune_residenza,
+            updated_at = NOW()`,
+          [
+            userId,
+            compressed.paese_residenza ?? null,
+            compressed.regione_residenza ?? null,
+            compressed.provincia_residenza ?? null,
+            compressed.comune_residenza ?? null,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO user_consents (
+            user_id, privacy_policy_consent, terms_of_service_consent, consent_timestamp,
+            political_opinions_consent, political_opinions_consent_timestamp,
+            political_opinions_consent_ip_address, political_opinions_consent_user_agent
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (user_id) DO UPDATE SET
+            privacy_policy_consent = EXCLUDED.privacy_policy_consent,
+            terms_of_service_consent = EXCLUDED.terms_of_service_consent,
+            consent_timestamp = EXCLUDED.consent_timestamp,
+            political_opinions_consent = EXCLUDED.political_opinions_consent,
+            political_opinions_consent_timestamp = EXCLUDED.political_opinions_consent_timestamp,
+            political_opinions_consent_ip_address = EXCLUDED.political_opinions_consent_ip_address,
+            political_opinions_consent_user_agent = EXCLUDED.political_opinions_consent_user_agent,
+            updated_at = NOW()`,
+          [
+            userId,
+            privacy_policy_consent === true,
+            terms_of_service_consent === true,
+            consentTs ? new Date().toISOString() : null,
+            political_opinions_consent === true,
+            political_opinions_consent === true ? new Date().toISOString() : null,
+            political_opinions_consent === true ? ipAddress : null,
+            political_opinions_consent === true ? userAgent : null,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO user_auth_providers (
+            user_id, provider, provider_user_id, provider_metadata
+          ) VALUES ($1, $2, $3, $4)
+          ON CONFLICT (provider, provider_user_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            provider_metadata = EXCLUDED.provider_metadata,
+            updated_at = NOW()`,
+          [
+            userId,
+            provider,
+            provider_sub,
+            JSON.stringify({
+              email: payload.email || null,
+              given_name: payload.given_name || null,
+              family_name: payload.family_name || null,
+              name: payload.name || null
+            })
           ]
         );
 
