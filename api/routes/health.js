@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 
 const router = express.Router();
 
@@ -40,12 +40,7 @@ router.get('/test-db', async (req, res) => {
       });
     }
 
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
-
-    // Test connessione
+    const pool = getPool();
     const client = await pool.connect();
     console.log('✅ Connessione database riuscita!');
     
@@ -54,7 +49,6 @@ router.get('/test-db', async (req, res) => {
     console.log('📊 Query test riuscita:', result.rows[0]);
     
     client.release();
-    await pool.end();
 
     res.json({
       success: true,
