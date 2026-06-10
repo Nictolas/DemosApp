@@ -1,35 +1,27 @@
-# 🚨 CONFIGURAZIONE DATABASE RICHIESTA
+# 🚨 Configurazione database richiesta
 
-## ❌ PROBLEMA RILEVATO
-L'API server non può avviarsi perché **manca il file `.env`** con la configurazione del database Neon.
+## Problema
 
-## ✅ SOLUZIONE RICHIESTA
+L’API non si avvia se manca `api/.env` con `DATABASE_URL`.
 
-**Crea il file `api/.env` con la seguente configurazione:**
+## Soluzione
+
+Crea `api/.env` (vedi `env.example`):
 
 ```env
-# Database Neon PostgreSQL (OBBLIGATORIO)
-DATABASE_URL=postgresql://username:password@host.db.neon.tech/neondb?sslmode=require
-
-# JWT Secret per autenticazione
+DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
+DATABASE_POOL_MAX=15
 ```
 
-## 📋 DOVE TROVARE LA DATABASE_URL
+## Dove trovare la URI
 
-1. **Accedi al tuo account Neon** (o Vercel Postgres)
-2. **Trova il tuo database** del progetto DEMOS
-3. **Copia la connection string** che dovrebbe assomigliare a:
-   ```
-   postgresql://[user]:[password]@[host]/[database]?sslmode=require
-   ```
+**Supabase** → Project Settings → Database → Connection string (pooler per l’app, direct per migrazioni).
 
-## 🚀 DOPO AVER CREATO IL FILE .env
+Guida completa migrazione da Neon: **`MIGRAZIONE_NEON_SUPABASE.md`**.
 
-1. Riavvia l'API server: `cd api && node index.js`
-2. Verifica la connessione: `http://localhost:3001/api/health`
-3. Testa l'autenticazione
+## Dopo la configurazione
 
----
-
-**NOTA**: Senza la DATABASE_URL corretta, l'applicazione non può funzionare perché non può connettersi al database Neon dove sono memorizzati utenti e dati.
+1. `cd api && npm start` (o `node server.js`)
+2. `http://localhost:3001/api/health`
+3. Prova login / una route che usa il DB

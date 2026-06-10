@@ -3,7 +3,7 @@
 const { Pool } = require('pg');
 
 const poolMax = Math.max(1, parseInt(process.env.DATABASE_POOL_MAX || '100', 10));
-// Neon: preferire DATABASE_URL con endpoint pooler (-pooler) e min basso per ridurre tempo di compute attivo.
+// Supabase: preferire URI Supavisor (pooler, porta 6543) con ?pgbouncer=true; min basso in produzione.
 const defaultPoolMin = process.env.NODE_ENV === 'production' ? '0' : '2';
 const poolMin = Math.max(
   0,
@@ -13,10 +13,9 @@ const poolMin = Math.max(
 // Configurazione ottimizzata per gestire molti utenti connessi
 const poolConfig = {
     connectionString: process.env.DATABASE_URL,
-    ssl: { 
-        rejectUnauthorized: process.env.NODE_ENV === 'production'
-    },
-    // Override con DATABASE_POOL_MAX / DATABASE_POOL_MIN (su Neon: min basso = compute può sospendersi prima)
+    // Supabase/Render: il pooler usa SSL; rejectUnauthorized true causa "self-signed certificate in certificate chain"
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    // Override con DATABASE_POOL_MAX / DATABASE_POOL_MIN (su Supabase: non superare il limite connessioni del piano)
   max: poolMax,
   min: poolMin,
   idleTimeoutMillis: 60000,    // 1 minuto prima di chiudere connessioni idle
