@@ -3,9 +3,7 @@ const { Pool } = require('pg');
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { 
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  }
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 /**
