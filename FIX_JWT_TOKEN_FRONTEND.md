@@ -6,7 +6,7 @@ Il frontend stava usando un token mock invece del token JWT reale restituito dal
 
 ## 🔍 **CAUSA DEL PROBLEMA**
 
-Nel hook `use-auth-neon.tsx`, il frontend cercava `result.token` ma il backend restituisce `result.accessToken`:
+Nel hook `use-auth.tsx`, il frontend cercava `result.token` ma il backend restituisce `result.accessToken`:
 
 ```javascript
 // PRIMA (errato)

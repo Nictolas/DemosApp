@@ -9,7 +9,7 @@ import {
   XCircle,
   AlertTriangle
 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth-neon';
+import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '../lib/queryClient';
 
 interface RightsRequest {

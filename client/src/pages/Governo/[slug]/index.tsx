@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams } from "wouter";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";

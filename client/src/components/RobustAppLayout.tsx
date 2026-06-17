@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth-neon';
+import { useAuth } from '@/hooks/use-auth';
 import { useAndroidDetection } from '@/hooks/useAndroidDetection';
 import Navbar from './Navbar';
 import { ErrorBoundary } from './ErrorBoundary';

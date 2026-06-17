@@ -1,6 +1,6 @@
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Loader2, Download, Smartphone } from "lucide-react";
 import appIcon from '/icona.png';

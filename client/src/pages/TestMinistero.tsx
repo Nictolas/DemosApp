@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { Building2, RefreshCw, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";

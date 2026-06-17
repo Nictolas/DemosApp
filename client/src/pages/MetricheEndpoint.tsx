@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Redirect, useLocation } from "wouter";
 import { ArrowLeft, ChartPie, RefreshCw, RotateCcw, Timer, Activity, AlertTriangle } from "lucide-react";
 import { Pie, PieChart, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

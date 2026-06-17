@@ -4,7 +4,7 @@ import { Loader2, Check, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 
 import { apiRequest } from "@/lib/queryClient";

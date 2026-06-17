@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { useNoScroll } from "@/hooks/useNoScroll";
 import { MenuData } from "../types";
 
