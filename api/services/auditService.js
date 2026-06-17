@@ -68,8 +68,8 @@ class AuditService {
         timestamp: new Date(now)
       };
       
-      // DISABILITATO: I log vengono salvati solo su Axiom, non più su Neon
-      // Questo per alleggerire Neon e centralizzare i log su Axiom
+      // DISABILITATO: I log vengono salvati solo su Axiom, non più su PostgreSQL
+      // Questo per alleggerire il database e centralizzare i log su Axiom
       if (process.env.AXIOM_ENABLED === 'true') {
         // Se Axiom è abilitato, invia solo ad Axiom (non blocca se fallisce)
         const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
@@ -79,7 +79,7 @@ class AuditService {
         return { id: 'axiom-' + Date.now(), timestamp: new Date(now) };
       }
       
-      // Solo se Axiom non è abilitato, salva su Neon (fallback)
+      // Solo se Axiom non è abilitato, salva su PostgreSQL (fallback)
       const query = `
         INSERT INTO audit_logs_compressed (
           id, user_id, action, resource, resource_id, details, 
@@ -104,7 +104,7 @@ class AuditService {
 
       const result = await pool.query(query, values);
       
-      console.log(`📝 Audit log creato su Neon: ${action} su ${resource} per utente ${userId}`);
+      console.log(`📝 Audit log creato su PostgreSQL: ${action} su ${resource} per utente ${userId}`);
       
       return { id: result.rows[0].id, timestamp: new Date(now) };
     } catch (error) {
@@ -247,7 +247,7 @@ class AuditService {
    */
   static async getUserAuditLogs(userId, filters = {}) {
     try {
-      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      // Se Axiom è abilitato, leggi da Axiom invece di PostgreSQL
       if (process.env.AXIOM_ENABLED === 'true') {
         const { getAuditLogs } = require('../utils/axiomQueryHelper');
         
@@ -276,7 +276,7 @@ class AuditService {
         }));
       }
       
-      // Fallback a Neon se Axiom non è abilitato
+      // Fallback a PostgreSQL se Axiom non è abilitato
       let query = `
         SELECT id, action, resource, resource_id, details, 
                ip_address, user_agent, timestamp, success, error_message
@@ -340,7 +340,7 @@ class AuditService {
    */
   static async getUserAuditStats(userId) {
     try {
-      // Se Axiom è abilitato, leggi da Axiom invece di Neon
+      // Se Axiom è abilitato, leggi da Axiom invece di PostgreSQL
       if (process.env.AXIOM_ENABLED === 'true') {
         const { getAuditLogs } = require('../utils/axiomQueryHelper');
         
@@ -389,7 +389,7 @@ class AuditService {
         return Object.values(statsByAction).sort((a, b) => b.count - a.count);
       }
       
-      // Fallback a Neon se Axiom non è abilitato
+      // Fallback a PostgreSQL se Axiom non è abilitato
       const query = `
         SELECT 
           action,
@@ -424,7 +424,7 @@ class AuditService {
         return 0; // Non è necessario pulire manualmente
       }
       
-      // Fallback a Neon se Axiom non è abilitato
+      // Fallback a PostgreSQL se Axiom non è abilitato
       const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000); // Converti in millisecondi
       const query = `
         DELETE FROM audit_logs_compressed 

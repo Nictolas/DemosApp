@@ -88,7 +88,7 @@ router.get('/opinioni-list', async (req, res) => {
     }
     
     // Query per ottenere le opinioni del grado specificato
-    // Supporto sia gradi_opinione che gradi_opinioni (Neon può avere l'uno o l'altro)
+    // Supporto sia gradi_opinione che gradi_opinioni (il DB può avere l'uno o l'altro)
     const opinionQuery = (colGradi) => `
       SELECT o.id, o.text, o.${colGradi}
       FROM opinioni_domande o

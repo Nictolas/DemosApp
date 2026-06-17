@@ -197,7 +197,7 @@ class HealthCheckService {
         status,
         message: `Spazio disco server app (Render): ${diskPercent.toFixed(2)}% utilizzato${isEstimated ? ' (stima)' : ''}`,
         source: 'render-app-server',
-        sourceLabel: 'Server applicativo (Render) - NON Neon',
+        sourceLabel: 'Server applicativo (Render) - NON Supabase',
         method,
         isEstimated,
         totalBytes,
@@ -315,12 +315,12 @@ class HealthCheckService {
         };
       }
       
-      // Fallback Neon solo se la tabella esiste (log migrati su Axiom)
-      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      // Fallback PostgreSQL solo se la tabella esiste (log migrati su Axiom)
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsDb');
       if (!(await isCentralizedLogsTableAvailable())) {
         return {
           status: 'OK',
-          message: 'Sicurezza: log su Axiom (tabella Neon non presente)',
+          message: 'Sicurezza: log su Axiom (tabella centralized_logs non presente)',
           securityIssues: 0,
           timestamp: new Date().toISOString()
         };

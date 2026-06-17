@@ -125,7 +125,7 @@ export default function CookiePolicy() {
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li><strong>Render:</strong> Hosting backend e frontend (sito e API)</li>
-              <li><strong>Neon:</strong> Database PostgreSQL</li>
+              <li><strong>Supabase:</strong> Database PostgreSQL</li>
               <li><strong>Resend:</strong> Servizio email</li>
             </ul>
             <p className="text-gray-700 text-sm italic">

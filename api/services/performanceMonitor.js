@@ -53,7 +53,7 @@ class PerformanceMonitor {
     };
     /** Ultimo snapshot DB riuscito (usato se PERFORMANCE_MONITOR_DB_METRICS_ENABLED=false). */
     this._lastDatabaseMetrics = null;
-    /** Cache metriche errori (Axiom/Neon) tra un tick e l’altro. */
+    /** Cache metriche errori (Axiom/PostgreSQL) tra un tick e l’altro. */
     this._errorMetricsCache = null;
   }
 
@@ -343,7 +343,7 @@ class PerformanceMonitor {
     }
 
     try {
-      // Se Axiom è abilitato, leggi da Axiom (anche se la tabella Neon è stata eliminata)
+      // Se Axiom è abilitato, leggi da Axiom (anche se la tabella centralized_logs è stata eliminata)
       if (process.env.AXIOM_ENABLED === 'true') {
         try {
           const { getCentralizedLogs } = require('../utils/axiomQueryHelper');
@@ -384,7 +384,7 @@ class PerformanceMonitor {
         }
       }
 
-      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsDb');
       if (!(await isCentralizedLogsTableAvailable())) {
         return {
           timestamp: new Date().toISOString(),
@@ -410,15 +410,15 @@ class PerformanceMonitor {
         return acc;
       }, {});
 
-      const neonOut = {
+      const dbOut = {
         timestamp: new Date().toISOString(),
         errorsLastHour: errorCounts.E || 0,
         warningsLastHour: errorCounts.W || 0,
         totalIssues: (errorCounts.E || 0) + (errorCounts.W || 0)
       };
-      this._errorMetricsCache = { ...neonOut };
+      this._errorMetricsCache = { ...dbOut };
       delete this._errorMetricsCache.timestamp;
-      return neonOut;
+      return dbOut;
     } catch (error) {
       console.error('❌ Errore metriche errori:', error);
       return {

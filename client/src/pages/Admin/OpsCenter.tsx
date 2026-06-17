@@ -38,7 +38,7 @@ const OpsCenter: React.FC = () => {
           </Card>
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Neon)</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Supabase)</CardTitle>
               <CardDescription>Ti aiuta a capire se il database e sotto stress o sta rallentando.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -71,7 +71,7 @@ const OpsCenter: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-slate-600">
-                Cosa puoi farci: vedere in un punto unico quanto margine resta su Cursor, Neon e altre voci operative.
+                Cosa puoi farci: vedere in un punto unico quanto margine resta su Supabase, Render e altre voci operative.
               </p>
               <Button className="w-full justify-between" onClick={() => setLocation("/admin/parametri")}>
                 Apri Parametri <ArrowRight className="h-4 w-4" />

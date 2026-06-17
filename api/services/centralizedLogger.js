@@ -225,20 +225,20 @@ class CentralizedLogger {
   }
 
   async writeToDatabase(level, message, meta = {}) {
-    // DISABILITATO: I log vengono salvati solo su Axiom, non più su Neon
-    // Questo per alleggerire Neon e centralizzare i log su Axiom
+    // DISABILITATO: I log vengono salvati solo su Axiom, non più su PostgreSQL
+    // Questo per alleggerire il database e centralizzare i log su Axiom
     if (process.env.AXIOM_ENABLED === 'true') {
-      // Se Axiom è abilitato, non salvare su Neon
+      // Se Axiom è abilitato, non salvare su PostgreSQL
       return;
     }
     
-    // Solo se Axiom non è abilitato, salva su Neon (fallback) — solo se la tabella esiste ancora
+    // Solo se Axiom non è abilitato, salva su PostgreSQL (fallback) — solo se la tabella esiste ancora
     if (!this.logToDatabase) return;
 
     try {
-      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsDb');
       if (!(await isCentralizedLogsTableAvailable())) {
-        // Log migrati su Axiom: tabella Neon rimossa — niente fallback DB
+        // Log migrati su Axiom: tabella centralized_logs rimossa — niente fallback DB
         return;
       }
 

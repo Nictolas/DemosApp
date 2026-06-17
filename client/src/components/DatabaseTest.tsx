@@ -38,7 +38,7 @@ const DatabaseTest: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            🗄️ Test Database Neon via API
+            🗄️ Test Database Supabase via API
             <Badge variant={error ? "destructive" : "default"}>
               {error ? "Errore" : "Connesso"}
             </Badge>

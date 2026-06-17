@@ -11,7 +11,7 @@ export const useProponiOpinioneData = (user: any) => {
   const [userVoti, setUserVoti] = useState<string[]>([]);
   const [haGiaProposto, setHaGiaProposto] = useState(false);
 
-  // Carica opinioni proposte e voti utente dall'API Neon
+  // Carica opinioni proposte e voti utente dall'API
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoadingData(true);
@@ -68,7 +68,7 @@ export const useProponiOpinioneData = (user: any) => {
     }
   }, [user, toast]);
 
-  // Proponi nuova opinione tramite API Neon (max 1 per utente)
+  // Proponi nuova opinione tramite API (max 1 per utente)
   const handleProponi = async (testoInput: string) => {
     if (haGiaProposto) {
       toast({ title: "Limite raggiunto", description: "Hai già proposto un'opinione. Puoi proporne solo una.", variant: "destructive" });
@@ -121,7 +121,7 @@ export const useProponiOpinioneData = (user: any) => {
     }
   };
 
-  // Vota opinione tramite API Neon
+  // Vota opinione tramite API
   const handleVota = async (id: string) => {
     if (userVoti.includes(id)) {
       toast({ title: "Voto già registrato", description: "Hai già votato questa opinione." });
@@ -170,11 +170,11 @@ export const useProponiOpinioneData = (user: any) => {
     }
   };
 
-  // TODO: Migrate from Firebase to Neon API
+  // TODO: collegare endpoint API dedicato
   // Salva batch con dialog di conferma
   const handleSalvaVoti = async (selectedVoti: string[]) => {
     try {
-      // TODO: Implement Neon API call
+      // TODO: Implement API call
       // Calcola differenze
       // const daAggiungere = selectedVoti.filter(n => !userVoti.includes(n));
       // const daRimuovere = userVoti.filter(n => !selectedVoti.includes(n));

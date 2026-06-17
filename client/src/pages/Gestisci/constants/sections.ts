@@ -73,7 +73,7 @@ export const gestisciSections: GestisciSection[] = [
     id: "data-export",
     category: "istituzionale-dati",
     title: "Export Dati su Hard Disk",
-    description: "Esporta dati storici dal database Neon su hard disk esterno per alleggerire il database",
+    description: "Esporta dati storici dal database Supabase su hard disk esterno per alleggerire il database",
     icon: HardDrive,
     color: "text-blue-600 group-hover:text-blue-800",
     buttonColor: "bg-blue-500 hover:bg-blue-600",
@@ -94,13 +94,13 @@ export const gestisciSections: GestisciSection[] = [
     {
       id: "riduzione-compute",
       category: "monitoraggio-sicurezza",
-      title: "Riduzione compute",
-      description: "Checklist e azioni per ridurre picchi e consumo CU sul database Neon",
+      title: "Riduzione carico DB",
+      description: "Checklist e azioni per ridurre query inutili e rispettare i limiti del piano Supabase",
       icon: Cpu,
       color: "text-violet-600 group-hover:text-violet-800",
       buttonColor: "bg-violet-500 hover:bg-violet-600",
       route: "/gestisci/riduzione-compute",
-      buttonText: "Riduzione compute"
+      buttonText: "Riduzione carico DB"
     },
     {
       id: "metriche-endpoint",
