@@ -15,7 +15,6 @@ import {
   Gauge,
   HeartHandshake,
   Lightbulb,
-  Moon,
   Server,
   Sparkles,
   Timer,
@@ -65,7 +64,6 @@ export default function RiduzioneCompute() {
 
   return (
     <PageContainer className="bg-[radial-gradient(ellipse_at_top,_#eef2ff_0%,_#f8fafc_45%,_#ffffff_100%)] min-h-screen w-full">
-      {/* Barra superiore: tutta larghezza */}
       <div className="w-full border-b border-violet-200/60 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="w-full max-w-[min(100%,100rem)] mx-auto px-4 sm:px-6 lg:px-10 py-3 flex flex-wrap items-center gap-3">
           <Button
@@ -84,7 +82,6 @@ export default function RiduzioneCompute() {
         </div>
       </div>
 
-      {/* Hero a tutta larghezza */}
       <header className="w-full bg-gradient-to-br from-violet-600 via-indigo-600 to-slate-900 text-white">
         <div className="w-full max-w-[min(100%,100rem)] mx-auto px-4 sm:px-6 lg:px-10 py-12 sm:py-16 lg:py-20">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
@@ -94,20 +91,20 @@ export default function RiduzioneCompute() {
                 Meno sprechi, stesso servizio
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
-                Riduzione compute
+                Riduzione carico database
               </h1>
               <p className="text-lg sm:text-xl text-violet-100/95 leading-relaxed">
-                Qui trovi spiegato <strong className="text-white">cosa succede sul grafico</strong>, cosa significa
-                &quot;consumare compute&quot; e <strong className="text-white">cosa possiamo fare in pratica</strong>{" "}
-                per non bruciare il budget del database Neon — anche se parti da zero.
+                Qui trovi spiegato <strong className="text-white">cosa consuma risorse su Supabase</strong> e{" "}
+                <strong className="text-white">cosa possiamo fare in pratica</strong> per restare dentro i limiti del
+                piano free — anche se parti da zero.
               </p>
             </div>
             <div className="shrink-0 flex justify-start lg:justify-end">
               <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-5 sm:p-6 max-w-md">
                 <p className="text-sm text-violet-100 leading-relaxed">
-                  <strong className="text-white">In una frase:</strong> il database è come un ufficio. Se bussano alla
-                  porta ogni pochi secondi per chiedere &quot;quanti fogli ci sono?&quot;, l&apos;ufficio resta sveglio e
-                  lavora di più. Meno visite inutili, meno fatica (e meno consumo).
+                  <strong className="text-white">In una frase:</strong> il database è come un ufficio con un numero
+                  limitato di sportelli (connessioni). Se bussano ogni pochi secondi per chiedere &quot;quanti fogli ci
+                  sono?&quot;, gli sportelli restano occupati e il servizio rallenta o va in errore.
                 </p>
               </div>
             </div>
@@ -115,9 +112,7 @@ export default function RiduzioneCompute() {
         </div>
       </header>
 
-      {/* Corpo: larghezza piena con contenitore largo */}
       <div className="w-full max-w-[min(100%,100rem)] mx-auto px-4 sm:px-6 lg:px-10 py-10 sm:py-14 space-y-14 sm:space-y-16">
-        {/* Tre colonne: concetti base */}
         <section aria-labelledby="concetti-base">
           <h2 id="concetti-base" className="sr-only">
             Concetti base
@@ -127,12 +122,11 @@ export default function RiduzioneCompute() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2 text-violet-700 font-semibold">
                   <Database className="h-5 w-5" />
-                  Cos&apos;è Neon (semplice)
+                  Cos&apos;è Supabase (semplice)
                 </div>
                 <CardDescription className="text-slate-600 text-base leading-relaxed pt-2">
-                  Neon è il <strong>luogo in cloud dove vive il database</strong> PostgreSQL dell&apos;app: lì sono
-                  salvati utenti, voti, notifiche, ecc. Non è il sito web che vedi nel browser: è il &quot;magazzino
-                  dati&quot; dietro le quinte.
+                  Supabase è il <strong>luogo in cloud dove vive il database</strong> PostgreSQL dell&apos;app: utenti,
+                  voti, notifiche, ecc. Non è il sito web nel browser: è il &quot;magazzino dati&quot; dietro le quinte.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -140,12 +134,12 @@ export default function RiduzioneCompute() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2 text-violet-700 font-semibold">
                   <Timer className="h-5 w-5" />
-                  Cos&apos;è il compute (e le CU-h)
+                  Connessioni e pooler
                 </div>
                 <CardDescription className="text-slate-600 text-base leading-relaxed pt-2">
-                  <strong>Compute</strong> = il &quot;motore&quot; che fa girare quel database quando è acceso. Neon
-                  misura l&apos;uso in <strong>CU-h</strong>: pensa alle <strong>ore in cui il motore è acceso e lavora</strong>.
-                  Più resta acceso e più chiede lavoro, più consumi dal pacchetto mensile (come le ore di telefonia).
+                  L&apos;API su Render parla con Supabase tramite <strong>Supavisor</strong> (pooler, porta 6543). Ogni
+                  richiesta che tocca il DB usa una <strong>connessione</strong>. Sul piano free il numero di connessioni
+                  simultanee è limitato — vedi anche <Kbd>DATABASE_POOL_MAX</Kbd> su Render.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -153,13 +147,12 @@ export default function RiduzioneCompute() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2 text-violet-700 font-semibold">
                   <Gauge className="h-5 w-5" />
-                  Cosa mostra il grafico
+                  Cosa controllare
                 </div>
                 <CardDescription className="text-slate-600 text-base leading-relaxed pt-2">
-                  Il grafico non è una lista di &quot;pacchi da scaricare&quot;. Mostra soprattutto{" "}
-                  <strong>quanta memoria (RAM)</strong> usa Postgres mentre è attivo e{" "}
-                  <strong>quanta potenza (CU)</strong> gli viene assegnata. Quando il servizio è al minimo, la RAM può
-                  sembrare sempre &quot;un blocco&quot; simile: è normale.
+                  Su <strong>/admin/parametri</strong> vedi storage e connessioni attive. I limiti del piano (storage,
+                  connessioni) si configurano con <Kbd>SUPABASE_DB_STORAGE_BUDGET_BYTES</Kbd> e{" "}
+                  <Kbd>SUPABASE_ACTIVE_CONNECTIONS_LIMIT</Kbd>.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -168,52 +161,39 @@ export default function RiduzioneCompute() {
 
         <Alert className="border-amber-200 bg-amber-50/90 text-amber-950 max-w-4xl">
           <Lightbulb className="h-5 w-5 text-amber-700" />
-          <AlertTitle className="text-amber-900">Perché vedo salti da circa 250–300 MB?</AlertTitle>
+          <AlertTitle className="text-amber-900">Supabase non ha le &quot;CU-h&quot; di Neon</AlertTitle>
           <AlertDescription className="text-amber-900/90 text-base leading-relaxed">
             <p>
-              Sul piano con autoscale minimo (spesso <strong>0.25 CU</strong>), PostgreSQL ha comunque bisogno di una
-              &quot;scatola&quot; di memoria per funzionare — come un piccolo ufficio con una scrivania minima. Quindi
-              sul grafico la RAM non parte da zero: quando il compute è sveglio, vedi un livello di base che può
-              sembrare un <strong>blocco fisso</strong>. Non significa che arrivino 300 MB di dati a ondate dal nulla;
-              significa che il motore è acceso e usa la sua memoria di base.
+              Con Supabase non si misura il compute in CU-h come su Neon. I rischi principali sul piano free sono{" "}
+              <strong>troppe query</strong>, <strong>troppe connessioni</strong> e <strong>storage pieno</strong>.
+              Ridurre le domande inutili al database resta la leva più efficace.
             </p>
           </AlertDescription>
         </Alert>
 
-        {/* Due colonne: analogia + impatto */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12 items-start">
           <Card className="border-slate-200/80 shadow-sm overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-violet-50/50 border-b">
               <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                 <BookOpen className="h-5 w-5 text-violet-600" />
-                Analogia: la lampadina del database
+                Analogia: gli sportelli del database
               </CardTitle>
               <CardDescription className="text-slate-600 text-base leading-relaxed">
-                Ti aiuta a collegare &quot;grafico&quot; e &quot;fattura&quot;.
+                Ti aiuta a collegare &quot;monitoraggio&quot; e &quot;limiti del piano&quot;.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4 text-slate-700 text-base leading-relaxed">
               <p>
-                <strong>1.</strong> Se nessuno usa il database da un po&apos;, Neon può mettere il compute in stato{" "}
-                <strong>idle</strong> (come spegnere la lampadina per risparmiare — vedi{" "}
-                <a
-                  href="https://neon.com/docs/introduction/compute-lifecycle"
-                  className="text-violet-700 font-medium underline underline-offset-2 hover:text-violet-900"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  ciclo di vita del compute su Neon
-                </a>
-                ).
+                <strong>1.</strong> Ogni richiesta API che legge o scrive dati occupa uno &quot;sportello&quot;
+                (connessione) verso PostgreSQL.
               </p>
               <p>
-                <strong>2.</strong> Appena qualcuno (un utente, un monitoraggio, un cron) fa una richiesta, la lampadina si
-                riaccende: il compute torna <strong>active</strong>.
+                <strong>2.</strong> Se il backend fa controlli automatici ogni pochi secondi (&quot;quanti utenti
+                attivi?&quot;), gli sportelli restano occupati anche senza utenti reali sul sito.
               </p>
               <p>
-                <strong>3.</strong> Se qualcosa nel codice <strong>chiede dati al database ogni pochi secondi</strong>,
-                la lampadina resta accesa quasi sempre — anche se le domande sono piccole. È così che si consumano le
-                CU-h senza accorgersene.
+                <strong>3.</strong> Con Supavisor e <Kbd>DATABASE_POOL_MAX</Kbd> limiti quante connessioni apre
+                l&apos;app; se superi il limite del progetto Supabase, le richieste possono fallire con errori di pool.
               </p>
             </CardContent>
           </Card>
@@ -222,7 +202,7 @@ export default function RiduzioneCompute() {
             <CardHeader className="bg-gradient-to-r from-slate-50 to-indigo-50/50 border-b">
               <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                 <Zap className="h-5 w-5 text-indigo-600" />
-                Cosa ci fa spendere di più (in parole povere)
+                Cosa ci fa spendere / saturare di più
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-5">
@@ -232,8 +212,8 @@ export default function RiduzioneCompute() {
                     A
                   </span>
                   <span>
-                    <strong>Tempo acceso:</strong> più il compute resta attivo, più ore consumi. Non è &quot;un colpo da
-                    300 MB&quot; che costa: è soprattutto <strong>quanto dura</strong> l&apos;attività nel mese.
+                    <strong>Query ripetute:</strong> anche domande leggere, se in loop ogni 10–30 secondi, sommano
+                    migliaia di letture al giorno.
                   </span>
                 </li>
                 <li className="flex gap-3">
@@ -241,9 +221,8 @@ export default function RiduzioneCompute() {
                     B
                   </span>
                   <span>
-                    <strong>Carico:</strong> se molte persone o molti processi chiedono cose insieme, Neon può{" "}
-                    <strong>aumentare la potenza</strong> (autoscale verso l&apos;alto). Più potenza per più tempo = più
-                    consumo.
+                    <strong>Connessioni:</strong> pool troppo alto su Render + traffico concorrente → rischio di
+                    saturare il limite Supabase.
                   </span>
                 </li>
                 <li className="flex gap-3">
@@ -251,8 +230,7 @@ export default function RiduzioneCompute() {
                     C
                   </span>
                   <span>
-                    <strong>Domande ripetute:</strong> anche una domanda leggera, se ripetuta migliaia di volte al giorno,
-                    tiene vivo il database e somma lavoro inutile.
+                    <strong>Storage:</strong> tabelle storiche o log nel DB che crescono senza export/pulizia.
                   </span>
                 </li>
               </ul>
@@ -262,7 +240,6 @@ export default function RiduzioneCompute() {
 
         <Separator className="max-w-4xl" />
 
-        {/* Cosa possiamo fare noi — griglia larga */}
         <section aria-labelledby="azioni">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
             <div>
@@ -270,8 +247,7 @@ export default function RiduzioneCompute() {
                 Cosa possiamo fare noi (app e operazioni)
               </h2>
               <p className="mt-2 text-slate-600 text-base sm:text-lg max-w-3xl leading-relaxed">
-                Sotto trovi le leve che controlliamo noi. Ogni blocco inizia con il <strong>perché</strong>, poi il{" "}
-                <strong>cosa fare</strong> in concreto.
+                Leve che controlliamo nel codice e su Render.
               </p>
             </div>
             <Badge variant="outline" className="w-fit border-violet-300 text-violet-800 bg-violet-50">
@@ -287,33 +263,28 @@ export default function RiduzioneCompute() {
                     <Server className="h-6 w-6 text-violet-700" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg text-slate-900">Controlli automatici nel server (backend)</CardTitle>
+                    <CardTitle className="text-lg text-slate-900">Backend (Render)</CardTitle>
                     <CardDescription className="text-slate-600 mt-1 text-base leading-relaxed">
-                      Il server può chiedere al database &quot;quanti utenti attivi ci sono?&quot; in loop. È utile per
-                      le statistiche, ma se lo fa <strong>ogni pochi secondi</strong> è come bussare alla porta in
-                      continuazione: il database lavora sempre un po&apos;.
+                      Intervalli metriche, job e pool connessioni.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-slate-700 text-base leading-relaxed border-t bg-slate-50/50 pt-5">
                 <p>
-                  <strong>Cosa fare:</strong> usare un intervallo più ragionevole (ad esempio intorno a un minuto) tramite
-                  la variabile d&apos;ambiente <Kbd>PERFORMANCE_OPTIMIZER_METRICS_INTERVAL_MS</Kbd> (valore in
-                  millisecondi, es. <Kbd>60000</Kbd> = 60 secondi).
+                  <strong>Metriche:</strong> <Kbd>PERFORMANCE_OPTIMIZER_METRICS_INTERVAL_MS</Kbd> ≥{" "}
+                  <Kbd>60000</Kbd> (60 s) in produzione.
                 </p>
                 <p>
-                  <strong>Monitoraggio interno:</strong> se un servizio legge statistiche pesanti dal database ogni 30
-                  secondi, valuta se serve davvero in produzione o se si può rallentare quando non stai osservando il
-                  sistema.
+                  <strong>Pool:</strong> <Kbd>DATABASE_POOL_MAX</Kbd> 10–20 sul piano free; URI pooler con{" "}
+                  <Kbd>pgbouncer=true</Kbd>.
                 </p>
                 <p>
-                  <strong>Controlli di salute (health):</strong> strumenti esterni che chiamano &quot;sei vivo?&quot;
-                  troppo spesso tengono acceso il collegamento: allenta la frequenza se puoi.
+                  <strong>Job:</strong> disattiva sync non necessari; evita che partano tutti insieme dopo un deploy.
                 </p>
                 <p>
-                  <strong>Job programmati:</strong> attività pianificate (import, pulizie, sync) possono creare picchi se
-                  partono tutti insieme: lascia spenti i job non necessari.
+                  <strong>Log:</strong> con <Kbd>AXIOM_ENABLED=true</Kbd> i log non finiscono nel DB (meno storage e
+                  meno scritture).
                 </p>
               </CardContent>
             </Card>
@@ -322,36 +293,29 @@ export default function RiduzioneCompute() {
               <CardHeader>
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-indigo-100 p-2.5">
-                    <Moon className="h-6 w-6 text-indigo-700" />
+                    <Database className="h-6 w-6 text-indigo-700" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg text-slate-900">Pannello Neon (cloud)</CardTitle>
+                    <CardTitle className="text-lg text-slate-900">Dashboard Supabase</CardTitle>
                     <CardDescription className="text-slate-600 mt-1 text-base leading-relaxed">
-                      Qui non modifichiamo il codice, ma capiamo <strong>quanto margine</strong> ha il progetto: quanto può
-                      scalare la potenza, e quanto spesso il compute va in pausa.
+                      Usage, connessioni e storage dal pannello cloud.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-slate-700 text-base leading-relaxed border-t bg-slate-50/50 pt-5">
                 <p>
-                  <strong>Autoscale:</strong> se il massimo è alto, sotto traffico intenso Neon può allocare più potenza.
-                  Meno traffico e meno richieste contemporanee → meno salti verso l&apos;alto.
+                  In <strong>Project Settings → Database</strong> controlla connessioni attive e dimensione progetto.
                 </p>
                 <p>
-                  <strong>Idle / scale-to-zero:</strong> se c&apos;è sempre qualcosa che parla col database, il compute
-                  non riposa mai. Riducendo i ping inutili, aumenti le finestre in cui Neon può mettere il servizio in
-                  stato leggero.
-                </p>
-                <p>
-                  Documentazione utile:{" "}
+                  Documentazione:{" "}
                   <a
-                    href="https://neon.com/docs/introduction/compute-lifecycle"
+                    href="https://supabase.com/docs/guides/platform/org-usage"
                     className="text-indigo-700 font-medium underline underline-offset-2 hover:text-indigo-900"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Compute lifecycle (Neon)
+                    Usage e limiti Supabase
                   </a>
                   .
                 </p>
@@ -367,16 +331,14 @@ export default function RiduzioneCompute() {
                   <div>
                     <CardTitle className="text-lg text-slate-900">Schermate admin e browser</CardTitle>
                     <CardDescription className="text-slate-600 mt-1 text-base leading-relaxed">
-                      Ogni pagina che si aggiorna da sola può chiedere dati all&apos;API — e l&apos;API può chiedere dati
-                      al database. Più schede aperte, più richieste possono sovrapporsi.
+                      Pagine con refresh automatico → più chiamate API → più query DB.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-slate-700 text-base leading-relaxed border-t bg-slate-50/50 pt-5">
                 <p>
-                  <strong>Cosa fare:</strong> evitare refresh automatici troppo frequenti sulle pagine di monitoraggio;
-                  chiudere le schede che non servono quando hai finito di controllare.
+                  Chiudi le schede di monitoraggio quando non servono; evita intervalli di refresh troppo bassi.
                 </p>
               </CardContent>
             </Card>
@@ -388,93 +350,32 @@ export default function RiduzioneCompute() {
                     <HeartHandshake className="h-6 w-6 text-sky-800" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg text-slate-900">Quando vuoi capire un picco preciso</CardTitle>
+                    <CardTitle className="text-lg text-slate-900">Query più frequenti</CardTitle>
                     <CardDescription className="text-slate-600 mt-1 text-base leading-relaxed">
-                      A volte serve andare un livello più sotto: quali domande al database sono state ripetute tantissime
-                      volte? Neon può mostrare statistiche aggregate (strumento tecnico:{" "}
-                      <Kbd>pg_stat_statements</Kbd>).
+                      Nel SQL Editor Supabase, con <Kbd>pg_stat_statements</Kbd> attivo:
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 text-slate-700 text-base leading-relaxed border-t bg-slate-50/50 pt-5">
-                <ol className="list-decimal pl-5 space-y-2">
-                  <li>Annota l&apos;orario (meglio in UTC) di un picco sul grafico Neon.</li>
-                  <li>
-                    Nel SQL Editor di Neon, puoi eseguire una query che elenca le richieste più frequenti (se
-                    l&apos;estensione è attiva sul progetto).
-                  </li>
-                </ol>
-                <div>
-                  <p className="text-sm font-medium text-slate-800 mb-2">Esempio (per tecnici):</p>
-                  <pre className="p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm overflow-x-auto leading-relaxed">
-                    {`SELECT query, calls, total_exec_time, mean_exec_time
+                <pre className="p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm overflow-x-auto leading-relaxed">
+                  {`SELECT query, calls, total_exec_time, mean_exec_time
 FROM pg_stat_statements
 ORDER BY calls DESC
 LIMIT 20;`}
-                  </pre>
-                </div>
+                </pre>
                 <p className="text-slate-600 text-sm">
-                  Cerca righe che assomigliano a conteggi su tabella utenti, a <Kbd>pg_database_size</Kbd> o a letture di
-                  sessioni attive: sono spesso segnali di monitoraggio o statistiche molto ripetute.
+                  Cerca conteggi su <Kbd>users</Kbd>, <Kbd>pg_database_size</Kbd> o sessioni attive: spesso sono
+                  monitoraggio ripetuto.
                 </p>
               </CardContent>
             </Card>
           </div>
         </section>
 
-        {/* FAQ — native details (nessuna dipendenza extra) */}
-        <section aria-labelledby="faq-title" className="w-full">
-          <h2 id="faq-title" className="text-2xl font-bold text-slate-900 mb-6">
-            Domande frequenti (senza gergo)
-          </h2>
-          <div className="w-full border border-slate-200 rounded-xl bg-white shadow-sm divide-y divide-slate-100 overflow-hidden">
-            <details className="group open:bg-violet-50/40">
-              <summary className="cursor-pointer list-none px-4 sm:px-6 py-4 text-base font-medium text-slate-900 flex items-center justify-between gap-3 hover:bg-slate-50/80 [&::-webkit-details-marker]:hidden">
-                <span>I &quot;300 MB&quot; sul grafico sono un problema da risolvere a parte?</span>
-                <span className="text-violet-600 text-xl leading-none shrink-0 group-open:rotate-180 transition-transform">
-                  ▾
-                </span>
-              </summary>
-              <div className="px-4 sm:px-6 pb-5 text-slate-700 text-base leading-relaxed border-t border-transparent">
-                Spesso no: sono il livello di memoria che Postgres usa quando il compute è al minimo acceso. Il vero tema
-                è quanto tempo resta acceso e quante richieste riceve, non la forma esatta del rettangolino sul grafico.
-              </div>
-            </details>
-            <details className="group open:bg-violet-50/40">
-              <summary className="cursor-pointer list-none px-4 sm:px-6 py-4 text-base font-medium text-slate-900 flex items-center justify-between gap-3 hover:bg-slate-50/80 [&::-webkit-details-marker]:hidden">
-                <span>Posso abbassare i MB &quot;a comando&quot; come il volume della musica?</span>
-                <span className="text-violet-600 text-xl leading-none shrink-0 group-open:rotate-180 transition-transform">
-                  ▾
-                </span>
-              </summary>
-              <div className="px-4 sm:px-6 pb-5 text-slate-700 text-base leading-relaxed">
-                Non esiste un cursore &quot;meno megabyte per picco&quot;. Si riduce il lavoro inutile (meno query
-                ripetute, meno traffico), e il grafico segue. In alcuni casi si può anche rivedere il tetto di autoscale
-                nel pannello Neon, ma la prima leva è sempre il carico reale.
-              </div>
-            </details>
-            <details className="group open:bg-violet-50/40">
-              <summary className="cursor-pointer list-none px-4 sm:px-6 py-4 text-base font-medium text-slate-900 flex items-center justify-between gap-3 hover:bg-slate-50/80 [&::-webkit-details-marker]:hidden">
-                <span>Cos&apos;è una &quot;query&quot;?</span>
-                <span className="text-violet-600 text-xl leading-none shrink-0 group-open:rotate-180 transition-transform">
-                  ▾
-                </span>
-              </summary>
-              <div className="px-4 sm:px-6 pb-5 text-slate-700 text-base leading-relaxed">
-                È una domanda formale al database, in linguaggio SQL. Esempio: &quot;Quanti utenti si sono registrati
-                nell&apos;ultimo quarto d&apos;ora?&quot; — anche se la risposta è un solo numero, il database deve
-                leggerla e calcolarla. Ripeterla ogni 10 secondi significa far lavorare il motore migliaia di volte al
-                giorno.
-              </div>
-            </details>
-          </div>
-        </section>
-
-        {/* Checklist finale */}
         <section aria-labelledby="checklist">
           <h2 id="checklist" className="text-2xl font-bold text-slate-900 mb-4">
-            Checklist — cosa possiamo spuntare nel tempo
+            Checklist
           </h2>
           <Card className="border-violet-200 bg-gradient-to-br from-white to-violet-50/40 shadow-md">
             <CardContent className="pt-6 pb-6">
@@ -482,21 +383,23 @@ LIMIT 20;`}
                 <li className="flex gap-3 items-start rounded-lg bg-white/80 p-4 border border-violet-100">
                   <span className="text-violet-500 font-mono text-lg leading-none">□</span>
                   <span>
-                    In produzione, impostare <Kbd>PERFORMANCE_OPTIMIZER_METRICS_INTERVAL_MS</Kbd> a non meno di ~60 secondi
-                    (salvo esigenze speciali).
+                    <Kbd>DATABASE_URL</Kbd> = pooler Supabase (6543) + <Kbd>pgbouncer=true</Kbd>;{" "}
+                    <Kbd>DATABASE_POOL_MAX</Kbd> ≤ 20.
                   </span>
                 </li>
                 <li className="flex gap-3 items-start rounded-lg bg-white/80 p-4 border border-violet-100">
                   <span className="text-violet-500 font-mono text-lg leading-none">□</span>
-                  <span>Rivedere job e monitoraggi: frequenze giuste per l&apos;uso reale.</span>
+                  <span>
+                    <Kbd>SUPABASE_DB_STORAGE_BUDGET_BYTES</Kbd> e <Kbd>SUPABASE_ACTIVE_CONNECTIONS_LIMIT</Kbd> su Render.
+                  </span>
                 </li>
                 <li className="flex gap-3 items-start rounded-lg bg-white/80 p-4 border border-violet-100">
                   <span className="text-violet-500 font-mono text-lg leading-none">□</span>
-                  <span>Dopo un deploy importante, controllare le query più chiamate (se usi le statistiche su Neon).</span>
+                  <span>Metriche e job con intervalli ragionevoli; nessun loop ogni pochi secondi.</span>
                 </li>
                 <li className="flex gap-3 items-start rounded-lg bg-white/80 p-4 border border-violet-100">
                   <span className="text-violet-500 font-mono text-lg leading-none">□</span>
-                  <span>Dove serve: cache breve su endpoint admin pesanti; indici solo sulle query davvero lente.</span>
+                  <span>Cache Upstash attiva; export dati storici se lo storage cresce.</span>
                 </li>
               </ul>
             </CardContent>
@@ -504,7 +407,7 @@ LIMIT 20;`}
         </section>
 
         <footer className="text-center text-sm text-slate-500 pb-6">
-          Questa pagina è una guida interna: aggiornala quando cambiano intervalli, job o il piano Neon.
+          Guida interna: aggiornala quando cambiano intervalli, job o il piano Supabase.
         </footer>
       </div>
     </PageContainer>

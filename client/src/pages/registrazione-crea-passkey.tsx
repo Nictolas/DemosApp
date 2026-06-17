@@ -18,7 +18,7 @@ export default function RegistrazioneCreaPasskey() {
   );
   const [oauthCompleteError, setOauthCompleteError] = useState<string | null>(null);
 
-  // Utenti arrivati da Google/Apple: completano la registrazione chiamando complete-registration (crea utente su Neon solo ora).
+  // Utenti arrivati da Google/Apple: completano la registrazione chiamando complete-registration (crea utente nel DB solo ora).
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.localStorage.getItem(OAUTH_FLOW_KEY) !== "1") return;
@@ -224,7 +224,7 @@ export default function RegistrazioneCreaPasskey() {
         if (result.success) {
           setStatus("success");
           if (typeof window !== "undefined") {
-            // Dopo la creazione dell'account con passkey, sincronizza i dati di residenza e i consensi su Neon
+            // Dopo la creazione dell'account con passkey, sincronizza i dati di residenza e i consensi sul database
             await syncResidenzaToServer();
             await syncRegistrationConsentsToServer();
 

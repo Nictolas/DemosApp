@@ -18,7 +18,7 @@ class ViolationMonitoringJob {
       MEDIUM: 0
     };
     this.lastSummaryDate = new Date().toDateString();
-    /** Default 5 min / 24h; aumenta gli intervalli per meno carico su Neon */
+    /** Default 5 min / 24h; aumenta gli intervalli per meno carico sul database */
     this.monitoringIntervalMs = Math.max(
       60 * 1000,
       parseInt(process.env.VIOLATION_MONITORING_INTERVAL_MS || String(5 * 60 * 1000), 10)

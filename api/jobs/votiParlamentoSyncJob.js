@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const { Pool } = require('pg');
 const axios = require('axios');
 
-// Configurazione database Neon
+// Configurazione database PostgreSQL (Supabase)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false

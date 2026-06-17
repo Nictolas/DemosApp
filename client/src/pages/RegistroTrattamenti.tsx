@@ -80,7 +80,7 @@ export default function RegistroTrattamenti() {
                 </h3>
                 <ul className="text-sm text-gray-700 space-y-1 list-disc pl-6">
                   <li>Personale autorizzato di DemosApp</li>
-                  <li>Fornitori di servizi: Neon (database - UE), Render (hosting - USA con SCC), Resend (email - USA con SCC)</li>
+                  <li>Fornitori di servizi: Supabase (database - UE), Render (hosting - USA con SCC), Resend (email - USA con SCC)</li>
                   <li>Autorità competenti: solo se richiesto per legge</li>
                 </ul>
               </div>
@@ -160,7 +160,7 @@ export default function RegistroTrattamenti() {
                 </h3>
                 <ul className="text-sm text-gray-700 space-y-1 list-disc pl-6">
                   <li>Personale autorizzato di DemosApp</li>
-                  <li>Fornitori di servizi: Neon (database - UE)</li>
+                  <li>Fornitori di servizi: Supabase (database - UE)</li>
                   <li>Giornalisti e ricercatori: solo dati aggregati e anonimi (non identificabili)</li>
                   <li>Pubblicazione sui social media: solo statistiche aggregate e anonime</li>
                 </ul>
@@ -359,7 +359,7 @@ export default function RegistroTrattamenti() {
                   Garanzie: Standard Contractual Clauses (SCC) approvate dalla Commissione Europea
                 </li>
                 <li>
-                  <strong>Unione Europea:</strong> Neon (database - Francoforte, Germania) - 
+                  <strong>Unione Europea:</strong> Supabase (database PostgreSQL) - 
                   Conforme GDPR, nessuna garanzia aggiuntiva necessaria
                 </li>
               </ul>

@@ -58,7 +58,7 @@ class PerformanceOptimizer {
       });
     }, 30000);
 
-    // Metriche (COUNT su users / Axiom o Neon per errori): solo se abilitate.
+    // Metriche (COUNT su users / Axiom o PostgreSQL per errori): solo se abilitate.
     if (metricsEnabled) {
       const metricsMs = Math.max(
         15000,
@@ -274,8 +274,8 @@ class PerformanceOptimizer {
         return logs.filter(log => log.level === 'ERROR' || log.level === 'E').length;
       }
       
-      // Fallback a Neon solo se la tabella esiste ancora (dopo migrazione ad Axiom spesso no)
-      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsNeon');
+      // Fallback a PostgreSQL solo se la tabella esiste ancora (dopo migrazione ad Axiom spesso no)
+      const { isCentralizedLogsTableAvailable } = require('../utils/centralizedLogsDb');
       if (!(await isCentralizedLogsTableAvailable())) {
         return 0;
       }

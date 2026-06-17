@@ -224,7 +224,7 @@ router.get('/', async (req, res) => {
         SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
       ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
       ORDER BY o.text`;
-    // Supporto sia gradi_opinione che gradi_opinioni (Neon può avere l'uno o l'altro)
+    // Supporto sia gradi_opinione che gradi_opinioni (il DB può avere l'uno o l'altro)
     const whereGradi = (col) => `((o.${col}::text LIKE '%da approvare%'))`;
     const queryBaseDomande = (col) => `
       SELECT o.id, o.text as testo, o.approfondimento
@@ -245,7 +245,7 @@ router.get('/', async (req, res) => {
       result = await pool.query(fromProposte);
     } catch (err) {
       if (err.code === '42P01' && err.message && err.message.includes('opinioni_proposte')) {
-        // Fallback: leggi da opinioni_domande. Prova prima gradi_opinioni (Neon), poi gradi_opinione
+        // Fallback: leggi da opinioni_domande. Prova prima gradi_opinioni, poi gradi_opinione
         const cols = ['gradi_opinioni', 'gradi_opinione'];
         for (const col of cols) {
           try {

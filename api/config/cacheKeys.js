@@ -13,7 +13,7 @@ module.exports = {
     programmiList: `${PREFIX}:programma:list`,
     programmaUser: (userId) => `${PREFIX}:programma:user:${userId}`,
     ministeroIniziativeDb: `${PREFIX}:ministero:iniziative:db`,
-    /** Riga utente per verifyToken (riduce SELECT su Neon; TTL breve) */
+    /** Riga utente per verifyToken (riduce SELECT sul DB; TTL breve) */
     authUser: (userId) => `${PREFIX}:auth:user:${userId}`
   },
   /** secondi */
