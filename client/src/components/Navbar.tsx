@@ -1,6 +1,6 @@
 import { Settings, Megaphone, Star, Binoculars, PenLine, Bell, Calendar } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Navbar() {
   const [location] = useLocation();

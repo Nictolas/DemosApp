@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Calendar, Clock, MapPin, Trash2, Edit } from "lucide-react";

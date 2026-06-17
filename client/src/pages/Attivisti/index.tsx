@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { UserCheck, ArrowLeft, Users, Heart, MapPin, Calendar } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";

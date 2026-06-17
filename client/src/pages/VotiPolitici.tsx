@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, ArrowLeft, Vote, AlertCircle, Edit, ExternalLink, Search, X, Trash2 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface VotazioneCamera {

@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 
 export const useAccessControl = () => {
   const { user, isLoading: isAuthLoading } = useAuth();

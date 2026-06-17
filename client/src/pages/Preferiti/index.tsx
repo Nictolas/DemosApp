@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { Users, Award, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";

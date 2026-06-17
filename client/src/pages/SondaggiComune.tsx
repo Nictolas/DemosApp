@@ -1,6 +1,6 @@
 import React from "react";
 import { Redirect, useParams } from "wouter";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import SondaggiContent from "@/components/SondaggiContent";
 

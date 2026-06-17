@@ -74,7 +74,7 @@ DemosApp è una **piattaforma di democrazia partecipativa digitale** che consent
 | Backend API | Node.js + Express | Render.com |
 | Frontend Web | React + Vite + Tailwind CSS | Render.com (sito statico) |
 | Applicazione Mobile | Capacitor (Android) | Google Play Store |
-| Database | PostgreSQL | Neon Cloud |
+| Database | PostgreSQL | Supabase |
 | Notifiche Push | Firebase Cloud Messaging | Google Firebase |
 | Email Transazionali | Resend | Cloud |
 | Logging e Audit | Axiom | Cloud |
@@ -190,7 +190,7 @@ I temi su cui gli utenti esprimono opinioni sono **definiti e aggiornabili dalla
 │      │                  │                  │                  │     │
 │      ▼                  ▼                  ▼                  ▼     │
 │   [PostgreSQL]      [Firebase]        [Resend]          [Axiom]    │
-│   Neon Cloud        FCM Push          Email             Audit      │
+│   Supabase          FCM Push          Email             Audit      │
 │   (Dati personali)  (Token)           (Email)           (Log)      │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -391,7 +391,7 @@ Il trattamento effettuato da DemosApp soddisfa i seguenti criteri:
 | **Rischio Iniziale** | **9 (Alto)** → **6 (Medio)** *post-verifica* |
 
 **Stato attuale (da verificare in configurazione):**
-- **Neon (Database):** ✅ **EU** — URL in uso: `eu-central-1.aws.neon.tech` (Frankfurt). I dati personali e sensibili risiedono in UE.
+- **Supabase (Database):** ✅ **UE** — progetto PostgreSQL in regione UE (verificare in Supabase Dashboard → Project Settings → General). I dati personali e sensibili risiedono in UE se il progetto è stato creato in un data center europeo.
 - **Render (Backend):** Regione **Frankfurt (EU)** disponibile — verificare in Render Dashboard che il servizio sia deployato in EU.
 - **Axiom (Log):** ✅ **EU** — nel codice è impostato `AXIOM_REGION || 'eu'`.
 - **Firebase (FCM):** Trasferimento possibile verso USA — solo token FCM e payload messaggi (nessun dato sensibile dal DB). Con DPA/SCC Google è conforme.
@@ -487,10 +487,10 @@ Prob. 3    │       │       │ R7    │
 |-----------|-----------|
 | **Rischi Mitigati** | R7 |
 | **Descrizione** | Audit completo dei sub-responsabili e data residency |
-| **Azioni** | 1. ✅ **Neon:** già in EU (eu-central-1) — confermato da DATABASE_URL |
+| **Azioni** | 1. ✅ **Supabase:** progetto in regione UE — confermare in Dashboard e da `DATABASE_URL` |
 |           | 2. **Render (backend + frontend):** verificare in Dashboard che entrambi i servizi (demos-backend e demos-frontend) siano in regione **Frankfurt (EU)** |
 |           | 3. **Axiom:** confermare `AXIOM_REGION=eu` in produzione |
-|           | 4. **Firebase/Resend:** stipulare o accettare DPA con SCC (Neon e Google li offrono) |
+|           | 4. **Firebase/Resend:** stipulare o accettare DPA con SCC (Supabase e Google li offrono) |
 |           | 5. Documentare in Allegato F i DPA firmati e la data residency per ogni fornitore |
 | **Timeline** | 30 giorni |
 | **Responsabile** | [Da assegnare] |
@@ -553,7 +553,7 @@ Prob. 3    │       │       │ R7    │
 | R4 - Accesso interno | 8 | M4,M10,M17 | **4** | ✅ Sì |
 | R5 - Disponibilità | 4 | M16 | **2** | ✅ Sì |
 | R6 - De-anonimizzazione | 8 | M11,M14,M18 | **4** | ✅ Sì |
-| R7 - Trasferimento extra-UE | 9 → 6* | M13 + Neon EU + Render EU + Axiom EU | **3** | ✅ Sì | *Ridotto se DB e backend in EU; Firebase/Resend con SCC |
+| R7 - Trasferimento extra-UE | 9 → 6* | M13 + Supabase EU + Render EU + Axiom EU | **3** | ✅ Sì | *Ridotto se DB e backend in EU; Firebase/Resend con SCC |
 | R8 - Manipolazione voti | 8 | M3,M4,M9,M15 | **4** | ✅ Sì |
 | R9 - Violazione consenso | 4 | M6,M7 | **2** | ✅ Sì |
 | R10 - No cifratura riposo | 12 | M12 | **4** | ✅ Sì |
@@ -852,17 +852,17 @@ L’informativa privacy (Privacy Policy) include una sezione dedicata (**6.1 Acc
 
 | Fornitore | Servizio | Dati trattati | Data Residency | DPA/SCC | Note |
 |-----------|----------|---------------|----------------|---------|------|
-| **Neon** | Database PostgreSQL | Tutti i dati personali e sensibili | ✅ **UE (eu-central-1, Frankfurt)** | ✅ **Sì** | DPA incorporato nei ToS (accettato con l’uso del servizio). SCC 2021 (Modulo 2) in Annex B. Regione: eu-central-1. Riferimento: https://neon.tech/dpa |
+| **Supabase** | Database PostgreSQL | Tutti i dati personali e sensibili | ✅ **UE** (regione scelta al provisioning; verificare in Project Settings) | ✅ **Sì** | DPA: https://supabase.com/legal/dpa (SCC 2021). Privacy: https://supabase.com/privacy |
 | **Render** | Backend API + Frontend (statico) | Backend: elaborazione; Frontend: solo asset statici, nessun dato persistito | ✅ **demos-backend: Frankfurt (EU Central)**. Frontend: Static Site (nessun campo Region in Settings; solo asset, dati elaborati dal backend in UE) | ✅ **Sì** | DPA: https://render.com/dpa (incorporato nei ToS). EU-US DPF certificato (gen 2025). **Backend verificato in UE.** |
 | **Firebase** | Push (FCM) | Token FCM, payload notifiche | Extra-UE (Google); trasferimento coperto da SCC | ✅ **Sì** | Data Processing and Security Terms + SCC (Controller-to-Processor / Processor): https://firebase.google.com/terms/data-processing-terms e https://firebase.google.com/terms/firebase-sccs. Accettati con l’uso di Firebase. Solo token e payload messaggi (nessun dato sensibile dall’app). |
 | **Resend** | Email transazionali | Email destinatario, contenuto | Dominio demos.community: **Ireland (eu-west-1)** per invio; dati account/metadata in US (SCC) | ✅ **Sì** | DPA con SCC: https://resend.com/legal/dpa (incorporato nei ToS). **Invio email già da regione EU (Ireland)** per il dominio in uso. |
 | **Axiom** | Logging / audit | Log (IP troncato, eventi) | ✅ **EU** | ✅ **Sì** | DPA incorporato nei ToS (accettato con l’uso del servizio). SCC 2021 (Modulo Two) in Schedule 3 del DPA. Regione: `AXIOM_REGION=eu` (Render). Riferimento: https://axiom.co/docs/legal/data-processing |
 
 **Checklist per ridurre R7 (trasferimenti extra-UE):**
-1. ✅ **Neon:** regione EU (eu-central-1). DPA (con SCC) accettato con l’uso del servizio; riferimento: https://neon.tech/dpa
+1. ✅ **Supabase:** progetto in regione UE. DPA: https://supabase.com/legal/dpa
 2. ✅ **Render:** **demos-backend** in **Frankfurt (EU Central)**. **demos-frontend** = Static Site (nessuna opzione Region in Settings; solo asset statici; il trattamento dati avviene sul backend in UE). DPA/DPF: https://render.com/dpa
 3. ✅ **Axiom:** verificato in produzione — `AXIOM_REGION=eu` (Render, demos-backend). DPA (con SCC) accettato con l’uso del servizio; riferimento: https://axiom.co/docs/legal/data-processing
-4. ✅ **Resend:** DPA con SCC: https://resend.com/legal/dpa. ✅ **Firebase:** Data Processing and Security Terms + SCC: https://firebase.google.com/terms/data-processing-terms e https://firebase.google.com/terms/firebase-sccs (accettati con l’uso di Firebase). ✅ **Neon:** DPA con SCC: https://neon.tech/dpa. Conservare copia dei DPA per accountability.
+4. ✅ **Resend:** DPA con SCC: https://resend.com/legal/dpa. ✅ **Firebase:** Data Processing and Security Terms + SCC: https://firebase.google.com/terms/data-processing-terms e https://firebase.google.com/terms/firebase-sccs (accettati con l’uso di Firebase). ✅ **Supabase:** DPA: https://supabase.com/legal/dpa. Conservare copia dei DPA per accountability.
 5. ☐ Aggiornare l’informativa privacy con l’elenco dei sub-responsabili e le garanzie (SCC / DPF o equivalenti).
 
 ---

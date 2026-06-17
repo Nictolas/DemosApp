@@ -90,7 +90,7 @@ res.json({
 
 ### **4. 🔄 Auto-Refresh su Token Non Valido**
 
-#### **File: `client/src/hooks/use-auth-neon.tsx`**
+#### **File: `client/src/hooks/use-auth.tsx`**
 
 **Gestione 401:**
 ```typescript

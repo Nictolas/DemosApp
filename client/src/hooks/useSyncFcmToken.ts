@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { useFCM } from "@/hooks/useFCM";
 import { apiRequest } from "@/lib/queryClient";
 
