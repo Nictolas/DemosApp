@@ -25,23 +25,18 @@ type Platform = {
 type PlatformUsageApi = {
   generatedAt?: string;
   diagnostics?: {
-    neon?: string[];
+    supabase?: string[];
   };
   sources?: Record<string, string>;
   platforms?: {
-    neon?: {
+    supabase?: {
       updatedAt?: string;
       metrics?: {
         databaseSizeBytes?: number | null;
         activeConnections?: number | null;
-        projectCount?: number | null;
-        computeUnitSeconds30d?: number | null;
-        dataTransferBytes30d?: number | null;
       };
       limits?: {
-        computeUnitSecondsLimit30d?: number | null;
         databaseStorageBudgetBytes?: number | null;
-        dataTransferBudgetBytes?: number | null;
         activeConnectionsLimit?: number | null;
       };
     };
@@ -78,30 +73,26 @@ type PlatformUsageApi = {
 
 const BASE_PLATFORMS: Platform[] = [
   {
-    id: "neon",
-    name: "Neon (Database)",
+    id: "supabase",
+    name: "Supabase (Database)",
     description: "Database PostgreSQL principale dell'app (fonte: DPIA + configurazione progetto).",
     metrics: [
       {
-        id: "neon-compute-30d",
-        label: "Compute (30 giorni)",
-        used: null,
-        limit: null,
-        unit: "CU-hrs",
-        note:
-          "Consumo compute (ultimi 30 giorni) dall'API Neon. L'aggiornamento automatico in questa pagina è disponibile solo con un piano Neon che espone l'API consumption ufficiale (es. Launch, Scale, Agent, Enterprise). Sul piano Free i consumi restano visibili nella console Neon, non via API."
-      },
-      { id: "neon-storage", label: "Storage database", used: null, limit: null, unit: "GB", note: "Dimensione live del DB, confrontata col budget storage configurato." },
-      {
-        id: "neon-data-transfer-30d",
-        label: "Data transfer (30 giorni)",
+        id: "supabase-storage",
+        label: "Storage database",
         used: null,
         limit: null,
         unit: "GB",
-        note:
-          "Traffico dati (ultimi 30 giorni) dall'API Neon. Come per il compute, l'aggiornamento automatico richiede un piano con API consumption supportata; sul piano Free l'API può rispondere 403."
+        note: "Dimensione live del DB, confrontata col budget storage configurato."
       },
-      { id: "neon-active-connections", label: "Connessioni attive DB", used: null, limit: null, unit: "connessioni", note: "Dato live dal DB, confrontato col limite configurato." }
+      {
+        id: "supabase-active-connections",
+        label: "Connessioni attive DB",
+        used: null,
+        limit: null,
+        unit: "connessioni",
+        note: "Dato live dal DB, confrontato col limite configurato."
+      }
     ]
   },
   {
@@ -147,7 +138,7 @@ const BASE_PLATFORMS: Platform[] = [
   {
     id: "upstash",
     name: "Upstash Redis (cache)",
-    description: "Cache applicativa per ridurre letture ripetute su Neon (REST API, senza token in questa pagina).",
+    description: "Cache applicativa per ridurre letture ripetute sul database (REST API, senza token in questa pagina).",
     metrics: [
       {
         id: "upstash-cache",
@@ -195,11 +186,6 @@ function bytesToGb(value: number | null | undefined): number | null {
   return Number((value / 1024 / 1024 / 1024).toFixed(2));
 }
 
-function secondsToCuHours(value: number | null | undefined): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
-  return Number((value / 3600).toFixed(2));
-}
-
 function isConfiguredMetric(metricId: string): boolean {
   return ["axiom-config", "firebase-config", "resend-config", "play-config", "upstash-cache", "cloudflare-edge"].includes(metricId);
 }
@@ -214,20 +200,6 @@ function usageQuotaBarClass(percent: number): string {
   if (p >= THRESHOLD_USAGE_CRIT) return "bg-red-500";
   if (p >= THRESHOLD_USAGE_WARN) return "bg-amber-500";
   return "bg-emerald-500";
-}
-
-
-/** Metriche Neon che dipendono dall'API consumption (spesso non disponibile sul piano Free). */
-function isNeonConsumptionApiMetric(metricId: string): boolean {
-  return metricId === "neon-compute-30d" || metricId === "neon-data-transfer-30d";
-}
-
-function isNeonConsumption403(diagnostics?: string[]): boolean {
-  if (!diagnostics?.length) return false;
-  return diagnostics.some((line) => {
-    const s = String(line);
-    return s.includes("consumption history HTTP 403") || (s.includes("consumption_history") && s.includes("HTTP 403"));
-  });
 }
 
 function formatUpdatedAt(value?: string): string {
@@ -264,8 +236,8 @@ const Parametri: React.FC = () => {
   }, []);
 
   const platforms = useMemo(() => {
-    const neon = platformUsage?.platforms?.neon?.metrics;
-    const neonLimits = platformUsage?.platforms?.neon?.limits;
+    const supabase = platformUsage?.platforms?.supabase?.metrics;
+    const supabaseLimits = platformUsage?.platforms?.supabase?.limits;
     const render = platformUsage?.platforms?.render?.metrics;
     const axiom = platformUsage?.platforms?.axiom?.metrics;
     const firebase = platformUsage?.platforms?.firebase?.metrics;
@@ -277,46 +249,24 @@ const Parametri: React.FC = () => {
     const mapped = BASE_PLATFORMS.map((platform) => ({
       ...platform,
       metrics: platform.metrics.map((metric) => {
-        if (metric.id === "neon-compute-30d") {
-          const hasApi = typeof neon?.computeUnitSeconds30d === "number";
+        if (metric.id === "supabase-storage") {
           return {
             ...metric,
-            used: secondsToCuHours(neon?.computeUnitSeconds30d),
-            limit: secondsToCuHours(neonLimits?.computeUnitSecondsLimit30d),
-            note: hasApi
-              ? "Dato aggiornato automaticamente dall'API Neon (consumption), confrontato col limite impostato in app."
-              : metric.note
-          };
-        }
-        if (metric.id === "neon-storage") {
-          return {
-            ...metric,
-            used: bytesToGb(neon?.databaseSizeBytes),
-            limit: bytesToGb(neonLimits?.databaseStorageBudgetBytes),
-            note: neonLimits?.databaseStorageBudgetBytes
+            used: bytesToGb(supabase?.databaseSizeBytes),
+            limit: bytesToGb(supabaseLimits?.databaseStorageBudgetBytes),
+            note: supabaseLimits?.databaseStorageBudgetBytes
               ? metric.note
-              : "Limite/budget non configurato: imposta NEON_DB_STORAGE_BUDGET_BYTES per avere la %."
+              : "Limite/budget non configurato: imposta SUPABASE_DB_STORAGE_BUDGET_BYTES per avere la %."
           };
         }
-        if (metric.id === "neon-data-transfer-30d") {
-          const hasApi = typeof neon?.dataTransferBytes30d === "number";
+        if (metric.id === "supabase-active-connections") {
           return {
             ...metric,
-            used: bytesToGb(neon?.dataTransferBytes30d),
-            limit: bytesToGb(neonLimits?.dataTransferBudgetBytes),
-            note: hasApi
-              ? "Dato aggiornato automaticamente dall'API Neon (consumption), confrontato col limite impostato in app."
-              : metric.note
-          };
-        }
-        if (metric.id === "neon-active-connections") {
-          return {
-            ...metric,
-            used: neon?.activeConnections ?? null,
-            limit: neonLimits?.activeConnectionsLimit ?? null,
-            note: neonLimits?.activeConnectionsLimit
+            used: supabase?.activeConnections ?? null,
+            limit: supabaseLimits?.activeConnectionsLimit ?? null,
+            note: supabaseLimits?.activeConnectionsLimit
               ? metric.note
-              : "Limite non configurato: imposta NEON_ACTIVE_CONNECTIONS_LIMIT per avere la %."
+              : "Limite non configurato: imposta SUPABASE_ACTIVE_CONNECTIONS_LIMIT per avere la %."
           };
         }
         if (metric.id === "render-disk") {
@@ -392,11 +342,6 @@ const Parametri: React.FC = () => {
   }, [platformUsage]);
 
   const lastUpdated = platformUsage?.generatedAt ? new Date(platformUsage.generatedAt).toLocaleString() : "N/D";
-
-  const neonConsumptionBlocked = useMemo(
-    () => isNeonConsumption403(platformUsage?.diagnostics?.neon),
-    [platformUsage]
-  );
 
   const overview = useMemo(() => {
     const allMetrics = platforms.flatMap((p) => p.metrics);
@@ -526,10 +471,11 @@ const Parametri: React.FC = () => {
             </CardHeader>
             <CardContent className="text-sm text-slate-600 space-y-2 max-h-[200px] xl:max-h-none overflow-y-auto xl:overflow-visible pr-1">
               <p>
-                <span className="font-medium text-slate-800">Neon (consumption):</span> API{" "}
-                <code className="text-[11px] bg-slate-100 px-1 rounded">consumption_history</code> spesso 403 sul Free.{" "}
-                <a className="text-cyan-700 underline font-medium" href="https://neon.tech/docs/guides/consumption-metrics" target="_blank" rel="noreferrer">
-                  Guida Neon
+                <span className="font-medium text-slate-800">Supabase:</span> storage e connessioni sono live via query PostgreSQL. Per le barre % imposta{" "}
+                <code className="text-[11px] bg-slate-100 px-1 rounded">SUPABASE_DB_STORAGE_BUDGET_BYTES</code> e{" "}
+                <code className="text-[11px] bg-slate-100 px-1 rounded">SUPABASE_ACTIVE_CONNECTIONS_LIMIT</code> su Render.{" "}
+                <a className="text-cyan-700 underline font-medium" href="https://supabase.com/docs/guides/platform/org-usage" target="_blank" rel="noreferrer">
+                  Usage Supabase
                 </a>
                 .
               </p>
@@ -550,16 +496,8 @@ const Parametri: React.FC = () => {
                   Aggiornato: {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
                 </span>
               </CardDescription>
-              {platform.id === "neon" && neonConsumptionBlocked ? (
-                <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/90 p-3 text-xs text-violet-950">
-                  <p className="font-medium">Compute / Data transfer</p>
-                  <p className="mt-1.5 leading-relaxed text-violet-900/90">
-                    API consumo 403 su questo piano: valori live solo con piano che esponga l&apos;API consumption. Consulta la console Neon.
-                  </p>
-                </div>
-              ) : null}
-              {platform.id === "neon" && !neonConsumptionBlocked && platformUsage?.diagnostics?.neon?.length ? (
-                <p className="text-xs text-amber-700 mt-1 break-words">Neon: {platformUsage.diagnostics.neon.join(" | ")}</p>
+              {platform.id === "supabase" && platformUsage?.diagnostics?.supabase?.length ? (
+                <p className="text-xs text-amber-700 mt-1 break-words">Supabase: {platformUsage.diagnostics.supabase.join(" | ")}</p>
               ) : null}
             </CardHeader>
             <CardContent
@@ -570,12 +508,6 @@ const Parametri: React.FC = () => {
                 const progressEnabled = hasProgress(metric);
                 const liveValueNoLimit = hasLiveValueWithoutLimit(metric);
                 const isConfig = isConfiguredMetric(metric.id);
-                const premiumBlocked =
-                  platform.id === "neon" &&
-                  isNeonConsumptionApiMetric(metric.id) &&
-                  neonConsumptionBlocked &&
-                  !progressEnabled &&
-                  !liveValueNoLimit;
 
                 if (isConfig) {
                   const ok = metric.used === 1;
@@ -598,13 +530,10 @@ const Parametri: React.FC = () => {
                 }
 
                 const status = progressEnabled ? getStatus(percent) : { label: "Da configurare", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3.5 w-3.5" /> };
-                const finalStatus = premiumBlocked
-                  ? { label: "Solo piano premium", tone: "bg-violet-100 text-violet-800 border-violet-300", icon: <Info className="h-3.5 w-3.5" /> }
-                  : liveValueNoLimit
-                    ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
-                    : status;
-                const barTint =
-                  !progressEnabled ? undefined : premiumBlocked ? "bg-slate-400" : usageQuotaBarClass(percent);
+                const finalStatus = liveValueNoLimit
+                  ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
+                  : status;
+                const barTint = !progressEnabled ? undefined : usageQuotaBarClass(percent);
                 return (
                   <div key={metric.id} className="space-y-2 rounded-xl border border-slate-200/60 bg-white/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -622,11 +551,6 @@ const Parametri: React.FC = () => {
                         <>
                           <span>{metric.used} {metric.unit}</span>
                           <span>N/A quota</span>
-                        </>
-                      ) : premiumBlocked ? (
-                        <>
-                          <span>API non disponibile sul piano Free; aggiornamento automatico solo con piano Neon premium (consumption API)</span>
-                          <span>—</span>
                         </>
                       ) : (
                         <>

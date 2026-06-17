@@ -9,7 +9,7 @@ L’API Demos usa **PostgreSQL** tramite `pg` e la variabile `DATABASE_URL`. Non
 | Schema e dati | `pg_dump` da Neon → restore su Supabase |
 | App (Render, locale) | Sostituire `DATABASE_URL` |
 | Pool connessioni | Usare **Supavisor** (pooler) e limitare `DATABASE_POOL_MAX` |
-| Metriche admin Neon | Opzionale: rimuovere `NEON_API_KEY`, `NEON_PROJECT_ID`, ecc. |
+| Metriche admin `/admin/parametri` | Opzionale: `SUPABASE_DB_STORAGE_BUDGET_BYTES`, `SUPABASE_ACTIVE_CONNECTIONS_LIMIT` (rimuovere `NEON_*`) |
 
 ## 1. Crea il progetto Supabase
 
@@ -98,7 +98,15 @@ Rimuovi (opzionale) variabili solo Neon:
 - `NEON_ORG_ID`
 - `NEON_*_LIMIT_*`
 
-La dashboard admin continuerà a mostrare metriche DB via query PostgreSQL; la sezione consumo account Neon resterà vuota senza API key.
+Per le barre % su `/admin/parametri`, aggiungi su Render (valori del tuo piano Supabase):
+
+```env
+# Esempio piano Free: ~500 MB DB, limite connessioni dirette/pooler
+SUPABASE_DB_STORAGE_BUDGET_BYTES=536870912
+SUPABASE_ACTIVE_CONNECTIONS_LIMIT=60
+```
+
+La dashboard admin mostra storage e connessioni attive via query PostgreSQL su `DATABASE_URL`.
 
 ## 5. Verifica
 
@@ -128,6 +136,7 @@ Script Node/Python che usano `DATABASE_URL` (`sync_eci.py`, job, ecc.) funzionan
 - [ ] Health check OK
 - [ ] Login / una route che legge DB testata in staging o produzione
 - [ ] Variabili `NEON_*` rimosse dall’hosting (opzionale)
+- [ ] `SUPABASE_DB_STORAGE_BUDGET_BYTES` e `SUPABASE_ACTIVE_CONNECTIONS_LIMIT` su Render per le barre % su `/admin/parametri` (opzionale)
 
 ## Rollback
 
