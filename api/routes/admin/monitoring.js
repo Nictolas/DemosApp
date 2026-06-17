@@ -71,41 +71,6 @@ function collectNumericValuesByKeys(input, keys) {
   return out;
 }
 
-function collectNeonMetricValues(payload, metricName, out = []) {
-  if (!payload || typeof payload !== 'object') return out;
-  if (Array.isArray(payload)) {
-    payload.forEach((item) => collectNeonMetricValues(item, metricName, out));
-    return out;
-  }
-
-  // Neon consumption API schema uses: { metric_name: string, value: number }
-  if (payload.metric_name === metricName) {
-    const n = Number(payload.value);
-    if (Number.isFinite(n)) out.push(n);
-  }
-
-  for (const value of Object.values(payload)) {
-    if (value && typeof value === 'object') collectNeonMetricValues(value, metricName, out);
-  }
-  return out;
-}
-
-function toRfc3339(value) {
-  try {
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toISOString();
-  } catch (_e) {
-    return null;
-  }
-}
-
-function subtractDays(date, days) {
-  const d = new Date(date.getTime());
-  d.setUTCDate(d.getUTCDate() - days);
-  return d;
-}
-
 // GET /api/admin/monitoring/health - Stato salute sistema
 // NOTE: niente auditMiddleware sulle GET di monitoring per evitare punti di blocco in catena.
 router.get('/health', async (req, res) => {
@@ -599,21 +564,15 @@ router.get('/platform-usage', async (req, res) => {
   try {
     const generatedAt = new Date().toISOString();
     const diagnostics = {
-      neon: []
+      supabase: []
     };
 
-    // Limiti/budget Neon da env (per progress % reali)
-    const neonComputeUnitSecondsLimit30d = process.env.NEON_COMPUTE_UNIT_SECONDS_LIMIT_30D
-      ? safeNumber(process.env.NEON_COMPUTE_UNIT_SECONDS_LIMIT_30D)
+    // Limiti/budget Supabase da env (per progress % reali sulla pagina admin/parametri)
+    const supabaseDbStorageBudgetBytes = process.env.SUPABASE_DB_STORAGE_BUDGET_BYTES
+      ? safeNumber(process.env.SUPABASE_DB_STORAGE_BUDGET_BYTES)
       : null;
-    const neonDbStorageBudgetBytes = process.env.NEON_DB_STORAGE_BUDGET_BYTES
-      ? safeNumber(process.env.NEON_DB_STORAGE_BUDGET_BYTES)
-      : null;
-    const neonDataTransferBudgetBytes = process.env.NEON_DATA_TRANSFER_BUDGET_BYTES
-      ? safeNumber(process.env.NEON_DATA_TRANSFER_BUDGET_BYTES)
-      : null;
-    const neonActiveConnectionsLimit = process.env.NEON_ACTIVE_CONNECTIONS_LIMIT
-      ? safeNumber(process.env.NEON_ACTIVE_CONNECTIONS_LIMIT)
+    const supabaseActiveConnectionsLimit = process.env.SUPABASE_ACTIVE_CONNECTIONS_LIMIT
+      ? safeNumber(process.env.SUPABASE_ACTIVE_CONNECTIONS_LIMIT)
       : null;
 
     // Render: usa check disco reale (df) con fallback stimato
@@ -623,14 +582,11 @@ router.get('/platform-usage', async (req, res) => {
       'platform usage disk check'
     );
 
-    // Neon: dimensione DB + connessioni attive (live)
-    let neonDbSizeBytes = null;
-    let neonActiveConnections = null;
-    let neonProjectCount = null;
-    let neonComputeUnitSeconds30d = null;
-    let neonDataTransferBytes30d = null;
+    // Supabase: dimensione DB + connessioni attive (live via PostgreSQL)
+    let supabaseDbSizeBytes = null;
+    let supabaseActiveConnections = null;
     try {
-      const neonResult = await withTimeout(
+      const dbResult = await withTimeout(
         pool.query(`
           SELECT
             pg_database_size(current_database())::bigint as database_size_bytes,
@@ -641,120 +597,12 @@ router.get('/platform-usage', async (req, res) => {
             )::int as active_connections
         `),
         MONITORING_TIMEOUT_MS,
-        'platform usage neon metrics'
+        'platform usage supabase metrics'
       );
-      neonDbSizeBytes = safeNumber(neonResult?.rows?.[0]?.database_size_bytes);
-      neonActiveConnections = safeNumber(neonResult?.rows?.[0]?.active_connections);
-    } catch (_error) {
-      // Non bloccare la risposta se una metrica Neon non è disponibile
-    }
-
-    // Neon account-level API: project count + consumo compute (se disponibile per piano/API key)
-    if (process.env.NEON_API_KEY) {
-      const neonHeaders = {
-        Authorization: `Bearer ${process.env.NEON_API_KEY}`,
-        Accept: 'application/json'
-      };
-      const configuredProjectId = process.env.NEON_PROJECT_ID || null;
-      const configuredOrgId = process.env.NEON_ORG_ID || null;
-      if (configuredProjectId) {
-        // Con chiave project-scoped il list potrebbe non funzionare: almeno sappiamo che 1 progetto è configurato.
-        neonProjectCount = 1;
-      }
-
-      // Numero progetti accessibili
-      try {
-        const projectsUrl = configuredOrgId
-          ? `https://console.neon.tech/api/v2/projects?org_id=${encodeURIComponent(configuredOrgId)}`
-          : 'https://console.neon.tech/api/v2/projects';
-        const projectsResp = await withTimeout(
-          fetch(projectsUrl, { headers: neonHeaders }),
-          MONITORING_TIMEOUT_MS,
-          'neon list projects'
-        );
-        if (projectsResp.ok) {
-          const projectsJson = await projectsResp.json();
-          const projectsArray = Array.isArray(projectsJson?.projects) ? projectsJson.projects : [];
-          neonProjectCount = projectsArray.length;
-        } else {
-          diagnostics.neon.push(`list projects HTTP ${projectsResp.status}`);
-        }
-      } catch (_error) {
-        diagnostics.neon.push('list projects non disponibile con questa chiave/scope');
-      }
-
-      // Consumo compute: somma compute_unit_seconds dagli ultimi risultati disponibili
-      try {
-        if (!configuredOrgId) {
-          diagnostics.neon.push('NEON_ORG_ID non configurata: richiesta per consumption history (evita HTTP 400)');
-          throw new Error('missing NEON_ORG_ID for consumption history');
-        }
-
-        const now = new Date();
-        const from = toRfc3339(subtractDays(now, 30));
-        const to = toRfc3339(now);
-        const granularity = 'daily';
-
-        const base = 'https://console.neon.tech/api/v2/consumption_history/v2/projects';
-        const commonParams = new URLSearchParams({
-          org_id: configuredOrgId,
-          from,
-          to,
-          granularity,
-          // Chiediamo solo le metriche che ci interessano
-          metrics: [
-            'compute_unit_seconds',
-            'public_network_transfer_bytes',
-            'private_network_transfer_bytes'
-          ].join(',')
-        });
-
-        // NOTE: secondo docs Neon, il filtro e' project_ids (array / csv), non project_id.
-        const candidateUrls = [
-          configuredProjectId ? `${base}?${new URLSearchParams({ ...Object.fromEntries(commonParams), project_ids: configuredProjectId }).toString()}` : null,
-          `${base}?${commonParams.toString()}`
-        ].filter(Boolean);
-
-        for (const url of candidateUrls) {
-          const consumptionResp = await withTimeout(
-            fetch(url, { headers: neonHeaders }),
-            MONITORING_TIMEOUT_MS,
-            'neon consumption history'
-          );
-          if (!consumptionResp.ok) {
-            diagnostics.neon.push(`consumption history HTTP ${consumptionResp.status} (${url})`);
-            continue;
-          }
-          const consumptionJson = await consumptionResp.json();
-          const cuSeconds = collectNeonMetricValues(consumptionJson, 'compute_unit_seconds');
-          const publicTransfer = collectNeonMetricValues(consumptionJson, 'public_network_transfer_bytes');
-          const privateTransfer = collectNeonMetricValues(consumptionJson, 'private_network_transfer_bytes');
-          const dataTransferBytes = [...publicTransfer, ...privateTransfer];
-
-          if (cuSeconds.length > 0 && neonComputeUnitSeconds30d === null) {
-            neonComputeUnitSeconds30d = cuSeconds.reduce((sum, v) => sum + v, 0);
-          }
-          if (dataTransferBytes.length > 0 && neonDataTransferBytes30d === null) {
-            neonDataTransferBytes30d = dataTransferBytes.reduce((sum, v) => sum + v, 0);
-          }
-
-          if (cuSeconds.length === 0 && neonComputeUnitSeconds30d === null) {
-            diagnostics.neon.push('consumption history: campo compute_unit_seconds non trovato nella risposta');
-          }
-          if (dataTransferBytes.length === 0 && neonDataTransferBytes30d === null) {
-            diagnostics.neon.push('consumption history: campi public/private_network_transfer_bytes non trovati nella risposta');
-          }
-
-          // Se abbiamo già trovato almeno un valore, non continuiamo a ciclare candidateUrls.
-          if (neonComputeUnitSeconds30d !== null || neonDataTransferBytes30d !== null) break;
-        }
-      } catch (_error) {
-        if (!diagnostics.neon.some((m) => String(m).includes('consumption history'))) {
-          diagnostics.neon.push('consumption history non disponibile con questa chiave/scope');
-        }
-      }
-    } else {
-      diagnostics.neon.push('NEON_API_KEY non configurata');
+      supabaseDbSizeBytes = safeNumber(dbResult?.rows?.[0]?.database_size_bytes);
+      supabaseActiveConnections = safeNumber(dbResult?.rows?.[0]?.active_connections);
+    } catch (error) {
+      diagnostics.supabase.push(`metriche DB non disponibili: ${error.message}`);
     }
 
     // Axiom: stato integrazione live da env + dati minimi diagnostici
@@ -803,7 +651,7 @@ router.get('/platform-usage', async (req, res) => {
       data: {
         generatedAt,
         sources: {
-          neon: 'PostgreSQL runtime queries',
+          supabase: 'PostgreSQL runtime queries (DATABASE_URL)',
           render: 'Server filesystem check (df)',
           axiom: 'Runtime environment configuration',
           firebase: 'Runtime environment configuration',
@@ -814,20 +662,15 @@ router.get('/platform-usage', async (req, res) => {
           cloudflare: 'HTTP header CF-Ray sulla richiesta a platform-usage'
         },
         platforms: {
-          neon: {
+          supabase: {
             updatedAt: generatedAt,
             metrics: {
-              databaseSizeBytes: neonDbSizeBytes,
-              activeConnections: neonActiveConnections,
-              projectCount: neonProjectCount,
-              computeUnitSeconds30d: neonComputeUnitSeconds30d,
-              dataTransferBytes30d: neonDataTransferBytes30d
+              databaseSizeBytes: supabaseDbSizeBytes,
+              activeConnections: supabaseActiveConnections
             },
             limits: {
-              computeUnitSecondsLimit30d: neonComputeUnitSecondsLimit30d,
-              databaseStorageBudgetBytes: neonDbStorageBudgetBytes,
-              dataTransferBudgetBytes: neonDataTransferBudgetBytes,
-              activeConnectionsLimit: neonActiveConnectionsLimit
+              databaseStorageBudgetBytes: supabaseDbStorageBudgetBytes,
+              activeConnectionsLimit: supabaseActiveConnectionsLimit
             }
           },
           render: {
