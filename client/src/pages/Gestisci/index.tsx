@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { SectionsGrid } from "./components/SectionsGrid";
 import { PageContainer } from "@/components/PageContainer";

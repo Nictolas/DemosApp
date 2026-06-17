@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Loader2, MessageSquare } from "lucide-react";

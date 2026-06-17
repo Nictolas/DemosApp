@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { useNoScroll } from "@/hooks/useNoScroll";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

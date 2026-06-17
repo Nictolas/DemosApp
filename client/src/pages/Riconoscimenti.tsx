@@ -4,7 +4,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-config";
 
 interface RiconoscimentoRow {

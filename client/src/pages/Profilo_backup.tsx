@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth-neon';
+import { useAuth } from '@/hooks/use-auth';
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
 import { UserInfo } from "@/types/user";
-// Firebase rimosso - migrazione completata a Neon + Auth.js
+// Firebase rimosso - migrazione completata a PostgreSQL (Supabase) + Auth.js
 // import { db, auth } from "@/lib/firebase-stub";
 // import { doc, getDoc } from "firebase/firestore";
 import { EditProfileForm } from "@/components/EditProfileForm";

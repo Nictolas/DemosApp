@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from './use-auth-neon';
+import { useAuth } from './use-auth';
 
 export const useMenuReady = () => {
   const { user, isLoading } = useAuth();

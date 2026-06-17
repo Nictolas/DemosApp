@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Redirect, useLocation, useParams } from "wouter";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";

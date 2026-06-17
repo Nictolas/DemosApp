@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Link, Redirect } from "wouter";
-import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Users } from "lucide-react";

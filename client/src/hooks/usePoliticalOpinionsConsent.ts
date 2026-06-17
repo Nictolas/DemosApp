@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { useAuth } from '@/hooks/use-auth-neon';
+import { useAuth } from '@/hooks/use-auth';
 
 interface ConsentData {
   granted: boolean;

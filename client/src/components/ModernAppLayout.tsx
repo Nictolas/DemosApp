@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth-neon';
+import { useAuth } from '@/hooks/use-auth';
 import Navbar from './Navbar';
 
 interface ModernAppLayoutProps {
