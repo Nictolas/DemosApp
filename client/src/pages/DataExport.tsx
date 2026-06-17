@@ -619,7 +619,7 @@ export default function DataExport() {
     // Conferma multipla per sicurezza
     const confirm1 = confirm(
       '⚠️ ATTENZIONE: Questa operazione è IRREVERSIBILE!\n\n' +
-      'Stai per eliminare i dati migrati da Neon.\n\n' +
+      'Stai per eliminare i dati migrati da Supabase.\n\n' +
       'Hai verificato che i dati sono presenti su Axiom?\n\n' +
       'Clicca OK per continuare o Annulla per interrompere.'
     );
@@ -649,7 +649,7 @@ export default function DataExport() {
       if (response.success) {
         toast({
           title: 'Dati eliminati',
-          description: 'I dati migrati sono stati eliminati da Neon con successo.',
+          description: 'I dati migrati sono stati eliminati da Supabase con successo.',
           variant: 'default'
         });
         // Ricarica i dati
@@ -698,7 +698,7 @@ export default function DataExport() {
       return;
     }
 
-    if (!confirm('Vuoi avviare la migrazione dei dati da Neon a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
+    if (!confirm('Vuoi avviare la migrazione dei dati da Supabase a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
       return;
     }
 
@@ -769,7 +769,7 @@ export default function DataExport() {
       return;
     }
 
-    if (!confirm('Vuoi avviare la migrazione di centralized_logs da Neon a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
+    if (!confirm('Vuoi avviare la migrazione di centralized_logs da Supabase a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
       return;
     }
 
@@ -846,14 +846,14 @@ export default function DataExport() {
     const neonTotal = databaseAnalysis?.totalDatabaseSizeMB || 0;
     const axiomTotalEvents = axiomAnalysis.totalEvents;
     const axiomTotalMB = axiomAnalysis.totalDataSizeMB || 0;
-    // Stima record su Neon basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
-    const estimatedNeonRecords = Math.round(neonTotal * 1000);
+    // Stima record su Supabase basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
+    const estimatedSupabaseRecords = Math.round(neonTotal * 1000);
 
     return {
       neonTotal,
       axiomTotal: axiomTotalEvents,
       axiomTotalMB,
-      estimatedNeonRecords,
+      estimatedSupabaseRecords,
       migrationProgress: axiomTotalMB > 0 && neonTotal > 0 
         ? Math.min(100, Math.round((axiomTotalMB / neonTotal) * 100))
         : 0
@@ -869,7 +869,7 @@ export default function DataExport() {
         <div>
           <h1 className="text-3xl font-bold">Export Dati su Hard Disk</h1>
           <p className="text-gray-600 mt-2">
-            Esporta i dati storici dal database Neon su hard disk esterno per alleggerire il database
+            Esporta i dati storici dal database Supabase su hard disk esterno per alleggerire il database
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -1122,10 +1122,10 @@ export default function DataExport() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Activity className="h-5 w-5 text-blue-600" />
-                      Confronto Neon vs Axiom
+                      Confronto Supabase vs Axiom
                     </CardTitle>
                     <CardDescription>
-                      Panoramica della distribuzione dei dati tra Neon e Axiom
+                      Panoramica della distribuzione dei dati tra Supabase e Axiom
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1156,7 +1156,7 @@ export default function DataExport() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-800">Neon Database</span>
+                      <span className="text-sm font-medium text-blue-800">Supabase Database</span>
                       <Database className="h-5 w-5 text-blue-600" />
                     </div>
                     <div className="text-2xl font-bold text-blue-900">
@@ -1182,7 +1182,7 @@ export default function DataExport() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[
-                      { name: 'Neon (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
+                      { name: 'Supabase (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
                       { name: 'Axiom (MB)', value: aggregateStats.axiomTotalMB || 0, color: '#10b981' }
                     ]}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -1191,7 +1191,7 @@ export default function DataExport() {
                       <Tooltip formatter={(value: number) => `${value.toFixed(2)} MB`} />
                       <Bar dataKey="value" fill="#8884d8">
                         {[
-                          { name: 'Neon (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
+                          { name: 'Supabase (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
                           { name: 'Axiom (MB)', value: aggregateStats.axiomTotalMB || 0, color: '#10b981' }
                         ].map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1204,16 +1204,16 @@ export default function DataExport() {
             </Card>
           )}
 
-          {/* Grid con Dati su Neon e Dati su Axiom */}
+          {/* Grid con Dati su Supabase e Dati su Axiom */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Analisi Database - Dati su Neon */}
+            {/* Analisi Database - Dati su Supabase */}
             <Card className="bg-white shadow-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <PieChartIcon className="h-5 w-5" />
-                    Dati su Neon
+                    Dati su Supabase
                   </CardTitle>
                   <CardDescription>
                     Distribuzione del peso del database per categorie
@@ -1633,7 +1633,7 @@ export default function DataExport() {
                       size="sm" 
                       onClick={deleteMigratedData}
                       disabled={migrating || loadingAxiom}
-                      title="Elimina i dati migrati da Neon (IRREVERSIBILE)"
+                      title="Elimina i dati migrati da Supabase (IRREVERSIBILE)"
                     >
                       {migrating ? (
                         <>
@@ -1643,7 +1643,7 @@ export default function DataExport() {
                       ) : (
                         <>
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Elimina da Neon
+                          Elimina da Supabase
                         </>
                       )}
                     </Button>
@@ -1922,7 +1922,7 @@ export default function DataExport() {
                   <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="mb-2">
                     {axiomAnalysis?.totalEvents === 0 
-                      ? 'Nessun dato presente su Axiom. Avvia la migrazione per trasferire i dati da Neon.'
+                      ? 'Nessun dato presente su Axiom. Avvia la migrazione per trasferire i dati da Supabase.'
                       : 'Impossibile caricare i dati Axiom'}
                   </p>
                   <p className="text-sm mt-2 mb-4">

@@ -5,7 +5,7 @@ const router = express.Router();
 var SUCCESSI_MIN_FIRME = 1000000;
 
 /**
- * Legge dalla tabella ECI su Neon. I dati sono popolati dallo script scripts/sync_eci.py
+ * Legge dalla tabella ECI su PostgreSQL. I dati sono popolati dallo script scripts/sync_eci.py
  * (GitHub Actions ogni 2 ore) che chiama l'API EU con User-Agent valido.
  */
 async function fetchFromEciTable() {

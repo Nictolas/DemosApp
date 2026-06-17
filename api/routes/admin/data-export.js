@@ -751,7 +751,7 @@ router.get('/centralized-logs', requireAdmin, async (req, res) => {
       meta_data: log.meta_data || {}
     }));
     
-    // Ottieni il glossario dei livelli (sempre da Neon)
+    // Ottieni il glossario dei livelli (dal database)
     const glossaryQuery = `
       SELECT 
         code,
@@ -834,7 +834,7 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
     
     // Categorizza le tabelle
     // NOTA: Le tabelle da esportare (centralized_logs, audit_logs, performance_metrics, health_checks)
-    // sono state migrate su Axiom, quindi non servono più su Neon per l'export
+    // sono state migrate su Axiom, quindi non servono più nel DB per l'export
     // Le tabelle vengono ora categorizzate solo per visualizzazione, non per export
     
     const analysis = {

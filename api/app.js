@@ -517,7 +517,7 @@ const performanceOptimizer = require('./services/performanceOptimizer');
 performanceOptimizer.start();
 
 /**
- * Job in background e impatto su Neon (compute autosuspend):
+ * Job in background e impatto su Supabase (connessioni, query ripetute):
  * - Data retention / violation: intervalli ms via DATA_RETENTION_*_INTERVAL_MS, VIOLATION_*_INTERVAL_MS
  * - Backup: ore da BackupService (config)
  * - Ministero: MINISTERO_SYNC_INTERVAL_MS, MINISTERO_SYNC_IN_CORSO_INTERVAL_MS (vedi ministeroSyncJob.js)

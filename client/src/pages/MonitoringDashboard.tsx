@@ -384,7 +384,7 @@ const MonitoringDashboard: React.FC = () => {
   const getCheckDisplayName = (rawName: string) => {
     const name = rawName.toLowerCase();
     if (name === 'disk') return 'Spazio disco (server app)';
-    if (name === 'database') return 'Database (Neon)';
+    if (name === 'database') return 'Database (Supabase)';
     if (name === 'memory') return 'Memoria server app';
     if (name === 'network') return 'Rete server app';
     if (name === 'services') return 'Servizi interni';
@@ -394,8 +394,8 @@ const MonitoringDashboard: React.FC = () => {
 
   const getCheckHelpText = (rawName: string) => {
     const name = rawName.toLowerCase();
-    if (name === 'disk') return 'Indica il disco della macchina server (Render), non lo storage del database Neon.';
-    if (name === 'database') return 'Indica la raggiungibilità/tempo risposta del database Neon.';
+    if (name === 'disk') return 'Indica il disco della macchina server (Render), non lo storage del database Supabase.';
+    if (name === 'database') return 'Indica la raggiungibilità/tempo risposta del database Supabase.';
     if (name === 'memory') return 'Memoria RAM usata dal processo backend.';
     return null;
   };
@@ -403,7 +403,7 @@ const MonitoringDashboard: React.FC = () => {
   const getCheckSourceBadge = (rawName: string) => {
     const name = rawName.toLowerCase();
     if (name === 'database') {
-      return <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Neon</Badge>;
+      return <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Supabase</Badge>;
     }
     return <Badge variant="outline" className="text-violet-700 border-violet-300">Fonte: Render</Badge>;
   };
@@ -441,7 +441,7 @@ const MonitoringDashboard: React.FC = () => {
     health: { title: 'Salute Sistema', subtitle: 'Controlli su servizi, rete, memoria e database' },
     performance: { title: 'Performance', subtitle: 'Dettaglio risorse applicative e trend runtime' },
     disk: { title: 'Spazio Disco', subtitle: 'Analisi filesystem server applicativo Render' },
-    database: { title: 'Database', subtitle: 'Connessioni, dimensioni e query lente (Neon)' },
+    database: { title: 'Database', subtitle: 'Connessioni, dimensioni e query lente (Supabase)' },
     memory: { title: 'Memoria', subtitle: 'Heap, RSS e consumo memoria del backend' },
     security: { title: 'Sicurezza', subtitle: 'Eventi, stato controlli e indicatori sicurezza' },
     services: { title: 'Servizi', subtitle: 'Stato dei servizi interni e disponibilita componenti' }
@@ -473,7 +473,7 @@ const MonitoringDashboard: React.FC = () => {
           Vista unificata per monitorare performance, salute piattaforma e segnali di rischio in modo rapido e leggibile.
         </p>
         <p className="text-xs text-slate-500 mt-2">
-          Nota: "Spazio disco" si riferisce al server applicativo (Render), non al database Neon.
+          Nota: "Spazio disco" si riferisce al server applicativo (Render), non al database Supabase.
         </p>
         <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
           <Clock className="h-3.5 w-3.5" />
@@ -679,12 +679,12 @@ const MonitoringDashboard: React.FC = () => {
             <CardHeader>
               <CardTitle className="text-base">Come leggere "Spazio disco"</CardTitle>
               <CardDescription>
-                "Spazio disco" indica il filesystem del server backend su Render, non il database Neon.
+                "Spazio disco" indica il filesystem del server backend su Render, non il database Supabase.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm text-gray-600 space-y-1">
               <p>- Fonte: server applicativo (Render)</p>
-              <p>- Non misura lo storage del DB Neon</p>
+              <p>- Non misura lo storage del DB Supabase</p>
               <p>- Se vedi "(stima)", il valore usa un fallback meno accurato</p>
             </CardContent>
           </Card>
@@ -725,7 +725,7 @@ const MonitoringDashboard: React.FC = () => {
                         )}
                         {name.toLowerCase() === 'disk' && (
                           <div className="text-xs text-gray-500 space-y-1 pt-1 border-t">
-                            <p><strong>Origine:</strong> {check.sourceLabel || 'Server applicativo (Render) - NON Neon'}</p>
+                            <p><strong>Origine:</strong> {check.sourceLabel || 'Server applicativo (Render) - NON Supabase'}</p>
                             <p>
                               <strong>Utilizzato:</strong> {formatBytes(check.usedBytes)} / {formatBytes(check.totalBytes)}
                               {' '}({typeof check.diskPercent === 'number' ? `${check.diskPercent.toFixed(2)}%` : 'N/D'})
@@ -772,12 +772,12 @@ const MonitoringDashboard: React.FC = () => {
                   Breakdown spazio disco server app
                 </CardTitle>
                 <CardDescription>
-                  Questa vista mostra il filesystem del server applicativo Render (NON Neon).
+                  Questa vista mostra il filesystem del server applicativo Render (NON Supabase).
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-gray-600 space-y-1">
                 <p>- Origine: server backend Render</p>
-                <p>- Esclude il database Neon (storage separato)</p>
+                <p>- Esclude il database Supabase (storage separato)</p>
                 <p>- Clicca "Aggiorna" per ricaricare il breakdown</p>
               </CardContent>
             </Card>
@@ -848,7 +848,7 @@ const MonitoringDashboard: React.FC = () => {
                   <p><strong>Idle in transaction:</strong> connessioni lasciate in transazione senza chiuderla; se sale troppo, e un campanello d'allarme.</p>
                 </div>
                 <div className="space-y-2">
-                  <p><strong>Dimensione DB:</strong> quanto spazio occupa l'intero database Neon.</p>
+                  <p><strong>Dimensione DB:</strong> quanto spazio occupa l'intero database Supabase.</p>
                   <p><strong>Tabella users:</strong> quanto spazio usa solo la tabella utenti.</p>
                   <p><strong>Dimensione users (bytes):</strong> la stessa misura in formato numerico grezzo.</p>
                   <p><strong>Slow queries:</strong> query lente; servono per capire dove ottimizzare e ridurre carico/compute.</p>
@@ -861,9 +861,9 @@ const MonitoringDashboard: React.FC = () => {
                 <CardTitle className="flex items-center gap-2 justify-between">
                   <span className="flex items-center gap-2">
                     <Database className="h-5 w-5" />
-                    Approfondimento Database (Neon)
+                    Approfondimento Database (Supabase)
                   </span>
-                  <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Neon</Badge>
+                  <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Supabase</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -996,7 +996,7 @@ const MonitoringDashboard: React.FC = () => {
                 <div className="space-y-2">
                   <p><strong>CPU:</strong> misura quanto lavora il server. Se resta spesso alta, il sistema e sotto pressione.</p>
                   <p><strong>Memoria:</strong> indica quanta RAM usa l'app. Se cresce continuamente, puo esserci un consumo anomalo.</p>
-                  <p><strong>Database:</strong> mostra connessioni e dimensioni del DB Neon; utile per capire se il DB e il collo di bottiglia.</p>
+                  <p><strong>Database:</strong> mostra connessioni e dimensioni del DB Supabase; utile per capire se il DB e il collo di bottiglia.</p>
                 </div>
                 <div className="space-y-2">
                   <p><strong>Uptime:</strong> da quanto tempo l'app e attiva senza riavvii.</p>
@@ -1087,9 +1087,9 @@ const MonitoringDashboard: React.FC = () => {
                   <CardTitle className="flex items-center gap-2 justify-between">
                     <span className="flex items-center gap-2">
                       <Database className="h-5 w-5" />
-                    Database (Neon)
+                    Database (Supabase)
                     </span>
-                    <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Neon</Badge>
+                    <Badge variant="outline" className="text-blue-700 border-blue-300">Fonte: Supabase</Badge>
                   </CardTitle>
                   </CardHeader>
                   <CardContent>

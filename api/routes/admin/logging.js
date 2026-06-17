@@ -31,7 +31,7 @@ const searchByIP = async (ipAddress, hours = 24, limit = 100) => {
         .slice(0, limit);
     }
     
-    // Fallback a Neon
+    // Fallback a PostgreSQL
     const query = `
       SELECT * FROM find_logs_by_ip($1)
       WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
@@ -54,7 +54,7 @@ const searchByUserAgent = async (userAgent, hours = 24, limit = 100) => {
       return [];
     }
     
-    // Fallback a Neon (solo se Axiom non è abilitato)
+    // Fallback a PostgreSQL (solo se Axiom non è abilitato)
     const query = `
       SELECT * FROM find_logs_by_user_agent($1)
       WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
@@ -90,7 +90,7 @@ const searchByEndpoint = async (endpoint, hours = 24, limit = 100) => {
         .slice(0, limit);
     }
     
-    // Fallback a Neon
+    // Fallback a PostgreSQL
     const query = `
       SELECT * FROM find_logs_by_endpoint($1)
       WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'

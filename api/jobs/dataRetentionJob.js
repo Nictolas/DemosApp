@@ -11,7 +11,7 @@ class DataRetentionJob {
     this.isRunning = false;
     this.cleanupInterval = null;
     this.notificationInterval = null;
-    /** Riduci wake su Neon: intervalli configurabili (ms), default 24h / 7 giorni */
+    /** Riduci carico DB: intervalli configurabili (ms), default 24h / 7 giorni */
     this.cleanupIntervalMs = Math.max(
       60 * 60 * 1000,
       parseInt(process.env.DATA_RETENTION_CLEANUP_INTERVAL_MS || String(24 * 60 * 60 * 1000), 10)

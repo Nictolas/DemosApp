@@ -717,7 +717,7 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Riduzione compute Neon (admin) */}
+              {/* Riduzione carico DB Supabase (admin) */}
               <Route path="/gestisci/riduzione-compute">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci/riduzione-compute" component={RiduzioneCompute} />

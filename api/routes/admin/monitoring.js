@@ -541,7 +541,7 @@ router.get('/disk-breakdown', async (req, res) => {
       success: true,
       data: {
         source: 'render-app-server',
-        sourceLabel: 'Filesystem server applicativo (Render) - NON Neon',
+        sourceLabel: 'Filesystem server applicativo (Render) - NON Supabase',
         root,
         target,
         totalBytes,

@@ -53,5 +53,5 @@ module.exports = {
    * Non usare come sostituto della cache applicativa Redis per questi endpoint.
    */
   kvUseCasesNote:
-    'KV solo per dati con consistenza eventuale accettabile; la cache Neon-friendly resta su Redis (Upstash).'
+    'KV solo per dati con consistenza eventuale accettabile; la cache lato DB resta su Redis (Upstash).'
 };

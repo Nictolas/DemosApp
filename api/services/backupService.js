@@ -72,7 +72,7 @@ class BackupService {
         type: 'full',
         timestamp: new Date().toISOString(),
         version: '1.0',
-        database: 'neon_postgresql',
+        database: 'supabase_postgresql',
         tables: Object.keys(backupData),
         recordCounts: this.getRecordCounts(backupData),
         checksum: this.calculateChecksum(backupData)
@@ -150,7 +150,7 @@ class BackupService {
         type: 'incremental',
         timestamp: new Date().toISOString(),
         version: '1.0',
-        database: 'neon_postgresql',
+        database: 'supabase_postgresql',
         baseBackup: lastBackup ? lastBackup.fileName : null,
         tables: Object.keys(incrementalData),
         recordCounts: this.getRecordCounts(incrementalData),

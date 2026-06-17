@@ -305,7 +305,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Crittografia:</strong> Dati trasmessi e memorizzati in forma crittografata</li>
               <li><strong>Autenticazione sicura:</strong> Auth.js con token JWT</li>
-              <li><strong>Database sicuro:</strong> PostgreSQL su Neon (UE) con connessioni SSL</li>
+              <li><strong>Database sicuro:</strong> PostgreSQL su Supabase (UE) con connessioni SSL</li>
               <li><strong>Accesso limitato:</strong> Solo personale autorizzato può accedere ai dati</li>
               <li><strong>Backup sicuri:</strong> Backup regolari e crittografati</li>
               <li><strong>Monitoraggio:</strong> Log di accesso e monitoraggio delle attività</li>
@@ -347,7 +347,7 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold mb-3">7. Condivisione dei Dati</h2>
             <p className="text-gray-700 mb-3">Non vendiamo i tuoi dati. Li condividiamo solo con:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Fornitori di servizi:</strong> Neon (database), Resend (email), Render (hosting)</li>
+              <li><strong>Fornitori di servizi:</strong> Supabase (database), Resend (email), Render (hosting)</li>
               <li><strong>Autorità competenti:</strong> Solo se richiesto per legge</li>
               <li><strong>Consenso esplicito:</strong> Per altre finalità con il tuo consenso</li>
             </ul>
@@ -477,13 +477,13 @@ export default function PrivacyPolicy() {
 
             <div className="space-y-4 mb-4">
               <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                <h4 className="font-semibold text-gray-800 mb-2">💾 Neon (Database PostgreSQL)</h4>
+                <h4 className="font-semibold text-gray-800 mb-2">💾 Supabase (Database PostgreSQL)</h4>
                 <ul className="text-sm text-gray-700 space-y-1">
                   <li><strong>Servizio:</strong> Database principale per tutti i dati utente</li>
                   <li><strong>Ubicazione:</strong> Unione Europea (Francoforte, Germania)</li>
                   <li><strong>Dati trattati:</strong> Tutti i dati personali degli utenti (profilo, opinioni, voti, autenticazione)</li>
                   <li><strong>Garanzie:</strong> Server situati in UE, conforme GDPR</li>
-                  <li><strong>Policy Privacy:</strong> <a href="https://neon.tech/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">https://neon.tech/privacy-policy</a></li>
+                  <li><strong>Policy Privacy:</strong> <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">https://supabase.com/privacy</a></li>
                 </ul>
               </div>
 
@@ -551,7 +551,7 @@ export default function PrivacyPolicy() {
               <p className="text-sm text-gray-700">
                 <strong>📌 Nota Importante:</strong> I trasferimenti internazionali sono limitati al minimo 
                 necessario per il funzionamento della piattaforma. La maggior parte dei tuoi dati (database) 
-                è memorizzata in UE (Neon - Francoforte). I trasferimenti verso paesi terzi riguardano 
+                è memorizzata in UE (Supabase). I trasferimenti verso paesi terzi riguardano 
                 principalmente servizi di hosting e email, e sono sempre protetti da garanzie adeguate.
               </p>
             </div>
