@@ -36,6 +36,32 @@ function safeNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Budget piano Supabase Free (override con SUPABASE_* su Render). */
+const SUPABASE_FREE_PLAN_DEFAULTS = {
+  databaseStorageBudgetBytes: 500 * 1024 * 1024,
+  activeConnectionsLimit: 60,
+  egressBudgetBytes30d: 5 * 1024 * 1024 * 1024,
+  cachedEgressBudgetBytes30d: 5 * 1024 * 1024 * 1024,
+  fileStorageBudgetBytes: 1 * 1024 * 1024 * 1024,
+  registeredUsersLimit: 50000,
+  computeRamBudgetBytes: 500 * 1024 * 1024
+};
+
+function readSupabaseBudget(envKey, defaultValue) {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw === '') return defaultValue;
+  const n = safeNumber(raw);
+  return n > 0 ? n : defaultValue;
+}
+
+/** Valori "used" opzionali impostati a mano da Usage dashboard (es. egress mensile). */
+function readSupabaseUsedOptional(envKey) {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw === '') return null;
+  const n = safeNumber(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 function bytesToHuman(bytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = safeNumber(bytes);
@@ -567,13 +593,39 @@ router.get('/platform-usage', async (req, res) => {
       supabase: []
     };
 
-    // Limiti/budget Supabase da env (per progress % reali sulla pagina admin/parametri)
-    const supabaseDbStorageBudgetBytes = process.env.SUPABASE_DB_STORAGE_BUDGET_BYTES
-      ? safeNumber(process.env.SUPABASE_DB_STORAGE_BUDGET_BYTES)
-      : null;
-    const supabaseActiveConnectionsLimit = process.env.SUPABASE_ACTIVE_CONNECTIONS_LIMIT
-      ? safeNumber(process.env.SUPABASE_ACTIVE_CONNECTIONS_LIMIT)
-      : null;
+    // Limiti/budget Supabase (default = piano Free; override con SUPABASE_* su Render)
+    const supabaseLimits = {
+      databaseStorageBudgetBytes: readSupabaseBudget(
+        'SUPABASE_DB_STORAGE_BUDGET_BYTES',
+        SUPABASE_FREE_PLAN_DEFAULTS.databaseStorageBudgetBytes
+      ),
+      activeConnectionsLimit: readSupabaseBudget(
+        'SUPABASE_ACTIVE_CONNECTIONS_LIMIT',
+        SUPABASE_FREE_PLAN_DEFAULTS.activeConnectionsLimit
+      ),
+      egressBudgetBytes30d: readSupabaseBudget(
+        'SUPABASE_EGRESS_BUDGET_BYTES_30D',
+        SUPABASE_FREE_PLAN_DEFAULTS.egressBudgetBytes30d
+      ),
+      cachedEgressBudgetBytes30d: readSupabaseBudget(
+        'SUPABASE_CACHED_EGRESS_BUDGET_BYTES_30D',
+        SUPABASE_FREE_PLAN_DEFAULTS.cachedEgressBudgetBytes30d
+      ),
+      fileStorageBudgetBytes: readSupabaseBudget(
+        'SUPABASE_FILE_STORAGE_BUDGET_BYTES',
+        SUPABASE_FREE_PLAN_DEFAULTS.fileStorageBudgetBytes
+      ),
+      registeredUsersLimit: readSupabaseBudget(
+        'SUPABASE_REGISTERED_USERS_LIMIT',
+        SUPABASE_FREE_PLAN_DEFAULTS.registeredUsersLimit
+      ),
+      computeRamBudgetBytes: readSupabaseBudget(
+        'SUPABASE_COMPUTE_RAM_BUDGET_BYTES',
+        SUPABASE_FREE_PLAN_DEFAULTS.computeRamBudgetBytes
+      )
+    };
+
+    const supabasePlanTier = process.env.SUPABASE_PLAN_TIER || 'free';
 
     // Render: usa check disco reale (df) con fallback stimato
     const diskCheck = await withTimeout(
@@ -582,9 +634,15 @@ router.get('/platform-usage', async (req, res) => {
       'platform usage disk check'
     );
 
-    // Supabase: dimensione DB + connessioni attive (live via PostgreSQL)
+    // Supabase: metriche live via PostgreSQL (+ storage.objects se presente)
     let supabaseDbSizeBytes = null;
     let supabaseActiveConnections = null;
+    let supabaseRegisteredUsers = null;
+    let supabaseFileStorageBytes = null;
+    const supabaseEgressBytes30d = readSupabaseUsedOptional('SUPABASE_EGRESS_USED_BYTES_30D');
+    const supabaseCachedEgressBytes30d = readSupabaseUsedOptional('SUPABASE_CACHED_EGRESS_USED_BYTES_30D');
+    const supabaseComputeRamBytes = readSupabaseUsedOptional('SUPABASE_COMPUTE_RAM_USED_BYTES');
+
     try {
       const dbResult = await withTimeout(
         pool.query(`
@@ -594,15 +652,42 @@ router.get('/platform-usage', async (req, res) => {
               SELECT count(*)
               FROM pg_stat_activity
               WHERE datname = current_database() AND state = 'active'
-            )::int as active_connections
+            )::int as active_connections,
+            (SELECT count(*)::int FROM users) as registered_users
         `),
         MONITORING_TIMEOUT_MS,
         'platform usage supabase metrics'
       );
       supabaseDbSizeBytes = safeNumber(dbResult?.rows?.[0]?.database_size_bytes);
       supabaseActiveConnections = safeNumber(dbResult?.rows?.[0]?.active_connections);
+      supabaseRegisteredUsers = safeNumber(dbResult?.rows?.[0]?.registered_users);
     } catch (error) {
       diagnostics.supabase.push(`metriche DB non disponibili: ${error.message}`);
+    }
+
+    try {
+      const storageResult = await withTimeout(
+        pool.query(`
+          SELECT COALESCE(SUM((metadata->>'size')::bigint), 0)::bigint AS file_storage_bytes
+          FROM storage.objects
+        `),
+        Math.min(MONITORING_TIMEOUT_MS, 8000),
+        'platform usage supabase file storage'
+      );
+      const bytes = storageResult?.rows?.[0]?.file_storage_bytes;
+      supabaseFileStorageBytes = bytes !== null && bytes !== undefined ? safeNumber(bytes) : null;
+    } catch (_error) {
+      diagnostics.supabase.push('file storage: schema storage.objects non disponibile o vuoto');
+    }
+
+    if (supabaseEgressBytes30d === null || supabaseCachedEgressBytes30d === null || supabaseComputeRamBytes === null) {
+      const manual = [];
+      if (supabaseEgressBytes30d === null) manual.push('egress');
+      if (supabaseCachedEgressBytes30d === null) manual.push('cached egress');
+      if (supabaseComputeRamBytes === null) manual.push('RAM compute');
+      diagnostics.supabase.push(
+        `Per barre % su ${manual.join(', ')}: leggi Usage/Overview su supabase.com e imposta SUPABASE_*_USED_* su Render`
+      );
     }
 
     // Axiom: stato integrazione live da env + dati minimi diagnostici
@@ -664,14 +749,17 @@ router.get('/platform-usage', async (req, res) => {
         platforms: {
           supabase: {
             updatedAt: generatedAt,
+            planTier: supabasePlanTier,
             metrics: {
               databaseSizeBytes: supabaseDbSizeBytes,
-              activeConnections: supabaseActiveConnections
+              activeConnections: supabaseActiveConnections,
+              registeredUsers: supabaseRegisteredUsers,
+              fileStorageBytes: supabaseFileStorageBytes,
+              egressBytes30d: supabaseEgressBytes30d,
+              cachedEgressBytes30d: supabaseCachedEgressBytes30d,
+              computeRamBytes: supabaseComputeRamBytes
             },
-            limits: {
-              databaseStorageBudgetBytes: supabaseDbStorageBudgetBytes,
-              activeConnectionsLimit: supabaseActiveConnectionsLimit
-            }
+            limits: supabaseLimits
           },
           render: {
             updatedAt: diskCheck?.timestamp || generatedAt,

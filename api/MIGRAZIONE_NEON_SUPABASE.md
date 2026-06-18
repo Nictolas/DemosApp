@@ -98,15 +98,19 @@ Rimuovi (opzionale) variabili solo Neon:
 - `NEON_ORG_ID`
 - `NEON_*_LIMIT_*`
 
-Per le barre % su `/admin/parametri`, aggiungi su Render (valori del tuo piano Supabase):
+Per le barre % su `/admin/parametri`, i **limiti del piano Free** sono già default nel backend. Su Render puoi solo override i budget o impostare i consumi manuali da Usage:
 
 ```env
-# Esempio piano Free: ~500 MB DB, limite connessioni dirette/pooler
-SUPABASE_DB_STORAGE_BUDGET_BYTES=536870912
+SUPABASE_PLAN_TIER=free
+# Budget (opzionale — default = piano Free)
+SUPABASE_DB_STORAGE_BUDGET_BYTES=524288000
 SUPABASE_ACTIVE_CONNECTIONS_LIMIT=60
+# Consumi da Dashboard → Usage (aggiorna periodicamente per egress/RAM)
+# SUPABASE_EGRESS_USED_BYTES_30D=...
+# SUPABASE_COMPUTE_RAM_USED_BYTES=...
 ```
 
-La dashboard admin mostra storage e connessioni attive via query PostgreSQL su `DATABASE_URL`.
+La dashboard admin mostra storage, connessioni, utenti e (se configurato) file storage live.
 
 ## 5. Verifica
 

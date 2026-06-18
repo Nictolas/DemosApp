@@ -305,7 +305,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Crittografia:</strong> Dati trasmessi e memorizzati in forma crittografata</li>
               <li><strong>Autenticazione sicura:</strong> Auth.js con token JWT</li>
-              <li><strong>Database sicuro:</strong> PostgreSQL su Supabase (UE) con connessioni SSL</li>
+              <li><strong>Database sicuro:</strong> PostgreSQL su Supabase (Frankfurt, UE — `eu-central-1`) con connessioni SSL</li>
               <li><strong>Accesso limitato:</strong> Solo personale autorizzato può accedere ai dati</li>
               <li><strong>Backup sicuri:</strong> Backup regolari e crittografati</li>
               <li><strong>Monitoraggio:</strong> Log di accesso e monitoraggio delle attività</li>
@@ -551,7 +551,7 @@ export default function PrivacyPolicy() {
               <p className="text-sm text-gray-700">
                 <strong>📌 Nota Importante:</strong> I trasferimenti internazionali sono limitati al minimo 
                 necessario per il funzionamento della piattaforma. La maggior parte dei tuoi dati (database) 
-                è memorizzata in UE (Supabase). I trasferimenti verso paesi terzi riguardano 
+                è memorizzata in UE (Supabase — Francoforte, `eu-central-1`). I trasferimenti verso paesi terzi riguardano 
                 principalmente servizi di hosting e email, e sono sempre protetti da garanzie adeguate.
               </p>
             </div>
