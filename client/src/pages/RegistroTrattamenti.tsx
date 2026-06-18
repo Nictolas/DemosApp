@@ -359,7 +359,7 @@ export default function RegistroTrattamenti() {
                   Garanzie: Standard Contractual Clauses (SCC) approvate dalla Commissione Europea
                 </li>
                 <li>
-                  <strong>Unione Europea:</strong> Supabase (database PostgreSQL) - 
+                  <strong>Unione Europea:</strong> Supabase (database PostgreSQL — Francoforte, Germania, `eu-central-1`) - 
                   Conforme GDPR, nessuna garanzia aggiuntiva necessaria
                 </li>
               </ul>

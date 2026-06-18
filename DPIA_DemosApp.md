@@ -391,7 +391,7 @@ Il trattamento effettuato da DemosApp soddisfa i seguenti criteri:
 | **Rischio Iniziale** | **9 (Alto)** → **6 (Medio)** *post-verifica* |
 
 **Stato attuale (da verificare in configurazione):**
-- **Supabase (Database):** ✅ **UE** — progetto PostgreSQL in regione UE (verificare in Supabase Dashboard → Project Settings → General). I dati personali e sensibili risiedono in UE se il progetto è stato creato in un data center europeo.
+- **Supabase (Database):** ✅ **UE** — **Central EU (Frankfurt), `eu-central-1`** (confermato in Dashboard). I dati personali e sensibili risiedono in Germania/UE.
 - **Render (Backend):** Regione **Frankfurt (EU)** disponibile — verificare in Render Dashboard che il servizio sia deployato in EU.
 - **Axiom (Log):** ✅ **EU** — nel codice è impostato `AXIOM_REGION || 'eu'`.
 - **Firebase (FCM):** Trasferimento possibile verso USA — solo token FCM e payload messaggi (nessun dato sensibile dal DB). Con DPA/SCC Google è conforme.
@@ -487,7 +487,7 @@ Prob. 3    │       │       │ R7    │
 |-----------|-----------|
 | **Rischi Mitigati** | R7 |
 | **Descrizione** | Audit completo dei sub-responsabili e data residency |
-| **Azioni** | 1. ✅ **Supabase:** progetto in regione UE — confermare in Dashboard e da `DATABASE_URL` |
+| **Azioni** | 1. ✅ **Supabase:** **Frankfurt (`eu-central-1`)** — confermato in Dashboard |
 |           | 2. **Render (backend + frontend):** verificare in Dashboard che entrambi i servizi (demos-backend e demos-frontend) siano in regione **Frankfurt (EU)** |
 |           | 3. **Axiom:** confermare `AXIOM_REGION=eu` in produzione |
 |           | 4. **Firebase/Resend:** stipulare o accettare DPA con SCC (Supabase e Google li offrono) |
@@ -852,14 +852,14 @@ L’informativa privacy (Privacy Policy) include una sezione dedicata (**6.1 Acc
 
 | Fornitore | Servizio | Dati trattati | Data Residency | DPA/SCC | Note |
 |-----------|----------|---------------|----------------|---------|------|
-| **Supabase** | Database PostgreSQL | Tutti i dati personali e sensibili | ✅ **UE** (regione scelta al provisioning; verificare in Project Settings) | ✅ **Sì** | DPA: https://supabase.com/legal/dpa (SCC 2021). Privacy: https://supabase.com/privacy |
+| **Supabase** | Database PostgreSQL | Tutti i dati personali e sensibili | ✅ **UE — Central EU (Frankfurt), `eu-central-1`** | ✅ **Sì** | DPA: https://supabase.com/legal/dpa (SCC 2021). Privacy: https://supabase.com/privacy. Limite connessioni piano: 60 (monitorato in `/admin/parametri`) |
 | **Render** | Backend API + Frontend (statico) | Backend: elaborazione; Frontend: solo asset statici, nessun dato persistito | ✅ **demos-backend: Frankfurt (EU Central)**. Frontend: Static Site (nessun campo Region in Settings; solo asset, dati elaborati dal backend in UE) | ✅ **Sì** | DPA: https://render.com/dpa (incorporato nei ToS). EU-US DPF certificato (gen 2025). **Backend verificato in UE.** |
 | **Firebase** | Push (FCM) | Token FCM, payload notifiche | Extra-UE (Google); trasferimento coperto da SCC | ✅ **Sì** | Data Processing and Security Terms + SCC (Controller-to-Processor / Processor): https://firebase.google.com/terms/data-processing-terms e https://firebase.google.com/terms/firebase-sccs. Accettati con l’uso di Firebase. Solo token e payload messaggi (nessun dato sensibile dall’app). |
 | **Resend** | Email transazionali | Email destinatario, contenuto | Dominio demos.community: **Ireland (eu-west-1)** per invio; dati account/metadata in US (SCC) | ✅ **Sì** | DPA con SCC: https://resend.com/legal/dpa (incorporato nei ToS). **Invio email già da regione EU (Ireland)** per il dominio in uso. |
 | **Axiom** | Logging / audit | Log (IP troncato, eventi) | ✅ **EU** | ✅ **Sì** | DPA incorporato nei ToS (accettato con l’uso del servizio). SCC 2021 (Modulo Two) in Schedule 3 del DPA. Regione: `AXIOM_REGION=eu` (Render). Riferimento: https://axiom.co/docs/legal/data-processing |
 
 **Checklist per ridurre R7 (trasferimenti extra-UE):**
-1. ✅ **Supabase:** progetto in regione UE. DPA: https://supabase.com/legal/dpa
+1. ✅ **Supabase:** **Frankfurt (`eu-central-1`)**. DPA: https://supabase.com/legal/dpa
 2. ✅ **Render:** **demos-backend** in **Frankfurt (EU Central)**. **demos-frontend** = Static Site (nessuna opzione Region in Settings; solo asset statici; il trattamento dati avviene sul backend in UE). DPA/DPF: https://render.com/dpa
 3. ✅ **Axiom:** verificato in produzione — `AXIOM_REGION=eu` (Render, demos-backend). DPA (con SCC) accettato con l’uso del servizio; riferimento: https://axiom.co/docs/legal/data-processing
 4. ✅ **Resend:** DPA con SCC: https://resend.com/legal/dpa. ✅ **Firebase:** Data Processing and Security Terms + SCC: https://firebase.google.com/terms/data-processing-terms e https://firebase.google.com/terms/firebase-sccs (accettati con l’uso di Firebase). ✅ **Supabase:** DPA: https://supabase.com/legal/dpa. Conservare copia dei DPA per accountability.

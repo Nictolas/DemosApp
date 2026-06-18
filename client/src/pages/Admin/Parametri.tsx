@@ -31,13 +31,24 @@ type PlatformUsageApi = {
   platforms?: {
     supabase?: {
       updatedAt?: string;
+      planTier?: string;
       metrics?: {
         databaseSizeBytes?: number | null;
         activeConnections?: number | null;
+        registeredUsers?: number | null;
+        fileStorageBytes?: number | null;
+        egressBytes30d?: number | null;
+        cachedEgressBytes30d?: number | null;
+        computeRamBytes?: number | null;
       };
       limits?: {
         databaseStorageBudgetBytes?: number | null;
         activeConnectionsLimit?: number | null;
+        egressBudgetBytes30d?: number | null;
+        cachedEgressBudgetBytes30d?: number | null;
+        fileStorageBudgetBytes?: number | null;
+        registeredUsersLimit?: number | null;
+        computeRamBudgetBytes?: number | null;
       };
     };
     render?: {
@@ -74,8 +85,9 @@ type PlatformUsageApi = {
 const BASE_PLATFORMS: Platform[] = [
   {
     id: "supabase",
-    name: "Supabase (Database)",
-    description: "Database PostgreSQL principale dell'app (fonte: DPIA + configurazione progetto).",
+    name: "Supabase (Piano Free)",
+    description:
+      "Limiti del piano Free Supabase (Frankfurt). I budget hanno default nel backend; override con variabili SUPABASE_* su Render.",
     metrics: [
       {
         id: "supabase-storage",
@@ -83,7 +95,7 @@ const BASE_PLATFORMS: Platform[] = [
         used: null,
         limit: null,
         unit: "GB",
-        note: "Dimensione live del DB, confrontata col budget storage configurato."
+        note: "Live da PostgreSQL. Limite piano Free: 500 MB."
       },
       {
         id: "supabase-active-connections",
@@ -91,7 +103,47 @@ const BASE_PLATFORMS: Platform[] = [
         used: null,
         limit: null,
         unit: "connessioni",
-        note: "Dato live dal DB, confrontato col limite configurato."
+        note: "Live da pg_stat_activity. Limite piano Free: 60."
+      },
+      {
+        id: "supabase-registered-users",
+        label: "Utenti registrati (totale)",
+        used: null,
+        limit: null,
+        unit: "utenti",
+        note: "Proxy rispetto al limite MAU Supabase (50k): l'auth è custom, ma utile come cap."
+      },
+      {
+        id: "supabase-file-storage",
+        label: "File storage (bucket)",
+        used: null,
+        limit: null,
+        unit: "GB",
+        note: "Live da storage.objects se usi Supabase Storage. Limite Free: 1 GB."
+      },
+      {
+        id: "supabase-egress-30d",
+        label: "Egress (30 giorni)",
+        used: null,
+        limit: null,
+        unit: "GB",
+        note: "Limite Free: 5 GB/mese. Imposta SUPABASE_EGRESS_USED_BYTES_30D da Dashboard → Usage per la %."
+      },
+      {
+        id: "supabase-cached-egress-30d",
+        label: "Cached egress (30 giorni)",
+        used: null,
+        limit: null,
+        unit: "GB",
+        note: "Limite Free: 5 GB/mese. Imposta SUPABASE_CACHED_EGRESS_USED_BYTES_30D da Usage."
+      },
+      {
+        id: "supabase-compute-ram",
+        label: "RAM compute (Nano)",
+        used: null,
+        limit: null,
+        unit: "MB",
+        note: "Limite condiviso Free: 500 MB RAM. Imposta SUPABASE_COMPUTE_RAM_USED_BYTES dalla Overview (opzionale)."
       }
     ]
   },
@@ -181,6 +233,19 @@ function hasLiveValueWithoutLimit(metric: FreeMetric): boolean {
   return metric.used !== null && (metric.limit === null || metric.limit <= 0);
 }
 
+function bytesToMb(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  return Number((value / 1024 / 1024).toFixed(2));
+}
+
+function isManualSupabaseMetric(metricId: string): boolean {
+  return [
+    "supabase-egress-30d",
+    "supabase-cached-egress-30d",
+    "supabase-compute-ram"
+  ].includes(metricId);
+}
+
 function bytesToGb(value: number | null | undefined): number | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   return Number((value / 1024 / 1024 / 1024).toFixed(2));
@@ -253,20 +318,57 @@ const Parametri: React.FC = () => {
           return {
             ...metric,
             used: bytesToGb(supabase?.databaseSizeBytes),
-            limit: bytesToGb(supabaseLimits?.databaseStorageBudgetBytes),
-            note: supabaseLimits?.databaseStorageBudgetBytes
-              ? metric.note
-              : "Limite/budget non configurato: imposta SUPABASE_DB_STORAGE_BUDGET_BYTES per avere la %."
+            limit: bytesToGb(supabaseLimits?.databaseStorageBudgetBytes)
           };
         }
         if (metric.id === "supabase-active-connections") {
           return {
             ...metric,
             used: supabase?.activeConnections ?? null,
-            limit: supabaseLimits?.activeConnectionsLimit ?? null,
-            note: supabaseLimits?.activeConnectionsLimit
-              ? metric.note
-              : "Limite non configurato: imposta SUPABASE_ACTIVE_CONNECTIONS_LIMIT per avere la %."
+            limit: supabaseLimits?.activeConnectionsLimit ?? null
+          };
+        }
+        if (metric.id === "supabase-registered-users") {
+          return {
+            ...metric,
+            used: supabase?.registeredUsers ?? null,
+            limit: supabaseLimits?.registeredUsersLimit ?? null
+          };
+        }
+        if (metric.id === "supabase-file-storage") {
+          const used = supabase?.fileStorageBytes;
+          return {
+            ...metric,
+            used: used != null ? bytesToGb(used) : null,
+            limit: bytesToGb(supabaseLimits?.fileStorageBudgetBytes),
+            note:
+              used != null
+                ? metric.note
+                : "Nessun file in storage.objects oppure Storage non usato. Limite Free: 1 GB."
+          };
+        }
+        if (metric.id === "supabase-egress-30d") {
+          const used = supabase?.egressBytes30d;
+          return {
+            ...metric,
+            used: used != null ? bytesToGb(used) : null,
+            limit: bytesToGb(supabaseLimits?.egressBudgetBytes30d)
+          };
+        }
+        if (metric.id === "supabase-cached-egress-30d") {
+          const used = supabase?.cachedEgressBytes30d;
+          return {
+            ...metric,
+            used: used != null ? bytesToGb(used) : null,
+            limit: bytesToGb(supabaseLimits?.cachedEgressBudgetBytes30d)
+          };
+        }
+        if (metric.id === "supabase-compute-ram") {
+          const used = supabase?.computeRamBytes;
+          return {
+            ...metric,
+            used: used != null ? bytesToMb(used) : null,
+            limit: bytesToMb(supabaseLimits?.computeRamBudgetBytes)
           };
         }
         if (metric.id === "render-disk") {
@@ -471,11 +573,10 @@ const Parametri: React.FC = () => {
             </CardHeader>
             <CardContent className="text-sm text-slate-600 space-y-2 max-h-[200px] xl:max-h-none overflow-y-auto xl:overflow-visible pr-1">
               <p>
-                <span className="font-medium text-slate-800">Supabase:</span> storage e connessioni sono live via query PostgreSQL. Per le barre % imposta{" "}
-                <code className="text-[11px] bg-slate-100 px-1 rounded">SUPABASE_DB_STORAGE_BUDGET_BYTES</code> e{" "}
-                <code className="text-[11px] bg-slate-100 px-1 rounded">SUPABASE_ACTIVE_CONNECTIONS_LIMIT</code> su Render.{" "}
-                <a className="text-cyan-700 underline font-medium" href="https://supabase.com/docs/guides/platform/org-usage" target="_blank" rel="noreferrer">
-                  Usage Supabase
+                <span className="font-medium text-slate-800">Supabase Free:</span> storage, connessioni e utenti sono live. Egress, cached egress e RAM compute richiedono valori opzionali da Dashboard → Usage (variabili{" "}
+                <code className="text-[11px] bg-slate-100 px-1 rounded">SUPABASE_*_USED_*</code>). I limiti hanno default del piano Free nel backend.{" "}
+                <a className="text-cyan-700 underline font-medium" href="https://supabase.com/dashboard/project/_/settings/billing" target="_blank" rel="noreferrer">
+                  Billing Supabase
                 </a>
                 .
               </p>
@@ -496,6 +597,11 @@ const Parametri: React.FC = () => {
                   Aggiornato: {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
                 </span>
               </CardDescription>
+              {platform.id === "supabase" && platformUsage?.platforms?.supabase?.planTier ? (
+                <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-xs w-fit">
+                  Piano: {String(platformUsage.platforms.supabase.planTier).toUpperCase()}
+                </Badge>
+              ) : null}
               {platform.id === "supabase" && platformUsage?.diagnostics?.supabase?.length ? (
                 <p className="text-xs text-amber-700 mt-1 break-words">Supabase: {platformUsage.diagnostics.supabase.join(" | ")}</p>
               ) : null}
@@ -530,9 +636,17 @@ const Parametri: React.FC = () => {
                 }
 
                 const status = progressEnabled ? getStatus(percent) : { label: "Da configurare", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3.5 w-3.5" /> };
-                const finalStatus = liveValueNoLimit
-                  ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
-                  : status;
+                const manualNoUsed =
+                  platform.id === "supabase" &&
+                  isManualSupabaseMetric(metric.id) &&
+                  metric.used === null &&
+                  metric.limit !== null &&
+                  metric.limit > 0;
+                const finalStatus = manualNoUsed
+                  ? { label: "Limite segnato", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3.5 w-3.5" /> }
+                  : liveValueNoLimit
+                    ? { label: "Dato live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3.5 w-3.5" /> }
+                    : status;
                 const barTint = !progressEnabled ? undefined : usageQuotaBarClass(percent);
                 return (
                   <div key={metric.id} className="space-y-2 rounded-xl border border-slate-200/60 bg-white/50 p-3">
@@ -551,6 +665,11 @@ const Parametri: React.FC = () => {
                         <>
                           <span>{metric.used} {metric.unit}</span>
                           <span>N/A quota</span>
+                        </>
+                      ) : manualNoUsed ? (
+                        <>
+                          <span>Limite piano: {metric.limit} {metric.unit}</span>
+                          <span>—</span>
                         </>
                       ) : (
                         <>
