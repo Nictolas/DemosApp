@@ -219,9 +219,8 @@ export default function AuthPage() {
           {showGoogle && (
             <Button
               type="button"
-              variant="outline"
               size="lg"
-              className="w-full h-14 text-base font-semibold border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
+              className="w-full h-14 text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 border border-blue-600"
               disabled={oauthBusy || isPasskeyLoading}
               onClick={handleGoogleLogin}
             >
