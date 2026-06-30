@@ -228,72 +228,67 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Pagina Preferiti — griglia che riempie lo spazio tra logo e navbar */
-.demos-mobile-layout .app-main:has(.preferiti-page),
-.demos-desktop-layout .app-main:has(.preferiti-page) {
-  display: flex;
-  flex-direction: column;
+/* ===== PREFERITI: layout assoluto in app-main (non dipende da PageTransition/flex) ===== */
+.app-main:has(.preferiti-page) {
+  position: relative;
+  flex: 1;
+  min-height: 0;
   overflow: hidden !important;
   contain: none !important;
 }
 
-.demos-mobile-layout .app-main:has(.preferiti-page) .app-main__inner,
-.demos-desktop-layout .app-main:has(.preferiti-page) .app-main__inner {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* PageTransition rompeva la catena: min-height:100vh senza flex sul genitore */
-.demos-mobile-layout .app-main:has(.preferiti-page) .page-transition,
-.demos-desktop-layout .app-main:has(.preferiti-page) .page-transition {
-  flex: 1 1 0;
+.app-main:has(.preferiti-page) .app-main__inner,
+.app-main:has(.preferiti-page) .page-transition {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100% !important;
   min-height: 0 !important;
-  height: auto;
   display: flex;
   flex-direction: column;
   contain: none !important;
 }
 
-.demos-mobile-layout .app-main:has(.preferiti-page) .page-transition > *,
-.demos-desktop-layout .app-main:has(.preferiti-page) .page-transition > * {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.demos-mobile-layout .preferiti-page,
-.demos-mobile-layout .app-main .preferiti-page,
-.demos-desktop-layout .preferiti-page,
-.demos-desktop-layout .app-main .preferiti-page {
-  flex: 1 1 0;
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
-
-/* Logo fisso in alto, griglia prende tutto il resto */
-.demos-mobile-layout .preferiti-page__inner,
-.demos-desktop-layout .preferiti-page__inner {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  flex: 1 1 0;
+.app-main:has(.preferiti-page) .page-transition > * {
+  flex: 1;
   min-height: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.demos-mobile-layout .preferiti-page__grid {
+.preferiti-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.preferiti-page__inner {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(5rem, 1fr));
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
+.preferiti-page__grid {
+  display: grid;
   min-height: 0;
   height: 100%;
   align-content: stretch;
 }
 
+/* Mobile: 2 colonne × 3 righe */
+.demos-mobile-layout .preferiti-page__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(5.5rem, 1fr));
+}
+
 .demos-mobile-layout .preferiti-button {
   height: 100%;
-  min-height: 5rem;
+  min-height: 5.5rem;
   width: 100%;
 }
 
@@ -302,13 +297,10 @@ body {
   height: 3.5rem;
 }
 
-/* Desktop: griglia 3×2 */
+/* Desktop: 3 colonne × 2 righe */
 .demos-desktop-layout .preferiti-page__grid {
-  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(8rem, 1fr));
-  min-height: 0;
-  height: 100%;
 }
 
 .demos-desktop-layout .preferiti-button {
