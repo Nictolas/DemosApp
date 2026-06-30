@@ -1,8 +1,10 @@
 import * as React from "react";
+import { useViewModeOptional } from "@/hooks/useViewMode";
 
 const MOBILE_BREAKPOINT = 768;
 
 export function useMobile() {
+  const viewMode = useViewModeOptional();
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
     undefined,
   );
@@ -16,6 +18,10 @@ export function useMobile() {
     setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     return () => mql.removeEventListener("change", onChange);
   }, []);
+
+  if (viewMode?.isMobilePreview) {
+    return true;
+  }
 
   return !!isMobile;
 }
