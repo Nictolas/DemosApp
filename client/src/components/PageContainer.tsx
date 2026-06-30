@@ -1,33 +1,17 @@
-import React, { useEffect } from 'react';
-import { useNavbarHeight } from '@/hooks/useNavbarHeight';
-import { useMobileFix } from '@/hooks/useMobileFix';
+import React from "react";
 
 interface PageContainerProps {
   children: React.ReactNode;
   className?: string;
 }
 
-export const PageContainer: React.FC<PageContainerProps> = ({ 
-  children, 
-  className = '' 
+export const PageContainer: React.FC<PageContainerProps> = ({
+  children,
+  className = "",
 }) => {
-  const { navbarHeight, isAndroid } = useNavbarHeight();
-  
-  // Applica correzioni specifiche per mobile
-  useMobileFix();
-
   return (
-    <div 
-      className={`min-h-screen flex flex-col w-full ${className}`}
-      style={{ 
-        minHeight: '100%',
-        position: 'relative',
-        zIndex: 1
-      }}
-    >
-      <div className="flex-1 w-full" style={{ marginBottom: 0, paddingBottom: 0, minHeight: 0 }}>
-        {children}
-      </div>
+    <div className={`h-full min-h-0 flex flex-col w-full ${className}`}>
+      <div className="flex-1 min-h-0 w-full flex flex-col">{children}</div>
     </div>
   );
 };

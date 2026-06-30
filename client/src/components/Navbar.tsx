@@ -10,7 +10,8 @@ export default function Navbar() {
   const isActive = (path: string) => location.startsWith(path);
 
   const getLinkClasses = (path: string) => {
-    const baseClasses = "flex flex-col items-center justify-center transition-all duration-200";
+    const baseClasses =
+      "flex flex-col items-center justify-center min-w-0 flex-1 max-w-[3.5rem] transition-all duration-200";
     const activeClasses = "text-blue-600 scale-110 font-semibold";
     const inactiveClasses = "text-gray-600 hover:text-blue-500 hover:scale-105";
 
@@ -18,22 +19,19 @@ export default function Navbar() {
   };
 
   return (
-    <nav
-      className="bg-white flex justify-center items-center h-24 pt-3 pb-4 select-none px-4"
-      style={{
-        boxShadow: "0 -1px 8px 0 rgba(0,0,0,0.03)",
-        paddingBottom: "calc(1rem + max(env(safe-area-inset-bottom), 56px))",
-        borderTop: "none",
-      }}
-    >
-      <div className="flex items-center justify-center gap-10 max-w-md">
+    <nav className="app-bottom-nav bg-white flex justify-center items-center select-none px-2 pt-2">
+      <div className="flex w-full max-w-lg items-center justify-between gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
           return (
-            <Link key={item.path} href={item.path} className={getLinkClasses(item.path)} style={{ marginTop: 0 }}>
-              <Icon className={`h-7 w-7 mb-1 ${active ? "drop-shadow-lg text-blue-600" : ""}`} />
-              <span className={`text-xs hidden md:block ${active ? "text-blue-600 font-semibold" : ""}`}>
+            <Link key={item.path} href={item.path} className={getLinkClasses(item.path)}>
+              <Icon className={`h-6 w-6 sm:h-7 sm:w-7 mb-0.5 ${active ? "text-blue-600" : ""}`} />
+              <span
+                className={`text-[10px] sm:text-xs leading-tight truncate max-w-full ${
+                  active ? "text-blue-600 font-semibold" : ""
+                }`}
+              >
                 {item.label}
               </span>
             </Link>
