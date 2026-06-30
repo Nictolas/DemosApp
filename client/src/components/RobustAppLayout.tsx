@@ -1,45 +1,50 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth';
 import { useAndroidDetection } from '@/hooks/useAndroidDetection';
+import { useMobileLayout } from '@/hooks/useMobileLayout';
 import Navbar from './Navbar';
+import { DesktopSidebar } from './DesktopSidebar';
 import { ErrorBoundary } from './ErrorBoundary';
 
 interface RobustAppLayoutProps {
   children: React.ReactNode;
 }
 
+const PUBLIC_ROUTES_WITHOUT_NAV = [
+  '/',
+  '/auth',
+  '/reset-password',
+  '/privacy-policy',
+  '/terms-of-service',
+  '/cookie-policy',
+  '/gdpr',
+];
+
+function shouldShowAppNav(location: string): boolean {
+  if (PUBLIC_ROUTES_WITHOUT_NAV.includes(location)) return false;
+  if (location.startsWith('/registrazione')) return false;
+  if (location.startsWith('/verifica-email')) return false;
+  if (location.startsWith('/conferma-email')) return false;
+  return true;
+}
+
 export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const { user } = useAuth();
-  const [isLayoutReady, setIsLayoutReady] = useState(false);
-  // Navbar sempre visibile: nessun listener scroll per evitare re-render e crash durante lo scroll
-  const isNavbarVisible = true;
-  const shouldShowNavbar = location !== '/' &&
-    !location.startsWith('/auth') &&
-    !location.startsWith('/reset-password') &&
-    !location.startsWith('/registrazione') &&
-    !location.startsWith('/verifica-email') &&
-    !location.startsWith('/conferma-email') &&
-    !location.startsWith('/privacy-policy') &&
-    !location.startsWith('/terms-of-service') &&
-    !location.startsWith('/cookie-policy') &&
-    location !== '/gdpr';
+  const isMobileLayout = useMobileLayout();
+  const showAppNav = shouldShowAppNav(location);
+  const showMobileNavbar = isMobileLayout && showAppNav;
+  const showDesktopSidebar = !isMobileLayout && showAppNav;
 
-  // Rileva dispositivi Android
   useAndroidDetection();
 
   useEffect(() => {
-    // Forza il layout a essere pronto
-    const timer = setTimeout(() => {
-      setIsLayoutReady(true);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [location]);
+    document.documentElement.classList.toggle('demos-desktop-layout', !isMobileLayout);
+    document.documentElement.classList.toggle('demos-mobile-layout', isMobileLayout);
+  }, [isMobileLayout]);
 
   useEffect(() => {
-    // Applica stili forzati per garantire che la navbar sia sempre fissa
+    if (!showMobileNavbar) return;
+
     const applyNavbarFix = () => {
       const navbar = document.querySelector('.app-navbar');
       if (navbar) {
@@ -54,44 +59,41 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
     };
 
     applyNavbarFix();
-    
-    // Riapplica quando cambia la location
     const timer = setTimeout(applyNavbarFix, 100);
-    
+
     return () => clearTimeout(timer);
-  }, [location, shouldShowNavbar]);
+  }, [location, showMobileNavbar]);
 
   return (
-    <div className="robust-app-layout">
-      {/* Header area */}
-      <header className="app-header">
-        {/* Header content se necessario */}
-      </header>
-      
-      {/* Main content area - ErrorBoundary evita che un crash in una pagina faccia cadere l'intera app */}
-      <main className="app-main">
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
-      </main>
-      
-      {/* Navbar area - sempre visibile (nessun hide-on-scroll per evitare crash) */}
-      {shouldShowNavbar && (
-        <nav 
-          className="app-navbar navbar-visible"
-          style={{
-            position: 'sticky',
-            bottom: 0,
-            zIndex: 9999,
-            flexShrink: 0,
-            width: '100%',
-            overflow: 'visible',
-            transition: 'transform 0.3s ease-in-out'
-          }}
-        >
-          <Navbar />
-        </nav>
-      )}
+    <div className={`robust-app-layout ${showDesktopSidebar ? 'robust-app-layout--desktop' : ''}`}>
+      {showDesktopSidebar && <DesktopSidebar />}
+
+      <div className="robust-app-layout__content">
+        <header className="app-header" />
+
+        <main className="app-main">
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </main>
+
+        {showMobileNavbar && (
+          <nav
+            className="app-navbar navbar-visible"
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 9999,
+              flexShrink: 0,
+              width: '100%',
+              overflow: 'visible',
+              transition: 'transform 0.3s ease-in-out',
+            }}
+          >
+            <Navbar />
+          </nav>
+        )}
+      </div>
     </div>
   );
 };
