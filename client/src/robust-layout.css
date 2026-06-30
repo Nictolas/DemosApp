@@ -33,6 +33,21 @@
   height: 100%;
 }
 
+/* Mobile: app-main = tutto lo spazio sopra la navbar (punto di verità altezza) */
+.demos-mobile-layout .robust-app-layout__content {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.demos-mobile-layout .robust-app-layout__content > .app-main {
+  min-height: 0;
+}
+
+.demos-mobile-layout .robust-app-layout__content > .app-navbar {
+  margin-top: 0;
+}
+
 .robust-app-layout--desktop .app-header {
   display: none;
 }
