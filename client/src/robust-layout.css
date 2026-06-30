@@ -154,27 +154,7 @@
   overflow: visible !important;
 }
 
-/* Pagina Strumenti — flex + scroll interno (layout mobile) */
-.demos-mobile-layout .app-main .strumenti-page {
-  overflow: hidden !important;
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-}
-
-.demos-mobile-layout .app-main:has(.strumenti-page) {
-  overflow: hidden !important;
-}
-
-/* Pagina Impostazioni — vedi index.css (layout ancorato) */
-
-/* Desktop: scroll interno su Strumenti */
-.demos-desktop-layout .app-main .strumenti-page {
-  overflow: auto !important;
-  overflow-y: auto !important;
-  height: 100% !important;
-  max-height: none !important;
-}
+/* Pagina Strumenti — vedi index.css (layout ancorato) */
 
 /* Navbar inferiore — ancorata in fondo dal flex parent */
 .app-navbar {

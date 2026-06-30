@@ -699,11 +699,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route strumenti */}
+              {/* Route strumenti — senza PageTransition (layout ancorato) */}
               <Route path="/strumenti">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/strumenti" component={Strumenti} />
-                </PageTransition>
+                <ProtectedRoute path="/strumenti" component={Strumenti} />
               </Route>
 
               {/* Route gestisci */}

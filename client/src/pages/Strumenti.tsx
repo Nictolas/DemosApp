@@ -16,6 +16,7 @@ import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaph
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
+import { usePreferitiHeaderHeight } from "@/pages/Preferiti/usePreferitiHeaderHeight";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -47,6 +48,7 @@ export default function Strumenti() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { pageRef, headerRef } = usePreferitiHeaderHeight("--strumenti-header-h");
   const [existingComunicazione, setExistingComunicazione] = useState<ExistingComunicazione | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
@@ -273,21 +275,27 @@ export default function Strumenti() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <PageContainer className="strumenti-page bg-gradient-to-br from-purple-50 to-pink-100">
-      <div className="strumenti-page__inner flex flex-1 flex-col min-h-0 max-w-4xl mx-auto w-full px-2 py-2">
-        <Card className="shrink-0 mb-2">
-          <CardHeader className="text-center py-3">
-            <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
-              <Megaphone className="h-6 w-6 text-blue-600" />
-              Strumenti
-            </CardTitle>
-            <CardDescription>
-              Accedi agli strumenti di gestione, comunicazione e analisi
-            </CardDescription>
-          </CardHeader>
-        </Card>
+    <PageContainer
+      ref={pageRef}
+      className="strumenti-page strumenti-page--anchored bg-gradient-to-br from-purple-50 to-pink-100"
+    >
+      <div className="strumenti-page__shell">
+        <div ref={headerRef} className="strumenti-page__header">
+          <Card className="mb-1">
+            <CardHeader className="text-center py-3">
+              <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
+                <Megaphone className="h-6 w-6 text-blue-600" />
+                Strumenti
+              </CardTitle>
+              <CardDescription>
+                Accedi agli strumenti di gestione, comunicazione e analisi
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
 
-        <div className="strumenti-page__scroll flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
+        <div className="strumenti-page__scroll">
+          <div className="max-w-4xl mx-auto w-full flex flex-col gap-2 py-1">
           {/* Menu (Bacheca) - accesso alla pagina Menu */}
           <button
             type="button"
@@ -473,11 +481,9 @@ export default function Strumenti() {
               </div>
             </button>
           )}
-        </div>
-
         {/* Ultima Votazione Section - Compatta */}
         {ultimaComunicazione?.comunicazione && (
-          <Card className="max-w-2xl mx-auto shrink-0 mt-2">
+          <Card className="shrink-0 mt-2">
             <CardHeader className="py-2">
               <CardTitle className="text-sm font-bold">Ultima Votazione</CardTitle>
               <CardDescription className="text-xs">
@@ -561,6 +567,8 @@ export default function Strumenti() {
             </CardContent>
           </Card>
         )}
+          </div>
+        </div>
       </div>
     </PageContainer>
   );

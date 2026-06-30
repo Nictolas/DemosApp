@@ -200,32 +200,10 @@ body {
   -webkit-overflow-scrolling: auto !important;
 }
 
-/* Pagina Strumenti — layout flex (no 100vh fissi) */
-.demos-mobile-layout .strumenti-page,
-.demos-mobile-layout .app-main .strumenti-page {
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
-
-.demos-mobile-layout .app-main:has(.strumenti-page) {
-  overflow: hidden !important;
-}
-
-.app-main .strumenti-page {
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-}
-
-.strumenti-page__scroll {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* ===== PREFERITI + IMPOSTAZIONI: layout ancorato in app-main ===== */
+/* ===== PREFERITI + IMPOSTAZIONI + STRUMENTI: layout ancorato in app-main ===== */
 .app-main:has(.preferiti-page),
-.app-main:has(.impostazioni-page) {
+.app-main:has(.impostazioni-page),
+.app-main:has(.strumenti-page) {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -234,7 +212,8 @@ body {
 }
 
 .app-main:has(.preferiti-page) .app-main__inner,
-.app-main:has(.impostazioni-page) .app-main__inner {
+.app-main:has(.impostazioni-page) .app-main__inner,
+.app-main:has(.strumenti-page) .app-main__inner {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -327,6 +306,39 @@ body {
 .impostazioni-page__scroll {
   position: absolute;
   top: 0.25rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.5rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Strumenti: header fisso + lista scrollabile ancorata */
+.strumenti-page--anchored {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  overflow: visible;
+}
+
+.strumenti-page__shell {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  padding: 0.25rem 0.75rem 0.5rem;
+  box-sizing: border-box;
+}
+
+.strumenti-page__header {
+  position: relative;
+  z-index: 1;
+}
+
+.strumenti-page__scroll {
+  position: absolute;
+  top: var(--strumenti-header-h, 5rem);
   left: 0.75rem;
   right: 0.75rem;
   bottom: 0.5rem;
