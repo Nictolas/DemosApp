@@ -163,17 +163,9 @@
   overflow: hidden !important;
 }
 
-/* Pagina Preferiti — flex nel layout mobile (navbar gestita dal parent flex) */
-.demos-mobile-layout .app-main:has(.preferiti-page) {
-  overflow: hidden !important;
-}
-
-.demos-mobile-layout .app-main .preferiti-page {
-  overflow: hidden !important;
-}
+/* Pagina Preferiti — vedi index.css (layout assoluto in app-main) */
 
 /* Desktop: griglia più larga */
-.demos-desktop-layout .app-main .preferiti-page,
 .demos-desktop-layout .app-main .impostazioni-page,
 .demos-desktop-layout .app-main .strumenti-page {
   overflow: auto !important;
