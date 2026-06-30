@@ -267,28 +267,29 @@ body {
 
 .preferiti-page__inner {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
-  flex: 1;
 }
 
 .preferiti-page__grid {
   display: grid;
   min-height: 0;
-  height: 100%;
-  align-content: stretch;
+  min-width: 0;
+  width: 100%;
+  align-self: stretch;
+  overflow: hidden;
 }
 
-/* Mobile: 2 colonne × 3 righe */
+/* Mobile: 2 colonne × 3 righe — minmax(0,1fr) espande le righe nel track assegnato */
 .demos-mobile-layout .preferiti-page__grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(5.5rem, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
 }
 
 .demos-mobile-layout .preferiti-button {
   height: 100%;
-  min-height: 5.5rem;
+  min-height: 3.5rem;
   width: 100%;
 }
 
@@ -300,18 +301,18 @@ body {
 /* Desktop: 3 colonne × 2 righe */
 .demos-desktop-layout .preferiti-page__grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(8rem, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 
 .demos-desktop-layout .preferiti-button {
-  min-height: 8rem;
+  min-height: 6rem;
   height: 100%;
 }
 
 @media (max-width: 1100px) {
   .demos-desktop-layout .preferiti-page__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(7rem, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
   }
 }
 
