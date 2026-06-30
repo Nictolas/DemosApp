@@ -761,11 +761,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route impostazioni */}
+              {/* Route impostazioni — senza PageTransition (layout ancorato) */}
               <Route path="/impostazioni">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/impostazioni" component={Impostazioni} />
-                </PageTransition>
+                <ProtectedRoute path="/impostazioni" component={Impostazioni} />
               </Route>
 
               {/* Route riconoscimento singolo utente */}
