@@ -72,7 +72,7 @@ export default function LandingPage() {
                   )}
                 </div>
 
-                <div id="accedi" className={`flex justify-center ${!isMobileLayout ? "md:justify-end" : ""}`}>
+                <div className={`flex justify-center ${!isMobileLayout ? "md:justify-end" : ""}`}>
                   <AuthCard embedded />
                 </div>
               </div>
@@ -120,14 +120,9 @@ export default function LandingPage() {
             <h2 className="text-2xl md:text-3xl font-bold mb-3">
               Diventa protagonista della democrazia digitale
             </h2>
-            <p className="text-lg mb-6 max-w-2xl mx-auto opacity-95">
+            <p className="text-lg max-w-2xl mx-auto opacity-95">
               Accedi con Google, Apple o passkey e inizia subito.
             </p>
-            <a href="#accedi">
-              <Button size="lg" variant="secondary" className="font-semibold">
-                Vai al login
-              </Button>
-            </a>
           </div>
         </section>
       </main>
