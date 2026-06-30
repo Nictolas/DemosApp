@@ -127,6 +127,9 @@ import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
+import { ViewModeProvider } from "@/hooks/useViewMode";
+import { MobilePreviewShell } from "@/components/MobilePreviewShell";
+import { MobilePreviewToggle } from "@/components/MobilePreviewToggle";
 import { RobustAppLayout } from "./components/RobustAppLayout";
 
 // Hook per la navigazione touch migliorato
@@ -274,17 +277,19 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="App">
-        <AuthProvider>
-          <FCMTokenSync />
-          <RegistrationProvider>
-            <RobustAppLayout>
-              <AppWrapper>
+      <ViewModeProvider>
+        <MobilePreviewShell>
+          <div className="App">
+            <AuthProvider>
+              <FCMTokenSync />
+              <RegistrationProvider>
+                <RobustAppLayout>
+                  <AppWrapper>
               <Switch>
-                {/* Route principale: va direttamente alla pagina di autenticazione */}
+                {/* Homepage: presentazione + login */}
                 <Route path="/">
                   <PageTransition location={location} type="fade-up">
-                    <AuthPage />
+                    <LandingPage />
                   </PageTransition>
                 </Route>
 
@@ -1115,11 +1120,14 @@ export default function App() {
             
             <Toaster />
             <PWAInstallBanner />
-                </AppWrapper>
-              </RobustAppLayout>
-            </RegistrationProvider>
-          </AuthProvider>
-      </div>
+                  </AppWrapper>
+                </RobustAppLayout>
+              </RegistrationProvider>
+            </AuthProvider>
+          </div>
+          <MobilePreviewToggle />
+        </MobilePreviewShell>
+      </ViewModeProvider>
     </QueryClientProvider>
   );
 }
