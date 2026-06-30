@@ -54,7 +54,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
   return (
     <button
       type="button"
-      className="preferiti-button relative w-full h-full min-h-[5.5rem] rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="preferiti-button relative w-full h-full min-h-0 flex-1 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -254,23 +254,28 @@ export default function Preferiti() {
           </CardHeader>
         </Card>
 
-        <div className="preferiti-page__grid grid grid-cols-2 grid-rows-3 gap-2 sm:gap-3 flex-1 min-h-0">
-          {preferitiItems.map((item) => (
-            <PreferitiButton
-              key={item.id}
-              path={item.path}
-              icon={item.icon}
-              label={item.label}
-              color={item.color}
-              onNavigate={(path, event) => {
-                if (item.id === "opinioni") {
-                  event.preventDefault();
-                  setLocation(path);
-                  return;
-                }
-                handleNavigate(path, event);
-              }}
-            />
+        <div className="preferiti-page__grid flex-1 min-h-0 flex flex-col gap-2 sm:gap-3">
+          {[0, 1, 2].map((rowIndex) => (
+            <div key={rowIndex} className="preferiti-page__row flex flex-1 min-h-0 gap-2 sm:gap-3">
+              {preferitiItems.slice(rowIndex * 2, rowIndex * 2 + 2).map((item) => (
+                <div key={item.id} className="preferiti-page__cell flex-1 min-h-0 min-w-0 flex">
+                  <PreferitiButton
+                    path={item.path}
+                    icon={item.icon}
+                    label={item.label}
+                    color={item.color}
+                    onNavigate={(path, event) => {
+                      if (item.id === "opinioni") {
+                        event.preventDefault();
+                        setLocation(path);
+                        return;
+                      }
+                      handleNavigate(path, event);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       </div>

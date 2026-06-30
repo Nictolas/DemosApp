@@ -10,8 +10,6 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   className = "",
 }) => {
   return (
-    <div className={`h-full min-h-0 flex flex-col w-full ${className}`}>
-      <div className="flex-1 min-h-0 w-full flex flex-col">{children}</div>
-    </div>
+    <div className={`h-full min-h-0 flex flex-col w-full ${className}`}>{children}</div>
   );
 };
