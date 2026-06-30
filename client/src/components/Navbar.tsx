@@ -19,8 +19,8 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="app-bottom-nav bg-white flex justify-center items-center select-none px-2 pt-2">
-      <div className="flex w-full max-w-lg items-center justify-between gap-1">
+    <nav className="app-bottom-nav bg-white flex justify-center items-end select-none px-1 pt-1">
+      <div className="flex w-full max-w-lg items-end justify-between gap-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -28,9 +28,10 @@ export default function Navbar() {
             <Link key={item.path} href={item.path} className={getLinkClasses(item.path)}>
               <Icon className={`h-6 w-6 sm:h-7 sm:w-7 mb-0.5 ${active ? "text-blue-600" : ""}`} />
               <span
-                className={`text-[10px] sm:text-xs leading-tight truncate max-w-full ${
+                className={`hidden min-[380px]:block text-[10px] sm:text-xs leading-tight truncate max-w-full text-center ${
                   active ? "text-blue-600 font-semibold" : ""
                 }`}
+                title={item.label}
               >
                 {item.label}
               </span>
