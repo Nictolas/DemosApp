@@ -84,12 +84,30 @@
   font-weight: 600;
 }
 
-/* Header area */
+/* Header area — nascosto su mobile (spazio utile per contenuto) */
+.demos-mobile-layout .app-header {
+  display: none;
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+}
+
 .app-header {
   flex-shrink: 0;
   background: white;
   border-bottom: 1px solid #e5e7eb;
   z-index: 1000;
+}
+
+/* Contenuto pagina: riempie lo spazio tra header e navbar */
+.app-main__inner {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Main content area */
@@ -178,29 +196,17 @@
   }
 }
 
-/* Navbar inferiore — altezza da safe-area, non da 100vh */
-.app-bottom-nav {
-  min-height: 4.5rem;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  box-shadow: 0 -1px 8px 0 rgba(0, 0, 0, 0.03);
-}
-
+/* Navbar inferiore — ancorata in fondo dal flex parent */
 .app-navbar {
   flex-shrink: 0;
+  margin-top: auto;
   background: white;
   border-top: none !important;
   z-index: 9999;
-  position: sticky !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
+  position: relative !important;
   width: 100% !important;
   overflow: hidden !important;
-  order: 999 !important;
-  margin-top: 0 !important;
   margin-bottom: 0 !important;
-  transition: transform 0.3s ease-in-out, max-height 0.3s ease-in-out;
-  max-height: none;
   padding-bottom: 0;
 }
 
@@ -230,31 +236,21 @@
   max-height: 0 !important;
 }
 
-/* ===== CORREZIONI FORZATE PER NAVBAR ===== */
-
-/* Forza la navbar a non essere mai scrollabile */
-.app-navbar,
-.app-navbar * {
-  overflow: visible !important;
-  overflow-x: visible !important;
-  overflow-y: visible !important;
-  position: sticky !important;
-  bottom: 0 !important;
-  flex-shrink: 0 !important;
-  z-index: 9999 !important;
+/* Navbar interna */
+.app-bottom-nav {
+  min-height: 3.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -1px 8px 0 rgba(0, 0, 0, 0.03);
 }
 
-/* Rimuovi il fixed positioning dalla navbar interna */
+/* Non applicare sticky a tutti i discendenti */
 .app-navbar nav {
   position: static !important;
-  bottom: auto !important;
-  left: auto !important;
-  right: auto !important;
   width: 100% !important;
   height: auto !important;
-  box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+  box-shadow: none !important;
   flex-shrink: 0 !important;
-  overflow: visible !important;
 }
 
 /* ===== PADDING AUTOMATICO PER CONTENUTO ===== */
@@ -273,7 +269,7 @@
 /* Supporto per dispositivi con notch */
 @supports (padding: max(0px)) {
   .app-bottom-nav {
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .app-header {
@@ -289,101 +285,31 @@
     height: 100vh;
     height: 100dvh;
   }
-  
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
-  }
-  
-  .app-navbar nav {
-    height: auto !important;
-    min-height: 4.5rem;
-    padding: 0 !important;
-  }
 }
 
 /* Tablet */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
+  .demos-mobile-layout .robust-app-layout {
+    height: 100dvh;
   }
 }
 
 /* Desktop — navbar mobile nascosta dal layout desktop */
 @media (min-width: 1024px) {
   .demos-mobile-layout .app-navbar nav {
-    min-height: 4.5rem;
+    min-height: 3.75rem;
   }
 }
 
 /* ===== ORIENTAMENTO LANDSCAPE ===== */
 
 @media (orientation: landscape) and (max-height: 500px) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
-  }
-  
-  .app-navbar nav {
-    height: 4rem !important; /* 64px */
-    padding: 0.5rem 0 !important;
-  }
-  
   .app-main {
-    /* Riduci margini in landscape */
     padding: 0.5rem;
   }
-}
 
-/* ===== PREVENZIONE SCROLL NAVBAR SU TUTTI I DISPOSITIVI ===== */
-
-/* Forza la navbar a non essere mai scrollabile */
-.app-navbar {
-  position: sticky !important;
-  bottom: 0 !important;
-  z-index: 9999 !important;
-  flex-shrink: 0 !important;
-  width: 100% !important;
-  overflow: visible !important;
-  order: 999 !important;
-}
-
-/* Preveni scroll su tutti i dispositivi */
-@media (max-width: 767px) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
-    overflow: visible !important;
-  }
-}
-
-@media (min-width: 768px) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
-    overflow: visible !important;
-  }
-}
-
-/* Forza la navbar a rimanere fissa anche in landscape */
-@media (orientation: landscape) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
-    overflow: visible !important;
+  .app-bottom-nav {
+    min-height: 3.25rem;
   }
 }
 

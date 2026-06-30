@@ -27,9 +27,17 @@ html, body, #root {
   overscroll-behavior-y: none;
   overflow-x: hidden;
   touch-action: pan-y;
-  overflow-y: auto;
-  background: white; /* Sfondo bianco - ogni pagina gestisce il proprio sfondo */
-  /* La navbar fissa in basso deve essere sempre visibile, non tagliata da overflow! */
+  background: white;
+}
+
+/* Layout mobile: catena altezze fino alla navbar in basso */
+html.demos-mobile-layout,
+html.demos-mobile-layout body,
+html.demos-mobile-layout #root,
+html.demos-mobile-layout .App {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
 }
 
 /* Disabilita overscroll su tutti gli elementi */
@@ -1287,12 +1295,25 @@ html.demos-mobile-preview-active body {
   height: 100%;
   overflow: hidden;
   background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.demos-mobile-preview-content > .App,
+.demos-mobile-preview-content .App {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .demos-mobile-preview-content .robust-app-layout {
   position: relative !important;
   width: 100% !important;
   height: 100% !important;
+  min-height: 100% !important;
+  flex: 1;
   top: auto !important;
   left: auto !important;
   right: auto !important;

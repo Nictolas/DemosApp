@@ -42,54 +42,21 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
     document.documentElement.classList.toggle('demos-mobile-layout', isMobileLayout);
   }, [isMobileLayout]);
 
-  useEffect(() => {
-    if (!showMobileNavbar) return;
-
-    const applyNavbarFix = () => {
-      const navbar = document.querySelector('.app-navbar');
-      if (navbar) {
-        const element = navbar as HTMLElement;
-        element.style.position = 'sticky';
-        element.style.bottom = '0';
-        element.style.zIndex = '9999';
-        element.style.flexShrink = '0';
-        element.style.width = '100%';
-        element.style.overflow = 'visible';
-      }
-    };
-
-    applyNavbarFix();
-    const timer = setTimeout(applyNavbarFix, 100);
-
-    return () => clearTimeout(timer);
-  }, [location, showMobileNavbar]);
-
   return (
     <div className={`robust-app-layout ${showDesktopSidebar ? 'robust-app-layout--desktop' : ''}`}>
       {showDesktopSidebar && <DesktopSidebar />}
 
       <div className="robust-app-layout__content">
-        <header className="app-header" />
+        <header className="app-header" aria-hidden="true" />
 
         <main className="app-main">
           <ErrorBoundary>
-            {children}
+            <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
         </main>
 
         {showMobileNavbar && (
-          <nav
-            className="app-navbar navbar-visible"
-            style={{
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 9999,
-              flexShrink: 0,
-              width: '100%',
-              overflow: 'visible',
-              transition: 'transform 0.3s ease-in-out',
-            }}
-          >
+          <nav className="app-navbar navbar-visible" aria-label="Navigazione principale">
             <Navbar />
           </nav>
         )}

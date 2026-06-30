@@ -321,3 +321,18 @@
     margin-bottom: 4px;
   }
 }
+
+/* I fix con max-width:720px non devono alterare iPhone / anteprima iOS */
+body:not(.android-device) .app-navbar {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+body:not(.android-device) .app-navbar nav,
+body:not(.android-device) .app-navbar nav.app-bottom-nav {
+  height: auto !important;
+  min-height: 3.75rem !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
