@@ -166,22 +166,9 @@
   overflow: hidden !important;
 }
 
-/* Pagina Impostazioni — flex + scroll interno (layout mobile) */
-.demos-mobile-layout .app-main .impostazioni-page {
-  overflow: hidden !important;
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-}
+/* Pagina Impostazioni — vedi index.css (layout ancorato) */
 
-.demos-mobile-layout .app-main:has(.impostazioni-page) {
-  overflow: hidden !important;
-}
-
-/* Pagina Preferiti — vedi index.css (layout assoluto in app-main) */
-
-/* Desktop: griglia più larga */
-.demos-desktop-layout .app-main .impostazioni-page,
+/* Desktop: scroll interno su Strumenti */
 .demos-desktop-layout .app-main .strumenti-page {
   overflow: auto !important;
   overflow-y: auto !important;
