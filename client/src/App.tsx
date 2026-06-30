@@ -602,11 +602,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route preferiti */}
+              {/* Route preferiti — senza PageTransition (evita wrapper che rompe l'altezza) */}
               <Route path="/preferiti">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/preferiti" component={Preferiti} />
-                </PageTransition>
+                <ProtectedRoute path="/preferiti" component={Preferiti} />
               </Route>
 
               {/* Route candidati */}

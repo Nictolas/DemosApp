@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Card, CardHeader } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
 import { apiRequest } from "@/lib/queryClient";
+import { usePreferitiHeaderHeight } from "@/pages/Preferiti/usePreferitiHeaderHeight";
 
 interface PreferitiButtonProps {
   path: string;
@@ -54,7 +55,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
   return (
     <button
       type="button"
-      className="preferiti-button relative w-full h-full min-h-[5rem] rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="preferiti-button relative w-full h-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -134,6 +135,7 @@ const preferitiItems = [
 export default function Preferiti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const { pageRef, headerRef } = usePreferitiHeaderHeight();
 
   const [showOpinioniAlert, setShowOpinioniAlert] = useState(false);
   const [opinioniAlertData, setOpinioniAlertData] = useState<any>(null);
@@ -224,35 +226,40 @@ export default function Preferiti() {
   };
 
   return (
-    <PageContainer className="preferiti-page bg-gradient-to-b from-blue-50 to-white select-none">
-      <div className="preferiti-page__inner flex-1 min-h-0 px-3 py-1 sm:px-4 sm:py-2">
-        <Card className="preferiti-page__logo w-full shrink-0 mb-1 shadow-sm">
-          <CardHeader className="text-center py-1 px-3 sm:py-2 sm:px-4">
-            {user?.ruolo === "AD" ? (
-              <button
-                type="button"
-                onClick={() => setLocation("/gestisci")}
-                className="block mx-auto cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
-                title="Clicca per accedere alla sezione Gestisci"
-                aria-label="Vai a Gestisci"
-              >
+    <PageContainer
+      ref={pageRef}
+      className="preferiti-page preferiti-page--anchored bg-gradient-to-b from-blue-50 to-white select-none"
+    >
+      <div className="preferiti-page__shell">
+        <div ref={headerRef} className="preferiti-page__header">
+          <Card className="preferiti-page__logo w-full shadow-sm">
+            <CardHeader className="text-center py-1 px-3 sm:py-2 sm:px-4">
+              {user?.ruolo === "AD" ? (
+                <button
+                  type="button"
+                  onClick={() => setLocation("/gestisci")}
+                  className="block mx-auto cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
+                  title="Clicca per accedere alla sezione Gestisci"
+                  aria-label="Vai a Gestisci"
+                >
+                  <img
+                    src="/icona.png"
+                    alt="Logo Demos"
+                    className="preferiti-page__logo-img w-16 h-16 sm:w-20 sm:h-20 mx-auto"
+                    data-testid="preferiti-logo"
+                  />
+                </button>
+              ) : (
                 <img
                   src="/icona.png"
                   alt="Logo Demos"
                   className="preferiti-page__logo-img w-16 h-16 sm:w-20 sm:h-20 mx-auto"
                   data-testid="preferiti-logo"
                 />
-              </button>
-            ) : (
-              <img
-                src="/icona.png"
-                alt="Logo Demos"
-                className="preferiti-page__logo-img w-16 h-16 sm:w-20 sm:h-20 mx-auto"
-                data-testid="preferiti-logo"
-              />
-            )}
-          </CardHeader>
-        </Card>
+              )}
+            </CardHeader>
+          </Card>
+        </div>
 
         <div className="preferiti-page__grid gap-2 sm:gap-3">
           {preferitiItems.map((item) => (
