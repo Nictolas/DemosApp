@@ -41,19 +41,21 @@ export default function Impostazioni() {
   }
 
   return (
-    <PageContainer className="impostazioni-page bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="impostazioni-page__inner flex flex-1 flex-col min-h-0 px-3 py-2 sm:px-4 overflow-y-auto">
-        <div className="w-full max-w-2xl mx-auto my-auto py-2">
-          <LinksSection
-            formData={passwordChange.formData}
-            isChangingPassword={passwordChange.state.isChangingPassword}
-            showChangePassword={passwordChange.state.showChangePassword}
-            onUpdateField={passwordChange.updateFormField}
-            onShowForm={passwordChange.showForm}
-            onHideForm={passwordChange.hideForm}
-            onSubmit={passwordChange.handleChangePassword}
-            onLogout={logout.showLogoutDialog}
-          />
+    <PageContainer className="impostazioni-page impostazioni-page--anchored bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="impostazioni-page__shell">
+        <div className="impostazioni-page__scroll">
+          <div className="w-full max-w-2xl mx-auto py-2 sm:px-1">
+            <LinksSection
+              formData={passwordChange.formData}
+              isChangingPassword={passwordChange.state.isChangingPassword}
+              showChangePassword={passwordChange.state.showChangePassword}
+              onUpdateField={passwordChange.updateFormField}
+              onShowForm={passwordChange.showForm}
+              onHideForm={passwordChange.hideForm}
+              onSubmit={passwordChange.handleChangePassword}
+              onLogout={logout.showLogoutDialog}
+            />
+          </div>
         </div>
       </div>
 
