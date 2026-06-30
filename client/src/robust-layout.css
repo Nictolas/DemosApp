@@ -103,15 +103,9 @@
 }
 
 /* Contenuto pagina: riempie lo spazio tra header e navbar */
-.app-main__inner {
-  height: 100%;
-  min-height: 0;
+.app-main {
   display: flex;
   flex-direction: column;
-}
-
-/* Main content area */
-.app-main {
   flex: 1;
   overflow-y: auto !important;
   overflow-x: hidden;
@@ -131,6 +125,13 @@
   pointer-events: auto !important;
   /* Isola layout/paint dello scroll: riduce lavoro su Chrome/PC durante wheel scroll */
   contain: layout paint;
+}
+
+.app-main__inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Assicuriamo che la pagina menu non venga tagliata */
@@ -164,19 +165,10 @@
 
 /* Pagina Preferiti — flex nel layout mobile (navbar gestita dal parent flex) */
 .demos-mobile-layout .app-main:has(.preferiti-page) {
-  display: flex;
-  flex-direction: column;
   overflow: hidden !important;
 }
 
 .demos-mobile-layout .app-main .preferiti-page {
-  overflow: hidden !important;
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-}
-
-.demos-mobile-layout .app-main:has(.preferiti-page) {
   overflow: hidden !important;
 }
 
