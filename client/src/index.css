@@ -1238,14 +1238,15 @@ html.demos-mobile-preview-active body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem 1rem 5rem;
+  padding: 2rem 1rem;
   background: #e2e8f0;
+  overflow: auto;
 }
 
+/* Dimensioni fisse — impostate da MobilePreviewShell (390×844) */
 .demos-mobile-preview-device {
   position: relative;
-  width: min(390px, 100%);
-  height: min(844px, calc(100vh - 6rem));
+  flex-shrink: 0;
   border-radius: 2rem;
   border: 8px solid #1e293b;
   background: #000;
