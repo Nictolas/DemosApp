@@ -273,18 +273,11 @@ export default function Strumenti() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-2 strumenti-page">
-      <div className="max-w-4xl mx-auto h-full flex flex-col space-y-1">
-        {/* Pulsante Riscontro */}
-        {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
-        {/* Header */}
-        <div className="flex items-center justify-between">
-        </div>
-
-        {/* Titolo */}
-        <Card className="flex-shrink-0">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+    <PageContainer className="strumenti-page bg-gradient-to-br from-purple-50 to-pink-100">
+      <div className="strumenti-page__inner flex flex-1 flex-col min-h-0 max-w-4xl mx-auto w-full px-2 py-2">
+        <Card className="shrink-0 mb-2">
+          <CardHeader className="text-center py-3">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
               <Megaphone className="h-6 w-6 text-blue-600" />
               Strumenti
             </CardTitle>
@@ -294,12 +287,11 @@ export default function Strumenti() {
           </CardHeader>
         </Card>
 
-        {/* Pulsanti Navigazione - Layout verticale con descrizioni */}
-        <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
+        <div className="strumenti-page__scroll flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
           {/* Menu (Bacheca) - accesso alla pagina Menu */}
           <button
             type="button"
-            className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
+            className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
             onClick={() => setLocation("/menu")}
             onContextMenu={e => e.preventDefault()}
           >
@@ -319,7 +311,7 @@ export default function Strumenti() {
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-lg"
               onClick={() => setLocation('/comunica')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -340,7 +332,7 @@ export default function Strumenti() {
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg"
               onClick={() => setLocation('/informa-cittadini')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -360,7 +352,7 @@ export default function Strumenti() {
           {/* Evento (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-green-300 hover:shadow-lg"
+            className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-green-300 hover:shadow-lg"
             onClick={() => setLocation('/evento')}
             onContextMenu={e => e.preventDefault()}
           >
@@ -380,7 +372,7 @@ export default function Strumenti() {
           {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
               onClick={() => setLocation('/programma')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -401,7 +393,7 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-pink-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-pink-300 hover:shadow-lg"
               onClick={() => setLocation('/sostenitori')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -422,7 +414,7 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
               onClick={() => setLocation('/riscontro')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -443,7 +435,7 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-lg"
               onClick={() => setLocation('/sondaggi')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -464,7 +456,7 @@ export default function Strumenti() {
           {(user?.ruolo === "A" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-24 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
               onClick={() => setLocation('/social')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -485,7 +477,7 @@ export default function Strumenti() {
 
         {/* Ultima Votazione Section - Compatta */}
         {ultimaComunicazione?.comunicazione && (
-          <Card className="max-w-2xl mx-auto flex-shrink-0">
+          <Card className="max-w-2xl mx-auto shrink-0 mt-2">
             <CardHeader className="py-2">
               <CardTitle className="text-sm font-bold">Ultima Votazione</CardTitle>
               <CardDescription className="text-xs">

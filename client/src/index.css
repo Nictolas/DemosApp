@@ -184,46 +184,60 @@ body {
   -webkit-overflow-scrolling: auto !important;
 }
 
-/* Pagina Strumenti - senza scroll verticale */
-.strumenti-page {
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+/* Pagina Strumenti e Impostazioni — layout flex (no 100vh fissi) */
+.demos-mobile-layout .strumenti-page,
+.demos-mobile-layout .impostazioni-page,
+.demos-mobile-layout .app-main .strumenti-page,
+.demos-mobile-layout .app-main .impostazioni-page {
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
   overflow: hidden !important;
-  overflow-y: hidden !important;
-  overscroll-behavior: none !important;
 }
 
-/* Pagina Preferiti - senza scroll verticale */
-.preferiti-page {
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+.demos-mobile-layout .app-main:has(.strumenti-page),
+.demos-mobile-layout .app-main:has(.impostazioni-page) {
   overflow: hidden !important;
-  overflow-y: hidden !important;
-  overscroll-behavior: none !important;
 }
 
-/* Pagina Impostazioni - senza scroll verticale */
-.impostazioni-page {
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  overflow: hidden !important;
-  overflow-y: hidden !important;
-  overscroll-behavior: none !important;
-}
-
-/* Blocca scroll anche per app-main quando contiene queste pagine */
-.app-main:has(.strumenti-page),
-.app-main:has(.preferiti-page),
-.app-main:has(.impostazioni-page) {
-  overflow-y: hidden !important;
-}
-
-/* Fallback per browser che non supportano :has() */
 .app-main .strumenti-page,
-.app-main .preferiti-page,
 .app-main .impostazioni-page {
-  height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
-  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+}
+
+.strumenti-page__scroll,
+.impostazioni-page__inner {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Pagina Preferiti — layout flex (no altezze fisse da 100vh) */
+.demos-mobile-layout .preferiti-page,
+.demos-mobile-layout .app-main .preferiti-page {
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.demos-mobile-layout .app-main:has(.preferiti-page) {
+  overflow: hidden !important;
+}
+
+.preferiti-page__grid {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.preferiti-button {
+  min-height: 4.5rem;
+}
+
+/* Blocca scroll esterno su app-main per preferiti */
+.app-main .preferiti-page {
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
 @layer base {
@@ -1287,4 +1301,18 @@ html.demos-mobile-preview-active body {
 
 .demos-mobile-preview-content .landing-page {
   min-height: 100%;
+}
+
+.demos-mobile-preview-label {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-height: 700px) {
+  .preferiti-page__logo-img {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+  }
 }

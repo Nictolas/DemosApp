@@ -120,23 +120,43 @@
   overflow: visible !important;
 }
 
-/* Pagina Strumenti - blocca scroll verticale (solo layout mobile) */
+/* Pagina Strumenti — flex + scroll interno (layout mobile) */
 .demos-mobile-layout .app-main .strumenti-page {
   overflow: hidden !important;
-  overflow-y: hidden !important;
-  height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
-  max-height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
-/* Pagina Preferiti - blocca scroll verticale (solo layout mobile con navbar) */
+.demos-mobile-layout .app-main:has(.strumenti-page) {
+  overflow: hidden !important;
+}
+
+/* Pagina Impostazioni — flex + scroll interno (layout mobile) */
+.demos-mobile-layout .app-main .impostazioni-page {
+  overflow: hidden !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+}
+
+.demos-mobile-layout .app-main:has(.impostazioni-page) {
+  overflow: hidden !important;
+}
+
+/* Pagina Preferiti — flex nel layout mobile (navbar gestita dal parent flex) */
 .demos-mobile-layout .app-main .preferiti-page {
   overflow: hidden !important;
-  overflow-y: hidden !important;
-  height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
-  max-height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
-/* Desktop: niente offset navbar, griglia più larga */
+.demos-mobile-layout .app-main:has(.preferiti-page) {
+  overflow: hidden !important;
+}
+
+/* Desktop: griglia più larga */
 .demos-desktop-layout .app-main .preferiti-page,
 .demos-desktop-layout .app-main .impostazioni-page,
 .demos-desktop-layout .app-main .strumenti-page {
@@ -146,29 +166,29 @@
   max-height: none !important;
 }
 
-.demos-desktop-layout .preferiti-page .grid {
+.demos-desktop-layout .preferiti-page .preferiti-page__grid {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
 }
 
 @media (max-width: 1100px) {
-  .demos-desktop-layout .preferiti-page .grid {
+  .demos-desktop-layout .preferiti-page .preferiti-page__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
   }
 }
 
-/* Pagina Impostazioni - blocca scroll verticale (solo layout mobile) */
-.demos-mobile-layout .app-main .impostazioni-page {
-  overflow: hidden !important;
-  overflow-y: hidden !important;
-  height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
-  max-height: calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px)) !important;
+/* Navbar inferiore — altezza da safe-area, non da 100vh */
+.app-bottom-nav {
+  min-height: 4.5rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  box-shadow: 0 -1px 8px 0 rgba(0, 0, 0, 0.03);
 }
 
-/* Navbar area - Appare/Scompare con scroll */
 .app-navbar {
   flex-shrink: 0;
   background: white;
-  border-top: none !important; /* Rimosso border-top che creava riga bianca */
+  border-top: none !important;
   z-index: 9999;
   position: sticky !important;
   bottom: 0 !important;
@@ -179,17 +199,14 @@
   order: 999 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
-  transition: transform 0.3s ease-in-out, max-height 0.3s ease-in-out, padding-bottom 0.3s ease-in-out;
-  max-height: 200px; /* Altezza massima quando visibile */
-  /* Fallback 56px per barra browser su Huawei/Android (Aggiungi a home) */
-  padding-bottom: max(56px, env(safe-area-inset-bottom));
+  transition: transform 0.3s ease-in-out, max-height 0.3s ease-in-out;
+  max-height: none;
+  padding-bottom: 0;
 }
 
 /* Navbar visibile - mostra */
 .app-navbar.navbar-visible {
   transform: translateY(0);
-  max-height: 200px;
-  padding-bottom: max(56px, env(safe-area-inset-bottom));
 }
 
 /* Navbar nascosta - nascondi sotto lo schermo E non occupare spazio */
@@ -253,20 +270,12 @@
 
 /* ===== SUPPORTO PER SAFE AREAS ===== */
 
-/* Supporto per dispositivi con notch + fallback per barra browser (Huawei, Android) */
+/* Supporto per dispositivi con notch */
 @supports (padding: max(0px)) {
-  .app-navbar {
-    padding-bottom: max(56px, env(safe-area-inset-bottom));
+  .app-bottom-nav {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
-  
-  /* Quando la navbar è nascosta, rimuovi COMPLETAMENTE il padding-bottom per evitare spazio bianco */
-  .app-navbar.navbar-hidden {
-    padding-bottom: 0 !important;
-    height: 0 !important;
-    max-height: 0 !important;
-    min-height: 0 !important;
-  }
-  
+
   .app-header {
     padding-top: max(0px, env(safe-area-inset-top));
   }
@@ -289,8 +298,9 @@
   }
   
   .app-navbar nav {
-    height: 6rem !important; /* 96px */
-    padding: 1rem 0 !important;
+    height: auto !important;
+    min-height: 4.5rem;
+    padding: 0 !important;
   }
 }
 
@@ -302,25 +312,12 @@
     z-index: 9999 !important;
     flex-shrink: 0 !important;
   }
-  
-  .app-navbar nav {
-    height: 5rem !important; /* 80px */
-    padding: 0.75rem 0 !important;
-  }
 }
 
-/* Desktop */
+/* Desktop — navbar mobile nascosta dal layout desktop */
 @media (min-width: 1024px) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 9999 !important;
-    flex-shrink: 0 !important;
-  }
-  
-  .app-navbar nav {
-    height: 4rem !important; /* 64px */
-    padding: 0.5rem 0 !important;
+  .demos-mobile-layout .app-navbar nav {
+    min-height: 4.5rem;
   }
 }
 
