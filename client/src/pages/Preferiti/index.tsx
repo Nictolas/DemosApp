@@ -54,7 +54,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
   return (
     <button
       type="button"
-      className="preferiti-button relative w-full h-full min-h-[4.5rem] rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="preferiti-button relative w-full h-full min-h-0 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform self-stretch"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -225,9 +225,9 @@ export default function Preferiti() {
 
   return (
     <PageContainer className="preferiti-page bg-gradient-to-b from-blue-50 to-white select-none">
-      <div className="preferiti-page__inner flex flex-1 flex-col min-h-0 px-3 py-2 sm:px-4">
-        <Card className="preferiti-page__logo w-full shrink-0 mb-2 shadow-sm">
-          <CardHeader className="text-center py-2 px-4">
+      <div className="preferiti-page__inner flex flex-1 flex-col min-h-0 h-full px-3 py-1 sm:px-4 sm:py-2">
+        <Card className="preferiti-page__logo w-full shrink-0 mb-1 shadow-sm">
+          <CardHeader className="text-center py-1 px-3 sm:py-2 sm:px-4">
             {user?.ruolo === "AD" ? (
               <button
                 type="button"
@@ -254,23 +254,28 @@ export default function Preferiti() {
           </CardHeader>
         </Card>
 
-        <div className="preferiti-page__grid flex-1 min-h-0 grid grid-cols-2 grid-rows-3 gap-2 sm:gap-3">
-          {preferitiItems.map((item) => (
-            <PreferitiButton
-              key={item.id}
-              path={item.path}
-              icon={item.icon}
-              label={item.label}
-              color={item.color}
-                onNavigate={(path, event) => {
-                if (item.id === "opinioni") {
-                  event.preventDefault();
-                  setLocation(path);
-                  return;
-                }
-                handleNavigate(path, event);
-              }}
-            />
+        <div className="preferiti-page__grid flex-1 min-h-0 flex flex-col gap-2 sm:gap-3">
+          {[0, 1, 2].map((rowIndex) => (
+            <div key={rowIndex} className="preferiti-page__row flex flex-1 min-h-0 gap-2 sm:gap-3">
+              {preferitiItems.slice(rowIndex * 2, rowIndex * 2 + 2).map((item) => (
+                <div key={item.id} className="flex-1 min-h-0 min-w-0 flex">
+                  <PreferitiButton
+                    path={item.path}
+                    icon={item.icon}
+                    label={item.label}
+                    color={item.color}
+                    onNavigate={(path, event) => {
+                      if (item.id === "opinioni") {
+                        event.preventDefault();
+                        setLocation(path);
+                        return;
+                      }
+                      handleNavigate(path, event);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       </div>

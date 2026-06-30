@@ -234,14 +234,36 @@ body {
 }
 
 .preferiti-page__grid {
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.preferiti-page__row {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .preferiti-button {
-  min-height: 4.5rem;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
-/* Blocca scroll esterno su app-main per preferiti */
+.demos-mobile-layout .preferiti-page__inner {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.demos-mobile-layout .preferiti-page__logo-img {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.demos-mobile-layout .app-main:has(.preferiti-page) {
+  overflow: hidden !important;
+  contain: none !important;
+}
 .app-main .preferiti-page {
   height: 100% !important;
   max-height: none !important;
