@@ -5,31 +5,30 @@ interface MobilePreviewShellProps {
   children: React.ReactNode;
 }
 
+/** Wrapper sempre presente: evita unmount/remount (e splash) al toggle Mobile/Desktop. */
 export function MobilePreviewShell({ children }: MobilePreviewShellProps) {
   const { isMobilePreview, previewWidth, previewHeight, previewPreset } = useViewMode();
 
-  if (!isMobilePreview) {
-    return <>{children}</>;
-  }
-
   return (
-    <div className="demos-mobile-preview-shell">
+    <div className={isMobilePreview ? "demos-mobile-preview-shell" : "demos-app-shell"}>
       <div
-        className="demos-mobile-preview-device"
-        style={{ width: previewWidth, height: previewHeight }}
-        data-preview-preset={previewPreset.id}
+        className={isMobilePreview ? "demos-mobile-preview-device" : "demos-app-shell__frame"}
+        style={isMobilePreview ? { width: previewWidth, height: previewHeight } : undefined}
+        data-preview-preset={isMobilePreview ? previewPreset.id : undefined}
       >
-        <div className="demos-mobile-preview-notch" aria-hidden="true" />
+        {isMobilePreview && <div className="demos-mobile-preview-notch" aria-hidden="true" />}
         <div
-          className="demos-mobile-preview-content"
-          style={{ width: previewWidth, height: previewHeight }}
+          className={isMobilePreview ? "demos-mobile-preview-content" : "demos-app-shell__content"}
+          style={isMobilePreview ? { width: previewWidth, height: previewHeight } : undefined}
         >
           {children}
         </div>
       </div>
-      <p className="demos-mobile-preview-label" aria-hidden="true">
-        {previewPreset.label} · {previewWidth}×{previewHeight}
-      </p>
+      {isMobilePreview && (
+        <p className="demos-mobile-preview-label" aria-hidden="true">
+          {previewPreset.label} · {previewWidth}×{previewHeight}
+        </p>
+      )}
     </div>
   );
 }

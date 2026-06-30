@@ -12,33 +12,27 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(false);
   const [isAppReady, setIsAppReady] = useState(false);
-  const [hasShownSplash, setHasShownSplash] = useState(false);
 
-  // Controlla se è il primo caricamento dell'app
+  // Splash solo al primo caricamento della sessione (mai al toggle Mobile/Desktop)
   useEffect(() => {
-    const isFirstLoad = !sessionStorage.getItem('app_loaded');
-    const hasToken = localStorage.getItem('auth_token');
-    
-    // Mostra splash screen solo se:
-    // 1. È il primo caricamento dell'app
-    // 2. L'utente ha un token (login recente)
-    // 3. Non abbiamo ancora mostrato lo splash in questa sessione
-    if (isFirstLoad || (hasToken && !hasShownSplash)) {
+    const splashAlreadyShown = sessionStorage.getItem("splash_shown") === "1";
+    const isFirstLoad = !sessionStorage.getItem("app_loaded");
+    const hasToken = localStorage.getItem("auth_token");
+
+    if (!splashAlreadyShown && (isFirstLoad || hasToken)) {
       setShowSplash(true);
-      setHasShownSplash(true);
-      sessionStorage.setItem('app_loaded', 'true');
-      
-      // Timer per la splash screen (2 secondi invece di 8)
+      sessionStorage.setItem("app_loaded", "true");
+      sessionStorage.setItem("splash_shown", "1");
+
       const splashTimer = setTimeout(() => {
         setShowSplash(false);
         setIsAppReady(true);
       }, 2000);
 
       return () => clearTimeout(splashTimer);
-    } else {
-      // Se non dobbiamo mostrare lo splash, l'app è subito pronta
-      setIsAppReady(true);
     }
+
+    setIsAppReady(true);
   }, []);
 
   // Controlla se l'app è pronta (auth completato)

@@ -163,6 +163,12 @@
 }
 
 /* Pagina Preferiti — flex nel layout mobile (navbar gestita dal parent flex) */
+.demos-mobile-layout .app-main:has(.preferiti-page) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
 .demos-mobile-layout .app-main .preferiti-page {
   overflow: hidden !important;
   height: 100% !important;

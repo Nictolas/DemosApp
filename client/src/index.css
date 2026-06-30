@@ -220,9 +220,10 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Pagina Preferiti — layout flex (no altezze fisse da 100vh) */
+/* Pagina Preferiti — flex fino alla navbar */
 .demos-mobile-layout .preferiti-page,
 .demos-mobile-layout .app-main .preferiti-page {
+  flex: 1 1 0;
   height: 100% !important;
   max-height: none !important;
   min-height: 0 !important;
@@ -230,24 +231,40 @@ body {
 }
 
 .demos-mobile-layout .app-main:has(.preferiti-page) {
+  display: flex;
+  flex-direction: column;
   overflow: hidden !important;
   contain: none !important;
 }
 
-.preferiti-page__grid {
-  flex: 1;
+.demos-mobile-layout .app-main:has(.preferiti-page) .app-main__inner {
+  flex: 1 1 0;
   min-height: 0;
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  align-content: stretch;
-}
-
-.preferiti-button {
-  height: 100%;
-  min-height: 5.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .demos-mobile-layout .preferiti-page__inner {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.demos-mobile-layout .preferiti-page__grid {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.demos-mobile-layout .preferiti-page__row {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.demos-mobile-layout .preferiti-page__cell {
+  min-height: 0;
+}
+
+.demos-mobile-layout .preferiti-button {
+  flex: 1 1 0;
   min-height: 0;
   height: 100%;
 }
@@ -257,11 +274,21 @@ body {
   height: 3.5rem;
 }
 
-/* Desktop: griglia 3 colonne */
+/* Desktop: griglia 3×2 (righe = display:contents) */
 .demos-desktop-layout .preferiti-page__grid {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(8rem, 1fr));
+  flex: 1;
   min-height: 28rem;
+}
+
+.demos-desktop-layout .preferiti-page__row {
+  display: contents;
+}
+
+.demos-desktop-layout .preferiti-button {
+  min-height: 8rem;
 }
 
 @media (max-width: 1100px) {
@@ -1359,6 +1386,24 @@ html.demos-mobile-preview-active body {
   font-size: 0.75rem;
   color: #64748b;
   text-align: center;
+}
+
+/* Modalità desktop normale — stesso albero DOM dell'anteprima (no remount) */
+.demos-app-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.demos-app-shell__frame,
+.demos-app-shell__content {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-height: 700px) {
