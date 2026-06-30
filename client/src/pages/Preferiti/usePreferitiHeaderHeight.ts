@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 
-/** Misura l'header (logo) e imposta --preferiti-header-h per ancorare la griglia. */
-export function usePreferitiHeaderHeight() {
+/** Misura l'header e imposta una CSS variable per ancorare il contenuto sotto. */
+export function usePreferitiHeaderHeight(cssVariable = "--preferiti-header-h") {
   const pageRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -11,14 +11,14 @@ export function usePreferitiHeaderHeight() {
     if (!page || !header) return;
 
     const sync = () => {
-      page.style.setProperty("--preferiti-header-h", `${header.offsetHeight}px`);
+      page.style.setProperty(cssVariable, `${header.offsetHeight}px`);
     };
 
     sync();
     const observer = new ResizeObserver(sync);
     observer.observe(header);
     return () => observer.disconnect();
-  }, []);
+  }, [cssVariable]);
 
   return { pageRef, headerRef };
 }
