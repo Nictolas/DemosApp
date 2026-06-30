@@ -5,11 +5,12 @@ interface PageContainerProps {
   className?: string;
 }
 
-export const PageContainer: React.FC<PageContainerProps> = ({
-  children,
-  className = "",
-}) => {
-  return (
-    <div className={`h-full w-full flex flex-col min-h-0 ${className}`}>{children}</div>
-  );
-};
+export const PageContainer = React.forwardRef<HTMLDivElement, PageContainerProps>(
+  function PageContainer({ children, className = "" }, ref) {
+    return (
+      <div ref={ref} className={`h-full w-full flex flex-col min-h-0 ${className}`}>
+        {children}
+      </div>
+    );
+  },
+);
