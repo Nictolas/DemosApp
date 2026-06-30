@@ -40,6 +40,14 @@ html.demos-mobile-layout .App {
   overflow: hidden;
 }
 
+html.demos-mobile-layout .App,
+html.demos-desktop-layout .App {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 /* Disabilita overscroll su tutti gli elementi */
 * {
   overscroll-behavior: none !important;
@@ -221,34 +229,55 @@ body {
 }
 
 /* Pagina Preferiti — griglia che riempie lo spazio tra logo e navbar */
-.demos-mobile-layout .preferiti-page,
-.demos-mobile-layout .app-main .preferiti-page {
-  flex: 1;
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
-
-.demos-mobile-layout .app-main:has(.preferiti-page) {
+.demos-mobile-layout .app-main:has(.preferiti-page),
+.demos-desktop-layout .app-main:has(.preferiti-page) {
   display: flex;
   flex-direction: column;
   overflow: hidden !important;
   contain: none !important;
 }
 
-.demos-mobile-layout .app-main:has(.preferiti-page) .app-main__inner {
-  flex: 1;
+.demos-mobile-layout .app-main:has(.preferiti-page) .app-main__inner,
+.demos-desktop-layout .app-main:has(.preferiti-page) .app-main__inner {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* PageTransition rompeva la catena: min-height:100vh senza flex sul genitore */
+.demos-mobile-layout .app-main:has(.preferiti-page) .page-transition,
+.demos-desktop-layout .app-main:has(.preferiti-page) .page-transition {
+  flex: 1 1 0;
+  min-height: 0 !important;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  contain: none !important;
+}
+
+.demos-mobile-layout .app-main:has(.preferiti-page) .page-transition > *,
+.demos-desktop-layout .app-main:has(.preferiti-page) .page-transition > * {
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
+.demos-mobile-layout .preferiti-page,
+.demos-mobile-layout .app-main .preferiti-page,
+.demos-desktop-layout .preferiti-page,
+.demos-desktop-layout .app-main .preferiti-page {
+  flex: 1 1 0;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
 /* Logo fisso in alto, griglia prende tutto il resto */
-.demos-mobile-layout .preferiti-page__inner {
+.demos-mobile-layout .preferiti-page__inner,
+.demos-desktop-layout .preferiti-page__inner {
   display: grid;
   grid-template-rows: auto 1fr;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   height: 100%;
 }
@@ -274,19 +303,12 @@ body {
 }
 
 /* Desktop: griglia 3×2 */
-.demos-desktop-layout .preferiti-page__inner {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
 .demos-desktop-layout .preferiti-page__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(8rem, 1fr));
-  flex: 1;
-  min-height: 28rem;
+  min-height: 0;
+  height: 100%;
 }
 
 .demos-desktop-layout .preferiti-button {
@@ -298,14 +320,7 @@ body {
   .demos-desktop-layout .preferiti-page__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: repeat(3, minmax(7rem, 1fr));
-    min-height: 32rem;
   }
-}
-
-.app-main .preferiti-page {
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
 }
 
 @layer base {
