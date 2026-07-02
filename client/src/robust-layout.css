@@ -198,9 +198,11 @@
 
 /* Navbar interna */
 .app-bottom-nav {
-  min-height: 3.75rem;
-  padding-top: 0.5rem;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --app-navbar-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-navbar-bottom-gap: min(var(--app-navbar-safe-bottom), 14px);
+  min-height: calc(3.75rem + var(--app-navbar-bottom-gap));
+  padding-top: 0.35rem;
+  padding-bottom: var(--app-navbar-bottom-gap);
   box-shadow: 0 -1px 8px 0 rgba(0, 0, 0, 0.03);
 }
 
@@ -229,7 +231,10 @@
 /* Supporto per dispositivi con notch */
 @supports (padding: max(0px)) {
   .app-bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --app-navbar-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --app-navbar-bottom-gap: min(var(--app-navbar-safe-bottom), 14px);
+    min-height: calc(3.75rem + var(--app-navbar-bottom-gap));
+    padding-bottom: var(--app-navbar-bottom-gap);
   }
 
   .app-header {
