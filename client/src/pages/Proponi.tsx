@@ -3,19 +3,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Vote, Globe2 } from "lucide-react";
-import { useNoScroll } from "@/hooks/useNoScroll";
+import { PageContainer } from "@/components/PageContainer";
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
-  
-  // Blocca lo scroll della pagina
-  useNoScroll(true);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -24,8 +21,8 @@ export default function Proponi() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
-      <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
+    <PageContainer className="page-with-navbar bg-gradient-to-br from-purple-50 to-pink-100">
+      <div className="max-w-4xl mx-auto w-full flex flex-1 min-h-0 flex-col p-4">
         {/* Titolo */}
         <Card>
           <CardHeader className="text-center">
@@ -103,6 +100,6 @@ export default function Proponi() {
           </button>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
