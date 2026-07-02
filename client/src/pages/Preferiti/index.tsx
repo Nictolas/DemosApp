@@ -6,7 +6,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { Card, CardHeader } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
 import { apiRequest } from "@/lib/queryClient";
-import { usePreferitiHeaderHeight } from "@/pages/Preferiti/usePreferitiHeaderHeight";
 
 interface PreferitiButtonProps {
   path: string;
@@ -135,7 +134,6 @@ const preferitiItems = [
 export default function Preferiti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const { pageRef, headerRef } = usePreferitiHeaderHeight();
 
   const [showOpinioniAlert, setShowOpinioniAlert] = useState(false);
   const [opinioniAlertData, setOpinioniAlertData] = useState<any>(null);
@@ -226,13 +224,9 @@ export default function Preferiti() {
   };
 
   return (
-    <PageContainer
-      ref={pageRef}
-      className="preferiti-page preferiti-page--anchored bg-gradient-to-b from-blue-50 to-white select-none"
-    >
-      <div className="preferiti-page__shell">
-        <div ref={headerRef} className="preferiti-page__header">
-          <Card className="preferiti-page__logo w-full shadow-sm">
+    <PageContainer className="preferiti-page page-with-navbar bg-gradient-to-b from-blue-50 to-white select-none">
+      <div className="preferiti-page__inner flex h-full min-h-0 flex-col px-3 py-1 sm:px-4 sm:py-2">
+        <Card className="preferiti-page__logo w-full shrink-0 shadow-sm">
             <CardHeader className="text-center py-1 px-3 sm:py-2 sm:px-4">
               {user?.ruolo === "AD" ? (
                 <button
@@ -257,11 +251,10 @@ export default function Preferiti() {
                   data-testid="preferiti-logo"
                 />
               )}
-            </CardHeader>
-          </Card>
-        </div>
+          </CardHeader>
+        </Card>
 
-        <div className="preferiti-page__grid gap-2 sm:gap-3">
+        <div className="preferiti-page__grid mt-2 flex-1 min-h-0 gap-2 sm:gap-3">
           {preferitiItems.map((item) => (
             <PreferitiButton
               key={item.id}

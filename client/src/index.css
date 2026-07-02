@@ -200,72 +200,43 @@ body {
   -webkit-overflow-scrolling: auto !important;
 }
 
-/* ===== PREFERITI + IMPOSTAZIONI + STRUMENTI: layout ancorato in app-main ===== */
-.app-main:has(.preferiti-page),
-.app-main:has(.impostazioni-page),
-.app-main:has(.strumenti-page) {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+/* ===== PREFERITI + IMPOSTAZIONI + STRUMENTI: modello mobile uniforme ===== */
+.demos-mobile-layout .preferiti-page,
+.demos-mobile-layout .impostazioni-page,
+.demos-mobile-layout .strumenti-page,
+.demos-mobile-layout .app-main .preferiti-page,
+.demos-mobile-layout .app-main .impostazioni-page,
+.demos-mobile-layout .app-main .strumenti-page,
+.app-main .preferiti-page,
+.app-main .impostazioni-page,
+.app-main .strumenti-page {
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
   overflow: hidden !important;
-  contain: none !important;
 }
 
-.app-main:has(.preferiti-page) .app-main__inner,
-.app-main:has(.impostazioni-page) .app-main__inner,
-.app-main:has(.strumenti-page) .app-main__inner {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  contain: none !important;
-}
-
-.preferiti-page--anchored {
-  flex: 1;
-  min-height: 0;
+.preferiti-page__inner,
+.impostazioni-page__inner,
+.strumenti-page__inner {
   height: 100%;
-  position: relative;
-  overflow: visible;
+  min-height: 0;
 }
 
-.preferiti-page__shell {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  padding: 0.25rem 0.75rem 0.5rem;
-  box-sizing: border-box;
-}
-
-.preferiti-page__header {
-  position: relative;
-  z-index: 1;
-}
-
-/* top/bottom espliciti: --preferiti-header-h impostato da ResizeObserver */
 .preferiti-page__grid {
-  position: absolute;
-  top: var(--preferiti-header-h, 5rem);
-  left: 0.75rem;
-  right: 0.75rem;
-  bottom: 0.5rem;
   display: grid;
-  gap: 0.5rem;
-}
-
-body.android-device .preferiti-page__grid {
-  bottom: calc(var(--app-navbar-h, 0px) + 0.5rem);
+  min-height: 0;
 }
 
 .demos-mobile-layout .preferiti-page__grid {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(5rem, 1fr));
 }
 
 .demos-mobile-layout .preferiti-button {
   height: 100%;
   width: 100%;
-  min-height: 0;
+  min-height: 5rem;
 }
 
 .demos-mobile-layout .preferiti-page__logo-img {
@@ -274,80 +245,25 @@ body.android-device .preferiti-page__grid {
 }
 
 .demos-desktop-layout .preferiti-page__grid {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(7rem, 1fr));
 }
 
 .demos-desktop-layout .preferiti-button {
   height: 100%;
   width: 100%;
-  min-height: 0;
+  min-height: 7rem;
 }
 
 @media (max-width: 1100px) {
   .demos-desktop-layout .preferiti-page__grid {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(6rem, 1fr));
   }
 }
 
-/* Impostazioni: area scroll ancorata tra top e navbar */
-.impostazioni-page--anchored {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  position: relative;
-  overflow: visible;
-}
-
-.impostazioni-page__shell {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.impostazioni-page__scroll {
-  position: absolute;
-  top: 0.25rem;
-  left: 0.75rem;
-  right: 0.75rem;
-  bottom: 0.5rem;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Strumenti: header fisso + lista scrollabile ancorata */
-.strumenti-page--anchored {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  position: relative;
-  overflow: visible;
-}
-
-.strumenti-page__shell {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  padding: 0.25rem 0.75rem 0.5rem;
-  box-sizing: border-box;
-}
-
-.strumenti-page__header {
-  position: relative;
-  z-index: 1;
-}
-
+.impostazioni-page__inner,
 .strumenti-page__scroll {
-  position: absolute;
-  top: var(--strumenti-header-h, 5rem);
-  left: 0.75rem;
-  right: 0.75rem;
-  bottom: 0.5rem;
-  overflow-x: hidden;
-  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
