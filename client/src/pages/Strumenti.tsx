@@ -16,7 +16,6 @@ import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaph
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
-import { usePreferitiHeaderHeight } from "@/pages/Preferiti/usePreferitiHeaderHeight";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -48,7 +47,6 @@ export default function Strumenti() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const { pageRef, headerRef } = usePreferitiHeaderHeight("--strumenti-header-h");
   const [existingComunicazione, setExistingComunicazione] = useState<ExistingComunicazione | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
@@ -275,26 +273,21 @@ export default function Strumenti() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <PageContainer
-      ref={pageRef}
-      className="strumenti-page strumenti-page--anchored bg-gradient-to-br from-purple-50 to-pink-100"
-    >
-      <div className="strumenti-page__shell">
-        <div ref={headerRef} className="strumenti-page__header">
-          <Card className="mb-1">
-            <CardHeader className="text-center py-3">
-              <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
-                <Megaphone className="h-6 w-6 text-blue-600" />
-                Strumenti
-              </CardTitle>
-              <CardDescription>
-                Accedi agli strumenti di gestione, comunicazione e analisi
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
+    <PageContainer className="strumenti-page page-with-navbar bg-gradient-to-br from-purple-50 to-pink-100">
+      <div className="strumenti-page__inner flex h-full min-h-0 max-w-4xl mx-auto w-full flex-col px-2 py-2">
+        <Card className="mb-1 shrink-0">
+          <CardHeader className="text-center py-3">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
+              <Megaphone className="h-6 w-6 text-blue-600" />
+              Strumenti
+            </CardTitle>
+            <CardDescription>
+              Accedi agli strumenti di gestione, comunicazione e analisi
+            </CardDescription>
+          </CardHeader>
+        </Card>
 
-        <div className="strumenti-page__scroll">
+        <div className="strumenti-page__scroll flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-4xl mx-auto w-full flex flex-col gap-2 py-1">
           {/* Menu (Bacheca) - accesso alla pagina Menu */}
           <button
