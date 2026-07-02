@@ -570,11 +570,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route opinioni */}
+              {/* Route opinioni — senza PageTransition (layout ancorato) */}
               <Route path="/opinioni">
-                <PageTransition location={location} type="fade-side">
-                  <ProtectedRoute path="/opinioni" component={Opinioni} />
-                </PageTransition>
+                <ProtectedRoute path="/opinioni" component={Opinioni} />
               </Route>
 
               <Route path="/opinioni-nazionali">
@@ -595,11 +593,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route rappresentanti */}
+              {/* Route rappresentanti — senza PageTransition (layout ancorato) */}
               <Route path="/rappresentanti">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
-                </PageTransition>
+                <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
               </Route>
 
               {/* Route preferiti — senza PageTransition (evita wrapper che rompe l'altezza) */}
