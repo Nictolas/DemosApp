@@ -147,11 +147,11 @@
 
 /* ===== FIX SPECIFICO PER NAVBAR ANDROID ===== */
 
-/* Forza la navbar a rimanere sempre visibile su Android */
+/* Android: la navbar deve restare nel flow del layout, non sticky sopra il contenuto */
 @media screen and (max-width: 768px) {
-  .app-navbar {
-    position: sticky !important;
-    bottom: 0 !important;
+  body.android-device .app-navbar {
+    position: relative !important;
+    bottom: auto !important;
     z-index: 9999 !important;
     background: white !important;
     box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
