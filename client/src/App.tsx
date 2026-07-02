@@ -865,9 +865,7 @@ export default function App() {
 
               {/* Route firma */}
               <Route path="/firma">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/firma" component={Proponi} />
-                </PageTransition>
+                <ProtectedRoute path="/firma" component={Proponi} />
               </Route>
 
               {/* Route proponi opinione */}
