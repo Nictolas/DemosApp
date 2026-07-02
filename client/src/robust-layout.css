@@ -42,6 +42,8 @@
 
 .demos-mobile-layout .robust-app-layout__content > .app-main {
   min-height: 0;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  box-sizing: border-box;
 }
 
 .demos-mobile-layout .robust-app-layout__content > .app-navbar {
