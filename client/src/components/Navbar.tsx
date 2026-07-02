@@ -28,7 +28,7 @@ export default function Navbar() {
             <Link key={item.path} href={item.path} className={getLinkClasses(item.path)}>
               <Icon className={`h-6 w-6 sm:h-7 sm:w-7 mb-0.5 ${active ? "text-blue-600" : ""}`} />
               <span
-                className={`hidden min-[380px]:block text-[10px] sm:text-xs leading-tight truncate max-w-full text-center ${
+                className={`hidden text-[10px] sm:text-xs leading-tight truncate max-w-full text-center ${
                   active ? "text-blue-600 font-semibold" : ""
                 }`}
                 title={item.label}

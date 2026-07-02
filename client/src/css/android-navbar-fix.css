@@ -333,6 +333,6 @@ body:not(.android-device) .app-navbar nav,
 body:not(.android-device) .app-navbar nav.app-bottom-nav {
   height: auto !important;
   min-height: 3.75rem !important;
-  padding-top: 0.5rem !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  padding-top: 0.35rem !important;
+  padding-bottom: min(env(safe-area-inset-bottom, 0px), 14px) !important;
 }
