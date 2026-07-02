@@ -41,8 +41,8 @@ export default function Impostazioni() {
   }
 
   return (
-    <PageContainer className="impostazioni-page page-with-navbar bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="impostazioni-page__inner flex h-full min-h-0 flex-col overflow-y-auto px-3 py-2 sm:px-4">
+    <PageContainer className="impostazioni-page bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="impostazioni-page__inner app-page-scroll flex h-full min-h-0 flex-col overflow-y-auto px-3 py-2 sm:px-4">
         <div className="w-full max-w-2xl mx-auto py-2 sm:px-1">
             <LinksSection
               formData={passwordChange.formData}
