@@ -253,6 +253,10 @@ body {
   gap: 0.5rem;
 }
 
+body.android-device .preferiti-page__grid {
+  bottom: calc(var(--app-navbar-h, 0px) + 0.5rem);
+}
+
 .demos-mobile-layout .preferiti-page__grid {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(3, 1fr);
