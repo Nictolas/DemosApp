@@ -200,25 +200,66 @@ body {
   -webkit-overflow-scrolling: auto !important;
 }
 
-/* ===== PREFERITI + IMPOSTAZIONI + STRUMENTI: modello mobile uniforme ===== */
+/* ===== PAGINE MOBILE ANCORATE (contratto unico dentro app-main) ===== */
 .demos-mobile-layout .preferiti-page,
 .demos-mobile-layout .impostazioni-page,
 .demos-mobile-layout .strumenti-page,
+.demos-mobile-layout .opinioni-page,
+.demos-mobile-layout .attivisti-page,
+.demos-mobile-layout .rappresentanti-page,
 .demos-mobile-layout .app-main .preferiti-page,
 .demos-mobile-layout .app-main .impostazioni-page,
 .demos-mobile-layout .app-main .strumenti-page,
+.demos-mobile-layout .app-main .opinioni-page,
+.demos-mobile-layout .app-main .attivisti-page,
+.demos-mobile-layout .app-main .rappresentanti-page,
 .app-main .preferiti-page,
 .app-main .impostazioni-page,
-.app-main .strumenti-page {
+.app-main .strumenti-page,
+.app-main .opinioni-page,
+.app-main .attivisti-page,
+.app-main .rappresentanti-page {
   height: 100% !important;
   max-height: none !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
 
+/* Dentro la shell mobile: niente doppia contabilità viewport/navbar */
+.demos-mobile-layout .app-main .min-h-screen,
+.demos-mobile-layout .app-main .h-screen {
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+}
+
+.demos-mobile-layout .app-main .page-with-navbar {
+  padding-bottom: 0 !important;
+}
+
+.demos-mobile-layout .app-main .page-transition {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.demos-mobile-layout .app-main .opinioni-page {
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.demos-mobile-layout .app-main .app-page-scroll,
+.demos-mobile-layout .app-main [class*="__scroll"],
+.demos-mobile-layout .app-main [class*="__inner"].overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 1rem;
+}
+
 .preferiti-page__inner,
 .impostazioni-page__inner,
-.strumenti-page__inner {
+.strumenti-page__inner,
+.opinioni-page__inner,
+.attivisti-page__inner,
+.rappresentanti-page__inner {
   height: 100%;
   min-height: 0;
 }
@@ -231,6 +272,19 @@ body {
 .demos-mobile-layout .preferiti-page__grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(3, minmax(5rem, 1fr));
+}
+
+.demos-mobile-layout .opinioni-page__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(5rem, 1fr));
+  min-height: 0;
+}
+
+.demos-mobile-layout .opinioni-page__grid .opinioni-button {
+  height: 100%;
+  width: 100%;
+  min-height: 5rem;
 }
 
 .demos-mobile-layout .preferiti-button {

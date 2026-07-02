@@ -273,7 +273,7 @@ export default function Strumenti() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <PageContainer className="strumenti-page page-with-navbar bg-gradient-to-br from-purple-50 to-pink-100">
+    <PageContainer className="strumenti-page bg-gradient-to-br from-purple-50 to-pink-100">
       <div className="strumenti-page__inner flex h-full min-h-0 max-w-4xl mx-auto w-full flex-col px-2 py-2">
         <Card className="mb-1 shrink-0">
           <CardHeader className="text-center py-3">
@@ -287,7 +287,7 @@ export default function Strumenti() {
           </CardHeader>
         </Card>
 
-        <div className="strumenti-page__scroll flex-1 min-h-0 overflow-y-auto">
+        <div className="strumenti-page__scroll app-page-scroll flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-4xl mx-auto w-full flex flex-col gap-2 py-1">
           {/* Menu (Bacheca) - accesso alla pagina Menu */}
           <button
