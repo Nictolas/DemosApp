@@ -11,6 +11,7 @@ interface PreferitiButtonProps {
   path: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   label: string;
+  description: string;
   color: {
     bg: string;
     icon: string;
@@ -22,6 +23,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
   path,
   icon: Icon,
   label,
+  description,
   color,
   onNavigate,
 }) => {
@@ -67,7 +69,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
         <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-1 py-2">
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-2 py-3">
         <span className="relative flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 mb-1 shrink-0">
           <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-white absolute" style={{ filter: "drop-shadow(0 0 0 #fff)" }} />
           <Icon className="h-6 w-6 sm:h-8 sm:w-8 relative z-10" style={{ color: color.icon }} />
@@ -78,6 +80,9 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
           }`}
         >
           {label}
+        </div>
+        <div className="preferiti-button__description mt-1 text-center text-[11px] leading-snug text-gray-500">
+          {description}
         </div>
       </div>
     </button>
@@ -90,6 +95,7 @@ const preferitiItems = [
     path: "/rappresentanti",
     icon: Users,
     label: "Politici",
+    description: "I tuoi rappresentanti di riferimento",
     color: { bg: "#dbeafe", icon: "#2563eb" },
   },
   {
@@ -97,6 +103,7 @@ const preferitiItems = [
     path: "/candidati",
     icon: Award,
     label: "Candidati",
+    description: "Profili e proposte dei candidati",
     color: { bg: "#fef3c7", icon: "#d97706" },
   },
   {
@@ -104,6 +111,7 @@ const preferitiItems = [
     path: "/attivisti",
     icon: UserCheck,
     label: "Attivisti",
+    description: "Persone attive sul territorio",
     color: { bg: "#fce7f3", icon: "#db2777" },
   },
   {
@@ -111,6 +119,7 @@ const preferitiItems = [
     path: "/organizzazioni",
     icon: Building2,
     label: "Organizzazioni",
+    description: "Associazioni, gruppi e realta locali",
     color: { bg: "#f3e8ff", icon: "#9333ea" },
   },
   {
@@ -118,6 +127,7 @@ const preferitiItems = [
     path: "/opinioni",
     icon: MessageSquare,
     label: "Opinioni",
+    description: "Le tue posizioni sui temi principali",
     color: { bg: "#fef2f2", icon: "#dc2626" },
     skipOpinioniCheck: true,
   },
@@ -126,6 +136,7 @@ const preferitiItems = [
     path: "/vota",
     icon: Vote,
     label: "Vota",
+    description: "Esprimi il tuo voto sulle proposte",
     color: { bg: "#dcfce7", icon: "#16a34a" },
     skipOpinioniCheck: true,
   },
@@ -261,6 +272,7 @@ export default function Preferiti() {
               path={item.path}
               icon={item.icon}
               label={item.label}
+              description={item.description}
               color={item.color}
               onNavigate={(path, event) => {
                 if (item.id === "opinioni") {
