@@ -7,7 +7,6 @@ import { useReferendumData } from "./hooks/useReferendumData";
 import { useReferendumVoting } from "./hooks/useReferendumVoting";
 import { Header } from "./components/Header";
 import { UserPreferences } from "./components/UserPreferences";
-import { ReferendumTable } from "./components/ReferendumTable";
 import { ReferendumRanking } from "./components/ReferendumRanking";
 import { ReferendumViewDialog } from "./components/ReferendumViewDialog";
 import { ReferendumStatsChart } from "@/pages/ReferendumAbrogativi/components/ReferendumStatsChart";
@@ -61,45 +60,54 @@ export default function VotaReferendumAbrogativo() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
-      <div className="container mx-auto max-w-4xl">
-        <Header />
-
-        {isLoadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : error ? (
+      <div className="w-full max-w-full mx-auto">
+        {error ? (
           <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
             <b>Errore nel caricamento dei dati:</b><br />
             {error.message}
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Grafico statistiche */}
-            <ReferendumStatsChart listaReferendum={data?.referendum || []} />
-            
-            {/* Il tuo voto */}
-            <UserPreferences
-              selectedVoti={selectedVoti}
-              referendum={data?.referendum || []}
-              onToggleSelezione={toggleSelezione}
-              currentVotes={currentVotes}
-              limit={limit}
-              remainingVotes={remainingVotes}
-              hasReachedLimit={hasReachedLimit}
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Colonna sinistra: Header, grafico e preferenze */}
+            <div className="space-y-6">
+              <Header />
 
-            {/* Classifica */}
-            <ReferendumRanking
-              classifica={classificaOttimistica || data?.classifica || []}
-              referendum={data?.referendum || []}
-              selectedVoti={selectedVoti}
-              onToggleSelezioneClassifica={toggleSelezioneClassifica}
-              onViewReferendum={handleViewReferendum}
-              isBlocked={data?.blocco?.isBlocked || false}
-              isPending={saveVotiMutation.isPending}
-              hasReachedLimit={hasReachedLimit}
-            />
+              {isLoadingData ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <ReferendumStatsChart listaReferendum={data?.referendum || []} />
+
+                  <UserPreferences
+                    selectedVoti={selectedVoti}
+                    referendum={data?.referendum || []}
+                    onToggleSelezione={toggleSelezione}
+                    currentVotes={currentVotes}
+                    limit={limit}
+                    remainingVotes={remainingVotes}
+                    hasReachedLimit={hasReachedLimit}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Colonna destra: Classifica */}
+            {!isLoadingData && (
+              <div className="lg:sticky lg:top-4">
+                <ReferendumRanking
+                  classifica={classificaOttimistica || data?.classifica || []}
+                  referendum={data?.referendum || []}
+                  selectedVoti={selectedVoti}
+                  onToggleSelezioneClassifica={toggleSelezioneClassifica}
+                  onViewReferendum={handleViewReferendum}
+                  isBlocked={data?.blocco?.isBlocked || false}
+                  isPending={saveVotiMutation.isPending}
+                  hasReachedLimit={hasReachedLimit}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

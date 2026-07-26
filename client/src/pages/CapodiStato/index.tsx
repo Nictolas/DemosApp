@@ -62,7 +62,7 @@ export default function CapodiStato() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
-      <div className="container mx-auto max-w-6xl">
+      <div className="w-full max-w-full mx-auto">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
