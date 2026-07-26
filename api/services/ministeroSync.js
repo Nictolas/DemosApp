@@ -1,6 +1,8 @@
 const { pool } = require('../middleware/auth');
 const logger = require('./centralizedLogger');
 const { invalidateMinisteroIniziativeCache } = require('./redisCache');
+const { normalizeMinisteroDate } = require('../utils/dateUtils');
+const { resolveFirmaUrl } = require('../utils/iniziativeMinisteroMapper');
 
 /**
  * Servizio per sincronizzare iniziative e referendum dal Ministero della Giustizia
@@ -164,15 +166,22 @@ class MinisteroSyncService {
       // Esito (mappa da stato per compatibilità con tabelle legacy)
       esito: this.mapStatoToEsito(item.idDecStatoIniziativa?.nome || item.stato || item.status || 'in_corso'),
       
-      // Date (usa i campi corretti dell'API)
-      data_inizio: item.dataInizioRaccolta || item.dataInizio || item.data_inizio || item.dataApertura || null,
-      data_fine: item.dataFineRaccolta || item.dataFine || item.data_fine || null,
+      // Date (usa i campi corretti dell'API; 9999-12-31 = sentinel Ministero → null)
+      data_inizio: normalizeMinisteroDate(
+        item.dataInizioRaccolta || item.dataInizio || item.data_inizio || item.dataApertura || null
+      ),
+      data_fine: normalizeMinisteroDate(
+        item.dataFineRaccolta || item.dataFine || item.data_fine || null
+      ),
       
       // SOSTENITORI = FIRME RACCOLTE (campo chiave!)
       firme_raccolte: parseInt(item.sostenitori || item.firme || item.firmeRaccolte || item.numeroFirme || 0),
       
-      // URL e link
-      sito_web: item.sito || item.sitoWeb || item.sito_web || item.link || null,
+      // URL e link (fallback alla pagina ufficiale Ministero se manca il sito del comitato)
+      sito_web: resolveFirmaUrl(
+        item.sito || item.sitoWeb || item.sito_web || item.link || null,
+        item.id ? String(item.id) : (item.codice || item.numero || null)
+      ),
       
       // Altri campi utili
       estremi: item.estremi || null,

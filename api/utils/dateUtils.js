@@ -214,6 +214,41 @@ function isValidDate(date) {
 }
 
 /**
+ * Il Ministero usa 9999-12-31 come sentinel per "scadenza non definita".
+ * @param {string|Date|number|null|undefined} date
+ * @returns {boolean}
+ */
+function isMinisteroSentinelDate(date) {
+  if (date == null || date === '') return false;
+
+  if (typeof date === 'string') {
+    const yearMatch = date.match(/^(\d{4})/);
+    if (yearMatch && parseInt(yearMatch[1], 10) >= 9000) return true;
+  }
+
+  try {
+    const dateObj = typeof date === 'string' || typeof date === 'number'
+      ? new Date(date)
+      : date;
+    if (isNaN(dateObj.getTime())) return false;
+    return dateObj.getFullYear() >= 9000;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Normalizza le date Ministero: i sentinel (es. 9999-12-31) diventano null.
+ * @param {string|Date|number|null|undefined} date
+ * @returns {string|Date|null}
+ */
+function normalizeMinisteroDate(date) {
+  if (date == null || date === '') return null;
+  if (isMinisteroSentinelDate(date)) return null;
+  return date;
+}
+
+/**
  * Ottiene il fuso orario italiano corrente
  * @returns {string} Stringa del fuso orario (es. "Europe/Rome")
  */
@@ -260,6 +295,8 @@ module.exports = {
   formatAuditLogDate,
   formatNotificationDate,
   isValidDate,
+  isMinisteroSentinelDate,
+  normalizeMinisteroDate,
   getItalianTimezone,
   getItalianTimezoneOffset,
   formatSecurityViolationDate,

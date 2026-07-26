@@ -15,6 +15,7 @@ export interface IniziativaPopolare {
   status?: string;
   quorum_raggiunto?: boolean;
   emoji?: string;
+  id_ministero?: string | number;
 }
 
 export interface IniziativaFormData {

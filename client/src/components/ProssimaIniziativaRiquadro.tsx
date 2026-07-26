@@ -20,10 +20,11 @@ const ProssimaIniziativaRiquadro = () => {
   });
   const error = isError ? 'Errore nel caricamento dell\'iniziativa' : null;
 
-  // Formatta la data in formato DD/MM/YYYY
+  // Formatta la data in formato DD/MM/YYYY (nasconde i sentinel Ministero 9999)
   const formattaData = (dataString: string) => {
     if (!dataString) return '';
     const data = new Date(dataString);
+    if (isNaN(data.getTime()) || data.getFullYear() >= 9000) return '';
     const giorno = String(data.getDate()).padStart(2, '0');
     const mese = String(data.getMonth() + 1).padStart(2, '0');
     const anno = data.getFullYear();
@@ -111,12 +112,15 @@ const ProssimaIniziativaRiquadro = () => {
       <div className="prossima-iniziativa-content">
         <h4>{nomeIniziativa}</h4>
         <div className="prossima-iniziativa-info">
-          {(iniziativa.data_fine || iniziativa.dataFine) && (
-            <p className="scadenza-firme">
-              {formattaData(iniziativa.data_fine || iniziativa.dataFine)}
-              <span className="ml-2">{formattaFirme(firme)}</span>
-            </p>
-          )}
+          {(() => {
+            const scadenza = formattaData(iniziativa.data_fine || iniziativa.dataFine || '');
+            return (scadenza || firme > 0) ? (
+              <p className="scadenza-firme">
+                {scadenza}
+                <span className={scadenza ? 'ml-2' : ''}>{formattaFirme(firme)}</span>
+              </p>
+            ) : null;
+          })()}
         </div>
         <div className="prossima-iniziativa-progress" style={{ marginTop: '8px' }}>
           <div style={{ 

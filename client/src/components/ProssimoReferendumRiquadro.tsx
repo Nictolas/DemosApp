@@ -24,6 +24,7 @@ const ProssimoReferendumRiquadro = () => {
   const formattaData = (dataString: string) => {
     if (!dataString) return '';
     const data = new Date(dataString);
+    if (isNaN(data.getTime()) || data.getFullYear() >= 9000) return '';
     const giorno = String(data.getDate()).padStart(2, '0');
     const mese = String(data.getMonth() + 1).padStart(2, '0');
     const anno = data.getFullYear();
@@ -106,12 +107,15 @@ const ProssimoReferendumRiquadro = () => {
       <div className="prossimo-referendum-content">
         <h4>{nomeReferendum}</h4>
         <div className="prossimo-referendum-info">
-          {(referendum.data_fine || referendum.dataFine) && (
-            <p className="scadenza-firme">
-              {formattaData(referendum.data_fine || referendum.dataFine)}
-              <span className="ml-2">{formattaFirme(firme)}</span>
-            </p>
-          )}
+          {(() => {
+            const scadenza = formattaData(referendum.data_fine || referendum.dataFine || '');
+            return (scadenza || firme > 0) ? (
+              <p className="scadenza-firme">
+                {scadenza}
+                <span className={scadenza ? 'ml-2' : ''}>{formattaFirme(firme)}</span>
+              </p>
+            ) : null;
+          })()}
         </div>
       </div>
     );
