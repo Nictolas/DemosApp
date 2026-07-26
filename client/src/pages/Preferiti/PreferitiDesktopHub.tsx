@@ -303,7 +303,7 @@ function DashCard({
   return (
     <button type="button" className={`demos-dash-card${className ? ` ${className}` : ""}`} onClick={onClick}>
       <span className="demos-dash-card__icon" style={{ background: item.accentSoft, color: item.accent }}>
-        <Icon size={28} strokeWidth={1.75} />
+        <Icon size={32} strokeWidth={1.75} />
       </span>
       <span className="demos-dash-card__body">
         <span className="demos-dash-card__title">{item.label}</span>
@@ -332,10 +332,12 @@ function DashSection({
 
   const isPreferiti = section.id === "preferiti";
   const isOpinioni = section.id === "opinioni";
+  const isVota = section.id === "vota";
   const gridClass = [
     "demos-dash-section__grid",
     isPreferiti ? "demos-dash-section__grid--preferiti" : "",
     isOpinioni ? "demos-dash-section__grid--opinioni" : "",
+    isVota ? "demos-dash-section__grid--vota" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -344,7 +346,7 @@ function DashSection({
     <section className="demos-dash-section">
       <header className="demos-dash-section__head">
         <span className="demos-dash-section__icon" style={{ background: section.accentSoft, color: section.accent }}>
-          <SectionIcon size={18} strokeWidth={2} />
+          <SectionIcon size={22} strokeWidth={2} />
         </span>
         <h2 className="demos-dash-section__title">{section.title}</h2>
       </header>
