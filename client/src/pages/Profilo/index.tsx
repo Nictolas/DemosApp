@@ -119,7 +119,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
   return (
     <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="w-full max-w-none px-4 lg:px-8 py-8">
         {/* Header decorativo */}
         <div className="relative mb-12">
           {/* Background decorative elements */}
