@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { apiRequest } from "@/lib/queryClient";
 import { AlertTriangle, CheckCircle2, Gauge, Info, RefreshCw, XCircle } from "lucide-react";
+import { CapacityEstimateCard } from "./CapacityEstimateCard";
 
 type FreeMetric = {
   id: string;
@@ -483,6 +484,7 @@ const Parametri: React.FC = () => {
               <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-2">Parametri</h1>
               <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-4xl">
                 Limiti principali delle piattaforme free usate nell&apos;app, con barre per vedere subito quanto margine resta.
+                Inclusa una stima capacità (utenti target vs Free/Pro).
               </p>
               <p className="text-xs text-slate-500 mt-3 leading-relaxed max-w-4xl">
                 Lista piattaforme da DPIA e configurazioni progetto. Dove il provider non espone il consumo in-app, la voce è marcata come manuale.
@@ -584,6 +586,17 @@ const Parametri: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        <CapacityEstimateCard
+          liveRegisteredUsers={platformUsage?.platforms?.supabase?.metrics?.registeredUsers ?? null}
+          liveStorageGb={bytesToGb(platformUsage?.platforms?.supabase?.metrics?.databaseSizeBytes)}
+          freeLimits={{
+            storageGb: bytesToGb(platformUsage?.platforms?.supabase?.limits?.databaseStorageBudgetBytes) ?? 0.5,
+            egressGb: bytesToGb(platformUsage?.platforms?.supabase?.limits?.egressBudgetBytes30d) ?? 5,
+            connections: platformUsage?.platforms?.supabase?.limits?.activeConnectionsLimit ?? 60,
+            registeredUsers: platformUsage?.platforms?.supabase?.limits?.registeredUsersLimit ?? 50_000,
+          }}
+        />
 
         {/* Griglia piattaforme: 2 colonne su tablet, 3 su desktop largo */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 lg:gap-6">
