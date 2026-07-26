@@ -6,6 +6,7 @@ export interface IniziativaPopolare {
   sitoWeb?: string;
   dataInizio?: string;
   dataFine?: string;
+  data_inizio?: string;
   data_fine?: string;
   data_creazione: string;
   votiices?: number;

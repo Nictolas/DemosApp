@@ -2,7 +2,7 @@ import React from "react";
 import { IniziativeTableProps } from "../types";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getDisplayableDate } from "@/utils/dateUtils";
+import { resolveIniziativaDataFine } from "@/utils/dateUtils";
 
 const MINISTERO_DETTAGLIO_BASE =
   "https://firmereferendum.giustizia.it/referendum/open/dettaglio-open";
@@ -72,7 +72,10 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
           return 'border-gray-200 bg-white';
         };
 
-        const dataScadenza = getDisplayableDate(iniziativa.dataFine || iniziativa.data_fine);
+        const dataScadenza = resolveIniziativaDataFine(
+          iniziativa.dataFine || iniziativa.data_fine,
+          iniziativa.dataInizio || iniziativa.data_inizio
+        );
         const firmaUrl = resolveFirmaUrl(iniziativa);
 
         return (

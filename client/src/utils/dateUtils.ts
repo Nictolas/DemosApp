@@ -245,6 +245,40 @@ export function getDisplayableDate(date: string | Date | number | null | undefin
 }
 
 /**
+ * Aggiunge N mesi a una data (gestisce overflow del mese).
+ */
+export function addMonthsToDate(
+  date: string | Date | number,
+  months: number
+): Date | null {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  // Se il giorno è andato in overflow (es. 31 gen -> 2/3 mar), torna all'ultimo giorno del mese target
+  if (d.getDate() < day) {
+    d.setDate(0);
+  }
+  return d;
+}
+
+/**
+ * Data di fine iniziativa: usa quella presente, altrimenti Data Inizio + 6 mesi.
+ */
+export function resolveIniziativaDataFine(
+  dataFine: string | Date | number | null | undefined,
+  dataInizio: string | Date | number | null | undefined
+): string | Date | null {
+  const fine = getDisplayableDate(dataFine);
+  if (fine) return fine;
+
+  const inizio = getDisplayableDate(dataInizio);
+  if (!inizio) return null;
+
+  return addMonthsToDate(inizio, 6);
+}
+
+/**
  * Ottiene il fuso orario italiano corrente
  * @returns Stringa del fuso orario (es. "Europe/Rome")
  */

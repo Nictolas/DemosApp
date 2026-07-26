@@ -126,15 +126,15 @@ export const ProfileInfo = ({
   };
 
   return (
-    <div className="transform hover:scale-[1.02] transition-all duration-300">
+    <div>
       <Card className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
         {/* Decorative background */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full -translate-y-16 translate-x-16"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full translate-y-12 -translate-x-12"></div>
         
         <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <CardTitle className="flex items-center gap-3 text-xl lg:text-2xl font-bold">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
               <Image className="h-5 w-5 text-white" />
             </div>
             <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
@@ -167,7 +167,7 @@ export const ProfileInfo = ({
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-8">
             <div className="space-y-6">
               {canShowFullName() && (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
