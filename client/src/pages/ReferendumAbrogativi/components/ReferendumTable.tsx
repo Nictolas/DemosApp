@@ -2,6 +2,21 @@ import React from "react";
 import { ReferendumTableProps } from "../types";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getDisplayableDate } from "@/utils/dateUtils";
+
+const MINISTERO_DETTAGLIO_BASE =
+  "https://firmereferendum.giustizia.it/referendum/open/dettaglio-open";
+
+function resolveFirmaUrl(referendum: {
+  sitoWeb?: string;
+  id_ministero?: string | number;
+}): string | null {
+  if (referendum.sitoWeb) return referendum.sitoWeb;
+  if (referendum.id_ministero != null && referendum.id_ministero !== "") {
+    return `${MINISTERO_DETTAGLIO_BASE}/${referendum.id_ministero}`;
+  }
+  return null;
+}
 
 export const ReferendumTable: React.FC<ReferendumTableProps> = ({ 
   listaReferendum, 
@@ -80,9 +95,11 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                       Proposta
                     </span>
                   )}
-                  {referendum.sitoWeb && (
+                  {(() => {
+                    const firmaUrl = resolveFirmaUrl(referendum);
+                    return firmaUrl ? (
                     <a
-                      href={referendum.sitoWeb.startsWith('http') ? referendum.sitoWeb : `https://${referendum.sitoWeb}`}
+                      href={firmaUrl.startsWith('http') ? firmaUrl : `https://${firmaUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -95,17 +112,18 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                         Firma
                       </Button>
                     </a>
-                  )}
+                    ) : null;
+                  })()}
                 </div>
                 
                 <div className="flex items-center gap-4 text-sm text-gray-500 mt-3">
                   <span>
                     Firme raccolte: <strong>{(referendum.firme || 0).toLocaleString('it-IT')}</strong>
                   </span>
-                  {(referendum.dataFine || referendum.data_fine) && (
+                  {getDisplayableDate(referendum.dataFine || referendum.data_fine) && (
                     <span>
                       Scadenza: <strong>
-                        {new Date(referendum.dataFine || referendum.data_fine).toLocaleDateString('it-IT')}
+                        {new Date(getDisplayableDate(referendum.dataFine || referendum.data_fine)!).toLocaleDateString('it-IT')}
                       </strong>
                     </span>
                   )}

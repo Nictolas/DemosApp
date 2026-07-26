@@ -3,9 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { ViewDialogProps } from "../types";
+import { getDisplayableDate } from "@/utils/dateUtils";
 
 export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onEdit, onDelete, deleteMutation }) => {
   if (!iniziativa) return null;
+
+  const dataInizio = getDisplayableDate(iniziativa.dataInizio);
+  const dataFine = getDisplayableDate(iniziativa.dataFine);
 
   return (
     <Dialog open={!!iniziativa} onOpenChange={onClose}>
@@ -28,20 +32,20 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onE
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {iniziativa.dataInizio && (
+            {dataInizio && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">Data Inizio</h4>
                 <p className="text-gray-700">
-                  {new Date(iniziativa.dataInizio).toLocaleDateString('it-IT')}
+                  {new Date(dataInizio).toLocaleDateString('it-IT')}
                 </p>
               </div>
             )}
             
-            {iniziativa.dataFine && (
+            {dataFine && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">Data Fine</h4>
                 <p className="text-gray-700">
-                  {new Date(iniziativa.dataFine).toLocaleDateString('it-IT')}
+                  {new Date(dataFine).toLocaleDateString('it-IT')}
                 </p>
               </div>
             )}
