@@ -416,12 +416,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.65rem 0.85rem;
+  gap: 1.25rem;
+  padding: 1rem 1.25rem;
+  min-height: 4.5rem;
   margin-bottom: 1.25rem;
   background: #ffffff;
   border: 1px solid #e8eef5;
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
 }
 
@@ -434,7 +435,7 @@ body {
 .demos-dash-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.75rem;
   padding: 0;
   border: 0;
   background: transparent;
@@ -447,13 +448,13 @@ div.demos-dash-brand {
 }
 
 .demos-dash-brand__logo {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 8px;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 10px;
 }
 
 .demos-dash-brand__text {
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   color: #0f172a;
@@ -501,7 +502,7 @@ div.demos-dash-brand {
 .demos-dash-nav__right {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
   justify-self: end;
 }
 
@@ -509,10 +510,10 @@ div.demos-dash-brand {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 3rem;
+  height: 3rem;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #ffffff;
   color: #475569;
   cursor: pointer;
@@ -530,7 +531,7 @@ div.demos-dash-brand {
   align-items: center;
   justify-content: center;
   padding: 0;
-  margin-left: 0.15rem;
+  margin-left: 0.25rem;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -541,10 +542,10 @@ div.demos-dash-brand {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: 9999px;
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #fff;
