@@ -5,16 +5,16 @@ import {
   Binoculars,
   Building2,
   Calendar,
+  FileText,
+  Globe2,
   Megaphone,
   MessageSquare,
-  PenLine,
   Settings,
   UserCheck,
   Users,
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import { getVisibleNavItems } from "@/lib/nav-items";
 
 type NavigateHandler = (path: string, options?: { skipOpinioniCheck?: boolean }) => void;
 
@@ -32,7 +32,21 @@ type Shortcut = {
   icon: LucideIcon;
   accent: string;
   skipOpinioniCheck?: boolean;
+  /** Visibile solo per certi ruoli (es. Strumenti) */
+  visibleFor?: (ruolo?: string) => boolean;
 };
+
+function hasAdvancedAccess(ruolo?: string): boolean {
+  return (
+    ruolo === "P" ||
+    ruolo === "C" ||
+    ruolo === "CP" ||
+    ruolo === "AD" ||
+    ruolo === "A" ||
+    ruolo === "O" ||
+    ruolo === "I"
+  );
+}
 
 const PREFERITI_SHORTCUTS: Shortcut[] = [
   {
@@ -68,15 +82,6 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
     accent: "#9333ea",
   },
   {
-    id: "opinioni",
-    path: "/opinioni",
-    label: "Opinioni",
-    description: "Le tue posizioni",
-    icon: MessageSquare,
-    accent: "#dc2626",
-    skipOpinioniCheck: true,
-  },
-  {
     id: "vota",
     path: "/vota",
     label: "Vota",
@@ -86,40 +91,134 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
   },
 ];
 
-const NAV_ACCENTS: Record<string, string> = {
-  "/eventi": "#0ea5e9",
-  "/firma": "#6366f1",
-  "/notifiche": "#f59e0b",
-  "/strumenti": "#8b5cf6",
-  "/avvistamenti": "#14b8a6",
-  "/impostazioni": "#64748b",
-};
+const OPINIONI_SHORTCUTS: Shortcut[] = [
+  {
+    id: "opinioni-europee",
+    path: "/opinioni-europee",
+    label: "Opinioni Europee",
+    description: "Temi europei",
+    icon: MessageSquare,
+    accent: "#2563eb",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "opinioni-nazionali",
+    path: "/opinioni-nazionali",
+    label: "Opinioni Nazionali",
+    description: "Temi nazionali",
+    icon: MessageSquare,
+    accent: "#16a34a",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "opinioni-regionali",
+    path: "/opinioni-regionali",
+    label: "Opinioni Regionali",
+    description: "Temi regionali",
+    icon: MessageSquare,
+    accent: "#9333ea",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "opinioni-comunali",
+    path: "/opinioni-comunali",
+    label: "Opinioni Comunali",
+    description: "Temi comunali",
+    icon: MessageSquare,
+    accent: "#ca8a04",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "proponi-opinione",
+    path: "/proponi-opinione",
+    label: "Proponi Opinione",
+    description: "Nuova proposta",
+    icon: MessageSquare,
+    accent: "#db2777",
+    skipOpinioniCheck: true,
+  },
+];
 
-const NAV_DESCRIPTIONS: Record<string, string> = {
-  "/eventi": "Calendario e appuntamenti",
-  "/firma": "Iniziative e raccolte firme",
-  "/notifiche": "Avvisi e aggiornamenti",
-  "/strumenti": "Comunicazione e gestione",
-  "/avvistamenti": "Segnalazioni e osservazioni",
-  "/impostazioni": "Account e preferenze",
-};
+const FIRMA_SHORTCUTS: Shortcut[] = [
+  {
+    id: "iniziative-popolari",
+    path: "/iniziative-popolari",
+    label: "Iniziativa Popolare",
+    description: "Proponi una nuova legge",
+    icon: FileText,
+    accent: "#16a34a",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "referendum-abrogativi",
+    path: "/referendum-abrogativi",
+    label: "Referendum Abrogativo",
+    description: "Cancella una legge",
+    icon: Vote,
+    accent: "#dc2626",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "eci",
+    path: "/eci",
+    label: "ECI",
+    description: "Iniziativa europea",
+    icon: Globe2,
+    accent: "#2563eb",
+    skipOpinioniCheck: true,
+  },
+];
 
-const NAV_FALLBACK_ICONS: Record<string, LucideIcon> = {
-  "/eventi": Calendar,
-  "/firma": PenLine,
-  "/notifiche": Bell,
-  "/strumenti": Megaphone,
-  "/avvistamenti": Binoculars,
-  "/impostazioni": Settings,
-};
+const APP_SHORTCUTS: Shortcut[] = [
+  {
+    id: "eventi",
+    path: "/eventi",
+    label: "Eventi",
+    description: "Calendario e appuntamenti",
+    icon: Calendar,
+    accent: "#0ea5e9",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "notifiche",
+    path: "/notifiche",
+    label: "Notifiche",
+    description: "Avvisi e aggiornamenti",
+    icon: Bell,
+    accent: "#f59e0b",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "strumenti",
+    path: "/strumenti",
+    label: "Strumenti",
+    description: "Comunicazione e gestione",
+    icon: Megaphone,
+    accent: "#8b5cf6",
+    skipOpinioniCheck: true,
+    visibleFor: hasAdvancedAccess,
+  },
+  {
+    id: "avvistamenti",
+    path: "/avvistamenti",
+    label: "Avvistamenti",
+    description: "Segnalazioni e osservazioni",
+    icon: Binoculars,
+    accent: "#14b8a6",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "impostazioni",
+    path: "/impostazioni",
+    label: "Impostazioni",
+    description: "Account e preferenze",
+    icon: Settings,
+    accent: "#64748b",
+    skipOpinioniCheck: true,
+  },
+];
 
-function ShortcutButton({
-  item,
-  onClick,
-}: {
-  item: Shortcut;
-  onClick: () => void;
-}) {
+function ShortcutButton({ item, onClick }: { item: Shortcut; onClick: () => void }) {
   const Icon = item.icon;
   return (
     <button type="button" className="preferiti-desk-btn" onClick={onClick}>
@@ -134,21 +233,42 @@ function ShortcutButton({
   );
 }
 
-/** Preferiti desktop: solo scorciatoie, zero fetch API. */
+function Section({
+  title,
+  items,
+  onNavigate,
+  ruolo,
+}: {
+  title: string;
+  items: Shortcut[];
+  onNavigate: NavigateHandler;
+  ruolo?: string;
+}) {
+  const visible = items.filter((item) => !item.visibleFor || item.visibleFor(ruolo));
+  if (visible.length === 0) return null;
+
+  return (
+    <section className="preferiti-desk-section">
+      <h2 className="preferiti-desk-section__title">{title}</h2>
+      <div className="preferiti-desk-grid">
+        {visible.map((item) => (
+          <ShortcutButton
+            key={item.id}
+            item={item}
+            onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Hub desktop: tutti i pulsanti in una sola pagina, zero fetch.
+ * Nessuna barra laterale — la navigazione è questa pagina.
+ */
 export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: PreferitiDesktopHubProps) {
   const greeting = user?.nome ? `Ciao, ${user.nome}` : "Area personale";
-
-  const appShortcuts: Shortcut[] = getVisibleNavItems(user?.ruolo)
-    .filter((item) => item.path !== "/preferiti")
-    .map((item) => ({
-      id: item.path,
-      path: item.path,
-      label: item.label,
-      description: NAV_DESCRIPTIONS[item.path] || "Vai alla sezione",
-      icon: item.icon || NAV_FALLBACK_ICONS[item.path] || Settings,
-      accent: NAV_ACCENTS[item.path] || "#475569",
-      skipOpinioniCheck: true,
-    }));
 
   return (
     <div className="preferiti-desktop-hub preferiti-desktop-hub--light">
@@ -165,37 +285,16 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
             <p className="preferiti-hub__eyebrow">DEMOS</p>
             <h1>{greeting}</h1>
             <p className="preferiti-hub__subtitle">
-              Tutte le scorciatoie in un unico posto — senza caricare dati in anticipo.
+              Preferiti, Opinioni, Firma e le altre sezioni — tutto in un&apos;unica pagina.
             </p>
           </div>
         </div>
       </header>
 
-      <section className="preferiti-desk-section">
-        <h2 className="preferiti-desk-section__title">Preferiti</h2>
-        <div className="preferiti-desk-grid">
-          {PREFERITI_SHORTCUTS.map((item) => (
-            <ShortcutButton
-              key={item.id}
-              item={item}
-              onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="preferiti-desk-section">
-        <h2 className="preferiti-desk-section__title">Navigazione</h2>
-        <div className="preferiti-desk-grid">
-          {appShortcuts.map((item) => (
-            <ShortcutButton
-              key={item.id}
-              item={item}
-              onClick={() => onNavigate(item.path, { skipOpinioniCheck: true })}
-            />
-          ))}
-        </div>
-      </section>
+      <Section title="Preferiti" items={PREFERITI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+      <Section title="Opinioni" items={OPINIONI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+      <Section title="Firma" items={FIRMA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+      <Section title="Altro" items={APP_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
     </div>
   );
 }

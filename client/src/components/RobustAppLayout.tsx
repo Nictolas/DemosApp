@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useAndroidDetection } from '@/hooks/useAndroidDetection';
 import { useMobileLayout } from '@/hooks/useMobileLayout';
 import Navbar from './Navbar';
 import { DesktopSidebar } from './DesktopSidebar';
 import { ErrorBoundary } from './ErrorBoundary';
+import appIcon from '/icona.png';
 
 interface RobustAppLayoutProps {
   children: React.ReactNode;
@@ -33,7 +34,10 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const isMobileLayout = useMobileLayout();
   const showAppNav = shouldShowAppNav(location);
   const showMobileNavbar = isMobileLayout && showAppNav;
-  const showDesktopSidebar = !isMobileLayout && showAppNav;
+  // Su PC nessuna sidebar: Preferiti è l'hub. Navbar solo su cellulare.
+  const showDesktopSidebar = false;
+  const showDesktopHomeLink =
+    !isMobileLayout && showAppNav && !location.startsWith('/preferiti');
 
   useAndroidDetection();
 
@@ -48,6 +52,15 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
       <div className="robust-app-layout__content">
         <header className="app-header" aria-hidden="true" />
+
+        {showDesktopHomeLink && (
+          <div className="app-desktop-homebar">
+            <Link href="/preferiti" className="app-desktop-homebar__link">
+              <img src={appIcon} alt="" className="app-desktop-homebar__logo" />
+              <span>Torna a Preferiti</span>
+            </Link>
+          </div>
+        )}
 
         <main className="app-main">
           <ErrorBoundary>
