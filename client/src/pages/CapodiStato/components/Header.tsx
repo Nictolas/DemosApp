@@ -7,7 +7,7 @@ import { ArrowLeft, Crown } from "lucide-react";
 export const Header: React.FC = () => {
   return (
     <>
-      <Link href="/vota">
+      <Link href="/vota" className="lg:hidden">
         <Button variant="ghost" className="mb-4 flex items-center">
           <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Vota
         </Button>
