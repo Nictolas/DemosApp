@@ -66,53 +66,63 @@ export default function Amnistia() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-green-50/30 p-4 page-with-navbar">
-      <div className="container mx-auto max-w-4xl">
-        <Header />
-
-        {isLoadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
+      <div className="w-full max-w-full mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Colonna sinistra: Header, form e voto */}
           <div className="space-y-6">
-            <div className="flex justify-start items-center mb-4">
-              <CreateButton onClick={showForm} />
-            </div>
-            
-            {votingState.showForm && (
-              <CarceratoForm
-                onSubmit={handleCreateAmnistia}
-                onCancel={hideForm}
-                isLoading={false}
-              />
+            <Header />
+
+            {isLoadingData ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-start items-center">
+                  <CreateButton onClick={showForm} />
+                </div>
+
+                {votingState.showForm && (
+                  <CarceratoForm
+                    onSubmit={handleCreateAmnistia}
+                    onCancel={hideForm}
+                    isLoading={false}
+                  />
+                )}
+
+                <AmnistiaForm
+                  leggeInput={votingState.leggeInput}
+                  showSuggestions={votingState.showSuggestions}
+                  mieiVoti={data?.mieiVoti || []}
+                  suggestions={suggestions}
+                  isPending={addVoteMutation.isPending}
+                  onUpdateField={updateField}
+                  onSubmit={onSubmit}
+                  onRemoveVote={(legge) => handleRemoveVote(legge, removeVoteMutation)}
+                  onSelectSuggestion={selectSuggestion}
+                  onShowSuggestions={showSuggestions}
+                  onHideSuggestions={hideSuggestions}
+                  hasReachedLimit={hasReachedLimit}
+                />
+              </>
             )}
-
-            <AmnistiaForm
-              leggeInput={votingState.leggeInput}
-              showSuggestions={votingState.showSuggestions}
-              mieiVoti={data?.mieiVoti || []}
-              suggestions={suggestions}
-              isPending={addVoteMutation.isPending}
-              onUpdateField={updateField}
-              onSubmit={onSubmit}
-              onRemoveVote={(legge) => handleRemoveVote(legge, removeVoteMutation)}
-              onSelectSuggestion={selectSuggestion}
-              onShowSuggestions={showSuggestions}
-              onHideSuggestions={hideSuggestions}
-              hasReachedLimit={hasReachedLimit}
-            />
-
-            <ClassificaLeggi
-              classifica={data?.classifica || []}
-              showAllClassifica={votingState.showAllClassifica}
-              isPending={addVoteMutation.isPending}
-              onVote={onVote}
-              onShowClassifica={showClassifica}
-              hasReachedLimit={hasReachedLimit}
-              mieiVoti={data?.mieiVoti || []}
-            />
           </div>
-        )}
+
+          {/* Colonna destra: Classifica Leggi */}
+          {!isLoadingData && (
+            <div className="lg:sticky lg:top-4">
+              <ClassificaLeggi
+                classifica={data?.classifica || []}
+                showAllClassifica={votingState.showAllClassifica}
+                isPending={addVoteMutation.isPending}
+                onVote={onVote}
+                onShowClassifica={showClassifica}
+                hasReachedLimit={hasReachedLimit}
+                mieiVoti={data?.mieiVoti || []}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
