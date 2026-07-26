@@ -417,7 +417,7 @@ function UserMenu({
         <button type="button" className="demos-dash-avatar-btn" aria-label="Menu utente">
           <span className={`demos-dash-avatar${avatarConfig ? " demos-dash-avatar--image" : ""}`} aria-hidden>
             {avatarConfig ? (
-              <CustomAvatar config={avatarConfig} size={38} className="rounded-full overflow-hidden" />
+              <CustomAvatar config={avatarConfig} size={48} className="rounded-full overflow-hidden" />
             ) : (
               initials
             )}
@@ -507,7 +507,7 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
             aria-label="Segnala problema"
             title="Segnala problema"
           >
-            <AlertTriangle size={18} strokeWidth={1.9} />
+            <AlertTriangle size={24} strokeWidth={1.9} />
           </button>
           <button
             type="button"
@@ -516,7 +516,7 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
             aria-label="Notifiche"
             title="Notifiche"
           >
-            <Bell size={18} strokeWidth={1.9} />
+            <Bell size={24} strokeWidth={1.9} />
           </button>
           <button
             type="button"
@@ -525,7 +525,7 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
             aria-label="Strumenti"
             title="Strumenti"
           >
-            <Wrench size={18} strokeWidth={1.9} />
+            <Wrench size={24} strokeWidth={1.9} />
           </button>
           <UserMenu user={user} onNavigate={onNavigate} />
         </div>
