@@ -413,9 +413,9 @@ body {
 
 /* Top navigation */
 .demos-dash-nav {
-  display: grid;
-  grid-template-columns: auto minmax(12rem, 28rem) auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   padding: 0.65rem 0.85rem;
   margin-bottom: 1.25rem;
@@ -760,7 +760,7 @@ div.demos-dash-brand {
 
 @media (max-width: 960px) {
   .demos-dash-nav {
-    grid-template-columns: auto 1fr auto;
+    flex-wrap: wrap;
   }
 }
 
@@ -770,12 +770,13 @@ div.demos-dash-brand {
   }
 
   .demos-dash-nav {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
     gap: 0.65rem;
   }
 
   .demos-dash-nav__right {
-    justify-self: start;
+    justify-content: flex-start;
   }
 
   .demos-dash-columns {
