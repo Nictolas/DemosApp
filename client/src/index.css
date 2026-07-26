@@ -721,6 +721,63 @@ div.demos-dash-brand {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ===== INIZIATIVE POPOLARI — griglia desktop ===== */
+.iniziative-popolari-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.demos-desktop-layout .iniziative-popolari-page.container {
+  max-width: none;
+  width: 100%;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.demos-desktop-layout .iniziative-popolari-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.demos-desktop-layout .iniziative-popolari-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.demos-desktop-layout .iniziative-popolari-card > div {
+  flex: 1;
+  height: 100%;
+}
+
+/* ===== ECI — griglia desktop a tutta pagina ===== */
+.eci-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.demos-desktop-layout .eci-page.container {
+  max-width: none;
+  width: 100%;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.demos-desktop-layout .eci-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.demos-desktop-layout .eci-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

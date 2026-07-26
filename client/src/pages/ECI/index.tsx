@@ -146,7 +146,7 @@ export default function ECI() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="eci-page container mx-auto px-4 py-8">
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           {/* Top bar: refresh */}
@@ -245,14 +245,14 @@ export default function ECI() {
                   Nessuna iniziativa in corso.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="eci-grid">
                   {displayList.map((item) => (
                     <div
                       key={item.id}
-                      className="border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white"
+                      className="eci-card border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white"
                       onClick={() => setViewItem(item)}
                     >
-                      <div className="flex flex-col items-center text-center">
+                      <div className="flex flex-col items-center text-center h-full">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
                           {item.title}
                         </h3>
@@ -271,7 +271,7 @@ export default function ECI() {
                           )}
                         </div>
                         {/* Progresso verso 1M (ECI quorum) */}
-                        <div className="mt-4 w-full max-w-md mx-auto">
+                        <div className="mt-4 w-full">
                           <div className="flex justify-between text-xs text-gray-600 mb-1">
                             <span>Progresso verso 1.000.000 firme</span>
                             <span className="font-semibold">
@@ -295,7 +295,7 @@ export default function ECI() {
                           </div>
                         </div>
                         {item.url && (
-                          <div className="mt-4">
+                          <div className="mt-4 mt-auto pt-2">
                             <a
                               href={item.url}
                               target="_blank"

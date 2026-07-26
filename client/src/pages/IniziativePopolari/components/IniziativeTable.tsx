@@ -35,7 +35,7 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="iniziative-popolari-grid">
       {listaIniziative.map((iniziativa) => {
         // Determina lo sfondo in base a firme_raccolte
         const getBackgroundClass = () => {
@@ -60,7 +60,7 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
         return (
           <div 
             key={iniziativa.id} 
-            className={`${getBackgroundClass()} border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
+            className={`${getBackgroundClass()} iniziative-popolari-card border rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
             onClick={() => onView && onView(iniziativa)}
           >
           <div className="flex flex-col items-center text-center">
