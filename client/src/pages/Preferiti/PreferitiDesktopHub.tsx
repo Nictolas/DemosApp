@@ -70,6 +70,9 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
   { id: "candidati", path: "/candidati", label: "Candidati", description: "Profili e proposte", icon: Award, accent: "#d97706" },
   { id: "attivisti", path: "/attivisti", label: "Attivisti", description: "Persone sul territorio", icon: UserCheck, accent: "#db2777" },
   { id: "organizzazioni", path: "/organizzazioni", label: "Organizzazioni", description: "Associazioni e gruppi", icon: Building2, accent: "#9333ea" },
+];
+
+const VOTA_SHORTCUTS: Shortcut[] = [
   { id: "capo-di-stato", path: "/capo-di-stato", label: "Capo di Stato", description: "Vota il Capo di Stato", icon: Crown, accent: "#7c3aed" },
   { id: "governo", path: "/governo", label: "Governo", description: "Vota il Governo", icon: Building2, accent: "#db2777" },
   { id: "grazia", path: "/grazia", label: "Grazia", description: "Vota sulle grazie", icon: Scale, accent: "#16a34a" },
@@ -113,7 +116,7 @@ function ShortcutButton({ item, onClick }: { item: Shortcut; onClick: () => void
   return (
     <button type="button" className="preferiti-desk-btn" onClick={onClick}>
       <span className="preferiti-desk-btn__icon" style={{ background: item.accent }}>
-        <Icon className="h-5 w-5 text-white" />
+        <Icon className="h-4 w-4 text-white" />
       </span>
       <span className="preferiti-desk-btn__text">
         <span className="preferiti-desk-btn__label">{item.label}</span>
@@ -123,7 +126,8 @@ function ShortcutButton({ item, onClick }: { item: Shortcut; onClick: () => void
   );
 }
 
-function Section({
+/** Una colonna della hub: titolo + pulsanti impilati verticalmente. */
+function Column({
   title,
   items,
   onNavigate,
@@ -137,16 +141,10 @@ function Section({
   const visible = items.filter((item) => !item.visibleFor || item.visibleFor(ruolo));
   if (visible.length === 0) return null;
 
-  /* Una colonna per pulsante → una sola riga a tutta larghezza */
-  const cols = Math.max(visible.length, 1);
-
   return (
-    <section className="preferiti-desk-section">
-      <h2 className="preferiti-desk-section__title">{title}</h2>
-      <div
-        className="preferiti-desk-grid"
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      >
+    <section className="preferiti-desk-column">
+      <h2 className="preferiti-desk-column__title">{title}</h2>
+      <div className="preferiti-desk-column__list">
         {visible.map((item) => (
           <ShortcutButton
             key={item.id}
@@ -236,8 +234,7 @@ function UserMenu({
 }
 
 /**
- * Hub desktop: tutti i pulsanti in una sola pagina, zero fetch.
- * Nessuna barra laterale — la navigazione è questa pagina.
+ * Hub desktop PC: 5 colonne affiancate Preferiti | Vota | Opinioni | Firma | Altro.
  */
 export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: PreferitiDesktopHubProps) {
   const firstName = user?.nome || "benvenuto";
@@ -260,14 +257,15 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
 
       <div className="preferiti-hub__intro">
         <h1>Ciao, {firstName}</h1>
-        <p>Preferiti, Opinioni, Firma e le altre sezioni — tutto in un&apos;unica pagina.</p>
+        <p>Preferiti, Vota, Opinioni, Firma e Altro — cinque colonne su una pagina.</p>
       </div>
 
-      <div className="preferiti-hub__panels">
-        <Section title="Preferiti" items={PREFERITI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Section title="Opinioni" items={OPINIONI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Section title="Firma" items={FIRMA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Section title="Altro" items={APP_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+      <div className="preferiti-hub__columns">
+        <Column title="Preferiti" items={PREFERITI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+        <Column title="Vota" items={VOTA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+        <Column title="Opinioni" items={OPINIONI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+        <Column title="Firma" items={FIRMA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+        <Column title="Altro" items={APP_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
       </div>
     </div>
   );
