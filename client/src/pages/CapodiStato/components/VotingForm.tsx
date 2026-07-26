@@ -52,16 +52,16 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-              <ThumbsUp className="h-6 w-6 text-white" />
+    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden lg:h-full lg:min-h-0 lg:flex lg:flex-col">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4 lg:py-3 lg:pb-3 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="p-2 lg:p-1.5 bg-white/20 rounded-lg backdrop-blur-sm shrink-0">
+              <ThumbsUp className="h-6 w-6 lg:h-4 lg:w-4 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Il tuo voto</h2>
-              <CardDescription className="text-blue-100 mt-1">
+            <div className="min-w-0">
+              <h2 className="text-2xl lg:text-lg font-bold">Il tuo voto</h2>
+              <CardDescription className="text-blue-100 mt-1 lg:text-xs lg:mt-0.5 lg:line-clamp-2">
                 Puoi votare solo {limit} candidato{limit > 1 ? 'i' : ''} per Capo di Stato. Aggiungi un nome alla tua lista o selezionalo dalla classifica.
               </CardDescription>
             </div>
@@ -89,8 +89,8 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         )}
       </CardHeader>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+      <CardContent className="pt-6 lg:pt-3 lg:pb-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <form onSubmit={handleSubmit} className="space-y-4 mb-6 lg:mb-3 lg:space-y-2">
           <div className="flex space-x-2">
             <div className="flex-1 relative">
               <Input
@@ -169,12 +169,12 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
           </div>
         ) : (
-          <div className="text-center py-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ThumbsUp className="h-10 w-10 text-gray-400" />
+          <div className="text-center py-8 lg:py-3">
+            <div className="w-20 h-20 lg:w-12 lg:h-12 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4 lg:mb-2">
+              <ThumbsUp className="h-10 w-10 lg:h-6 lg:w-6 text-gray-400" />
             </div>
-            <p className="text-gray-600 font-medium">Nessun candidato selezionato</p>
-            <p className="text-sm text-gray-500 mt-1">Scegli un candidato dalla classifica per votare</p>
+            <p className="text-gray-600 font-medium lg:text-sm">Nessun candidato selezionato</p>
+            <p className="text-sm text-gray-500 mt-1 lg:text-xs">Scegli un candidato dalla classifica per votare</p>
           </div>
         )}
       </CardContent>
