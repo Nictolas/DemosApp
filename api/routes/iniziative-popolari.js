@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 const { mapToLegacyFormat, buildQueryForTipo, mapIniziativePopolariToLegacyFormat } = require('../utils/iniziativeMinisteroMapper');
 const { getPool } = require('../config/database');
+const { resolveIniziativaDataFine } = require('../utils/dateUtils');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -420,6 +421,23 @@ router.get('/', async (req, res) => {
     
     let normalizedData = uniqueNormalized;
     console.log(`✅ Totale iniziative normalizzate: ${normalizedData.length} (${normalizedMinistero.length} da ministero, ${normalizedPopolari.length} da popolari)`);
+
+    // Dopo la normalizzazione, escludi le iniziative già scadute (data_fine nel DB < oggi)
+    if (soloInCorso) {
+      const todayStrNorm = new Date().toISOString().slice(0, 10);
+      const beforeExpiryFilter = normalizedData.length;
+      normalizedData = normalizedData.filter((iniziativa) => {
+        const dataFine = iniziativa.data_fine ?? iniziativa.dataFine;
+        if (!dataFine) return false;
+        const fineStr = typeof dataFine === 'string'
+          ? dataFine.slice(0, 10)
+          : new Date(dataFine).toISOString().slice(0, 10);
+        return fineStr >= todayStrNorm;
+      });
+      if (beforeExpiryFilter !== normalizedData.length) {
+        console.warn(`⚠️ Filtro scadenza post-normalizzazione: rimosse ${beforeExpiryFilter - normalizedData.length} iniziative scadute (oggi=${todayStrNorm})`);
+      }
+    }
     
     // Aggiungi emoji automatiche a tutte le iniziative
     normalizedData = normalizedData.map(iniziativa => {
@@ -802,6 +820,9 @@ router.post('/', verifyToken, async (req, res) => {
         error: 'Nome e descrizione sono obbligatori'
       });
     }
+
+    // Se manca data_fine ma c'è data_inizio, salva inizio + 6 mesi
+    const dataFineSalvata = resolveIniziativaDataFine(dataFine, dataInizio) || dataFine || null;
     
     // Inizia una transazione per prevenire race conditions in caso di doppio submit simultaneo
     client = await pool.connect();
@@ -835,7 +856,7 @@ router.post('/', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
 
       // Definisce i parametri per la query - include userid e quorum = 'proposta'
-      const params = [iniziativaId, userId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+      const params = [iniziativaId, userId, nome, descrizione, dataInizio, dataFineSalvata, sitoWeb];
 
       // Inserisce con quorum = 'proposta' e userid dell'utente che propone
       const query = `
@@ -928,6 +949,9 @@ router.put('/:id', verifyToken, async (req, res) => {
         error: 'Accesso negato. Solo Admin possono modificare le iniziative popolari.'
       });
     }
+
+    // Se manca data_fine ma c'è data_inizio, salva inizio + 6 mesi
+    const dataFineSalvata = resolveIniziativaDataFine(dataFine, dataInizio) || dataFine || null;
     
     // Costruisci la query di update dinamicamente per includere firme solo se presente
     let updateQuery;
@@ -940,7 +964,7 @@ router.put('/:id', verifyToken, async (req, res) => {
         WHERE id = $8
         RETURNING *
       `;
-      updateParams = [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, firme, id];
+      updateParams = [nome, descrizione, dataInizio, dataFineSalvata, sitoWeb, quorum, firme, id];
     } else {
       updateQuery = `
         UPDATE iniziative_popolari
@@ -948,7 +972,7 @@ router.put('/:id', verifyToken, async (req, res) => {
         WHERE id = $7
         RETURNING *
       `;
-      updateParams = [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, id];
+      updateParams = [nome, descrizione, dataInizio, dataFineSalvata, sitoWeb, quorum, id];
     }
     
     const result = await pool.query(updateQuery, updateParams);
@@ -1387,13 +1411,16 @@ router.post('/richiesta', verifyToken, async (req, res) => {
         error: 'Nome e userid sono obbligatori'
       });
     }
+
+    // Se manca data_fine ma c'è data_inizio, salva inizio + 6 mesi
+    const dataFineSalvata = resolveIniziativaDataFine(data_fine, data_inizio) || data_fine || null;
     
     // Genera un ID univoco per la richiesta
     const richiestaId = `richiesta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const result = await pool.query(
       'INSERT INTO iniziative_popolari (id, userid, nome, data_inizio, data_fine, sito_web, status, quorum, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *',
-      [richiestaId, userid, nome, data_inizio, data_fine, sito_web, status || 'pending', quorum || 'ok']
+      [richiestaId, userid, nome, data_inizio, dataFineSalvata, sito_web, status || 'pending', quorum || 'ok']
     );
     
     console.log('✅ DEBUG /api/iniziative-popolari/richiesta - Richiesta creata:', result.rows[0].id);

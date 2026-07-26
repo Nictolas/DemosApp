@@ -3,7 +3,7 @@
  * e viceversa, mantenendo la compatibilità con le tabelle vecchie
  */
 
-const { normalizeMinisteroDate, resolveIniziativaDataFine } = require('./dateUtils');
+const { normalizeMinisteroDate } = require('./dateUtils');
 
 const MINISTERO_DETTAGLIO_BASE =
   'https://firmereferendum.giustizia.it/referendum/open/dettaglio-open';
@@ -37,11 +37,8 @@ function mapToLegacyFormat(row, tipo) {
   // Usa esito se presente, altrimenti mappa da stato
   const esito = row.esito || mapStatoToEsito(row.stato);
   const dataInizio = normalizeMinisteroDate(row.data_inizio);
-  // Per le iniziative popolari: se manca data_fine, calcola inizio + 6 mesi
-  const dataFineRaw = normalizeMinisteroDate(row.data_fine);
-  const dataFine = tipo === 'iniziativa'
-    ? resolveIniziativaDataFine(dataFineRaw, dataInizio)
-    : dataFineRaw;
+  // data_fine arriva dal DB (dal sito oppure salvata come inizio+6 mesi in sync)
+  const dataFine = normalizeMinisteroDate(row.data_fine);
   const sitoWeb = resolveFirmaUrl(row.sito_web, row.id_ministero);
   
   return {
@@ -120,11 +117,8 @@ function mapEsitoToStato(esito) {
 function mapIniziativePopolariToLegacyFormat(row) {
   // Normalizza le date (gestisce sia camelCase che snake_case)
   const dataInizio = normalizeMinisteroDate(row.dataInizio || row.data_inizio);
-  // Se manca data_fine, calcola inizio + 6 mesi
-  const dataFine = resolveIniziativaDataFine(
-    row.dataFine || row.data_fine,
-    dataInizio
-  );
+  // data_fine arriva dal DB (dal form oppure salvata come inizio+6 mesi)
+  const dataFine = normalizeMinisteroDate(row.dataFine || row.data_fine);
   const sitoWeb = row.sitoWeb || row.sito_web;
   
   // Mappa status/stato (tabella può avere "stato" dopo migrazione che rimuove "status")
