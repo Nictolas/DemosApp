@@ -59,7 +59,7 @@ export function ViewOpinioniDialog({
   const [isLoadingLikes, setIsLoadingLikes] = useState(false);
   const [fonti, setFonti] = useState<Record<string, string>>({});
 
-  const [tab, setTab] = useState<'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
+  const [tab, setTab] = useState<'opinioni' | 'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
   const [, setLocation] = useLocation();
   const [showCambiaModal, setShowCambiaModal] = useState<{categoria: string | null} | false>(false);
   const [showProgrammaModal, setShowProgrammaModal] = useState(false);
@@ -67,6 +67,13 @@ export function ViewOpinioniDialog({
   // Debug per tracciare l'utenteId
   console.log('🔍 ViewOpinioniDialog - utenteId corrente:', utenteId);
   console.log('🔍 ViewOpinioniDialog - showProgrammaModal:', showProgrammaModal);
+
+  // Desktop: tab unificata "opinioni"; mobile: tab separate (favorevole/indeciso/contrario)
+  useEffect(() => {
+    if (!open) return;
+    const isDesktop = window.matchMedia('(min-width: 640px)').matches;
+    setTab(isDesktop ? 'opinioni' : 'favorevole');
+  }, [open, utenteId]);
 
   // Funzione per redirect su "Cambia rappresentante"
   const handleCambia = () => {
@@ -294,7 +301,7 @@ export function ViewOpinioniDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col bg-white" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
+      <DialogContent className="sm:max-w-5xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col bg-white" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
         <DialogHeader>
           <DialogTitle className="text-center text-xl font-bold">
             {nome && cognome ? `${nome} ${cognome}` : "Utente"}
@@ -321,9 +328,9 @@ export function ViewOpinioniDialog({
             </div>
           ) : (
             <>
-          {tab === 'favorevole' && (
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
-              {/* Colonna Favorevoli - Verde */}
+          {(() => {
+            const { favorevoli, indecisi, contrari } = categorizeAllOpinionsDyn();
+            const renderFavorevoli = () => (
               <div className="space-y-3">
                 <div className="bg-green-100 border border-green-200 rounded-lg p-4">
                   <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
@@ -331,8 +338,8 @@ export function ViewOpinioniDialog({
                     Favorevole
                   </h3>
                   <div className="space-y-2">
-                    {categorizeAllOpinionsDyn().favorevoli.length > 0 ? (
-                      categorizeAllOpinionsDyn().favorevoli.map(({ id, label }, index) => (
+                    {favorevoli.length > 0 ? (
+                      favorevoli.map(({ id, label }) => (
                         <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
                           <span className="text-green-800 font-medium">{label}</span>
                           <div className="flex items-center ml-2 gap-1">
@@ -353,11 +360,8 @@ export function ViewOpinioniDialog({
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          {tab === 'indeciso' && (
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
-              {/* Colonna Indecisi - Giallo */}
+            );
+            const renderIndecisi = () => (
               <div className="space-y-3">
                 <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
                   <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
@@ -365,8 +369,8 @@ export function ViewOpinioniDialog({
                     Indeciso
                   </h3>
                   <div className="space-y-2">
-                    {categorizeAllOpinionsDyn().indecisi.length > 0 ? (
-                      categorizeAllOpinionsDyn().indecisi.map(({ id, label }, index) => (
+                    {indecisi.length > 0 ? (
+                      indecisi.map(({ id, label }) => (
                         <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
                           <span className="text-yellow-800 font-medium">{label}</span>
                           <div className="flex items-center ml-2 gap-1">
@@ -387,11 +391,8 @@ export function ViewOpinioniDialog({
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          {tab === 'contrario' && (
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
-              {/* Colonna Contrari - Rosso */}
+            );
+            const renderContrari = () => (
               <div className="space-y-3">
                 <div className="bg-red-100 border border-red-200 rounded-lg p-4">
                   <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
@@ -399,23 +400,20 @@ export function ViewOpinioniDialog({
                     Contrario
                   </h3>
                   <div className="space-y-2">
-                    {categorizeAllOpinionsDyn().contrari.length > 0 ? (
-                      categorizeAllOpinionsDyn().contrari.map(({ id, label }, index) => {
-                        const fonteKey = id;
-                        return (
-                          <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
-                            <span className="text-red-800 font-medium">{label}</span>
-                            <div className="flex items-center ml-2 gap-1">
-                              {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-red-600" size={20} /> : null}
-                              {fonti[fonteKey] ? (
-                                <a href={fonti[fonteKey]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                  <LinkIcon className="text-blue-600" size={18} />
-                                </a>
-                              ) : null}
-                            </div>
+                    {contrari.length > 0 ? (
+                      contrari.map(({ id, label }) => (
+                        <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
+                          <span className="text-red-800 font-medium">{label}</span>
+                          <div className="flex items-center ml-2 gap-1">
+                            {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-red-600" size={20} /> : null}
+                            {fonti[id] ? (
+                              <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                                <LinkIcon className="text-blue-600" size={18} />
+                              </a>
+                            ) : null}
                           </div>
-                        );
-                      })
+                        </div>
+                      ))
                     ) : (
                       <div className="text-red-600 text-sm italic">
                         Nessuna opinione contraria
@@ -424,8 +422,36 @@ export function ViewOpinioniDialog({
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+            return (
+              <>
+                {/* Desktop: tutte e tre le colonne affiancate */}
+                {tab === 'opinioni' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                    {renderFavorevoli()}
+                    {renderIndecisi()}
+                    {renderContrari()}
+                  </div>
+                )}
+                {/* Mobile: una colonna per tab */}
+                {tab === 'favorevole' && (
+                  <div className="grid grid-cols-1 gap-6">
+                    {renderFavorevoli()}
+                  </div>
+                )}
+                {tab === 'indeciso' && (
+                  <div className="grid grid-cols-1 gap-6">
+                    {renderIndecisi()}
+                  </div>
+                )}
+                {tab === 'contrario' && (
+                  <div className="grid grid-cols-1 gap-6">
+                    {renderContrari()}
+                  </div>
+                )}
+              </>
+            );
+          })()}
           {tab === 'sostegno' && (
             <div>
               {/* Sostegno: Iniziative popolari e Referendum abrogativi a cui ha messo Like */}
@@ -463,11 +489,14 @@ export function ViewOpinioniDialog({
         </div>
         {/* Barra pulsanti fissa in basso */}
         <div className="w-full bg-white shadow-[0_-2px_8px_-2px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.08)] border-t border-gray-200 border-b border-gray-200 flex flex-col items-center justify-center gap-2 p-4 fixed left-0 right-0 bottom-0 sm:static sm:shadow-none sm:border-0" style={{ zIndex: 50, marginBottom: 80 }}>
-          {/* Prima riga: filtri opinioni */}
-          <div className="flex justify-center gap-2 w-full mb-2">
+          {/* Prima riga: filtri opinioni — mobile: 3 tab; desktop: solo Opinioni */}
+          <div className="flex sm:hidden justify-center gap-2 w-full mb-2">
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Indeciso</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'contrario' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('contrario')}>Contrario</button>
+          </div>
+          <div className="hidden sm:flex justify-center gap-2 w-full mb-2">
+            <button className={`flex-1 px-4 py-2 rounded ${tab === 'opinioni' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('opinioni')}>Opinioni</button>
           </div>
           {/* Seconda riga: azioni */}
           <div className="flex justify-center gap-2 w-full">
