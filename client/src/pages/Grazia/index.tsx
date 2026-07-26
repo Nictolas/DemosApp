@@ -56,59 +56,71 @@ export default function Grazia() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
-      <div className="container mx-auto max-w-4xl">
-        <Header />
-
+      <div className="container mx-auto max-w-6xl">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
 
-        {isLoadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
             <b>Errore nel caricamento dei dati:</b><br />
             {error.message}
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="flex justify-start items-center mb-4">
-              <CreateButton onClick={showForm} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Colonna sinistra: Header, form e voto */}
+            <div className="space-y-6">
+              <Header />
+
+              {isLoadingData ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-start items-center">
+                    <CreateButton onClick={showForm} />
+                  </div>
+
+                  {votingState.showForm && (
+                    <CarceratoForm
+                      onSubmit={handleCreateCarcerato}
+                      onCancel={hideForm}
+                      isLoading={false}
+                    />
+                  )}
+
+                  <GraziaForm
+                    nomeInput={votingState.nomeInput}
+                    selectedVoti={votingState.selectedVoti}
+                    classifica={data?.classifica || []}
+                    isBlocked={data?.blocco.isBlocked || false}
+                    isPending={saveVotiMutation.isPending}
+                    onUpdateField={updateField}
+                    onSubmit={addNomeLocal}
+                    onRemoveLocal={removeLocal}
+                    hasReachedLimit={hasReachedLimit}
+                    currentVotes={currentVotes}
+                    limit={limit}
+                    remainingVotes={remainingVotes}
+                  />
+                </>
+              )}
             </div>
-            
-            {votingState.showForm && (
-              <CarceratoForm
-                onSubmit={handleCreateCarcerato}
-                onCancel={hideForm}
-                isLoading={false}
-              />
+
+            {/* Colonna destra: Classifica Carcerati */}
+            {!isLoadingData && (
+              <div className="lg:sticky lg:top-4">
+                <ClassificaCarcerati
+                  classifica={data?.classifica || []}
+                  selectedVoti={votingState.selectedVoti}
+                  isBlocked={data?.blocco.isBlocked || false}
+                  isPending={saveVotiMutation.isPending}
+                  onToggleSelezione={toggleSelezioneClassifica}
+                  hasReachedLimit={hasReachedLimit}
+                />
+              </div>
             )}
-
-            <GraziaForm
-              nomeInput={votingState.nomeInput}
-              selectedVoti={votingState.selectedVoti}
-              classifica={data?.classifica || []}
-              isBlocked={data?.blocco.isBlocked || false}
-              isPending={saveVotiMutation.isPending}
-              onUpdateField={updateField}
-              onSubmit={addNomeLocal}
-              onRemoveLocal={removeLocal}
-              hasReachedLimit={hasReachedLimit}
-              currentVotes={currentVotes}
-              limit={limit}
-              remainingVotes={remainingVotes}
-            />
-
-            <ClassificaCarcerati
-              classifica={data?.classifica || []}
-              selectedVoti={votingState.selectedVoti}
-              isBlocked={data?.blocco.isBlocked || false}
-              isPending={saveVotiMutation.isPending}
-              onToggleSelezione={toggleSelezioneClassifica}
-              hasReachedLimit={hasReachedLimit}
-            />
           </div>
         )}
       </div>

@@ -1,8 +1,15 @@
 const { pool } = require('../middleware/auth');
 const logger = require('./centralizedLogger');
 const { invalidateMinisteroIniziativeCache } = require('./redisCache');
-const { normalizeMinisteroDate } = require('../utils/dateUtils');
+const { normalizeMinisteroDate, resolveIniziativaDataFine } = require('../utils/dateUtils');
 const { resolveFirmaUrl } = require('../utils/iniziativeMinisteroMapper');
+
+function isIniziativaPopolareTipo(tipo) {
+  if (!tipo) return false;
+  const t = String(tipo).toLowerCase();
+  if (t.includes('referendum')) return false;
+  return t.includes('iniziativa');
+}
 
 /**
  * Servizio per sincronizzare iniziative e referendum dal Ministero della Giustizia
@@ -193,6 +200,11 @@ class MinisteroSyncService {
       // Dati raw per riferimento (mantieni come oggetto per JSONB)
       dati_raw: item
     };
+
+    // Se dal sito non arriva data_fine ma c'è data_inizio, salva inizio + 6 mesi (solo iniziative popolari)
+    if (!extracted.data_fine && extracted.data_inizio && isIniziativaPopolareTipo(extracted.tipo)) {
+      extracted.data_fine = resolveIniziativaDataFine(null, extracted.data_inizio);
+    }
 
     // Determina se è conclusa
     if (extracted.data_fine) {
@@ -601,6 +613,38 @@ class MinisteroSyncService {
 
       // Salva il totale prima di liberare la memoria
       const totalIniziative = iniziative.length;
+
+      // Backfill: iniziative già in DB con data_inizio ma senza data_fine dal sito
+      try {
+        const backfill = await pool.query(`
+          UPDATE iniziative_ministero
+          SET data_fine = (data_inizio + INTERVAL '6 months')::date,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE data_fine IS NULL
+            AND data_inizio IS NOT NULL
+            AND LOWER(COALESCE(tipo, '')) LIKE '%iniziativa%'
+            AND LOWER(COALESCE(tipo, '')) NOT LIKE '%referendum%'
+          RETURNING id
+        `);
+        if (backfill.rowCount > 0) {
+          console.log(`📅 Backfill data_fine (+6 mesi): aggiornate ${backfill.rowCount} iniziative`);
+          results.backfilled_data_fine = backfill.rowCount;
+        }
+
+        const backfillPopolari = await pool.query(`
+          UPDATE iniziative_popolari
+          SET data_fine = (data_inizio + INTERVAL '6 months')::date
+          WHERE data_fine IS NULL
+            AND data_inizio IS NOT NULL
+          RETURNING id
+        `);
+        if (backfillPopolari.rowCount > 0) {
+          console.log(`📅 Backfill data_fine iniziative_popolari: aggiornate ${backfillPopolari.rowCount} proposte`);
+          results.backfilled_data_fine_popolari = backfillPopolari.rowCount;
+        }
+      } catch (backfillError) {
+        console.warn('⚠️ Backfill data_fine fallito:', backfillError.message);
+      }
 
       await logger.info('Sincronizzazione Ministero completata', {
         total: totalIniziative,
