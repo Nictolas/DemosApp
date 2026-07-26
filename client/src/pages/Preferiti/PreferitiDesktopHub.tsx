@@ -98,7 +98,7 @@ const OPINIONI_SHORTCUTS: Shortcut[] = [
   {
     id: "opinioni-europee",
     path: "/opinioni-europee",
-    label: "Opinioni Europee",
+    label: "Europee",
     description: "Temi e proposte europee",
     icon: Globe2,
     accent: "#2563eb",
@@ -108,7 +108,7 @@ const OPINIONI_SHORTCUTS: Shortcut[] = [
   {
     id: "opinioni-nazionali",
     path: "/opinioni-nazionali",
-    label: "Opinioni Nazionali",
+    label: "Nazionali",
     description: "Questioni nazionali",
     icon: MessageSquare,
     accent: "#16a34a",
@@ -118,7 +118,7 @@ const OPINIONI_SHORTCUTS: Shortcut[] = [
   {
     id: "opinioni-regionali",
     path: "/opinioni-regionali",
-    label: "Opinioni Regionali",
+    label: "Regionali",
     description: "Temi della tua regione",
     icon: MessageSquare,
     accent: "#7c3aed",
@@ -128,7 +128,7 @@ const OPINIONI_SHORTCUTS: Shortcut[] = [
   {
     id: "opinioni-comunali",
     path: "/opinioni-comunali",
-    label: "Opinioni Comunali",
+    label: "Comunali",
     description: "Questioni del tuo comune",
     icon: MessageSquare,
     accent: "#ca8a04",
@@ -290,12 +290,20 @@ function userInitials(user: PreferitiDesktopHubProps["user"]): string {
   return "U";
 }
 
-function DashCard({ item, onClick }: { item: Shortcut; onClick: () => void }) {
+function DashCard({
+  item,
+  onClick,
+  className,
+}: {
+  item: Shortcut;
+  onClick: () => void;
+  className?: string;
+}) {
   const Icon = item.icon;
   return (
-    <button type="button" className="demos-dash-card" onClick={onClick}>
+    <button type="button" className={`demos-dash-card${className ? ` ${className}` : ""}`} onClick={onClick}>
       <span className="demos-dash-card__icon" style={{ background: item.accentSoft, color: item.accent }}>
-        <Icon size={34} strokeWidth={1.75} />
+        <Icon size={28} strokeWidth={1.75} />
       </span>
       <span className="demos-dash-card__body">
         <span className="demos-dash-card__title">{item.label}</span>
@@ -322,6 +330,16 @@ function DashSection({
   });
   if (items.length === 0) return null;
 
+  const isPreferiti = section.id === "preferiti";
+  const isOpinioni = section.id === "opinioni";
+  const gridClass = [
+    "demos-dash-section__grid",
+    isPreferiti ? "demos-dash-section__grid--preferiti" : "",
+    isOpinioni ? "demos-dash-section__grid--opinioni" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <section className="demos-dash-section">
       <header className="demos-dash-section__head">
@@ -331,11 +349,12 @@ function DashSection({
         <h2 className="demos-dash-section__title">{section.title}</h2>
       </header>
       <div className="demos-dash-section__divider" />
-      <div className="demos-dash-section__grid">
+      <div className={gridClass}>
         {items.map((item) => (
           <DashCard
             key={item.id}
             item={item}
+            className={item.id === "proponi-opinione" ? "demos-dash-card--span" : undefined}
             onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
           />
         ))}
