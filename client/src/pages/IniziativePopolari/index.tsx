@@ -84,7 +84,7 @@ export default function IniziativePopolari() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="iniziative-popolari-page container mx-auto px-4 py-8">
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
