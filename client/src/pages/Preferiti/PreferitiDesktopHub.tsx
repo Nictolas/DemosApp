@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -16,7 +16,6 @@ import {
   MessageSquare,
   PenLine,
   Scale,
-  Search,
   Star,
   User,
   UserCheck,
@@ -341,19 +340,13 @@ function DashCard({
 
 function DashSection({
   section,
-  query,
   onNavigate,
 }: {
   section: DashboardSection;
-  query: string;
   onNavigate: NavigateHandler;
 }) {
   const SectionIcon = section.icon;
-  const q = query.trim().toLowerCase();
-  const items = section.items.filter((item) => {
-    if (!q) return true;
-    return item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
-  });
+  const items = section.items;
   if (items.length === 0) return null;
 
   const isPreferiti = section.id === "preferiti";
@@ -455,10 +448,6 @@ function UserMenu({
           <Award className="mr-2 h-4 w-4" />
           Riconoscimento
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go("/segnala-problema")}>
-          <AlertTriangle className="mr-2 h-4 w-4" />
-          Segnala Problema
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => go("/avvistamenti")}>
           <Binoculars className="mr-2 h-4 w-4" />
           Avvistamenti
@@ -481,7 +470,6 @@ function UserMenu({
  * Homepage desktop premium — stile Linear / Notion / Stripe / Vercel.
  */
 export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: PreferitiDesktopHubProps) {
-  const [query, setQuery] = useState("");
   const firstName = user?.nome || "benvenuto";
 
   const sectionById = useMemo(() => {
@@ -493,16 +481,6 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
   const vota = sectionById.get("vota")!;
   const opinioni = sectionById.get("opinioni")!;
   const firma = sectionById.get("firma")!;
-
-  const q = query.trim().toLowerCase();
-  const sectionMatches = (section: DashboardSection) =>
-    !q ||
-    section.items.some(
-      (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
-    );
-
-  const hasAny =
-    sectionMatches(preferiti) || sectionMatches(vota) || sectionMatches(opinioni) || sectionMatches(firma);
 
   return (
     <div className="demos-dash">
@@ -521,18 +499,16 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
           )}
         </div>
 
-        <label className="demos-dash-search">
-          <Search className="demos-dash-search__icon" size={16} strokeWidth={2} aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca sezioni e azioni…"
-            aria-label="Cerca"
-          />
-        </label>
-
         <div className="demos-dash-nav__right">
+          <button
+            type="button"
+            className="demos-dash-nav__icon-btn"
+            onClick={() => onNavigate("/segnala-problema", { skipOpinioniCheck: true })}
+            aria-label="Segnala problema"
+            title="Segnala problema"
+          >
+            <AlertTriangle size={18} strokeWidth={1.9} />
+          </button>
           <button
             type="button"
             className="demos-dash-nav__icon-btn"
@@ -566,19 +542,14 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
 
       <div className="demos-dash-columns">
         <div className="demos-dash-column">
-          {sectionMatches(preferiti) ? (
-            <DashSection section={preferiti} query={query} onNavigate={onNavigate} />
-          ) : null}
-          {sectionMatches(vota) ? <DashSection section={vota} query={query} onNavigate={onNavigate} /> : null}
+          <DashSection section={preferiti} onNavigate={onNavigate} />
+          <DashSection section={vota} onNavigate={onNavigate} />
         </div>
         <div className="demos-dash-column">
-          {sectionMatches(opinioni) ? (
-            <DashSection section={opinioni} query={query} onNavigate={onNavigate} />
-          ) : null}
-          {sectionMatches(firma) ? <DashSection section={firma} query={query} onNavigate={onNavigate} /> : null}
+          <DashSection section={opinioni} onNavigate={onNavigate} />
+          <DashSection section={firma} onNavigate={onNavigate} />
         </div>
       </div>
-      {!hasAny ? <p className="demos-dash-empty">Nessun risultato per “{query.trim()}”.</p> : null}
     </div>
   );
 }
