@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getDisplayableDate, resolveIniziativaDataFine } from "@/utils/dateUtils";
+import { getDisplayableDate } from "@/utils/dateUtils";
 
 interface MiaIniziativaPropostaProps {
   iniziativa: IniziativaPopolare;
@@ -19,10 +19,7 @@ export const MiaIniziativaProposta: React.FC<MiaIniziativaPropostaProps> = ({
   isDeleting = false
 }) => {
   const dataInizio = getDisplayableDate(iniziativa.dataInizio || iniziativa.data_inizio);
-  const dataFine = resolveIniziativaDataFine(
-    iniziativa.dataFine || iniziativa.data_fine,
-    iniziativa.dataInizio || iniziativa.data_inizio
-  );
+  const dataFine = getDisplayableDate(iniziativa.dataFine || iniziativa.data_fine);
 
   return (
     <Card className="w-full border-orange-200 bg-orange-50">

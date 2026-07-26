@@ -62,53 +62,59 @@ export default function CapodiStato() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
-      <div className="container mx-auto max-w-4xl">
-        <Header />
-
+      <div className="container mx-auto max-w-6xl">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
 
-        {isLoadingData || isLoadingConsenso ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Colonna sinistra: Capo di Stato, Consenso, Il tuo voto */}
           <div className="space-y-6">
-            {/* Sezione Consenso */}
-            {consensoData && (
-              <ConsensoSection
-                data={consensoData}
-                onVote={voteConsenso}
-                isVoting={isVotingConsenso}
-              />
+            <Header />
+
+            {isLoadingData || isLoadingConsenso ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                {consensoData && (
+                  <ConsensoSection
+                    data={consensoData}
+                    onVote={voteConsenso}
+                    isVoting={isVotingConsenso}
+                  />
+                )}
+
+                <VotingForm
+                  selectedVoti={selectedVoti}
+                  classifica={data?.classifica || []}
+                  isBlocked={data?.blocco.isBlocked || false}
+                  onAddNome={handleAddNomeLocal}
+                  onRemoveNome={handleRemoveLocal}
+                  hasReachedLimit={hasReachedLimit}
+                  currentVotes={currentVotes}
+                  limit={limit}
+                  remainingVotes={remainingVotes}
+                />
+              </>
             )}
-
-            {/* Il tuo voto */}
-            <VotingForm
-              selectedVoti={selectedVoti}
-              classifica={data?.classifica || []}
-              isBlocked={data?.blocco.isBlocked || false}
-              onAddNome={handleAddNomeLocal}
-              onRemoveNome={handleRemoveLocal}
-              hasReachedLimit={hasReachedLimit}
-              currentVotes={currentVotes}
-              limit={limit}
-              remainingVotes={remainingVotes}
-            />
-
-            {/* Classifica candidati */}
-            <CandidatesRanking
-              classifica={data?.classifica || []}
-              selectedVoti={selectedVoti}
-              isBlocked={data?.blocco.isBlocked || false}
-              isPending={saveVotiMutation.isPending}
-              onToggleSelezione={toggleSelezione}
-              hasReachedLimit={hasReachedLimit}
-            />
-
           </div>
-        )}
+
+          {/* Colonna destra: Classifica candidati */}
+          {!isLoadingData && !isLoadingConsenso && (
+            <div className="lg:sticky lg:top-4">
+              <CandidatesRanking
+                classifica={data?.classifica || []}
+                selectedVoti={selectedVoti}
+                isBlocked={data?.blocco.isBlocked || false}
+                isPending={saveVotiMutation.isPending}
+                onToggleSelezione={toggleSelezione}
+                hasReachedLimit={hasReachedLimit}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Dialog di conferma rimozione voto */}

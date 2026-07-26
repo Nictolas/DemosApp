@@ -9,7 +9,7 @@ import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
 import { SearchAndFilters } from "./components/SearchAndFilters";
 import { IniziativaPopolare } from "./types";
-import { resolveIniziativaDataFine } from "@/utils/dateUtils";
+import { getDisplayableDate } from "@/utils/dateUtils";
 
 type SortOption = "firme" | "scadenza" | null;
 
@@ -31,9 +31,22 @@ export default function IniziativePopolari() {
     closeView
   } = useIniziativeActions();
 
-  // Filtra e ordina le iniziative
+  // Filtra e ordina le iniziative (data_fine già salvata in DB)
   const filteredAndSortedIniziative = useMemo(() => {
-    let filtered = [...iniziativeUfficiali];
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    let filtered = iniziativeUfficiali.filter((iniziativa) => {
+      const dataScadenza = getDisplayableDate(
+        iniziativa.dataFine || iniziativa.data_fine
+      );
+      if (!dataScadenza) return false;
+      const scadenzaStr =
+        typeof dataScadenza === "string"
+          ? dataScadenza.slice(0, 10)
+          : new Date(dataScadenza).toISOString().slice(0, 10);
+      // Nasconde le scadute: scadenza < oggi
+      return scadenzaStr >= todayStr;
+    });
 
     // Applica la ricerca
     if (searchQuery.trim()) {
@@ -54,21 +67,13 @@ export default function IniziativePopolari() {
       });
     } else if (sortBy === "scadenza") {
       filtered.sort((a, b) => {
-        const dataFineA = resolveIniziativaDataFine(
-          a.dataFine || a.data_fine,
-          a.dataInizio || a.data_inizio
-        );
-        const dataFineB = resolveIniziativaDataFine(
-          b.dataFine || b.data_fine,
-          b.dataInizio || b.data_inizio
-        );
+        const dataFineA = getDisplayableDate(a.dataFine || a.data_fine);
+        const dataFineB = getDisplayableDate(b.dataFine || b.data_fine);
         
-        // Se una non ha data reale, mettila in fondo
         if (!dataFineA && !dataFineB) return 0;
         if (!dataFineA) return 1;
         if (!dataFineB) return -1;
         
-        // Ordina per data di scadenza crescente (più vicine in alto)
         return new Date(dataFineA).getTime() - new Date(dataFineB).getTime();
       });
     }

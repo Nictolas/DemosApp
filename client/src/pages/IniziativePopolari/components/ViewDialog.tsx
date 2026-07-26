@@ -3,16 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { ViewDialogProps } from "../types";
-import { getDisplayableDate, resolveIniziativaDataFine } from "@/utils/dateUtils";
+import { getDisplayableDate } from "@/utils/dateUtils";
 
 export const ViewDialog: React.FC<ViewDialogProps> = ({ iniziativa, onClose, onEdit, onDelete, deleteMutation }) => {
   if (!iniziativa) return null;
 
   const dataInizio = getDisplayableDate(iniziativa.dataInizio || iniziativa.data_inizio);
-  const dataFine = resolveIniziativaDataFine(
-    iniziativa.dataFine || iniziativa.data_fine,
-    iniziativa.dataInizio || iniziativa.data_inizio
-  );
+  const dataFine = getDisplayableDate(iniziativa.dataFine || iniziativa.data_fine);
 
   return (
     <Dialog open={!!iniziativa} onOpenChange={onClose}>
