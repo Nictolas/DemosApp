@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -8,20 +8,23 @@ import {
   Building2,
   Calendar,
   CheckSquare,
-  ChevronDown,
   Crown,
   FileText,
   Globe2,
   Lock,
   LogOut,
-  Megaphone,
   MessageSquare,
+  PenLine,
+  Plus,
   Scale,
+  Search,
   Shield,
+  Star,
   User,
   UserCheck,
   Users,
   Vote,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -49,57 +52,234 @@ type Shortcut = {
   description: string;
   icon: LucideIcon;
   accent: string;
+  accentSoft: string;
   skipOpinioniCheck?: boolean;
-  visibleFor?: (ruolo?: string) => boolean;
 };
 
-function hasAdvancedAccess(ruolo?: string): boolean {
-  return (
-    ruolo === "P" ||
-    ruolo === "C" ||
-    ruolo === "CP" ||
-    ruolo === "AD" ||
-    ruolo === "A" ||
-    ruolo === "O" ||
-    ruolo === "I"
-  );
-}
-
 const PREFERITI_SHORTCUTS: Shortcut[] = [
-  { id: "politici", path: "/rappresentanti", label: "Politici", description: "I tuoi rappresentanti", icon: Users, accent: "#2563eb" },
-  { id: "candidati", path: "/candidati", label: "Candidati", description: "Profili e proposte", icon: Award, accent: "#d97706" },
-  { id: "attivisti", path: "/attivisti", label: "Attivisti", description: "Persone sul territorio", icon: UserCheck, accent: "#db2777" },
-  { id: "organizzazioni", path: "/organizzazioni", label: "Organizzazioni", description: "Associazioni e gruppi", icon: Building2, accent: "#9333ea" },
-];
-
-const VOTA_SHORTCUTS: Shortcut[] = [
-  { id: "capo-di-stato", path: "/capo-di-stato", label: "Capo di Stato", description: "Vota il Capo di Stato", icon: Crown, accent: "#7c3aed" },
-  { id: "governo", path: "/governo", label: "Governo", description: "Vota il Governo", icon: Building2, accent: "#db2777" },
-  { id: "grazia", path: "/grazia", label: "Grazia", description: "Vota sulle grazie", icon: Scale, accent: "#16a34a" },
-  { id: "amnistia", path: "/amnistia", label: "Amnistia", description: "Vota sulle amnistie", icon: Archive, accent: "#0d9488" },
-  { id: "vota-iniziativa", path: "/vota-iniziativa-popolare", label: "Vota Iniziativa", description: "Iniziative popolari", icon: Users, accent: "#2563eb" },
-  { id: "vota-referendum", path: "/vota-referendum-abrogativo", label: "Vota Referendum", description: "Referendum abrogativi", icon: CheckSquare, accent: "#dc2626" },
+  {
+    id: "politici",
+    path: "/rappresentanti",
+    label: "Politici",
+    description: "I tuoi rappresentanti eletti",
+    icon: Users,
+    accent: "#2563eb",
+    accentSoft: "#eff6ff",
+  },
+  {
+    id: "candidati",
+    path: "/candidati",
+    label: "Candidati",
+    description: "Profili e proposte elettorali",
+    icon: Award,
+    accent: "#d97706",
+    accentSoft: "#fffbeb",
+  },
+  {
+    id: "attivisti",
+    path: "/attivisti",
+    label: "Attivisti",
+    description: "Persone attive sul territorio",
+    icon: UserCheck,
+    accent: "#db2777",
+    accentSoft: "#fdf2f8",
+  },
+  {
+    id: "organizzazioni",
+    path: "/organizzazioni",
+    label: "Organizzazioni",
+    description: "Associazioni e gruppi civici",
+    icon: Building2,
+    accent: "#7c3aed",
+    accentSoft: "#f5f3ff",
+  },
 ];
 
 const OPINIONI_SHORTCUTS: Shortcut[] = [
-  { id: "opinioni-europee", path: "/opinioni-europee", label: "Opinioni Europee", description: "Temi europei", icon: MessageSquare, accent: "#2563eb", skipOpinioniCheck: true },
-  { id: "opinioni-nazionali", path: "/opinioni-nazionali", label: "Opinioni Nazionali", description: "Temi nazionali", icon: MessageSquare, accent: "#16a34a", skipOpinioniCheck: true },
-  { id: "opinioni-regionali", path: "/opinioni-regionali", label: "Opinioni Regionali", description: "Temi regionali", icon: MessageSquare, accent: "#9333ea", skipOpinioniCheck: true },
-  { id: "opinioni-comunali", path: "/opinioni-comunali", label: "Opinioni Comunali", description: "Temi comunali", icon: MessageSquare, accent: "#ca8a04", skipOpinioniCheck: true },
-  { id: "proponi-opinione", path: "/proponi-opinione", label: "Proponi Opinione", description: "Nuova proposta", icon: MessageSquare, accent: "#db2777", skipOpinioniCheck: true },
+  {
+    id: "opinioni-europee",
+    path: "/opinioni-europee",
+    label: "Opinioni Europee",
+    description: "Temi e proposte europee",
+    icon: Globe2,
+    accent: "#2563eb",
+    accentSoft: "#eff6ff",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "opinioni-nazionali",
+    path: "/opinioni-nazionali",
+    label: "Opinioni Nazionali",
+    description: "Questioni nazionali",
+    icon: MessageSquare,
+    accent: "#16a34a",
+    accentSoft: "#f0fdf4",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "opinioni-regionali",
+    path: "/opinioni-regionali",
+    label: "Opinioni Regionali",
+    description: "Temi della tua regione",
+    icon: MessageSquare,
+    accent: "#7c3aed",
+    accentSoft: "#f5f3ff",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "opinioni-comunali",
+    path: "/opinioni-comunali",
+    label: "Opinioni Comunali",
+    description: "Questioni del tuo comune",
+    icon: MessageSquare,
+    accent: "#ca8a04",
+    accentSoft: "#fefce8",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "proponi-opinione",
+    path: "/proponi-opinione",
+    label: "Proponi Opinione",
+    description: "Avvia una nuova proposta",
+    icon: PenLine,
+    accent: "#db2777",
+    accentSoft: "#fdf2f8",
+    skipOpinioniCheck: true,
+  },
 ];
 
 const FIRMA_SHORTCUTS: Shortcut[] = [
-  { id: "iniziative-popolari", path: "/iniziative-popolari", label: "Iniziativa Popolare", description: "Proponi una nuova legge", icon: FileText, accent: "#16a34a", skipOpinioniCheck: true },
-  { id: "referendum-abrogativi", path: "/referendum-abrogativi", label: "Referendum Abrogativo", description: "Cancella una legge", icon: Vote, accent: "#dc2626", skipOpinioniCheck: true },
-  { id: "eci", path: "/eci", label: "ECI", description: "Iniziativa europea", icon: Globe2, accent: "#2563eb", skipOpinioniCheck: true },
+  {
+    id: "iniziative-popolari",
+    path: "/iniziative-popolari",
+    label: "Iniziativa Popolare",
+    description: "Proponi una nuova legge",
+    icon: FileText,
+    accent: "#16a34a",
+    accentSoft: "#f0fdf4",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "referendum-abrogativi",
+    path: "/referendum-abrogativi",
+    label: "Referendum Abrogativo",
+    description: "Richiedi l’abrogazione di una legge",
+    icon: Vote,
+    accent: "#dc2626",
+    accentSoft: "#fef2f2",
+    skipOpinioniCheck: true,
+  },
+  {
+    id: "eci",
+    path: "/eci",
+    label: "ECI",
+    description: "European Citizens’ Initiative",
+    icon: Globe2,
+    accent: "#2563eb",
+    accentSoft: "#eff6ff",
+    skipOpinioniCheck: true,
+  },
 ];
 
-const APP_SHORTCUTS: Shortcut[] = [
-  { id: "eventi", path: "/eventi", label: "Eventi", description: "Calendario e appuntamenti", icon: Calendar, accent: "#0ea5e9", skipOpinioniCheck: true },
-  { id: "notifiche", path: "/notifiche", label: "Notifiche", description: "Avvisi e aggiornamenti", icon: Bell, accent: "#f59e0b", skipOpinioniCheck: true },
-  { id: "strumenti", path: "/strumenti", label: "Strumenti", description: "Comunicazione e gestione", icon: Megaphone, accent: "#8b5cf6", skipOpinioniCheck: true, visibleFor: hasAdvancedAccess },
-  { id: "avvistamenti", path: "/avvistamenti", label: "Avvistamenti", description: "Segnalazioni e osservazioni", icon: Binoculars, accent: "#14b8a6", skipOpinioniCheck: true },
+const VOTA_SHORTCUTS: Shortcut[] = [
+  {
+    id: "capo-di-stato",
+    path: "/capo-di-stato",
+    label: "Capo di Stato",
+    description: "Vota il Capo di Stato",
+    icon: Crown,
+    accent: "#7c3aed",
+    accentSoft: "#f5f3ff",
+  },
+  {
+    id: "governo",
+    path: "/governo",
+    label: "Governo",
+    description: "Vota il Governo",
+    icon: Building2,
+    accent: "#db2777",
+    accentSoft: "#fdf2f8",
+  },
+  {
+    id: "grazia",
+    path: "/grazia",
+    label: "Grazia",
+    description: "Esprimi il tuo voto sulle grazie",
+    icon: Scale,
+    accent: "#16a34a",
+    accentSoft: "#f0fdf4",
+  },
+  {
+    id: "amnistia",
+    path: "/amnistia",
+    label: "Amnistia",
+    description: "Esprimi il tuo voto sulle amnistie",
+    icon: Archive,
+    accent: "#0d9488",
+    accentSoft: "#f0fdfa",
+  },
+  {
+    id: "vota-iniziativa",
+    path: "/vota-iniziativa-popolare",
+    label: "Vota Iniziativa",
+    description: "Vota sulle iniziative popolari",
+    icon: Users,
+    accent: "#2563eb",
+    accentSoft: "#eff6ff",
+  },
+  {
+    id: "vota-referendum",
+    path: "/vota-referendum-abrogativo",
+    label: "Vota Referendum",
+    description: "Vota sui referendum abrogativi",
+    icon: CheckSquare,
+    accent: "#dc2626",
+    accentSoft: "#fef2f2",
+  },
+];
+
+type DashboardSection = {
+  id: string;
+  title: string;
+  icon: LucideIcon;
+  accent: string;
+  accentSoft: string;
+  items: Shortcut[];
+};
+
+const SECTIONS: DashboardSection[] = [
+  {
+    id: "preferiti",
+    title: "Preferiti",
+    icon: Star,
+    accent: "#2563eb",
+    accentSoft: "#eff6ff",
+    items: PREFERITI_SHORTCUTS,
+  },
+  {
+    id: "opinioni",
+    title: "Opinioni",
+    icon: MessageSquare,
+    accent: "#7c3aed",
+    accentSoft: "#f5f3ff",
+    items: OPINIONI_SHORTCUTS,
+  },
+  {
+    id: "firma",
+    title: "Firma",
+    icon: PenLine,
+    accent: "#16a34a",
+    accentSoft: "#f0fdf4",
+    items: FIRMA_SHORTCUTS,
+  },
+  {
+    id: "vota",
+    title: "Vota",
+    icon: Vote,
+    accent: "#db2777",
+    accentSoft: "#fdf2f8",
+    items: VOTA_SHORTCUTS,
+  },
 ];
 
 function userInitials(user: PreferitiDesktopHubProps["user"]): string {
@@ -111,42 +291,50 @@ function userInitials(user: PreferitiDesktopHubProps["user"]): string {
   return "U";
 }
 
-function ShortcutButton({ item, onClick }: { item: Shortcut; onClick: () => void }) {
+function DashCard({ item, onClick }: { item: Shortcut; onClick: () => void }) {
   const Icon = item.icon;
   return (
-    <button type="button" className="preferiti-desk-btn" onClick={onClick}>
-      <span className="preferiti-desk-btn__icon" style={{ background: item.accent }}>
-        <Icon className="h-4 w-4 text-white" />
+    <button type="button" className="demos-dash-card" onClick={onClick}>
+      <span className="demos-dash-card__icon" style={{ background: item.accentSoft, color: item.accent }}>
+        <Icon size={34} strokeWidth={1.75} />
       </span>
-      <span className="preferiti-desk-btn__text">
-        <span className="preferiti-desk-btn__label">{item.label}</span>
-        <span className="preferiti-desk-btn__desc">{item.description}</span>
+      <span className="demos-dash-card__body">
+        <span className="demos-dash-card__title">{item.label}</span>
+        <span className="demos-dash-card__desc">{item.description}</span>
       </span>
     </button>
   );
 }
 
-/** Una colonna della hub: titolo + pulsanti impilati verticalmente. */
-function Column({
-  title,
-  items,
+function DashSection({
+  section,
+  query,
   onNavigate,
-  ruolo,
 }: {
-  title: string;
-  items: Shortcut[];
+  section: DashboardSection;
+  query: string;
   onNavigate: NavigateHandler;
-  ruolo?: string;
 }) {
-  const visible = items.filter((item) => !item.visibleFor || item.visibleFor(ruolo));
-  if (visible.length === 0) return null;
+  const SectionIcon = section.icon;
+  const q = query.trim().toLowerCase();
+  const items = section.items.filter((item) => {
+    if (!q) return true;
+    return item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
+  });
+  if (items.length === 0) return null;
 
   return (
-    <section className="preferiti-desk-column">
-      <h2 className="preferiti-desk-column__title">{title}</h2>
-      <div className="preferiti-desk-column__list">
-        {visible.map((item) => (
-          <ShortcutButton
+    <section className="demos-dash-section">
+      <header className="demos-dash-section__head">
+        <span className="demos-dash-section__icon" style={{ background: section.accentSoft, color: section.accent }}>
+          <SectionIcon size={18} strokeWidth={2} />
+        </span>
+        <h2 className="demos-dash-section__title">{section.title}</h2>
+      </header>
+      <div className="demos-dash-section__divider" />
+      <div className="demos-dash-section__grid">
+        {items.map((item) => (
+          <DashCard
             key={item.id}
             item={item}
             onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
@@ -174,15 +362,10 @@ function UserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="preferiti-user-menu" aria-label="Menu utente">
-          <span className="preferiti-user-menu__avatar" aria-hidden>
+        <button type="button" className="demos-dash-avatar-btn" aria-label="Menu utente">
+          <span className="demos-dash-avatar" aria-hidden>
             {initials}
           </span>
-          <span className="preferiti-user-menu__meta">
-            <span className="preferiti-user-menu__name">{displayName}</span>
-            <span className="preferiti-user-menu__hint">Account e impostazioni</span>
-          </span>
-          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="preferiti-user-menu-content w-64 bg-white">
@@ -213,6 +396,14 @@ function UserMenu({
           <AlertTriangle className="mr-2 h-4 w-4" />
           Segnala Problema
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => go("/avvistamenti")}>
+          <Binoculars className="mr-2 h-4 w-4" />
+          Avvistamenti
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => go("/eventi")}>
+          <Calendar className="mr-2 h-4 w-4" />
+          Eventi
+        </DropdownMenuItem>
         {user?.ruolo === "AD" && onGoGestisci ? (
           <DropdownMenuItem onClick={onGoGestisci}>
             <Shield className="mr-2 h-4 w-4" />
@@ -234,62 +425,98 @@ function UserMenu({
 }
 
 /**
- * Hub desktop PC:
- * - Altro in topbar accanto al menu utente
- * - Griglia 2×2: Preferiti | Firma / Opinioni | Vota
+ * Homepage desktop premium — stile Linear / Notion / Stripe / Vercel.
  */
 export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: PreferitiDesktopHubProps) {
+  const [query, setQuery] = useState("");
   const firstName = user?.nome || "benvenuto";
-  const altroItems = APP_SHORTCUTS.filter((item) => !item.visibleFor || item.visibleFor(user?.ruolo));
+
+  const visibleSections = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return SECTIONS;
+    return SECTIONS.filter((section) =>
+      section.items.some(
+        (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
+      )
+    );
+  }, [query]);
 
   return (
-    <div className="preferiti-desktop-hub preferiti-desktop-hub--light">
-      <header className="preferiti-hub__topbar">
-        <div className="preferiti-hub__brand">
+    <div className="demos-dash">
+      <header className="demos-dash-nav">
+        <div className="demos-dash-nav__left">
           {user?.ruolo === "AD" && onGoGestisci ? (
-            <button type="button" className="preferiti-hub__logo-btn" onClick={onGoGestisci} aria-label="Vai a Gestisci">
-              <img src="/icona.png" alt="Logo Demos" className="preferiti-hub__logo" />
+            <button type="button" className="demos-dash-brand" onClick={onGoGestisci} aria-label="Vai a Gestisci">
+              <img src="/icona.png" alt="" className="demos-dash-brand__logo" />
+              <span className="demos-dash-brand__text">DEMOS</span>
             </button>
           ) : (
-            <img src="/icona.png" alt="Logo Demos" className="preferiti-hub__logo" />
+            <div className="demos-dash-brand" aria-label="DEMOS">
+              <img src="/icona.png" alt="" className="demos-dash-brand__logo" />
+              <span className="demos-dash-brand__text">DEMOS</span>
+            </div>
           )}
-          <span className="preferiti-hub__brand-text">DEMOS</span>
         </div>
 
-        <nav className="preferiti-hub__quick" aria-label="Scorciatoie">
-          {altroItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className="preferiti-hub__quick-btn"
-                onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
-              >
-                <span className="preferiti-hub__quick-icon" style={{ background: item.accent }}>
-                  <Icon className="h-3.5 w-3.5 text-white" />
-                </span>
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        <label className="demos-dash-search">
+          <Search className="demos-dash-search__icon" size={16} strokeWidth={2} aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cerca sezioni e azioni…"
+            aria-label="Cerca"
+          />
+        </label>
 
-        <UserMenu user={user} onNavigate={onNavigate} onGoGestisci={onGoGestisci} />
+        <div className="demos-dash-nav__right">
+          <button
+            type="button"
+            className="demos-dash-nav__icon-btn"
+            onClick={() => onNavigate("/notifiche", { skipOpinioniCheck: true })}
+            aria-label="Notifiche"
+            title="Notifiche"
+          >
+            <Bell size={18} strokeWidth={1.9} />
+          </button>
+          <button
+            type="button"
+            className="demos-dash-nav__icon-btn"
+            onClick={() => onNavigate("/strumenti", { skipOpinioniCheck: true })}
+            aria-label="Strumenti"
+            title="Strumenti"
+          >
+            <Wrench size={18} strokeWidth={1.9} />
+          </button>
+          <UserMenu user={user} onNavigate={onNavigate} onGoGestisci={onGoGestisci} />
+        </div>
       </header>
 
-      <div className="preferiti-hub__intro">
-        <h1>Ciao, {firstName}</h1>
-        <p>Preferiti e Firma sopra, Opinioni e Vota sotto.</p>
+      <div className="demos-dash-welcome">
+        <div className="demos-dash-welcome__text">
+          <h1>
+            <span aria-hidden>👋</span> Ciao, {firstName}
+          </h1>
+          <p>Partecipa alla vita democratica della tua comunità.</p>
+        </div>
+        <button
+          type="button"
+          className="demos-dash-cta"
+          onClick={() => onNavigate("/proponi-opinione", { skipOpinioniCheck: true })}
+        >
+          <Plus size={16} strokeWidth={2.5} aria-hidden />
+          Nuova Opinione
+        </button>
       </div>
 
-      <div className="preferiti-hub__grid">
-        <Column title="Preferiti" items={PREFERITI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Column title="Firma" items={FIRMA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Column title="Opinioni" items={OPINIONI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Column title="Vota" items={VOTA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+      <div className="demos-dash-body">
+        {visibleSections.map((section) => (
+          <DashSection key={section.id} section={section} query={query} onNavigate={onNavigate} />
+        ))}
+        {visibleSections.length === 0 ? (
+          <p className="demos-dash-empty">Nessun risultato per “{query.trim()}”.</p>
+        ) : null}
       </div>
     </div>
   );
 }
-
