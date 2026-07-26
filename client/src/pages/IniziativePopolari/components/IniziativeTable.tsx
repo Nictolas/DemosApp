@@ -2,6 +2,21 @@ import React from "react";
 import { IniziativeTableProps } from "../types";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getDisplayableDate } from "@/utils/dateUtils";
+
+const MINISTERO_DETTAGLIO_BASE =
+  "https://firmereferendum.giustizia.it/referendum/open/dettaglio-open";
+
+function resolveFirmaUrl(iniziativa: {
+  sitoWeb?: string;
+  id_ministero?: string | number;
+}): string | null {
+  if (iniziativa.sitoWeb) return iniziativa.sitoWeb;
+  if (iniziativa.id_ministero != null && iniziativa.id_ministero !== "") {
+    return `${MINISTERO_DETTAGLIO_BASE}/${iniziativa.id_ministero}`;
+  }
+  return null;
+}
 
 export const IniziativeTable: React.FC<IniziativeTableProps> = ({ 
   listaIniziative, 
@@ -57,6 +72,9 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
           return 'border-gray-200 bg-white';
         };
 
+        const dataScadenza = getDisplayableDate(iniziativa.dataFine || iniziativa.data_fine);
+        const firmaUrl = resolveFirmaUrl(iniziativa);
+
         return (
           <div 
             key={iniziativa.id} 
@@ -95,10 +113,10 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                   }
                 </strong>
               </span>
-              {(iniziativa.dataFine || iniziativa.data_fine) && (
+              {dataScadenza && (
                 <span>
                   Scadenza: <strong>
-                    {new Date(iniziativa.dataFine || iniziativa.data_fine).toLocaleDateString('it-IT')}
+                    {new Date(dataScadenza).toLocaleDateString('it-IT')}
                   </strong>
                 </span>
               )}
@@ -134,10 +152,10 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
             })()}
               
             {/* Pulsante Firma sotto la barra di completamento */}
-            {iniziativa.sitoWeb && (
+            {firmaUrl && (
               <div className="mt-4 flex justify-center">
                 <a
-                  href={iniziativa.sitoWeb.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`}
+                  href={firmaUrl.startsWith('http') ? firmaUrl : `https://${firmaUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}

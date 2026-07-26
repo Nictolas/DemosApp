@@ -1768,21 +1768,27 @@ router.get('/prossima', verifyToken, async (req, res) => {
       // Continua senza referendum_abrogativi se c'è un errore
     }
     
-    // Normalizza i referendum dal ministero
-    const referendumMinistero = resultMinistero.rows.map(row => ({
-      ...mapToLegacyFormat(row, 'referendum'),
-      source: 'ministero',
-      dataFine: row.data_fine ? new Date(row.data_fine) : null,
-      firme: row.firme_raccolte || 0
-    }));
+    // Normalizza i referendum dal ministero (mapToLegacyFormat già azzera i sentinel 9999)
+    const referendumMinistero = resultMinistero.rows.map(row => {
+      const mapped = mapToLegacyFormat(row, 'referendum');
+      return {
+        ...mapped,
+        source: 'ministero',
+        dataFine: mapped.dataFine ? new Date(mapped.dataFine) : null,
+        firme: row.firme_raccolte || 0
+      };
+    });
     
     // Normalizza i referendum abrogativi
-    const referendumAbrogativi = referendumAbrogativiResult.rows.map(row => ({
-      ...mapReferendumAbrogativiToLegacyFormat(row),
-      source: 'abrogativi',
-      dataFine: row.data_fine ? new Date(row.data_fine) : null,
-      firme: row.firme || 0
-    }));
+    const referendumAbrogativi = referendumAbrogativiResult.rows.map(row => {
+      const mapped = mapReferendumAbrogativiToLegacyFormat(row);
+      return {
+        ...mapped,
+        source: 'abrogativi',
+        dataFine: mapped.dataFine ? new Date(mapped.dataFine) : null,
+        firme: row.firme || 0
+      };
+    });
     
     // Unisci tutti i referendum
     const tuttiReferendum = [...referendumMinistero, ...referendumAbrogativi];

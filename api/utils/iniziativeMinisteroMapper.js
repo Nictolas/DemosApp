@@ -3,6 +3,32 @@
  * e viceversa, mantenendo la compatibilità con le tabelle vecchie
  */
 
+const { normalizeMinisteroDate } = require('./dateUtils');
+
+const MINISTERO_DETTAGLIO_BASE =
+  'https://firmereferendum.giustizia.it/referendum/open/dettaglio-open';
+
+/**
+ * URL ufficiale di firma/dettaglio sul portale Ministero.
+ * @param {string|number|null|undefined} idMinistero
+ * @returns {string|null}
+ */
+function buildMinisteroFirmaUrl(idMinistero) {
+  if (idMinistero == null || idMinistero === '') return null;
+  return `${MINISTERO_DETTAGLIO_BASE}/${idMinistero}`;
+}
+
+/**
+ * Preferisce il sito del comitato; se assente, usa la pagina ufficiale Ministero.
+ * @param {string|null|undefined} sitoWeb
+ * @param {string|number|null|undefined} idMinistero
+ * @returns {string|null}
+ */
+function resolveFirmaUrl(sitoWeb, idMinistero) {
+  if (sitoWeb) return sitoWeb;
+  return buildMinisteroFirmaUrl(idMinistero);
+}
+
 /**
  * Mappa un record da iniziative_ministero al formato atteso dal frontend
  * (compatibile con iniziative_popolari e referendum_abrogativi)
@@ -10,18 +36,21 @@
 function mapToLegacyFormat(row, tipo) {
   // Usa esito se presente, altrimenti mappa da stato
   const esito = row.esito || mapStatoToEsito(row.stato);
+  const dataInizio = normalizeMinisteroDate(row.data_inizio);
+  const dataFine = normalizeMinisteroDate(row.data_fine);
+  const sitoWeb = resolveFirmaUrl(row.sito_web, row.id_ministero);
   
   return {
     id: row.id,
     nome: row.titolo, // titolo -> nome per compatibilità
     descrizione: row.descrizione || '',
-    data_inizio: row.data_inizio,
-    data_fine: row.data_fine,
-    dataInizio: row.data_inizio, // formato camelCase per frontend
-    dataFine: row.data_fine, // formato camelCase per frontend
-    sito_web: row.sito_web,
-    sitoweb: row.sito_web, // alias per compatibilità
-    sitoWeb: row.sito_web, // formato camelCase per frontend
+    data_inizio: dataInizio,
+    data_fine: dataFine,
+    dataInizio: dataInizio, // formato camelCase per frontend
+    dataFine: dataFine, // formato camelCase per frontend
+    sito_web: sitoWeb,
+    sitoweb: sitoWeb, // alias per compatibilità
+    sitoWeb: sitoWeb, // formato camelCase per frontend
     quorum: 0, // Campo legacy per compatibilità, sempre 0 (non più usato)
     esito: esito, // usa la colonna esito se presente, altrimenti mappa da stato
     firme: row.firme_raccolte || 0, // firme_raccolte -> firme
@@ -86,8 +115,8 @@ function mapEsitoToStato(esito) {
  */
 function mapIniziativePopolariToLegacyFormat(row) {
   // Normalizza le date (gestisce sia camelCase che snake_case)
-  const dataInizio = row.dataInizio || row.data_inizio;
-  const dataFine = row.dataFine || row.data_fine;
+  const dataInizio = normalizeMinisteroDate(row.dataInizio || row.data_inizio);
+  const dataFine = normalizeMinisteroDate(row.dataFine || row.data_fine);
   const sitoWeb = row.sitoWeb || row.sito_web;
   
   // Mappa status/stato (tabella può avere "stato" dopo migrazione che rimuove "status")
@@ -192,8 +221,8 @@ function mapStatusToEsito(status) {
  */
 function mapReferendumAbrogativiToLegacyFormat(row) {
   // Normalizza le date (gestisce sia camelCase che snake_case)
-  const dataInizio = row.dataInizio || row.data_inizio;
-  const dataFine = row.dataFine || row.data_fine;
+  const dataInizio = normalizeMinisteroDate(row.dataInizio || row.data_inizio);
+  const dataFine = normalizeMinisteroDate(row.dataFine || row.data_fine);
   const sitoWeb = row.sitoWeb || row.sito_web || row.sitoweb;
   
   // Mappa status a stato
@@ -446,6 +475,8 @@ module.exports = {
   mapStatusToStato,
   mapStatusToEsito,
   mapReferendumAbrogativiToLegacyFormat,
-  mapReferendumStatusToStato
+  mapReferendumStatusToStato,
+  buildMinisteroFirmaUrl,
+  resolveFirmaUrl
 };
 

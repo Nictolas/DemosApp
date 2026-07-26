@@ -1528,21 +1528,27 @@ router.get('/prossima', verifyToken, async (req, res) => {
       // Continua senza iniziative_popolari se c'è un errore
     }
     
-    // Normalizza le iniziative dal ministero
-    const iniziativeMinistero = resultMinistero.rows.map(row => ({
-      ...mapToLegacyFormat(row, 'iniziativa'),
-      source: 'ministero',
-      dataFine: row.data_fine ? new Date(row.data_fine) : null,
-      firme: row.firme_raccolte || 0
-    }));
+    // Normalizza le iniziative dal ministero (mapToLegacyFormat già azzera i sentinel 9999)
+    const iniziativeMinistero = resultMinistero.rows.map(row => {
+      const mapped = mapToLegacyFormat(row, 'iniziativa');
+      return {
+        ...mapped,
+        source: 'ministero',
+        dataFine: mapped.dataFine ? new Date(mapped.dataFine) : null,
+        firme: row.firme_raccolte || 0
+      };
+    });
     
     // Normalizza le iniziative popolari
-    const iniziativePopolari = iniziativePopolariResult.rows.map(row => ({
-      ...mapIniziativePopolariToLegacyFormat(row),
-      source: 'popolari',
-      dataFine: row.data_fine ? new Date(row.data_fine) : null,
-      firme: row.firme || 0
-    }));
+    const iniziativePopolari = iniziativePopolariResult.rows.map(row => {
+      const mapped = mapIniziativePopolariToLegacyFormat(row);
+      return {
+        ...mapped,
+        source: 'popolari',
+        dataFine: mapped.dataFine ? new Date(mapped.dataFine) : null,
+        firme: row.firme || 0
+      };
+    });
     
     // Unisci tutte le iniziative
     const tutteIniziative = [...iniziativeMinistero, ...iniziativePopolari];
