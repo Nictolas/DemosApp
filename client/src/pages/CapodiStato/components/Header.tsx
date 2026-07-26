@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
             Capo di Stato
           </CardTitle>
           <CardDescription className="text-lg lg:text-sm lg:mt-1">
-            Vota le tre persone italiane più meritevoli di essere il Presidente della Repubblica.
+            Vota la persona italiana più meritevole di essere il Presidente della Repubblica.
           </CardDescription>
         </CardHeader>
       </Card>

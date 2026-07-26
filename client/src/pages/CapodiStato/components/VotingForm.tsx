@@ -137,7 +137,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           <div className="space-y-3">
             <div className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span>I tuoi candidati selezionati:</span>
+              <span>Il tuo Presidente della Repubblica ideale:</span>
             </div>
             <div className="grid gap-3">
               {selectedVoti.map((voto) => (
