@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getDisplayableDate, resolveIniziativaDataFine } from "@/utils/dateUtils";
 
 interface MiaIniziativaPropostaProps {
   iniziativa: IniziativaPopolare;
@@ -17,6 +18,12 @@ export const MiaIniziativaProposta: React.FC<MiaIniziativaPropostaProps> = ({
   onDelete,
   isDeleting = false
 }) => {
+  const dataInizio = getDisplayableDate(iniziativa.dataInizio || iniziativa.data_inizio);
+  const dataFine = resolveIniziativaDataFine(
+    iniziativa.dataFine || iniziativa.data_fine,
+    iniziativa.dataInizio || iniziativa.data_inizio
+  );
+
   return (
     <Card className="w-full border-orange-200 bg-orange-50">
       <CardHeader>
@@ -60,18 +67,18 @@ export const MiaIniziativaProposta: React.FC<MiaIniziativaPropostaProps> = ({
           </p>
           
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-            {iniziativa.dataInizio || iniziativa.data_inizio ? (
+            {dataInizio ? (
               <span>
                 Data inizio: <strong>
-                  {new Date(iniziativa.dataInizio || iniziativa.data_inizio).toLocaleDateString('it-IT')}
+                  {new Date(dataInizio).toLocaleDateString('it-IT')}
                 </strong>
               </span>
             ) : null}
             
-            {iniziativa.dataFine || iniziativa.data_fine ? (
+            {dataFine ? (
               <span>
                 Data fine: <strong>
-                  {new Date(iniziativa.dataFine || iniziativa.data_fine).toLocaleDateString('it-IT')}
+                  {new Date(dataFine).toLocaleDateString('it-IT')}
                 </strong>
               </span>
             ) : null}
