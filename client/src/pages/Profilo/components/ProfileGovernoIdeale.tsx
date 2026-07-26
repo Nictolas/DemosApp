@@ -86,7 +86,7 @@ export const ProfileGovernoIdeale = ({ governoIdeale }: ProfileGovernoIdealeProp
         </CardHeader>
         
         <CardContent className="relative z-10">
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {Object.entries(governoIdeale).map(([categoria, nome]) => {
               const colors = getCategoryColor(categoria);
               return (
