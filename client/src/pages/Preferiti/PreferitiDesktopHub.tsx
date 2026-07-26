@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  AlertTriangle,
   Archive,
   Award,
   Bell,
@@ -11,12 +12,13 @@ import {
   Crown,
   FileText,
   Globe2,
+  Lock,
   LogOut,
   Megaphone,
   MessageSquare,
   Scale,
-  Settings,
   Shield,
+  User,
   UserCheck,
   Users,
   Vote,
@@ -135,10 +137,16 @@ function Section({
   const visible = items.filter((item) => !item.visibleFor || item.visibleFor(ruolo));
   if (visible.length === 0) return null;
 
+  /* Una colonna per pulsante → una sola riga a tutta larghezza */
+  const cols = Math.max(visible.length, 1);
+
   return (
     <section className="preferiti-desk-section">
       <h2 className="preferiti-desk-section__title">{title}</h2>
-      <div className="preferiti-desk-grid">
+      <div
+        className="preferiti-desk-grid"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
         {visible.map((item) => (
           <ShortcutButton
             key={item.id}
@@ -163,6 +171,7 @@ function UserMenu({
   const { logoutMutation } = useAuth();
   const displayName = [user?.nome, user?.cognome].filter(Boolean).join(" ") || user?.email || "Utente";
   const initials = userInitials(user);
+  const go = (path: string) => onNavigate(path, { skipOpinioniCheck: true });
 
   return (
     <DropdownMenu>
@@ -178,17 +187,33 @@ function UserMenu({
           <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
+      <DropdownMenuContent align="end" className="preferiti-user-menu-content w-64 bg-white">
+        <DropdownMenuLabel className="font-normal bg-white">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold text-slate-900">{displayName}</span>
             {user?.email ? <span className="text-xs text-slate-500 truncate">{user.email}</span> : null}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onNavigate("/impostazioni", { skipOpinioniCheck: true })}>
-          <Settings className="mr-2 h-4 w-4" />
-          Impostazioni
+        <DropdownMenuItem onClick={() => go("/profilo")}>
+          <User className="mr-2 h-4 w-4" />
+          Profilo
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => go("/impostazioni/informazioni-legali")}>
+          <Scale className="mr-2 h-4 w-4" />
+          Informazioni Legali
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => go("/impostazioni")}>
+          <Lock className="mr-2 h-4 w-4" />
+          Password
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => go("/riconoscimento")}>
+          <Award className="mr-2 h-4 w-4" />
+          Riconoscimento
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => go("/segnala-problema")}>
+          <AlertTriangle className="mr-2 h-4 w-4" />
+          Segnala Problema
         </DropdownMenuItem>
         {user?.ruolo === "AD" && onGoGestisci ? (
           <DropdownMenuItem onClick={onGoGestisci}>
@@ -203,7 +228,7 @@ function UserMenu({
           disabled={logoutMutation.isPending}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          Esci
+          Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

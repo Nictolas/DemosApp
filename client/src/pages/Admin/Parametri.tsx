@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { apiRequest } from "@/lib/queryClient";
@@ -472,89 +472,30 @@ const Parametri: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[radial-gradient(ellipse_at_top,_#e0f2fe_0%,_#f8fafc_42%,_#ffffff_100%)] pt-3 pb-6">
-      <div className="w-full max-w-none mx-auto px-3 sm:px-4 lg:px-6">
-        <div className="mb-3 rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 sm:px-4 shadow-sm flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">Parametri</h1>
-              <Badge variant="outline" className="text-cyan-700 border-cyan-300 bg-cyan-50/80 text-[10px] px-1.5 py-0">
-                Free
+    <div className="w-full min-h-screen bg-slate-50 pt-2 pb-4">
+      <div className="w-full max-w-none mx-auto px-2 sm:px-3">
+        <div className="mb-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="text-base font-bold text-slate-900">Parametri</h1>
+          <Badge variant="outline" className="text-cyan-700 border-cyan-300 bg-cyan-50 text-[10px] px-1 py-0">Free</Badge>
+          <span className="text-[11px] text-slate-500">
+            &lt;{THRESHOLD_USAGE_WARN}% ok · {THRESHOLD_USAGE_WARN}–{THRESHOLD_USAGE_CRIT - 1}% attenzione · ≥{THRESHOLD_USAGE_CRIT}% critico
+          </span>
+          <span className="text-[11px] text-slate-400 hidden lg:inline">· {lastUpdated}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[11px] text-slate-600 tabular-nums">
+              Integrazioni {overview.configuredDone}/{overview.configuredTotal || "—"}
+            </span>
+            {typeof overview.highestUsage === "number" ? (
+              <Badge variant="outline" className={`text-[10px] px-1 py-0 ${getStatus(overview.highestUsage).tone}`}>
+                {overview.highestUsageLabel}: {overview.highestUsage}%
               </Badge>
-              <span className="text-xs text-slate-500">
-                &lt;{THRESHOLD_USAGE_WARN}% ok · {THRESHOLD_USAGE_WARN}–{THRESHOLD_USAGE_CRIT - 1}% attenzione · ≥{THRESHOLD_USAGE_CRIT}% critico
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5 truncate">
-              Quote piattaforme + stima capacità. Aggiornato: {lastUpdated}
-            </p>
+            ) : null}
+            <Button variant="default" size="sm" className="bg-cyan-700 hover:bg-cyan-800 h-7 text-xs px-2" onClick={loadPlatformUsage} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
+              Aggiorna
+            </Button>
           </div>
-          <Button variant="default" size="sm" className="bg-cyan-700 hover:bg-cyan-800 h-8 shrink-0" onClick={loadPlatformUsage} disabled={loading}>
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Aggiorna
-          </Button>
-          {loadError && <p className="w-full text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">{loadError}</p>}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-3">
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm lg:col-span-2">
-            <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold text-slate-900">Integrazioni</p>
-                  <p className="text-[11px] text-slate-500">Axiom, Firebase, Resend, Play, Upstash, CF</p>
-                </div>
-                {overview.configuredTotal > 0 ? (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-sm font-semibold tabular-nums text-slate-800">
-                      {overview.configuredDone}/{overview.configuredTotal}
-                    </span>
-                    {overview.configuredDone === overview.configuredTotal ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Tutte ok" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-amber-500" aria-label="Incomplete" />
-                    )}
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-slate-600 border-slate-300 text-[10px]">N/D</Badge>
-                )}
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-slate-900">Risorsa più alta</p>
-                  {typeof overview.highestUsage === "number" ? (
-                    <Badge variant="outline" className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0 ${getStatus(overview.highestUsage).tone}`}>
-                      {getStatus(overview.highestUsage).icon}
-                      {getStatus(overview.highestUsage).label}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-slate-700 border-slate-300 text-[10px]">N/D</Badge>
-                  )}
-                </div>
-                <Progress
-                  value={overview.highestUsage ?? 0}
-                  className={`h-1.5 ${overview.highestUsage === null ? "opacity-40" : ""}`}
-                  indicatorClassName={overview.highestUsage === null ? "bg-slate-400" : usageQuotaBarClass(overview.highestUsage)}
-                />
-                <div className="flex justify-between text-[11px] text-slate-600">
-                  <span className="truncate">{overview.highestUsageLabel ?? "Nessuna quota"}</span>
-                  <span className="shrink-0">{overview.highestUsage !== null ? `${overview.highestUsage}%` : "N/D"}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardContent className="p-3 text-[11px] text-slate-600 leading-snug space-y-1">
-              <p className="text-xs font-semibold text-slate-900">Limiti non automatici</p>
-              <p>
-                Egress / RAM: variabili <code className="bg-slate-100 px-0.5 rounded">SUPABASE_*_USED_*</code>.{" "}
-                <a className="text-cyan-700 underline" href="https://supabase.com/dashboard/project/_/settings/billing" target="_blank" rel="noreferrer">
-                  Billing
-                </a>
-              </p>
-            </CardContent>
-          </Card>
+          {loadError && <p className="w-full text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">{loadError}</p>}
         </div>
 
         <CapacityEstimateCard
@@ -568,30 +509,26 @@ const Parametri: React.FC = () => {
           }}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2">
-        {platforms.map((platform) => (
-          <Card key={platform.id} className="border-slate-200/80 bg-white/95 shadow-sm flex flex-col">
-            <CardHeader className="py-2 px-3 space-y-0.5">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-sm leading-tight">{platform.name}</CardTitle>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 items-start">
+        {platforms.map((platform) => {
+          const multi = platform.metrics.length > 2;
+          return (
+          <Card
+            key={platform.id}
+            className={`border-slate-200 bg-white shadow-none ${multi ? "col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-3 xl:col-span-3" : ""}`}
+          >
+            <CardHeader className="py-1.5 px-2 space-y-0">
+              <div className="flex items-center justify-between gap-1">
+                <CardTitle className="text-xs leading-tight truncate">{platform.name}</CardTitle>
                 {platform.id === "supabase" && platformUsage?.platforms?.supabase?.planTier ? (
-                  <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[10px] px-1.5 py-0 shrink-0">
+                  <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[9px] px-1 py-0 shrink-0">
                     {String(platformUsage.platforms.supabase.planTier).toUpperCase()}
                   </Badge>
                 ) : null}
               </div>
-              <CardDescription className="text-[11px] leading-snug line-clamp-2">
-                {platform.description}
-              </CardDescription>
-              <span className="text-[10px] text-slate-400">
-                {formatUpdatedAt((platformUsage as any)?.platforms?.[platform.id]?.updatedAt)}
-              </span>
-              {platform.id === "supabase" && platformUsage?.diagnostics?.supabase?.length ? (
-                <p className="text-[10px] text-amber-700 break-words line-clamp-2">{platformUsage.diagnostics.supabase.join(" · ")}</p>
-              ) : null}
             </CardHeader>
             <CardContent
-              className={`flex-1 pt-0 px-3 pb-2 ${platform.metrics.length > 1 ? "grid grid-cols-1 gap-1.5" : "space-y-1.5"}`}
+              className={`pt-0 px-2 pb-1.5 ${multi ? "grid grid-cols-2 xl:grid-cols-3 gap-1" : "space-y-1"}`}
             >
               {platform.metrics.map((metric) => {
                 const percent = getPercent(metric.used, metric.limit);
@@ -602,16 +539,15 @@ const Parametri: React.FC = () => {
                 if (isConfig) {
                   const ok = metric.used === 1;
                   return (
-                    <div key={metric.id} className="rounded-lg border border-slate-200/60 bg-white/50 px-2 py-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-slate-900 truncate">{metric.label}</p>
+                    <div key={metric.id} className="rounded border border-slate-100 bg-slate-50/80 px-1.5 py-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-[11px] font-medium text-slate-900 truncate">{metric.label}</p>
                         {ok ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" aria-label="OK" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" aria-label="OK" />
                         ) : (
-                          <XCircle className="h-4 w-4 text-amber-600 shrink-0" aria-label="Mancante" />
+                          <XCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" aria-label="Mancante" />
                         )}
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">{metric.note}</p>
                     </div>
                   );
                 }
@@ -630,33 +566,24 @@ const Parametri: React.FC = () => {
                     : status;
                 const barTint = !progressEnabled ? undefined : usageQuotaBarClass(percent);
                 return (
-                  <div key={metric.id} className="rounded-lg border border-slate-200/60 bg-white/50 px-2 py-1.5 space-y-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="text-xs font-medium text-slate-900 truncate">{metric.label}</p>
-                      <Badge variant="outline" className={`inline-flex items-center gap-0.5 text-[10px] px-1 py-0 shrink-0 ${finalStatus.tone}`}>{finalStatus.icon}{finalStatus.label}</Badge>
+                  <div key={metric.id} className="rounded border border-slate-100 bg-slate-50/80 px-1.5 py-1 space-y-0.5">
+                    <div className="flex items-center justify-between gap-0.5">
+                      <p className="text-[11px] font-medium text-slate-900 truncate">{metric.label}</p>
+                      <Badge variant="outline" className={`inline-flex items-center gap-0.5 text-[9px] px-1 py-0 shrink-0 ${finalStatus.tone}`}>{finalStatus.label}</Badge>
                     </div>
-                    {progressEnabled ? <Progress value={percent} className="h-1.5" indicatorClassName={barTint} /> : null}
+                    {progressEnabled ? <Progress value={percent} className="h-1" indicatorClassName={barTint} /> : null}
                     <div className="flex items-center justify-between text-[10px] text-slate-600">
                       {progressEnabled ? (
                         <>
-                          <span className="truncate">{`${metric.used}/${metric.limit} ${metric.unit}`.trim()}</span>
+                          <span className="truncate">{`${metric.used}/${metric.limit}`}</span>
                           <span className="shrink-0">{percent}%</span>
                         </>
                       ) : liveValueNoLimit ? (
-                        <>
-                          <span>{metric.used} {metric.unit}</span>
-                          <span>N/A</span>
-                        </>
+                        <span>{metric.used} {metric.unit}</span>
                       ) : manualNoUsed ? (
-                        <>
-                          <span>Limite: {metric.limit} {metric.unit}</span>
-                          <span>—</span>
-                        </>
+                        <span>Limite {metric.limit}</span>
                       ) : (
-                        <>
-                          <span>N/D</span>
-                          <span>—</span>
-                        </>
+                        <span>N/D</span>
                       )}
                     </div>
                   </div>
@@ -664,7 +591,8 @@ const Parametri: React.FC = () => {
               })}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
         </div>
       </div>
     </div>
