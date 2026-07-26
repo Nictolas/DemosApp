@@ -449,15 +449,25 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
   const [query, setQuery] = useState("");
   const firstName = user?.nome || "benvenuto";
 
-  const visibleSections = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return SECTIONS;
-    return SECTIONS.filter((section) =>
-      section.items.some(
-        (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
-      )
+  const sectionById = useMemo(() => {
+    const map = new Map(SECTIONS.map((s) => [s.id, s]));
+    return map;
+  }, []);
+
+  const preferiti = sectionById.get("preferiti")!;
+  const vota = sectionById.get("vota")!;
+  const opinioni = sectionById.get("opinioni")!;
+  const firma = sectionById.get("firma")!;
+
+  const q = query.trim().toLowerCase();
+  const sectionMatches = (section: DashboardSection) =>
+    !q ||
+    section.items.some(
+      (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
     );
-  }, [query]);
+
+  const hasAny =
+    sectionMatches(preferiti) || sectionMatches(vota) || sectionMatches(opinioni) || sectionMatches(firma);
 
   return (
     <div className="demos-dash">
@@ -520,13 +530,20 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
       </div>
 
       <div className="demos-dash-columns">
-        {visibleSections.map((section) => (
-          <DashSection key={section.id} section={section} query={query} onNavigate={onNavigate} />
-        ))}
+        <div className="demos-dash-column">
+          {sectionMatches(preferiti) ? (
+            <DashSection section={preferiti} query={query} onNavigate={onNavigate} />
+          ) : null}
+          {sectionMatches(vota) ? <DashSection section={vota} query={query} onNavigate={onNavigate} /> : null}
+        </div>
+        <div className="demos-dash-column">
+          {sectionMatches(opinioni) ? (
+            <DashSection section={opinioni} query={query} onNavigate={onNavigate} />
+          ) : null}
+          {sectionMatches(firma) ? <DashSection section={firma} query={query} onNavigate={onNavigate} /> : null}
+        </div>
       </div>
-      {visibleSections.length === 0 ? (
-        <p className="demos-dash-empty">Nessun risultato per “{query.trim()}”.</p>
-      ) : null}
+      {!hasAny ? <p className="demos-dash-empty">Nessun risultato per “{query.trim()}”.</p> : null}
     </div>
   );
 }
