@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 
 interface ConsensoData {
@@ -46,6 +46,9 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
     { name: 'No', value: data.statistiche['No'], color: COLORS['No'] }
   ].filter(item => item.value > 0); // Mostra solo le opzioni con voti
 
+  const percent = (value: number) =>
+    data.statistiche.totale > 0 ? Math.round((value / data.statistiche.totale) * 100) : 0;
+
   const handleVote = (risposta: string) => {
     if (data.blocco.isBlocked) {
       toast({
@@ -58,18 +61,20 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
     onVote(risposta);
   };
 
+  const showResults = data.mioConsenso !== null && data.statistiche.totale > 0;
+
   return (
-    <Card className="mb-6 bg-white">
-      <CardHeader>
-        <CardTitle className="text-xl font-bold text-center">
+    <Card className="bg-white lg:mb-0 mb-6 shrink-0">
+      <CardHeader className="pb-2 lg:py-3">
+        <CardTitle className="text-xl font-bold text-center lg:text-lg">
           Consenso
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+      <CardContent className="lg:pt-0 lg:pb-3">
+        <div className="space-y-4 lg:space-y-3">
           {/* Domanda */}
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 lg:text-base lg:mb-2">
               Ti senti rappresentato dall'attuale Capo di Stato?
             </h3>
             
@@ -84,7 +89,7 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
                   <button
                     key={option.value}
                     type="button"
-                    className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                    className={`flex-1 py-3 lg:py-2 text-base lg:text-sm font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
                       idx === 0 ? 'rounded-l-full' : ''
                     } ${
                       idx === 2 ? 'rounded-r-full' : ''
@@ -103,18 +108,18 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
             </div>
           </div>
 
-          {/* Grafico a torta - Mostra solo se l'utente ha mai votato */}
-          {data.mioConsenso !== null && data.statistiche.totale > 0 && (
-            <div className="flex justify-center">
-              <div className="w-full max-w-md h-64">
+          {/* Torta a sinistra, statistiche a destra (PC) */}
+          {showResults && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 items-center">
+              <div className="w-full h-52 lg:h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={chartData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
+                      innerRadius={30}
+                      outerRadius={65}
                       paddingAngle={2}
                       dataKey="value"
                     >
@@ -126,42 +131,32 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
                       formatter={(value: number) => [`${value} voti`, '']}
                       labelFormatter={(label: string) => `Risposta: ${label}`}
                     />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={36}
-                      formatter={(value: string) => (
-                        <span className="text-sm font-medium">{value}</span>
-                      )}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          )}
 
-          {/* Statistiche testuali - Mostra solo se l'utente ha mai votato */}
-          {data.mioConsenso !== null && data.statistiche.totale > 0 && (
-            <div className="text-center space-y-2">
-              <p className="text-sm text-gray-600">
-                Totale voti: <span className="font-semibold">{data.statistiche.totale}</span>
-              </p>
-              <div className="flex justify-center space-x-4 text-sm">
-                <span className="text-green-600 font-medium">
-                  Sì: {data.statistiche['Sì']} ({data.statistiche.totale > 0 ? Math.round((data.statistiche['Sì'] / data.statistiche.totale) * 100) : 0}%)
-                </span>
-                <span className="text-yellow-600 font-medium">
-                  Non so: {data.statistiche['Non so']} ({data.statistiche.totale > 0 ? Math.round((data.statistiche['Non so'] / data.statistiche.totale) * 100) : 0}%)
-                </span>
-                <span className="text-red-600 font-medium">
-                  No: {data.statistiche['No']} ({data.statistiche.totale > 0 ? Math.round((data.statistiche['No'] / data.statistiche.totale) * 100) : 0}%)
-                </span>
+              <div className="text-center lg:text-left space-y-2 lg:space-y-1.5">
+                <p className="text-sm text-gray-600">
+                  Totale voti: <span className="font-semibold">{data.statistiche.totale}</span>
+                </p>
+                <div className="flex flex-col items-center lg:items-start gap-1 text-sm">
+                  <span className="text-green-600 font-medium">
+                    Sì: {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%)
+                  </span>
+                  <span className="text-yellow-600 font-medium">
+                    Non so: {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%)
+                  </span>
+                  <span className="text-red-600 font-medium">
+                    No: {data.statistiche['No']} ({percent(data.statistiche['No'])}%)
+                  </span>
+                </div>
               </div>
             </div>
           )}
 
           {/* Messaggio se non ci sono voti */}
           {data.statistiche.totale === 0 && (
-            <div className="text-center text-gray-500 py-4">
+            <div className="text-center text-gray-500 py-2">
               <p>Nessun voto di consenso ancora espresso.</p>
               <p className="text-sm">Sii il primo a esprimere la tua opinione!</p>
             </div>
@@ -169,11 +164,11 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
           {/* Messaggio di blocco */}
           {data.blocco.isBlocked && (
-            <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-800 font-medium">
+            <div className="text-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-yellow-800 font-medium text-sm">
                 Hai già votato per il consenso questa settimana
               </p>
-              <p className="text-sm text-yellow-600">
+              <p className="text-xs text-yellow-600">
                 Potrai votare di nuovo dal: {data.blocco.unlockDate ? new Date(data.blocco.unlockDate).toLocaleDateString('it-IT') : 'N/A'}
               </p>
             </div>
