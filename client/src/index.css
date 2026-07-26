@@ -519,13 +519,20 @@ div.demos-dash-brand {
   color: #64748b;
 }
 
-/* 4 sezioni = 4 colonne affiancate */
+/* 2 colonne: Preferiti+Vota | Opinioni+Firma */
 .demos-dash-columns {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
   align-items: start;
   width: 100%;
+}
+
+.demos-dash-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  min-width: 0;
 }
 
 .demos-dash-section {
