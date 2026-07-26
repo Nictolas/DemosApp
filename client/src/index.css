@@ -344,11 +344,12 @@ body {
   height: 100%;
   min-height: 0;
   overflow-y: auto;
-  padding: 1rem 1.5rem 1.75rem;
+  padding: 0.75rem 1rem 1.25rem;
   -webkit-overflow-scrolling: touch;
   width: 100%;
   max-width: none;
   margin: 0;
+  box-sizing: border-box;
 }
 
 .preferiti-hub__topbar {
@@ -358,10 +359,9 @@ body {
   gap: 1rem;
   margin-bottom: 1rem;
   padding: 0.65rem 0.85rem;
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 1rem;
-  backdrop-filter: blur(8px);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
@@ -371,19 +371,25 @@ body {
   gap: 0.65rem;
   min-width: 0;
   max-width: min(100%, 18rem);
-  padding: 0.2rem 0.35rem 0.2rem 0.2rem;
-  border: 0;
+  padding: 0.2rem 0.55rem 0.2rem 0.2rem;
+  border: 1px solid #e2e8f0;
   border-radius: 9999px;
-  background: transparent;
+  background: #ffffff;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .preferiti-user-menu:hover,
 .preferiti-user-menu:focus-visible {
-  background: #f1f5f9;
+  background: #ffffff;
+  border-color: #cbd5e1;
   outline: none;
+}
+
+.preferiti-user-menu-content {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0;
 }
 
 .preferiti-user-menu__avatar {
@@ -489,37 +495,41 @@ body {
 
 .preferiti-desk-section {
   margin-bottom: 0;
-  padding: 0.85rem;
-  background: rgba(255, 255, 255, 0.72);
+  padding: 0.65rem 0.75rem;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 1rem;
+  border-radius: 0.85rem;
 }
 
 .preferiti-desk-section__title {
-  margin: 0 0 0.65rem;
-  font-size: 0.72rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #64748b;
 }
 
+/* Colonne = 1 per pulsante (impostate inline). Mai wrap in più righe su desktop. */
 .preferiti-desk-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .preferiti-desk-btn {
   display: flex;
-  align-items: center;
-  gap: 0.7rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
   width: 100%;
+  min-width: 0;
+  min-height: 5rem;
   text-align: left;
   border: 1px solid #e8eef5;
   background: #fff;
-  border-radius: 0.8rem;
-  padding: 0.75rem 0.85rem;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.6rem;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
 }
@@ -539,54 +549,51 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 0.65rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.5rem;
   flex-shrink: 0;
+}
+
+.preferiti-desk-btn__icon svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .preferiti-desk-btn__text {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 0.05rem;
+  width: 100%;
+  gap: 0.1rem;
 }
 
 .preferiti-desk-btn__label {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #0f172a;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .preferiti-desk-btn__desc {
-  font-size: 0.75rem;
+  font-size: 0.62rem;
   color: #64748b;
-  white-space: nowrap;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 
-@media (max-width: 1400px) {
+/* Solo su finestre strette (tablet landscape) permetti wrap */
+@media (max-width: 1100px) {
   .preferiti-desk-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1200px) {
-  .preferiti-desk-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .preferiti-desk-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .preferiti-desk-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)) !important;
   }
 
   .preferiti-user-menu__hint {

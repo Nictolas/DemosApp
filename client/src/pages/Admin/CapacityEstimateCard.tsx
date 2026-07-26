@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Calculator, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Calculator } from "lucide-react";
 
 /** Default dal vecchio calcolo limiti di voto: 1.5 GB / 1M utenti. */
 const DEFAULT_STORAGE_GB_PER_MILLION = 1.5;
@@ -179,26 +179,25 @@ export function CapacityEstimateCard({
   ];
 
   return (
-    <Card className="border-slate-200/80 bg-white/95 shadow-sm mb-3">
-      <CardContent className="p-3 space-y-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Calculator className="h-4 w-4 text-cyan-700 shrink-0" />
-            <p className="text-sm font-semibold text-slate-900">Stima capacità</p>
-            <span className="text-[11px] text-slate-500 hidden sm:inline truncate">
-              modello {DEFAULT_STORAGE_GB_PER_MILLION} GB/1M · live {liveRegisteredUsers != null ? formatNumber(liveRegisteredUsers, 0) : "N/D"} utenti · {liveStorageGb != null ? `${formatNumber(liveStorageGb)} GB` : "N/D"}
-            </span>
-          </div>
-          <Badge variant="outline" className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0 ${estimate.verdict.tone}`}>
+    <Card className="border-slate-200 bg-white shadow-none mb-2">
+      <CardContent className="p-2 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Calculator className="h-3.5 w-3.5 text-cyan-700 shrink-0" />
+          <p className="text-xs font-semibold text-slate-900">Stima capacità</p>
+          <Badge variant="outline" className={`inline-flex items-center gap-1 text-[10px] px-1 py-0 ${estimate.verdict.tone}`}>
             {estimate.needsPaid ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
             {estimate.verdict.label}
           </Badge>
+          <span className="text-[10px] text-slate-500 truncate">
+            live {liveRegisteredUsers != null ? formatNumber(liveRegisteredUsers, 0) : "N/D"} ·{" "}
+            {liveStorageGb != null ? `${formatNumber(liveStorageGb)} GB` : "N/D"} · {estimate.verdict.detail}
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-4 sm:grid-cols-7 xl:grid-cols-11 gap-1">
           {fields.map((f) => (
-            <div key={f.id} className="space-y-0.5">
-              <Label htmlFor={f.id} className="text-[10px] text-slate-600 leading-none">
+            <div key={f.id} className="space-y-0.5 min-w-0">
+              <Label htmlFor={f.id} className="text-[9px] text-slate-500 leading-none">
                 {f.label}
               </Label>
               <Input
@@ -209,77 +208,29 @@ export function CapacityEstimateCard({
                 step={f.step}
                 value={f.value}
                 onChange={(e) => f.set(Number(e.target.value))}
-                className="h-7 text-xs px-2"
+                className="h-6 text-[11px] px-1.5"
               />
             </div>
           ))}
-        </div>
-
-        <p className="text-[11px] text-slate-600 flex items-start gap-1">
-          <Info className="h-3 w-3 mt-0.5 shrink-0" />
-          <span>
-            {estimate.verdict.detail} ≈ {formatNumber(estimate.kbPerUser, 2)} KB/utente · {formatNumber(estimate.mau, 0)} MAU · {formatNumber(estimate.dailyRequests, 0)} req/giorno
-          </span>
-        </p>
-
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5">
-          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-1">
-            <div className="flex justify-between items-baseline gap-1">
-              <span className="text-[10px] font-medium text-slate-500 uppercase">Storage</span>
-              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.storageGb)} GB</span>
-            </div>
-            <div className="flex justify-between text-[10px] text-slate-600">
-              <span>Free {formatNumber(freeLimits.storageGb)}</span>
-              <span>{formatNumber(estimate.freeStoragePct, 1)}%</span>
-            </div>
-            <Progress value={Math.min(100, estimate.freeStoragePct)} className="h-1" indicatorClassName={usageBarClass(estimate.freeStoragePct)} />
-            <div className="flex justify-between text-[10px] text-slate-600">
-              <span>Pro ~{formatNumber(proLimits.storageGb)}</span>
-              <span>{formatNumber(estimate.proStoragePct, 1)}%</span>
-            </div>
-            <Progress value={Math.min(100, estimate.proStoragePct)} className="h-1" indicatorClassName={usageBarClass(estimate.proStoragePct)} />
+          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
+            <p className="text-[9px] text-slate-500">Storage</p>
+            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.storageGb)} GB</p>
+            <Progress value={Math.min(100, estimate.freeStoragePct)} className="h-1 mt-0.5" indicatorClassName={usageBarClass(estimate.freeStoragePct)} />
           </div>
-
-          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-1">
-            <div className="flex justify-between items-baseline gap-1">
-              <span className="text-[10px] font-medium text-slate-500 uppercase">Egress/mese</span>
-              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.monthlyEgressGb)} GB</span>
-            </div>
-            <div className="flex justify-between text-[10px] text-slate-600">
-              <span>Free {formatNumber(freeLimits.egressGb)}</span>
-              <span>{formatNumber(estimate.freeEgressPct, 1)}%</span>
-            </div>
-            <Progress value={Math.min(100, estimate.freeEgressPct)} className="h-1" indicatorClassName={usageBarClass(estimate.freeEgressPct)} />
-            <div className="flex justify-between text-[10px] text-slate-600">
-              <span>Pro ~{formatNumber(proLimits.egressGb)}</span>
-              <span>{formatNumber(estimate.proEgressPct, 1)}%</span>
-            </div>
-            <Progress value={Math.min(100, estimate.proEgressPct)} className="h-1" indicatorClassName={usageBarClass(estimate.proEgressPct)} />
+          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
+            <p className="text-[9px] text-slate-500">Egress/mese</p>
+            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.monthlyEgressGb)} GB</p>
+            <Progress value={Math.min(100, estimate.freeEgressPct)} className="h-1 mt-0.5" indicatorClassName={usageBarClass(estimate.freeEgressPct)} />
           </div>
-
-          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-0.5">
-            <div className="flex justify-between items-baseline gap-1">
-              <span className="text-[10px] font-medium text-slate-500 uppercase">MAU</span>
-              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.mau, 0)}</span>
-            </div>
-            <p className="text-[10px] text-slate-600">
-              Desktop {formatNumber(estimate.desktopMau, 0)} · +{formatNumber(desktopHubExtra, 0)} API
-            </p>
-            <p className="text-[10px] text-slate-600">
-              {formatNumber(estimate.dailyRequests, 0)}/giorno · {formatNumber(estimate.monthlyRequests, 0)}/mese
-            </p>
+          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
+            <p className="text-[9px] text-slate-500">MAU</p>
+            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.mau, 0)}</p>
+            <p className="text-[9px] text-slate-500 truncate">{formatNumber(estimate.dailyRequests, 0)} req/g</p>
           </div>
-
-          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-1">
-            <div className="flex justify-between items-baseline gap-1">
-              <span className="text-[10px] font-medium text-slate-500 uppercase">Picco conn.</span>
-              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.peakConnections, 0)}</span>
-            </div>
-            <div className="flex justify-between text-[10px] text-slate-600">
-              <span>Free {formatNumber(freeLimits.connections, 0)}</span>
-              <span>{formatNumber(estimate.freeConnPct, 1)}%</span>
-            </div>
-            <Progress value={Math.min(100, estimate.freeConnPct)} className="h-1" indicatorClassName={usageBarClass(estimate.freeConnPct)} />
+          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
+            <p className="text-[9px] text-slate-500">Picco conn.</p>
+            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.peakConnections, 0)}</p>
+            <Progress value={Math.min(100, estimate.freeConnPct)} className="h-1 mt-0.5" indicatorClassName={usageBarClass(estimate.freeConnPct)} />
           </div>
         </div>
       </CardContent>
