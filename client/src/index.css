@@ -387,13 +387,13 @@ div.demos-dash-brand {
 }
 
 .demos-dash-brand__logo {
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 8px;
 }
 
 .demos-dash-brand__text {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   color: #0f172a;
@@ -405,8 +405,8 @@ div.demos-dash-brand {
   gap: 0.55rem;
   width: 100%;
   min-width: 0;
-  height: 2.45rem;
-  padding: 0 0.85rem;
+  height: 2.65rem;
+  padding: 0 0.9rem;
   background: #f7f9fc;
   border: 1px solid #e8eef5;
   border-radius: 10px;
@@ -430,7 +430,7 @@ div.demos-dash-brand {
   border: 0;
   outline: none;
   background: transparent;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: #0f172a;
 }
 
@@ -499,22 +499,22 @@ div.demos-dash-brand {
 
 /* Welcome */
 .demos-dash-welcome {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.35rem;
   padding: 0 0.15rem;
 }
 
 .demos-dash-welcome__text h1 {
   margin: 0;
-  font-size: 1.55rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-size: 1.95rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
   line-height: 1.2;
   color: #0f172a;
 }
 
 .demos-dash-welcome__text p {
-  margin: 0.35rem 0 0;
-  font-size: 0.925rem;
+  margin: 0.4rem 0 0;
+  font-size: 1.05rem;
   line-height: 1.45;
   color: #64748b;
 }
@@ -553,17 +553,17 @@ div.demos-dash-brand {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.85rem;
-  height: 1.85rem;
-  border-radius: 8px;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 9px;
   flex-shrink: 0;
 }
 
 .demos-dash-section__title {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 1.4rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
   color: #0f172a;
   text-align: center;
 }
@@ -595,6 +595,13 @@ div.demos-dash-brand {
   gap: 0.65rem;
 }
 
+/* Vota: 3×2 — Capo|Governo / Grazia|Amnistia / Iniziativa|Referendum */
+.demos-dash-section__grid--vota {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
 .demos-dash-card--span {
   grid-column: 1 / -1;
 }
@@ -607,9 +614,9 @@ div.demos-dash-brand {
   justify-content: center;
   gap: 0.75rem;
   width: 100%;
-  min-height: 88px;
+  min-height: 96px;
   height: auto;
-  padding: 0.85rem 0.9rem;
+  padding: 0.95rem 1rem;
   text-align: center;
   border: 1px solid #e8eef5;
   border-radius: 14px;
@@ -633,8 +640,8 @@ div.demos-dash-brand {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 12px;
   flex-shrink: 0;
 }
@@ -643,14 +650,14 @@ div.demos-dash-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.2rem;
   min-width: 0;
   flex: 1;
   text-align: center;
 }
 
 .demos-dash-card__title {
-  font-size: 0.875rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.015em;
   color: #0f172a;
@@ -660,7 +667,7 @@ div.demos-dash-brand {
 }
 
 .demos-dash-card__desc {
-  font-size: 0.72rem;
+  font-size: 0.875rem;
   line-height: 1.35;
   color: #64748b;
   text-align: center;
