@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { UserInfo } from "@/types/profile";
 
@@ -102,7 +103,15 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Candidati Selezionati</h3>
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-lg font-medium">Candidati Selezionati</h3>
+        <Link
+          href="/candidati"
+          className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          Scegli Candidati
+        </Link>
+      </div>
       
       {/* Candidato Europeo */}
       <div className="flex items-center gap-3">
