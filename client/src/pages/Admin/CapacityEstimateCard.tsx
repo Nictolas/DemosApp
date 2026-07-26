@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -92,7 +92,6 @@ export function CapacityEstimateCard({
     const monthlyRequests = dailyRequests * 30;
 
     const monthlyEgressGb = (monthlyRequests * respKb) / (1024 * 1024);
-    // Picco grezzo: ~1% dei MAU online insieme (ordine di grandezza)
     const peakConnections = Math.max(1, Math.ceil(mau * 0.01));
 
     const freeStoragePct = ratioPercent(storageGb, freeLimits.storageGb);
@@ -120,24 +119,21 @@ export function CapacityEstimateCard({
     let verdict: { label: string; tone: string; detail: string };
     if (freeOk) {
       verdict = {
-        label: "Free ok (stima)",
+        label: "Free ok",
         tone: "bg-emerald-100 text-emerald-800 border-emerald-300",
-        detail:
-          "Con queste ipotesi resti sotto i limiti tipici del piano Free. Restano i limiti di compute/concorrenza reale.",
+        detail: "Sotto i limiti Free tipici (stima).",
       };
     } else if (freeRisk || (proStoragePct < 90 && proEgressPct < 90)) {
       verdict = {
-        label: "Free a rischio → Pro",
+        label: "Free → Pro",
         tone: "bg-amber-100 text-amber-900 border-amber-300",
-        detail:
-          "La stima supera uno o più limiti Free. Un piano Pro (o archivio/export) è più realistico a questo target.",
+        detail: "Oltre Free: Pro o archivio più realistici.",
       };
     } else {
       verdict = {
-        label: "Serve upgrade / architettura",
+        label: "Upgrade",
         tone: "bg-red-100 text-red-800 border-red-300",
-        detail:
-          "Oltre Free e vicino/oltre Pro tipico: servono piani superiori, sharding, CDN e/o export dati storici.",
+        detail: "Oltre Free/Pro tipico: piano superiore o architettura.",
       };
     }
 
@@ -172,212 +168,119 @@ export function CapacityEstimateCard({
     proLimits,
   ]);
 
+  const fields: { id: string; label: string; value: number; set: (n: number) => void; step?: number; min?: number; max?: number }[] = [
+    { id: "cap-target-users", label: "Utenti target", value: targetUsers, set: setTargetUsers, step: 1000, min: 1 },
+    { id: "cap-gb-per-m", label: "GB / 1M utenti", value: storageGbPerMillion, set: setStorageGbPerMillion, step: 0.1, min: 0.05 },
+    { id: "cap-mau", label: "% MAU", value: mauPercent, set: setMauPercent, step: 1, min: 1, max: 100 },
+    { id: "cap-req", label: "Req/giorno", value: requestsPerActiveDay, set: setRequestsPerActiveDay, step: 1, min: 1 },
+    { id: "cap-desk-share", label: "% desktop", value: desktopSharePercent, set: setDesktopSharePercent, step: 1, min: 0, max: 100 },
+    { id: "cap-desk-extra", label: "API extra hub", value: desktopHubExtra, set: setDesktopHubExtra, step: 1, min: 0 },
+    { id: "cap-resp-kb", label: "KB risposta", value: avgResponseKb, set: setAvgResponseKb, step: 1, min: 1 },
+  ];
+
   return (
-    <Card className="border-slate-200/80 bg-white/95 shadow-sm hover:shadow-md transition-shadow mb-8">
-      <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calculator className="h-5 w-5 text-cyan-700" />
-              Stima capacità
-            </CardTitle>
-            <CardDescription className="mt-1 max-w-3xl">
-              Calcolo indicativo basato sul modello con limiti di voto (~{DEFAULT_STORAGE_GB_PER_MILLION} GB / 1M utenti).
-              Non è una garanzia: serve per confrontare ipotesi con i limiti Free/Pro.
-            </CardDescription>
+    <Card className="border-slate-200/80 bg-white/95 shadow-sm mb-3">
+      <CardContent className="p-3 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Calculator className="h-4 w-4 text-cyan-700 shrink-0" />
+            <p className="text-sm font-semibold text-slate-900">Stima capacità</p>
+            <span className="text-[11px] text-slate-500 hidden sm:inline truncate">
+              modello {DEFAULT_STORAGE_GB_PER_MILLION} GB/1M · live {liveRegisteredUsers != null ? formatNumber(liveRegisteredUsers, 0) : "N/D"} utenti · {liveStorageGb != null ? `${formatNumber(liveStorageGb)} GB` : "N/D"}
+            </span>
           </div>
-          <Badge variant="outline" className={`inline-flex items-center gap-1 ${estimate.verdict.tone}`}>
-            {estimate.needsPaid ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+          <Badge variant="outline" className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0 ${estimate.verdict.tone}`}>
+            {estimate.needsPaid ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
             {estimate.verdict.label}
           </Badge>
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-target-users">Utenti target (registrati)</Label>
-            <Input
-              id="cap-target-users"
-              type="number"
-              min={1}
-              step={1000}
-              value={targetUsers}
-              onChange={(e) => setTargetUsers(Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-gb-per-m">GB storage / 1M utenti</Label>
-            <Input
-              id="cap-gb-per-m"
-              type="number"
-              min={0.05}
-              step={0.1}
-              value={storageGbPerMillion}
-              onChange={(e) => setStorageGbPerMillion(Number(e.target.value))}
-            />
-            <p className="text-[11px] text-slate-500">Default 1.5 (con limiti voto). Senza limiti era ~20.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-mau">% utenti attivi / mese (MAU)</Label>
-            <Input
-              id="cap-mau"
-              type="number"
-              min={1}
-              max={100}
-              step={1}
-              value={mauPercent}
-              onChange={(e) => setMauPercent(Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-req">Richieste / giorno per utente attivo</Label>
-            <Input
-              id="cap-req"
-              type="number"
-              min={1}
-              step={1}
-              value={requestsPerActiveDay}
-              onChange={(e) => setRequestsPerActiveDay(Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-desk-share">% MAU su Preferiti desktop</Label>
-            <Input
-              id="cap-desk-share"
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={desktopSharePercent}
-              onChange={(e) => setDesktopSharePercent(Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-desk-extra">API extra hub desktop / sessione</Label>
-            <Input
-              id="cap-desk-extra"
-              type="number"
-              min={0}
-              step={1}
-              value={desktopHubExtra}
-              onChange={(e) => setDesktopHubExtra(Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cap-resp-kb">KB medi risposta API</Label>
-            <Input
-              id="cap-resp-kb"
-              type="number"
-              min={1}
-              step={1}
-              value={avgResponseKb}
-              onChange={(e) => setAvgResponseKb(Number(e.target.value))}
-            />
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1">
-            <p className="font-medium text-slate-800 flex items-center gap-1">
-              <Info className="h-3.5 w-3.5" /> Live attuale
-            </p>
-            <p>
-              Utenti registrati:{" "}
-              <strong>{liveRegisteredUsers != null ? formatNumber(liveRegisteredUsers, 0) : "N/D"}</strong>
-            </p>
-            <p>
-              Storage DB: <strong>{liveStorageGb != null ? `${formatNumber(liveStorageGb)} GB` : "N/D"}</strong>
-            </p>
-            <p className="text-slate-500">≈ {formatNumber(estimate.kbPerUser, 2)} KB / utente (modello)</p>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-1.5">
+          {fields.map((f) => (
+            <div key={f.id} className="space-y-0.5">
+              <Label htmlFor={f.id} className="text-[10px] text-slate-600 leading-none">
+                {f.label}
+              </Label>
+              <Input
+                id={f.id}
+                type="number"
+                min={f.min}
+                max={f.max}
+                step={f.step}
+                value={f.value}
+                onChange={(e) => f.set(Number(e.target.value))}
+                className="h-7 text-xs px-2"
+              />
+            </div>
+          ))}
         </div>
 
-        <p className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-          {estimate.verdict.detail}
+        <p className="text-[11px] text-slate-600 flex items-start gap-1">
+          <Info className="h-3 w-3 mt-0.5 shrink-0" />
+          <span>
+            {estimate.verdict.detail} ≈ {formatNumber(estimate.kbPerUser, 2)} KB/utente · {formatNumber(estimate.mau, 0)} MAU · {formatNumber(estimate.dailyRequests, 0)} req/giorno
+          </span>
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-slate-200 p-3 space-y-2">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Storage stimato</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(estimate.storageGb)} GB</p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>vs Free {formatNumber(freeLimits.storageGb)} GB</span>
-                <span>{formatNumber(estimate.freeStoragePct, 1)}%</span>
-              </div>
-              <Progress
-                value={Math.min(100, estimate.freeStoragePct)}
-                className="h-2"
-                indicatorClassName={usageBarClass(estimate.freeStoragePct)}
-              />
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>vs Pro ~{formatNumber(proLimits.storageGb)} GB</span>
-                <span>{formatNumber(estimate.proStoragePct, 1)}%</span>
-              </div>
-              <Progress
-                value={Math.min(100, estimate.proStoragePct)}
-                className="h-2"
-                indicatorClassName={usageBarClass(estimate.proStoragePct)}
-              />
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5">
+          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-1">
+            <div className="flex justify-between items-baseline gap-1">
+              <span className="text-[10px] font-medium text-slate-500 uppercase">Storage</span>
+              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.storageGb)} GB</span>
             </div>
+            <div className="flex justify-between text-[10px] text-slate-600">
+              <span>Free {formatNumber(freeLimits.storageGb)}</span>
+              <span>{formatNumber(estimate.freeStoragePct, 1)}%</span>
+            </div>
+            <Progress value={Math.min(100, estimate.freeStoragePct)} className="h-1" indicatorClassName={usageBarClass(estimate.freeStoragePct)} />
+            <div className="flex justify-between text-[10px] text-slate-600">
+              <span>Pro ~{formatNumber(proLimits.storageGb)}</span>
+              <span>{formatNumber(estimate.proStoragePct, 1)}%</span>
+            </div>
+            <Progress value={Math.min(100, estimate.proStoragePct)} className="h-1" indicatorClassName={usageBarClass(estimate.proStoragePct)} />
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 space-y-2">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Egress / mese</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(estimate.monthlyEgressGb)} GB</p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>vs Free {formatNumber(freeLimits.egressGb)} GB</span>
-                <span>{formatNumber(estimate.freeEgressPct, 1)}%</span>
-              </div>
-              <Progress
-                value={Math.min(100, estimate.freeEgressPct)}
-                className="h-2"
-                indicatorClassName={usageBarClass(estimate.freeEgressPct)}
-              />
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>vs Pro ~{formatNumber(proLimits.egressGb)} GB</span>
-                <span>{formatNumber(estimate.proEgressPct, 1)}%</span>
-              </div>
-              <Progress
-                value={Math.min(100, estimate.proEgressPct)}
-                className="h-2"
-                indicatorClassName={usageBarClass(estimate.proEgressPct)}
-              />
+          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-1">
+            <div className="flex justify-between items-baseline gap-1">
+              <span className="text-[10px] font-medium text-slate-500 uppercase">Egress/mese</span>
+              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.monthlyEgressGb)} GB</span>
             </div>
+            <div className="flex justify-between text-[10px] text-slate-600">
+              <span>Free {formatNumber(freeLimits.egressGb)}</span>
+              <span>{formatNumber(estimate.freeEgressPct, 1)}%</span>
+            </div>
+            <Progress value={Math.min(100, estimate.freeEgressPct)} className="h-1" indicatorClassName={usageBarClass(estimate.freeEgressPct)} />
+            <div className="flex justify-between text-[10px] text-slate-600">
+              <span>Pro ~{formatNumber(proLimits.egressGb)}</span>
+              <span>{formatNumber(estimate.proEgressPct, 1)}%</span>
+            </div>
+            <Progress value={Math.min(100, estimate.proEgressPct)} className="h-1" indicatorClassName={usageBarClass(estimate.proEgressPct)} />
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 space-y-2">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">MAU / richieste</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(estimate.mau, 0)}</p>
-            <p className="text-xs text-slate-600">
-              Desktop hub: {formatNumber(estimate.desktopMau, 0)} MAU · +{formatNumber(desktopHubExtra, 0)} API/sessione
+          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-0.5">
+            <div className="flex justify-between items-baseline gap-1">
+              <span className="text-[10px] font-medium text-slate-500 uppercase">MAU</span>
+              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.mau, 0)}</span>
+            </div>
+            <p className="text-[10px] text-slate-600">
+              Desktop {formatNumber(estimate.desktopMau, 0)} · +{formatNumber(desktopHubExtra, 0)} API
             </p>
-            <p className="text-xs text-slate-600">
-              ~{formatNumber(estimate.dailyRequests, 0)} req/giorno · ~{formatNumber(estimate.monthlyRequests, 0)} /mese
+            <p className="text-[10px] text-slate-600">
+              {formatNumber(estimate.dailyRequests, 0)}/giorno · {formatNumber(estimate.monthlyRequests, 0)}/mese
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-3 space-y-2">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Picco connessioni</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(estimate.peakConnections, 0)}</p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>vs Free {formatNumber(freeLimits.connections, 0)}</span>
-                <span>{formatNumber(estimate.freeConnPct, 1)}%</span>
-              </div>
-              <Progress
-                value={Math.min(100, estimate.freeConnPct)}
-                className="h-2"
-                indicatorClassName={usageBarClass(estimate.freeConnPct)}
-              />
-              <p className="text-[11px] text-slate-500">Ipotesi grezza: ~1% dei MAU contemporanei.</p>
+          <div className="rounded-lg border border-slate-200 px-2 py-1.5 space-y-1">
+            <div className="flex justify-between items-baseline gap-1">
+              <span className="text-[10px] font-medium text-slate-500 uppercase">Picco conn.</span>
+              <span className="text-sm font-bold tabular-nums text-slate-900">{formatNumber(estimate.peakConnections, 0)}</span>
             </div>
+            <div className="flex justify-between text-[10px] text-slate-600">
+              <span>Free {formatNumber(freeLimits.connections, 0)}</span>
+              <span>{formatNumber(estimate.freeConnPct, 1)}%</span>
+            </div>
+            <Progress value={Math.min(100, estimate.freeConnPct)} className="h-1" indicatorClassName={usageBarClass(estimate.freeConnPct)} />
           </div>
-        </div>
-
-        <div className="text-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-          Nota: i “milioni possibili” del calcolo storico riguardano soprattutto storage/query con limiti di voto, non la
-          permanenza illimitata sul piano Free. L&apos;auth Demos è custom: il tetto MAU Supabase è solo un riferimento.
-          Preferiti desktop aggiunge poche API in più solo sulla quota stimata di utenti PC.
         </div>
       </CardContent>
     </Card>
