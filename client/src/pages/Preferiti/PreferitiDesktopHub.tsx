@@ -444,10 +444,6 @@ function UserMenu({
           <Lock className="mr-2 h-4 w-4" />
           Password
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go("/riconoscimento")}>
-          <Award className="mr-2 h-4 w-4" />
-          Riconoscimento
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => go("/avvistamenti")}>
           <Binoculars className="mr-2 h-4 w-4" />
           Avvistamenti
@@ -500,6 +496,15 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
         </div>
 
         <div className="demos-dash-nav__right">
+          <button
+            type="button"
+            className="demos-dash-nav__text-btn"
+            onClick={() => onNavigate("/riconoscimento", { skipOpinioniCheck: true })}
+            aria-label="Sono un candidato / politico"
+            title="Sono un candidato / politico"
+          >
+            Sono un candidato / politico
+          </button>
           <button
             type="button"
             className="demos-dash-nav__icon-btn"
