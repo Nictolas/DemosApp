@@ -1,16 +1,20 @@
 import React from "react";
 import {
+  Archive,
   Award,
   Bell,
   Binoculars,
   Building2,
   Calendar,
+  CheckSquare,
   ChevronDown,
+  Crown,
   FileText,
   Globe2,
   LogOut,
   Megaphone,
   MessageSquare,
+  Scale,
   Settings,
   Shield,
   UserCheck,
@@ -64,7 +68,12 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
   { id: "candidati", path: "/candidati", label: "Candidati", description: "Profili e proposte", icon: Award, accent: "#d97706" },
   { id: "attivisti", path: "/attivisti", label: "Attivisti", description: "Persone sul territorio", icon: UserCheck, accent: "#db2777" },
   { id: "organizzazioni", path: "/organizzazioni", label: "Organizzazioni", description: "Associazioni e gruppi", icon: Building2, accent: "#9333ea" },
-  { id: "vota", path: "/vota", label: "Vota", description: "Partecipa alle votazioni", icon: Vote, accent: "#16a34a" },
+  { id: "capo-di-stato", path: "/capo-di-stato", label: "Capo di Stato", description: "Vota il Capo di Stato", icon: Crown, accent: "#7c3aed" },
+  { id: "governo", path: "/governo", label: "Governo", description: "Vota il Governo", icon: Building2, accent: "#db2777" },
+  { id: "grazia", path: "/grazia", label: "Grazia", description: "Vota sulle grazie", icon: Scale, accent: "#16a34a" },
+  { id: "amnistia", path: "/amnistia", label: "Amnistia", description: "Vota sulle amnistie", icon: Archive, accent: "#0d9488" },
+  { id: "vota-iniziativa", path: "/vota-iniziativa-popolare", label: "Vota Iniziativa", description: "Iniziative popolari", icon: Users, accent: "#2563eb" },
+  { id: "vota-referendum", path: "/vota-referendum-abrogativo", label: "Vota Referendum", description: "Referendum abrogativi", icon: CheckSquare, accent: "#dc2626" },
 ];
 
 const OPINIONI_SHORTCUTS: Shortcut[] = [
@@ -169,7 +178,7 @@ function UserMenu({
           <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold text-slate-900">{displayName}</span>
@@ -211,7 +220,6 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
   return (
     <div className="preferiti-desktop-hub preferiti-desktop-hub--light">
       <header className="preferiti-hub__topbar">
-        <UserMenu user={user} onNavigate={onNavigate} onGoGestisci={onGoGestisci} />
         <div className="preferiti-hub__brand">
           {user?.ruolo === "AD" && onGoGestisci ? (
             <button type="button" className="preferiti-hub__logo-btn" onClick={onGoGestisci} aria-label="Vai a Gestisci">
@@ -222,6 +230,7 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
           )}
           <span className="preferiti-hub__brand-text">DEMOS</span>
         </div>
+        <UserMenu user={user} onNavigate={onNavigate} onGoGestisci={onGoGestisci} />
       </header>
 
       <div className="preferiti-hub__intro">
