@@ -15,7 +15,6 @@ import {
   LogOut,
   MessageSquare,
   PenLine,
-  Plus,
   Scale,
   Search,
   Shield,
@@ -499,24 +498,16 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
           </h1>
           <p>Partecipa alla vita democratica della tua comunità.</p>
         </div>
-        <button
-          type="button"
-          className="demos-dash-cta"
-          onClick={() => onNavigate("/proponi-opinione", { skipOpinioniCheck: true })}
-        >
-          <Plus size={16} strokeWidth={2.5} aria-hidden />
-          Nuova Opinione
-        </button>
       </div>
 
-      <div className="demos-dash-body">
+      <div className="demos-dash-columns">
         {visibleSections.map((section) => (
           <DashSection key={section.id} section={section} query={query} onNavigate={onNavigate} />
         ))}
-        {visibleSections.length === 0 ? (
-          <p className="demos-dash-empty">Nessun risultato per “{query.trim()}”.</p>
-        ) : null}
       </div>
+      {visibleSections.length === 0 ? (
+        <p className="demos-dash-empty">Nessun risultato per “{query.trim()}”.</p>
+      ) : null}
     </div>
   );
 }
