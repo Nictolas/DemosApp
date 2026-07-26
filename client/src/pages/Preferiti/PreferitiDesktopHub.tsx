@@ -34,6 +34,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 type NavigateHandler = (path: string, options?: { skipOpinioniCheck?: boolean }) => void;
 
@@ -299,6 +302,20 @@ function userInitials(user: PreferitiDesktopHubProps["user"]): string {
   return "U";
 }
 
+function parseAvatarConfig(config: unknown) {
+  if (!config) return null;
+  try {
+    let parsed: any = typeof config === "string" ? JSON.parse(config) : config;
+    if (typeof parsed === "string") {
+      parsed = JSON.parse(parsed);
+    }
+    if (parsed && typeof parsed === "object") return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function DashCard({
   item,
   onClick,
@@ -388,12 +405,29 @@ function UserMenu({
   const initials = userInitials(user);
   const go = (path: string) => onNavigate(path, { skipOpinioniCheck: true });
 
+  const { data: avatarConfig } = useQuery({
+    queryKey: ["preferiti-user-avatar", user?.id],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/users/me");
+      if (!response?.ok || !response?.data) return null;
+      const userData = response.data.user || response.data.data || response.data;
+      return parseAvatarConfig(userData?.avatar_config);
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className="demos-dash-avatar-btn" aria-label="Menu utente">
-          <span className="demos-dash-avatar" aria-hidden>
-            {initials}
+          <span className={`demos-dash-avatar${avatarConfig ? " demos-dash-avatar--image" : ""}`} aria-hidden>
+            {avatarConfig ? (
+              <CustomAvatar config={avatarConfig} size={38} className="rounded-full overflow-hidden" />
+            ) : (
+              initials
+            )}
           </span>
         </button>
       </DropdownMenuTrigger>
