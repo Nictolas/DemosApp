@@ -234,10 +234,13 @@ function UserMenu({
 }
 
 /**
- * Hub desktop PC: 5 colonne affiancate Preferiti | Vota | Opinioni | Firma | Altro.
+ * Hub desktop PC:
+ * - Altro in topbar accanto al menu utente
+ * - Griglia 2×2: Preferiti | Firma / Opinioni | Vota
  */
 export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: PreferitiDesktopHubProps) {
   const firstName = user?.nome || "benvenuto";
+  const altroItems = APP_SHORTCUTS.filter((item) => !item.visibleFor || item.visibleFor(user?.ruolo));
 
   return (
     <div className="preferiti-desktop-hub preferiti-desktop-hub--light">
@@ -252,21 +255,41 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
           )}
           <span className="preferiti-hub__brand-text">DEMOS</span>
         </div>
+
+        <nav className="preferiti-hub__quick" aria-label="Scorciatoie">
+          {altroItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className="preferiti-hub__quick-btn"
+                onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
+              >
+                <span className="preferiti-hub__quick-icon" style={{ background: item.accent }}>
+                  <Icon className="h-3.5 w-3.5 text-white" />
+                </span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
         <UserMenu user={user} onNavigate={onNavigate} onGoGestisci={onGoGestisci} />
       </header>
 
       <div className="preferiti-hub__intro">
         <h1>Ciao, {firstName}</h1>
-        <p>Preferiti, Vota, Opinioni, Firma e Altro — cinque colonne su una pagina.</p>
+        <p>Preferiti e Firma sopra, Opinioni e Vota sotto.</p>
       </div>
 
-      <div className="preferiti-hub__columns">
+      <div className="preferiti-hub__grid">
         <Column title="Preferiti" items={PREFERITI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Column title="Vota" items={VOTA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Column title="Opinioni" items={OPINIONI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
         <Column title="Firma" items={FIRMA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
-        <Column title="Altro" items={APP_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+        <Column title="Opinioni" items={OPINIONI_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
+        <Column title="Vota" items={VOTA_SHORTCUTS} onNavigate={onNavigate} ruolo={user?.ruolo} />
       </div>
     </div>
   );
 }
+
