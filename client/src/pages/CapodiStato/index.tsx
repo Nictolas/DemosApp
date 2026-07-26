@@ -61,15 +61,15 @@ export default function CapodiStato() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
-      <div className="w-full max-w-full mx-auto">
+    <div className="capo-di-stato-page min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+      <div className="w-full max-w-full mx-auto lg:h-full lg:min-h-0 lg:overflow-hidden">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-4 items-start lg:h-full lg:min-h-0 lg:overflow-hidden">
           {/* Colonna sinistra: Capo di Stato, Consenso, Il tuo voto */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:space-y-3 lg:h-full lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col">
             <Header />
 
             {isLoadingData || isLoadingConsenso ? (
@@ -86,24 +86,26 @@ export default function CapodiStato() {
                   />
                 )}
 
-                <VotingForm
-                  selectedVoti={selectedVoti}
-                  classifica={data?.classifica || []}
-                  isBlocked={data?.blocco.isBlocked || false}
-                  onAddNome={handleAddNomeLocal}
-                  onRemoveNome={handleRemoveLocal}
-                  hasReachedLimit={hasReachedLimit}
-                  currentVotes={currentVotes}
-                  limit={limit}
-                  remainingVotes={remainingVotes}
-                />
+                <div className="lg:min-h-0 lg:overflow-hidden lg:flex-1">
+                  <VotingForm
+                    selectedVoti={selectedVoti}
+                    classifica={data?.classifica || []}
+                    isBlocked={data?.blocco.isBlocked || false}
+                    onAddNome={handleAddNomeLocal}
+                    onRemoveNome={handleRemoveLocal}
+                    hasReachedLimit={hasReachedLimit}
+                    currentVotes={currentVotes}
+                    limit={limit}
+                    remainingVotes={remainingVotes}
+                  />
+                </div>
               </>
             )}
           </div>
 
           {/* Colonna destra: Classifica candidati */}
           {!isLoadingData && !isLoadingConsenso && (
-            <div className="lg:sticky lg:top-4">
+            <div className="lg:h-full lg:min-h-0 lg:overflow-hidden">
               <CandidatesRanking
                 classifica={data?.classifica || []}
                 selectedVoti={selectedVoti}
