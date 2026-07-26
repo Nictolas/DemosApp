@@ -119,7 +119,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
   return (
     <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-7xl px-4 py-8">
         {/* Header decorativo */}
         <div className="relative mb-12">
           {/* Background decorative elements */}
@@ -172,7 +172,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         {/* Contenuto principale */}
         {displayUserInfo && !isLoading && !isLoadingInfo && !error && (
           <>
-            {/* Form di modifica o informazioni del profilo */}
+            {/* Form di modifica a larghezza piena */}
             {isEditing && displayUserInfo ? (
               <EditProfileForm
                 userData={{...displayUserInfo, uid: displayUserInfo.id || ''}}
@@ -181,56 +181,61 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 isAdmin={user?.ruolo === "AD"}
               />
             ) : (
-              <ProfileInfo
-                userInfo={displayUserInfo}
-                isEditing={isEditing}
-                onEditClick={() => setIsEditing(true)}
-                onModificaImmagine={handleModificaImmagine}
-                canEdit={isViewingOwnProfile}
-                avatarConfig={avatarConfig}
-              />
+              /* Desktop (lg+): 3 colonne | Mobile: stack verticale */
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+                {/* Colonna 1: Informazioni Profilo */}
+                <div className="min-w-0">
+                  <ProfileInfo
+                    userInfo={displayUserInfo}
+                    isEditing={isEditing}
+                    onEditClick={() => setIsEditing(true)}
+                    onModificaImmagine={handleModificaImmagine}
+                    canEdit={isViewingOwnProfile}
+                    avatarConfig={avatarConfig}
+                  />
+                </div>
+
+                {/* Colonna 2: Rappresentanti + Candidati */}
+                <div className="min-w-0 space-y-6">
+                  {userInfo && userInfo.ruolo !== "I" && (
+                    <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
+                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-400/20 to-cyan-500/20 rounded-full translate-y-12 -translate-x-12"></div>
+                      <div className="relative p-6 lg:p-8">
+                        <ProfileRepresentatives 
+                          userInfo={userInfo} 
+                          rappresentantiDetails={rappresentantiDetails}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {userInfo && userInfo.ruolo !== "I" && (
+                    <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
+                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
+                      <div className="relative p-6 lg:p-8">
+                        <ProfileCandidates 
+                          userInfo={userInfo} 
+                          candidatiDetails={candidatiDetails}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Colonna 3: Il Tuo Governo Ideale */}
+                <div className="min-w-0">
+                  <ProfileGovernoIdeale governoIdeale={governoIdeale} />
+                </div>
+              </div>
             )}
 
-            {/* Sezione opinioni */}
+            {/* Sezione opinioni - larghezza piena sotto le colonne */}
             <ProfileOpinions
               userOpinions={userOpinions}
               opinionQuestions={opinionQuestions}
             />
-
-            {/* Sezione rappresentanti - Non visibile per Istituzione */}
-            {userInfo && userInfo.ruolo !== "I" && (
-              <div className="transform hover:scale-[1.02] transition-all duration-300">
-                <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-400/20 to-cyan-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-                  <div className="relative p-8">
-                    <ProfileRepresentatives 
-                      userInfo={userInfo} 
-                      rappresentantiDetails={rappresentantiDetails}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sezione candidati - Non visibile per Istituzione */}
-            {userInfo && userInfo.ruolo !== "I" && (
-              <div className="transform hover:scale-[1.02] transition-all duration-300">
-                <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-                  <div className="relative p-8">
-                    <ProfileCandidates 
-                      userInfo={userInfo} 
-                      candidatiDetails={candidatiDetails}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sezione governo ideale */}
-            <ProfileGovernoIdeale governoIdeale={governoIdeale} />
           </>
         )}
 

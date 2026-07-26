@@ -249,6 +249,42 @@ function normalizeMinisteroDate(date) {
 }
 
 /**
+ * Aggiunge N mesi a una data.
+ * @param {string|Date|number} date
+ * @param {number} months
+ * @returns {string|null} Data in formato YYYY-MM-DD
+ */
+function addMonthsToDate(date, months) {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) {
+    d.setDate(0);
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Data di fine iniziativa: usa quella presente, altrimenti Data Inizio + 6 mesi.
+ * @param {string|Date|number|null|undefined} dataFine
+ * @param {string|Date|number|null|undefined} dataInizio
+ * @returns {string|Date|null}
+ */
+function resolveIniziativaDataFine(dataFine, dataInizio) {
+  const fine = normalizeMinisteroDate(dataFine);
+  if (fine) return fine;
+
+  const inizio = normalizeMinisteroDate(dataInizio);
+  if (!inizio) return null;
+
+  return addMonthsToDate(inizio, 6);
+}
+
+/**
  * Ottiene il fuso orario italiano corrente
  * @returns {string} Stringa del fuso orario (es. "Europe/Rome")
  */
@@ -297,6 +333,8 @@ module.exports = {
   isValidDate,
   isMinisteroSentinelDate,
   normalizeMinisteroDate,
+  addMonthsToDate,
+  resolveIniziativaDataFine,
   getItalianTimezone,
   getItalianTimezoneOffset,
   formatSecurityViolationDate,

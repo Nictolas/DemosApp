@@ -9,7 +9,7 @@ import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
 import { SearchAndFilters } from "./components/SearchAndFilters";
 import { IniziativaPopolare } from "./types";
-import { getDisplayableDate } from "@/utils/dateUtils";
+import { resolveIniziativaDataFine } from "@/utils/dateUtils";
 
 type SortOption = "firme" | "scadenza" | null;
 
@@ -54,8 +54,14 @@ export default function IniziativePopolari() {
       });
     } else if (sortBy === "scadenza") {
       filtered.sort((a, b) => {
-        const dataFineA = getDisplayableDate(a.dataFine || a.data_fine);
-        const dataFineB = getDisplayableDate(b.dataFine || b.data_fine);
+        const dataFineA = resolveIniziativaDataFine(
+          a.dataFine || a.data_fine,
+          a.dataInizio || a.data_inizio
+        );
+        const dataFineB = resolveIniziativaDataFine(
+          b.dataFine || b.data_fine,
+          b.dataInizio || b.data_inizio
+        );
         
         // Se una non ha data reale, mettila in fondo
         if (!dataFineA && !dataFineB) return 0;
