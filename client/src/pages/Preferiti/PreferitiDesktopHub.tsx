@@ -60,7 +60,7 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
     id: "politici",
     path: "/rappresentanti",
     label: "Politici",
-    description: "I tuoi rappresentanti eletti",
+    description: "Chi ti rappresenta",
     icon: Users,
     accent: "#2563eb",
     accentSoft: "#eff6ff",
@@ -69,7 +69,7 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
     id: "candidati",
     path: "/candidati",
     label: "Candidati",
-    description: "Profili e proposte elettorali",
+    description: "Chi voterai alle prossime elezioni",
     icon: Award,
     accent: "#d97706",
     accentSoft: "#fffbeb",
@@ -78,7 +78,7 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
     id: "attivisti",
     path: "/attivisti",
     label: "Attivisti",
-    description: "Persone attive sul territorio",
+    description: "Quale attivista ti rappresenta",
     icon: UserCheck,
     accent: "#db2777",
     accentSoft: "#fdf2f8",
@@ -87,10 +87,20 @@ const PREFERITI_SHORTCUTS: Shortcut[] = [
     id: "organizzazioni",
     path: "/organizzazioni",
     label: "Organizzazioni",
-    description: "Associazioni e gruppi civici",
+    description: "Quale organizzazione sostieni",
     icon: Building2,
     accent: "#7c3aed",
     accentSoft: "#f5f3ff",
+  },
+  {
+    id: "eventi",
+    path: "/eventi",
+    label: "Eventi",
+    description: "Calendario e appuntamenti",
+    icon: Calendar,
+    accent: "#0ea5e9",
+    accentSoft: "#f0f9ff",
+    skipOpinioniCheck: true,
   },
 ];
 
@@ -203,7 +213,7 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     id: "grazia",
     path: "/grazia",
     label: "Grazia",
-    description: "Esprimi il tuo voto sulle grazie",
+    description: "Chi merita la grazia",
     icon: Scale,
     accent: "#16a34a",
     accentSoft: "#f0fdf4",
@@ -212,7 +222,7 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     id: "amnistia",
     path: "/amnistia",
     label: "Amnistia",
-    description: "Esprimi il tuo voto sulle amnistie",
+    description: "Quale reato dovrebbe essere perdonato",
     icon: Archive,
     accent: "#0d9488",
     accentSoft: "#f0fdfa",
@@ -221,7 +231,7 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     id: "vota-iniziativa",
     path: "/vota-iniziativa-popolare",
     label: "Vota Iniziativa",
-    description: "Vota sulle iniziative popolari",
+    description: "Quale iniziativa popolare ha la priorità",
     icon: Users,
     accent: "#2563eb",
     accentSoft: "#eff6ff",
@@ -230,7 +240,7 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     id: "vota-referendum",
     path: "/vota-referendum-abrogativo",
     label: "Vota Referendum",
-    description: "Vota sui referendum abrogativi",
+    description: "Quale referendum ha la priorità",
     icon: CheckSquare,
     accent: "#dc2626",
     accentSoft: "#fef2f2",
@@ -356,7 +366,9 @@ function DashSection({
           <DashCard
             key={item.id}
             item={item}
-            className={item.id === "proponi-opinione" ? "demos-dash-card--span" : undefined}
+            className={
+              item.id === "proponi-opinione" || item.id === "eventi" ? "demos-dash-card--span" : undefined
+            }
             onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
           />
         ))}
@@ -419,10 +431,6 @@ function UserMenu({
         <DropdownMenuItem onClick={() => go("/avvistamenti")}>
           <Binoculars className="mr-2 h-4 w-4" />
           Avvistamenti
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go("/eventi")}>
-          <Calendar className="mr-2 h-4 w-4" />
-          Eventi
         </DropdownMenuItem>
         {user?.ruolo === "AD" && onGoGestisci ? (
           <DropdownMenuItem onClick={onGoGestisci}>
