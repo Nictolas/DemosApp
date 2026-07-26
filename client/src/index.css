@@ -550,6 +550,13 @@ div.demos-dash-brand {
   color: #fff;
   background: linear-gradient(135deg, #2563eb, #0ea5e9);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+}
+
+.demos-dash-avatar--image {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px rgba(226, 232, 240, 0.9);
+  padding: 0;
 }
 
 .preferiti-user-menu-content {
