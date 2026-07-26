@@ -872,17 +872,13 @@ export default function App() {
               </Route>
 
               {/* Route capo di stato */}
+              {/* Capo di Stato — senza PageTransition (layout a tutta altezza su PC) */}
               <Route path="/capo-stato">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
-                  <ProtectedRoute path="/capo-stato" component={CapodiStato} />
-                </PageTransition>
+                <ProtectedRoute path="/capo-stato" component={CapodiStato} />
               </Route>
 
-              {/* Route capo di stato (alternativa) */}
               <Route path="/capo-di-stato">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/capo-di-stato" component={CapodiStato} />
-                </PageTransition>
+                <ProtectedRoute path="/capo-di-stato" component={CapodiStato} />
               </Route>
 
               {/* Route amnistia */}

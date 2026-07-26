@@ -17,7 +17,6 @@ import {
   PenLine,
   Scale,
   Search,
-  Shield,
   Star,
   User,
   UserCheck,
@@ -149,7 +148,7 @@ const OPINIONI_SHORTCUTS: Shortcut[] = [
     id: "proponi-opinione",
     path: "/proponi-opinione",
     label: "Proponi Opinione",
-    description: "Avvia una nuova proposta",
+    description: "Vota per aggiungere una nuova opinione per Demos",
     icon: PenLine,
     accent: "#db2777",
     accentSoft: "#fdf2f8",
@@ -162,7 +161,7 @@ const FIRMA_SHORTCUTS: Shortcut[] = [
     id: "iniziative-popolari",
     path: "/iniziative-popolari",
     label: "Iniziativa Popolare",
-    description: "Proponi una nuova legge",
+    description: "Firma per proporre una nuova legge",
     icon: FileText,
     accent: "#16a34a",
     accentSoft: "#f0fdf4",
@@ -181,8 +180,8 @@ const FIRMA_SHORTCUTS: Shortcut[] = [
   {
     id: "eci",
     path: "/eci",
-    label: "ECI",
-    description: "European Citizens’ Initiative",
+    label: "Iniziativa dei Cittadini Europei",
+    description: "Firma per nuovi leggi europee",
     icon: Globe2,
     accent: "#2563eb",
     accentSoft: "#eff6ff",
@@ -195,7 +194,7 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     id: "capo-di-stato",
     path: "/capo-di-stato",
     label: "Capo di Stato",
-    description: "Vota il Capo di Stato",
+    description: "Chi vuoi come Presidente della Repubblica",
     icon: Crown,
     accent: "#7c3aed",
     accentSoft: "#f5f3ff",
@@ -204,7 +203,7 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     id: "governo",
     path: "/governo",
     label: "Governo",
-    description: "Vota il Governo",
+    description: "I Ministri che vuoi",
     icon: Building2,
     accent: "#db2777",
     accentSoft: "#fdf2f8",
@@ -380,11 +379,9 @@ function DashSection({
 function UserMenu({
   user,
   onNavigate,
-  onGoGestisci,
 }: {
   user: PreferitiDesktopHubProps["user"];
   onNavigate: NavigateHandler;
-  onGoGestisci?: () => void;
 }) {
   const { logoutMutation } = useAuth();
   const displayName = [user?.nome, user?.cognome].filter(Boolean).join(" ") || user?.email || "Utente";
@@ -432,12 +429,6 @@ function UserMenu({
           <Binoculars className="mr-2 h-4 w-4" />
           Avvistamenti
         </DropdownMenuItem>
-        {user?.ruolo === "AD" && onGoGestisci ? (
-          <DropdownMenuItem onClick={onGoGestisci}>
-            <Shield className="mr-2 h-4 w-4" />
-            Gestisci
-          </DropdownMenuItem>
-        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-red-600 focus:text-red-700"
@@ -526,7 +517,7 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
           >
             <Wrench size={18} strokeWidth={1.9} />
           </button>
-          <UserMenu user={user} onNavigate={onNavigate} onGoGestisci={onGoGestisci} />
+          <UserMenu user={user} onNavigate={onNavigate} />
         </div>
       </header>
 
