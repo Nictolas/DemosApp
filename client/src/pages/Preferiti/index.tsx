@@ -6,6 +6,8 @@ import { PageContainer } from "@/components/PageContainer";
 import { Card, CardHeader } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
 import { apiRequest } from "@/lib/queryClient";
+import { useMobileLayout } from "@/hooks/useMobileLayout";
+import { PreferitiDesktopHub } from "./PreferitiDesktopHub";
 
 interface PreferitiButtonProps {
   path: string;
@@ -145,6 +147,7 @@ const preferitiItems = [
 export default function Preferiti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const isMobileLayout = useMobileLayout();
 
   const [showOpinioniAlert, setShowOpinioniAlert] = useState(false);
   const [opinioniAlertData, setOpinioniAlertData] = useState<any>(null);
@@ -183,17 +186,25 @@ export default function Preferiti() {
     return apiData.data;
   };
 
-  const handleNavigate = async (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
+  const requiresOpinioniComplete = (path: string) =>
+    path.startsWith("/rappresentanti") ||
+    path.startsWith("/scegli-rappresentante") ||
+    path.startsWith("/candidati") ||
+    path.startsWith("/attivisti") ||
+    path.startsWith("/organizzazioni") ||
+    path.startsWith("/vota") ||
+    path.startsWith("/capo-di-stato") ||
+    path.startsWith("/governo") ||
+    path.startsWith("/grazia") ||
+    path.startsWith("/amnistia") ||
+    path.startsWith("/vota-iniziativa") ||
+    path.startsWith("/vota-referendum");
 
-    const richiedeOpinioniComplete =
-      path.startsWith("/rappresentanti") ||
-      path.startsWith("/candidati") ||
-      path.startsWith("/attivisti") ||
-      path.startsWith("/organizzazioni") ||
-      path.startsWith("/vota");
-
-    if (richiedeOpinioniComplete) {
+  const navigateWithOpinioniGate = async (
+    path: string,
+    options?: { skipOpinioniCheck?: boolean },
+  ) => {
+    if (!options?.skipOpinioniCheck && requiresOpinioniComplete(path)) {
       try {
         const agg = await fetchOpinioniCheckAggregated();
         const tutteComplete = agg?.allComplete === true;
@@ -229,10 +240,35 @@ export default function Preferiti() {
     setLocation(path);
   };
 
+  const handleNavigate = async (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    await navigateWithOpinioniGate(path);
+  };
+
   const handleGoToOpinions = () => {
     setShowOpinioniAlert(false);
     setLocation("/opinioni");
   };
+
+  if (!isMobileLayout) {
+    return (
+      <PageContainer className="preferiti-page preferiti-page--desktop bg-slate-50">
+        <PreferitiDesktopHub
+          user={user}
+          onNavigate={navigateWithOpinioniGate}
+          onGoGestisci={() => setLocation("/gestisci")}
+        />
+        {showOpinioniAlert && opinioniAlertData && (
+          <OpinioniIncompleteAlert
+            open={showOpinioniAlert}
+            onOpenChange={setShowOpinioniAlert}
+            data={opinioniAlertData}
+            onGoToOpinions={handleGoToOpinions}
+          />
+        )}
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer className="preferiti-page bg-gradient-to-b from-blue-50 to-white select-none">
