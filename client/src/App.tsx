@@ -34,6 +34,7 @@ import LimitazioneTrattamento from "./pages/Impostazioni/LimitazioneTrattamento"
 import OpposizioneTrattamento from "./pages/Impostazioni/OpposizioneTrattamento";
 import Copyright from "./pages/Impostazioni/Copyright";
 import InformazioniLegali from "./pages/Impostazioni/InformazioniLegali";
+import CambiaPassword from "./pages/Impostazioni/Password";
 import GDPR from "./pages/GDPR";
 import Opinioni from "./pages/Opinioni";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
@@ -782,6 +783,12 @@ export default function App() {
               </Route>
 
               {/* Route sottopagine impostazioni */}
+              <Route path="/impostazioni/password">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/impostazioni/password" component={CambiaPassword} />
+                </PageTransition>
+              </Route>
+
               <Route path="/impostazioni/scarica-dati">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/scarica-dati" component={ScaricaDati} />

@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { usePasswordChange } from "./hooks/usePasswordChange";
 import { useLogout } from "./hooks/useLogout";
 import { LinksSection } from "./components/LinksSection";
 import { LogoutDialog } from "./components/LogoutDialog";
@@ -11,7 +10,6 @@ import { PageContainer } from "@/components/PageContainer";
 
 export default function Impostazioni() {
   const { user, isLoading } = useAuth();
-  const passwordChange = usePasswordChange();
   const logout = useLogout();
 
   if (isLoading) {
@@ -44,16 +42,7 @@ export default function Impostazioni() {
     <PageContainer className="impostazioni-page bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="impostazioni-page__inner app-page-scroll flex h-full min-h-0 flex-col overflow-y-auto px-3 py-2 sm:px-4">
         <div className="w-full max-w-2xl mx-auto py-2 sm:px-1">
-            <LinksSection
-              formData={passwordChange.formData}
-              isChangingPassword={passwordChange.state.isChangingPassword}
-              showChangePassword={passwordChange.state.showChangePassword}
-              onUpdateField={passwordChange.updateFormField}
-              onShowForm={passwordChange.showForm}
-              onHideForm={passwordChange.hideForm}
-              onSubmit={passwordChange.handleChangePassword}
-              onLogout={logout.showLogoutDialog}
-            />
+            <LinksSection onLogout={logout.showLogoutDialog} />
         </div>
       </div>
 
