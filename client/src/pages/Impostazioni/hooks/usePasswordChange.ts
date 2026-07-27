@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/api-config";
+import { getAuthToken } from "@/lib/auth-token";
 import { ChangePasswordForm, PasswordChangeState } from "../types";
 
-export const usePasswordChange = () => {
+type UsePasswordChangeOptions = {
+  onSuccess?: () => void;
+};
+
+export const usePasswordChange = (options?: UsePasswordChangeOptions) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<ChangePasswordForm>({
     currentPassword: "",
@@ -30,7 +35,15 @@ export const usePasswordChange = () => {
     });
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setFormData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: ""
+    });
+  };
+
+  const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     
     if (formData.newPassword !== formData.confirmPassword) {
@@ -54,7 +67,7 @@ export const usePasswordChange = () => {
     setState(prev => ({ ...prev, isChangingPassword: true }));
     
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken() || localStorage.getItem('authToken');
       const response = await fetch(getApiUrl('/auth/change-password'), {
         method: 'POST',
         headers: {
@@ -75,11 +88,13 @@ export const usePasswordChange = () => {
           description: "Password aggiornata con successo!",
           variant: "default",
         });
+        resetForm();
         hideForm();
+        options?.onSuccess?.();
       } else {
         toast({
           title: "Errore",
-          description: data.error || "Errore durante il cambio password.",
+          description: data.error || data.message || "Errore durante il cambio password.",
           variant: "destructive",
         });
       }
