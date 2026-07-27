@@ -256,7 +256,6 @@ export default function Preferiti() {
         <PreferitiDesktopHub
           user={user}
           onNavigate={navigateWithOpinioniGate}
-          onGoGestisci={() => setLocation("/gestisci")}
         />
         {showOpinioniAlert && opinioniAlertData && (
           <OpinioniIncompleteAlert
