@@ -1,48 +1,28 @@
 import React, { useMemo } from "react";
 import {
-  AlertTriangle,
   Archive,
   Award,
-  Bell,
-  Binoculars,
   Building2,
   Calendar,
   CheckSquare,
   Crown,
   FileText,
   Globe2,
-  Lock,
-  LogOut,
   MessageSquare,
   PenLine,
   Scale,
   Star,
-  User,
   UserCheck,
   Users,
   Vote,
-  Wrench,
   type LucideIcon,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 type NavigateHandler = (path: string, options?: { skipOpinioniCheck?: boolean }) => void;
 
 interface PreferitiDesktopHubProps {
   user: { id?: string; nome?: string; cognome?: string; email?: string; ruolo?: string } | null;
   onNavigate: NavigateHandler;
-  onGoGestisci?: () => void;
 }
 
 type Shortcut = {
@@ -292,29 +272,6 @@ const SECTIONS: DashboardSection[] = [
   },
 ];
 
-function userInitials(user: PreferitiDesktopHubProps["user"]): string {
-  const n = (user?.nome || "").trim();
-  const c = (user?.cognome || "").trim();
-  if (n && c) return `${n[0]}${c[0]}`.toUpperCase();
-  if (n) return n.slice(0, 2).toUpperCase();
-  if (user?.email) return user.email.slice(0, 2).toUpperCase();
-  return "U";
-}
-
-function parseAvatarConfig(config: unknown) {
-  if (!config) return null;
-  try {
-    let parsed: any = typeof config === "string" ? JSON.parse(config) : config;
-    if (typeof parsed === "string") {
-      parsed = JSON.parse(parsed);
-    }
-    if (parsed && typeof parsed === "object") return parsed;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 function DashCard({
   item,
   onClick,
@@ -386,86 +343,11 @@ function DashSection({
   );
 }
 
-function UserMenu({
-  user,
-  onNavigate,
-}: {
-  user: PreferitiDesktopHubProps["user"];
-  onNavigate: NavigateHandler;
-}) {
-  const { logoutMutation } = useAuth();
-  const displayName = [user?.nome, user?.cognome].filter(Boolean).join(" ") || user?.email || "Utente";
-  const initials = userInitials(user);
-  const go = (path: string) => onNavigate(path, { skipOpinioniCheck: true });
-
-  const { data: avatarConfig } = useQuery({
-    queryKey: ["preferiti-user-avatar", user?.id],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/users/me");
-      if (!response?.ok || !response?.data) return null;
-      const userData = response.data.user || response.data.data || response.data;
-      return parseAvatarConfig(userData?.avatar_config);
-    },
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button type="button" className="demos-dash-avatar-btn" aria-label="Menu utente">
-          <span className={`demos-dash-avatar${avatarConfig ? " demos-dash-avatar--image" : ""}`} aria-hidden>
-            {avatarConfig ? (
-              <CustomAvatar config={avatarConfig} size={48} className="rounded-full overflow-hidden" />
-            ) : (
-              initials
-            )}
-          </span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="preferiti-user-menu-content w-64 bg-white">
-        <DropdownMenuLabel className="font-normal bg-white">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-semibold text-slate-900">{displayName}</span>
-            {user?.email ? <span className="text-xs text-slate-500 truncate">{user.email}</span> : null}
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => go("/profilo")}>
-          <User className="mr-2 h-4 w-4" />
-          Profilo
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go("/impostazioni/informazioni-legali")}>
-          <Scale className="mr-2 h-4 w-4" />
-          Informazioni Legali
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go("/impostazioni")}>
-          <Lock className="mr-2 h-4 w-4" />
-          Password
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => go("/avvistamenti")}>
-          <Binoculars className="mr-2 h-4 w-4" />
-          Avvistamenti
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-red-600 focus:text-red-700"
-          onClick={() => logoutMutation.mutate()}
-          disabled={logoutMutation.isPending}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 /**
  * Homepage desktop premium — stile Linear / Notion / Stripe / Vercel.
+ * Header globale: DesktopAppHeader in RobustAppLayout.
  */
-export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: PreferitiDesktopHubProps) {
+export function PreferitiDesktopHub({ user, onNavigate }: PreferitiDesktopHubProps) {
   const firstName = user?.nome || "benvenuto";
 
   const sectionById = useMemo(() => {
@@ -480,62 +362,6 @@ export function PreferitiDesktopHub({ user, onNavigate, onGoGestisci }: Preferit
 
   return (
     <div className="demos-dash">
-      <header className="demos-dash-nav">
-        <div className="demos-dash-nav__left">
-          {user?.ruolo === "AD" && onGoGestisci ? (
-            <button type="button" className="demos-dash-brand" onClick={onGoGestisci} aria-label="Vai a Gestisci">
-              <img src="/icona.png" alt="" className="demos-dash-brand__logo" />
-              <span className="demos-dash-brand__text">DEMOS</span>
-            </button>
-          ) : (
-            <div className="demos-dash-brand" aria-label="DEMOS">
-              <img src="/icona.png" alt="" className="demos-dash-brand__logo" />
-              <span className="demos-dash-brand__text">DEMOS</span>
-            </div>
-          )}
-        </div>
-
-        <div className="demos-dash-nav__right">
-          <button
-            type="button"
-            className="demos-dash-nav__text-btn"
-            onClick={() => onNavigate("/riconoscimento", { skipOpinioniCheck: true })}
-            aria-label="Sono un candidato / politico"
-            title="Sono un candidato / politico"
-          >
-            Sono un candidato / politico
-          </button>
-          <button
-            type="button"
-            className="demos-dash-nav__icon-btn"
-            onClick={() => onNavigate("/segnala-problema", { skipOpinioniCheck: true })}
-            aria-label="Segnala problema"
-            title="Segnala problema"
-          >
-            <AlertTriangle size={24} strokeWidth={1.9} />
-          </button>
-          <button
-            type="button"
-            className="demos-dash-nav__icon-btn"
-            onClick={() => onNavigate("/notifiche", { skipOpinioniCheck: true })}
-            aria-label="Notifiche"
-            title="Notifiche"
-          >
-            <Bell size={24} strokeWidth={1.9} />
-          </button>
-          <button
-            type="button"
-            className="demos-dash-nav__icon-btn"
-            onClick={() => onNavigate("/strumenti", { skipOpinioniCheck: true })}
-            aria-label="Strumenti"
-            title="Strumenti"
-          >
-            <Wrench size={24} strokeWidth={1.9} />
-          </button>
-          <UserMenu user={user} onNavigate={onNavigate} />
-        </div>
-      </header>
-
       <div className="demos-dash-welcome">
         <div className="demos-dash-welcome__text">
           <h1>

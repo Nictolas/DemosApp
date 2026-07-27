@@ -337,7 +337,7 @@ body {
   background: #f7f9fc !important;
 }
 
-/* Capo di Stato — layout desktop a tutta altezza viewport (meno homebar) */
+/* Capo di Stato — layout desktop a tutta altezza viewport (meno topbar) */
 .demos-desktop-layout .app-header {
   display: none;
   height: 0;
@@ -411,6 +411,21 @@ body {
   color: #0f172a;
 }
 
+/* ===== DESKTOP SHARED TOPBAR ===== */
+.demos-desktop-topbar {
+  flex-shrink: 0;
+  padding: 0.75rem 1.35rem 0.5rem;
+  background: #f7f9fc;
+}
+
+.demos-mobile-layout .demos-desktop-topbar {
+  display: none;
+}
+
+.demos-desktop-layout .demos-dash {
+  padding-top: 0.5rem;
+}
+
 /* Top navigation */
 .demos-dash-nav {
   display: flex;
@@ -419,7 +434,7 @@ body {
   gap: 1.25rem;
   padding: 1rem 1.25rem;
   min-height: 4.5rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
   background: #ffffff;
   border: 1px solid #e8eef5;
   border-radius: 16px;
