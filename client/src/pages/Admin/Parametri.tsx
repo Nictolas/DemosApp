@@ -489,151 +489,216 @@ const Parametri: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 pt-2 pb-4">
-      <div className="w-full max-w-none mx-auto px-2 sm:px-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
+    <div className="w-full min-h-screen bg-slate-50 pt-16 pb-10">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            className="text-slate-700 -ml-1 h-7 text-xs"
+            className="text-slate-700 -ml-2"
             onClick={() => setLocation("/admin/ops-center")}
           >
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Ops Center
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="mb-2 h-8">
-            <TabsTrigger value="utilizzo" className="text-xs px-3 h-7">
+        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full space-y-4">
+          <TabsList className="h-10">
+            <TabsTrigger value="utilizzo" className="px-4">
               Utilizzo
             </TabsTrigger>
-            <TabsTrigger value="guida" className="text-xs px-3 h-7">
+            <TabsTrigger value="guida" className="px-4">
               Guida carico DB
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="utilizzo" className="mt-0 outline-none">
-        <div className="mb-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-base font-bold text-slate-900">Parametri</h1>
-          <Badge variant="outline" className="text-cyan-700 border-cyan-300 bg-cyan-50 text-[10px] px-1 py-0">Free</Badge>
-          <span className="text-[11px] text-slate-500">
-            &lt;{THRESHOLD_USAGE_WARN}% ok · {THRESHOLD_USAGE_WARN}–{THRESHOLD_USAGE_CRIT - 1}% attenzione · ≥{THRESHOLD_USAGE_CRIT}% critico
-          </span>
-          <span className="text-[11px] text-slate-400 hidden lg:inline">· {lastUpdated}</span>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[11px] text-slate-600 tabular-nums">
-              Integrazioni {overview.configuredDone}/{overview.configuredTotal || "—"}
-            </span>
-            {typeof overview.highestUsage === "number" ? (
-              <Badge variant="outline" className={`text-[10px] px-1 py-0 ${getStatus(overview.highestUsage).tone}`}>
-                {overview.highestUsageLabel}: {overview.highestUsage}%
-              </Badge>
-            ) : null}
-            <Button variant="default" size="sm" className="bg-cyan-700 hover:bg-cyan-800 h-7 text-xs px-2" onClick={loadPlatformUsage} disabled={loading}>
-              <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
-              Aggiorna
-            </Button>
-          </div>
-          {loadError && <p className="w-full text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">{loadError}</p>}
-        </div>
-
-        <CapacityEstimateCard
-          liveRegisteredUsers={platformUsage?.platforms?.supabase?.metrics?.registeredUsers ?? null}
-          liveStorageGb={bytesToGb(platformUsage?.platforms?.supabase?.metrics?.databaseSizeBytes)}
-          freeLimits={{
-            storageGb: bytesToGb(platformUsage?.platforms?.supabase?.limits?.databaseStorageBudgetBytes) ?? 0.5,
-            egressGb: bytesToGb(platformUsage?.platforms?.supabase?.limits?.egressBudgetBytes30d) ?? 5,
-            connections: platformUsage?.platforms?.supabase?.limits?.activeConnectionsLimit ?? 60,
-            registeredUsers: platformUsage?.platforms?.supabase?.limits?.registeredUsersLimit ?? 50_000,
-          }}
-        />
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 items-start">
-        {platforms.map((platform) => {
-          const multi = platform.metrics.length > 2;
-          return (
-          <Card
-            key={platform.id}
-            className={`border-slate-200 bg-white shadow-none ${multi ? "col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-3 xl:col-span-3" : ""}`}
-          >
-            <CardHeader className="py-1.5 px-2 space-y-0">
-              <div className="flex items-center justify-between gap-1">
-                <CardTitle className="text-xs leading-tight truncate">{platform.name}</CardTitle>
-                {platform.id === "supabase" && platformUsage?.platforms?.supabase?.planTier ? (
-                  <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[9px] px-1 py-0 shrink-0">
-                    {String(platformUsage.platforms.supabase.planTier).toUpperCase()}
+          <TabsContent value="utilizzo" className="mt-0 outline-none space-y-6">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <h1 className="text-xl font-bold text-slate-900">Parametri</h1>
+                <Badge variant="outline" className="text-cyan-700 border-cyan-300 bg-cyan-50">
+                  Free
+                </Badge>
+                <span className="text-sm text-slate-500">
+                  &lt;{THRESHOLD_USAGE_WARN}% ok · {THRESHOLD_USAGE_WARN}–{THRESHOLD_USAGE_CRIT - 1}% attenzione · ≥
+                  {THRESHOLD_USAGE_CRIT}% critico
+                </span>
+              </div>
+              <div className="ml-auto flex flex-wrap items-center gap-3">
+                <span className="text-sm text-slate-500">{lastUpdated}</span>
+                <span className="text-sm text-slate-600 tabular-nums">
+                  Integrazioni {overview.configuredDone}/{overview.configuredTotal || "—"}
+                </span>
+                {typeof overview.highestUsage === "number" ? (
+                  <Badge variant="outline" className={`text-xs ${getStatus(overview.highestUsage).tone}`}>
+                    {overview.highestUsageLabel}: {overview.highestUsage}%
                   </Badge>
                 ) : null}
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-cyan-700 hover:bg-cyan-800"
+                  onClick={loadPlatformUsage}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                  Aggiorna
+                </Button>
               </div>
-            </CardHeader>
-            <CardContent
-              className={`pt-0 px-2 pb-1.5 ${multi ? "grid grid-cols-2 xl:grid-cols-3 gap-1" : "space-y-1"}`}
-            >
-              {platform.metrics.map((metric) => {
-                const percent = getPercent(metric.used, metric.limit);
-                const progressEnabled = hasProgress(metric);
-                const liveValueNoLimit = hasLiveValueWithoutLimit(metric);
-                const isConfig = isConfiguredMetric(metric.id);
+              {loadError && (
+                <p className="w-full text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  {loadError}
+                </p>
+              )}
+            </div>
 
-                if (isConfig) {
-                  const ok = metric.used === 1;
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pianificazione</h2>
+              <CapacityEstimateCard
+                liveRegisteredUsers={platformUsage?.platforms?.supabase?.metrics?.registeredUsers ?? null}
+                liveStorageGb={bytesToGb(platformUsage?.platforms?.supabase?.metrics?.databaseSizeBytes)}
+                freeLimits={{
+                  storageGb: bytesToGb(platformUsage?.platforms?.supabase?.limits?.databaseStorageBudgetBytes) ?? 0.5,
+                  egressGb: bytesToGb(platformUsage?.platforms?.supabase?.limits?.egressBudgetBytes30d) ?? 5,
+                  connections: platformUsage?.platforms?.supabase?.limits?.activeConnectionsLimit ?? 60,
+                  registeredUsers: platformUsage?.platforms?.supabase?.limits?.registeredUsersLimit ?? 50_000,
+                }}
+              />
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Piattaforme e limiti live</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                {platforms.map((platform) => {
+                  const multi = platform.metrics.length > 2;
                   return (
-                    <div key={metric.id} className="rounded border border-slate-100 bg-slate-50/80 px-1.5 py-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-[11px] font-medium text-slate-900 truncate">{metric.label}</p>
-                        {ok ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" aria-label="OK" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" aria-label="Mancante" />
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
+                    <Card
+                      key={platform.id}
+                      className={`border-slate-200 bg-white shadow-sm h-full ${
+                        multi ? "sm:col-span-2 xl:col-span-2" : ""
+                      }`}
+                    >
+                      <CardHeader className="pb-3 px-4 pt-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-base font-semibold leading-tight">{platform.name}</CardTitle>
+                          {platform.id === "supabase" && platformUsage?.platforms?.supabase?.planTier ? (
+                            <Badge
+                              variant="outline"
+                              className="text-emerald-700 border-emerald-300 text-xs shrink-0"
+                            >
+                              {String(platformUsage.platforms.supabase.planTier).toUpperCase()}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        {platform.description ? (
+                          <p className="text-xs text-slate-500 mt-1 line-clamp-2">{platform.description}</p>
+                        ) : null}
+                      </CardHeader>
+                      <CardContent
+                        className={`px-4 pb-4 ${
+                          multi ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "space-y-3"
+                        }`}
+                      >
+                        {platform.metrics.map((metric) => {
+                          const percent = getPercent(metric.used, metric.limit);
+                          const progressEnabled = hasProgress(metric);
+                          const liveValueNoLimit = hasLiveValueWithoutLimit(metric);
+                          const isConfig = isConfiguredMetric(metric.id);
 
-                const status = progressEnabled ? getStatus(percent) : { label: "N/D", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3 w-3" /> };
-                const manualNoUsed =
-                  platform.id === "supabase" &&
-                  isManualSupabaseMetric(metric.id) &&
-                  metric.used === null &&
-                  metric.limit !== null &&
-                  metric.limit > 0;
-                const finalStatus = manualNoUsed
-                  ? { label: "Limite", tone: "bg-slate-100 text-slate-700 border-slate-300", icon: <Info className="h-3 w-3" /> }
-                  : liveValueNoLimit
-                    ? { label: "Live", tone: "bg-blue-100 text-blue-700 border-blue-300", icon: <Info className="h-3 w-3" /> }
-                    : status;
-                const barTint = !progressEnabled ? undefined : usageQuotaBarClass(percent);
-                return (
-                  <div key={metric.id} className="rounded border border-slate-100 bg-slate-50/80 px-1.5 py-1 space-y-0.5">
-                    <div className="flex items-center justify-between gap-0.5">
-                      <p className="text-[11px] font-medium text-slate-900 truncate">{metric.label}</p>
-                      <Badge variant="outline" className={`inline-flex items-center gap-0.5 text-[9px] px-1 py-0 shrink-0 ${finalStatus.tone}`}>{finalStatus.label}</Badge>
-                    </div>
-                    {progressEnabled ? <Progress value={percent} className="h-1" indicatorClassName={barTint} /> : null}
-                    <div className="flex items-center justify-between text-[10px] text-slate-600">
-                      {progressEnabled ? (
-                        <>
-                          <span className="truncate">{`${metric.used}/${metric.limit}`}</span>
-                          <span className="shrink-0">{percent}%</span>
-                        </>
-                      ) : liveValueNoLimit ? (
-                        <span>{metric.used} {metric.unit}</span>
-                      ) : manualNoUsed ? (
-                        <span>Limite {metric.limit}</span>
-                      ) : (
-                        <span>N/D</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-          );
-        })}
-        </div>
+                          if (isConfig) {
+                            const ok = metric.used === 1;
+                            return (
+                              <div
+                                key={metric.id}
+                                className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-medium text-slate-900">{metric.label}</p>
+                                  {ok ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" aria-label="OK" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 text-amber-600 shrink-0" aria-label="Mancante" />
+                                  )}
+                                </div>
+                                {metric.note ? (
+                                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{metric.note}</p>
+                                ) : null}
+                              </div>
+                            );
+                          }
+
+                          const status = progressEnabled
+                            ? getStatus(percent)
+                            : {
+                                label: "N/D",
+                                tone: "bg-slate-100 text-slate-700 border-slate-300",
+                                icon: <Info className="h-3 w-3" />,
+                              };
+                          const manualNoUsed =
+                            platform.id === "supabase" &&
+                            isManualSupabaseMetric(metric.id) &&
+                            metric.used === null &&
+                            metric.limit !== null &&
+                            metric.limit > 0;
+                          const finalStatus = manualNoUsed
+                            ? {
+                                label: "Limite",
+                                tone: "bg-slate-100 text-slate-700 border-slate-300",
+                                icon: <Info className="h-3 w-3" />,
+                              }
+                            : liveValueNoLimit
+                              ? {
+                                  label: "Live",
+                                  tone: "bg-blue-100 text-blue-700 border-blue-300",
+                                  icon: <Info className="h-3 w-3" />,
+                                }
+                              : status;
+                          const barTint = !progressEnabled ? undefined : usageQuotaBarClass(percent);
+                          return (
+                            <div
+                              key={metric.id}
+                              className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 space-y-2"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-slate-900">{metric.label}</p>
+                                <Badge
+                                  variant="outline"
+                                  className={`inline-flex items-center gap-1 text-[10px] shrink-0 ${finalStatus.tone}`}
+                                >
+                                  {finalStatus.label}
+                                </Badge>
+                              </div>
+                              {progressEnabled ? (
+                                <Progress value={percent} className="h-2" indicatorClassName={barTint} />
+                              ) : null}
+                              <div className="flex items-center justify-between text-xs text-slate-600">
+                                {progressEnabled ? (
+                                  <>
+                                    <span>
+                                      {metric.used}/{metric.limit} {metric.unit}
+                                    </span>
+                                    <span className="font-medium tabular-nums">{percent}%</span>
+                                  </>
+                                ) : liveValueNoLimit ? (
+                                  <span>
+                                    {metric.used} {metric.unit}
+                                  </span>
+                                ) : manualNoUsed ? (
+                                  <span>Limite {metric.limit}</span>
+                                ) : (
+                                  <span>N/D</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="guida" className="mt-0 outline-none">
