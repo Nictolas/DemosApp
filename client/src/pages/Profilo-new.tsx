@@ -135,7 +135,7 @@ export default function Profilo({ userId }: { userId?: string }) {
 
   const handleBack = () => {
     if (fromGestisciUtenti) {
-      setLocation("/gestisci-utenti");
+      setLocation("/utenti");
     } else if (userId) {
       setLocation("/gestisci-grazia");
     } else {

@@ -49,9 +49,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     authReady
   } = useProfileData(userId);
 
-  const fromGestisciUtenti = typeof window !== 'undefined' && 
-    (window.location.search.includes('from=utenti') || window.location.hash.includes('from=utenti'));
-  
   // Determina se l'utente sta visualizzando il proprio profilo o quello di un altro
   const isViewingOwnProfile = !userId || userId === user?.id;
   const isViewingOtherProfile = userId && userId !== user?.id;

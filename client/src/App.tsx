@@ -67,7 +67,6 @@ import MinisteroPage from "./pages/Governo/[slug]";
 import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolari from "./pages/IniziativePopolari";
-import GestisciUtenti from "./pages/GestisciUtenti";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
 import GestisciGoverno from "./pages/GestisciGoverno";
 import TestMinistero from "./pages/TestMinistero";
@@ -383,7 +382,7 @@ export default function App() {
                   </PageTransition>
                 </Route>
                 <Route path="/monitoring-dashboard">
-                  <Redirect to="/admin/ops-center/monitoring" />
+                  <Redirect to="/monitoring-dashboard/overview" />
                 </Route>
                 <Route path="/monitoring-dashboard/overview">
                   <PageTransition location={location} type="fade-up">
@@ -944,11 +943,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route gestisci utenti */}
+              {/* Vecchio URL: redirect alla pagina utenti unificata */}
               <Route path="/gestisci-utenti">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
-                </PageTransition>
+                <Redirect to="/utenti" />
               </Route>
 
               {/* Route utenti unificata */}
