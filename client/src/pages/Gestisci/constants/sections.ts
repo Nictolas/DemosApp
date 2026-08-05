@@ -1,4 +1,4 @@
-import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, Cpu, PieChart } from "lucide-react";
+import { Users, BookOpen, Trophy, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -47,6 +47,61 @@ export const gestisciSections: GestisciSection[] = [
     buttonText: "Gestisci Governo"
   },
   {
+    id: "riconoscimenti",
+    category: "amministrazione",
+    title: "Riconoscimenti",
+    description: "Approva o rifiuta le richieste di riconoscimento come politico o candidato",
+    icon: Award,
+    color: "text-emerald-600 group-hover:text-emerald-800",
+    buttonColor: "bg-emerald-500 hover:bg-emerald-600",
+    route: "/gestisci/riconoscimenti",
+    buttonText: "Riconoscimenti"
+  },
+  {
+    id: "ops-center",
+    category: "monitoraggio-sicurezza",
+    title: "Ops Center",
+    description: "Hub unico: monitoring, parametri, metriche API, sicurezza, GDPR, backup ed export",
+    icon: BarChart3,
+    color: "text-indigo-600 group-hover:text-indigo-800",
+    buttonColor: "bg-indigo-500 hover:bg-indigo-600",
+    route: "/admin/ops-center",
+    buttonText: "Apri Ops Center"
+  },
+  {
+    id: "backup-recovery",
+    category: "monitoraggio-sicurezza",
+    title: "Backup e Recovery",
+    description: "Gestisci backup automatici e manuali del database per continuità operativa",
+    icon: HardDrive,
+    color: "text-indigo-600 group-hover:text-indigo-800",
+    buttonColor: "bg-indigo-500 hover:bg-indigo-600",
+    route: "/backup-dashboard",
+    buttonText: "Gestisci Backup"
+  },
+  {
+    id: "notifiche-totali",
+    category: "comunicazione",
+    title: "Notifiche Totali",
+    description: "Visualizza e gestisci tutte le notifiche del sistema",
+    icon: Bell,
+    color: "text-pink-600 group-hover:text-pink-800",
+    buttonColor: "bg-pink-500 hover:bg-pink-600",
+    route: "/notifiche-totali",
+    buttonText: "Notifiche Totali"
+  },
+  {
+    id: "notifiche-demos",
+    category: "comunicazione",
+    title: "Notifiche Demos",
+    description: "Invia notifiche push a tutti gli utenti con preferenze Demos attivate",
+    icon: Bell,
+    color: "text-indigo-600 group-hover:text-indigo-800",
+    buttonColor: "bg-indigo-500 hover:bg-indigo-600",
+    route: "/gestisci/notifiche-demos",
+    buttonText: "Notifiche Demos"
+  },
+  {
     id: "test-ministero",
     category: "istituzionale-dati",
     title: "Test Ministero",
@@ -56,18 +111,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-slate-500 hover:bg-slate-600",
     route: "/test-ministero",
     buttonText: "Test Ministero"
-  },
-  // Sezioni consolidate
-  {
-    id: "ops-center",
-    category: "monitoraggio-sicurezza",
-    title: "Ops Center",
-    description: "Hub unico per Monitoring, Security e Compliance",
-    icon: BarChart3,
-    color: "text-indigo-600 group-hover:text-indigo-800",
-    buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-    route: "/admin/ops-center",
-    buttonText: "Apri Ops Center"
   },
   {
     id: "data-export",
@@ -80,128 +123,51 @@ export const gestisciSections: GestisciSection[] = [
     route: "/admin/data-export",
     buttonText: "Gestisci Export"
   },
-    {
-      id: "parametri",
-      category: "monitoraggio-sicurezza",
-      title: "Parametri",
-      description: "Monitora limiti e utilizzo delle piattaforme free con barre percentuali",
-      icon: ClipboardList,
-      color: "text-cyan-600 group-hover:text-cyan-800",
-      buttonColor: "bg-cyan-500 hover:bg-cyan-600",
-      route: "/admin/parametri",
-      buttonText: "Apri Parametri"
-    },
-    {
-      id: "riduzione-compute",
-      category: "monitoraggio-sicurezza",
-      title: "Riduzione carico DB",
-      description: "Checklist e azioni per ridurre query inutili e rispettare i limiti del piano Supabase",
-      icon: Cpu,
-      color: "text-violet-600 group-hover:text-violet-800",
-      buttonColor: "bg-violet-500 hover:bg-violet-600",
-      route: "/gestisci/riduzione-compute",
-      buttonText: "Riduzione carico DB"
-    },
-    {
-      id: "metriche-endpoint",
-      category: "monitoraggio-sicurezza",
-      title: "Metriche endpoint",
-      description: "Grafici a torta e classifica delle API piu chiamate e piu lente",
-      icon: PieChart,
-      color: "text-indigo-600 group-hover:text-indigo-800",
-      buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-      route: "/gestisci/metriche-endpoint",
-      buttonText: "Apri metriche"
-    },
-    {
-      id: "backup-recovery",
-      category: "monitoraggio-sicurezza",
-      title: "Backup e Recovery",
-      description: "Gestisci backup automatici e manuali del database per continuità operativa",
-      icon: HardDrive,
-      color: "text-indigo-600 group-hover:text-indigo-800",
-      buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-      route: "/backup-dashboard",
-      buttonText: "Gestisci Backup"
-    },
-    {
-      id: "notifiche-totali",
-      category: "comunicazione",
-      title: "Notifiche Totali",
-      description: "Visualizza e gestisci tutte le notifiche del sistema",
-      icon: Bell,
-      color: "text-pink-600 group-hover:text-pink-800",
-      buttonColor: "bg-pink-500 hover:bg-pink-600",
-      route: "/notifiche-totali",
-      buttonText: "Notifiche Totali"
-    },
-    {
-      id: "notifiche-demos",
-      category: "comunicazione",
-      title: "Notifiche Demos",
-      description: "Invia notifiche push a tutti gli utenti con preferenze Demos attivate",
-      icon: Bell,
-      color: "text-indigo-600 group-hover:text-indigo-800",
-      buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-      route: "/gestisci/notifiche-demos",
-      buttonText: "Notifiche Demos"
-    },
-    {
-      id: "voti-politici",
-      category: "istituzionale-dati",
-      title: "Voti Politici",
-      description: "Visualizza le votazioni della Camera dei Deputati dell'ultima legislatura",
-      icon: Vote,
-      color: "text-blue-600 group-hover:text-blue-800",
-      buttonColor: "bg-blue-500 hover:bg-blue-600",
-      route: "/voti-politici",
-      buttonText: "Voti Politici"
-    },
-    {
-      id: "voti-parlamento",
-      category: "istituzionale-dati",
-      title: "Voti Parlamento",
-      description: "Visualizza le ultime votazioni del Parlamento (Camera e Senato) in ordine cronologico",
-      icon: Vote,
-      color: "text-green-600 group-hover:text-green-800",
-      buttonColor: "bg-green-500 hover:bg-green-600",
-      route: "/voti-parlamento",
-      buttonText: "Voti Parlamento"
-    },
-    {
-      id: "voti-parlamento-europeo",
-      category: "istituzionale-dati",
-      title: "Voti Parlamento Europeo",
-      description: "Visualizza le ultime votazioni del Parlamento Europeo in ordine cronologico",
-      icon: Globe,
-      color: "text-blue-600 group-hover:text-blue-800",
-      buttonColor: "bg-blue-500 hover:bg-blue-600",
-      route: "/voti-parlamento-europeo",
-      buttonText: "Parlamento Europeo"
-    },
-    {
-      id: "eci",
-      category: "istituzionale-dati",
-      title: "ECI",
-      description: "Lista delle Iniziative dei Cittadini Europei (ICE) e numero di firme",
-      icon: FileSignature,
-      color: "text-teal-600 group-hover:text-teal-800",
-      buttonColor: "bg-teal-500 hover:bg-teal-600",
-      route: "/eci",
-      buttonText: "ECI"
-    },
-    {
-      id: "riconoscimenti",
-      category: "amministrazione",
-      title: "Riconoscimenti",
-      description: "Approva o rifiuta le richieste di riconoscimento come politico o candidato",
-      icon: Award,
-      color: "text-emerald-600 group-hover:text-emerald-800",
-      buttonColor: "bg-emerald-500 hover:bg-emerald-600",
-      route: "/gestisci/riconoscimenti",
-      buttonText: "Riconoscimenti"
-    },
-  ];
+  {
+    id: "voti-politici",
+    category: "istituzionale-dati",
+    title: "Voti Politici",
+    description: "Visualizza le votazioni della Camera dei Deputati dell'ultima legislatura",
+    icon: Vote,
+    color: "text-blue-600 group-hover:text-blue-800",
+    buttonColor: "bg-blue-500 hover:bg-blue-600",
+    route: "/voti-politici",
+    buttonText: "Voti Politici"
+  },
+  {
+    id: "voti-parlamento",
+    category: "istituzionale-dati",
+    title: "Voti Parlamento",
+    description: "Visualizza le ultime votazioni del Parlamento (Camera e Senato) in ordine cronologico",
+    icon: Vote,
+    color: "text-green-600 group-hover:text-green-800",
+    buttonColor: "bg-green-500 hover:bg-green-600",
+    route: "/voti-parlamento",
+    buttonText: "Voti Parlamento"
+  },
+  {
+    id: "voti-parlamento-europeo",
+    category: "istituzionale-dati",
+    title: "Voti Parlamento Europeo",
+    description: "Visualizza le ultime votazioni del Parlamento Europeo in ordine cronologico",
+    icon: Globe,
+    color: "text-blue-600 group-hover:text-blue-800",
+    buttonColor: "bg-blue-500 hover:bg-blue-600",
+    route: "/voti-parlamento-europeo",
+    buttonText: "Parlamento Europeo"
+  },
+  {
+    id: "eci",
+    category: "istituzionale-dati",
+    title: "ECI",
+    description: "Lista delle Iniziative dei Cittadini Europei (ICE) e numero di firme",
+    icon: FileSignature,
+    color: "text-teal-600 group-hover:text-teal-800",
+    buttonColor: "bg-teal-500 hover:bg-teal-600",
+    route: "/eci",
+    buttonText: "ECI"
+  },
+];
 
 export const gestisciCategoryOrder: Array<GestisciSection["category"]> = [
   "amministrazione",
@@ -217,7 +183,7 @@ export const gestisciCategoryMeta: Record<GestisciSection["category"], { title: 
   },
   "monitoraggio-sicurezza": {
     title: "Monitoraggio e Sicurezza",
-    description: "Controllo salute sistema, sicurezza, GDPR e backup."
+    description: "Entra da Ops Center per salute sistema, limiti piattaforme e sicurezza; Backup resta a portata di mano."
   },
   "comunicazione": {
     title: "Comunicazione",

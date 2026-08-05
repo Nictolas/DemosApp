@@ -82,7 +82,7 @@ export const canEditImage = (userRole: string): boolean => {
 
 // Get back button text
 export const getBackButtonText = (fromGestisciUtenti: boolean, userId?: string): string => {
-  if (fromGestisciUtenti) return "Torna a Gestisci Utenti";
+  if (fromGestisciUtenti) return "Torna a Utenti";
   if (userId) return "Torna a Gestisci Grazia";
   return "Torna al Menu";
 };

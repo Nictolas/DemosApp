@@ -143,9 +143,9 @@ export default function MetricheEndpoint() {
     <PageContainer className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#eef2ff_0%,_#f8fafc_45%,_#ffffff_100%)]">
       <div className="sticky top-0 z-10 w-full border-b border-indigo-100 bg-white/85 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-[min(100%,100rem)] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
-          <Button variant="ghost" size="sm" className="-ml-2 text-slate-700" onClick={() => setLocation("/gestisci")}>
+          <Button variant="ghost" size="sm" className="-ml-2 text-slate-700" onClick={() => setLocation("/admin/ops-center")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Torna a Gestisci
+            Torna a Ops Center
           </Button>
           <div className="hidden text-slate-300 sm:inline">|</div>
           <p className="text-sm text-slate-600">Vista semplice per capire quali endpoint pesano di piu.</p>
