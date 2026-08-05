@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertTriangle, CheckCircle2, Gauge, Info, RefreshCw, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Gauge, Info, RefreshCw, XCircle } from "lucide-react";
 import { CapacityEstimateCard } from "./CapacityEstimateCard";
+import RiduzioneComputeGuide from "./RiduzioneComputeGuide";
 
 type FreeMetric = {
   id: string;
@@ -275,9 +278,23 @@ function formatUpdatedAt(value?: string): string {
 }
 
 const Parametri: React.FC = () => {
+  const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const [platformUsage, setPlatformUsage] = useState<PlatformUsageApi | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const initialTab = (() => {
+    if (typeof window === "undefined") return "utilizzo";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "guida" ? "guida" : "utilizzo";
+  })();
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  const onTabChange = (value: string) => {
+    setActiveTab(value);
+    const url = value === "guida" ? "/admin/parametri?tab=guida" : "/admin/parametri";
+    window.history.replaceState(null, "", url);
+  };
 
   const loadPlatformUsage = async () => {
     try {
@@ -474,6 +491,29 @@ const Parametri: React.FC = () => {
   return (
     <div className="w-full min-h-screen bg-slate-50 pt-2 pb-4">
       <div className="w-full max-w-none mx-auto px-2 sm:px-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-slate-700 -ml-1 h-7 text-xs"
+            onClick={() => setLocation("/admin/ops-center")}
+          >
+            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+            Ops Center
+          </Button>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+          <TabsList className="mb-2 h-8">
+            <TabsTrigger value="utilizzo" className="text-xs px-3 h-7">
+              Utilizzo
+            </TabsTrigger>
+            <TabsTrigger value="guida" className="text-xs px-3 h-7">
+              Guida carico DB
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="utilizzo" className="mt-0 outline-none">
         <div className="mb-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-base font-bold text-slate-900">Parametri</h1>
           <Badge variant="outline" className="text-cyan-700 border-cyan-300 bg-cyan-50 text-[10px] px-1 py-0">Free</Badge>
@@ -594,6 +634,12 @@ const Parametri: React.FC = () => {
           );
         })}
         </div>
+          </TabsContent>
+
+          <TabsContent value="guida" className="mt-0 outline-none">
+            <RiduzioneComputeGuide />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
