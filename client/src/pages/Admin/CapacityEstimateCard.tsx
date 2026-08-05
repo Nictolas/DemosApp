@@ -178,26 +178,57 @@ export function CapacityEstimateCard({
     { id: "cap-resp-kb", label: "KB risposta", value: avgResponseKb, set: setAvgResponseKb, step: 1, min: 1 },
   ];
 
+  const resultCards = [
+    {
+      label: "Storage stimato",
+      value: `${formatNumber(estimate.storageGb)} GB`,
+      percent: estimate.freeStoragePct,
+      hint: `vs Free ${formatNumber(freeLimits.storageGb)} GB`,
+    },
+    {
+      label: "Egress / mese",
+      value: `${formatNumber(estimate.monthlyEgressGb)} GB`,
+      percent: estimate.freeEgressPct,
+      hint: `vs Free ${formatNumber(freeLimits.egressGb)} GB`,
+    },
+    {
+      label: "MAU stimati",
+      value: formatNumber(estimate.mau, 0),
+      percent: null as number | null,
+      hint: `${formatNumber(estimate.dailyRequests, 0)} req/giorno`,
+    },
+    {
+      label: "Picco connessioni",
+      value: formatNumber(estimate.peakConnections, 0),
+      percent: estimate.freeConnPct,
+      hint: `vs Free ${formatNumber(freeLimits.connections, 0)}`,
+    },
+  ];
+
   return (
-    <Card className="border-slate-200 bg-white shadow-none mb-2">
-      <CardContent className="p-2 space-y-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Calculator className="h-3.5 w-3.5 text-cyan-700 shrink-0" />
-          <p className="text-xs font-semibold text-slate-900">Stima capacità</p>
-          <Badge variant="outline" className={`inline-flex items-center gap-1 text-[10px] px-1 py-0 ${estimate.verdict.tone}`}>
-            {estimate.needsPaid ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-            {estimate.verdict.label}
-          </Badge>
-          <span className="text-[10px] text-slate-500 truncate">
-            live {liveRegisteredUsers != null ? formatNumber(liveRegisteredUsers, 0) : "N/D"} ·{" "}
-            {liveStorageGb != null ? `${formatNumber(liveStorageGb)} GB` : "N/D"} · {estimate.verdict.detail}
-          </span>
+    <Card className="border-slate-200 bg-white shadow-sm">
+      <CardContent className="p-5 sm:p-6 space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Calculator className="h-4 w-4 text-cyan-700 shrink-0" />
+              <h2 className="text-base font-semibold text-slate-900">Stima capacità</h2>
+              <Badge variant="outline" className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 ${estimate.verdict.tone}`}>
+                {estimate.needsPaid ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                {estimate.verdict.label}
+              </Badge>
+            </div>
+            <p className="text-sm text-slate-500">
+              Live: {liveRegisteredUsers != null ? formatNumber(liveRegisteredUsers, 0) : "N/D"} utenti ·{" "}
+              {liveStorageGb != null ? `${formatNumber(liveStorageGb)} GB` : "N/D"} storage · {estimate.verdict.detail}
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-4 sm:grid-cols-7 xl:grid-cols-11 gap-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
           {fields.map((f) => (
-            <div key={f.id} className="space-y-0.5 min-w-0">
-              <Label htmlFor={f.id} className="text-[9px] text-slate-500 leading-none">
+            <div key={f.id} className="space-y-1.5 min-w-0">
+              <Label htmlFor={f.id} className="text-xs text-slate-600">
                 {f.label}
               </Label>
               <Input
@@ -208,30 +239,23 @@ export function CapacityEstimateCard({
                 step={f.step}
                 value={f.value}
                 onChange={(e) => f.set(Number(e.target.value))}
-                className="h-6 text-[11px] px-1.5"
+                className="h-9 text-sm"
               />
             </div>
           ))}
-          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
-            <p className="text-[9px] text-slate-500">Storage</p>
-            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.storageGb)} GB</p>
-            <Progress value={Math.min(100, estimate.freeStoragePct)} className="h-1 mt-0.5" indicatorClassName={usageBarClass(estimate.freeStoragePct)} />
-          </div>
-          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
-            <p className="text-[9px] text-slate-500">Egress/mese</p>
-            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.monthlyEgressGb)} GB</p>
-            <Progress value={Math.min(100, estimate.freeEgressPct)} className="h-1 mt-0.5" indicatorClassName={usageBarClass(estimate.freeEgressPct)} />
-          </div>
-          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
-            <p className="text-[9px] text-slate-500">MAU</p>
-            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.mau, 0)}</p>
-            <p className="text-[9px] text-slate-500 truncate">{formatNumber(estimate.dailyRequests, 0)} req/g</p>
-          </div>
-          <div className="rounded border border-slate-200 px-1.5 py-0.5 min-w-0">
-            <p className="text-[9px] text-slate-500">Picco conn.</p>
-            <p className="text-xs font-bold tabular-nums">{formatNumber(estimate.peakConnections, 0)}</p>
-            <Progress value={Math.min(100, estimate.freeConnPct)} className="h-1 mt-0.5" indicatorClassName={usageBarClass(estimate.freeConnPct)} />
-          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {resultCards.map((r) => (
+            <div key={r.label} className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 space-y-2">
+              <p className="text-xs font-medium text-slate-500">{r.label}</p>
+              <p className="text-xl font-bold tabular-nums text-slate-900">{r.value}</p>
+              {r.percent != null ? (
+                <Progress value={Math.min(100, r.percent)} className="h-2" indicatorClassName={usageBarClass(r.percent)} />
+              ) : null}
+              <p className="text-xs text-slate-500 truncate">{r.hint}</p>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
