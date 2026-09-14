@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle, Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getApiUrl } from "@/lib/api-config";
+import { apiRequest } from "@/lib/queryClient";
 
 interface User {
   id: string;
@@ -57,50 +57,28 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
     setIsSubmitting(true);
 
     try {
-      console.log('🔍 DEBUG ReportForm - User object:', user);
-      console.log('🔍 DEBUG ReportForm - User ID:', user.id);
-      console.log('🔍 DEBUG ReportForm - User Email:', user.email);
-      console.log('🔍 DEBUG ReportForm - Form data:', formData);
-
-      // Verifica che l'utente abbia un ID valido
       if (!user.id) {
         throw new Error('ID utente non disponibile. Effettua nuovamente il login.');
       }
 
-      // Invia la segnalazione al backend
-      const response = await fetch(getApiUrl('/segnalazioni'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          userId: user.id,
-          userEmail: user.email
-        }),
+      // apiRequest aggiunge automaticamente il token Bearer.
+      // L'identità viene ricavata dal backend dal token, non dal body inviato dal client.
+      const response = await apiRequest("POST", "/api/segnalazioni", {
+        type: formData.type,
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        steps: formData.steps,
+        expected: formData.expected,
+        actual: formData.actual,
+        browser: formData.browser,
+        device: formData.device
       });
 
-      console.log('🔍 DEBUG ReportForm - Response status:', response.status);
-      console.log('🔍 DEBUG ReportForm - Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      // Leggi la risposta come testo prima di provare a parsarla come JSON
-      const responseText = await response.text();
-      console.log('🔍 DEBUG ReportForm - Response text:', responseText);
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('🔍 DEBUG ReportForm - JSON parse error:', parseError);
-        console.error('🔍 DEBUG ReportForm - Raw response:', responseText);
-        throw new Error('Risposta del server non valida. Riprova più tardi.');
+      const result = response.data;
+      if (!result?.success) {
+        throw new Error(result?.error || "Errore nell'invio della segnalazione");
       }
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Errore nell\'invio della segnalazione');
-      }
-
-      console.log("Segnalazione inviata:", result);
 
       setIsSubmitted(true);
       toast({
@@ -108,7 +86,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
         description: `Grazie per il tuo feedback. La segnalazione è stata inviata a ${result.adminCount} amministratori.`,
         variant: "default",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Errore invio segnalazione:', error);
       toast({
         title: "Errore",
