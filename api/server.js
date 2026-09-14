@@ -1,8 +1,3 @@
-// Supabase pooler su Render: evita SELF_SIGNED_CERT_IN_CHAIN (prima di qualsiasi connessione pg)
-if (process.env.DATABASE_URL) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
 let app;
 try {
   console.log('📦 Caricamento app.js...');
@@ -167,7 +162,7 @@ const gracefulShutdown = async () => {
     // Ferma job Openpolis votazioni finali decisive
     try {
       const { stopOpenpolisVotazioniFinaliJob } = require('./jobs/openpolisVotazioniFinaliJob');
-      if (stopOpenpolisVotazioniFinaliJob && typeof stopOpenpolisVotazioniFinaliJob === 'function') {
+      if (stopOpenpolisVotazioniFinaliJob && typeof stopOpenpolisVotazioniFinaliJob.stop === 'function') {
         stopOpenpolisVotazioniFinaliJob();
         console.log('✅ Openpolis votazioni finali job fermato');
       }
