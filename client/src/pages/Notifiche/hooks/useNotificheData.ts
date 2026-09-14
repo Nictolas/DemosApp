@@ -20,7 +20,7 @@ export const useNotificheData = (user: any) => {
       if (!user?.id || !isValidUUID(user.id)) {
         throw new Error("ID utente non valido");
       }
-      const response = await apiRequest("GET", "/api/notifiche");
+      const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || "Errore nel caricamento delle notifiche.";
         throw new Error(errorMsg);
