@@ -162,7 +162,7 @@ const gracefulShutdown = async () => {
     // Ferma job Openpolis votazioni finali decisive
     try {
       const { stopOpenpolisVotazioniFinaliJob } = require('./jobs/openpolisVotazioniFinaliJob');
-      if (stopOpenpolisVotazioniFinaliJob && typeof stopOpenpolisVotazioniFinaliJob.stop === 'function') {
+      if (stopOpenpolisVotazioniFinaliJob && typeof stopOpenpolisVotazioniFinaliJob === 'function') {
         stopOpenpolisVotazioniFinaliJob();
         console.log('✅ Openpolis votazioni finali job fermato');
       }
