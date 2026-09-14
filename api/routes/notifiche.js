@@ -9,27 +9,23 @@ const pool = getPool();
 
 // ===== ENDPOINTS PER NOTIFICHE =====
 
-// GET /api/notifiche - Lista notifiche per utente (include comunicazioni + segnalazioni per admin)
-router.get('/', async (req, res) => {
+// GET /api/notifiche - Lista notifiche dell'utente autenticato
+router.get('/', verifyToken, async (req, res) => {
   try {
-    const { user_id } = req.query;
-    
-    if (!user_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID utente richiesto'
-      });
-    }
+    // L'identità arriva esclusivamente dal token verificato.
+    // Qualsiasi user_id passato dal client viene ignorato.
+    const user_id = req.user.id;
 
     // Recupera informazioni utente (rappresentanti scelti per filtrare le notifiche)
     const userInfoResult = await pool.query(
-      `SELECT is_admin, comune_residenza, rappresentante_camera, rappresentante_senato, rappresentante_comune 
+      `SELECT comune_residenza, rappresentante_camera, rappresentante_senato, rappresentante_comune 
        FROM users WHERE id = $1`,
       [user_id]
     );
     
     const userInfo = userInfoResult.rows[0] || null;
-    const isAdmin = userInfo && userInfo.is_admin === true;
+    // I privilegi admin derivano dal ruolo dell'utente autenticato, non da un ID fornito dal client.
+    const isAdmin = req.user.role === 'AD';
     const userComuneResidenza = userInfo ? userInfo.comune_residenza : null;
     
     let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult;
