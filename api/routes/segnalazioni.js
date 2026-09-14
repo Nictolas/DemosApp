@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getPool } = require('../config/database');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
 const router = express.Router();
@@ -9,7 +10,8 @@ const router = express.Router();
 const pool = getPool();
 
 // POST /api/segnalazioni - Invia segnalazione agli admin
-router.post('/', async (req, res) => {
+// L'identità dell'autore deriva esclusivamente dal token autenticato.
+router.post('/', verifyToken, async (req, res) => {
   try {
     const {
       type,
@@ -20,16 +22,16 @@ router.post('/', async (req, res) => {
       expected,
       actual,
       browser,
-      device,
-      userId,
-      userEmail
+      device
     } = req.body;
 
+    const userId = req.user.id;
+
     // Validazione campi obbligatori
-    if (!type || !title || !description || !userId) {
+    if (!type || !title || !description) {
       return res.status(400).json({
         success: false,
-        error: 'Campi obbligatori mancanti: type, title, description, userId'
+        error: 'Campi obbligatori mancanti: type, title, description'
       });
     }
 
@@ -39,8 +41,8 @@ router.post('/', async (req, res) => {
     // 1. Salva la segnalazione nella tabella segnalazioni
     await pool.query(`
       INSERT INTO segnalazioni (
-        id, utente_id, tipo, titolo, descrizione, priorita, passaggi, 
-        comportamento_atteso, comportamento_effettivo, browser, dispositivo, 
+        id, utente_id, tipo, titolo, descrizione, priorita, passaggi,
+        comportamento_atteso, comportamento_effettivo, browser, dispositivo,
         status, data_creazione, data_aggiornamento, metadata
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     `, [
@@ -59,14 +61,13 @@ router.post('/', async (req, res) => {
       new Date(),
       new Date(),
       JSON.stringify({
-        userEmail: userEmail || '',
         timestamp: new Date().toISOString()
       })
     ]);
 
-    // 2. Trova tutti gli utenti admin
+    // 2. Trova gli amministratori secondo il ruolo usato dal middleware requireAdmin
     const adminQuery = await pool.query(
-      'SELECT id, email, nome, cognome FROM users WHERE is_admin = true'
+      "SELECT id, nome, cognome FROM users WHERE ruolo = 'AD'"
     );
 
     if (adminQuery.rows.length === 0) {
@@ -76,7 +77,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log(`✅ Segnalazione salvata con successo`);
+    console.log('✅ Segnalazione salvata con successo');
     console.log('📋 Segnalazione ID:', segnalazioneId);
     console.log(`👥 Admin che riceveranno la notifica: ${adminQuery.rows.length}`);
 
@@ -96,23 +97,25 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/segnalazioni/admin/:adminId - Ottieni segnalazioni per un admin specifico
-router.get('/admin/:adminId', async (req, res) => {
+// GET /api/segnalazioni/admin/:adminId - Compatibilità endpoint admin legacy.
+// L'adminId nel path non concede alcun privilegio: conta solo il token autenticato.
+router.get('/admin/:adminId', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { adminId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+    const safeOffset = Math.max(parseInt(offset, 10) || 0, 0);
 
     const result = await pool.query(`
-      SELECT 
+      SELECT
         s.*,
         u.nome as utente_nome,
         u.cognome as utente_cognome,
         u.email as utente_email
       FROM segnalazioni s
-      LEFT JOIN utenti u ON s.utente_id = u.id
+      LEFT JOIN users u ON s.utente_id::uuid = u.id
       ORDER BY s.data_creazione DESC
       LIMIT $1 OFFSET $2
-    `, [parseInt(limit), parseInt(offset)]);
+    `, [safeLimit, safeOffset]);
 
     res.json({
       success: true,
@@ -129,16 +132,23 @@ router.get('/admin/:adminId', async (req, res) => {
   }
 });
 
-// PUT /api/segnalazioni/:id/read - Marca segnalazione come letta
-router.put('/:id/read', async (req, res) => {
+// PUT /api/segnalazioni/:id/read - Marca segnalazione come letta (solo admin)
+router.put('/:id/read', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    await pool.query(`
-      UPDATE segnalazioni 
+    const result = await pool.query(`
+      UPDATE segnalazioni
       SET status = 'letta', data_aggiornamento = NOW()
       WHERE id = $1
     `, [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Segnalazione non trovata'
+      });
+    }
 
     res.json({
       success: true,
@@ -154,26 +164,11 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
-// DELETE /api/segnalazioni/:id - Cancella segnalazione (solo per admin)
-router.delete('/:id', async (req, res) => {
+// DELETE /api/segnalazioni/:id - Cancella segnalazione (solo admin)
+router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id } = req.query;
 
-    // Verifica che l'utente sia admin
-    const userResult = await pool.query(
-      'SELECT is_admin FROM users WHERE id = $1',
-      [user_id]
-    );
-
-    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato. Solo gli amministratori possono cancellare le segnalazioni.'
-      });
-    }
-
-    // Cancella la segnalazione
     const result = await pool.query(
       'DELETE FROM segnalazioni WHERE id = $1',
       [id]
@@ -186,7 +181,7 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    console.log(`✅ Segnalazione ${id} cancellata da admin ${user_id}`);
+    console.log(`✅ Segnalazione ${id} cancellata da admin ${req.user.id}`);
 
     res.json({
       success: true,
