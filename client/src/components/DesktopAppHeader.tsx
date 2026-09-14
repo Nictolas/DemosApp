@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Bell,
   Binoculars,
-  Lock,
   LogOut,
   Scale,
   User,
@@ -101,10 +100,6 @@ function UserMenu({ user }: { user: AuthUser }) {
         <DropdownMenuItem onClick={() => setLocation("/impostazioni/informazioni-legali")}>
           <Scale className="mr-2 h-4 w-4" />
           Informazioni Legali
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setLocation("/impostazioni/password")}>
-          <Lock className="mr-2 h-4 w-4" />
-          Cambia Password
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setLocation("/avvistamenti")}>
           <Binoculars className="mr-2 h-4 w-4" />
