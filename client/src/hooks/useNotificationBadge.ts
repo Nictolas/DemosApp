@@ -11,7 +11,7 @@ export const useNotificationBadge = () => {
       if (!user?.id) return 0;
       
       try {
-        const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
+        const response = await apiRequest("GET", "/api/notifiche");
         if (!response || !response.success) return 0;
         
         const notifiche = response.notifiche || [];
