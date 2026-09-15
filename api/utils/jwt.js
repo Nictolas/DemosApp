@@ -192,12 +192,18 @@ class JWTHelper {
   }
 
   /**
-   * Genera coppia di token (access + refresh)
+   * Genera coppia di token (access + refresh) legati alla stessa sessione.
    */
   generateTokenPair(payload) {
+    const sessionId = payload?.sid || crypto.randomUUID();
+    const sessionPayload = {
+      ...payload,
+      sid: sessionId,
+    };
+
     return {
-      accessToken: this.generateAccessToken(payload),
-      refreshToken: this.generateRefreshToken(payload),
+      accessToken: this.generateAccessToken(sessionPayload),
+      refreshToken: this.generateRefreshToken(sessionPayload),
       expiresIn: 24 * 60 * 60, // 24 ore
       tokenType: 'Bearer'
     };
