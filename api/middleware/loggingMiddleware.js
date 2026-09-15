@@ -2,9 +2,13 @@
 const logger = require('../services/centralizedLogger');
 const requestMetrics = require('../services/requestMetrics');
 const crypto = require('crypto');
+const { verifyAccessToken } = require('../utils/jwt');
+const { isAccessSessionRevoked } = require('../services/accessRevocationService');
 
-// Middleware per logging richieste HTTP
-const requestLoggingMiddleware = (req, res, next) => {
+// Middleware per logging richieste HTTP.
+// È montato globalmente prima delle route: qui applichiamo anche il gate di revoca
+// distribuita degli access token per coprire sia verifyToken sia le route legacy/manuali.
+const requestLoggingMiddleware = async (req, res, next) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID();
   
@@ -30,6 +34,42 @@ const requestLoggingMiddleware = (req, res, next) => {
     // Chiama il metodo end originale
     originalEnd.call(this, chunk, encoding);
   };
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    let decodedAccess = null;
+
+    try {
+      decodedAccess = verifyAccessToken(token);
+    } catch (_) {
+      // Token scaduto/non valido oppure token OAuth pending: la route specifica
+      // mantiene la responsabilità di accettarlo o rifiutarlo.
+    }
+
+    if (decodedAccess) {
+      try {
+        const revoked = await isAccessSessionRevoked(decodedAccess);
+        if (revoked) {
+          return res.status(401).json({
+            success: false,
+            error: 'Token revocato',
+            message: 'Effettua nuovamente il login'
+          });
+        }
+        req.accessTokenDecoded = decodedAccess;
+      } catch (error) {
+        if (error?.code === 'ACCESS_REVOCATION_STORE_UNAVAILABLE') {
+          return res.status(503).json({
+            success: false,
+            error: 'Verifica sessione temporaneamente non disponibile',
+            message: 'Riprova tra poco.'
+          });
+        }
+        throw error;
+      }
+    }
+  }
   
   next();
 };
