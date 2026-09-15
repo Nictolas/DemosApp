@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
-import { clearSessionTokens, getAuthToken } from "@/lib/auth-token";
+import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 
 interface User {
@@ -130,15 +130,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation<void, Error, void>({
     mutationFn: async () => {
       const tokenToRevoke = token;
+      const refreshTokenToRevoke = getRefreshToken();
       clearSessionTokens();
       setToken(null);
 
       try {
         await fetch(getApiUrl(API_CONFIG.AUTH.LOGOUT), {
           method: "POST",
-          headers: tokenToRevoke
-            ? { Authorization: `Bearer ${tokenToRevoke}` }
-            : undefined,
+          headers: {
+            "Content-Type": "application/json",
+            ...(tokenToRevoke ? { Authorization: `Bearer ${tokenToRevoke}` } : {}),
+          },
+          body: JSON.stringify({ refreshToken: refreshTokenToRevoke }),
         });
       } catch (error) {
         console.warn("Errore logout:", error);

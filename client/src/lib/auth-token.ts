@@ -16,6 +16,12 @@ export function getAuthToken(): string | null {
   return null;
 }
 
+export function getRefreshToken(): string | null {
+  if (!hasWindow()) return null;
+  const value = localStorage.getItem(REFRESH_TOKEN_KEY);
+  return value && value !== "null" && value !== "undefined" ? value : null;
+}
+
 export function setAuthToken(token: string | null | undefined): void {
   if (!hasWindow()) return;
   if (!token || token === "null" || token === "undefined") {
