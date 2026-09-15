@@ -1,7 +1,7 @@
 const redisCache = require('./redisCache');
 const { keys, ttl } = require('../config/cacheKeys');
 
-const isProduction = process.env.NODE_ENV === 'production';
+const allowLocalFallback = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 const localFallback = new Map();
 
 function getChallengeTtlSeconds() {
@@ -72,7 +72,7 @@ async function setChallenge(kind, id, value) {
     }
   }
 
-  if (isProduction) {
+  if (!allowLocalFallback) {
     throw unavailableError();
   }
 
@@ -94,7 +94,7 @@ async function consumeChallenge(kind, id) {
     }
   }
 
-  if (isProduction) {
+  if (!allowLocalFallback) {
     throw unavailableError();
   }
 
