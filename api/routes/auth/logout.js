@@ -3,7 +3,6 @@ const { verifyAccessToken, verifyRefreshToken } = require('../../utils/jwt');
 const { revokeRefreshSession } = require('../../services/sessionService');
 const {
   MAX_ACCESS_TOKEN_TTL_SECONDS,
-  getAccessSessionId,
   revokeAccessSession,
   revokeDecodedAccessToken,
 } = require('../../services/accessRevocationService');
@@ -55,28 +54,22 @@ router.post('/logout', async (req, res) => {
     }
 
     try {
-      // Revoca immediata e distribuita dell'access token corrente.
+      // Revoca immediata dell'access token corrente su tutte le istanze backend.
       if (decodedAccess) {
         await revokeDecodedAccessToken(decodedAccess);
       }
 
-      // Per i token moderni access e refresh condividono lo stesso sid.
-      // Manteniamo la sessione revocata per l'intera durata massima di un access token.
+      // I token moderni condividono lo stesso sid. Estendere la revoca a 24 ore
+      // impedisce l'uso di qualunque access token già emesso per quella sessione.
       if (refreshSessionId) {
-        const accessSessionId = getAccessSessionId(decodedAccess);
-        if (!accessSessionId || accessSessionId !== refreshSessionId) {
-          await revokeAccessSession(refreshSessionId, MAX_ACCESS_TOKEN_TTL_SECONDS);
-        } else {
-          // Estende comunque la revoca fino alla durata massima della sessione access.
-          await revokeAccessSession(refreshSessionId, MAX_ACCESS_TOKEN_TTL_SECONDS);
-        }
+        await revokeAccessSession(refreshSessionId, MAX_ACCESS_TOKEN_TTL_SECONDS);
       }
     } catch (error) {
       if (error?.code === 'ACCESS_REVOCATION_STORE_UNAVAILABLE') {
         return res.status(503).json({
           success: false,
           error: 'Revoca sessione temporaneamente non disponibile',
-          message: 'Il logout locale è avvenuto, ma la revoca server va ritentata.',
+          message: 'Riprova il logout tra poco.',
         });
       }
       throw error;
