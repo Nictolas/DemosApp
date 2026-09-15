@@ -14,7 +14,10 @@ module.exports = {
     programmaUser: (userId) => `${PREFIX}:programma:user:${userId}`,
     ministeroIniziativeDb: `${PREFIX}:ministero:iniziative:db`,
     /** Riga utente per verifyToken (riduce SELECT sul DB; TTL breve) */
-    authUser: (userId) => `${PREFIX}:auth:user:${userId}`
+    authUser: (userId) => `${PREFIX}:auth:user:${userId}`,
+    /** Challenge WebAuthn condivise tra istanze */
+    webAuthnRegistrationChallenge: (userId) => `${PREFIX}:webauthn:register:${userId}`,
+    webAuthnLoginChallenge: (loginKey) => `${PREFIX}:webauthn:login:${loginKey}`
   },
   /** secondi */
   ttl: {
@@ -23,6 +26,8 @@ module.exports = {
     programmaUser: parseInt(process.env.CACHE_TTL_PROGRAMMA_USER_SEC || '30', 10),
     ministeroIniziative: parseInt(process.env.CACHE_TTL_MINISTERO_INIZIATIVE_SEC || '300', 10),
     /** 0 = disabilita cache auth */
-    authUser: parseInt(process.env.AUTH_USER_CACHE_TTL_SEC || '15', 10)
+    authUser: parseInt(process.env.AUTH_USER_CACHE_TTL_SEC || '15', 10),
+    /** Challenge di registrazione/login passkey: 5 minuti di default */
+    webAuthnChallenge: parseInt(process.env.WEBAUTHN_CHALLENGE_TTL_SEC || '300', 10)
   }
 };

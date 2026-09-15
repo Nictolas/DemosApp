@@ -8,14 +8,15 @@ const {
 const { v4: uuidv4 } = require('uuid');
 const { getPool } = require('../../config/database');
 const { generateTokenPair } = require('../../utils/jwt');
+const {
+  setRegistrationChallenge,
+  consumeRegistrationChallenge,
+  setLoginChallenge,
+  consumeLoginChallenge,
+} = require('../../services/webauthnChallengeStore');
 
 const router = express.Router();
 const pool = getPool();
-
-// In-memory store per challenge di registrazione/login
-// In futuro si può sostituire con storage persistente o cache distribuita
-const pendingRegistrations = new Map();
-const pendingLogins = new Map();
 
 // Configurazione Relying Party per Demos
 const rpID = process.env.WEBAUTHN_RP_ID || 'demos.community';
@@ -25,6 +26,16 @@ const expectedOrigin = process.env.WEBAUTHN_EXPECTED_ORIGIN
   ? process.env.WEBAUTHN_EXPECTED_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
   : ['https://demos.community', 'https://www.demos.community'];
 const expectedOriginFinal = expectedOrigin.length === 1 ? expectedOrigin[0] : expectedOrigin;
+
+function challengeStoreUnavailable(res, error) {
+  if (error?.code !== 'WEBAUTHN_CHALLENGE_STORE_UNAVAILABLE') return false;
+  res.status(503).json({
+    success: false,
+    error: 'Servizio passkey temporaneamente non disponibile',
+    message: 'Riprova tra poco.',
+  });
+  return true;
+}
 
 /**
  * POST /api/auth/webauthn/device/status
@@ -107,7 +118,7 @@ router.post('/webauthn/register/options', async (req, res) => {
       attestationType: 'none',
     });
 
-    pendingRegistrations.set(userId, {
+    await setRegistrationChallenge(userId, {
       challenge: options.challenge,
       userHandle: userHandleBuffer.toString('base64url'),
       ruolo: userRole,
@@ -122,6 +133,7 @@ router.post('/webauthn/register/options', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore in /webauthn/register/options:', error?.message || error, error?.stack);
+    if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
       error: 'Errore nella generazione delle options WebAuthn',
@@ -161,7 +173,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
       }
     }
 
-    const pending = pendingRegistrations.get(userId);
+    const pending = await consumeRegistrationChallenge(userId);
     if (!pending) {
       return res.status(400).json({
         success: false,
@@ -252,8 +264,6 @@ router.post('/webauthn/register/verify', async (req, res) => {
 
       await client.query('COMMIT');
 
-      pendingRegistrations.delete(userId);
-
       const user = result.rows[0];
 
       const tokenPayload = {
@@ -284,6 +294,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Errore in /webauthn/register/verify:', error);
+    if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
       error: 'Errore nella verifica della registrazione WebAuthn',
@@ -333,7 +344,7 @@ router.post('/webauthn/login/options', async (req, res) => {
       userVerification: 'preferred',
     });
 
-    pendingLogins.set(loginKey, {
+    await setLoginChallenge(loginKey, {
       challenge: options.challenge,
     });
 
@@ -347,6 +358,7 @@ router.post('/webauthn/login/options', async (req, res) => {
     res.json(body);
   } catch (error) {
     console.error('❌ Errore in /webauthn/login/options:', error);
+    if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
       error: 'Errore nella generazione delle options di login WebAuthn',
@@ -380,7 +392,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
       });
     }
 
-    const pending = pendingLogins.get(loginKey);
+    const pending = await consumeLoginChallenge(loginKey);
     if (!pending) {
       return res.status(400).json({
         success: false,
@@ -515,8 +527,6 @@ router.post('/webauthn/login/verify', async (req, res) => {
       [newCounter, user.id],
     );
 
-    pendingLogins.delete(loginKey);
-
     const tokenPayload = {
       userId: user.id,
       role: user.ruolo,
@@ -535,6 +545,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore in /webauthn/login/verify:', error);
+    if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
       error: 'Errore nella verifica del login WebAuthn',
@@ -543,4 +554,3 @@ router.post('/webauthn/login/verify', async (req, res) => {
 });
 
 module.exports = router;
-
