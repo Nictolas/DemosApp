@@ -1,0 +1,26 @@
+name: Temporary critical audit
+
+on:
+  push:
+    branches:
+      - audit-critical-dependencies
+
+permissions:
+  contents: read
+
+jobs:
+  audit-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts
+      - name: Run production audit
+        working-directory: api
+        run: npm audit --omit=dev || true
