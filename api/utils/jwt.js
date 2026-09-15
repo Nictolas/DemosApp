@@ -3,16 +3,15 @@ const crypto = require('crypto');
 
 /**
  * 🔐 Sistema JWT Sicuro per DemosApp
- * 
+ *
  * Funzionalità:
  * - Generazione token sicuri con scadenza
  * - Verifica token con validazione completa
  * - Refresh token per sessioni prolungate
- * - Blacklist per token revocati
+ * - Session ID condiviso tra access e refresh token
+ *
+ * La revoca distribuita degli access token è gestita da accessRevocationService.
  */
-
-// Cache per token revocati (in produzione usare Redis)
-const tokenBlacklist = new Set();
 
 const MIN_JWT_SECRET_LENGTH = 32;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -127,7 +126,8 @@ class JWTHelper {
   }
 
   /**
-   * Verifica token di accesso
+   * Verifica firma, issuer, audience, scadenza e tipo del token di accesso.
+   * La revoca distribuita della sessione viene controllata dal middleware globale.
    */
   verifyAccessToken(token) {
     try {
@@ -137,12 +137,6 @@ class JWTHelper {
         audience: 'demosapp-users'
       });
 
-      // Controlla se il token è nella blacklist
-      if (tokenBlacklist.has(decoded.jti)) {
-        throw new Error('Token revocato');
-      }
-
-      // Verifica che sia un token di accesso (non accetta oauth_pending)
       if (decoded.type !== 'access') {
         throw new Error('Tipo di token non valido');
       }
@@ -175,23 +169,6 @@ class JWTHelper {
   }
 
   /**
-   * Revoca token (aggiunge alla blacklist)
-   */
-  revokeToken(token) {
-    try {
-      const decoded = jwt.decode(token);
-      if (decoded && decoded.jti) {
-        tokenBlacklist.add(decoded.jti);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Errore revoca token:', error);
-      return false;
-    }
-  }
-
-  /**
    * Genera coppia di token (access + refresh) legati alla stessa sessione.
    */
   generateTokenPair(payload) {
@@ -208,17 +185,6 @@ class JWTHelper {
       tokenType: 'Bearer'
     };
   }
-
-  /**
-   * Pulisce token scaduti dalla blacklist
-   */
-  cleanupBlacklist() {
-    // In produzione, implementare logica per rimuovere token scaduti
-    // Per ora manteniamo semplice
-    if (tokenBlacklist.size > 10000) {
-      tokenBlacklist.clear();
-    }
-  }
 }
 
 // Istanza singleton
@@ -232,7 +198,5 @@ module.exports = {
   verifyAccessToken: (token) => jwtHelper.verifyAccessToken(token),
   verifyOAuthPendingToken: (token) => jwtHelper.verifyOAuthPendingToken(token),
   verifyRefreshToken: (token) => jwtHelper.verifyRefreshToken(token),
-  revokeToken: (token) => jwtHelper.revokeToken(token),
-  generateTokenPair: (payload) => jwtHelper.generateTokenPair(payload),
-  cleanupBlacklist: () => jwtHelper.cleanupBlacklist()
+  generateTokenPair: (payload) => jwtHelper.generateTokenPair(payload)
 };

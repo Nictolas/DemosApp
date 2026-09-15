@@ -1,4 +1,4 @@
-/**
+/** 
  * Chiavi e TTL per la cache applicativa (Upstash Redis).
  * Self-host Redis: stesse chiavi se usi un client compatibile con comandi GET/SET/DEL.
  */
@@ -15,6 +15,8 @@ module.exports = {
     ministeroIniziativeDb: `${PREFIX}:ministero:iniziative:db`,
     /** Riga utente per verifyToken (riduce SELECT sul DB; TTL breve) */
     authUser: (userId) => `${PREFIX}:auth:user:${userId}`,
+    /** Sessioni access JWT revocate fino alla scadenza naturale del token */
+    revokedAccessSession: (sessionId) => `${PREFIX}:auth:revoked-session:${sessionId}`,
     /** Challenge WebAuthn condivise tra istanze */
     webAuthnRegistrationChallenge: (userId) => `${PREFIX}:webauthn:register:${userId}`,
     webAuthnLoginChallenge: (loginKey) => `${PREFIX}:webauthn:login:${loginKey}`
