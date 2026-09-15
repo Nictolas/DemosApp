@@ -1,6 +1,11 @@
 const express = require('express');
-const { verifyRefreshToken } = require('../../utils/jwt');
+const { verifyAccessToken, verifyRefreshToken } = require('../../utils/jwt');
 const { revokeRefreshSession } = require('../../services/sessionService');
+const {
+  MAX_ACCESS_TOKEN_TTL_SECONDS,
+  revokeAccessSession,
+  revokeDecodedAccessToken,
+} = require('../../services/accessRevocationService');
 
 const router = express.Router();
 
@@ -9,6 +14,19 @@ router.post('/logout', async (req, res) => {
   try {
     const { refreshToken } = req.body || {};
 
+    let decodedAccess = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const accessToken = authHeader.substring(7);
+      try {
+        decodedAccess = verifyAccessToken(accessToken);
+      } catch (error) {
+        // Un access token già scaduto/non valido non necessita revoca.
+        console.warn('Logout: access token già non valido o scaduto');
+      }
+    }
+
+    let refreshSessionId = null;
     if (refreshToken && typeof refreshToken === 'string') {
       let decoded = null;
       try {
@@ -19,19 +37,42 @@ router.post('/logout', async (req, res) => {
       }
 
       if (decoded) {
-        const sessionId = decoded.sid || decoded.jti;
-        if (!sessionId) {
+        refreshSessionId = decoded.sid || decoded.jti;
+        if (!refreshSessionId) {
           throw new Error('Refresh token privo di identificatore di sessione');
         }
 
+        // Revoca persistente del refresh token/sessione nel database.
         await revokeRefreshSession({
-          sessionId,
+          sessionId: refreshSessionId,
           userId: decoded.userId,
           refreshToken,
           ipAddress: req.ip || req.connection?.remoteAddress || null,
           userAgent: req.get('User-Agent') || null,
         });
       }
+    }
+
+    try {
+      // Revoca immediata dell'access token corrente su tutte le istanze backend.
+      if (decodedAccess) {
+        await revokeDecodedAccessToken(decodedAccess);
+      }
+
+      // I token moderni condividono lo stesso sid. Estendere la revoca a 24 ore
+      // impedisce l'uso di qualunque access token già emesso per quella sessione.
+      if (refreshSessionId) {
+        await revokeAccessSession(refreshSessionId, MAX_ACCESS_TOKEN_TTL_SECONDS);
+      }
+    } catch (error) {
+      if (error?.code === 'ACCESS_REVOCATION_STORE_UNAVAILABLE') {
+        return res.status(503).json({
+          success: false,
+          error: 'Revoca sessione temporaneamente non disponibile',
+          message: 'Riprova il logout tra poco.',
+        });
+      }
+      throw error;
     }
 
     res.status(200).json({
