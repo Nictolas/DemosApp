@@ -15,8 +15,8 @@ module.exports = {
     ministeroIniziativeDb: `${PREFIX}:ministero:iniziative:db`,
     /** Riga utente per verifyToken (riduce SELECT sul DB; TTL breve) */
     authUser: (userId) => `${PREFIX}:auth:user:${userId}`,
-    /** Stato revoca della sessione access JWT: "active" oppure "revoked" */
-    accessSessionState: (sessionId) => `${PREFIX}:auth:session-state:${sessionId}`,
+    /** Sessioni access JWT revocate fino alla scadenza naturale del token */
+    revokedAccessSession: (sessionId) => `${PREFIX}:auth:revoked-session:${sessionId}`,
     /** Challenge WebAuthn condivise tra istanze */
     webAuthnRegistrationChallenge: (userId) => `${PREFIX}:webauthn:register:${userId}`,
     webAuthnLoginChallenge: (loginKey) => `${PREFIX}:webauthn:login:${loginKey}`
@@ -29,8 +29,6 @@ module.exports = {
     ministeroIniziative: parseInt(process.env.CACHE_TTL_MINISTERO_INIZIATIVE_SEC || '300', 10),
     /** 0 = disabilita cache auth */
     authUser: parseInt(process.env.AUTH_USER_CACHE_TTL_SEC || '15', 10),
-    /** Cache breve dello stato "active"; la revoca usa invece il TTL residuo del token */
-    accessSessionActiveState: parseInt(process.env.ACCESS_SESSION_STATE_TTL_SEC || '5', 10),
     /** Challenge di registrazione/login passkey: 5 minuti di default */
     webAuthnChallenge: parseInt(process.env.WEBAUTHN_CHALLENGE_TTL_SEC || '300', 10)
   }

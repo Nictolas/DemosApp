@@ -1,8 +1,6 @@
 const redisCache = require('./redisCache');
-const { keys, ttl } = require('../config/cacheKeys');
-const { getPool } = require('../config/database');
+const { keys } = require('../config/cacheKeys');
 
-const pool = getPool();
 const MAX_ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 
 function getAccessSessionId(decoded) {
@@ -24,68 +22,23 @@ function unavailableError(cause) {
   return error;
 }
 
-async function readSessionRevocationFromDatabase(sessionId) {
-  try {
-    const result = await pool.query(
-      `SELECT is_active, expires_at
-       FROM active_sessions
-       WHERE id = $1
-       LIMIT 1`,
-      [sessionId]
-    );
-
-    if (result.rows.length === 0) return false;
-
-    const session = result.rows[0];
-    if (session.is_active !== true) return true;
-
-    return Boolean(
-      session.expires_at &&
-      new Date(session.expires_at).getTime() <= Date.now()
-    );
-  } catch (error) {
-    // sid/jti sono UUID. Per token legacy o valori non compatibili, l'assenza
-    // di una riga persistente non deve trasformarsi in un errore applicativo.
-    if (error?.code === '22P02') return false;
-    throw unavailableError(error);
-  }
-}
-
-async function writeCachedState(client, sessionId, state, ttlSeconds) {
-  if (!client) return;
-  const safeTtl = Math.max(1, Math.floor(ttlSeconds));
-  try {
-    await client.set(keys.accessSessionState(sessionId), state, { ex: safeTtl });
-  } catch (error) {
-    console.warn('Revoca access token: impossibile aggiornare cache Redis:', error.message);
-  }
+function getRedisClientOrThrow() {
+  const client = redisCache.getClient();
+  if (!client) throw unavailableError();
+  return client;
 }
 
 async function isAccessSessionRevoked(decoded) {
   const sessionId = getAccessSessionId(decoded);
   if (!sessionId) return false;
 
-  const client = redisCache.getClient();
-  if (client) {
-    try {
-      const cachedState = await client.get(keys.accessSessionState(sessionId));
-      if (cachedState === 'revoked') return true;
-      if (cachedState === 'active') return false;
-    } catch (error) {
-      console.warn('Revoca access token: lettura Redis fallita, uso fallback DB:', error.message);
-    }
+  const client = getRedisClientOrThrow();
+  try {
+    const value = await client.get(keys.revokedAccessSession(sessionId));
+    return value === '1' || value === 1 || value === true || value === 'revoked';
+  } catch (error) {
+    throw unavailableError(error);
   }
-
-  const revoked = await readSessionRevocationFromDatabase(sessionId);
-
-  if (client) {
-    const cacheTtl = revoked
-      ? getRemainingAccessTtlSeconds(decoded)
-      : Math.max(1, Number(ttl.accessSessionActiveState) || 5);
-    await writeCachedState(client, sessionId, revoked ? 'revoked' : 'active', cacheTtl);
-  }
-
-  return revoked;
 }
 
 async function revokeAccessSession(sessionId, ttlSeconds = MAX_ACCESS_TOKEN_TTL_SECONDS) {
@@ -93,15 +46,11 @@ async function revokeAccessSession(sessionId, ttlSeconds = MAX_ACCESS_TOKEN_TTL_
     throw new Error('Identificatore sessione access non valido');
   }
 
-  const client = redisCache.getClient();
-  if (!client) {
-    throw unavailableError();
-  }
-
+  const client = getRedisClientOrThrow();
   try {
     await client.set(
-      keys.accessSessionState(sessionId.trim()),
-      'revoked',
+      keys.revokedAccessSession(sessionId.trim()),
+      '1',
       { ex: Math.max(1, Math.floor(ttlSeconds)) }
     );
   } catch (error) {
