@@ -14,10 +14,36 @@ const crypto = require('crypto');
 // Cache per token revocati (in produzione usare Redis)
 const tokenBlacklist = new Set();
 
+const MIN_JWT_SECRET_LENGTH = 32;
+const isProduction = process.env.NODE_ENV === 'production';
+
+const resolveJwtSecret = (name) => {
+  const value = process.env[name];
+
+  if (value && value.length >= MIN_JWT_SECRET_LENGTH) {
+    return value;
+  }
+
+  if (isProduction) {
+    const reason = value
+      ? `deve contenere almeno ${MIN_JWT_SECRET_LENGTH} caratteri`
+      : 'non è definita';
+    throw new Error(`${name} ${reason}. Avvio interrotto per evitare token JWT insicuri.`);
+  }
+
+  // In sviluppo non usiamo mai fallback prevedibili: genera un segreto effimero.
+  console.warn(`⚠️ ${name} assente o troppo corta: genero un segreto effimero solo per sviluppo.`);
+  return crypto.randomBytes(48).toString('base64url');
+};
+
 class JWTHelper {
   constructor() {
-    this.secret = process.env.JWT_SECRET || 'temporary-jwt-secret-for-development-only-change-in-production';
-    this.refreshSecret = process.env.JWT_REFRESH_SECRET || this.secret + '_refresh';
+    this.secret = resolveJwtSecret('JWT_SECRET');
+    this.refreshSecret = resolveJwtSecret('JWT_REFRESH_SECRET');
+
+    if (this.secret === this.refreshSecret) {
+      throw new Error('JWT_SECRET e JWT_REFRESH_SECRET devono essere diverse.');
+    }
   }
 
   /**
