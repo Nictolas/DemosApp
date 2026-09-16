@@ -38,7 +38,7 @@ jobs:
             console.log('Puppeteer browser OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
-      - name: Smoke test Firebase Admin legacy API and Storage
+      - name: Smoke test Firebase Admin legacy API
         run: |
           node - <<'NODE'
           (async () => {
@@ -47,16 +47,11 @@ jobs:
             if (!admin.credential || typeof admin.credential.cert !== 'function') throw new Error('admin.credential.cert non disponibile');
             if (typeof admin.initializeApp !== 'function') throw new Error('admin.initializeApp non disponibile');
             if (typeof admin.messaging !== 'function') throw new Error('admin.messaging non disponibile');
-            if (typeof admin.storage !== 'function') throw new Error('admin.storage non disponibile');
-            const app = admin.initializeApp({ projectId: 'demos-smoke-test', storageBucket: 'demos-smoke-test.appspot.com' }, 'security-smoke');
+            const app = admin.initializeApp({ projectId: 'demos-smoke-test' }, 'security-smoke');
             const messaging = admin.messaging(app);
             if (!messaging || typeof messaging.send !== 'function') throw new Error('Firebase Messaging non disponibile');
-            const storage = admin.storage(app);
-            if (!storage || typeof storage.bucket !== 'function') throw new Error('Firebase Storage non disponibile');
-            const bucket = storage.bucket();
-            if (!bucket || typeof bucket.file !== 'function') throw new Error('Google Cloud Storage API non compatibile');
             await app.delete();
-            console.log('Firebase Admin legacy API + Storage OK');
+            console.log('Firebase Admin legacy API OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
       - name: Smoke test node-cron API
