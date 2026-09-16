@@ -17,8 +17,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Resolve lockfile safely
-        run: npm install --package-lock-only --ignore-scripts
+          node-version: '26'
+      - name: Install dependencies safely
+        run: npm install --ignore-scripts
+      - name: Smoke test Puppeteer API
+        run: node -e "const p=require('puppeteer'); if(typeof p.launch!=='function') process.exit(1); console.log('Puppeteer API OK')"
       - name: npm audit JSON
         run: npm audit --json || true
