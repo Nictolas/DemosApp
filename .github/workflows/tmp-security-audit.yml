@@ -38,5 +38,21 @@ jobs:
             console.log('Puppeteer browser OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
+      - name: Smoke test Firebase Admin legacy API
+        run: |
+          node - <<'NODE'
+          (async () => {
+            const admin = require('firebase-admin');
+            if (!Array.isArray(admin.apps)) throw new Error('admin.apps non disponibile');
+            if (!admin.credential || typeof admin.credential.cert !== 'function') throw new Error('admin.credential.cert non disponibile');
+            if (typeof admin.initializeApp !== 'function') throw new Error('admin.initializeApp non disponibile');
+            if (typeof admin.messaging !== 'function') throw new Error('admin.messaging non disponibile');
+            const app = admin.initializeApp({ projectId: 'demos-smoke-test' }, 'security-smoke');
+            const messaging = admin.messaging(app);
+            if (!messaging || typeof messaging.send !== 'function') throw new Error('Firebase Messaging non disponibile');
+            await app.delete();
+            console.log('Firebase Admin legacy API OK');
+          })().catch((err) => { console.error(err); process.exit(1); });
+          NODE
       - name: npm audit JSON
         run: npm audit --json || true
