@@ -74,6 +74,39 @@ jobs:
           if (!client || typeof client.request !== 'function') throw new Error('gaxios API non compatibile');
           console.log('gaxios API OK');
           NODE
+      - name: Smoke test SimpleWebAuthn 14 API
+        run: |
+          node - <<'NODE'
+          (async () => {
+            const sw = require('@simplewebauthn/server');
+            for (const name of ['generateRegistrationOptions', 'verifyRegistrationResponse', 'generateAuthenticationOptions', 'verifyAuthenticationResponse']) {
+              if (typeof sw[name] !== 'function') throw new Error(`${name} non disponibile`);
+            }
+            const reg = await sw.generateRegistrationOptions({
+              rpID: 'demos.community',
+              rpName: 'Demos',
+              userID: Buffer.from('security-smoke-user', 'utf8'),
+              userName: 'security-smoke-user',
+              userDisplayName: 'Security smoke',
+              authenticatorSelection: {
+                residentKey: 'preferred',
+                userVerification: 'discouraged',
+                authenticatorAttachment: 'platform'
+              },
+              attestationType: 'none'
+            });
+            if (!reg || typeof reg.challenge !== 'string' || !reg.user || typeof reg.user.id !== 'string') {
+              throw new Error('generateRegistrationOptions non compatibile');
+            }
+            const auth = await sw.generateAuthenticationOptions({
+              rpID: 'demos.community',
+              allowCredentials: [],
+              userVerification: 'preferred'
+            });
+            if (!auth || typeof auth.challenge !== 'string') throw new Error('generateAuthenticationOptions non compatibile');
+            console.log('SimpleWebAuthn 14 generazione options OK');
+          })().catch((err) => { console.error(err); process.exit(1); });
+          NODE
       - name: Smoke test fast-xml-parser API if installed
         run: |
           node - <<'NODE'
@@ -94,3 +127,20 @@ jobs:
           NODE
       - name: npm audit JSON
         run: npm audit --json || true
+      - name: Check Demos WebAuthn code migration for v14
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const source = fs.readFileSync('routes/auth/webauthn.js', 'utf8');
+          const problems = [];
+          if (source.includes('authenticator: {')) {
+            problems.push('verifyAuthenticationResponse usa ancora authenticator invece di credential');
+          }
+          if (source.includes('credentialPublicKey, credentialID, counter')) {
+            problems.push('registrationInfo usa ancora i campi v10 invece di registrationInfo.credential');
+          }
+          if (problems.length) {
+            throw new Error('Migrazione WebAuthn necessaria: ' + problems.join('; '));
+          }
+          console.log('Codice Demos compatibile con SimpleWebAuthn v14');
+          NODE
