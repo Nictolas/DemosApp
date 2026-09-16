@@ -1,0 +1,33 @@
+name: Temporary OAuth UI check
+
+on:
+  push:
+    branches:
+      - hide-passkey-auth-ui
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+      - name: Build client
+        working-directory: client
+        run: npm run build
+      - name: Verify passkey is not exposed on auth UI
+        run: |
+          if grep -q "handlePasskey\|loginWithPasskey\|isWebAuthnSupported" client/src/components/AuthCard.tsx client/src/hooks/useAuthLogin.ts; then
+            echo "Passkey ancora esposta nel flusso auth"
+            exit 1
+          fi
+          echo "Auth UI OAuth-only OK"
+      - name: Check OAuth backend syntax
+        working-directory: api
+        run: node --check routes/auth/oauth.js
