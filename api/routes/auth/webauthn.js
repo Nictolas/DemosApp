@@ -100,7 +100,7 @@ router.post('/webauthn/register/options', async (req, res) => {
     const userId = uuidv4();
     const userHandleBuffer = Buffer.from(userId, 'utf8');
 
-    // v10 richiede userID come Buffer/Uint8Array (non stringa); generateRegistrationOptions è async
+    // SimpleWebAuthn richiede userID come Buffer/Uint8Array (non stringa); generateRegistrationOptions è async
     const options = await generateRegistrationOptions({
       rpID,
       rpName,
@@ -207,13 +207,19 @@ router.post('/webauthn/register/verify', async (req, res) => {
       });
     }
 
-    const { credentialPublicKey, credentialID, counter } =
-      verification.registrationInfo;
+    const { credential } = verification.registrationInfo;
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati credenziale WebAuthn mancanti',
+      });
+    }
+    const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
     // Usa il credential ID inviato dal client (attestation.rawId) così al login il match è garantito
     const credentialIdBase64 =
       (attestation.rawId && String(attestation.rawId).trim()) ||
-      Buffer.from(credentialID).toString('base64url');
+      String(credentialID).trim();
     const publicKeyBase64 = Buffer.from(credentialPublicKey).toString(
       'base64url',
     );
@@ -491,9 +497,9 @@ router.post('/webauthn/login/verify', async (req, res) => {
         expectedChallenge: pending.challenge,
         expectedOrigin,
         expectedRPID: rpID,
-        authenticator: {
-          credentialID: Buffer.from(user.webauthn_credential_id, 'base64url'),
-          credentialPublicKey: Buffer.from(user.webauthn_public_key, 'base64url'),
+        credential: {
+          id: user.webauthn_credential_id,
+          publicKey: new Uint8Array(Buffer.from(user.webauthn_public_key, 'base64url')),
           counter: user.webauthn_sign_count || 0,
         },
         // Come per la registrazione, non rendiamo obbligatoria la user verification
