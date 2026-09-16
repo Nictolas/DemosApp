@@ -18,9 +18,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '26'
-      - name: Install dependencies safely
-        run: npm install --ignore-scripts
-      - name: Smoke test Puppeteer API
-        run: node -e "const p=require('puppeteer'); if(typeof p.launch!=='function') process.exit(1); console.log('Puppeteer API OK')"
+      - name: Install dependencies
+        run: npm install
+      - name: Smoke test Puppeteer browser
+        run: |
+          node - <<'NODE'
+          (async () => {
+            const puppeteer = require('puppeteer');
+            const browser = await puppeteer.launch({
+              headless: true,
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+            const page = await browser.newPage();
+            await page.setUserAgent('Mozilla/5.0');
+            await page.setContent('<html><body>puppeteer-ok</body></html>');
+            const html = await page.content();
+            await browser.close();
+            if (!html.includes('puppeteer-ok')) throw new Error('Smoke test fallito');
+            console.log('Puppeteer browser OK');
+          })().catch((err) => { console.error(err); process.exit(1); });
+          NODE
       - name: npm audit JSON
         run: npm audit --json || true
