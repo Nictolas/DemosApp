@@ -10,13 +10,11 @@ interface AuthCardProps {
 
 export function AuthCard({ embedded = false }: AuthCardProps) {
   const {
-    isPasskeyLoading,
     oauthLoading,
     showGoogle,
     showApple,
     showOAuth,
     oauthBusy,
-    handlePasskey,
     handleGoogleLogin,
     handleAppleLogin,
   } = useAuthLogin();
@@ -56,7 +54,7 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
             type="button"
             size="lg"
             className="w-full h-14 text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 border border-blue-600"
-            disabled={oauthBusy || isPasskeyLoading}
+            disabled={oauthBusy}
             onClick={handleGoogleLogin}
           >
             {oauthLoading === "google" ? (
@@ -90,7 +88,7 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
             type="button"
             size="lg"
             className="w-full h-14 text-base font-semibold bg-black hover:bg-gray-900 text-white"
-            disabled={oauthBusy || isPasskeyLoading}
+            disabled={oauthBusy}
             onClick={handleAppleLogin}
           >
             {oauthLoading === "apple" ? (
@@ -104,41 +102,11 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
           </Button>
         )}
 
-        {showOAuth && (
-          <div className="relative py-1">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase text-gray-500">
-              <span className="bg-white px-2">oppure</span>
-            </div>
-          </div>
-        )}
-
-        <div className="text-center space-y-2 pt-1">
-          <button
-            type="button"
-            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:no-underline"
-            disabled={oauthBusy || isPasskeyLoading}
-            onClick={handlePasskey}
-          >
-            {isPasskeyLoading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Verifica in corso...
-              </span>
-            ) : showOAuth ? (
-              "Non ho Google o Apple — usa passkey su questo dispositivo"
-            ) : (
-              "Usa passkey su questo dispositivo"
-            )}
-          </button>
-          <p className="text-xs text-gray-500 leading-relaxed px-2">
-            {showOAuth
-              ? "La passkey lega l'account a questo telefono o browser. Senza Google o Apple non potrai recuperarlo se cambi dispositivo."
-              : "L'accesso con passkey resta legato a questo telefono o browser."}
+        {!showOAuth && (
+          <p className="text-sm text-center text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            Accesso temporaneamente non disponibile. Riprova più tardi.
           </p>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
