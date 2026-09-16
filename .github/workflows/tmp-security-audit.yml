@@ -54,6 +54,18 @@ jobs:
             console.log('Firebase Admin legacy API OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
+      - name: Smoke test node-cron API
+        run: |
+          node - <<'NODE'
+          const cron = require('node-cron');
+          if (typeof cron.schedule !== 'function' || typeof cron.validate !== 'function') throw new Error('node-cron API non compatibile');
+          if (!cron.validate('0 2 * * *')) throw new Error('Validazione cron fallita');
+          const task = cron.schedule('0 2 * * *', () => {}, { scheduled: false });
+          if (!task || typeof task.start !== 'function' || typeof task.stop !== 'function') throw new Error('Task node-cron non compatibile');
+          task.start();
+          task.stop();
+          console.log('node-cron API OK');
+          NODE
       - name: Smoke test fast-xml-parser API if installed
         run: |
           node - <<'NODE'
