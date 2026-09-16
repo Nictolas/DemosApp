@@ -54,5 +54,17 @@ jobs:
             console.log('Firebase Admin legacy API OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
+      - name: Smoke test fast-xml-parser API
+        run: |
+          node - <<'NODE'
+          const { XMLParser, XMLBuilder } = require('fast-xml-parser');
+          const parser = new XMLParser();
+          const parsed = parser.parse('<root><value>ok</value></root>');
+          if (!parsed || parsed.root.value !== 'ok') throw new Error('XMLParser non compatibile');
+          const builder = new XMLBuilder();
+          const xml = builder.build({ root: { value: 'ok' } });
+          if (!xml.includes('<value>ok</value>')) throw new Error('XMLBuilder non compatibile');
+          console.log('fast-xml-parser API OK');
+          NODE
       - name: npm audit JSON
         run: npm audit --json || true
