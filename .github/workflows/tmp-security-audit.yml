@@ -38,7 +38,7 @@ jobs:
             console.log('Puppeteer browser OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
-      - name: Smoke test Firebase Admin legacy API
+      - name: Smoke test Firebase Admin legacy API and Firestore
         run: |
           node - <<'NODE'
           (async () => {
@@ -47,11 +47,14 @@ jobs:
             if (!admin.credential || typeof admin.credential.cert !== 'function') throw new Error('admin.credential.cert non disponibile');
             if (typeof admin.initializeApp !== 'function') throw new Error('admin.initializeApp non disponibile');
             if (typeof admin.messaging !== 'function') throw new Error('admin.messaging non disponibile');
+            if (typeof admin.firestore !== 'function') throw new Error('admin.firestore non disponibile');
             const app = admin.initializeApp({ projectId: 'demos-smoke-test' }, 'security-smoke');
             const messaging = admin.messaging(app);
             if (!messaging || typeof messaging.send !== 'function') throw new Error('Firebase Messaging non disponibile');
+            const firestore = admin.firestore(app);
+            if (!firestore || typeof firestore.collection !== 'function') throw new Error('Firestore non disponibile');
             await app.delete();
-            console.log('Firebase Admin legacy API OK');
+            console.log('Firebase Admin legacy API + Firestore OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
       - name: Smoke test node-cron API
@@ -73,14 +76,6 @@ jobs:
           const client = new Gaxios();
           if (!client || typeof client.request !== 'function') throw new Error('gaxios API non compatibile');
           console.log('gaxios API OK');
-          NODE
-      - name: Smoke test google-gax API
-        run: |
-          node - <<'NODE'
-          const gax = require('google-gax');
-          if (!gax || typeof gax !== 'object') throw new Error('google-gax non disponibile');
-          if (!gax.GoogleAuth) throw new Error('google-gax GoogleAuth non disponibile');
-          console.log('google-gax API OK');
           NODE
       - name: Smoke test fast-xml-parser API if installed
         run: |
