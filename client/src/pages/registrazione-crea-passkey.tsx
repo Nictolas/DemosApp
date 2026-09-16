@@ -1,17 +1,11 @@
 import React from "react";
 import RegistrazioneCompletaOAuth from "./registrazione-completa-oauth";
-import RegistrazionePasskey from "./registrazione-passkey";
-
-const OAUTH_FLOW_KEY = "registrazione_oauth_flow";
 
 /**
- * Route legacy mantenuta temporaneamente per compatibilità.
- * Il completamento OAuth e il flusso Passkey vivono ora in componenti separati.
+ * Route legacy mantenuta temporaneamente per non rompere il wizard esistente.
+ * Le Passkey non sono più disponibili nel frontend: questa route conclude
+ * esclusivamente una registrazione iniziata con Google o Apple.
  */
 export default function RegistrazioneCreaPasskey() {
-  const isOauthFlow =
-    typeof window !== "undefined" &&
-    window.localStorage.getItem(OAUTH_FLOW_KEY) === "1";
-
-  return isOauthFlow ? <RegistrazioneCompletaOAuth /> : <RegistrazionePasskey />;
+  return <RegistrazioneCompletaOAuth />;
 }
