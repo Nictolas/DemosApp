@@ -1,0 +1,29 @@
+name: Temporary device account guard check
+
+on:
+  push:
+    branches:
+      - device-account-risk-foundation
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+      - name: Build client
+        working-directory: client
+        run: npm run build
+      - name: Verify duplicate-account guard
+        run: |
+          grep -q 'LOCAL_ACCOUNT_ID_KEY = "webauthn_user_id"' client/src/hooks/useAuthLogin.ts
+          grep -q 'blockDuplicateRegistrationOnThisDevice' client/src/hooks/useAuthLogin.ts
+          grep -q 'Account Demos già presente' client/src/hooks/useAuthLogin.ts
+          echo "Duplicate-account local guard OK"
