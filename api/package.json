@@ -62,6 +62,7 @@
     "minimatch@9": "9.0.7",
     "node-forge": "1.4.0",
     "picomatch": "2.3.2",
+    "retry-request": "7.0.3",
     "undici": "7.29.0",
     "websocket-driver": "0.7.5",
     "ws": "8.21.0"
