@@ -4,6 +4,7 @@
  * Su iOS/Safari il One Tap spesso non funziona: si usa il flusso redirect.
  */
 import { getApiUrl, API_CONFIG } from "./api-config";
+import { getOrCreateDeviceId } from "./device";
 
 declare global {
   interface Window {
@@ -134,7 +135,7 @@ export function loginWithGoogle(): Promise<{ success: boolean; message?: string;
     const timeoutId = window.setTimeout(() => {
       finish({
         success: false,
-        message: "Tempo scaduto. Su iPhone usa \"Accedi con passkey\" oppure apri da PC per accedere con Google.",
+        message: "Tempo scaduto. Riprova ad accedere con Google.",
       });
     }, GOOGLE_LOGIN_TIMEOUT_MS);
 
@@ -218,7 +219,7 @@ export async function sendGoogleIdTokenToBackend(idToken: string): Promise<{ suc
     const res = await fetch(getApiUrl(API_CONFIG.OAUTH.GOOGLE), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ idToken, deviceId: getOrCreateDeviceId() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.success) {
@@ -278,7 +279,7 @@ export async function loginWithApple(): Promise<{ success: boolean; message?: st
     const res = await fetch(getApiUrl(API_CONFIG.OAUTH.APPLE), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_token: idToken }),
+      body: JSON.stringify({ id_token: idToken, deviceId: getOrCreateDeviceId() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.success) {
