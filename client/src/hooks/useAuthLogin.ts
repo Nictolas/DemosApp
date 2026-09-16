@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { migrateLegacyAccountId } from "@/lib/account-storage";
 import {
   getGoogleClientId,
   getAppleClientId,
@@ -18,6 +19,12 @@ export function useAuthLogin() {
   const { toast } = useToast();
 
   const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null);
+
+  useEffect(() => {
+    // Migra in modo trasparente il vecchio nome webauthn_user_id al nuovo
+    // demos_account_id. La chiave legacy resta temporaneamente per compatibilità.
+    migrateLegacyAccountId();
+  }, []);
 
   useEffect(() => {
     if (!getGoogleClientId() || !AUTH_ROUTES.includes(location)) return;
