@@ -74,7 +74,7 @@ jobs:
           if (!client || typeof client.request !== 'function') throw new Error('gaxios API non compatibile');
           console.log('gaxios API OK');
           NODE
-      - name: Smoke test SimpleWebAuthn 14 API
+      - name: Smoke test SimpleWebAuthn modern API
         run: |
           node - <<'NODE'
           (async () => {
@@ -104,7 +104,7 @@ jobs:
               userVerification: 'preferred'
             });
             if (!auth || typeof auth.challenge !== 'string') throw new Error('generateAuthenticationOptions non compatibile');
-            console.log('SimpleWebAuthn 14 generazione options OK');
+            console.log('SimpleWebAuthn modern API generazione options OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
       - name: Smoke test fast-xml-parser API if installed
@@ -127,7 +127,7 @@ jobs:
           NODE
       - name: npm audit JSON
         run: npm audit --json || true
-      - name: Check Demos WebAuthn code migration for v14
+      - name: Check Demos WebAuthn modern API migration
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -142,7 +142,7 @@ jobs:
           if (problems.length) {
             throw new Error('Migrazione WebAuthn necessaria: ' + problems.join('; '));
           }
-          console.log('Codice Demos compatibile con SimpleWebAuthn v14');
+          console.log('Codice Demos compatibile con SimpleWebAuthn API moderna');
           NODE
       - name: Syntax check WebAuthn route
         run: node --check routes/auth/webauthn.js
