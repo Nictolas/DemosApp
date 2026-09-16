@@ -66,6 +66,14 @@ jobs:
           task.stop();
           console.log('node-cron API OK');
           NODE
+      - name: Smoke test gaxios API
+        run: |
+          node - <<'NODE'
+          const { Gaxios } = require('gaxios');
+          const client = new Gaxios();
+          if (!client || typeof client.request !== 'function') throw new Error('gaxios API non compatibile');
+          console.log('gaxios API OK');
+          NODE
       - name: Smoke test fast-xml-parser API if installed
         run: |
           node - <<'NODE'
