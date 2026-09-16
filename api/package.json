@@ -50,6 +50,7 @@
     "fast-xml-parser": "4.5.5",
     "js-yaml": "4.3.2",
     "jws": "3.2.3",
+    "picomatch": "2.3.2",
     "websocket-driver": "0.7.5",
     "ws": "8.21.0"
   },
