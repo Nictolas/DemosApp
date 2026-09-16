@@ -20,7 +20,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@axiomhq/axiom-node": "^0.12.0",
-    "@simplewebauthn/server": "^10.0.0",
+    "@simplewebauthn/server": "^13.3.2",
     "@upstash/redis": "^1.37.0",
     "archiver": "^7.0.1",
     "axios": "^1.20.0",
@@ -72,6 +72,9 @@
     "node-forge": "1.4.0",
     "picomatch": "2.3.2",
     "retry-request": "7.0.3",
+    "teeny-request": {
+      "uuid": "11.1.1"
+    },
     "undici": "7.29.0",
     "websocket-driver": "0.7.5",
     "ws": "8.21.0"
