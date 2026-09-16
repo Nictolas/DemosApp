@@ -74,6 +74,14 @@ jobs:
           if (!client || typeof client.request !== 'function') throw new Error('gaxios API non compatibile');
           console.log('gaxios API OK');
           NODE
+      - name: Smoke test google-gax API
+        run: |
+          node - <<'NODE'
+          const gax = require('google-gax');
+          if (!gax || typeof gax !== 'object') throw new Error('google-gax non disponibile');
+          if (!gax.GoogleAuth) throw new Error('google-gax GoogleAuth non disponibile');
+          console.log('google-gax API OK');
+          NODE
       - name: Smoke test fast-xml-parser API if installed
         run: |
           node - <<'NODE'
