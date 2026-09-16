@@ -54,9 +54,15 @@ jobs:
             console.log('Firebase Admin legacy API OK');
           })().catch((err) => { console.error(err); process.exit(1); });
           NODE
-      - name: Smoke test fast-xml-parser API
+      - name: Smoke test fast-xml-parser API if installed
         run: |
           node - <<'NODE'
+          try {
+            require.resolve('fast-xml-parser');
+          } catch {
+            console.log('fast-xml-parser non installato direttamente: test non necessario');
+            process.exit(0);
+          }
           const { XMLParser, XMLBuilder } = require('fast-xml-parser');
           const parser = new XMLParser();
           const parsed = parser.parse('<root><value>ok</value></root>');
