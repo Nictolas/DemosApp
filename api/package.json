@@ -20,7 +20,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@axiomhq/axiom-node": "^0.12.0",
-    "@simplewebauthn/server": "^14.0.2",
+    "@simplewebauthn/server": "^13.3.2",
     "@upstash/redis": "^1.37.0",
     "archiver": "^7.0.1",
     "axios": "^1.20.0",
