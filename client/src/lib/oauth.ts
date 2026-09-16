@@ -4,6 +4,7 @@
  * Su iOS/Safari il One Tap spesso non funziona: si usa il flusso redirect.
  */
 import { getApiUrl, API_CONFIG } from "./api-config";
+import { storeAccountId } from "./account-storage";
 
 declare global {
   interface Window {
@@ -44,7 +45,7 @@ function saveTokensFromResponse(data: { accessToken?: string; refreshToken?: str
   const token = data.accessToken || (data as any).token;
   if (token) localStorage.setItem("auth_token", token);
   if (data.refreshToken) localStorage.setItem("refresh_token", data.refreshToken);
-  if (data.user?.id) localStorage.setItem("webauthn_user_id", String(data.user.id));
+  if (data.user?.id) storeAccountId(data.user.id);
 }
 
 /** Rileva iOS o Safari mobile (dove il One Tap spesso non funziona). */
@@ -134,7 +135,7 @@ export function loginWithGoogle(): Promise<{ success: boolean; message?: string;
     const timeoutId = window.setTimeout(() => {
       finish({
         success: false,
-        message: "Tempo scaduto. Su iPhone usa \"Accedi con passkey\" oppure apri da PC per accedere con Google.",
+        message: "Tempo scaduto. Riprova oppure usa un altro metodo di accesso disponibile.",
       });
     }, GOOGLE_LOGIN_TIMEOUT_MS);
 
