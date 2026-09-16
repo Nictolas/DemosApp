@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { registerWithPasskey, getOrCreateDeviceId } from "@/lib/webauthn";
 import { getApiUrl } from "@/lib/api-config";
 import { API_CONFIG } from "@/lib/api-config";
+import { storeAccountId } from "@/lib/account-storage";
 import { Loader2 } from "lucide-react";
 
 const OAUTH_FLOW_KEY = "registrazione_oauth_flow";
@@ -80,7 +81,7 @@ export default function RegistrazioneCreaPasskey() {
 
       if (data.accessToken) window.localStorage.setItem("auth_token", data.accessToken);
       if (data.refreshToken) window.localStorage.setItem("refresh_token", data.refreshToken);
-      if (data.user?.id) window.localStorage.setItem("webauthn_user_id", String(data.user.id));
+      if (data.user?.id) storeAccountId(data.user.id);
 
       window.localStorage.removeItem(OAUTH_FLOW_KEY);
       window.localStorage.removeItem("registrazione_passkey_flow");
