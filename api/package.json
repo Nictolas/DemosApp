@@ -52,6 +52,7 @@
     "js-yaml": "4.3.2",
     "jws": "3.2.3",
     "picomatch": "2.3.2",
+    "undici": "7.29.0",
     "websocket-driver": "0.7.5",
     "ws": "8.21.0"
   },
