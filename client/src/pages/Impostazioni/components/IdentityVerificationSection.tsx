@@ -45,12 +45,25 @@ export const IdentityVerificationSection: React.FC = () => {
       }
 
       window.location.assign(target.toString());
-    } catch (_error) {
-      toast({
-        title: "Verifica CIE non disponibile",
-        description: "Non è stato possibile avviare la verifica con CIE. Riprova più tardi.",
-        variant: "destructive"
-      });
+    } catch (error: any) {
+      const alreadyActive =
+        error?.status === 409 &&
+        error?.data?.code === "CIE_TRANSACTION_ALREADY_ACTIVE";
+
+      if (alreadyActive) {
+        toast({
+          title: "Verifica CIE già in corso",
+          description: "Hai già una verifica CIE in corso. Completa quella aperta oppure riprova tra qualche minuto.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Verifica CIE non disponibile",
+          description: "Non è stato possibile avviare la verifica con CIE. Riprova più tardi.",
+          variant: "destructive"
+        });
+      }
+
       setIsStartingCie(false);
     }
   };
