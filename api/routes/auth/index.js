@@ -7,6 +7,7 @@ const refreshRoutes = require('./refresh');
 const logoutRoutes = require('./logout');
 const webauthnRoutes = require('./webauthn');
 const oauthRoutes = require('./oauth');
+const identityRoutes = require('./identity');
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use('/', refreshRoutes);
 router.use('/', logoutRoutes);
 router.use('/', webauthnRoutes);
 router.use('/', oauthRoutes);
+router.use('/', identityRoutes);
 
 module.exports = router;
