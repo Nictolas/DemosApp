@@ -24,6 +24,9 @@ const {
 const {
   getPublicWebAuthnError,
 } = require('../../services/webauthnPublicErrorService');
+const {
+  normalizeWebAuthnClientInstanceId,
+} = require('../../services/webauthnClientInstancePolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -47,20 +50,26 @@ function challengeStoreUnavailable(res, error) {
   return true;
 }
 
+function invalidClientInstanceId(res, error) {
+  if (error?.code !== 'INVALID_WEBAUTHN_CLIENT_INSTANCE_ID') return false;
+  res.status(400).json({
+    success: false,
+    error: 'Identificatore browser non valido',
+    code: 'INVALID_CLIENT_INSTANCE_ID',
+  });
+  return true;
+}
+
 /**
  * POST /api/auth/webauthn/device/status
- * Indica se questo dispositivo ha già un account passkey lato server.
- * Usato dal client per evitare di aprire il prompt iOS (QR/chiave) quando non serve.
+ * Indica se questa installazione/browser ha già un account passkey lato server.
+ * deviceId è solo un identificatore UX persistito in localStorage: non identifica
+ * in modo affidabile un dispositivo fisico e non è un controllo anti-multiaccount.
  */
 router.post('/webauthn/device/status', async (req, res) => {
   try {
     const { deviceId } = req.body || {};
-    if (!deviceId || typeof deviceId !== 'string' || !deviceId.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'deviceId richiesto',
-      });
-    }
+    const clientInstanceId = normalizeWebAuthnClientInstanceId(deviceId, { required: true });
     const result = await pool.query(
       `SELECT 1
        FROM users
@@ -68,11 +77,12 @@ router.post('/webauthn/device/status', async (req, res) => {
          AND webauthn_credential_id IS NOT NULL
          AND webauthn_credential_id <> ''
        LIMIT 1`,
-      [deviceId.trim()],
+      [clientInstanceId],
     );
     return res.json({ success: true, hasAccount: result.rows.length > 0 });
   } catch (error) {
     console.error('❌ Errore in /webauthn/device/status:', error);
+    if (invalidClientInstanceId(res, error)) return;
     return res.status(500).json({
       success: false,
       error: 'Errore nel recupero stato dispositivo',
@@ -87,19 +97,21 @@ router.post('/webauthn/device/status', async (req, res) => {
 router.post('/webauthn/register/options', async (req, res) => {
   try {
     const { deviceId } = req.body || {};
+    const clientInstanceId = normalizeWebAuthnClientInstanceId(deviceId);
 
-    // Un solo account passkey per dispositivo
-    if (deviceId && typeof deviceId === 'string' && deviceId.trim()) {
+    // Solo UX/consistenza per questa installazione del browser. Non è un controllo
+    // di sicurezza anti-multiaccount perché localStorage può essere cancellato.
+    if (clientInstanceId) {
       const existing = await pool.query(
         'SELECT id FROM users WHERE webauthn_device_id = $1 LIMIT 1',
-        [deviceId.trim()],
+        [clientInstanceId],
       );
       if (existing.rows.length > 0) {
         return res.status(409).json({
           success: false,
-          error: 'Questo dispositivo ha già un account',
+          error: 'Questo browser ha già un account',
           code: 'DEVICE_ALREADY_REGISTERED',
-          message: 'Su questo dispositivo è già stato creato un account con passkey. Accedi con la passkey esistente invece di registrarti di nuovo.',
+          message: 'In questo browser risulta già creato un account con passkey. Accedi con la passkey esistente invece di registrarti di nuovo.',
         });
       }
     }
@@ -133,7 +145,7 @@ router.post('/webauthn/register/options', async (req, res) => {
       challenge: options.challenge,
       userHandle: userHandleBuffer.toString('base64url'),
       ruolo: userRole,
-      deviceId: deviceId && typeof deviceId === 'string' ? deviceId.trim() : null,
+      deviceId: clientInstanceId,
     });
 
     // Options già serializzabili (challenge e user.id sono stringhe base64url)
@@ -144,6 +156,7 @@ router.post('/webauthn/register/options', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore in /webauthn/register/options:', error?.message || error, error?.stack);
+    if (invalidClientInstanceId(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
@@ -158,7 +171,7 @@ router.post('/webauthn/register/options', async (req, res) => {
  */
 router.post('/webauthn/register/verify', async (req, res) => {
   try {
-    const { userId, attestation, deviceId } = req.body || {};
+    const { userId, attestation } = req.body || {};
 
     if (!userId || !attestation) {
       return res.status(400).json({
@@ -168,28 +181,31 @@ router.post('/webauthn/register/verify', async (req, res) => {
       });
     }
 
-    const deviceIdTrimmed = deviceId && typeof deviceId === 'string' ? deviceId.trim() : null;
-    if (deviceIdTrimmed) {
-      const existing = await pool.query(
-        'SELECT id FROM users WHERE webauthn_device_id = $1 LIMIT 1',
-        [deviceIdTrimmed],
-      );
-      if (existing.rows.length > 0) {
-        return res.status(409).json({
-          success: false,
-          error: 'Questo dispositivo ha già un account',
-          code: 'DEVICE_ALREADY_REGISTERED',
-          message: 'Su questo dispositivo è già stato creato un account con passkey. Accedi con la passkey esistente.',
-        });
-      }
-    }
-
     const pending = await consumeRegistrationChallenge(userId);
     if (!pending) {
       return res.status(400).json({
         success: false,
         error: 'Registrazione non trovata o scaduta',
       });
+    }
+
+    // L'identificatore browser usato al salvataggio è quello già legato alla
+    // challenge server-side; un valore eventualmente aggiunto alla verify request
+    // dal client non può sostituirlo.
+    const regDeviceId = normalizeWebAuthnClientInstanceId(pending.deviceId);
+    if (regDeviceId) {
+      const existing = await pool.query(
+        'SELECT id FROM users WHERE webauthn_device_id = $1 LIMIT 1',
+        [regDeviceId],
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Questo browser ha già un account',
+          code: 'DEVICE_ALREADY_REGISTERED',
+          message: 'In questo browser risulta già creato un account con passkey. Accedi con la passkey esistente.',
+        });
+      }
     }
 
     let verification;
@@ -234,7 +250,6 @@ router.post('/webauthn/register/verify', async (req, res) => {
     );
 
     const client = await pool.connect();
-    const regDeviceId = deviceIdTrimmed || pending.deviceId || null;
     try {
       await client.query('BEGIN');
 
@@ -309,6 +324,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Errore in /webauthn/register/verify:', error);
+    if (invalidClientInstanceId(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
