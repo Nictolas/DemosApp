@@ -17,7 +17,7 @@ function getTrustedFrontendBaseUrl() {
 }
 
 function buildCieCallbackRedirect(outcome) {
-  if (outcome !== 'success' && outcome !== 'error') {
+  if (!['success', 'error', 'already-linked'].includes(outcome)) {
     throw new Error('Esito callback CIE non valido');
   }
 
