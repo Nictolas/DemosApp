@@ -402,11 +402,19 @@ export default function Organizzazioni() {
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.status === 409) {
+        toast({
+          title: "Info",
+          description: "Stai già votando questa organizzazione",
+        });
+        setFollowingUsers(new Set([organizzazioneId]));
+        return;
+      }
       console.error('Errore nel votare organizzazione:', error);
       toast({
         title: "Errore",
-        description: "Errore di connessione",
+        description: error?.message || "Errore di connessione",
         variant: "destructive"
       });
     }
