@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { decompressUserLocation } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
+const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -10,7 +11,7 @@ const pool = getPool();
 // ===== ENDPOINTS PER SOSTENITORI =====
 
 // GET /api/sostenitori - Ottieni sostenitori di un utente
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
     
@@ -19,6 +20,10 @@ router.get('/', async (req, res) => {
         success: false,
         error: 'ID sostenuto richiesto'
       });
+    }
+
+    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+      return res.status(403).json({ success: false, error: 'Accesso negato' });
     }
 
     // Trova tutti gli utenti che hanno scelto questo utente come rappresentante
@@ -128,7 +133,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      supporters: supporters,
+      supporters: req.userRole === 'AD' ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
@@ -147,14 +152,15 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/sostenitori/check - Verifica se un utente sostiene un altro
-router.get('/check', async (req, res) => {
+router.get('/check', verifyToken, async (req, res) => {
   try {
-    const { utente_id, sostenuto_id } = req.query;
+    const { sostenuto_id } = req.query;
+    const utente_id = req.userId;
     
-    if (!utente_id || !sostenuto_id) {
+    if (!sostenuto_id) {
       return res.status(400).json({
         success: false,
-        error: 'ID utente e ID sostenuto sono obbligatori'
+        error: 'ID sostenuto obbligatorio'
       });
     }
 
@@ -190,14 +196,15 @@ router.get('/check', async (req, res) => {
 });
 
 // POST /api/sostenitori/follow - Vota un attivista (limite di 1 voto)
-router.post('/follow', async (req, res) => {
+router.post('/follow', verifyToken, async (req, res) => {
   try {
-    const { supporter_id, supported_id } = req.body;
+    const supporter_id = req.userId;
+    const { supported_id } = req.body;
     
-    if (!supporter_id || !supported_id) {
+    if (!supported_id) {
       return res.status(400).json({
         success: false,
-        error: 'supporter_id e supported_id sono obbligatori'
+        error: 'supported_id obbligatorio'
       });
     }
 
@@ -266,14 +273,15 @@ router.post('/follow', async (req, res) => {
 });
 
 // DELETE /api/sostenitori/unfollow - Rimuovi voto attivista
-router.delete('/unfollow', async (req, res) => {
+router.delete('/unfollow', verifyToken, async (req, res) => {
   try {
-    const { supporter_id, supported_id } = req.body;
+    const supporter_id = req.userId;
+    const { supported_id } = req.body;
     
-    if (!supporter_id || !supported_id) {
+    if (!supported_id) {
       return res.status(400).json({
         success: false,
-        error: 'supporter_id e supported_id sono obbligatori'
+        error: 'supported_id obbligatorio'
       });
     }
 
@@ -356,18 +364,11 @@ router.get('/count', async (req, res) => {
 });
 
 // GET /api/sostenitori/following - Ottieni l'attivista votato da un utente
-router.get('/following', async (req, res) => {
+router.get('/following', verifyToken, async (req, res) => {
   try {
-    const { supporter_id } = req.query;
-    
-    if (!supporter_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'supporter_id richiesto'
-      });
-    }
+    const supporter_id = req.userId;
 
-    console.log('🔍 DEBUG: Recupero attivista votato per supporter:', supporter_id);
+    console.log('🔍 DEBUG: Recupero attivista votato per utente autenticato:', supporter_id);
 
     const result = await pool.query(`
       SELECT 
@@ -396,17 +397,47 @@ router.get('/following', async (req, res) => {
   }
 });
 
-// POST /api/sostenitori/follow-organizzazione - Vota un'organizzazione (limite di 1 voto)
-router.post('/follow-organizzazione', async (req, res) => {
+// GET /api/sostenitori/following-organizzazione - Ottieni l'organizzazione votata dall'utente autenticato
+router.get('/following-organizzazione', verifyToken, async (req, res) => {
   try {
-    const { supporter_id, supported_id } = req.body;
+    const supporter_id = req.userId;
+
+    const result = await pool.query(`
+      SELECT
+        u.organizzazioni as supported_id,
+        u.updated_at as created_at,
+        o.nome,
+        o.cognome
+      FROM users u
+      LEFT JOIN users o ON u.organizzazioni = o.id
+      WHERE u.id = $1 AND u.organizzazioni IS NOT NULL
+    `, [supporter_id]);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero organizzazione votata:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/sostenitori/follow-organizzazione - Vota un'organizzazione (limite di 1 voto)
+router.post('/follow-organizzazione', verifyToken, async (req, res) => {
+  try {
+    const supporter_id = req.userId;
+    const { supported_id } = req.body;
 
     console.log('🗳️ POST /api/sostenitori/follow-organizzazione - Voto organizzazione', { supporter_id, supported_id });
 
-    if (!supporter_id || !supported_id) {
+    if (!supported_id) {
       return res.status(400).json({
         success: false,
-        error: 'supporter_id e supported_id sono obbligatori'
+        error: 'supported_id obbligatorio'
       });
     }
 
@@ -475,14 +506,15 @@ router.post('/follow-organizzazione', async (req, res) => {
 });
 
 // DELETE /api/sostenitori/unfollow-organizzazione - Rimuovi voto organizzazione
-router.delete('/unfollow-organizzazione', async (req, res) => {
+router.delete('/unfollow-organizzazione', verifyToken, async (req, res) => {
   try {
-    const { supporter_id, supported_id } = req.body;
+    const supporter_id = req.userId;
+    const { supported_id } = req.body;
     
-    if (!supporter_id || !supported_id) {
+    if (!supported_id) {
       return res.status(400).json({
         success: false,
-        error: 'supporter_id e supported_id sono obbligatori'
+        error: 'supported_id obbligatorio'
       });
     }
 
@@ -523,7 +555,7 @@ router.delete('/unfollow-organizzazione', async (req, res) => {
 });
 
 // GET /api/sostenitori/organizzazione - Ottieni sostenitori di un'organizzazione
-router.get('/organizzazione', async (req, res) => {
+router.get('/organizzazione', verifyToken, async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
 
@@ -532,6 +564,10 @@ router.get('/organizzazione', async (req, res) => {
         success: false,
         error: 'ID organizzazione richiesto'
       });
+    }
+
+    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+      return res.status(403).json({ success: false, error: 'Accesso negato' });
     }
 
     const result = await pool.query(`
@@ -612,7 +648,7 @@ router.get('/organizzazione', async (req, res) => {
 
     res.json({
       success: true,
-      supporters,
+      supporters: req.userRole === 'AD' ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,

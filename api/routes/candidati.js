@@ -111,7 +111,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // GET /api/candidati/sostenitori - Ottieni sostenitori candidati di un utente
-router.get('/sostenitori', async (req, res) => {
+router.get('/sostenitori', verifyToken, async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
     
@@ -119,6 +119,13 @@ router.get('/sostenitori', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'ID sostenuto richiesto'
+      });
+    }
+
+    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato'
       });
     }
 
@@ -160,7 +167,7 @@ router.get('/sostenitori', async (req, res) => {
     res.json({
       success: true,
       data: {
-        sostenitori: sostenitori,
+        sostenitori: req.userRole === 'AD' ? sostenitori : [],
         count: sostenitori.length
       }
     });
