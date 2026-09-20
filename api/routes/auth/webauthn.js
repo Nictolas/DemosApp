@@ -35,6 +35,9 @@ const {
   normalizeWebAuthnCredentialId,
   webAuthnCredentialIdLookupVariants,
 } = require('../../services/webauthnCredentialIdPolicy');
+const {
+  advanceWebAuthnSignCounter,
+} = require('../../services/webauthnSignCounterService');
 
 const router = express.Router();
 const pool = getPool();
@@ -509,15 +512,21 @@ router.post('/webauthn/login/verify', async (req, res) => {
 
     const { newCounter } = verification.authenticationInfo;
 
-    await pool.query(
-      `
-        UPDATE users
-        SET webauthn_sign_count = $1,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `,
-      [newCounter, user.id],
+    const counterAdvanced = await advanceWebAuthnSignCounter(
+      pool,
+      user.id,
+      newCounter,
     );
+    if (!counterAdvanced) {
+      console.error(
+        '❌ Sign counter WebAuthn non avanzato: possibile login concorrente, replay o contatore regressivo',
+        { userId: user.id },
+      );
+      return res.status(409).json({
+        success: false,
+        ...getPublicWebAuthnError('SIGN_COUNTER_CONFLICT'),
+      });
+    }
 
     const tokenPayload = {
       userId: user.id,
