@@ -1,7 +1,10 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, Shield } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
 
 type IdentityStatusResponse = {
   success: boolean;
@@ -12,6 +15,7 @@ type IdentityStatusResponse = {
 };
 
 export const IdentityVerificationSection: React.FC = () => {
+  const [isStartingCie, setIsStartingCie] = React.useState(false);
   const { data, isLoading, isError } = useQuery<IdentityStatusResponse>({
     queryKey: ["/auth/identity/status"],
   });
@@ -20,6 +24,36 @@ export const IdentityVerificationSection: React.FC = () => {
     data?.success === true &&
     data.identity?.verified === true &&
     data.identity?.provider === "CIE";
+
+  const handleStartCie = async () => {
+    if (isStartingCie || verifiedWithCie) return;
+
+    setIsStartingCie(true);
+
+    try {
+      const response = await apiRequest.get("/auth/identity/cie/start");
+      const payload = await response.json();
+      const authorizationUrl = payload?.authorizationUrl;
+
+      if (typeof authorizationUrl !== "string") {
+        throw new Error("Authorization URL CIE mancante");
+      }
+
+      const target = new URL(authorizationUrl);
+      if (target.protocol !== "https:") {
+        throw new Error("Authorization URL CIE non sicuro");
+      }
+
+      window.location.assign(target.toString());
+    } catch (_error) {
+      toast({
+        title: "Verifica CIE non disponibile",
+        description: "Non è stato possibile avviare la verifica con CIE. Riprova più tardi.",
+        variant: "destructive"
+      });
+      setIsStartingCie(false);
+    }
+  };
 
   return (
     <Card className="border border-slate-200 bg-white/80 shadow-sm">
@@ -32,7 +66,7 @@ export const IdentityVerificationSection: React.FC = () => {
           <Shield className="h-5 w-5 shrink-0 text-slate-500" />
         )}
 
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="font-semibold text-gray-900">Identità</div>
           <div className="text-sm text-gray-600">
             {isLoading
@@ -44,6 +78,18 @@ export const IdentityVerificationSection: React.FC = () => {
                   : "Non verificata"}
           </div>
         </div>
+
+        {!isLoading && !isError && !verifiedWithCie && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleStartCie}
+            disabled={isStartingCie}
+          >
+            {isStartingCie && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Verifica con CIE
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
