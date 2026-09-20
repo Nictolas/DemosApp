@@ -120,6 +120,7 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
     if (alreadyActive) {
       return res.status(409).json({
         success: false,
+        code: 'CIE_TRANSACTION_ALREADY_ACTIVE',
         error: 'Verifica CIE gia in corso'
       });
     }
