@@ -8,6 +8,8 @@ const {
   TTL_MS,
   startMockTransaction,
   consumeMockTransaction,
+  getMockCieStartErrorResponse,
+  getMockCieCompleteErrorResponse,
   clearMockTransactionsForTests
 } = require('../services/cieMockFlowService');
 
@@ -100,4 +102,46 @@ test('mock CIE resta disabilitato in produzione', () => {
   } finally {
     process.env.NODE_ENV = oldNodeEnv;
   }
+});
+
+
+test('non espone errori interni durante avvio mock', () => {
+  const result = getMockCieStartErrorResponse(new Error('database-secret-detail'));
+
+  assert.deepEqual(result, {
+    status: 400,
+    error: 'Impossibile avviare la verifica CIE mock'
+  });
+  assert.equal(result.error.includes('database-secret-detail'), false);
+});
+
+test('espone solo conflitti mock esplicitamente sicuri', () => {
+  assert.deepEqual(
+    getMockCieCompleteErrorResponse({ code: 'PERSON_ALREADY_LINKED', message: 'internal' }),
+    {
+      status: 409,
+      error: 'Identita gia associata a un altro account DEMOS'
+    }
+  );
+
+  assert.deepEqual(
+    getMockCieCompleteErrorResponse({ code: 'ACCOUNT_ALREADY_VERIFIED', message: 'internal' }),
+    {
+      status: 409,
+      error: 'Account gia associato a una identita verificata'
+    }
+  );
+});
+
+test('nasconde errori interni sconosciuti nel completamento mock', () => {
+  const result = getMockCieCompleteErrorResponse({
+    code: 'DATABASE_FAILURE',
+    message: 'postgres connection string leaked'
+  });
+
+  assert.deepEqual(result, {
+    status: 400,
+    error: 'Verifica CIE mock non riuscita'
+  });
+  assert.equal(result.error.includes('postgres'), false);
 });
