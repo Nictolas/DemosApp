@@ -44,17 +44,19 @@ router.get('/identity/status', verifyToken, async (req, res) => {
 
 
 // Flusso CIE mock: disponibile solo fuori produzione e con USE_MOCK_CIE=true.
-router.post('/identity/cie/mock/start', verifyToken, (req, res) => {
+router.post('/identity/cie/mock/start', verifyToken, async (req, res) => {
   if (!isMockCieEnabled()) {
     return res.status(404).json({ success: false, error: 'Route non disponibile' });
   }
 
   try {
+    await assertAccountCanStartCieVerification(req.userId);
+
     const transaction = startMockTransaction(req.userId);
     return res.json({ success: true, transaction });
   } catch (error) {
     console.error('Errore avvio mock CIE:', error?.message || error);
-    const publicError = getMockCieStartErrorResponse();
+    const publicError = getMockCieStartErrorResponse(error);
     return res.status(publicError.status).json({
       success: false,
       error: publicError.error
