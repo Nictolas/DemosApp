@@ -21,6 +21,9 @@ const {
   WEBAUTHN_USER_VERIFICATION,
   WEBAUTHN_REQUIRE_USER_VERIFICATION,
 } = require('../../services/webauthnSecurityPolicy');
+const {
+  getPublicWebAuthnError,
+} = require('../../services/webauthnPublicErrorService');
 
 const router = express.Router();
 const pool = getPool();
@@ -202,8 +205,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
       console.error('❌ verifyRegistrationResponse fallita:', verifyErr?.message || verifyErr);
       return res.status(400).json({
         success: false,
-        error: 'Verifica passkey non riuscita',
-        message: verifyErr?.message || 'La verifica della passkey è fallita. Riprova.',
+        ...getPublicWebAuthnError('REGISTRATION_VERIFICATION_FAILED'),
       });
     }
 
@@ -310,8 +312,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
     if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
-      error: 'Errore nella verifica della registrazione WebAuthn',
-      message: error?.message || 'Si è verificato un errore. Riprova.',
+      ...getPublicWebAuthnError('REGISTRATION_FAILED'),
     });
   }
 });
@@ -515,8 +516,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
       console.error('❌ verifyAuthenticationResponse fallita:', verifyErr?.message || verifyErr);
       return res.status(400).json({
         success: false,
-        error: 'Verifica del login con passkey non riuscita',
-        message: verifyErr?.message || 'La verifica del login con passkey è fallita. Riprova.',
+        ...getPublicWebAuthnError('AUTHENTICATION_VERIFICATION_FAILED'),
       });
     }
 
