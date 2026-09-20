@@ -113,7 +113,8 @@ router.get('/cie/callback', async (req, res) => {
   const { code, state, error: providerError } = req.query || {};
   if (typeof state !== 'string' || !state) {
     try {
-      return res.redirect(303, buildCieCallbackRedirect('error'));
+      const outcome = error?.code === 'PERSON_ALREADY_LINKED' ? 'already-linked' : 'error';
+      return res.redirect(303, buildCieCallbackRedirect(outcome));
     } catch (redirectError) {
       console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
       return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
