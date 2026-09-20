@@ -64,7 +64,14 @@ function consumeMockTransaction({ userId, state, nonce }, now = Date.now()) {
   };
 }
 
-function getMockCieStartErrorResponse() {
+function getMockCieStartErrorResponse(error) {
+  if (error?.code === 'ACCOUNT_ALREADY_VERIFIED') {
+    return {
+      status: 409,
+      error: 'Account gia associato a una identita verificata'
+    };
+  }
+
   return {
     status: 400,
     error: 'Impossibile avviare la verifica CIE mock'
