@@ -61,7 +61,7 @@ router.post('/identity/cie/mock/complete', verifyToken, async (req, res) => {
     const { state, nonce, fiscal_number } = req.body || {};
     consumeMockTransaction({ userId: req.userId, state, nonce });
 
-    const identity = await completeCieVerificationFromVerifiedClaims({
+    await completeCieVerificationFromVerifiedClaims({
       userId: req.userId,
       claims: { fiscal_number }
     });
