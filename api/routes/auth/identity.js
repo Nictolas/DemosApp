@@ -7,6 +7,8 @@ const {
   startMockTransaction,
   consumeMockTransaction
 } = require('../../services/cieMockFlowService');
+const { createAuthorizationRequest } = require('../../services/cieOidcAuthorizationService');
+const { saveCieOidcTransaction } = require('../../services/cieOidcTransactionStore');
 
 const router = express.Router();
 
@@ -63,6 +65,28 @@ router.post('/identity/cie/mock/complete', verifyToken, async (req, res) => {
     return res.status(status).json({
       success: false,
       error: error?.message || 'Verifica CIE mock non riuscita'
+    });
+  }
+});
+
+// Avvia il flusso OIDC CIE reale. E' disabilitato finche CIE_OIDC_ENABLED != true
+// e richiede configurazione di federazione + Redis condiviso.
+router.get('/identity/cie/start', verifyToken, async (req, res) => {
+  try {
+    const { authorizationUrl, transaction } = createAuthorizationRequest();
+    await saveCieOidcTransaction(req.userId, transaction);
+
+    return res.json({
+      success: true,
+      authorizationUrl
+    });
+  } catch (error) {
+    const disabled = error?.code === 'CIE_OIDC_DISABLED';
+    return res.status(disabled ? 404 : 503).json({
+      success: false,
+      error: disabled
+        ? 'CIE non ancora attiva'
+        : 'Configurazione CIE non pronta'
     });
   }
 });

@@ -12,12 +12,16 @@ function base64url(buffer) {
     .replace(/\//g, '_');
 }
 
-function randomValue(bytes) {
+function randomAlphanumericValue(bytes) {
+  return crypto.randomBytes(bytes).toString('hex');
+}
+
+function randomPkceValue(bytes) {
   return base64url(crypto.randomBytes(bytes));
 }
 
 function createPkcePair() {
-  const codeVerifier = randomValue(VERIFIER_BYTES);
+  const codeVerifier = randomPkceValue(VERIFIER_BYTES);
   const codeChallenge = base64url(
     crypto.createHash('sha256').update(codeVerifier, 'ascii').digest()
   );
@@ -33,8 +37,8 @@ function createCieOidcTransaction() {
   const pkce = createPkcePair();
 
   return {
-    state: randomValue(STATE_BYTES),
-    nonce: randomValue(NONCE_BYTES),
+    state: randomAlphanumericValue(STATE_BYTES),
+    nonce: randomAlphanumericValue(NONCE_BYTES),
     ...pkce
   };
 }
