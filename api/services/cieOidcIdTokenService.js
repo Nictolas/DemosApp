@@ -108,10 +108,16 @@ function validateCieIdToken(
   }
 
   const expectedAtHash = computeAtHash(accessToken, alg);
-  if (typeof claims.at_hash !== 'string' || !crypto.timingSafeEqual(
-    Buffer.from(claims.at_hash),
-    Buffer.from(expectedAtHash)
-  )) {
+  const actualAtHash = typeof claims.at_hash === 'string'
+    ? Buffer.from(claims.at_hash)
+    : null;
+  const expectedAtHashBuffer = Buffer.from(expectedAtHash);
+
+  if (
+    !actualAtHash ||
+    actualAtHash.length !== expectedAtHashBuffer.length ||
+    !crypto.timingSafeEqual(actualAtHash, expectedAtHashBuffer)
+  ) {
     throw new Error('at_hash ID Token CIE non valido');
   }
 
