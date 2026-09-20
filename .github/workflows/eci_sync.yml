@@ -2,8 +2,8 @@ name: Sync ECI (Iniziative Cittadini Europei)
 
 on:
   schedule:
-    # Ogni 2 ore (firme più aggiornate)
-    - cron: '0 */2 * * *'
+    # Ogni 6 ore: mantiene i dati aggiornati riducendo il consumo di GitHub Actions.
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
