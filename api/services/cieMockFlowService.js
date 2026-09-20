@@ -31,10 +31,7 @@ function startMockTransaction(userId, now = Date.now()) {
 
   return {
     state: tx.state,
-    nonce: tx.nonce,
-    codeChallenge: tx.codeChallenge,
-    codeChallengeMethod: tx.codeChallengeMethod,
-    expiresIn: Math.floor(TTL_MS / 1000)
+    nonce: tx.nonce
   };
 }
 
