@@ -1,5 +1,6 @@
 const redisCache = require('./redisCache');
 const { keys, ttl } = require('../config/cacheKeys');
+const { atomicGetAndDelete } = require('./webauthnAtomicConsume');
 
 const allowLocalFallback = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 const localFallback = new Map();
@@ -86,8 +87,8 @@ async function consumeChallenge(kind, id) {
 
   if (client) {
     try {
-      // GETDEL rende il consumo atomico: una challenge può essere verificata una sola volta.
-      const raw = await client.getdel(key);
+      // Consumo atomico: GETDEL nativo oppure fallback Lua con EVAL.
+      const raw = await atomicGetAndDelete(client, key);
       return parseStoredValue(raw);
     } catch (error) {
       throw unavailableError(error);
