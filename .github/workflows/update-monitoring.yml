@@ -1,8 +1,9 @@
 name: Aggiorna Monitoring Data
 
 on:
-  schedule:
-    - cron: '0 * * * *' # ogni ora
+  # Scheduling automatico disabilitato: il workflow punta a
+  # api/update-monitoring-data.js, che non è presente nel ramo principale.
+  # Resta disponibile solo l'avvio manuale finché lo script non viene ripristinato.
   workflow_dispatch:
 
 jobs:
