@@ -72,7 +72,7 @@ async function registerVerifiedIdentity(
   db = getPool()
 ) {
   if (!userId) {
-    throw new IdentityVerificationError('INVALID_USER_ID', 'userId obbligatorio');
+    throw new IdentityVerificationError(IDENTITY_ERROR_CODES.INVALID_USER_ID, 'userId obbligatorio');
   }
 
   const normalizedProvider = validateProvider(provider);
