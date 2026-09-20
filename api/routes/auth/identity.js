@@ -113,8 +113,7 @@ router.get('/cie/callback', async (req, res) => {
   const { code, state, error: providerError } = req.query || {};
   if (typeof state !== 'string' || !state) {
     try {
-      const outcome = error?.code === 'PERSON_ALREADY_LINKED' ? 'already-linked' : 'error';
-      return res.redirect(303, buildCieCallbackRedirect(outcome));
+      return res.redirect(303, buildCieCallbackRedirect('error'));
     } catch (redirectError) {
       console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
       return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
@@ -148,7 +147,7 @@ router.get('/cie/callback', async (req, res) => {
       expectedSub: idTokenClaims.sub
     });
 
-    const identity = await completeCieVerificationFromVerifiedClaims({
+    await completeCieVerificationFromVerifiedClaims({
       userId: transaction.userId,
       claims: { fiscal_number: userInfo.fiscalNumber }
     });
@@ -158,7 +157,10 @@ router.get('/cie/callback', async (req, res) => {
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
     try {
-      return res.redirect(303, buildCieCallbackRedirect('error'));
+      const outcome = error?.code === 'PERSON_ALREADY_LINKED'
+        ? 'already-linked'
+        : 'error';
+      return res.redirect(303, buildCieCallbackRedirect(outcome));
     } catch (redirectError) {
       console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
       return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
