@@ -17,6 +17,7 @@ function configure() {
   process.env.CIE_RP_ENTITY_ID = 'https://demos.example/rp';
   process.env.CIE_OP_ISSUER = 'https://cie-op.example';
   process.env.CIE_OP_AUTHORIZATION_ENDPOINT = 'https://cie-op.example/authorize';
+  process.env.CIE_OP_TOKEN_ENDPOINT = 'https://cie-op.example/token';
   process.env.CIE_REDIRECT_URI = 'https://demos.example/api/auth/cie/callback';
   process.env.CIE_RP_SIGNING_KID = 'test-kid';
   process.env.CIE_RP_SIGNING_PRIVATE_KEY_B64 = Buffer
