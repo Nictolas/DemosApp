@@ -10,6 +10,14 @@ end
 return 0
 `;
 
+const GET_AND_DELETE_SCRIPT = `
+local value = redis.call("GET", KEYS[1])
+if value then
+  redis.call("DEL", KEYS[1])
+end
+return value
+`;
+
 function hashValue(value) {
   return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
@@ -67,9 +75,11 @@ async function getAndDelete(client, key) {
     return client.getdel(key);
   }
 
-  const value = await client.get(key);
-  if (value != null) await client.del(key);
-  return value;
+  if (typeof client.eval !== 'function') {
+    throw new Error('Redis GETDEL o EVAL richiesto per consumo transazione CIE');
+  }
+
+  return client.eval(GET_AND_DELETE_SCRIPT, [key], []);
 }
 
 async function saveCieOidcTransaction(userId, transaction, client = redisCache.getClient()) {
