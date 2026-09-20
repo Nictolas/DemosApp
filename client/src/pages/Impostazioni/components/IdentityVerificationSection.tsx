@@ -49,8 +49,17 @@ export const IdentityVerificationSection: React.FC = () => {
       const alreadyActive =
         error?.status === 409 &&
         error?.data?.code === "CIE_TRANSACTION_ALREADY_ACTIVE";
+      const alreadyVerified =
+        error?.status === 409 &&
+        error?.data?.code === "ACCOUNT_ALREADY_VERIFIED";
 
-      if (alreadyActive) {
+      if (alreadyVerified) {
+        toast({
+          title: "Account già verificato",
+          description: "Questo account DEMOS risulta già associato a un'identità verificata.",
+          variant: "destructive"
+        });
+      } else if (alreadyActive) {
         toast({
           title: "Verifica CIE già in corso",
           description: "Hai già una verifica CIE in corso. Completa quella aperta oppure riprova tra qualche minuto.",
