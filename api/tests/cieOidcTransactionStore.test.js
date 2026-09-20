@@ -9,7 +9,11 @@ const {
 function fakeRedis() {
   const data = new Map();
   return {
-    async set(key, value) { data.set(key, value); },
+    async set(key, value, options = {}) {
+      if (options.nx && data.has(key)) return null;
+      data.set(key, value);
+      return 'OK';
+    },
     async get(key) { return data.has(key) ? data.get(key) : null; },
     async del(key) { data.delete(key); }
   };
@@ -49,4 +53,73 @@ test('la transazione CIE reale e one-time', async () => {
     consumeCieOidcTransaction(tx.state, redis),
     /non trovata, scaduta o gia utilizzata/
   );
+});
+
+
+test('blocca una seconda transazione CIE contemporanea sullo stesso account', async () => {
+  const redis = fakeRedis();
+  const tx1 = {
+    state: 'e'.repeat(64),
+    nonce: 'f'.repeat(64),
+    codeVerifier: 'verifier-1',
+    expiresAt: Date.now() + 60000
+  };
+  const tx2 = {
+    state: '1'.repeat(64),
+    nonce: '2'.repeat(64),
+    codeVerifier: 'verifier-2',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-1', tx1, redis);
+
+  await assert.rejects(
+    saveCieOidcTransaction('user-1', tx2, redis),
+    error => error?.code === 'CIE_TRANSACTION_ALREADY_ACTIVE'
+  );
+});
+
+test('dopo il consumo permette una nuova transazione per lo stesso account', async () => {
+  const redis = fakeRedis();
+  const tx1 = {
+    state: '3'.repeat(64),
+    nonce: '4'.repeat(64),
+    codeVerifier: 'verifier-1',
+    expiresAt: Date.now() + 60000
+  };
+  const tx2 = {
+    state: '5'.repeat(64),
+    nonce: '6'.repeat(64),
+    codeVerifier: 'verifier-2',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-1', tx1, redis);
+  await consumeCieOidcTransaction(tx1.state, redis);
+  await saveCieOidcTransaction('user-1', tx2, redis);
+
+  const result = await consumeCieOidcTransaction(tx2.state, redis);
+  assert.equal(result.userId, 'user-1');
+});
+
+test('consente transazioni contemporanee a account diversi', async () => {
+  const redis = fakeRedis();
+  const tx1 = {
+    state: '7'.repeat(64),
+    nonce: '8'.repeat(64),
+    codeVerifier: 'verifier-1',
+    expiresAt: Date.now() + 60000
+  };
+  const tx2 = {
+    state: '9'.repeat(64),
+    nonce: 'a'.repeat(64),
+    codeVerifier: 'verifier-2',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-1', tx1, redis);
+  await saveCieOidcTransaction('user-2', tx2, redis);
+
+  assert.equal((await consumeCieOidcTransaction(tx1.state, redis)).userId, 'user-1');
+  assert.equal((await consumeCieOidcTransaction(tx2.state, redis)).userId, 'user-2');
 });
