@@ -38,6 +38,11 @@ const {
 const {
   advanceWebAuthnSignCounter,
 } = require('../../services/webauthnSignCounterService');
+const {
+  webauthnStatusLimiter,
+  webauthnChallengeLimiter,
+  webauthnVerifyLimiter,
+} = require('../../middleware/webauthnRateLimiting');
 
 const router = express.Router();
 const pool = getPool();
@@ -97,7 +102,7 @@ function invalidCredentialId(res, error) {
  * deviceId è solo un identificatore UX persistito in localStorage: non identifica
  * in modo affidabile un dispositivo fisico e non è un controllo anti-multiaccount.
  */
-router.post('/webauthn/device/status', async (req, res) => {
+router.post('/webauthn/device/status', webauthnStatusLimiter, async (req, res) => {
   try {
     const { deviceId } = req.body || {};
     const clientInstanceId = normalizeWebAuthnClientInstanceId(deviceId, { required: true });
@@ -125,7 +130,7 @@ router.post('/webauthn/device/status', async (req, res) => {
  * POST /api/auth/webauthn/register/options
  * Genera le options per la creazione di una nuova passkey
  */
-router.post('/webauthn/register/options', async (req, res) => {
+router.post('/webauthn/register/options', webauthnChallengeLimiter, async (req, res) => {
   try {
     const { deviceId } = req.body || {};
     const clientInstanceId = normalizeWebAuthnClientInstanceId(deviceId);
@@ -200,7 +205,7 @@ router.post('/webauthn/register/options', async (req, res) => {
  * POST /api/auth/webauthn/register/verify
  * Verifica la risposta di registrazione e crea l'utente
  */
-router.post('/webauthn/register/verify', async (req, res) => {
+router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res) => {
   try {
     const { userId, attestation } = req.body || {};
 
@@ -383,7 +388,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
  * Ogni tentativo usa una sessionKey casuale server-side: nessuna challenge è
  * indicizzata per userId e richieste concorrenti non possono sovrascriversi.
  */
-router.post('/webauthn/login/options', async (_req, res) => {
+router.post('/webauthn/login/options', webauthnChallengeLimiter, async (_req, res) => {
   try {
     const sessionKey = createWebAuthnLoginSessionKey();
 
@@ -417,7 +422,7 @@ router.post('/webauthn/login/options', async (_req, res) => {
  * Verifica la risposta di login discovery e genera i token.
  * La sessionKey è casuale, one-time e indipendente dall'identità dell'utente.
  */
-router.post('/webauthn/login/verify', async (req, res) => {
+router.post('/webauthn/login/verify', webauthnVerifyLimiter, async (req, res) => {
   try {
     const { sessionKey, assertion } = req.body || {};
 
