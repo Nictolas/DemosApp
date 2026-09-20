@@ -97,9 +97,9 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 });
 
 // Callback OIDC CIE reale.
-// Esegue state/one-time transaction + token exchange private_key_jwt.
-// NON completa ancora la verifica identita: prima vanno validati ID Token,
-// firma/trust chain, issuer/audience e nonce.
+// Esegue state/one-time transaction + token exchange private_key_jwt
+// e valida firma/issuer/audience/nonce/ACR/at_hash dell'ID Token.
+// NON completa ancora l'identita finche non viene validata la UserInfo firmata.
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     return res.status(404).json({
