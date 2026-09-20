@@ -196,7 +196,12 @@ function validateCieUserInfoJws(
     clockTolerance: 5
   });
 
-  if (typeof claims.iat !== 'number' || typeof claims.exp !== 'number') {
+  if (
+    typeof claims.iat !== 'number' ||
+    typeof claims.nbf !== 'number' ||
+    typeof claims.exp !== 'number' ||
+    claims.nbf !== claims.iat
+  ) {
     throw new Error('Claim temporali UserInfo CIE non validi');
   }
   if (claims.sub !== expectedSub) {
