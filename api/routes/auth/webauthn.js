@@ -43,6 +43,9 @@ const {
   webAuthnUserHandleMatches,
 } = require('../../services/webauthnUserHandleService');
 const {
+  ensureWebAuthnCredentialAvailable,
+} = require('../../services/webauthnCredentialRegistrationService');
+const {
   webauthnStatusLimiter,
   webauthnChallengeLimiter,
   webauthnVerifyLimiter,
@@ -294,6 +297,20 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
     try {
       await client.query('BEGIN');
 
+      const credentialAvailable = await ensureWebAuthnCredentialAvailable(
+        client,
+        credentialIdBase64,
+      );
+      if (!credentialAvailable) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          success: false,
+          error: 'Passkey già associata a un account',
+          code: 'PASSKEY_CREDENTIAL_ALREADY_REGISTERED',
+          message: 'Questa passkey risulta già associata a un account. Accedi con la passkey esistente.',
+        });
+      }
+
       const insertQuery = `
         INSERT INTO users (
           id,
@@ -312,14 +329,6 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP
         )
-        ON CONFLICT (id) DO UPDATE SET
-          webauthn_user_handle = EXCLUDED.webauthn_user_handle,
-          webauthn_credential_id = EXCLUDED.webauthn_credential_id,
-          webauthn_public_key = EXCLUDED.webauthn_public_key,
-          webauthn_sign_count = EXCLUDED.webauthn_sign_count,
-          webauthn_device_id = EXCLUDED.webauthn_device_id,
-          ruolo = EXCLUDED.ruolo,
-          updated_at = CURRENT_TIMESTAMP
         RETURNING id, ruolo
       `;
 
