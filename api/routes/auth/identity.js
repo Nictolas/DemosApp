@@ -14,6 +14,7 @@ const {
 } = require('../../services/cieOidcTransactionStore');
 const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenService');
 const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
+const { fetchAndValidateCieUserInfo } = require('../../services/cieOidcUserInfoService');
 
 const router = express.Router();
 
@@ -98,8 +99,8 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 
 // Callback OIDC CIE reale.
 // Esegue state/one-time transaction + token exchange private_key_jwt
-// e valida firma/issuer/audience/nonce/ACR/at_hash dell'ID Token.
-// NON completa ancora l'identita finche non viene validata la UserInfo firmata.
+// valida ID Token e UserInfo CIE firmata+cifrata, incluso il fiscal_number richiesto.
+// NON completa ancora la registrazione dell'identita.
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     return res.status(404).json({
@@ -135,17 +136,22 @@ router.get('/cie/callback', async (req, res) => {
       codeVerifier: transaction.codeVerifier
     });
 
-    validateCieIdToken({
+    const idTokenClaims = validateCieIdToken({
       idToken: tokens.idToken,
       accessToken: tokens.accessToken,
       expectedNonce: transaction.nonce
     });
 
-    // Fail closed: ID Token e nonce sono validati, ma l'identita non viene
-    // ancora registrata finche non recuperiamo e validiamo la UserInfo firmata.
+    await fetchAndValidateCieUserInfo({
+      accessToken: tokens.accessToken,
+      expectedSub: idTokenClaims.sub
+    });
+
+    // Fail closed: UserInfo e fiscal_number sono validati, ma nessuna identita
+    // viene ancora registrata in questo micro-step.
     return res.status(503).json({
       success: false,
-      error: 'ID Token CIE validato; UserInfo CIE non ancora attiva'
+      error: 'UserInfo CIE validata; registrazione identita non ancora attiva'
     });
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
