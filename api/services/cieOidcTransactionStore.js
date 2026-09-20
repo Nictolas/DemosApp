@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const redisCache = require('./redisCache');
+const { IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
 
 const TTL_SECONDS = 5 * 60;
 
@@ -27,7 +28,7 @@ function transactionLockValue(state) {
 
 function createActiveTransactionError() {
   const error = new Error('Verifica CIE gia in corso');
-  error.code = 'CIE_TRANSACTION_ALREADY_ACTIVE';
+  error.code = IDENTITY_ERROR_CODES.CIE_TRANSACTION_ALREADY_ACTIVE;
   return error;
 }
 

@@ -3,6 +3,7 @@ const {
   getIdentityVerificationStatus,
   registerVerifiedIdentity
 } = require('./identityVerificationStore');
+const { IDENTITY_PROVIDERS, IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
 
 function getFiscalNumberFromVerifiedClaims(claims) {
   if (!claims || typeof claims !== 'object') {
@@ -22,7 +23,7 @@ async function assertAccountCanStartCieVerification(userId, db) {
 
   if (status.verified) {
     throw new IdentityVerificationError(
-      'ACCOUNT_ALREADY_VERIFIED',
+      IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
       'Account gia associato a una identita verificata'
     );
   }
@@ -46,7 +47,7 @@ async function completeCieVerificationFromVerifiedClaims(
     {
       userId,
       fiscalNumber,
-      provider: 'CIE'
+      provider: IDENTITY_PROVIDERS.CIE
     },
     db
   );

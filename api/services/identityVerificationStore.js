@@ -1,5 +1,6 @@
 const { getPool } = require('../config/database');
 const { derivePersonKey } = require('./identityVerificationService');
+const { IDENTITY_PROVIDERS, IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
 
 class IdentityVerificationError extends Error {
   constructor(code, message) {
@@ -24,7 +25,7 @@ function sanitizeRow(row) {
 
 function validateProvider(provider) {
   if (typeof provider !== 'string' || !/^[A-Za-z0-9_-]{2,32}$/.test(provider)) {
-    throw new IdentityVerificationError('INVALID_PROVIDER', 'Provider identita non valido');
+    throw new IdentityVerificationError(IDENTITY_ERROR_CODES.INVALID_PROVIDER, 'Provider identita non valido');
   }
 
   return provider.toUpperCase();
@@ -32,7 +33,7 @@ function validateProvider(provider) {
 
 async function getIdentityVerificationStatus(userId, db = getPool()) {
   if (!userId) {
-    throw new IdentityVerificationError('INVALID_USER_ID', 'userId obbligatorio');
+    throw new IdentityVerificationError(IDENTITY_ERROR_CODES.INVALID_USER_ID, 'userId obbligatorio');
   }
 
   const result = await db.query(
@@ -67,11 +68,11 @@ async function findInternalVerificationByUserId(userId, db) {
 }
 
 async function registerVerifiedIdentity(
-  { userId, fiscalNumber, provider = 'CIE' },
+  { userId, fiscalNumber, provider = IDENTITY_PROVIDERS.CIE },
   db = getPool()
 ) {
   if (!userId) {
-    throw new IdentityVerificationError('INVALID_USER_ID', 'userId obbligatorio');
+    throw new IdentityVerificationError(IDENTITY_ERROR_CODES.INVALID_USER_ID, 'userId obbligatorio');
   }
 
   const normalizedProvider = validateProvider(provider);
@@ -88,7 +89,7 @@ async function registerVerifiedIdentity(
     }
 
     throw new IdentityVerificationError(
-      'ACCOUNT_ALREADY_VERIFIED',
+      IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
       'Account gia associato a una identita verificata'
     );
   }
@@ -121,20 +122,20 @@ async function registerVerifiedIdentity(
 
     if (error.constraint === 'identity_verifications_person_key_key') {
       throw new IdentityVerificationError(
-        'PERSON_ALREADY_LINKED',
+        IDENTITY_ERROR_CODES.PERSON_ALREADY_LINKED,
         'Questa persona e gia associata a un altro account DEMOS'
       );
     }
 
     if (error.constraint === 'identity_verifications_user_id_key') {
       throw new IdentityVerificationError(
-        'ACCOUNT_ALREADY_VERIFIED',
+        IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
         'Account gia associato a una identita verificata'
       );
     }
 
     throw new IdentityVerificationError(
-      'IDENTITY_CONFLICT',
+      IDENTITY_ERROR_CODES.IDENTITY_CONFLICT,
       'Conflitto durante la verifica identita'
     );
   }
