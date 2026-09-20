@@ -450,15 +450,10 @@ router.get('/consenso', async (req, res) => {
 router.post('/consenso', verifyToken, async (req, res) => {
   try {
     console.log('🔍 DEBUG /api/governo/consenso POST - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    console.log('🔍 DEBUG - Body:', req.body);
-    console.log('🔍 DEBUG - User:', req.user);
     
     const { risposta } = req.body;
     const userId = req.user.id;
     
-    console.log('🔍 DEBUG - Risposta ricevuta:', risposta);
-    console.log('🔍 DEBUG - User ID:', userId);
 
     if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
       return res.status(400).json({
