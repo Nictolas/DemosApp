@@ -61,12 +61,15 @@ router.post('/identity/cie/mock/complete', verifyToken, async (req, res) => {
     const { state, nonce, fiscal_number } = req.body || {};
     consumeMockTransaction({ userId: req.userId, state, nonce });
 
-    const identity = await completeCieVerificationFromVerifiedClaims({
+    await completeCieVerificationFromVerifiedClaims({
       userId: req.userId,
       claims: { fiscal_number }
     });
 
-    return res.json({ success: true, identity });
+    return res.json({
+      success: true,
+      verified: true
+    });
   } catch (error) {
     const conflict = ['PERSON_ALREADY_LINKED', 'ACCOUNT_ALREADY_VERIFIED', 'IDENTITY_CONFLICT']
       .includes(error?.code);
