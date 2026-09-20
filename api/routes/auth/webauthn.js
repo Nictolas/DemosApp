@@ -39,6 +39,9 @@ const {
   advanceWebAuthnSignCounter,
 } = require('../../services/webauthnSignCounterService');
 const {
+  webAuthnUserHandleMatches,
+} = require('../../services/webauthnUserHandleService');
+const {
   webauthnStatusLimiter,
   webauthnChallengeLimiter,
   webauthnVerifyLimiter,
@@ -457,7 +460,7 @@ router.post('/webauthn/login/verify', webauthnVerifyLimiter, async (req, res) =>
         String(receivedCredentialId),
       );
       const q = await pool.query(
-        `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+        `SELECT id, ruolo, webauthn_user_handle, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
          FROM users
          WHERE webauthn_credential_id = ANY($1::text[])
          LIMIT 2`,
@@ -512,6 +515,32 @@ router.post('/webauthn/login/verify', webauthnVerifyLimiter, async (req, res) =>
       return res.status(400).json({
         success: false,
         error: 'Login WebAuthn non valido',
+      });
+    }
+
+    try {
+      const receivedUserHandle = assertion?.response?.userHandle ?? null;
+      if (
+        !webAuthnUserHandleMatches(
+          String(user.id),
+          user.webauthn_user_handle,
+          receivedUserHandle,
+        )
+      ) {
+        console.error('❌ User handle WebAuthn non coerente con la credenziale');
+        return res.status(400).json({
+          success: false,
+          ...getPublicWebAuthnError('AUTHENTICATION_VERIFICATION_FAILED'),
+        });
+      }
+    } catch (userHandleError) {
+      console.error(
+        '❌ User handle WebAuthn non valido:',
+        userHandleError?.message || userHandleError,
+      );
+      return res.status(400).json({
+        success: false,
+        ...getPublicWebAuthnError('AUTHENTICATION_VERIFICATION_FAILED'),
       });
     }
 
