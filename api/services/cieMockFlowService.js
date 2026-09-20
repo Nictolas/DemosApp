@@ -23,6 +23,7 @@ function startMockTransaction(userId, now = Date.now()) {
   const tx = createCieOidcTransaction();
   transactions.set(tx.state, {
     userId: String(userId),
+    state: tx.state,
     nonce: tx.nonce,
     codeVerifier: tx.codeVerifier,
     expiresAt: now + TTL_MS
@@ -56,7 +57,7 @@ function consumeMockTransaction({ userId, state, nonce }, now = Date.now()) {
     throw new Error('Transazione CIE mock non associata a questo account');
   }
 
-  if (!verifyState(state, state) || !verifyNonce(tx.nonce, nonce)) {
+  if (!verifyState(tx.state, state) || !verifyNonce(tx.nonce, nonce)) {
     throw new Error('State o nonce CIE mock non validi');
   }
 
