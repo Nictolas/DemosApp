@@ -130,84 +130,12 @@ router.get('/', async (req, res) => {
 
 // Endpoint rimosso - duplicato, usa quello alla riga 265
 
-// POST /api/capo-stato/test-vota - Endpoint di test per voti (senza autenticazione)
-router.post('/test-vota', async (req, res) => {
-  try {
-    console.log('🔍 DEBUG /api/capo-stato/test-vota - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    console.log('🔍 DEBUG - Body:', req.body);
-    
-    const { voti, userid } = req.body;
-    
-    if (!Array.isArray(voti)) {
-      return res.status(400).json({
-        success: false,
-        error: 'I voti devono essere un array'
-      });
-    }
-    
-    if (!userid) {
-      return res.status(400).json({
-        success: false,
-        error: 'UserID è obbligatorio'
-      });
-    }
-    
-    // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
-    await pool.query('BEGIN');
-    
-    try {
-      // Prima elimina tutti i voti esistenti dell'utente
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userid);
-      const deleteResult = await pool.query(
-        'DELETE FROM voti_capo_stato WHERE userid = $1',
-        [userid]
-      );
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
-      
-      // Poi inserisce i nuovi voti
-      if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
-        const insertPromises = voti.map(async (nome, index) => {
-          const votoId = `voto_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome);
-          return pool.query(
-            `INSERT INTO voti_capo_stato (
-              id, userid, nome, timestamp, created_at, updated_at
-            ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
-            [votoId, userid, nome]
-          );
-        });
-        
-        await Promise.all(insertPromises);
-        console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
-      }
-      
-      // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
-      await pool.query('COMMIT');
-      
-      console.log('✅ DEBUG - Voti salvati con successo');
-      res.json({
-        success: true,
-        message: 'Voti salvati con successo',
-        voti: voti
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      console.log('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    console.error('❌ Errore nel salvataggio voti capo di stato (test):', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      details: error.message
-    });
-  }
+// POST /api/capo-stato/test-vota - endpoint di test disattivato per sicurezza
+router.post('/test-vota', (_req, res) => {
+  return res.status(410).json({
+    success: false,
+    error: 'Endpoint di test disattivato. Usa /api/capo-stato/vota.'
+  });
 });
 
 // POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
@@ -448,41 +376,12 @@ router.post('/vota', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/capo-stato - Vota per un candidato capo di stato (legacy)
-router.post('/', async (req, res) => {
-  try {
-    const { nome, userid } = req.body;
-    
-    if (!nome || !userid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Nome del candidato e userid sono obbligatori'
-      });
-    }
-    
-    // Genera un ID univoco per il voto
-    const votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Inserisce il voto nella tabella voti_capo_stato
-    const result = await pool.query(
-      `INSERT INTO voti_capo_stato (
-        id, userid, nome, timestamp, created_at, updated_at
-      ) VALUES ($1, $2, $3, NOW(), NOW(), NOW()) 
-      RETURNING id, userid, nome, timestamp`,
-      [votoId, userid, nome]
-    );
-    
-    res.status(201).json({
-      success: true,
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nel voto per candidato capo di stato:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
+// POST /api/capo-stato - endpoint legacy disattivato: non accetta più userid dal client
+router.post('/', (_req, res) => {
+  return res.status(410).json({
+    success: false,
+    error: 'Endpoint legacy disattivato. Usa /api/capo-stato/vota.'
+  });
 });
 
 // ===== ENDPOINTS PER CONSENSO CAPO DI STATO =====
