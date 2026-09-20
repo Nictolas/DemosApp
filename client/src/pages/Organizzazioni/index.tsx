@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import OrganizzazioneModal from "@/components/OrganizzazioneModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -96,15 +97,14 @@ export default function Organizzazioni() {
     const fetchFollowingStatus = async () => {
       if (!user?.id) return;
       try {
-        // Carica l'organizzazione che stai votando
-        const response = await fetch(`${API_BASE}/api/sostenitori/following?supporter_id=${user.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data.length > 0) {
-            // Con il nuovo sistema, c'è al massimo 1 organizzazione votato
-            const followingSet = new Set(data.data.map((item: any) => item.supported_id));
-            setFollowingUsers(followingSet);
-          }
+        // Lo stato di voto è derivato esclusivamente dall'utente autenticato.
+        const response = await apiRequest("GET", "/api/sostenitori/following-organizzazione");
+        const data = response.data;
+        if (data?.success && data.data.length > 0) {
+          const followingSet = new Set<string>(data.data.map((item: any) => item.supported_id));
+          setFollowingUsers(followingSet);
+        } else {
+          setFollowingUsers(new Set());
         }
       } catch (error) {
         console.error('Errore nel caricamento stato voto organizzazione:', error);
@@ -308,35 +308,11 @@ export default function Organizzazioni() {
     const isCurrentlyVoting = followingUsers.has(organizzazioneId);
 
     try {
-      let response;
-      if (isCurrentlyVoting) {
-        // Rimuovi voto
-        response = await fetch(`${API_BASE}/api/sostenitori/unfollow-organizzazione`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            supporter_id: user.id,
-            supported_id: organizzazioneId
-          })
-        });
-      } else {
-        // Vota organizzazione (sostituisce eventuali altri voti)
-        response = await fetch(`${API_BASE}/api/sostenitori/follow-organizzazione`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            supporter_id: user.id,
-            supported_id: organizzazioneId
-          })
-        });
-      }
+      const response = isCurrentlyVoting
+        ? await apiRequest("DELETE", "/api/sostenitori/unfollow-organizzazione", { supported_id: organizzazioneId })
+        : await apiRequest("POST", "/api/sostenitori/follow-organizzazione", { supported_id: organizzazioneId });
 
-      let data: any = null;
-      try { data = await response.json(); } catch { /* body vuoto o non JSON */ }
+      const data: any = response.data;
 
       if (data.success) {
         if (isCurrentlyVoting) {
