@@ -31,6 +31,13 @@ test('costruisce redirect already-linked senza identificativi', () => {
   );
 });
 
+test('costruisce redirect account-already-verified senza identificativi', () => {
+  assert.equal(
+    buildCieCallbackRedirect('account-already-verified'),
+    'https://www.demos.community/impostazioni?cie=account-already-verified'
+  );
+});
+
 test('rifiuta esiti arbitrari', () => {
   assert.throws(
     () => buildCieCallbackRedirect('RSSMRA80A01H501U'),
