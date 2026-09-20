@@ -315,6 +315,19 @@ router.post('/webauthn/register/verify', async (req, res) => {
     } catch (dbError) {
       await client.query('ROLLBACK');
       console.error('❌ Errore DB in /webauthn/register/verify:', dbError);
+
+      if (
+        dbError?.code === '23505' &&
+        dbError?.constraint === 'idx_users_webauthn_device_id'
+      ) {
+        return res.status(409).json({
+          success: false,
+          error: 'Questo browser ha già un account',
+          code: 'DEVICE_ALREADY_REGISTERED',
+          message: 'In questo browser risulta già creato un account con passkey. Accedi con la passkey esistente.',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Errore nel salvataggio dell\'utente WebAuthn',
