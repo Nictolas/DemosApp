@@ -6,7 +6,7 @@ const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
 const jwksClient = require('jwks-rsa');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const { getPool } = require('../../config/database');
 const { generateTokenPair, generateOAuthPendingToken, verifyOAuthPendingToken } = require('../../utils/jwt');
 const { authLimiter } = require('../../middleware/rateLimiting');
@@ -421,7 +421,7 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
         client.release();
       }
     } else {
-      userId = uuidv4();
+      userId = randomUUID();
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
