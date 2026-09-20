@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react";
 import { useLogout } from "./hooks/useLogout";
 import { LinksSection } from "./components/LinksSection";
+import { IdentityVerificationSection } from "./components/IdentityVerificationSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { toast } from "@/hooks/use-toast";
@@ -67,8 +68,9 @@ export default function Impostazioni() {
   return (
     <PageContainer className="impostazioni-page bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="impostazioni-page__inner app-page-scroll flex h-full min-h-0 flex-col overflow-y-auto px-3 py-2 sm:px-4">
-        <div className="w-full max-w-2xl mx-auto py-2 sm:px-1">
-            <LinksSection onLogout={logout.showLogoutDialog} />
+        <div className="w-full max-w-2xl mx-auto py-2 sm:px-1 space-y-4">
+          <IdentityVerificationSection />
+          <LinksSection onLogout={logout.showLogoutDialog} />
         </div>
       </div>
 
