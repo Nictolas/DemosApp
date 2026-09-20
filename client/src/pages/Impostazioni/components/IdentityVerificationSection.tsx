@@ -14,6 +14,17 @@ type IdentityStatusResponse = {
   };
 };
 
+function getIdentityProviderLabel(provider?: string) {
+  switch (provider?.toUpperCase()) {
+    case "CIE":
+      return "CIE";
+    case "SPID":
+      return "SPID";
+    default:
+      return undefined;
+  }
+}
+
 export const IdentityVerificationSection: React.FC = () => {
   const [isStartingCie, setIsStartingCie] = React.useState(false);
   const { data, isLoading, isError } = useQuery<IdentityStatusResponse>({
@@ -24,10 +35,12 @@ export const IdentityVerificationSection: React.FC = () => {
     data?.success === true &&
     data.identity?.verified === true;
 
-  const provider = isVerified ? data.identity?.provider : undefined;
+  const providerLabel = isVerified
+    ? getIdentityProviderLabel(data.identity?.provider)
+    : undefined;
   const verificationLabel = isVerified
-    ? provider
-      ? `Verificata con ${provider}`
+    ? providerLabel
+      ? `Verificata con ${providerLabel}`
       : "Verificata"
     : "Non verificata";
 
