@@ -20,8 +20,14 @@ function fakeRedis() {
     async del(key) { data.delete(key); },
     async eval(_script, keys, args) {
       const [key] = keys;
-      const [expected] = args;
 
+      if (!args || args.length === 0) {
+        const value = data.has(key) ? data.get(key) : null;
+        if (value != null) data.delete(key);
+        return value;
+      }
+
+      const [expected] = args;
       if (data.get(key) === expected) {
         data.delete(key);
         return 1;
@@ -239,4 +245,44 @@ test('resta compatibile con transazioni create senza chiave owner', async () => 
   const result = await consumeCieOidcTransaction(state, redis);
   assert.equal(result.userId, userId);
   assert.equal(redis.data.has(lockKey), false);
+});
+
+
+test('fallback senza GETDEL consuma atomicamente la transazione tramite EVAL', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: '8'.repeat(64),
+    nonce: '9'.repeat(64),
+    codeVerifier: 'verifier-fallback',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-fallback', tx, redis);
+  const result = await consumeCieOidcTransaction(tx.state, redis);
+
+  assert.equal(result.userId, 'user-fallback');
+
+  await assert.rejects(
+    consumeCieOidcTransaction(tx.state, redis),
+    /non trovata, scaduta o gia utilizzata/
+  );
+});
+
+test('rifiuta consumo se Redis non supporta ne GETDEL ne EVAL', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: 'a'.repeat(63) + 'b',
+    nonce: 'b'.repeat(64),
+    codeVerifier: 'verifier-no-atomic',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-no-atomic', tx, redis);
+
+  delete redis.eval;
+
+  await assert.rejects(
+    consumeCieOidcTransaction(tx.state, redis),
+    /GETDEL o EVAL richiesto/
+  );
 });
