@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('crypto');
 
 const {
   saveCieOidcTransaction,
@@ -9,14 +10,30 @@ const {
 function fakeRedis() {
   const data = new Map();
   return {
+    data,
     async set(key, value, options = {}) {
       if (options.nx && data.has(key)) return null;
       data.set(key, value);
       return 'OK';
     },
     async get(key) { return data.has(key) ? data.get(key) : null; },
-    async del(key) { data.delete(key); }
+    async del(key) { data.delete(key); },
+    async eval(_script, keys, args) {
+      const [key] = keys;
+      const [expected] = args;
+
+      if (data.get(key) === expected) {
+        data.delete(key);
+        return 1;
+      }
+
+      return 0;
+    }
   };
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
 
 test('salva e consuma una transazione CIE reale senza persistere CF', async () => {
@@ -122,4 +139,52 @@ test('consente transazioni contemporanee a account diversi', async () => {
 
   assert.equal((await consumeCieOidcTransaction(tx1.state, redis)).userId, 'user-1');
   assert.equal((await consumeCieOidcTransaction(tx2.state, redis)).userId, 'user-2');
+});
+
+
+test('rilascio lock non cancella un lock piu recente dello stesso account', async () => {
+  const redis = fakeRedis();
+  const tx1 = {
+    state: 'b'.repeat(64),
+    nonce: 'c'.repeat(64),
+    codeVerifier: 'verifier-1',
+    expiresAt: Date.now() + 60000
+  };
+  const newerState = 'd'.repeat(64);
+
+  await saveCieOidcTransaction('user-race', tx1, redis);
+
+  const lockKey = `cie:oidc:user:${sha256('user-race')}`;
+  redis.data.set(lockKey, sha256(newerState));
+
+  await consumeCieOidcTransaction(tx1.state, redis);
+
+  assert.equal(redis.data.get(lockKey), sha256(newerState));
+});
+
+test('rilascia il lock anche quando la transazione consumata risulta scaduta', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: 'e'.repeat(64),
+    nonce: 'f'.repeat(64),
+    codeVerifier: 'verifier-expired',
+    expiresAt: Date.now() - 1
+  };
+
+  await saveCieOidcTransaction('user-expired', tx, redis);
+
+  await assert.rejects(
+    consumeCieOidcTransaction(tx.state, redis),
+    /scaduta/
+  );
+
+  const nextTx = {
+    state: '0'.repeat(64),
+    nonce: '1'.repeat(64),
+    codeVerifier: 'verifier-next',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-expired', nextTx, redis);
+  assert.equal((await consumeCieOidcTransaction(nextTx.state, redis)).userId, 'user-expired');
 });
