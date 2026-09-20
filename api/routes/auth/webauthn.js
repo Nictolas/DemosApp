@@ -20,6 +20,7 @@ const {
 const {
   WEBAUTHN_USER_VERIFICATION,
   WEBAUTHN_REQUIRE_USER_VERIFICATION,
+  WEBAUTHN_RESIDENT_KEY,
 } = require('../../services/webauthnSecurityPolicy');
 const {
   getPublicWebAuthnError,
@@ -170,7 +171,9 @@ router.post('/webauthn/register/options', webauthnChallengeLimiter, async (req, 
       userName: `user-${userId}`,
       userDisplayName: 'Demos user',
       authenticatorSelection: {
-        residentKey: 'preferred',
+        // Il login è discovery-only (allowCredentials vuoto), quindi la
+        // credenziale deve essere discoverable/resident.
+        residentKey: WEBAUTHN_RESIDENT_KEY,
         // Per DEMOS una passkey deve essere protetta da verifica locale dell'utente
         // (Face ID, impronta, PIN o metodo equivalente dell'autenticatore).
         userVerification: WEBAUTHN_USER_VERIFICATION,
