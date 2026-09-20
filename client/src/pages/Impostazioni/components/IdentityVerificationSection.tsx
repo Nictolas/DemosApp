@@ -20,13 +20,19 @@ export const IdentityVerificationSection: React.FC = () => {
     queryKey: ["/auth/identity/status"],
   });
 
-  const verifiedWithCie =
+  const isVerified =
     data?.success === true &&
-    data.identity?.verified === true &&
-    data.identity?.provider === "CIE";
+    data.identity?.verified === true;
+
+  const provider = isVerified ? data.identity?.provider : undefined;
+  const verificationLabel = isVerified
+    ? provider
+      ? `Verificata con ${provider}`
+      : "Verificata"
+    : "Non verificata";
 
   const handleStartCie = async () => {
-    if (isStartingCie || verifiedWithCie) return;
+    if (isStartingCie || isVerified) return;
 
     setIsStartingCie(true);
 
@@ -82,7 +88,7 @@ export const IdentityVerificationSection: React.FC = () => {
       <CardContent className="flex items-center gap-3 p-4">
         {isLoading ? (
           <Loader2 className="h-5 w-5 shrink-0 animate-spin text-slate-500" />
-        ) : verifiedWithCie ? (
+        ) : isVerified ? (
           <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
         ) : (
           <Shield className="h-5 w-5 shrink-0 text-slate-500" />
@@ -95,13 +101,11 @@ export const IdentityVerificationSection: React.FC = () => {
               ? "Controllo dello stato..."
               : isError
                 ? "Stato non disponibile"
-                : verifiedWithCie
-                  ? "Verificata con CIE"
-                  : "Non verificata"}
+                : verificationLabel}
           </div>
         </div>
 
-        {!isLoading && !isError && !verifiedWithCie && (
+        {!isLoading && !isError && !isVerified && (
           <Button
             type="button"
             size="sm"
