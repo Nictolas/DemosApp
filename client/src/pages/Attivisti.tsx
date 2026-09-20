@@ -417,11 +417,19 @@ export default function Attivisti() {
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.status === 409) {
+        toast({
+          title: "Info",
+          description: "Stai già votando questo attivista",
+        });
+        setFollowingUsers(new Set([attivistaId]));
+        return;
+      }
       console.error('Errore nel votare attivista:', error);
       toast({
         title: "Errore",
-        description: "Errore di connessione",
+        description: error?.message || "Errore di connessione",
         variant: "destructive"
       });
     }
