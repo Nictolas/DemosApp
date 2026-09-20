@@ -15,6 +15,7 @@ const {
 const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenService');
 const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
 const { fetchAndValidateCieUserInfo } = require('../../services/cieOidcUserInfoService');
+const { buildCieCallbackRedirect } = require('../../services/cieCallbackRedirectService');
 
 const router = express.Router();
 
@@ -99,8 +100,8 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 
 // Callback OIDC CIE reale.
 // Esegue state/one-time transaction + token exchange private_key_jwt
-// valida ID Token e UserInfo CIE firmata+cifrata e registra l'identita verificata
-// senza esporre fiscal_number o person_key nella risposta.
+// valida ID Token e UserInfo CIE firmata+cifrata, registra l'identita verificata
+// e torna al frontend con il solo esito success/error.
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     return res.status(404).json({
@@ -111,24 +112,23 @@ router.get('/cie/callback', async (req, res) => {
 
   const { code, state, error: providerError } = req.query || {};
   if (typeof state !== 'string' || !state) {
-    return res.status(400).json({ success: false, error: 'State CIE mancante' });
+    try {
+      return res.redirect(303, buildCieCallbackRedirect('error'));
+    } catch (redirectError) {
+      console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
+      return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
+    }
   }
 
   try {
     const transaction = await consumeCieOidcTransaction(state);
 
     if (providerError) {
-      return res.status(400).json({
-        success: false,
-        error: 'Autenticazione CIE non completata'
-      });
+      return res.redirect(303, buildCieCallbackRedirect('error'));
     }
 
     if (typeof code !== 'string' || !code) {
-      return res.status(400).json({
-        success: false,
-        error: 'Authorization code CIE mancante'
-      });
+      return res.redirect(303, buildCieCallbackRedirect('error'));
     }
 
     const tokens = await exchangeAuthorizationCode({
@@ -152,18 +152,16 @@ router.get('/cie/callback', async (req, res) => {
       claims: { fiscal_number: userInfo.fiscalNumber }
     });
 
-    return res.json({
-      success: true,
-      identity
-    });
+    // Non includere mai identity, fiscal_number, person_key, state o sub nell'URL.
+    return res.redirect(303, buildCieCallbackRedirect('success'));
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
-    const conflict = ['PERSON_ALREADY_LINKED', 'ACCOUNT_ALREADY_VERIFIED', 'IDENTITY_CONFLICT']
-      .includes(error?.code);
-    return res.status(conflict ? 409 : 400).json({
-      success: false,
-      error: conflict ? 'Identita CIE gia associata' : 'Callback CIE non valida'
-    });
+    try {
+      return res.redirect(303, buildCieCallbackRedirect('error'));
+    } catch (redirectError) {
+      console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
+      return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
+    }
   }
 });
 
