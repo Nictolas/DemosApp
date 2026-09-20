@@ -147,7 +147,7 @@ class SecurityMonitor {
         user_agent: userAgent,
         severity: 'high',
         details: {
-          url: req.url,
+          url: (req.originalUrl || req.url || '').split('?')[0],
           method: req.method,
           body_keys: req.body && typeof req.body === 'object' ? Object.keys(req.body) : [],
           query_keys: req.query && typeof req.query === 'object' ? Object.keys(req.query) : [],
@@ -157,7 +157,7 @@ class SecurityMonitor {
 
       await this.triggerAlert('suspicious_request_detected', {
         ip,
-        url: req.url,
+        url: (req.originalUrl || req.url || '').split('?')[0],
         method: req.method,
         userAgent
       });
