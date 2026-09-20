@@ -97,7 +97,6 @@ router.post('/salva', verifyToken, async (req, res) => {
     
     if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
       console.error('❌ ERRORE: Dati mancanti o non validi');
-      console.error('❌ opinioni:', opinioni);
       return res.status(400).json({
         success: false,
         error: 'Dati mancanti',
@@ -179,7 +178,6 @@ router.post('/salva', verifyToken, async (req, res) => {
     const existingColumns = new Set(checkColumnsResult.rows.map(row => row.column_name));
     
     console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
-    console.log(`🔍 DEBUG - Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       
@@ -191,16 +189,13 @@ router.post('/salva', verifyToken, async (req, res) => {
         // Se la colonna non esiste, prova il mapping (per compatibilità con vecchie opinioni)
         dbField = opinionMapping[opinionId];
         if (!dbField) {
-          console.warn(`⚠️ Campo non trovato: ${opinionId}`);
-          console.warn(`⚠️ Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
+          console.warn('⚠️ Campo opinione non riconosciuto');
           unmappedOpinions.push(opinionId);
           errorCount++;
           continue;
         } else {
-          console.log(`ℹ️ Usato mapping per opinione: ${opinionId} -> ${dbField}`);
         }
       } else {
-        console.log(`✅ Colonna trovata in opinioni_risposte: ${opinionId}`);
       }
       
       // Converti i valori al formato corretto
@@ -213,7 +208,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       else if (risposta === 'Indeciso') dbValue = 'i';
       else if (risposta === 'Astenuto') dbValue = null;
       else {
-        console.warn(`⚠️ Valore non riconosciuto: ${risposta} per opinione ${opinionId}`);
+        console.warn('⚠️ Valore opinione non riconosciuto');
         unmappedOpinions.push(opinionId);
         errorCount++;
         continue;
@@ -227,7 +222,7 @@ router.post('/salva', verifyToken, async (req, res) => {
     }
     
     if (unmappedOpinions.length > 0) {
-      console.error(`❌ Opinion non mappate: ${unmappedOpinions.join(', ')}`);
+      console.error(`❌ ${unmappedOpinions.length} opinioni non mappate`);
     }
     
     if (updateFields.length === 0) {
@@ -254,8 +249,6 @@ router.post('/salva', verifyToken, async (req, res) => {
         
         const allValues = [userId, ...insertValues];
         console.log('🔍 DEBUG - Prima volta, inserisco tutte le opinioni');
-        console.log('🔍 DEBUG - Query SQL:', insertQuery);
-        console.log('🔍 DEBUG - Campi:', insertFields);
         
         const result = await pool.query(insertQuery, allValues);
         savedCount = insertFields.length;
@@ -272,8 +265,6 @@ router.post('/salva', verifyToken, async (req, res) => {
         const allValues = [...insertValues, userId];
         console.log('🔍 DEBUG - Numero parametri UPDATE:', updateFields.length, 'campo WHERE:', updateFields.length + 1);
         console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
-        console.log('🔍 DEBUG - Query SQL:', updateQuery);
-        console.log('🔍 DEBUG - Campi da aggiornare:', updateFields);
         
         const result = await pool.query(updateQuery, allValues);
         savedCount = updateFields.length;
