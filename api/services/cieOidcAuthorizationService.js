@@ -23,7 +23,7 @@ function requireHttpsUrl(name, value) {
     throw new Error(`${name} deve usare HTTPS`);
   }
 
-  return parsed.toString();
+  return value;
 }
 
 function getCieOidcConfig() {
@@ -93,8 +93,7 @@ function createAuthorizationRequest(nowSeconds = Math.floor(Date.now() / 1000)) 
 
   const requestObject = jwt.sign(payload, config.privateKey, {
     algorithm: 'RS256',
-    keyid: config.signingKid,
-    noTimestamp: true
+    keyid: config.signingKid
   });
 
   const params = new URLSearchParams({
