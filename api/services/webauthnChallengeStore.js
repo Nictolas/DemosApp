@@ -4,6 +4,12 @@ const { atomicGetAndDelete } = require('./webauthnAtomicConsume');
 const {
   normalizeWebAuthnChallengePayload,
 } = require('./webauthnChallengePayloadPolicy');
+const {
+  normalizeWebAuthnRegistrationSessionKey,
+} = require('./webauthnRegistrationSessionPolicy');
+const {
+  normalizeWebAuthnLoginSessionKey,
+} = require('./webauthnLoginSessionPolicy');
 
 const allowLocalFallback = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 const localFallback = new Map();
@@ -13,18 +19,18 @@ function getChallengeTtlSeconds() {
   return Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 300;
 }
 
-function assertKeyPart(value, label) {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`${label} non valido per challenge WebAuthn`);
-  }
-  return value.trim();
-}
-
 function keyFor(kind, id) {
-  const keyPart = assertKeyPart(id, kind === 'register' ? 'userId' : 'loginKey');
-  return kind === 'register'
-    ? keys.webAuthnRegistrationChallenge(keyPart)
-    : keys.webAuthnLoginChallenge(keyPart);
+  if (kind === 'register') {
+    return keys.webAuthnRegistrationChallenge(
+      normalizeWebAuthnRegistrationSessionKey(id),
+    );
+  }
+  if (kind === 'login') {
+    return keys.webAuthnLoginChallenge(
+      normalizeWebAuthnLoginSessionKey(id),
+    );
+  }
+  throw new Error('Tipo challenge WebAuthn non valido');
 }
 
 function parseStoredValue(kind, raw) {
