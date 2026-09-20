@@ -64,6 +64,34 @@ function consumeMockTransaction({ userId, state, nonce }, now = Date.now()) {
   };
 }
 
+function getMockCieStartErrorResponse() {
+  return {
+    status: 400,
+    error: 'Impossibile avviare la verifica CIE mock'
+  };
+}
+
+function getMockCieCompleteErrorResponse(error) {
+  const safeConflicts = {
+    PERSON_ALREADY_LINKED: 'Identita gia associata a un altro account DEMOS',
+    ACCOUNT_ALREADY_VERIFIED: 'Account gia associato a una identita verificata',
+    IDENTITY_CONFLICT: 'Conflitto durante la verifica identita'
+  };
+
+  const safeMessage = safeConflicts[error?.code];
+  if (safeMessage) {
+    return {
+      status: 409,
+      error: safeMessage
+    };
+  }
+
+  return {
+    status: 400,
+    error: 'Verifica CIE mock non riuscita'
+  };
+}
+
 function clearMockTransactionsForTests() {
   transactions.clear();
 }
@@ -73,5 +101,7 @@ module.exports = {
   isMockCieEnabled,
   startMockTransaction,
   consumeMockTransaction,
+  getMockCieStartErrorResponse,
+  getMockCieCompleteErrorResponse,
   clearMockTransactionsForTests
 };
