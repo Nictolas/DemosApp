@@ -17,6 +17,10 @@ const {
 const {
   getPublicWebAuthnRegistrationRole,
 } = require('../../services/webauthnRegistrationPolicy');
+const {
+  WEBAUTHN_USER_VERIFICATION,
+  WEBAUTHN_REQUIRE_USER_VERIFICATION,
+} = require('../../services/webauthnSecurityPolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -113,9 +117,9 @@ router.post('/webauthn/register/options', async (req, res) => {
       userDisplayName: 'Demos user',
       authenticatorSelection: {
         residentKey: 'preferred',
-        // 'discouraged' evita l'errore "User verification required, but user could not be verified"
-        // (es. Face ID annullato o non disponibile); la passkey si crea comunque.
-        userVerification: 'discouraged',
+        // Per DEMOS una passkey deve essere protetta da verifica locale dell'utente
+        // (Face ID, impronta, PIN o metodo equivalente dell'autenticatore).
+        userVerification: WEBAUTHN_USER_VERIFICATION,
         // Passkey sul dispositivo (iPhone = Face ID, Android = impronta, ecc.)
         authenticatorAttachment: 'platform',
       },
@@ -192,8 +196,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
         expectedChallenge: pending.challenge,
         expectedOrigin: expectedOriginFinal,
         expectedRPID: rpID,
-        // Coerente con userVerification: 'discouraged' in register/options: non esigere UV in verifica
-        requireUserVerification: false,
+        requireUserVerification: WEBAUTHN_REQUIRE_USER_VERIFICATION,
       });
     } catch (verifyErr) {
       console.error('❌ verifyRegistrationResponse fallita:', verifyErr?.message || verifyErr);
@@ -351,7 +354,7 @@ router.post('/webauthn/login/options', async (req, res) => {
     const options = await generateAuthenticationOptions({
       rpID,
       allowCredentials,
-      userVerification: 'preferred',
+      userVerification: WEBAUTHN_USER_VERIFICATION,
     });
 
     await setLoginChallenge(loginKey, {
@@ -506,8 +509,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
           publicKey: new Uint8Array(Buffer.from(user.webauthn_public_key, 'base64url')),
           counter: user.webauthn_sign_count || 0,
         },
-        // Come per la registrazione, non rendiamo obbligatoria la user verification
-        requireUserVerification: false,
+        requireUserVerification: WEBAUTHN_REQUIRE_USER_VERIFICATION,
       });
     } catch (verifyErr) {
       console.error('❌ verifyAuthenticationResponse fallita:', verifyErr?.message || verifyErr);
