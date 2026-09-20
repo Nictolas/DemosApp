@@ -27,6 +27,10 @@ const {
 const {
   normalizeWebAuthnClientInstanceId,
 } = require('../../services/webauthnClientInstancePolicy');
+const {
+  createWebAuthnLoginSessionKey,
+  normalizeWebAuthnLoginSessionKey,
+} = require('../../services/webauthnLoginSessionPolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -56,6 +60,16 @@ function invalidClientInstanceId(res, error) {
     success: false,
     error: 'Identificatore browser non valido',
     code: 'INVALID_CLIENT_INSTANCE_ID',
+  });
+  return true;
+}
+
+function invalidLoginSession(res, error) {
+  if (error?.code !== 'INVALID_WEBAUTHN_LOGIN_SESSION') return false;
+  res.status(400).json({
+    success: false,
+    error: 'Sessione login passkey non valida',
+    code: 'INVALID_PASSKEY_LOGIN_SESSION',
   });
   return true;
 }
@@ -348,57 +362,29 @@ router.post('/webauthn/register/verify', async (req, res) => {
 
 /**
  * POST /api/auth/webauthn/login/options
- * Genera le options per il login con passkey.
- * Senza userId = "discovery": allowCredentials vuoto → il browser mostra le passkey del dispositivo (Face ID su iPhone).
- * Con userId = flusso classico (per compatibilità).
+ * Genera le options discovery per il login con passkey.
+ * Ogni tentativo usa una sessionKey casuale server-side: nessuna challenge è
+ * indicizzata per userId e richieste concorrenti non possono sovrascriversi.
  */
-router.post('/webauthn/login/options', async (req, res) => {
+router.post('/webauthn/login/options', async (_req, res) => {
   try {
-    const { userId } = req.body || {};
-
-    let allowCredentials = [];
-    let loginKey; // userId (flusso classico) o sessionKey (discovery)
-
-    if (userId) {
-      const userQuery = `
-        SELECT id, webauthn_credential_id
-        FROM users
-        WHERE id = $1
-      `;
-      const userResult = await pool.query(userQuery, [userId]);
-      if (userResult.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Utente non trovato',
-        });
-      }
-      const user = userResult.rows[0];
-      if (user.webauthn_credential_id) {
-        allowCredentials = [{ id: user.webauthn_credential_id, type: 'public-key' }];
-      }
-      loginKey = user.id;
-    } else {
-      loginKey = uuidv4();
-    }
+    const sessionKey = createWebAuthnLoginSessionKey();
 
     const options = await generateAuthenticationOptions({
       rpID,
-      allowCredentials,
+      allowCredentials: [],
       userVerification: WEBAUTHN_USER_VERIFICATION,
     });
 
-    await setLoginChallenge(loginKey, {
+    await setLoginChallenge(sessionKey, {
       challenge: options.challenge,
     });
 
-    const body = {
+    res.json({
       success: true,
       publicKey: options,
-    };
-    if (!userId) {
-      body.sessionKey = loginKey;
-    }
-    res.json(body);
+      sessionKey,
+    });
   } catch (error) {
     console.error('❌ Errore in /webauthn/login/options:', error);
     if (challengeStoreUnavailable(res, error)) return;
@@ -411,30 +397,22 @@ router.post('/webauthn/login/options', async (req, res) => {
 
 /**
  * POST /api/auth/webauthn/login/verify
- * Verifica la risposta di login e genera i token.
- * Accetta userId (flusso classico) oppure sessionKey (flusso discovery: lookup utente per credential id).
+ * Verifica la risposta di login discovery e genera i token.
+ * La sessionKey è casuale, one-time e indipendente dall'identità dell'utente.
  */
 router.post('/webauthn/login/verify', async (req, res) => {
   try {
-    const { userId, sessionKey, assertion } = req.body || {};
+    const { sessionKey, assertion } = req.body || {};
 
     if (!assertion) {
       return res.status(400).json({
         success: false,
         error: 'Parametri mancanti',
-        message: 'assertion è richiesta (e userId oppure sessionKey)',
+        message: 'assertion e sessionKey sono richiesti',
       });
     }
 
-    const loginKey = sessionKey || userId;
-    if (!loginKey) {
-      return res.status(400).json({
-        success: false,
-        error: 'Parametri mancanti',
-        message: 'Specifica userId oppure sessionKey',
-      });
-    }
-
+    const loginKey = normalizeWebAuthnLoginSessionKey(sessionKey);
     const pending = await consumeLoginChallenge(loginKey);
     if (!pending) {
       return res.status(400).json({
@@ -444,7 +422,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
     }
 
     let user;
-    if (sessionKey) {
+    {
       const rawId = assertion.rawId ? String(assertion.rawId).trim() : null;
       const id = assertion.id ? String(assertion.id).trim() : null;
       if (!rawId && !id) {
@@ -512,19 +490,6 @@ router.post('/webauthn/login/verify', async (req, res) => {
         });
       }
       user = rows[0];
-    } else {
-      const userResult = await pool.query(
-        `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
-         FROM users WHERE id = $1`,
-        [userId],
-      );
-      if (userResult.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Utente non trovato',
-        });
-      }
-      user = userResult.rows[0];
     }
 
     let verification;
@@ -586,6 +551,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore in /webauthn/login/verify:', error);
+    if (invalidLoginSession(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
