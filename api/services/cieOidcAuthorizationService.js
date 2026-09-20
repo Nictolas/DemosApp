@@ -29,7 +29,7 @@ function requireHttpsUrl(name, value) {
 function getCieOidcConfig() {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     const error = new Error('OIDC CIE reale non abilitato');
-    error.code = 'CIE_OIDC_DISABLED';
+    error.code = IDENTITY_ERROR_CODES.CIE_OIDC_DISABLED;
     throw error;
   }
 
