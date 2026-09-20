@@ -113,6 +113,7 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
     if (alreadyVerified) {
       return res.status(409).json({
         success: false,
+        code: 'ACCOUNT_ALREADY_VERIFIED',
         error: 'Account gia verificato'
       });
     }
