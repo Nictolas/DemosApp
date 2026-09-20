@@ -21,6 +21,7 @@ const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenServic
 const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
 const { fetchAndValidateCieUserInfo } = require('../../services/cieOidcUserInfoService');
 const { buildCieCallbackRedirect } = require('../../services/cieCallbackRedirectService');
+const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 const { IDENTITY_ERROR_CODES } = require('../../constants/identityVerification');
 
 const router = express.Router();
@@ -107,31 +108,15 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
       authorizationUrl
     });
   } catch (error) {
-    const disabled = error?.code === IDENTITY_ERROR_CODES.CIE_OIDC_DISABLED;
-    const alreadyVerified = error?.code === IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED;
-    const alreadyActive = error?.code === IDENTITY_ERROR_CODES.CIE_TRANSACTION_ALREADY_ACTIVE;
+    const publicError = getPublicIdentityError(error, {
+      status: 503,
+      error: 'Configurazione CIE non pronta'
+    });
 
-    if (alreadyVerified) {
-      return res.status(409).json({
-        success: false,
-        code: IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
-        error: 'Account gia verificato'
-      });
-    }
-
-    if (alreadyActive) {
-      return res.status(409).json({
-        success: false,
-        code: IDENTITY_ERROR_CODES.CIE_TRANSACTION_ALREADY_ACTIVE,
-        error: 'Verifica CIE gia in corso'
-      });
-    }
-
-    return res.status(disabled ? 404 : 503).json({
+    return res.status(publicError.status).json({
       success: false,
-      error: disabled
-        ? 'CIE non ancora attiva'
-        : 'Configurazione CIE non pronta'
+      ...(publicError.code ? { code: publicError.code } : {}),
+      error: publicError.error
     });
   }
 });
@@ -142,9 +127,14 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 // e torna al frontend con il solo esito success/error.
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
-    return res.status(404).json({
+    const publicError = getPublicIdentityError(
+      { code: IDENTITY_ERROR_CODES.CIE_OIDC_DISABLED },
+      { status: 404, error: 'CIE non ancora attiva' }
+    );
+
+    return res.status(publicError.status).json({
       success: false,
-      error: 'CIE non ancora attiva'
+      error: publicError.error
     });
   }
 
