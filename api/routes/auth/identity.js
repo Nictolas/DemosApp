@@ -8,7 +8,11 @@ const {
   consumeMockTransaction
 } = require('../../services/cieMockFlowService');
 const { createAuthorizationRequest } = require('../../services/cieOidcAuthorizationService');
-const { saveCieOidcTransaction } = require('../../services/cieOidcTransactionStore');
+const {
+  saveCieOidcTransaction,
+  consumeCieOidcTransaction
+} = require('../../services/cieOidcTransactionStore');
+const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenService');
 
 const router = express.Router();
 
@@ -91,14 +95,58 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
   }
 });
 
-// Callback riservato alla futura integrazione OIDC CIE.
-// Finche' la verifica crittografica OIDC non e' implementata, non accetta
-// ne' salva alcun dato e non deve essere usato in produzione.
-router.get('/cie/callback', (_req, res) => {
-  return res.status(503).json({
-    success: false,
-    error: 'Integrazione CIE non ancora attiva'
-  });
+// Callback OIDC CIE reale.
+// Esegue state/one-time transaction + token exchange private_key_jwt.
+// NON completa ancora la verifica identita: prima vanno validati ID Token,
+// firma/trust chain, issuer/audience e nonce.
+router.get('/cie/callback', async (req, res) => {
+  if (process.env.CIE_OIDC_ENABLED !== 'true') {
+    return res.status(404).json({
+      success: false,
+      error: 'CIE non ancora attiva'
+    });
+  }
+
+  const { code, state, error: providerError } = req.query || {};
+  if (typeof state !== 'string' || !state) {
+    return res.status(400).json({ success: false, error: 'State CIE mancante' });
+  }
+
+  try {
+    const transaction = await consumeCieOidcTransaction(state);
+
+    if (providerError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Autenticazione CIE non completata'
+      });
+    }
+
+    if (typeof code !== 'string' || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Authorization code CIE mancante'
+      });
+    }
+
+    await exchangeAuthorizationCode({
+      code,
+      codeVerifier: transaction.codeVerifier
+    });
+
+    // Fail closed: nessuna identita viene registrata finche non implementiamo
+    // e testiamo la validazione dell'ID Token e del nonce.
+    return res.status(503).json({
+      success: false,
+      error: 'Scambio token CIE completato; validazione ID Token non ancora attiva'
+    });
+  } catch (error) {
+    console.error('Errore callback CIE:', error?.message || error);
+    return res.status(400).json({
+      success: false,
+      error: 'Callback CIE non valida'
+    });
+  }
 });
 
 module.exports = router;
