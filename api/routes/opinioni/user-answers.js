@@ -74,79 +74,19 @@ router.get('/profile', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente  
-router.post('/salva', async (req, res) => {
-  console.log('🚨🚨🚨🚨🚨 SECONDA VERSIONE - POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨🚨🚨');
-  console.log('🚨 DEBUG: req.body RAW:', req.body);
-  console.log('🚨 DEBUG: req.body tipo:', typeof req.body);
-  console.log('🚨 DEBUG: req.body keys:', Object.keys(req.body || {}));
-  console.log('🚨 DEBUG: req.headers:', req.headers);
-  
-  // Se req.body è una stringa, prova a parsearla
+router.post('/salva', verifyToken, async (req, res) => {
+  // Le opinioni sono categorie di dati particolarmente sensibili: non loggare body o valori.
   if (typeof req.body === 'string') {
     try {
       req.body = JSON.parse(req.body);
-      console.log('🚨 DEBUG: Parsed JSON body:', req.body);
-    } catch (e) {
-      console.error('🚨 DEBUG: Errore parsing JSON:', e);
+    } catch (_error) {
+      return res.status(400).json({
+        success: false,
+        error: 'JSON non valido'
+      });
     }
   }
-  
-  console.log('🚨 DEBUG: req.body:', JSON.stringify(req.body, null, 2));
-  
-  // Controllo token manuale
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, error: 'Token mancante' });
-  }
-  
-  const token = authHeader.substring(7);
-  const { verifyAccessToken } = require('../../utils/jwt');
-  let decoded;
-  try {
-    decoded = verifyAccessToken(token);
-  } catch (e) {
-    return res.status(401).json({ success: false, error: 'Token non valido' });
-  }
-  
-  req.userId = decoded.userId || decoded.email;
-  console.log('🚨 DEBUG: req.userId:', req.userId);
-  console.log('🚨 DEBUG: Chiavi disponibili in opinionMapping:', Object.keys({
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
-    }));
-  
+
   try {
     const userId = req.userId;
     // Il frontend invia le opinioni direttamente nel body
@@ -154,21 +94,9 @@ router.post('/salva', async (req, res) => {
     
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
     console.log('👤 User ID:', userId);
-    console.log('📋 Opinion ricevute:', opinioni);
-    console.log('🔍 Tipo opinioni:', typeof opinioni);
-    console.log('🔍 Chiavi opinioni:', Object.keys(opinioni || {}));
-    console.log('🔍 DETTAGLIO opinioni ricevute:');
-    if (opinioni && typeof opinioni === 'object') {
-      Object.entries(opinioni).forEach(([key, value]) => {
-        console.log(`  ${key}: ${value}`);
-      });
-    }
     
     if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
       console.error('❌ ERRORE: Dati mancanti o non validi');
-      console.error('❌ req.body:', req.body);
-      console.error('❌ req.body.opinioni:', req.body.opinioni);
-      console.error('❌ opinioni:', opinioni);
       return res.status(400).json({
         success: false,
         error: 'Dati mancanti',
@@ -250,11 +178,8 @@ router.post('/salva', async (req, res) => {
     const existingColumns = new Set(checkColumnsResult.rows.map(row => row.column_name));
     
     console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
-    console.log(`🔍 DEBUG - ID opinioni da verificare:`, opinionIdsToCheck);
-    console.log(`🔍 DEBUG - Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
-      console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
       
       // Usa direttamente l'ID inviato dal frontend (che proviene da opinioni_domande)
       // Verifica solo che la colonna esista in opinioni_risposte
@@ -264,16 +189,13 @@ router.post('/salva', async (req, res) => {
         // Se la colonna non esiste, prova il mapping (per compatibilità con vecchie opinioni)
         dbField = opinionMapping[opinionId];
         if (!dbField) {
-          console.warn(`⚠️ Campo non trovato: ${opinionId}`);
-          console.warn(`⚠️ Colonne esistenti in opinioni_risposte:`, Array.from(existingColumns));
+          console.warn('⚠️ Campo opinione non riconosciuto');
           unmappedOpinions.push(opinionId);
           errorCount++;
           continue;
         } else {
-          console.log(`ℹ️ Usato mapping per opinione: ${opinionId} -> ${dbField}`);
         }
       } else {
-        console.log(`✅ Colonna trovata in opinioni_risposte: ${opinionId}`);
       }
       
       // Converti i valori al formato corretto
@@ -286,7 +208,7 @@ router.post('/salva', async (req, res) => {
       else if (risposta === 'Indeciso') dbValue = 'i';
       else if (risposta === 'Astenuto') dbValue = null;
       else {
-        console.warn(`⚠️ Valore non riconosciuto: ${risposta} per opinione ${opinionId}`);
+        console.warn('⚠️ Valore opinione non riconosciuto');
         unmappedOpinions.push(opinionId);
         errorCount++;
         continue;
@@ -297,11 +219,10 @@ router.post('/salva', async (req, res) => {
       insertValues.push(dbValue);
       paramIndex++; // Questo viene usato solo per UPDATE, per INSERT usiamo i + 2
       
-      console.log(`✅ Preparato campo: ${dbField} = ${dbValue}`);
     }
     
     if (unmappedOpinions.length > 0) {
-      console.error(`❌ Opinion non mappate: ${unmappedOpinions.join(', ')}`);
+      console.error(`❌ ${unmappedOpinions.length} opinioni non mappate`);
     }
     
     if (updateFields.length === 0) {
@@ -328,13 +249,6 @@ router.post('/salva', async (req, res) => {
         
         const allValues = [userId, ...insertValues];
         console.log('🔍 DEBUG - Prima volta, inserisco tutte le opinioni');
-        console.log('🔍 DEBUG - Query SQL:', insertQuery);
-        console.log('🔍 DEBUG - Valori query:', allValues);
-        console.log('🔍 DEBUG - Campi:', insertFields);
-        console.log('🔍 DEBUG - Mapping campi-valori:');
-        insertFields.forEach((field, idx) => {
-          console.log(`  ${field} = ${insertValues[idx]}`);
-        });
         
         const result = await pool.query(insertQuery, allValues);
         savedCount = insertFields.length;
@@ -351,14 +265,6 @@ router.post('/salva', async (req, res) => {
         const allValues = [...insertValues, userId];
         console.log('🔍 DEBUG - Numero parametri UPDATE:', updateFields.length, 'campo WHERE:', updateFields.length + 1);
         console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
-        console.log('🔍 DEBUG - Query SQL:', updateQuery);
-        console.log('🔍 DEBUG - Valori query:', allValues);
-        console.log('🔍 DEBUG - Campi da aggiornare:', updateFields);
-        console.log('🔍 DEBUG - Mapping campi-valori:');
-        updateFields.forEach((field, idx) => {
-          const fieldName = field.split(' = ')[0];
-          console.log(`  ${fieldName} = ${insertValues[idx]}`);
-        });
         
         const result = await pool.query(updateQuery, allValues);
         savedCount = updateFields.length;

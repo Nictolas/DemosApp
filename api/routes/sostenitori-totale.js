@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { verifyToken } = require('../middleware/auth');
 const { decompressProvince } = require('../utils/provinceUtils');
 require('dotenv').config();
 
@@ -10,7 +11,7 @@ const pool = new Pool({
 });
 
 // GET /api/sostenitori/totale - Ottieni sostenitori totali di un utente (senza duplicati)
-router.get('/totale', async (req, res) => {
+router.get('/totale', verifyToken, async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
     
@@ -20,6 +21,13 @@ router.get('/totale', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'ID sostenuto richiesto'
+      });
+    }
+
+    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato'
       });
     }
 
@@ -152,7 +160,7 @@ router.get('/totale', async (req, res) => {
 
     res.json({
       success: true,
-      supporters: supporters,
+      supporters: req.userRole === 'AD' ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
