@@ -1,5 +1,5 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const { pool, verifyToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -59,7 +59,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const id = uuidv4();
+    const id = randomUUID();
 
     const query = `
       INSERT INTO riconoscimenti (

@@ -5,7 +5,7 @@ const {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const { getPool } = require('../../config/database');
 const { generateTokenPair } = require('../../utils/jwt');
 const {
@@ -163,7 +163,7 @@ router.post('/webauthn/register/options', webauthnChallengeLimiter, async (req, 
     // Eventuali ruoli privilegiati vengono assegnati solo da flussi server-side dedicati.
     const userRole = getPublicWebAuthnRegistrationRole();
 
-    const userId = uuidv4();
+    const userId = randomUUID();
     const userHandleBuffer = Buffer.from(userId, 'utf8');
 
     // SimpleWebAuthn richiede userID come Buffer/Uint8Array (non stringa); generateRegistrationOptions è async
