@@ -31,6 +31,10 @@ const {
   createWebAuthnLoginSessionKey,
   normalizeWebAuthnLoginSessionKey,
 } = require('../../services/webauthnLoginSessionPolicy');
+const {
+  normalizeWebAuthnCredentialId,
+  webAuthnCredentialIdLookupVariants,
+} = require('../../services/webauthnCredentialIdPolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -70,6 +74,16 @@ function invalidLoginSession(res, error) {
     success: false,
     error: 'Sessione login passkey non valida',
     code: 'INVALID_PASSKEY_LOGIN_SESSION',
+  });
+  return true;
+}
+
+function invalidCredentialId(res, error) {
+  if (error?.code !== 'INVALID_WEBAUTHN_CREDENTIAL_ID') return false;
+  res.status(400).json({
+    success: false,
+    error: 'Credenziale passkey non valida',
+    code: 'INVALID_PASSKEY_CREDENTIAL_ID',
   });
   return true;
 }
@@ -255,10 +269,9 @@ router.post('/webauthn/register/verify', async (req, res) => {
     }
     const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
-    // Usa il credential ID inviato dal client (attestation.rawId) così al login il match è garantito
-    const credentialIdBase64 =
-      (attestation.rawId && String(attestation.rawId).trim()) ||
-      String(credentialID).trim();
+    // Salva esclusivamente l'ID prodotto dalla verifica server-side.
+    // Non fidarsi di attestation.rawId inviato dal client per la persistenza.
+    const credentialIdBase64 = normalizeWebAuthnCredentialId(String(credentialID));
     const publicKeyBase64 = Buffer.from(credentialPublicKey).toString(
       'base64url',
     );
@@ -352,6 +365,7 @@ router.post('/webauthn/register/verify', async (req, res) => {
   } catch (error) {
     console.error('❌ Errore in /webauthn/register/verify:', error);
     if (invalidClientInstanceId(res, error)) return;
+    if (invalidCredentialId(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
@@ -423,64 +437,26 @@ router.post('/webauthn/login/verify', async (req, res) => {
 
     let user;
     {
-      const rawId = assertion.rawId ? String(assertion.rawId).trim() : null;
-      const id = assertion.id ? String(assertion.id).trim() : null;
-      if (!rawId && !id) {
+      const receivedCredentialId = assertion.rawId || assertion.id;
+      if (!receivedCredentialId) {
         return res.status(400).json({
           success: false,
           error: 'Credential ID mancante nella risposta',
         });
       }
-      const idsToTry = [...new Set([rawId, id].filter(Boolean))];
-      let rows = [];
-      try {
-        const q = await pool.query(
-          `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
-           FROM users
-           WHERE webauthn_credential_id = ANY($1::text[])`,
-          [idsToTry],
-        );
-        rows = q.rows;
-      } catch (_) {}
 
-      if (rows.length === 0 && (rawId || id)) {
-        const first = rawId || id;
-        const withoutPadding = first.replace(/=+$/, '');
-        const r2 = await pool.query(
-          `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
-           FROM users
-           WHERE webauthn_credential_id = $1 OR REPLACE(webauthn_credential_id, '=', '') = $2`,
-          [first, withoutPadding],
-        );
-        rows = r2.rows;
-      }
-      if (rows.length === 0 && (rawId || id)) {
-        try {
-          const canonical = Buffer.from(rawId || id, 'base64url').toString('base64url');
-          const r3 = await pool.query(
-            `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
-             FROM users WHERE webauthn_credential_id = $1`,
-            [canonical],
-          );
-          rows = r3.rows;
-        } catch (_) {}
-      }
-      if (rows.length === 0 && (rawId || id)) {
-        const receivedBuf = Buffer.from(rawId || id, 'base64url');
-        const allWithCred = await pool.query(
-          `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
-           FROM users WHERE webauthn_credential_id IS NOT NULL AND webauthn_credential_id != ''`,
-        );
-        const match = allWithCred.rows.find((row) => {
-          try {
-            const stored = Buffer.from(row.webauthn_credential_id, 'base64url');
-            return stored.length === receivedBuf.length && stored.equals(receivedBuf);
-          } catch {
-            return false;
-          }
-        });
-        if (match) rows = [match];
-      }
+      const credentialVariants = webAuthnCredentialIdLookupVariants(
+        String(receivedCredentialId),
+      );
+      const q = await pool.query(
+        `SELECT id, ruolo, webauthn_credential_id, webauthn_public_key, webauthn_sign_count
+         FROM users
+         WHERE webauthn_credential_id = ANY($1::text[])
+         LIMIT 2`,
+        [credentialVariants],
+      );
+      const rows = q.rows;
+
       if (rows.length === 0) {
         return res.status(404).json({
           success: false,
@@ -489,6 +465,16 @@ router.post('/webauthn/login/verify', async (req, res) => {
           hint: 'Rimuovi le passkey obsolete: Impostazioni > Password > demos.community. Poi accedi con l\'ultima passkey creata o registrati di nuovo.',
         });
       }
+
+      if (rows.length !== 1) {
+        console.error('❌ Credential ID WebAuthn associato a più utenti');
+        return res.status(409).json({
+          success: false,
+          error: 'Credenziale passkey non valida',
+          code: 'PASSKEY_CREDENTIAL_CONFLICT',
+        });
+      }
+
       user = rows[0];
     }
 
@@ -552,6 +538,7 @@ router.post('/webauthn/login/verify', async (req, res) => {
   } catch (error) {
     console.error('❌ Errore in /webauthn/login/verify:', error);
     if (invalidLoginSession(res, error)) return;
+    if (invalidCredentialId(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
     res.status(500).json({
       success: false,
