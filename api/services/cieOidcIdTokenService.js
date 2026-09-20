@@ -32,8 +32,12 @@ function resolveVerificationKey(idToken, jwks = getTrustedJwks()) {
   if (!expectedAlg) throw new Error('CIE_ID_TOKEN_SIGNING_ALG non configurato');
   if (alg !== expectedAlg) throw new Error('Algoritmo ID Token CIE inatteso');
 
-  const jwk = jwks.keys.find(key => key.kid === kid);
-  if (!jwk) throw new Error('Chiave ID Token CIE non trovata');
+  const jwk = jwks.keys.find(key =>
+    key.kid === kid &&
+    (!key.use || key.use === 'sig') &&
+    (!key.alg || key.alg === expectedAlg)
+  );
+  if (!jwk) throw new Error('Chiave ID Token CIE non trovata o non autorizzata');
 
   return {
     alg,
