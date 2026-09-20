@@ -36,7 +36,8 @@ export function hasLocalPasskeyFlag(): boolean {
   }
 }
 
-/** ID dispositivo per limite "un account passkey per dispositivo" (persistente in localStorage). */
+/** Identificatore locale di questa installazione/browser. È solo un aiuto UX:
+ * può essere cancellato/modificato e non identifica in modo sicuro un dispositivo fisico. */
 export function getOrCreateDeviceId(): string {
   if (typeof window === 'undefined') return '';
   let id = localStorage.getItem(DEVICE_ID_KEY);
@@ -123,7 +124,7 @@ function prepareRequestOptionsFromServer(optionsFromServer: any): PublicKeyCrede
   return publicKey;
 }
 
-export async function registerWithPasskey(ruolo: string = 'E'): Promise<WebAuthnRegisterResult> {
+export async function registerWithPasskey(): Promise<WebAuthnRegisterResult> {
   if (!isWebAuthnSupported()) {
     return { success: false, message: 'Passkey/WebAuthn non supportato su questo dispositivo o browser.' };
   }
@@ -133,7 +134,7 @@ export async function registerWithPasskey(ruolo: string = 'E'): Promise<WebAuthn
     const optionsRes = await fetch(getApiUrl(API_CONFIG.WEBAUTHN.REGISTER_OPTIONS), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ruolo, deviceId }),
+      body: JSON.stringify({ deviceId }),
     });
 
     const optionsJson = await optionsRes.json();
@@ -178,7 +179,7 @@ export async function registerWithPasskey(ruolo: string = 'E'): Promise<WebAuthn
     const verifyRes = await fetch(getApiUrl(API_CONFIG.WEBAUTHN.REGISTER_VERIFY), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, attestation, deviceId }),
+      body: JSON.stringify({ userId, attestation }),
     });
 
     const verifyJson = await verifyRes.json();
