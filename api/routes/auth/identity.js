@@ -99,8 +99,8 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 
 // Callback OIDC CIE reale.
 // Esegue state/one-time transaction + token exchange private_key_jwt
-// valida ID Token e UserInfo CIE firmata+cifrata, incluso il fiscal_number richiesto.
-// NON completa ancora la registrazione dell'identita.
+// valida ID Token e UserInfo CIE firmata+cifrata e registra l'identita verificata
+// senza esporre fiscal_number o person_key nella risposta.
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     return res.status(404).json({
@@ -142,22 +142,27 @@ router.get('/cie/callback', async (req, res) => {
       expectedNonce: transaction.nonce
     });
 
-    await fetchAndValidateCieUserInfo({
+    const userInfo = await fetchAndValidateCieUserInfo({
       accessToken: tokens.accessToken,
       expectedSub: idTokenClaims.sub
     });
 
-    // Fail closed: UserInfo e fiscal_number sono validati, ma nessuna identita
-    // viene ancora registrata in questo micro-step.
-    return res.status(503).json({
-      success: false,
-      error: 'UserInfo CIE validata; registrazione identita non ancora attiva'
+    const identity = await completeCieVerificationFromVerifiedClaims({
+      userId: transaction.userId,
+      claims: { fiscal_number: userInfo.fiscalNumber }
+    });
+
+    return res.json({
+      success: true,
+      identity
     });
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
-    return res.status(400).json({
+    const conflict = ['PERSON_ALREADY_LINKED', 'ACCOUNT_ALREADY_VERIFIED', 'IDENTITY_CONFLICT']
+      .includes(error?.code);
+    return res.status(conflict ? 409 : 400).json({
       success: false,
-      error: 'Callback CIE non valida'
+      error: conflict ? 'Identita CIE gia associata' : 'Callback CIE non valida'
     });
   }
 });
