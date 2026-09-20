@@ -130,7 +130,7 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      supporters: supporters,
+      supporters: req.userRole === 'AD' ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
