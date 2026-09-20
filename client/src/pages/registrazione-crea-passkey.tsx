@@ -219,7 +219,7 @@ export default function RegistrazioneCreaPasskey() {
   const handleCreaPasskey = () => {
     setStatus("loading");
     setErrorMessage("");
-    registerWithPasskey("E")
+    registerWithPasskey()
       .then(async (result) => {
         if (result.success) {
           setStatus("success");
@@ -302,7 +302,7 @@ export default function RegistrazioneCreaPasskey() {
         {status === "idle" && deviceAlreadyHasAccount === true && (
           <>
             <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-left">
-              Su questo dispositivo hai già un account Demos. Non puoi crearne un altro. Accedi con la passkey esistente.
+              In questo browser risulta già un account Demos. Accedi con la passkey esistente oppure usa un altro metodo di accesso.
             </p>
             <Button
               onClick={() => navigate("/auth")}
@@ -326,7 +326,7 @@ export default function RegistrazioneCreaPasskey() {
         {status === "idle" && deviceAlreadyHasAccount === null && (
           <>
             <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">Controllo dispositivo...</p>
+            <p className="text-gray-600">Controllo browser...</p>
           </>
         )}
         {status === "loading" && (
