@@ -19,7 +19,7 @@ export default function Impostazioni() {
     const url = new URL(window.location.href);
     const outcome = url.searchParams.get('cie');
 
-    if (outcome !== 'success' && outcome !== 'error') {
+    if (!['success', 'error', 'already-linked'].includes(outcome || '')) {
       return;
     }
 
@@ -38,6 +38,12 @@ export default function Impostazioni() {
       toast({
         title: "Identità verificata",
         description: "La verifica CIE è stata completata con successo."
+      });
+    } else if (outcome === 'already-linked') {
+      toast({
+        title: "Identità già collegata",
+        description: "Questa identità CIE risulta già associata a un altro account DEMOS.",
+        variant: "destructive"
       });
     } else {
       toast({
