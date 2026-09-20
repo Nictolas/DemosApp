@@ -171,8 +171,6 @@ router.get('/richieste', verifyToken, async (req, res) => {
 // POST /api/grazia/vota - Salva voti grazia
 router.post('/vota', verifyToken, async (req, res) => {
   console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
-  console.log('🚨🚨🚨 Body:', JSON.stringify(req.body));
-  console.log('🚨🚨🚨 UserId:', req.userId || req.user?.id);
   
   try {
     const { voti } = req.body;
@@ -276,7 +274,6 @@ router.post('/vota', verifyToken, async (req, res) => {
             votoId = `voto_grazia_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           }
           
-          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
           
           // Inserisci il voto
           const insertQuery = `

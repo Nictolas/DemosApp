@@ -1079,10 +1079,6 @@ router.post('/vota', verifyToken, async (req, res) => {
     const userId = req.userId || req.user?.id;
     const { voti } = req.body;
     
-    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Utente:', userId);
-    console.log('🔍 DEBUG /api/iniziative-popolari/vota - req.userId:', req.userId);
-    console.log('🔍 DEBUG /api/iniziative-popolari/vota - req.user:', req.user);
-    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Voti da salvare:', voti);
     
     if (!userId) {
       return res.status(401).json({
@@ -1402,8 +1398,6 @@ router.post('/richiesta', verifyToken, async (req, res) => {
     }
     const { nome, sito_web, descrizione, data_inizio, data_fine, userid, status, quorum } = req.body;
     
-    console.log('🔍 DEBUG /api/iniziative-popolari/richiesta - Utente:', userId);
-    console.log('🔍 DEBUG /api/iniziative-popolari/richiesta - Dati ricevuti:', req.body);
     
     if (!nome || !userid) {
       return res.status(400).json({

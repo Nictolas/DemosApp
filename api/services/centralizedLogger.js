@@ -134,9 +134,8 @@ class CentralizedLogger {
     if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
 
     try {
-      // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
-      // Campi GDPR obbligatori: _time, message, user_id, ip_address, endpoint, session_id
-      // IMPORTANTE: Invia sempre tutti i campi, anche se null, per garantire che Axiom riconosca lo schema
+      // Invia un set minimo di campi operativi. Gli identificativi non sono "obbligatori GDPR"
+      // e per le attività politiche sensibili vengono rimossi a monte.
       const logEntry = {
         _time: new Date().toISOString(),        // GDPR: Quando è successo (audit trail)
         message: message || '',                 // GDPR: Cosa è successo (descrizione azione)
@@ -474,8 +473,37 @@ class CentralizedLogger {
   }
 
   /**
-   * Verifica se una richiesta deve essere loggata per GDPR
-   * GDPR richiede solo log di accesso/modifica ai dati personali
+   * Endpoint che possono rivelare opinioni, voti, sostegni o altre scelte politiche.
+   * Per questi endpoint i log operativi non devono collegare l'azione a un utente/IP/sessione.
+   */
+  isSensitiveActivityEndpoint(url) {
+    const sensitivePrefixes = [
+      '/api/opinioni',
+      '/api/referendum-abrogativi',
+      '/api/referendum',
+      '/api/iniziative-popolari',
+      '/api/ice',
+      '/api/eci',
+      '/api/capo-stato',
+      '/api/governo/consenso',
+      '/api/governo/ministro',
+      '/api/grazia',
+      '/api/amnistia',
+      '/api/sostenitori',
+      '/api/rappresentanti',
+      '/api/candidati/sostenitori',
+      '/api/attivisti/sostenitori',
+      '/api/organizzazioni/sostenitori',
+      '/api/elezioni-utente'
+    ];
+
+    return sensitivePrefixes.some(prefix => url.startsWith(prefix));
+  }
+
+  /**
+   * Policy interna di logging orientata ad accountability e sicurezza.
+   * Il GDPR non impone di registrare ogni richiesta né di conservare identificativi nei log:
+   * si applicano minimizzazione e proporzionalità.
    */
   shouldLogForGDPR(url, method, statusCode) {
     // SEMPRE loggare errori (necessari per sicurezza GDPR)
@@ -600,21 +628,24 @@ class CentralizedLogger {
       sessionId = userId !== 'public' ? `fallback_${sessionId}` : `public_${sessionId}`;
     }
 
+    const sensitiveActivity = this.isSensitiveActivityEndpoint(url);
+
     const meta = {
       method: req.method,
-      url: req.originalUrl,
+      url,
       statusCode: res.statusCode,
       responseTime: `${responseTime}ms`,
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      userId: req.user?.id || null,
-      sessionId: sessionId, // Sempre presente (non null)
+      ipAddress: sensitiveActivity ? null : req.ip,
+      userAgent: sensitiveActivity ? null : req.get('User-Agent'),
+      userId: sensitiveActivity ? null : (req.user?.id || null),
+      sessionId: sensitiveActivity ? null : sessionId,
       requestId: req.id || null,
-      endpoint: req.originalUrl.split('?')[0] // Endpoint senza query string
+      endpoint: url,
+      sensitiveActivity
     };
 
     const level = res.statusCode >= 400 ? 'WARN' : 'INFO';
-    const message = `${req.method} ${req.originalUrl} - ${res.statusCode}`;
+    const message = `${req.method} ${url} - ${res.statusCode}`;
     
     await this.log(level, message, meta);
   }
@@ -632,11 +663,15 @@ class CentralizedLogger {
     };
 
     if (req) {
+      const endpoint = req.originalUrl?.split('?')[0] || '';
+      const sensitiveActivity = this.isSensitiveActivityEndpoint(endpoint);
+
       errorMeta.method = req.method;
-      errorMeta.url = req.originalUrl;
-      errorMeta.ipAddress = req.ip;
-      errorMeta.userAgent = req.get('User-Agent');
-      errorMeta.userId = req.user?.id || null;
+      errorMeta.url = endpoint;
+      errorMeta.ipAddress = sensitiveActivity ? null : req.ip;
+      errorMeta.userAgent = sensitiveActivity ? null : req.get('User-Agent');
+      errorMeta.userId = sensitiveActivity ? null : (req.user?.id || null);
+      errorMeta.sensitiveActivity = sensitiveActivity;
     }
 
     await this.error(`Errore: ${error.message}`, errorMeta);

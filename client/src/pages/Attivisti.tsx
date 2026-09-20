@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import AttivistaModal from "@/components/AttivistaModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -106,15 +107,14 @@ export default function Attivisti() {
     const fetchFollowingStatus = async () => {
       if (!user?.id) return;
       try {
-        // Carica l'attivista che stai votando
-        const response = await fetch(`${API_BASE}/api/sostenitori/following?supporter_id=${user.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data.length > 0) {
-            // Con il nuovo sistema, c'è al massimo 1 attivista votato
-            const followingSet = new Set(data.data.map((item: any) => item.supported_id));
-            setFollowingUsers(followingSet);
-          }
+        // Lo stato di voto è derivato esclusivamente dall'utente autenticato.
+        const response = await apiRequest("GET", "/api/sostenitori/following");
+        const data = response.data;
+        if (data?.success && data.data.length > 0) {
+          const followingSet = new Set<string>(data.data.map((item: any) => item.supported_id));
+          setFollowingUsers(followingSet);
+        } else {
+          setFollowingUsers(new Set());
         }
       } catch (error) {
         console.error('Errore nel caricamento stato voto attivista:', error);
@@ -323,35 +323,11 @@ export default function Attivisti() {
     const isCurrentlyVoting = followingUsers.has(attivistaId);
 
     try {
-      let response;
-      if (isCurrentlyVoting) {
-        // Rimuovi voto
-        response = await fetch(`${API_BASE}/api/sostenitori/unfollow`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            supporter_id: user.id,
-            supported_id: attivistaId
-          })
-        });
-      } else {
-        // Vota attivista (sostituisce eventuali altri voti)
-        response = await fetch(`${API_BASE}/api/sostenitori/follow`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            supporter_id: user.id,
-            supported_id: attivistaId
-          })
-        });
-      }
+      const response = isCurrentlyVoting
+        ? await apiRequest("DELETE", "/api/sostenitori/unfollow", { supported_id: attivistaId })
+        : await apiRequest("POST", "/api/sostenitori/follow", { supported_id: attivistaId });
 
-      let data: any = null;
-      try { data = await response.json(); } catch { /* body vuoto o non JSON */ }
+      const data: any = response.data;
 
       if (data.success) {
         if (isCurrentlyVoting) {
@@ -441,11 +417,19 @@ export default function Attivisti() {
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.status === 409) {
+        toast({
+          title: "Info",
+          description: "Stai già votando questo attivista",
+        });
+        setFollowingUsers(new Set([attivistaId]));
+        return;
+      }
       console.error('Errore nel votare attivista:', error);
       toast({
         title: "Errore",
-        description: "Errore di connessione",
+        description: error?.message || "Errore di connessione",
         variant: "destructive"
       });
     }

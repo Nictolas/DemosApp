@@ -78,11 +78,11 @@ const requestLoggingMiddleware = async (req, res, next) => {
 const errorLoggingMiddleware = (error, req, res, next) => {
   // Log dell'errore
   logger.logError(error, req, {
-    endpoint: req.originalUrl,
+    endpoint: req.originalUrl?.split('?')[0],
     method: req.method,
-    body: req.body,
-    query: req.query,
-    params: req.params
+    bodyKeys: req.body && typeof req.body === 'object' ? Object.keys(req.body) : [],
+    queryKeys: req.query && typeof req.query === 'object' ? Object.keys(req.query) : [],
+    paramKeys: req.params && typeof req.params === 'object' ? Object.keys(req.params) : []
   }).catch(logError => {
     console.error('❌ Errore logging errore:', logError);
   });
@@ -143,10 +143,12 @@ const securityLoggingMiddleware = (req, res, next) => {
     if (pattern.test(input)) {
       logger.logSecurity('Tentativo di attacco rilevato', {
         pattern: pattern.toString(),
-        input: input.substring(0, 500), // Limita lunghezza
+        bodyKeys: req.body && typeof req.body === 'object' ? Object.keys(req.body) : [],
+        queryKeys: req.query && typeof req.query === 'object' ? Object.keys(req.query) : [],
+        paramKeys: req.params && typeof req.params === 'object' ? Object.keys(req.params) : [],
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
-        endpoint: req.originalUrl,
+        endpoint: req.originalUrl?.split('?')[0],
         method: req.method
       }).catch(error => {
         console.error('❌ Errore logging sicurezza:', error);
