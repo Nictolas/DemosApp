@@ -347,7 +347,7 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
       `;
 
       const result = await client.query(insertQuery, [
-        userId,
+        registrationKey,
         pending.ruolo,
         pending.userHandle,
         credentialIdBase64,
