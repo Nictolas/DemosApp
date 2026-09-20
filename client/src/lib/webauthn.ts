@@ -208,9 +208,17 @@ export async function registerWithPasskey(ruolo: string = 'E'): Promise<WebAuthn
     return { success: true, message: 'Registrazione con passkey completata.' };
   } catch (error: any) {
     console.error('❌ Errore durante registerWithPasskey:', error);
+    if (error?.name === 'NotAllowedError') {
+      return {
+        success: false,
+        message: 'Registrazione annullata o verifica del dispositivo non riuscita.',
+        code: 'CANCELLED',
+      };
+    }
     return {
       success: false,
-      message: error?.message || 'Errore imprevisto durante la registrazione con passkey.',
+      message: 'Errore imprevisto durante la registrazione con passkey. Riprova.',
+      code: 'PASSKEY_CLIENT_ERROR',
     };
   }
 }
@@ -279,7 +287,7 @@ export async function loginWithPasskey(): Promise<WebAuthnLoginResult> {
 
     const verifyJson = await verifyRes.json();
     if (!verifyRes.ok || !verifyJson.success) {
-      let message = verifyJson.error || verifyJson.message || 'Login con passkey non riuscito.';
+      let message = verifyJson.message || verifyJson.error || 'Login con passkey non riuscito.';
       if (verifyJson.hint) message += ' ' + verifyJson.hint;
       return { success: false, message, code: verifyJson.code };
     }
@@ -307,7 +315,8 @@ export async function loginWithPasskey(): Promise<WebAuthnLoginResult> {
     }
     return {
       success: false,
-      message: error?.message || 'Errore imprevisto durante il login con passkey.',
+      message: 'Errore imprevisto durante il login con passkey. Riprova.',
+      code: 'PASSKEY_CLIENT_ERROR',
     };
   }
 }
