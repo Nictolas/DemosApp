@@ -31,7 +31,7 @@ function createLimiter(max, label) {
     skip: skipLocalhostInDevelopment,
     handler: (req, res) => {
       console.log(
-        `🚨 WEBAUTHN RATE LIMIT: ${label} - IP ${req.ip} - ${req.method} ${req.originalUrl}`,
+        `🚨 WEBAUTHN RATE LIMIT: ${label} - ${req.method} ${req.originalUrl}`,
       );
       return res.status(429).json({
         success: false,
