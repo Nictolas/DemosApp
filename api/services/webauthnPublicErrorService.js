@@ -13,6 +13,11 @@ const PUBLIC_WEBAUTHN_ERRORS = Object.freeze({
     code: 'PASSKEY_AUTHENTICATION_VERIFICATION_FAILED',
     error: 'Verifica login passkey non riuscita',
     message: 'La verifica del login con passkey non è riuscita. Riprova.'
+  }),
+  SIGN_COUNTER_CONFLICT: Object.freeze({
+    code: 'PASSKEY_SIGN_COUNTER_CONFLICT',
+    error: 'Accesso passkey non valido',
+    message: 'Non è stato possibile completare l’accesso con questa passkey. Riprova.'
   })
 });
 
