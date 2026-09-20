@@ -15,15 +15,16 @@ test.afterEach(() => {
   clearMockTransactionsForTests();
 });
 
-test('crea transazione mock con state nonce e PKCE', () => {
+test('espone solo state e nonce nell avvio mock', () => {
   const tx = startMockTransaction('user-1', 1000);
 
   assert.ok(tx.state);
   assert.ok(tx.nonce);
-  assert.ok(tx.codeChallenge);
-  assert.equal(tx.codeChallengeMethod, 'S256');
-  assert.equal(tx.expiresIn, TTL_MS / 1000);
+  assert.deepEqual(Object.keys(tx).sort(), ['nonce', 'state']);
   assert.equal(Object.hasOwn(tx, 'codeVerifier'), false);
+  assert.equal(Object.hasOwn(tx, 'codeChallenge'), false);
+  assert.equal(Object.hasOwn(tx, 'codeChallengeMethod'), false);
+  assert.equal(Object.hasOwn(tx, 'expiresIn'), false);
 });
 
 test('consuma una transazione una sola volta', () => {
