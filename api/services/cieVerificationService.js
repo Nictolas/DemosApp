@@ -1,4 +1,8 @@
-const { registerVerifiedIdentity } = require('./identityVerificationStore');
+const {
+  IdentityVerificationError,
+  getIdentityVerificationStatus,
+  registerVerifiedIdentity
+} = require('./identityVerificationStore');
 
 function getFiscalNumberFromVerifiedClaims(claims) {
   if (!claims || typeof claims !== 'object') {
@@ -11,6 +15,19 @@ function getFiscalNumberFromVerifiedClaims(claims) {
   }
 
   return fiscalNumber;
+}
+
+async function assertAccountCanStartCieVerification(userId, db) {
+  const status = await getIdentityVerificationStatus(userId, db);
+
+  if (status.verified) {
+    throw new IdentityVerificationError(
+      'ACCOUNT_ALREADY_VERIFIED',
+      'Account gia associato a una identita verificata'
+    );
+  }
+
+  return true;
 }
 
 /**
@@ -37,5 +54,6 @@ async function completeCieVerificationFromVerifiedClaims(
 
 module.exports = {
   getFiscalNumberFromVerifiedClaims,
+  assertAccountCanStartCieVerification,
   completeCieVerificationFromVerifiedClaims
 };
