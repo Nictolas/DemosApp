@@ -1,4 +1,5 @@
 const { createCieOidcTransaction, verifyState, verifyNonce } = require('./cieOidcTransactionService');
+const { IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
 
 const TTL_MS = 5 * 60 * 1000;
 const transactions = new Map();
@@ -10,7 +11,7 @@ function isMockCieEnabled() {
 function assertMockCieEnabled() {
   if (!isMockCieEnabled()) {
     const error = new Error('Mock CIE non disponibile');
-    error.code = 'MOCK_CIE_DISABLED';
+    error.code = IDENTITY_ERROR_CODES.MOCK_CIE_DISABLED;
     throw error;
   }
 }
@@ -65,7 +66,7 @@ function consumeMockTransaction({ userId, state, nonce }, now = Date.now()) {
 }
 
 function getMockCieStartErrorResponse(error) {
-  if (error?.code === 'ACCOUNT_ALREADY_VERIFIED') {
+  if (error?.code === IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED) {
     return {
       status: 409,
       error: 'Account gia associato a una identita verificata'
@@ -80,9 +81,9 @@ function getMockCieStartErrorResponse(error) {
 
 function getMockCieCompleteErrorResponse(error) {
   const safeConflicts = {
-    PERSON_ALREADY_LINKED: 'Identita gia associata a un altro account DEMOS',
-    ACCOUNT_ALREADY_VERIFIED: 'Account gia associato a una identita verificata',
-    IDENTITY_CONFLICT: 'Conflitto durante la verifica identita'
+    [IDENTITY_ERROR_CODES.PERSON_ALREADY_LINKED]: 'Identita gia associata a un altro account DEMOS',
+    [IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED]: 'Account gia associato a una identita verificata',
+    [IDENTITY_ERROR_CODES.IDENTITY_CONFLICT]: 'Conflitto durante la verifica identita'
   };
 
   const safeMessage = safeConflicts[error?.code];
