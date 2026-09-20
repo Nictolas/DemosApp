@@ -149,9 +149,9 @@ class SecurityMonitor {
         details: {
           url: req.url,
           method: req.method,
-          body: JSON.stringify(req.body),
-          query: JSON.stringify(req.query),
-          headers: JSON.stringify(req.headers)
+          body_keys: req.body && typeof req.body === 'object' ? Object.keys(req.body) : [],
+          query_keys: req.query && typeof req.query === 'object' ? Object.keys(req.query) : [],
+          header_names: Object.keys(req.headers || {})
         }
       });
 
