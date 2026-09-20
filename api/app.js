@@ -249,7 +249,7 @@ if (process.env.NODE_ENV !== 'production') {
       console.log(`🟣 Path: ${req.path}`);
       console.log(`🟣 Base URL: ${req.baseUrl}`);
       console.log(`🟣 Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
-      console.log(`🟣 Body: ${JSON.stringify(req.body)}`);
+      console.log(`🟣 Body keys: ${req.body && typeof req.body === 'object' ? Object.keys(req.body).join(',') : 'none'}`);
     }
     next();
   });
@@ -307,7 +307,7 @@ if (process.env.NODE_ENV !== 'production') {
     if (req.path === '/api/referendum-abrogativi' && req.method === 'POST') {
       console.log('📋 REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
       console.log('📋 REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
-      console.log('📋 REFERENDUM POST - Body:', JSON.stringify(req.body));
+      console.log('📋 REFERENDUM POST - Body keys:', req.body && typeof req.body === 'object' ? Object.keys(req.body) : []);
     }
     next();
   });
