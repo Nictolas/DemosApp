@@ -14,6 +14,19 @@ test('gli errori pubblici WebAuthn sono stabili e non includono dettagli interni
   assert.equal(JSON.stringify(publicError).includes(internalDetail), false);
 });
 
+test('conflitto sign counter usa un messaggio pubblico generico', () => {
+  const publicError = getPublicWebAuthnError('SIGN_COUNTER_CONFLICT');
+
+  assert.equal(publicError.code, 'PASSKEY_SIGN_COUNTER_CONFLICT');
+  assert.equal(publicError.error, 'Accesso passkey non valido');
+  assert.equal(
+    publicError.message,
+    'Non è stato possibile completare l’accesso con questa passkey. Riprova.'
+  );
+  assert.equal(JSON.stringify(publicError).includes('replay'), false);
+  assert.equal(JSON.stringify(publicError).includes('clone'), false);
+});
+
 test('errore WebAuthn sconosciuto usa un fallback pubblico generico', () => {
   assert.deepEqual(getPublicWebAuthnError('NOT_REAL'), {
     code: 'PASSKEY_ERROR',
