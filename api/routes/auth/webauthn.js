@@ -5,7 +5,6 @@ const {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
-const { randomUUID } = require('crypto');
 const { getPool } = require('../../config/database');
 const { generateTokenPair } = require('../../utils/jwt');
 const {
@@ -32,6 +31,10 @@ const {
   createWebAuthnLoginSessionKey,
   normalizeWebAuthnLoginSessionKey,
 } = require('../../services/webauthnLoginSessionPolicy');
+const {
+  createWebAuthnRegistrationSessionKey,
+  normalizeWebAuthnRegistrationSessionKey,
+} = require('../../services/webauthnRegistrationSessionPolicy');
 const {
   normalizeWebAuthnCredentialId,
   webAuthnCredentialIdLookupVariants,
@@ -89,6 +92,16 @@ function invalidLoginSession(res, error) {
     success: false,
     error: 'Sessione login passkey non valida',
     code: 'INVALID_PASSKEY_LOGIN_SESSION',
+  });
+  return true;
+}
+
+function invalidRegistrationSession(res, error) {
+  if (error?.code !== 'INVALID_WEBAUTHN_REGISTRATION_SESSION') return false;
+  res.status(400).json({
+    success: false,
+    error: 'Sessione registrazione passkey non valida',
+    code: 'INVALID_PASSKEY_REGISTRATION_SESSION',
   });
   return true;
 }
@@ -163,7 +176,7 @@ router.post('/webauthn/register/options', webauthnChallengeLimiter, async (req, 
     // Eventuali ruoli privilegiati vengono assegnati solo da flussi server-side dedicati.
     const userRole = getPublicWebAuthnRegistrationRole();
 
-    const userId = randomUUID();
+    const userId = createWebAuthnRegistrationSessionKey();
     const userHandleBuffer = Buffer.from(userId, 'utf8');
 
     // SimpleWebAuthn richiede userID come Buffer/Uint8Array (non stringa); generateRegistrationOptions è async
@@ -226,7 +239,8 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
       });
     }
 
-    const pending = await consumeRegistrationChallenge(userId);
+    const registrationKey = normalizeWebAuthnRegistrationSessionKey(userId);
+    const pending = await consumeRegistrationChallenge(registrationKey);
     if (!pending) {
       return res.status(400).json({
         success: false,
@@ -387,6 +401,7 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
     }
   } catch (error) {
     console.error('❌ Errore in /webauthn/register/verify:', error);
+    if (invalidRegistrationSession(res, error)) return;
     if (invalidClientInstanceId(res, error)) return;
     if (invalidCredentialId(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
