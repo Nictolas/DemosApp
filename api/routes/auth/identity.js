@@ -1,7 +1,10 @@
 const express = require('express');
 const { verifyToken } = require('../../middleware/auth');
 const { getIdentityVerificationStatus } = require('../../services/identityVerificationStore');
-const { completeCieVerificationFromVerifiedClaims } = require('../../services/cieVerificationService');
+const {
+  assertAccountCanStartCieVerification,
+  completeCieVerificationFromVerifiedClaims
+} = require('../../services/cieVerificationService');
 const {
   isMockCieEnabled,
   startMockTransaction,
@@ -91,6 +94,8 @@ router.post('/identity/cie/mock/complete', verifyToken, async (req, res) => {
 // e richiede configurazione di federazione + Redis condiviso.
 router.get('/identity/cie/start', verifyToken, async (req, res) => {
   try {
+    await assertAccountCanStartCieVerification(req.userId);
+
     const { authorizationUrl, transaction } = createAuthorizationRequest();
     await saveCieOidcTransaction(req.userId, transaction);
 
@@ -100,6 +105,15 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
     });
   } catch (error) {
     const disabled = error?.code === 'CIE_OIDC_DISABLED';
+    const alreadyVerified = error?.code === 'ACCOUNT_ALREADY_VERIFIED';
+
+    if (alreadyVerified) {
+      return res.status(409).json({
+        success: false,
+        error: 'Account gia verificato'
+      });
+    }
+
     return res.status(disabled ? 404 : 503).json({
       success: false,
       error: disabled
