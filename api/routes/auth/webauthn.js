@@ -14,6 +14,9 @@ const {
   setLoginChallenge,
   consumeLoginChallenge,
 } = require('../../services/webauthnChallengeStore');
+const {
+  getPublicWebAuthnRegistrationRole,
+} = require('../../services/webauthnRegistrationPolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -76,7 +79,7 @@ router.post('/webauthn/device/status', async (req, res) => {
  */
 router.post('/webauthn/register/options', async (req, res) => {
   try {
-    const { ruolo, deviceId } = req.body || {};
+    const { deviceId } = req.body || {};
 
     // Un solo account passkey per dispositivo
     if (deviceId && typeof deviceId === 'string' && deviceId.trim()) {
@@ -94,8 +97,9 @@ router.post('/webauthn/register/options', async (req, res) => {
       }
     }
 
-    // Ruolo di default: Elettore (E)
-    const userRole = ruolo || 'E';
+    // La registrazione pubblica WebAuthn non accetta ruoli dal client.
+    // Eventuali ruoli privilegiati vengono assegnati solo da flussi server-side dedicati.
+    const userRole = getPublicWebAuthnRegistrationRole();
 
     const userId = uuidv4();
     const userHandleBuffer = Buffer.from(userId, 'utf8');
