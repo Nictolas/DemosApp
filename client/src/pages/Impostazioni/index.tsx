@@ -7,10 +7,36 @@ import { useLogout } from "./hooks/useLogout";
 import { LinksSection } from "./components/LinksSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { toast } from "@/hooks/use-toast";
 
 export default function Impostazioni() {
   const { user, isLoading } = useAuth();
   const logout = useLogout();
+
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+    const outcome = url.searchParams.get('cie');
+
+    if (outcome !== 'success' && outcome !== 'error') {
+      return;
+    }
+
+    if (outcome === 'success') {
+      toast({
+        title: "Identità verificata",
+        description: "La verifica CIE è stata completata con successo."
+      });
+    } else {
+      toast({
+        title: "Verifica CIE non completata",
+        description: "Non è stato possibile completare la verifica con CIE. Puoi riprovare.",
+        variant: "destructive"
+      });
+    }
+
+    url.searchParams.delete('cie');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   if (isLoading) {
     return (
