@@ -3,13 +3,42 @@ const redisCache = require('./redisCache');
 
 const TTL_SECONDS = 5 * 60;
 
+function hashValue(value) {
+  return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
+}
+
 function transactionKey(state) {
   if (typeof state !== 'string' || state.length < 32) {
     throw new Error('State CIE non valido');
   }
 
-  const digest = crypto.createHash('sha256').update(state, 'utf8').digest('hex');
+  const digest = hashValue(state);
   return `cie:oidc:tx:${digest}`;
+}
+
+function userLockKey(userId) {
+  if (!userId) throw new Error('userId obbligatorio');
+  return `cie:oidc:user:${hashValue(userId)}`;
+}
+
+function transactionLockValue(state) {
+  return hashValue(state);
+}
+
+function createActiveTransactionError() {
+  const error = new Error('Verifica CIE gia in corso');
+  error.code = 'CIE_TRANSACTION_ALREADY_ACTIVE';
+  return error;
+}
+
+async function releaseUserLockIfOwned(userId, state, client) {
+  const key = userLockKey(userId);
+  const expected = transactionLockValue(state);
+  const current = await client.get(key);
+
+  if (current === expected) {
+    await client.del(key);
+  }
 }
 
 async function saveCieOidcTransaction(userId, transaction, client = redisCache.getClient()) {
@@ -26,9 +55,25 @@ async function saveCieOidcTransaction(userId, transaction, client = redisCache.g
     expiresAt: transaction.expiresAt
   };
 
-  await client.set(transactionKey(transaction.state), JSON.stringify(payload), {
-    ex: TTL_SECONDS
+  const lockKey = userLockKey(userId);
+  const lockValue = transactionLockValue(transaction.state);
+  const lockResult = await client.set(lockKey, lockValue, {
+    ex: TTL_SECONDS,
+    nx: true
   });
+
+  if (lockResult == null) {
+    throw createActiveTransactionError();
+  }
+
+  try {
+    await client.set(transactionKey(transaction.state), JSON.stringify(payload), {
+      ex: TTL_SECONDS
+    });
+  } catch (error) {
+    await releaseUserLockIfOwned(userId, transaction.state, client);
+    throw error;
+  }
 }
 
 async function consumeCieOidcTransaction(state, client = redisCache.getClient()) {
@@ -57,9 +102,11 @@ async function consumeCieOidcTransaction(state, client = redisCache.getClient())
   }
 
   if (!transaction.expiresAt || transaction.expiresAt < Date.now()) {
+    await releaseUserLockIfOwned(transaction.userId, transaction.state, client);
     throw new Error('Transazione CIE scaduta');
   }
 
+  await releaseUserLockIfOwned(transaction.userId, transaction.state, client);
   return transaction;
 }
 

@@ -108,11 +108,19 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
   } catch (error) {
     const disabled = error?.code === 'CIE_OIDC_DISABLED';
     const alreadyVerified = error?.code === 'ACCOUNT_ALREADY_VERIFIED';
+    const alreadyActive = error?.code === 'CIE_TRANSACTION_ALREADY_ACTIVE';
 
     if (alreadyVerified) {
       return res.status(409).json({
         success: false,
         error: 'Account gia verificato'
+      });
+    }
+
+    if (alreadyActive) {
+      return res.status(409).json({
+        success: false,
+        error: 'Verifica CIE gia in corso'
       });
     }
 
