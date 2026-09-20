@@ -1,6 +1,9 @@
 const redisCache = require('./redisCache');
 const { keys, ttl } = require('../config/cacheKeys');
 const { atomicGetAndDelete } = require('./webauthnAtomicConsume');
+const {
+  normalizeWebAuthnChallengePayload,
+} = require('./webauthnChallengePayloadPolicy');
 
 const allowLocalFallback = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 const localFallback = new Map();
@@ -24,10 +27,11 @@ function keyFor(kind, id) {
     : keys.webAuthnLoginChallenge(keyPart);
 }
 
-function parseStoredValue(raw) {
+function parseStoredValue(kind, raw) {
   if (raw == null) return null;
-  if (typeof raw === 'string') return JSON.parse(raw);
-  return raw;
+
+  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  return normalizeWebAuthnChallengePayload(kind, parsed);
 }
 
 function unavailableError(cause) {
@@ -62,11 +66,12 @@ function consumeLocal(key) {
 
 async function setChallenge(kind, id, value) {
   const key = keyFor(kind, id);
+  const normalizedValue = normalizeWebAuthnChallengePayload(kind, value);
   const client = redisCache.getClient();
 
   if (client) {
     try {
-      await client.set(key, JSON.stringify(value), { ex: getChallengeTtlSeconds() });
+      await client.set(key, JSON.stringify(normalizedValue), { ex: getChallengeTtlSeconds() });
       return;
     } catch (error) {
       throw unavailableError(error);
@@ -78,7 +83,7 @@ async function setChallenge(kind, id, value) {
   }
 
   // Solo sviluppo/test: fallback locale con la stessa scadenza del Redis store.
-  setLocal(key, value);
+  setLocal(key, normalizedValue);
 }
 
 async function consumeChallenge(kind, id) {
@@ -89,7 +94,7 @@ async function consumeChallenge(kind, id) {
     try {
       // Consumo atomico: GETDEL nativo oppure fallback Lua con EVAL.
       const raw = await atomicGetAndDelete(client, key);
-      return parseStoredValue(raw);
+      return parseStoredValue(kind, raw);
     } catch (error) {
       throw unavailableError(error);
     }
@@ -99,7 +104,8 @@ async function consumeChallenge(kind, id) {
     throw unavailableError();
   }
 
-  return consumeLocal(key);
+  const value = consumeLocal(key);
+  return value == null ? null : normalizeWebAuthnChallengePayload(kind, value);
 }
 
 module.exports = {
