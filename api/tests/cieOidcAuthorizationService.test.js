@@ -36,7 +36,11 @@ test('costruisce authorization request CIE firmata RS256 con PKCE', () => {
   assert.equal(url.searchParams.get('response_type'), 'code');
   assert.equal(url.searchParams.get('scope'), 'openid');
   assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
-  assert.equal(url.searchParams.get('code_challenge'), transaction.codeChallenge ?? url.searchParams.get('code_challenge'));
+  const expectedChallenge = crypto
+    .createHash('sha256')
+    .update(transaction.codeVerifier, 'ascii')
+    .digest('base64url');
+  assert.equal(url.searchParams.get('code_challenge'), expectedChallenge);
 
   const request = url.searchParams.get('request');
   const decoded = jwt.verify(request, publicKey, {
