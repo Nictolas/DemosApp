@@ -40,6 +40,10 @@ function getCieOidcConfig() {
     process.env.CIE_OP_AUTHORIZATION_ENDPOINT
   );
   const redirectUri = requireHttpsUrl('CIE_REDIRECT_URI', process.env.CIE_REDIRECT_URI);
+  const tokenEndpoint = requireHttpsUrl(
+    'CIE_OP_TOKEN_ENDPOINT',
+    process.env.CIE_OP_TOKEN_ENDPOINT
+  );
 
   const signingKid = process.env.CIE_RP_SIGNING_KID;
   const privateKey = decodeBase64Secret('CIE_RP_SIGNING_PRIVATE_KEY_B64');
@@ -55,6 +59,7 @@ function getCieOidcConfig() {
     clientId,
     issuer,
     authorizationEndpoint,
+    tokenEndpoint,
     redirectUri,
     signingKid,
     privateKey,
