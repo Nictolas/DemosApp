@@ -9,6 +9,7 @@ import { IdentityVerificationSection } from "./components/IdentityVerificationSe
 import { LogoutDialog } from "./components/LogoutDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { toast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Impostazioni() {
   const { user, isLoading } = useAuth();
@@ -23,6 +24,17 @@ export default function Impostazioni() {
     }
 
     if (outcome === 'success') {
+      queryClient.invalidateQueries({
+        queryKey: ["/auth/identity/status"],
+        exact: true
+      });
+
+      queryClient.refetchQueries({
+        queryKey: ["/auth/identity/status"],
+        exact: true,
+        type: "active"
+      });
+
       toast({
         title: "Identità verificata",
         description: "La verifica CIE è stata completata con successo."
