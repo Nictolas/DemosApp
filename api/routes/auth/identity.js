@@ -21,6 +21,7 @@ const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenServic
 const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
 const { fetchAndValidateCieUserInfo } = require('../../services/cieOidcUserInfoService');
 const { buildCieCallbackRedirect } = require('../../services/cieCallbackRedirectService');
+const { IDENTITY_ERROR_CODES } = require('../../constants/identityVerification');
 
 const router = express.Router();
 
@@ -106,14 +107,14 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
       authorizationUrl
     });
   } catch (error) {
-    const disabled = error?.code === 'CIE_OIDC_DISABLED';
-    const alreadyVerified = error?.code === 'ACCOUNT_ALREADY_VERIFIED';
-    const alreadyActive = error?.code === 'CIE_TRANSACTION_ALREADY_ACTIVE';
+    const disabled = error?.code === IDENTITY_ERROR_CODES.CIE_OIDC_DISABLED;
+    const alreadyVerified = error?.code === IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED;
+    const alreadyActive = error?.code === IDENTITY_ERROR_CODES.CIE_TRANSACTION_ALREADY_ACTIVE;
 
     if (alreadyVerified) {
       return res.status(409).json({
         success: false,
-        code: 'ACCOUNT_ALREADY_VERIFIED',
+        code: IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
         error: 'Account gia verificato'
       });
     }
@@ -121,7 +122,7 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
     if (alreadyActive) {
       return res.status(409).json({
         success: false,
-        code: 'CIE_TRANSACTION_ALREADY_ACTIVE',
+        code: IDENTITY_ERROR_CODES.CIE_TRANSACTION_ALREADY_ACTIVE,
         error: 'Verifica CIE gia in corso'
       });
     }
@@ -194,9 +195,9 @@ router.get('/cie/callback', async (req, res) => {
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
     try {
-      const outcome = error?.code === 'PERSON_ALREADY_LINKED'
+      const outcome = error?.code === IDENTITY_ERROR_CODES.PERSON_ALREADY_LINKED
         ? 'already-linked'
-        : error?.code === 'ACCOUNT_ALREADY_VERIFIED'
+        : error?.code === IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED
           ? 'account-already-verified'
           : 'error';
       return res.redirect(303, buildCieCallbackRedirect(outcome));

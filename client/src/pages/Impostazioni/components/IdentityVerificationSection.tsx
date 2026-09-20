@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, Shield } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
+import { IDENTITY_ERROR_CODES, getIdentityProviderLabel } from "@/constants/identityVerification";
 
 type IdentityStatusResponse = {
   success: boolean;
@@ -13,17 +14,6 @@ type IdentityStatusResponse = {
     provider?: string;
   };
 };
-
-function getIdentityProviderLabel(provider?: string) {
-  switch (provider?.toUpperCase()) {
-    case "CIE":
-      return "CIE";
-    case "SPID":
-      return "SPID";
-    default:
-      return undefined;
-  }
-}
 
 export const IdentityVerificationSection: React.FC = () => {
   const [isStartingCie, setIsStartingCie] = React.useState(false);
@@ -67,10 +57,10 @@ export const IdentityVerificationSection: React.FC = () => {
     } catch (error: any) {
       const alreadyActive =
         error?.status === 409 &&
-        error?.data?.code === "CIE_TRANSACTION_ALREADY_ACTIVE";
+        error?.data?.code === IDENTITY_ERROR_CODES.CIE_TRANSACTION_ALREADY_ACTIVE;
       const alreadyVerified =
         error?.status === 409 &&
-        error?.data?.code === "ACCOUNT_ALREADY_VERIFIED";
+        error?.data?.code === IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED;
 
       if (alreadyVerified) {
         toast({
