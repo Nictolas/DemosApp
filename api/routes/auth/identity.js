@@ -13,6 +13,7 @@ const {
   consumeCieOidcTransaction
 } = require('../../services/cieOidcTransactionStore');
 const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenService');
+const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
 
 const router = express.Router();
 
@@ -96,9 +97,9 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 });
 
 // Callback OIDC CIE reale.
-// Esegue state/one-time transaction + token exchange private_key_jwt.
-// NON completa ancora la verifica identita: prima vanno validati ID Token,
-// firma/trust chain, issuer/audience e nonce.
+// Esegue state/one-time transaction + token exchange private_key_jwt
+// e valida firma/issuer/audience/nonce/ACR/at_hash dell'ID Token.
+// NON completa ancora l'identita finche non viene validata la UserInfo firmata.
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     return res.status(404).json({
@@ -129,16 +130,22 @@ router.get('/cie/callback', async (req, res) => {
       });
     }
 
-    await exchangeAuthorizationCode({
+    const tokens = await exchangeAuthorizationCode({
       code,
       codeVerifier: transaction.codeVerifier
     });
 
-    // Fail closed: nessuna identita viene registrata finche non implementiamo
-    // e testiamo la validazione dell'ID Token e del nonce.
+    validateCieIdToken({
+      idToken: tokens.idToken,
+      accessToken: tokens.accessToken,
+      expectedNonce: transaction.nonce
+    });
+
+    // Fail closed: ID Token e nonce sono validati, ma l'identita non viene
+    // ancora registrata finche non recuperiamo e validiamo la UserInfo firmata.
     return res.status(503).json({
       success: false,
-      error: 'Scambio token CIE completato; validazione ID Token non ancora attiva'
+      error: 'ID Token CIE validato; UserInfo CIE non ancora attiva'
     });
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
