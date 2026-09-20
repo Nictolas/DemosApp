@@ -188,3 +188,55 @@ test('rilascia il lock anche quando la transazione consumata risulta scaduta', a
   await saveCieOidcTransaction('user-expired', nextTx, redis);
   assert.equal((await consumeCieOidcTransaction(nextTx.state, redis)).userId, 'user-expired');
 });
+
+
+test('libera il lock anche se il payload Redis della transazione e corrotto', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: '2'.repeat(64),
+    nonce: '3'.repeat(64),
+    codeVerifier: 'verifier-corrupt',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-corrupt', tx, redis);
+
+  const txKey = `cie:oidc:tx:${sha256(tx.state)}`;
+  redis.data.set(txKey, '{json-corrotto');
+
+  await assert.rejects(
+    consumeCieOidcTransaction(tx.state, redis),
+    SyntaxError
+  );
+
+  const nextTx = {
+    state: '4'.repeat(64),
+    nonce: '5'.repeat(64),
+    codeVerifier: 'verifier-next',
+    expiresAt: Date.now() + 60000
+  };
+
+  await saveCieOidcTransaction('user-corrupt', nextTx, redis);
+  assert.equal((await consumeCieOidcTransaction(nextTx.state, redis)).userId, 'user-corrupt');
+});
+
+test('resta compatibile con transazioni create senza chiave owner', async () => {
+  const redis = fakeRedis();
+  const state = '6'.repeat(64);
+  const userId = 'user-legacy';
+  const txKey = `cie:oidc:tx:${sha256(state)}`;
+  const lockKey = `cie:oidc:user:${sha256(userId)}`;
+
+  redis.data.set(txKey, JSON.stringify({
+    userId,
+    state,
+    nonce: '7'.repeat(64),
+    codeVerifier: 'legacy-verifier',
+    expiresAt: Date.now() + 60000
+  }));
+  redis.data.set(lockKey, sha256(state));
+
+  const result = await consumeCieOidcTransaction(state, redis);
+  assert.equal(result.userId, userId);
+  assert.equal(redis.data.has(lockKey), false);
+});
