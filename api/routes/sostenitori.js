@@ -133,7 +133,7 @@ router.get('/', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      supporters: supporters,
+      supporters: req.userRole === 'AD' ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
@@ -648,7 +648,7 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      supporters,
+      supporters: req.userRole === 'AD' ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
