@@ -1403,10 +1403,6 @@ router.post('/vota', verifyToken, async (req, res) => {
     const userId = req.userId || req.user?.id;
     const { voti } = req.body;
     
-    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Utente:', userId);
-    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - req.userId:', req.userId);
-    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - req.user:', req.user);
-    console.log('🔍 DEBUG /api/referendum-abrogativi/vota - Voti da salvare:', voti);
     
     if (!userId) {
       return res.status(401).json({
