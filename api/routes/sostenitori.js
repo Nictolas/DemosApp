@@ -397,6 +397,35 @@ router.get('/following', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/sostenitori/following-organizzazione - Ottieni l'organizzazione votata dall'utente autenticato
+router.get('/following-organizzazione', verifyToken, async (req, res) => {
+  try {
+    const supporter_id = req.userId;
+
+    const result = await pool.query(`
+      SELECT
+        u.organizzazioni as supported_id,
+        u.updated_at as created_at,
+        o.nome,
+        o.cognome
+      FROM users u
+      LEFT JOIN users o ON u.organizzazioni = o.id
+      WHERE u.id = $1 AND u.organizzazioni IS NOT NULL
+    `, [supporter_id]);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero organizzazione votata:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 // POST /api/sostenitori/follow-organizzazione - Vota un'organizzazione (limite di 1 voto)
 router.post('/follow-organizzazione', verifyToken, async (req, res) => {
   try {
