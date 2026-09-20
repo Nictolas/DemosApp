@@ -28,6 +28,14 @@ function userLockKey(userId) {
   return `cie:oidc:user:${hashValue(userId)}`;
 }
 
+function transactionOwnerKey(state) {
+  return `cie:oidc:tx-owner:${hashValue(state)}`;
+}
+
+function isValidUserLockKey(key) {
+  return typeof key === 'string' && /^cie:oidc:user:[a-f0-9]{64}$/.test(key);
+}
+
 function transactionLockValue(state) {
   return hashValue(state);
 }
@@ -38,15 +46,30 @@ function createActiveTransactionError() {
   return error;
 }
 
-async function releaseUserLockIfOwned(userId, state, client) {
+async function releaseUserLockKeyIfOwned(key, state, client) {
   if (typeof client.eval !== 'function') {
     throw new Error('Redis EVAL richiesto per rilascio lock CIE');
   }
+  if (!isValidUserLockKey(key)) {
+    throw new Error('Chiave lock CIE non valida');
+  }
 
-  const key = userLockKey(userId);
   const expected = transactionLockValue(state);
-
   await client.eval(RELEASE_LOCK_SCRIPT, [key], [expected]);
+}
+
+async function releaseUserLockIfOwned(userId, state, client) {
+  return releaseUserLockKeyIfOwned(userLockKey(userId), state, client);
+}
+
+async function getAndDelete(client, key) {
+  if (typeof client.getdel === 'function') {
+    return client.getdel(key);
+  }
+
+  const value = await client.get(key);
+  if (value != null) await client.del(key);
+  return value;
 }
 
 async function saveCieOidcTransaction(userId, transaction, client = redisCache.getClient()) {
@@ -74,11 +97,18 @@ async function saveCieOidcTransaction(userId, transaction, client = redisCache.g
     throw createActiveTransactionError();
   }
 
+  const txKey = transactionKey(transaction.state);
+  const ownerKey = transactionOwnerKey(transaction.state);
+
   try {
-    await client.set(transactionKey(transaction.state), JSON.stringify(payload), {
+    await client.set(ownerKey, lockKey, {
+      ex: TTL_SECONDS
+    });
+    await client.set(txKey, JSON.stringify(payload), {
       ex: TTL_SECONDS
     });
   } catch (error) {
+    await client.del(ownerKey);
     await releaseUserLockIfOwned(userId, transaction.state, client);
     throw error;
   }
@@ -90,22 +120,19 @@ async function consumeCieOidcTransaction(state, client = redisCache.getClient())
   }
 
   const key = transactionKey(state);
-  let raw;
+  const ownerKey = transactionOwnerKey(state);
+  const raw = await getAndDelete(client, key);
+  const ownerLockKey = await getAndDelete(client, ownerKey);
 
-  if (typeof client.getdel === 'function') {
-    raw = await client.getdel(key);
-  } else {
-    raw = await client.get(key);
-    if (raw != null) await client.del(key);
-  }
-
-  if (raw == null) {
-    throw new Error('Transazione CIE non trovata, scaduta o gia utilizzata');
-  }
-
-  const transaction = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  let transaction;
 
   try {
+    if (raw == null) {
+      throw new Error('Transazione CIE non trovata, scaduta o gia utilizzata');
+    }
+
+    transaction = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
     if (transaction.state !== state) {
       throw new Error('State CIE non valido');
     }
@@ -116,7 +143,10 @@ async function consumeCieOidcTransaction(state, client = redisCache.getClient())
 
     return transaction;
   } finally {
-    if (transaction?.userId) {
+    if (isValidUserLockKey(ownerLockKey)) {
+      await releaseUserLockKeyIfOwned(ownerLockKey, state, client);
+    } else if (transaction?.userId) {
+      // Compatibilita con transazioni create prima dell'introduzione della chiave owner.
       await releaseUserLockIfOwned(transaction.userId, state, client);
     }
   }
