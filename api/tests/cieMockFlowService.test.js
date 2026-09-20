@@ -115,6 +115,19 @@ test('non espone errori interni durante avvio mock', () => {
   assert.equal(result.error.includes('database-secret-detail'), false);
 });
 
+test('start mock segnala account gia verificato senza dettagli identita', () => {
+  const result = getMockCieStartErrorResponse({
+    code: 'ACCOUNT_ALREADY_VERIFIED',
+    message: 'provider=CIE person_key=secret'
+  });
+
+  assert.deepEqual(result, {
+    status: 409,
+    error: 'Account gia associato a una identita verificata'
+  });
+  assert.equal(result.error.includes('person_key'), false);
+});
+
 test('espone solo conflitti mock esplicitamente sicuri', () => {
   assert.deepEqual(
     getMockCieCompleteErrorResponse({ code: 'PERSON_ALREADY_LINKED', message: 'internal' }),
