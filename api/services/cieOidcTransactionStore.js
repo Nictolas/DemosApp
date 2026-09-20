@@ -3,6 +3,12 @@ const redisCache = require('./redisCache');
 const { IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
 
 const TTL_SECONDS = 5 * 60;
+const RELEASE_LOCK_SCRIPT = `
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+  return redis.call("DEL", KEYS[1])
+end
+return 0
+`;
 
 function hashValue(value) {
   return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
@@ -33,13 +39,14 @@ function createActiveTransactionError() {
 }
 
 async function releaseUserLockIfOwned(userId, state, client) {
+  if (typeof client.eval !== 'function') {
+    throw new Error('Redis EVAL richiesto per rilascio lock CIE');
+  }
+
   const key = userLockKey(userId);
   const expected = transactionLockValue(state);
-  const current = await client.get(key);
 
-  if (current === expected) {
-    await client.del(key);
-  }
+  await client.eval(RELEASE_LOCK_SCRIPT, [key], [expected]);
 }
 
 async function saveCieOidcTransaction(userId, transaction, client = redisCache.getClient()) {
@@ -98,17 +105,21 @@ async function consumeCieOidcTransaction(state, client = redisCache.getClient())
 
   const transaction = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
-  if (transaction.state !== state) {
-    throw new Error('State CIE non valido');
-  }
+  try {
+    if (transaction.state !== state) {
+      throw new Error('State CIE non valido');
+    }
 
-  if (!transaction.expiresAt || transaction.expiresAt < Date.now()) {
-    await releaseUserLockIfOwned(transaction.userId, transaction.state, client);
-    throw new Error('Transazione CIE scaduta');
-  }
+    if (!transaction.expiresAt || transaction.expiresAt < Date.now()) {
+      throw new Error('Transazione CIE scaduta');
+    }
 
-  await releaseUserLockIfOwned(transaction.userId, transaction.state, client);
-  return transaction;
+    return transaction;
+  } finally {
+    if (transaction?.userId) {
+      await releaseUserLockIfOwned(transaction.userId, state, client);
+    }
+  }
 }
 
 module.exports = {
