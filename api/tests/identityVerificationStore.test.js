@@ -18,22 +18,28 @@ test('utente senza verifica restituisce verified=false', async () => {
   assert.deepEqual(await getIdentityVerificationStatus('user-1', db), { verified: false });
 });
 
-test('lo stato pubblico non espone person_key', async () => {
-  const db = createFakeDb(async () => ({
-    rows: [{
-      person_key: 'a'.repeat(64),
-      provider: 'CIE',
-      status: 'verified',
-      verified_at: '2026-09-20T00:00:00Z',
-      detached_at: null,
-      retention_until: null
-    }]
-  }));
+test('lo stato pubblico espone solo verified e provider', async () => {
+  const db = createFakeDb(async sql => {
+    assert.match(sql, /SELECT provider, status/);
+    assert.doesNotMatch(sql, /person_key/);
+    assert.doesNotMatch(sql, /verified_at/);
+    assert.doesNotMatch(sql, /detached_at/);
+    assert.doesNotMatch(sql, /retention_until/);
+
+    return {
+      rows: [{
+        provider: 'CIE',
+        status: 'verified'
+      }]
+    };
+  });
 
   const status = await getIdentityVerificationStatus('user-1', db);
-  assert.equal(status.verified, true);
-  assert.equal(status.provider, 'CIE');
-  assert.equal(Object.hasOwn(status, 'person_key'), false);
+  assert.deepEqual(status, {
+    verified: true,
+    provider: 'CIE'
+  });
+  assert.deepEqual(Object.keys(status).sort(), ['provider', 'verified']);
 });
 
 test('registra una nuova identita senza restituire person_key', async () => {

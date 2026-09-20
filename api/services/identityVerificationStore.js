@@ -36,7 +36,7 @@ async function getIdentityVerificationStatus(userId, db = getPool()) {
   }
 
   const result = await db.query(
-    `SELECT provider, status, verified_at, detached_at, retention_until
+    `SELECT provider, status
      FROM identity_verifications
      WHERE user_id = $1
      LIMIT 1`,
@@ -47,7 +47,11 @@ async function getIdentityVerificationStatus(userId, db = getPool()) {
     return { verified: false };
   }
 
-  return sanitizeRow(result.rows[0]);
+  const row = result.rows[0];
+  return {
+    verified: row.status === 'verified',
+    provider: row.provider
+  };
 }
 
 async function findInternalVerificationByUserId(userId, db) {
