@@ -159,7 +159,9 @@ router.get('/cie/callback', async (req, res) => {
     try {
       const outcome = error?.code === 'PERSON_ALREADY_LINKED'
         ? 'already-linked'
-        : 'error';
+        : error?.code === 'ACCOUNT_ALREADY_VERIFIED'
+          ? 'account-already-verified'
+          : 'error';
       return res.redirect(303, buildCieCallbackRedirect(outcome));
     } catch (redirectError) {
       console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
