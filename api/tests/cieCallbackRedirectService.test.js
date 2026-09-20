@@ -24,6 +24,13 @@ test('costruisce redirect error generico', () => {
   );
 });
 
+test('costruisce redirect already-linked senza identificativi', () => {
+  assert.equal(
+    buildCieCallbackRedirect('already-linked'),
+    'https://www.demos.community/impostazioni?cie=already-linked'
+  );
+});
+
 test('rifiuta esiti arbitrari', () => {
   assert.throws(
     () => buildCieCallbackRedirect('RSSMRA80A01H501U'),
