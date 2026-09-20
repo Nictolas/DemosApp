@@ -146,17 +146,10 @@ router.post('/vota', verifyToken, async (req, res) => {
   console.log('🚨🚨🚨 Timestamp:', new Date().toISOString());
   console.log('🚨🚨🚨 Method:', req.method);
   console.log('🚨🚨🚨 URL:', req.url);
-  console.log('🚨🚨🚨 Headers authorization:', req.headers.authorization ? 'PRESENTE' : 'MANCANTE');
-  console.log('🚨🚨🚨 Body:', JSON.stringify(req.body));
-  console.log('🚨🚨🚨 User:', req.user ? JSON.stringify(req.user) : 'MANCANTE');
-  console.log('🚨🚨🚨 UserId:', req.userId || 'MANCANTE');
   
   let client = null;
   try {
     console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    console.log('🔍 DEBUG - Body:', req.body);
-    console.log('🔍 DEBUG - User:', req.user);
     
     const { voti } = req.body;
     // Usa req.userId con fallback a req.user.id per sicurezza
@@ -170,8 +163,6 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('🔍 DEBUG - Voti ricevuti:', voti);
-    console.log('🔍 DEBUG - User ID:', userId);
     
     if (!Array.isArray(voti)) {
       console.log('❌ DEBUG - Voti non è un array:', typeof voti);
@@ -296,7 +287,6 @@ router.post('/vota', verifyToken, async (req, res) => {
             votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           }
           
-          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome, 'userId:', userId);
           
           // Inserisci il voto
           const insertQuery = `
@@ -508,8 +498,6 @@ router.post('/consenso', verifyToken, async (req, res) => {
     const { risposta } = req.body;
     const userId = req.user.id;
     
-    console.log('🔍 DEBUG - Risposta ricevuta:', risposta);
-    console.log('🔍 DEBUG - User ID:', userId);
 
     if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
       return res.status(400).json({
