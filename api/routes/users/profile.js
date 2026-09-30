@@ -1,6 +1,9 @@
 const express = require('express');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
-const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
+const {
+  userDataAuditMiddleware,
+  politicalOpinionAccessAuditMiddleware
+} = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
 const { compressUserLocation, decompressUserLocation } = require('../../utils/locationUtils');
 const { decompressGender } = require('../../utils/genderUtils');
@@ -541,7 +544,7 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
 
 
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
-router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+router.get('/:userId/opinioni', verifyToken, politicalOpinionAccessAuditMiddleware, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
     
