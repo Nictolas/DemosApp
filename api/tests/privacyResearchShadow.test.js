@@ -111,3 +111,25 @@ test('shadow SQL removes browser-role access and enables RLS', () => {
     );
   }
 });
+
+test('Research service is isolated from normal account auth and DATABASE_URL', () => {
+  const researchApp = fs.readFileSync(
+    path.join(__dirname, '..', 'research-app.js'),
+    'utf8'
+  ).toLowerCase();
+  const researchDatabase = fs.readFileSync(
+    path.join(__dirname, '..', 'config', 'researchDatabase.js'),
+    'utf8'
+  );
+
+  assert.equal(researchApp.includes("middleware/auth"), false);
+  assert.equal(researchApp.includes("config/database"), false);
+  assert.equal(researchApp.includes("verifytoken"), false);
+
+  assert.ok(researchDatabase.includes('RESEARCH_DATABASE_URL'));
+  assert.equal(
+    /process\.env\.DATABASE_URL/.test(researchDatabase),
+    false,
+    'Research DB config must never fall back to the main DATABASE_URL'
+  );
+});
