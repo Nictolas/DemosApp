@@ -113,8 +113,7 @@ const performanceLoggingMiddleware = (operationName) => {
       logger.logPerformance(operationName, duration, {
         endpoint: req.originalUrl,
         method: req.method,
-        statusCode: res.statusCode,
-        userId: req.user?.id || null
+        statusCode: res.statusCode
       }).catch(error => {
         console.error('❌ Errore logging performance:', error);
       });
@@ -200,7 +199,6 @@ const databaseLoggingMiddleware = (operation, table) => {
       logger.logPerformance(`DB_${operation}`, duration, {
         table,
         operation,
-        userId: req.user?.id || null,
         endpoint: req.originalUrl
       }).catch(error => {
         console.error('❌ Errore logging database:', error);
@@ -238,7 +236,6 @@ const businessLogicLoggingMiddleware = (eventName) => {
         logger.info(`Business Event: ${eventName}`, {
           eventName,
           duration: `${duration}ms`,
-          userId: req.user?.id || null,
           endpoint: req.originalUrl,
           method: req.method,
           statusCode: res.statusCode
