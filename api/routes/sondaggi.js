@@ -66,7 +66,11 @@ router.get('/', async (req, res) => {
           COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
           COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
+        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
       `;
       
       try {
@@ -388,7 +392,10 @@ router.get('/:regione', async (req, res) => {
           COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
-        WHERE orr."${columnName}" IS NOT NULL 
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE orr."${columnName}" IS NOT NULL
+        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
         AND u.regione_residenza = $1
       `;
       
@@ -501,7 +508,10 @@ router.get('/:regione/:provincia', async (req, res) => {
           COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
+        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
       `;
@@ -617,7 +627,10 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
           COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
+        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
         AND u.comune_residenza = $3
