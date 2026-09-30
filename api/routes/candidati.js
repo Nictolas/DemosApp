@@ -5,6 +5,9 @@ const { compressRegione, REGIONI_DB_TO_FRONTEND } = require('../utils/regioniUti
 
 const router = express.Router();
 
+const hasAnsweredOpinions = (opinions) =>
+  Object.values(opinions || {}).some(value => value !== null && value !== undefined);
+
 // GET /api/candidati - Ottieni selezioni candidati dell'utente corrente
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -18,7 +21,7 @@ router.get('/', verifyToken, async (req, res) => {
         id,
         nome,
         cognome,
-        email,
+        
         ruolo,
         status,
         avatar_config,
@@ -66,7 +69,7 @@ router.get('/', verifyToken, async (req, res) => {
             id,
             nome,
             cognome,
-            email,
+            
             ruolo,
             status,
             avatar_config,
@@ -326,7 +329,8 @@ router.get('/europei', verifyToken, async (req, res) => {
       }
     }));
 
-    const candidatiOrdinati = candidatiConOpinioni
+    const candidatiValutabili = hasAnsweredOpinions(userOpinions) ? candidatiConOpinioni : [];
+    const candidatiOrdinati = candidatiValutabili
       .sort((a, b) => {
         if (b.opinioniComuni !== a.opinioniComuni) return b.opinioniComuni - a.opinioniComuni;
         return a.cognome.localeCompare(b.cognome);
@@ -376,7 +380,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         id,
         nome,
         cognome,
-        email,
+        
         ruolo,
         status,
         avatar_config,
@@ -465,8 +469,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           }
         }
         
-          // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
-          if (!userOpinions) {
+                  if (!userOpinions) {
             // Prima trova l'ID di Nicolas Micheletti
             const testUserResult = await pool.query(`
               SELECT id FROM users 
@@ -529,7 +532,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     }));
     
     // Ordina per opinioni comuni (decrescente) e poi per cognome
-    const candidatiOrdinati = candidatiConOpinioni
+    const candidatiValutabili = hasAnsweredOpinions(userOpinions) ? candidatiConOpinioni : [];
+    const candidatiOrdinati = candidatiValutabili
       .sort((a, b) => {
         if (b.opinioniComuni !== a.opinioniComuni) {
           return b.opinioniComuni - a.opinioniComuni;
@@ -680,7 +684,7 @@ router.get('/selezioni', verifyToken, async (req, res) => {
             id,
             nome,
             cognome,
-            email,
+            
             ruolo,
             status,
             avatar_config
