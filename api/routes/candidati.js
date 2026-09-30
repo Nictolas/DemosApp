@@ -5,6 +5,9 @@ const { compressRegione, REGIONI_DB_TO_FRONTEND } = require('../utils/regioniUti
 
 const router = express.Router();
 
+const hasAnsweredOpinions = (opinions) =>
+  Object.values(opinions || {}).some(value => value !== null && value !== undefined);
+
 // GET /api/candidati - Ottieni selezioni candidati dell'utente corrente
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -18,7 +21,7 @@ router.get('/', verifyToken, async (req, res) => {
         id,
         nome,
         cognome,
-        email,
+        
         ruolo,
         status,
         avatar_config,
@@ -66,7 +69,7 @@ router.get('/', verifyToken, async (req, res) => {
             id,
             nome,
             cognome,
-            email,
+            
             ruolo,
             status,
             avatar_config,
@@ -271,7 +274,7 @@ router.get('/europei', verifyToken, async (req, res) => {
     }
 
     const candidatiQuery = `
-      SELECT id, nome, cognome, email, ruolo, status, avatar_config, grado_candidatura
+      SELECT id, nome, cognome, ruolo, status, avatar_config, grado_candidatura
       FROM users
       WHERE id = ANY($1) AND ruolo IN ('C', 'CP')
       ORDER BY nome, cognome
@@ -326,7 +329,8 @@ router.get('/europei', verifyToken, async (req, res) => {
       }
     }));
 
-    const candidatiOrdinati = candidatiConOpinioni
+    const candidatiValutabili = hasAnsweredOpinions(userOpinions) ? candidatiConOpinioni : [];
+    const candidatiOrdinati = candidatiValutabili
       .sort((a, b) => {
         if (b.opinioniComuni !== a.opinioniComuni) return b.opinioniComuni - a.opinioniComuni;
         return a.cognome.localeCompare(b.cognome);
@@ -376,7 +380,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         id,
         nome,
         cognome,
-        email,
+        
         ruolo,
         status,
         avatar_config,
@@ -465,37 +469,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           }
         }
         
-          // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
-          if (!userOpinions) {
-            // Prima trova l'ID di Nicolas Micheletti
-            const testUserResult = await pool.query(`
-              SELECT id FROM users 
-              WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
-              ORDER BY nome, cognome
-              LIMIT 1
-            `);
-            
-            if (testUserResult.rows.length > 0) {
-              const testUserId = testUserResult.rows[0].id;
-              const testUserAnswersQuery = `
-                SELECT * FROM opinioni_risposte WHERE user_id = $1
-              `;
-              
-              const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
-              userOpinions = {};
-              
-              if (testUserAnswersResult.rows.length > 0) {
-                const testUserRow = testUserAnswersResult.rows[0];
-                // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-                Object.keys(testUserRow).forEach(key => {
-                  if (key !== 'user_id' && key !== 'fonti_opinioni') {
-                    userOpinions[key] = testUserRow[key];
-                  }
-                });
-              }
-            }
-          }
-        
         if (!userOpinions) {
           return { ...candidato, opinioniComuni: 0 };
         }
@@ -529,7 +502,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     }));
     
     // Ordina per opinioni comuni (decrescente) e poi per cognome
-    const candidatiOrdinati = candidatiConOpinioni
+    const candidatiValutabili = hasAnsweredOpinions(userOpinions) ? candidatiConOpinioni : [];
+    const candidatiOrdinati = candidatiValutabili
       .sort((a, b) => {
         if (b.opinioniComuni !== a.opinioniComuni) {
           return b.opinioniComuni - a.opinioniComuni;
@@ -680,7 +654,7 @@ router.get('/selezioni', verifyToken, async (req, res) => {
             id,
             nome,
             cognome,
-            email,
+            
             ruolo,
             status,
             avatar_config
