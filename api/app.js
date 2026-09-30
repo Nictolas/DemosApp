@@ -87,6 +87,7 @@ const securityMetricsRoutes = require('./routes/admin/security-metrics');
 const dataExportRoutes = require('./routes/admin/data-export');
 const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
 const axiomDataRoutes = require('./routes/admin/axiom-data');
+const researchShadowRoutes = require('./routes/admin/research-shadow');
 const migrationsRoutes = require('./routes/migrations');
 const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
@@ -448,6 +449,7 @@ app.use('/api/admin/axiom-data', adminLimiter, axiomDataRoutes);
 // Route per monitoraggio performance e salute
 app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
 app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
+app.use('/api/admin/research-shadow', adminLimiter, researchShadowRoutes);
 
 // Route per migrazioni database / cleanup / test (non in produzione senza ALLOW_DEV_API_SURFACE)
 if (mountDevApiSurface) {
