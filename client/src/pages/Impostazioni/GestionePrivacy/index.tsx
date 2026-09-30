@@ -2,12 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Shield, Eye, EyeOff, Database, Mail, Bell, Globe, Lock } from "lucide-react";
+import { Loader2, Shield, Database, Mail, Bell, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 
 interface PrivacySetting {
   id: string;
@@ -19,22 +18,6 @@ interface PrivacySetting {
 }
 
 const privacySettings: PrivacySetting[] = [
-  {
-    id: "profile_visibility",
-    title: "Profilo Pubblico",
-    description: "Rendi il tuo profilo visibile ad altri utenti",
-    icon: <Globe className="h-5 w-5" />,
-    enabled: true,
-    category: "Visibilità"
-  },
-  {
-    id: "opinions_public",
-    title: "Opinioni Pubbliche",
-    description: "Rendi le tue opinioni visibili pubblicamente",
-    icon: <Eye className="h-5 w-5" />,
-    enabled: true,
-    category: "Visibilità"
-  },
   {
     id: "email_notifications",
     title: "Notifiche Email",
@@ -61,7 +44,7 @@ const privacySettings: PrivacySetting[] = [
   }
 ];
 
-const categories = ["Visibilità", "Comunicazioni", "Analisi"];
+const categories = ["Comunicazioni", "Analisi"];
 
 export default function GestionePrivacy() {
   const { user, isLoading } = useAuth();
@@ -87,7 +70,8 @@ export default function GestionePrivacy() {
       });
 
       if (response.ok) {
-        const userSettings = await response.json();
+        const payload = await response.json();
+        const userSettings = payload.data || {};
         setSettings(prev => prev.map(setting => ({
           ...setting,
           enabled: userSettings[setting.id] ?? setting.enabled
@@ -243,8 +227,9 @@ export default function GestionePrivacy() {
         <Alert className="mb-6 bg-white">
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            Hai il controllo completo sui tuoi dati personali. Puoi modificare queste impostazioni 
-            in qualsiasi momento per personalizzare la tua esperienza sulla piattaforma.
+            La visibilità è determinata dal ruolo: i profili e le opinioni dei cittadini restano privati;
+            i profili e le posizioni di politici e candidati sono pubblici per consentire il confronto.
+            Qui puoi gestire le altre preferenze privacy e di comunicazione.
           </AlertDescription>
         </Alert>
 
@@ -308,9 +293,9 @@ export default function GestionePrivacy() {
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
-                  {settings.filter(s => s.category === 'Visibilità' && s.enabled).length}
+                  {settings.filter(s => s.category === 'Analisi' && s.enabled).length}
                 </div>
-                <div className="text-sm text-muted-foreground">Elementi Pubblici</div>
+                <div className="text-sm text-muted-foreground">Preferenze Analisi Attive</div>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-lg">
                 <div className="text-2xl font-bold text-purple-600">
