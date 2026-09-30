@@ -14,11 +14,16 @@ const auditMiddleware = (options = {}) => {
     const originalJson = res.json;
     
     // Estrai informazioni dalla richiesta
-    const userId = req.userId || 'anonymous';
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
+    const userId = req.userId || req.user?.id || 'anonymous';
+    const includeNetworkIdentifiers = options.includeNetworkIdentifiers === true;
+    const ipAddress = includeNetworkIdentifiers
+      ? (req.ip || req.connection?.remoteAddress || null)
+      : null;
+    const userAgent = includeNetworkIdentifiers
+      ? (req.get('User-Agent') || null)
+      : null;
     const method = req.method;
-    const path = req.originalUrl;
+    const path = (req.originalUrl || req.path || '').split('?')[0];
     
     // Determina l'azione basata sul metodo HTTP
     let action = options.action;
@@ -70,8 +75,7 @@ const auditMiddleware = (options = {}) => {
       ...details,
       method,
       path,
-      timestamp: new Date().toISOString(),
-      user_id: userId
+      timestamp: new Date().toISOString()
     };
     
     // Intercetta la risposta per determinare il successo
@@ -121,6 +125,58 @@ const auditMiddleware = (options = {}) => {
   };
 };
 
+const isAdminRole = (role) => ['AD', 'Admin'].includes(String(role || '').trim());
+
+const shouldAuditPoliticalOpinionAccess = ({ requesterId, requesterRole, targetId }) =>
+  Boolean(
+    requesterId &&
+    targetId &&
+    String(requesterId) !== String(targetId) &&
+    isAdminRole(requesterRole)
+  );
+
+/**
+ * Audit minimo per accessi eccezionali alle opinioni politiche:
+ * - self access: nessun audit identificante;
+ * - normale accesso a figure pubbliche: nessun audit identificante;
+ * - admin che legge le opinioni di un altro utente: actor + target + esito,
+ *   senza IP, user-agent, sessione o contenuto delle opinioni.
+ */
+const politicalOpinionAccessAuditMiddleware = (req, res, next) => {
+  const requesterId = req.userId || req.user?.id || null;
+  const targetId = req.params?.userId || null;
+  const requesterRole = req.userRole || req.user?.ruolo || req.user?.role || null;
+
+  if (!shouldAuditPoliticalOpinionAccess({ requesterId, requesterRole, targetId })) {
+    return next();
+  }
+
+  let logged = false;
+  res.on('finish', () => {
+    if (logged) return;
+    logged = true;
+
+    AuditService.logAction({
+      userId: requesterId,
+      action: 'ADMIN_POLITICAL_OPINION_ACCESS',
+      resource: 'political_opinions',
+      resourceId: targetId,
+      details: {
+        method: req.method,
+        status_code: res.statusCode
+      },
+      ipAddress: null,
+      userAgent: null,
+      success: res.statusCode >= 200 && res.statusCode < 400,
+      errorMessage: res.statusCode >= 400 ? `HTTP ${res.statusCode}` : null
+    }).catch((error) => {
+      console.error('Errore nel logging audit opinioni politiche admin:', error);
+    });
+  });
+
+  next();
+};
+
 /**
  * Middleware specifico per operazioni sui dati utente
  */
@@ -129,8 +185,8 @@ const userDataAuditMiddleware = auditMiddleware({
   getResourceId: (req) => req.params.userId || req.params.id || req.userId,
   getDetails: (req) => ({
     operation: req.route?.path || req.path,
-    query_params: Object.keys(req.query).length > 0 ? req.query : undefined,
-    body_fields: req.body ? Object.keys(req.body) : undefined
+    query_fields: Object.keys(req.query || {}).length > 0 ? Object.keys(req.query) : undefined,
+    body_fields: req.body && typeof req.body === 'object' ? Object.keys(req.body) : undefined
   })
 });
 
@@ -205,5 +261,7 @@ module.exports = {
   opinionDataAuditMiddleware,
   representativeDataAuditMiddleware,
   adminAuditMiddleware,
-  authAuditMiddleware
+  authAuditMiddleware,
+  politicalOpinionAccessAuditMiddleware,
+  shouldAuditPoliticalOpinionAccess
 };
