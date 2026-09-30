@@ -1,4 +1,5 @@
 const AuditService = require('../services/auditService');
+const { shouldAuditPoliticalOpinionAccess } = require('../utils/politicalOpinionAuditPrivacy');
 
 /**
  * Middleware per logging automatico delle operazioni sui dati
@@ -124,16 +125,6 @@ const auditMiddleware = (options = {}) => {
     next();
   };
 };
-
-const isAdminRole = (role) => ['AD', 'Admin'].includes(String(role || '').trim());
-
-const shouldAuditPoliticalOpinionAccess = ({ requesterId, requesterRole, targetId }) =>
-  Boolean(
-    requesterId &&
-    targetId &&
-    String(requesterId) !== String(targetId) &&
-    isAdminRole(requesterRole)
-  );
 
 /**
  * Audit minimo per accessi eccezionali alle opinioni politiche:
@@ -262,6 +253,5 @@ module.exports = {
   representativeDataAuditMiddleware,
   adminAuditMiddleware,
   authAuditMiddleware,
-  politicalOpinionAccessAuditMiddleware,
-  shouldAuditPoliticalOpinionAccess
+  politicalOpinionAccessAuditMiddleware
 };
