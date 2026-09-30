@@ -7,7 +7,6 @@ interface User {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   displayName: string;
 }
 
