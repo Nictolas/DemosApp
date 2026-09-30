@@ -4,6 +4,7 @@ const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
 const { compressUserLocation, decompressUserLocation } = require('../../utils/locationUtils');
 const { decompressGender } = require('../../utils/genderUtils');
+const { canReadUserOpinions } = require('../../utils/opinionPrivacy');
 
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
@@ -546,9 +547,36 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     
     const { userId } = req.params;
     const { grado } = req.query; // Parametro opzionale per filtrare per grado
-    
-    // Verifica che l'utente autenticato possa accedere a questi dati
     const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
     let opinioniQuery = `
@@ -556,14 +584,12 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       FROM opinioni_domande
     `;
     
-    // Filtra per grado se specificato
     if (grado) {
       opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
     }
     
     opinioniQuery += ` ORDER BY text`;
     
-    // Esegui la query per le opinioni
     let opinioniResult;
     if (grado) {
       opinioniResult = await pool.query(opinioniQuery, [grado]);
@@ -572,47 +598,28 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     }
     const opinioni = opinioniResult.rows;
     
-    // Carica le risposte dell'utente dalla tabella opinioni_risposte
-    const userAnswersQuery = `SELECT * FROM opinioni_risposte WHERE user_id = $1`;
-    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
     const userAnswers = userAnswersResult.rows[0] || {};
     
     console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
     if (grado) {
       console.log('🔍 DEBUG - Filtro grado applicato:', grado);
     }
-    
-    // Verifica che l'utente esista
-    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
-    if (!userCheckResult.rows[0]) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
 
-    // Estrai le fonti dalle opinioni dell'utente
     const fontiOpinioni = userAnswers.fonti_opinioni || {};
-    console.log('🔍 DEBUG - Fonti opinioni per utente', userId, ':', fontiOpinioni);
     
-    // Formatta le opinioni per il frontend usando il mapping diretto
     const formattedOpinions = opinioni.map(opinion => {
-      const opinionId = opinion.id; // Usa l'ID diretto dalla tabella opinioni_domande
-      const userAnswer = userAnswers[opinionId] || null; // Prende il valore dalla colonna corrispondente
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
       
-      console.log(`🔍 DEBUG - Opinione:`, {
-        id: opinionId,
-        text: opinion.text,
-        userAnswer: userAnswer
-      });
-      
-      // Restituisci sempre valori compressi per compatibilità
       let frontendAnswer = null;
       if (userAnswer === 'f') frontendAnswer = 'f';
       else if (userAnswer === 'c') frontendAnswer = 'c';
       else if (userAnswer === 'i') frontendAnswer = 'i';
       else if (userAnswer === null) frontendAnswer = null;
-      // Gestisci valori legacy convertendoli a compressi
       else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
       else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
       else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
@@ -626,7 +633,7 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       };
     });
     
-    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente ${userId}`);
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
     
     res.json({
       success: true,
