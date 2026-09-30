@@ -15,8 +15,7 @@ router.get('/', verifyToken, async (req, res) => {
 
     const query = `
       SELECT 
-        profile_visibility, opinions_public, email_notifications, 
-        push_notifications, data_analytics,
+        email_notifications, push_notifications, data_analytics,
         updated_at
       FROM users 
       WHERE id = $1
@@ -35,8 +34,6 @@ router.get('/', verifyToken, async (req, res) => {
     
     // Mappa i campi del database alle chiavi delle impostazioni
     const privacySettings = {
-      profile_visibility: user.profile_visibility ?? true,
-      opinions_public: user.opinions_public ?? true,
       email_notifications: user.email_notifications ?? true,
       push_notifications: user.push_notifications ?? true,
       data_analytics: user.data_analytics ?? true
@@ -69,8 +66,7 @@ router.put('/', verifyToken, async (req, res) => {
 
     // Valida le impostazioni
     const validSettings = [
-      'profile_visibility', 'opinions_public', 'email_notifications',
-      'push_notifications', 'data_analytics'
+      'email_notifications', 'push_notifications', 'data_analytics'
     ];
 
     const updateFields = [];
@@ -104,8 +100,7 @@ router.put('/', verifyToken, async (req, res) => {
       UPDATE users 
       SET ${updateFields.join(', ')}
       WHERE id = $${paramCount}
-      RETURNING id, profile_visibility, opinions_public, email_notifications, 
-                push_notifications, data_analytics, updated_at
+      RETURNING id, email_notifications, push_notifications, data_analytics, updated_at
     `;
 
     const result = await db.query(query, updateValues);
@@ -134,8 +129,6 @@ router.put('/', verifyToken, async (req, res) => {
       success: true,
       message: 'Impostazioni privacy aggiornate con successo',
       data: {
-        profile_visibility: updatedUser.profile_visibility,
-        opinions_public: updatedUser.opinions_public,
         email_notifications: updatedUser.email_notifications,
         push_notifications: updatedUser.push_notifications,
         data_analytics: updatedUser.data_analytics,
