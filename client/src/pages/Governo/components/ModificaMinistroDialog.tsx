@@ -8,7 +8,6 @@ interface User {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   displayName: string;
 }
 
@@ -38,7 +37,6 @@ export const ModificaMinistroDialog: React.FC<ModificaMinistroDialogProps> = ({
       id: currentUser.id,
       nome: currentUser.nome,
       cognome: currentUser.cognome,
-      email: currentUser.email,
       displayName: `${currentUser.nome} ${currentUser.cognome}`
     } : null
   );
@@ -162,9 +160,6 @@ export const ModificaMinistroDialog: React.FC<ModificaMinistroDialogProps> = ({
                 </p>
                 <p className="text-sm text-gray-700">
                   {selectedUser.displayName}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {selectedUser.email}
                 </p>
               </div>
             )}
