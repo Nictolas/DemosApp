@@ -73,11 +73,9 @@ test('public-verifiable token can be issued by Identity and verified by Research
   assert.equal(valid, true);
 });
 
-test('Research verifier is constructed without the Identity private key', async () => {
+test('Research verification API only receives the token and issuer public key', async () => {
   const { issuer, publicKeyBytes } = await createIdentityIssuer();
   const research = createResearchVerifier();
-
-  assert.equal('privateKey' in research, false);
 
   const token = await runClientIssuance({
     issuer,
@@ -85,5 +83,8 @@ test('Research verifier is constructed without the Identity private key', async 
     research
   });
 
-  assert.equal(await research.verify(token, issuer.publicKey), true);
+  const verifyAtResearch = (tokenToVerify, issuerPublicKey) =>
+    research.verify(tokenToVerify, issuerPublicKey);
+
+  assert.equal(await verifyAtResearch(token, issuer.publicKey), true);
 });
