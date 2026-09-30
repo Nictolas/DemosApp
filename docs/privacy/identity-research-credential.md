@@ -22,8 +22,9 @@ Do not add the dependency to production yet.
 - Upstream package is ESM-only.
 - Upstream requires Node.js >= 20.
 - Demos backend currently uses CommonJS and declares Node >= 18.
+- Render build logs on 30/09/2026 show the production backend actually using Node 26.10.0.
 
-Therefore the integration must first verify/pin the Render runtime to Node >= 20. Server-side CommonJS code should use a narrow dynamic `import()` adapter rather than converting the whole backend to ESM as part of this privacy migration.
+The runtime is therefore currently compatible. Before adding the dependency we should still pin a supported Node >= 20 range explicitly, so future platform defaults cannot silently move the runtime. Server-side CommonJS code should use a narrow dynamic `import()` adapter rather than converting the whole backend to ESM as part of this privacy migration.
 
 ## V1 deployment shape
 
@@ -45,7 +46,7 @@ Therefore the integration must first verify/pin the Render runtime to Node >= 20
 
 ## Security conditions before production
 
-- Verify Render runtime is Node >= 20 and pin it explicitly.
+- Render runtime compatibility verified (26.10.0 on 30/09/2026); pin a supported Node >= 20 range explicitly.
 - Pin the Privacy Pass package version and commit lockfile.
 - Validate the RFC 9578 example/test vectors in Demos' CI.
 - Threat-model timing/IP/fingerprint correlation separately from cryptographic unlinkability.
@@ -57,3 +58,17 @@ Therefore the integration must first verify/pin the Render runtime to Node >= 20
 - IETF RFC 9576 — Privacy Pass Architecture
 - IETF RFC 9578 — Privacy Pass Issuance Protocols
 - Cloudflare `privacypass-ts` repository and examples
+
+## Process isolation
+
+Research should be deployed as a separate process/service with its own `RESEARCH_DATABASE_URL`.
+
+The Research process must not receive:
+- the normal Demos `JWT_SECRET`;
+- the main `DATABASE_URL`;
+- Firebase/account-auth credentials;
+- Identity-side credential issuance logs.
+
+The initial scaffold includes a separate `research-server.js` / `research-app.js` and a DB pool that refuses to fall back to `DATABASE_URL`.
+
+Using the same Supabase project can be acceptable for an early shadow/pilot only if separate PostgreSQL roles and grants actually prevent cross-domain access. Before meaningful scale, reassess whether Research should use a separate database/project for stronger compromise isolation.
