@@ -1,0 +1,15 @@
+{
+  "name": "demos-privacy-pass-poc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "poc": "node run.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/privacypass-ts": "0.9.0"
+  }
+}
