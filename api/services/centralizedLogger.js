@@ -2,6 +2,7 @@
 const { pool } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
+const { sanitizeLogMeta } = require('../utils/logPrivacy');
 
 // Axiom integration (opzionale)
 let Axiom;
@@ -134,16 +135,21 @@ class CentralizedLogger {
     if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
 
     try {
-      // Invia un set minimo di campi operativi. Gli identificativi non sono "obbligatori GDPR"
-      // e per le attività politiche sensibili vengono rimossi a monte.
+      // I log operativi ordinari sono deliberatamente non identificanti.
+      // Solo eventi audit/security espliciti possono includere identificatori diretti,
+      // perché hanno finalità e retention distinte.
+      const isAuditOrSecurity = meta.auditEvent === true || meta.securityEvent === true;
       const logEntry = {
-        _time: new Date().toISOString(),        // GDPR: Quando è successo (audit trail)
-        message: message || '',                 // GDPR: Cosa è successo (descrizione azione)
-        user_id: meta.userId || null,           // GDPR: Chi ha fatto l'azione (sempre presente, anche se null)
-        ip_address: meta.ipAddress || null,     // GDPR: Da dove è arrivata la richiesta (sempre presente, anche se null)
-        endpoint: meta.endpoint || null,         // GDPR: Quale risorsa è stata acceduta (sempre presente, anche se null)
-        session_id: meta.sessionId || null      // GDPR: Identifica la sessione utente (sempre presente, generato se non disponibile)
+        _time: new Date().toISOString(),
+        message: message || '',
+        endpoint: meta.endpoint || null
       };
+
+      if (isAuditOrSecurity) {
+        logEntry.user_id = meta.userId || null;
+        logEntry.ip_address = meta.ipAddress || null;
+        logEntry.session_id = meta.sessionId || null;
+      }
       
       // Debug: log del payload inviato (solo in development)
       if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AXIOM_LOGS === 'true') {
@@ -436,18 +442,18 @@ class CentralizedLogger {
   async log(level, message, meta = {}) {
     if (!this.shouldLog(level)) return;
 
-    // Scrittura asincrona su tutti i canali
+    // Per default i log operativi non devono contenere identificatori diretti.
+    // Audit e security events sono canali espliciti separati.
+    const safeMeta = sanitizeLogMeta(meta);
+
     const promises = [
-      this.writeToFile(level, message, meta),
-      this.writeToDatabase(level, message, meta),
-      // Axiom (non blocca se fallisce, ma viene eseguito)
-      this.writeToAxiom(level, message, meta).catch(() => {})
+      this.writeToFile(level, message, safeMeta),
+      this.writeToDatabase(level, message, safeMeta),
+      this.writeToAxiom(level, message, safeMeta).catch(() => {})
     ];
     
-    // Console sempre sincrona per debugging
-    this.writeToConsole(level, message, meta);
+    this.writeToConsole(level, message, safeMeta);
     
-    // Esegui scritture asincrone in parallelo
     await Promise.allSettled(promises);
   }
 
@@ -585,49 +591,7 @@ class CentralizedLogger {
       }
     }
 
-    // Genera session_id per tracciare sessioni utente (GDPR: traccia attività utente)
-    // Priorità: 1) Express sessionID, 2) JWT ID (jti)
-    // NOTA: Tutti gli utenti sono autenticati, quindi useremo sempre jti
-    let sessionId = req.sessionID || null;
-    
-    if (!sessionId && req.user?.jti) {
-      const crypto = require('crypto');
-      
-      // Usa il JWT ID (jti) come base per la sessione
-      // Il jti è unico per ogni login, quindi traccia la sessione di autenticazione
-      // Usa jti + finestra temporale di 24 ore per tracciare la sessione di login
-      // Stesso login (jti) nella stessa giornata = stessa sessione
-      const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Finestra di 24 ore
-      const sessionKey = `${req.user.jti}-${timeWindow}`;
-      sessionId = crypto
-        .createHash('sha256')
-        .update(sessionKey)
-        .digest('hex')
-        .substring(0, 16);
-      sessionId = `jwt_${sessionId}`; // Prefisso per sessioni basate su JWT
-    }
-    
-    // Fallback: se sessionId non è disponibile (route pubbliche senza autenticazione)
-    // Genera un session_id basato su user_id o IP per garantire che sia sempre presente
-    if (!sessionId) {
-      const crypto = require('crypto');
-      const userId = req.user?.id || 'public';
-      const ip = req.ip || 'unknown';
-      const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-      
-      // Per route pubbliche senza user_id, usa IP per tracciare la sessione
-      const sessionKey = userId !== 'public' 
-        ? `${userId}-${timeWindow}` 
-        : `${ip}-${timeWindow}`;
-      
-      sessionId = crypto
-        .createHash('sha256')
-        .update(sessionKey)
-        .digest('hex')
-        .substring(0, 16);
-      sessionId = userId !== 'public' ? `fallback_${sessionId}` : `public_${sessionId}`;
-    }
-
+    // I request log operativi non generano né conservano session identifier.
     const sensitiveActivity = this.isSensitiveActivityEndpoint(url);
 
     const meta = {
@@ -635,10 +599,6 @@ class CentralizedLogger {
       url,
       statusCode: res.statusCode,
       responseTime: `${responseTime}ms`,
-      ipAddress: sensitiveActivity ? null : req.ip,
-      userAgent: sensitiveActivity ? null : req.get('User-Agent'),
-      userId: sensitiveActivity ? null : (req.user?.id || null),
-      sessionId: sensitiveActivity ? null : sessionId,
       requestId: req.id || null,
       endpoint: url,
       sensitiveActivity
@@ -668,9 +628,6 @@ class CentralizedLogger {
 
       errorMeta.method = req.method;
       errorMeta.url = endpoint;
-      errorMeta.ipAddress = sensitiveActivity ? null : req.ip;
-      errorMeta.userAgent = sensitiveActivity ? null : req.get('User-Agent');
-      errorMeta.userId = sensitiveActivity ? null : (req.user?.id || null);
       errorMeta.sensitiveActivity = sensitiveActivity;
     }
 
