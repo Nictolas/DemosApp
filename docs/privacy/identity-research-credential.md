@@ -72,3 +72,14 @@ The Research process must not receive:
 The initial scaffold includes a separate `research-server.js` / `research-app.js` and a DB pool that refuses to fall back to `DATABASE_URL`.
 
 Using the same Supabase project can be acceptable for an early shadow/pilot only if separate PostgreSQL roles and grants actually prevent cross-domain access. Before meaningful scale, reassess whether Research should use a separate database/project for stronger compromise isolation.
+
+
+## Isolated POC
+
+An isolated proof-of-concept now lives in `experiments/privacy-pass-poc/`.
+It is outside the production `api/` package, pins `@cloudflare/privacypass-ts` 0.9.0,
+and mirrors the upstream public-verifiable Blind-RSA flow. It is intentionally not
+wired to Render production, Supabase, Identity routes or Research persistence.
+
+The POC must be executed in an environment with npm registry access before this ADR
+moves from proposed to accepted.
