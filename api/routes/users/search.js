@@ -28,8 +28,9 @@ const ruoloDecompressionMapping = {
   'AD': 'Admin'
 };
 
-// GET /api/users/search - Cerca utenti per autocompletamento
-router.get('/search', verifyToken, async (req, res) => {
+// GET /api/users/search - Ricerca utenti riservata agli amministratori.
+// Gli utenti normali scoprono politici/candidati esclusivamente tramite il flusso di matching.
+router.get('/search', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { q } = req.query;
     
@@ -42,17 +43,11 @@ router.get('/search', verifyToken, async (req, res) => {
     
     console.log('🔍 GET /api/users/search - Ricerca utenti per:', q);
     
-    const isAdmin = req.userRole === 'AD';
-    const visibilityFilter = isAdmin
-      ? ''
-      : "AND ruolo IN ('P', 'C', 'CP', 'Politico', 'Candidato', 'Candidato Politico')";
-
     const searchQuery = `
       SELECT id, nome, cognome
       FROM users 
       WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
       AND status IN ('v', 'a')
-      ${visibilityFilter}
       ORDER BY 
         CASE 
           WHEN nome ILIKE $2 THEN 1
