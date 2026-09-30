@@ -42,11 +42,17 @@ router.get('/search', verifyToken, async (req, res) => {
     
     console.log('🔍 GET /api/users/search - Ricerca utenti per:', q);
     
+    const isAdmin = req.userRole === 'AD';
+    const visibilityFilter = isAdmin
+      ? ''
+      : "AND ruolo IN ('P', 'C', 'CP', 'Politico', 'Candidato', 'Candidato Politico')";
+
     const searchQuery = `
-      SELECT id, nome, cognome, email
+      SELECT id, nome, cognome
       FROM users 
       WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
       AND status IN ('v', 'a')
+      ${visibilityFilter}
       ORDER BY 
         CASE 
           WHEN nome ILIKE $2 THEN 1
@@ -66,7 +72,6 @@ router.get('/search', verifyToken, async (req, res) => {
       id: user.id,
       nome: user.nome,
       cognome: user.cognome,
-      email: user.email,
       displayName: `${user.nome} ${user.cognome}`.trim()
     }));
     
