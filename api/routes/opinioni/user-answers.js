@@ -89,6 +89,35 @@ router.post('/salva', verifyToken, async (req, res) => {
 
   try {
     const userId = req.userId;
+
+    // Le opinioni politiche possono essere salvate solo con consenso esplicito attivo.
+    const consentResult = await pool.query(`
+      SELECT COALESCE(
+        uc.political_opinions_consent,
+        u.political_opinions_consent,
+        false
+      ) AS granted
+      FROM users u
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE u.id = $1
+    `, [userId]);
+
+    if (consentResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    if (consentResult.rows[0].granted !== true) {
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        message: 'Per salvare opinioni politiche è necessario un consenso esplicito attivo.',
+        consent_required: true
+      });
+    }
+
     // Il frontend invia le opinioni direttamente nel body
     const opinioni = req.body.opinioni || req.body; // Accetta sia req.body.opinioni che req.body
     
