@@ -274,7 +274,7 @@ router.get('/europei', verifyToken, async (req, res) => {
     }
 
     const candidatiQuery = `
-      SELECT id, nome, cognome, email, ruolo, status, avatar_config, grado_candidatura
+      SELECT id, nome, cognome, ruolo, status, avatar_config, grado_candidatura
       FROM users
       WHERE id = ANY($1) AND ruolo IN ('C', 'CP')
       ORDER BY nome, cognome
@@ -468,36 +468,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
             }
           }
         }
-        
-                  if (!userOpinions) {
-            // Prima trova l'ID di Nicolas Micheletti
-            const testUserResult = await pool.query(`
-              SELECT id FROM users 
-              WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
-              ORDER BY nome, cognome
-              LIMIT 1
-            `);
-            
-            if (testUserResult.rows.length > 0) {
-              const testUserId = testUserResult.rows[0].id;
-              const testUserAnswersQuery = `
-                SELECT * FROM opinioni_risposte WHERE user_id = $1
-              `;
-              
-              const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
-              userOpinions = {};
-              
-              if (testUserAnswersResult.rows.length > 0) {
-                const testUserRow = testUserAnswersResult.rows[0];
-                // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-                Object.keys(testUserRow).forEach(key => {
-                  if (key !== 'user_id' && key !== 'fonti_opinioni') {
-                    userOpinions[key] = testUserRow[key];
-                  }
-                });
-              }
-            }
-          }
         
         if (!userOpinions) {
           return { ...candidato, opinioniComuni: 0 };
