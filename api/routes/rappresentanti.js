@@ -29,7 +29,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         u.id,
         u.nome,
         u.cognome,
-        u.email,
         u.ruolo,
         u.status,
         u.avatar_config,
