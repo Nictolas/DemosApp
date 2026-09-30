@@ -328,7 +328,10 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
           orr.${columnName} as opinione_valore
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
-        WHERE orr.${columnName} IS NOT NULL 
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE orr.${columnName} IS NOT NULL
+        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.data_nascita IS NOT NULL
       )
       SELECT 
@@ -721,7 +724,10 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
           orr.${columnName} as opinione_valore
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
-        WHERE orr.${columnName} IS NOT NULL 
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE orr.${columnName} IS NOT NULL
+        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.data_nascita IS NOT NULL
         AND u.regione_residenza = $1
       )
