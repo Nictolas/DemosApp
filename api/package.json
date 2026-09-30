@@ -11,8 +11,7 @@
     "test:identity": "node --test tests/identityVerificationService.test.js tests/identityVerificationStore.test.js tests/cieVerificationService.test.js tests/cieOidcTransactionService.test.js tests/cieMockFlowService.test.js tests/cieOidcAuthorizationService.test.js tests/cieOidcTransactionStore.test.js tests/cieOidcTokenService.test.js tests/cieOidcIdTokenService.test.js tests/cieOidcUserInfoService.test.js tests/cieCallbackRedirectService.test.js",
     "test:webauthn": "node --test tests/webauthnAtomicConsume.test.js tests/webauthnChallengePayloadPolicy.test.js tests/webauthnChallengeStore.integration.test.js tests/webauthnClientInstancePolicy.test.js tests/webauthnCredentialIdPolicy.test.js tests/webauthnCredentialRegistrationService.test.js tests/webauthnLoginSessionPolicy.test.js tests/webauthnPublicErrorService.test.js tests/webauthnRateLimiting.test.js tests/webauthnRegistrationPolicy.test.js tests/webauthnRegistrationSessionPolicy.test.js tests/webauthnSecurityPolicy.test.js tests/webauthnSignCounterService.test.js tests/webauthnUserHandleService.test.js",
     "test:privacy": "node --test tests/opinionPrivacy.test.js",
-    "test:logging-privacy": "node --test tests/logPrivacy.test.js",
-    "postinstall": "node scripts/print-npm-audit-summary.cjs"
+    "test:logging-privacy": "node --test tests/logPrivacy.test.js"
   },
   "keywords": [
     "democracy",
@@ -52,8 +51,8 @@
     "@grpc/grpc-js": "1.14.5",
     "@tootallnate/once": "2.0.1",
     "basic-ftp": "5.3.1",
-    "brace-expansion@1": "1.1.18",
-    "brace-expansion@2": "2.1.4",
+    "brace-expansion@1": "1.1.21",
+    "brace-expansion@2": "2.1.7",
     "fast-xml-parser": "5.7.0",
     "form-data": "2.5.6",
     "gaxios": {
