@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   shouldAuditPoliticalOpinionAccess
-} = require('../middleware/auditMiddleware');
+} = require('../utils/politicalOpinionAuditPrivacy');
 
 test('self access to political opinions is not identity-audited', () => {
   assert.equal(shouldAuditPoliticalOpinionAccess({
