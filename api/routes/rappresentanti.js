@@ -5,6 +5,9 @@ const { pool } = require('../middleware/auth');
 
 const router = express.Router();
 
+const hasAnsweredOpinions = (opinions) =>
+  Object.values(opinions || {}).some(value => value !== null && value !== undefined);
+
 // GET /api/rappresentanti/disponibili - Ottieni rappresentanti disponibili per grado e categoria
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
@@ -97,38 +100,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       }
     }
     
-    // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
-    if (!userOpinions) {
-      // Prima trova l'ID di Nicolas Micheletti
-      const testUserResult = await pool.query(`
-        SELECT id FROM users 
-        WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
-        ORDER BY nome, cognome
-        LIMIT 1
-      `);
-      
-      if (testUserResult.rows.length > 0) {
-        const testUserId = testUserResult.rows[0].id;
-        const testUserAnswersQuery = `
-          SELECT * FROM opinioni_risposte WHERE user_id = $1
-        `;
-        
-        const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
-        userOpinions = {};
-        
-        if (testUserAnswersResult.rows.length > 0) {
-          const testUserRow = testUserAnswersResult.rows[0];
-          // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-          Object.keys(testUserRow).forEach(key => {
-            if (key !== 'user_id' && key !== 'fonti_opinioni') {
-              userOpinions[key] = testUserRow[key];
-            }
-          });
-        }
-      }
-    }
-    
-    
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
     
@@ -202,6 +173,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
       }
     }));
+    
+    // Senza almeno una risposta dell'utente non esiste un match: non mostrare una directory alfabetica.
+    if (!hasAnsweredOpinions(userOpinions)) {
+      candidati = [];
+    }
     
     // Ordina per opinioni comuni (decrescente) e poi per cognome
     candidati.sort((a, b) => {
@@ -417,7 +393,7 @@ router.get('/', verifyToken, async (req, res) => {
             id,
             nome,
             cognome,
-            email,
+            
             ruolo,
             status,
             avatar_config
