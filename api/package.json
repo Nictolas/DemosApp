@@ -14,7 +14,7 @@
     "test:logging-privacy": "node --test tests/logPrivacy.test.js",
     "test:privacy-shadow": "node --test tests/privacyResearchShadow.test.js tests/privacyResearchAtomicStores.test.js tests/privacyResearchTransactionBoundary.test.js tests/privacyResearchEnrollmentRedemption.test.js tests/privacyUnlinkableCredentialBoundary.test.js tests/privacyPassBoundaryPolicy.test.js",
     "start:research-shadow": "node research-server.js",
-    "test:security-gate": "npm run test:identity && npm run test:webauthn && npm run test:privacy && npm run test:logging-privacy && npm run test:privacy-shadow"
+    "test:security-gate": "npm run test:identity && npm run test:webauthn && npm run test:privacy && npm run test:logging-privacy && npm run test:privacy-shadow && node --test tests/axiomMigrationSafetyPolicy.test.js"
   },
   "keywords": [
     "democracy",
