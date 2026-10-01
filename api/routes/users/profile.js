@@ -98,7 +98,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('✅ Profilo utente recuperato:', user.email);
+    console.log('✅ Profilo utente recuperato');
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR), altrimenti DD/MM/YYYY
     let dataNascitaFormattata = null;
@@ -200,7 +200,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     const userId = req.user.id;
     const { avatar_config } = req.body;
     
-    console.log('🎨 POST /api/users/me/avatar - Aggiornamento avatar per utente:', userId);
+    console.log('🎨 POST /api/users/me/avatar - Aggiornamento avatar');
     
     if (!avatar_config) {
       return res.status(400).json({
@@ -241,7 +241,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
       });
     }
     
-    console.log('✅ Avatar aggiornato per utente:', userId);
+    console.log('✅ Avatar aggiornato');
     
     res.json({
       success: true,
@@ -396,7 +396,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
+    console.log('✅ Profilo utente aggiornato');
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
     let dataNascitaFormattata = null;
@@ -460,8 +460,8 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
     const { campo, rappresentanteId } = req.body;
     const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
     
-    console.log('🔍 DEBUG - userId dal parametro:', userId);
-    console.log('🔍 DEBUG - authenticatedUserId dal token:', authenticatedUserId);
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
     console.log('🔍 DEBUG - campo:', campo);
     console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
     
@@ -663,9 +663,9 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     const { userId } = req.params;
     const { opinioni, fonti } = req.body;
     
-    console.log('👤 User ID:', userId);
-    console.log('📋 Opinion ricevute:', opinioni);
-    console.log('🔗 Fonti ricevute:', fonti);
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
     
     if (!opinioni || typeof opinioni !== 'object') {
       return res.status(400).json({
@@ -733,7 +733,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       updateFields.push(`${dbField} = $${paramIndex}`);
       updateValues.push(dbValue);
       paramIndex++;
-      console.log(`✅ Processata opinione: ${opinionId} (${dbField}) = ${dbValue}`);
+      console.log('✅ Opinione processata');
     }
     
     // Processa le fonti se fornite
@@ -818,7 +818,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    console.log('✅ Opinion salvate con successo per utente:', userId);
+    console.log('✅ Opinioni salvate con successo');
     
     res.json({
       success: true,

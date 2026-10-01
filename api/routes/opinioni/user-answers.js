@@ -125,7 +125,7 @@ router.post('/salva', verifyToken, async (req, res) => {
     const opinioni = req.body.opinioni || req.body; // Accetta sia req.body.opinioni che req.body
     
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
-    console.log('👤 User ID:', userId);
+    console.log('👤 Utente autenticato verificato');
     
     if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
       console.error('❌ ERRORE: Dati mancanti o non validi');
@@ -308,7 +308,7 @@ router.post('/salva', verifyToken, async (req, res) => {
         }
       }
       
-      console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
+      console.log(`✅ Salvate ${savedCount} opinioni`);
       
     } catch (error) {
       console.error(`❌ Errore nel salvare opinioni:`, error.message);
@@ -329,7 +329,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('✅ Opinion salvate con successo per utente:', userId);
+    console.log('✅ Opinioni salvate con successo');
     
     res.json({
       success: true,
