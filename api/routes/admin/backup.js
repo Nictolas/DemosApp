@@ -159,7 +159,24 @@ router.get('/verify/:fileName', async (req, res) => {
     
     const config = BackupService.getBackupConfig();
     const path = require('path');
-    const backupPath = path.join(config.backupDir, fileName);
+    const backupRoot = path.resolve(config.backupDir);
+    const normalizedFileName = path.basename(fileName);
+
+    if (normalizedFileName !== fileName || !/^[A-Za-z0-9._-]+$/.test(normalizedFileName)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome file backup non valido'
+      });
+    }
+
+    const backupPath = path.resolve(backupRoot, normalizedFileName);
+    const relativeBackupPath = path.relative(backupRoot, backupPath);
+    if (relativeBackupPath.startsWith('..') || path.isAbsolute(relativeBackupPath)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Percorso backup non consentito'
+      });
+    }
     
     const isValid = await BackupService.verifyBackupIntegrity(backupPath);
     
