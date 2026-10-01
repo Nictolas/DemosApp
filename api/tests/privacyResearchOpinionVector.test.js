@@ -189,7 +189,7 @@ test('Research proof challenge stores only a digest and enforces bounded TTL', a
   assert.equal(calls[0].params[1], READ_OPINIONS_PURPOSE);
   assert.equal(calls[0].params.includes(issued.challenge), false);
 
-  assert.throws(
+  await assert.rejects(
     () => issueResearchProofChallenge(client, {
       ttlSeconds: 10,
       randomBytes: () => Buffer.alloc(32, 8)
