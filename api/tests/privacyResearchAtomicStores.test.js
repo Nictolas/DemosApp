@@ -1,36 +1,44 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {
-  issueCredentialOnce
-} = require('../services/identityCredentialIssuanceStore');
-const {
-  consumeCredentialOnce
-} = require('../services/researchCredentialRedemptionStore');
+const { issueCredentialOnce } = require('../services/identityCredentialIssuanceStore');
+const { consumeCredentialOnce } = require('../services/researchCredentialRedemptionStore');
 
-const createAtomicUniqueClient = (keyFromParams, rowFactory) => {
+const createTransactionalUniqueClient = (keyFromParams, rowFactory) => {
   const seen = new Set();
+  let locked = Promise.resolve();
 
   return {
     async query(sql, params) {
+      const command = sql.trim().toUpperCase();
+      if (command === 'BEGIN' || command === 'COMMIT' || command === 'ROLLBACK') {
+        return { rows: [] };
+      }
+
       assert.match(sql, /ON CONFLICT/i);
       assert.match(sql, /DO NOTHING/i);
       assert.match(sql, /RETURNING/i);
 
-      // Yield so concurrent callers overlap before the atomic uniqueness decision.
-      await new Promise((resolve) => setImmediate(resolve));
-
-      const key = keyFromParams(params);
-      if (seen.has(key)) return { rows: [] };
-
-      seen.add(key);
-      return { rows: [rowFactory(params)] };
+      // Serialize only the fake uniqueness decision, mirroring the database
+      // unique constraint while allowing callers to overlap transactionally.
+      let release;
+      const previous = locked;
+      locked = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try {
+        const key = keyFromParams(params);
+        if (seen.has(key)) return { rows: [] };
+        seen.add(key);
+        return { rows: [rowFactory(params)] };
+      } finally {
+        release();
+      }
     }
   };
 };
 
 test('concurrent Identity issuance has exactly one winner per account/purpose/epoch', async () => {
-  const client = createAtomicUniqueClient(
+  const client = createTransactionalUniqueClient(
     ([accountId, purpose, epoch]) => [accountId, purpose, epoch].join('|'),
     () => ({ issuance_id: 'issuance-1', issued_at: new Date().toISOString() })
   );
@@ -49,7 +57,7 @@ test('concurrent Identity issuance has exactly one winner per account/purpose/ep
 });
 
 test('concurrent Research redemption consumes the same digest exactly once', async () => {
-  const client = createAtomicUniqueClient(
+  const client = createTransactionalUniqueClient(
     ([credentialDigest]) => Buffer.from(credentialDigest).toString('hex'),
     () => ({ redeemed_at: new Date().toISOString() })
   );
@@ -69,11 +77,14 @@ test('concurrent Research redemption consumes the same digest exactly once', asy
 });
 
 test('Identity issuance SQL does not accept Research participant or credential digest fields', async () => {
-  let captured = null;
+  let insert = null;
   const client = {
     async query(sql, params) {
-      captured = { sql: sql.toLowerCase(), params };
-      return { rows: [{ issuance_id: 'issuance-1', issued_at: new Date().toISOString() }] };
+      if (/INSERT\s+INTO\s+identity\.credential_issuances/i.test(sql)) {
+        insert = { sql: sql.toLowerCase(), params };
+        return { rows: [{ issuance_id: 'issuance-1', issued_at: new Date().toISOString() }] };
+      }
+      return { rows: [] };
     }
   };
 
@@ -83,17 +94,21 @@ test('Identity issuance SQL does not accept Research participant or credential d
     epoch: '2026-Q4'
   });
 
-  assert.equal(captured.sql.includes('participant_id'), false);
-  assert.equal(captured.sql.includes('credential_digest'), false);
-  assert.equal(captured.params.length, 3);
+  assert.ok(insert);
+  assert.equal(insert.sql.includes('participant_id'), false);
+  assert.equal(insert.sql.includes('credential_digest'), false);
+  assert.equal(insert.params.length, 3);
 });
 
 test('Research redemption SQL receives no account or participant identifier', async () => {
-  let captured = null;
+  let insert = null;
   const client = {
     async query(sql, params) {
-      captured = { sql: sql.toLowerCase(), params };
-      return { rows: [{ redeemed_at: new Date().toISOString() }] };
+      if (/INSERT\s+INTO\s+research\.spent_credentials/i.test(sql)) {
+        insert = { sql: sql.toLowerCase(), params };
+        return { rows: [{ redeemed_at: new Date().toISOString() }] };
+      }
+      return { rows: [] };
     }
   };
 
@@ -104,8 +119,9 @@ test('Research redemption SQL receives no account or participant identifier', as
   });
 
   assert.equal(consumed, true);
-  assert.equal(captured.sql.includes('account_id'), false);
-  assert.equal(captured.sql.includes('user_id'), false);
-  assert.equal(captured.sql.includes('participant_id'), false);
-  assert.equal(captured.params.length, 3);
+  assert.ok(insert);
+  assert.equal(insert.sql.includes('account_id'), false);
+  assert.equal(insert.sql.includes('user_id'), false);
+  assert.equal(insert.sql.includes('participant_id'), false);
+  assert.equal(insert.params.length, 3);
 });
