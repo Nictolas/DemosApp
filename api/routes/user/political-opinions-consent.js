@@ -151,7 +151,7 @@ router.post('/', verifyToken, async (req, res) => {
       success: true
     });
     
-    console.log(`✅ Consenso opinioni politiche concesso per utente: ${userId}`);
+    console.log('✅ Consenso opinioni politiche concesso');
     
     res.json({
       success: true,
@@ -257,9 +257,9 @@ router.put('/revoke', verifyToken, async (req, res) => {
         );
         
         if (deleteResult.rowCount > 0) {
-          console.log(`✅ ${deleteResult.rowCount} opinioni politiche eliminate per utente: ${userId}`);
+          console.log(`✅ ${deleteResult.rowCount} opinioni politiche eliminate dopo revoca consenso`);
         } else {
-          console.log(`ℹ️ Nessuna opinione trovata per utente: ${userId}`);
+          console.log('ℹ️ Nessuna opinione trovata durante la revoca consenso');
         }
       } else {
         console.log('ℹ️ Tabella opinioni_risposte non esiste, nessuna opinione da eliminare');
@@ -285,7 +285,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       success: true
     });
     
-    console.log(`✅ Consenso opinioni politiche revocato per utente: ${userId}`);
+    console.log('✅ Consenso opinioni politiche revocato');
     
     res.json({
       success: true,
