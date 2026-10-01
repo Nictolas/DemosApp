@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const read = (...parts) => fs.readFileSync(path.join(__dirname, ...parts), 'utf8');
 
+const authSource = read('..', 'middleware', 'auth.js');
 const governoSource = read('..', 'routes', 'governo.js');
 const userSearchSource = read('..', 'routes', 'users', 'search.js');
 const governoUiSource = read('..', '..', 'client', 'src', 'pages', 'Governo', 'components', 'GovernoAttualeSection.tsx');
@@ -16,11 +17,23 @@ test('government mutations require authenticated admin access', () => {
   assert.match(governoSource, /router\.put\('\/attuale\/:ruolo'\, verifyToken, requireAdmin, async/);
 });
 
-test('direct municipal-councillor discovery is admin-only', () => {
+test('institutional directory middleware permits only admin and institution roles', () => {
+  assert.match(authSource, /const requireAdminOrInstitution = async/);
+  assert.match(authSource, /\['AD', 'I'\]\.includes\(req\.userRole\)/);
+  assert.match(authSource, /requireAdminOrInstitution,/);
+});
+
+test('municipal-councillor discovery requires the institutional directory guard', () => {
   assert.match(
     userSearchSource,
-    /router\.get\('\/consiglieri-comunali'\, verifyToken, requireAdmin, async/
+    /router\.get\('\/consiglieri-comunali'\, verifyToken, requireAdminOrInstitution, async/
   );
+});
+
+test('municipal-councillor response is data-minimized and does not expose email', () => {
+  assert.match(userSearchSource, /SELECT id, nome, cognome, comune_elezione/);
+  assert.doesNotMatch(userSearchSource, /SELECT id, nome, cognome, email, comune_elezione/);
+  assert.doesNotMatch(consiglieriUiSource, /email: string;/);
 });
 
 test('government edit controls do not treat activists as admins', () => {
@@ -28,8 +41,14 @@ test('government edit controls do not treat activists as admins', () => {
   assert.doesNotMatch(governoUiSource, /user\?\.ruolo === "A"/);
 });
 
-test('municipal-councillor autocomplete does not query for non-admin users', () => {
-  assert.match(consiglieriUiSource, /const isAdmin = user\?\.ruolo === "AD";/);
-  assert.match(consiglieriUiSource, /if \(!user\?\.id \|\| !isAdmin\) return \{ consiglieri: \[\] \};/);
-  assert.match(consiglieriUiSource, /enabled: !!user\?\.id && isAdmin/);
+test('municipal-councillor autocomplete queries only for admin or institution users', () => {
+  assert.match(
+    consiglieriUiSource,
+    /const canUseInstitutionalDirectory = user\?\.ruolo === "AD" \|\| user\?\.ruolo === "I";/
+  );
+  assert.match(
+    consiglieriUiSource,
+    /if \(!user\?\.id \|\| !canUseInstitutionalDirectory\) return \{ consiglieri: \[\] \};/
+  );
+  assert.match(consiglieriUiSource, /enabled: !!user\?\.id && canUseInstitutionalDirectory/);
 });
