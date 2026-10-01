@@ -11,7 +11,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     const userId = req.userId;
     
     console.log('🔍 GET /api/opinioni/opinioni-list - Richiesta opinioni per grado:', grado);
-    console.log('👤 User ID:', userId);
     
     if (!grado) {
       return res.status(400).json({
@@ -34,8 +33,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     
     const opinionResult = await pool.query(opinionQuery, [gradoCompleto]);
     
-    console.log(`🔍 DEBUG - Query per grado ${grado} (${gradoCompleto}):`, opinionQuery);
-    console.log(`🔍 DEBUG - Parametri query:`, [gradoCompleto]);
     console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
     console.log(`🔍 DEBUG - Prime 3 opinioni:`, opinionResult.rows.slice(0, 3).map(o => ({ text: o.text, gradi: o.gradi_opinione })));
     
@@ -64,7 +61,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     });
     
     console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
-    console.log('🔍 DEBUG - User answers sample:', Object.keys(userAnswers).slice(0, 5).map(key => `${key}: ${userAnswers[key]}`));
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
@@ -72,11 +68,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
       const userAnswer = userAnswers[opinionKey];
       
-      console.log(`🔍 DEBUG - Mappatura opinione:`, {
-        text: opinion.text,
-        opinionKey: opinionKey,
-        userAnswer: userAnswer
-      });
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
@@ -117,8 +108,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
 router.get('/proposte', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
-    console.log('🔍 Headers:', req.headers);
-    console.log('🔍 Query params:', req.query);
     
     const query = `
       SELECT id, text, gradi_opinione, approfondimento

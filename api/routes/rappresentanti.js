@@ -14,7 +14,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado_elezione } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado_elezione, userId });
     
     
     if (!grado_elezione) {
@@ -44,8 +43,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     const result = await pool.query(query, [grado_elezione]);
     
-    console.log('🔍 DEBUG - Query rappresentanti:', query);
-    console.log('🔍 DEBUG - Parametri query:', [grado_elezione]);
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
     
     // Mappa il grado_elezione del frontend al grado del database
@@ -71,7 +68,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
       
       console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}, Opinion trovate: ${opinioniDelGrado.length}`);
-      console.log(`🔍 DEBUG - Opinion IDs per grado ${gradoDatabase}:`, opinioniDelGrado);
       
       if (opinioniDelGrado.length > 0) {
         // Costruisci la query dinamica per le colonne del grado specifico
@@ -87,14 +83,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         if (userAnswersResult.rows.length > 0) {
           const userRow = userAnswersResult.rows[0];
-          console.log(`🔍 DEBUG - User row keys:`, Object.keys(userRow));
           // Mappa solo le opinioni del grado specifico
           opinioniDelGrado.forEach(opinionId => {
             userOpinions[opinionId] = userRow[opinionId];
           });
-          console.log(`🔍 DEBUG - User opinions mappate:`, userOpinions);
         } else {
-          console.log(`🔍 DEBUG - Nessuna risposta utente trovata per userId: ${userId}`);
         }
       }
     }
@@ -143,8 +136,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
         let opinioniComuni = 0;
         
-        console.log(`🔍 DEBUG - User opinions keys:`, Object.keys(userOpinions || {}));
-        console.log(`🔍 DEBUG - Candidato data keys:`, Object.keys(candidatoData));
         
         if (userOpinions && Object.keys(userOpinions).length > 0) {
           // Confronta solo le opinioni del grado specifico
@@ -152,14 +143,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
             const candidatoValue = candidatoData[opinionId];
             const userValue = userOpinions[opinionId];
             
-            console.log(`🔍 DEBUG - Confronto opinione ${opinionId}: candidato=${candidatoValue}, user=${userValue}`);
             
             // Conta come opinione comune SOLO se:
             // 1. Entrambi hanno risposto (non null)
             // 2. Le risposte sono identiche
             if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
               opinioniComuni++;
-              console.log(`✅ OPINIONE COMUNE (${grado_elezione}): ${opinionId} = "${candidatoValue}"`);
             }
           });
         }
@@ -189,11 +178,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // Limita ai primi 4 candidati più compatibili
     candidati = candidati.slice(0, 4);
     
-    // Debug temporaneo per vedere se opinioniComuni è presente
-    console.log('🔍 DEBUG - Rappresentanti finali:');
-    candidati.forEach((candidato, index) => {
-      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: opinioniComuni=${candidato.opinioniComuni}`);
-    });
+    console.log('🔍 DEBUG - Matching rappresentanti completato, risultati:', candidati.length);
     
     
     // Assicurati che ogni candidato abbia un avatar_config valido
@@ -359,14 +344,7 @@ router.get('/', verifyToken, async (req, res) => {
     const userResult = await pool.query(userQuery, [userId]);
     const user = userResult.rows[0] || {};
     
-    console.log('🔍 DEBUG Backend - User data:', {
-      userId,
-      rappresentante_europeo: user.rappresentante_europeo,
-      rappresentante_camera: user.rappresentante_camera,
-      rappresentante_senato: user.rappresentante_senato,
-      rappresentante_regionale: user.rappresentante_regionale,
-      rappresentante_comune: user.rappresentante_comune
-    });
+    console.log('🔍 DEBUG Backend - Selezioni rappresentanti caricate');
     
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
@@ -385,7 +363,6 @@ router.get('/', verifyToken, async (req, res) => {
       const rappresentanteId = user[campo];
       
       if (rappresentanteId) {
-        console.log(`🔍 DEBUG Backend - Trovato rappresentante per ${categoria}: ${rappresentanteId}`);
         // Ottieni i dettagli del rappresentante
         const rappresentanteQuery = `
           SELECT 
@@ -406,17 +383,13 @@ router.get('/', verifyToken, async (req, res) => {
           const rappresentante = rappresentanteResult.rows[0];
           rappresentantiSelezionati[categoria] = [rappresentante];
           idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
-          console.log(`🔍 DEBUG Backend - Rappresentante ${categoria} caricato:`, rappresentante.nome, rappresentante.cognome);
         } else {
-          console.log(`⚠️ DEBUG Backend - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato nel database`);
         }
       } else {
         console.log(`🔍 DEBUG Backend - Nessun rappresentante per ${categoria}`);
       }
     }
     
-    console.log('🔍 DEBUG Backend - Rappresentanti selezionati finali:', rappresentantiSelezionati);
-    console.log('🔍 DEBUG Backend - idMap finale:', idMap);
     
     const responseData = {
       success: true,
@@ -426,7 +399,6 @@ router.get('/', verifyToken, async (req, res) => {
       }
     };
     
-    console.log('🔍 DEBUG Backend - Response data:', JSON.stringify(responseData, null, 2));
     
     res.json(responseData);
   } catch (error) {
