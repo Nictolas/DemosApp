@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
 const routeSource = fs.readFileSync(
   path.join(__dirname, '..', 'routes', 'admin', 'axiom-migration.js'),
   'utf8'
@@ -29,4 +31,10 @@ test('auth probe remains non-destructive and does not require legacy database ac
     routeSource,
     /router\.get\('\/test-auth', verifyToken, requireAdmin, requireLegacyMigrationDatabase/
   );
+});
+
+
+test('legacy Axiom migration route is not mounted in the runtime app', () => {
+  assert.doesNotMatch(appSource, /routes\/admin\/axiom-migration/);
+  assert.doesNotMatch(appSource, /\/api\/admin\/axiom-migration/);
 });
