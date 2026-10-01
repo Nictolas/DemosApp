@@ -85,7 +85,6 @@ const loggingRoutes = require('./routes/admin/logging');
 const monitoringRoutes = require('./routes/admin/monitoring');
 const securityMetricsRoutes = require('./routes/admin/security-metrics');
 const dataExportRoutes = require('./routes/admin/data-export');
-const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
 const axiomDataRoutes = require('./routes/admin/axiom-data');
 const researchShadowRoutes = require('./routes/admin/research-shadow');
 const migrationsRoutes = require('./routes/migrations');
@@ -441,7 +440,6 @@ app.use('/api/admin/logging', adminLimiter, loggingRoutes);
 app.use('/api/admin/data-export', adminLimiter, dataExportRoutes);
 
 // Route per migrazione Axiom
-app.use('/api/admin/axiom-migration', adminLimiter, axiomMigrationRoutes);
 
 // Route per dati Axiom (tabella)
 app.use('/api/admin/axiom-data', adminLimiter, axiomDataRoutes);
