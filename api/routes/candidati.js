@@ -13,7 +13,6 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/candidati - Richiesta ricevuta per userId:', userId);
     
     // Ottieni i dati dell'utente con le selezioni candidati
     const userQuery = `
@@ -44,7 +43,6 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('🔍 DEBUG - Utente trovato:', user.nome, user.cognome);
     
     // Inizializza le strutture dati
     const candidatiSelezionati = {};
@@ -78,7 +76,6 @@ router.get('/', verifyToken, async (req, res) => {
           WHERE id::text = $1
         `;
         
-        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
         console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
         const candidato = candidatoResult.rows[0];
@@ -86,15 +83,11 @@ router.get('/', verifyToken, async (req, res) => {
         if (candidato) {
           candidatiSelezionati[categoria] = [candidato];
           idMap[categoria] = candidatoId;
-          console.log(`🔍 DEBUG - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
         } else {
-          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
         }
       }
     }
     
-    console.log('🔍 DEBUG - Candidati selezionati finali:', candidatiSelezionati);
-    console.log('🔍 DEBUG - ID Map finale:', idMap);
     
     res.json({
       success: true,
@@ -188,7 +181,6 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
 router.get('/europei', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    console.log('🔍 DEBUG /api/candidati/europei - Richiesta per userId:', userId);
 
     const userResult = await pool.query(
       'SELECT regione_residenza FROM users WHERE id = $1',
@@ -364,7 +356,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado_candidatura } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado_candidatura, userId });
     
     if (!grado_candidatura) {
       return res.status(400).json({
@@ -391,16 +382,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       ORDER BY nome, cognome
     `;
     
-    console.log('🔍 DEBUG - Query candidati:', candidatiQuery);
-    console.log('🔍 DEBUG - Parametri:', [grado_candidatura]);
     
     const candidatiResult = await pool.query(candidatiQuery, [grado_candidatura]);
     const candidati = candidatiResult.rows;
     
         console.log('🔍 DEBUG - Candidati trovati:', candidati.length);
-        candidati.forEach((candidato, index) => {
-          console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
-        });
     
     // Calcola il conteggio reale delle opinioni comuni
     const candidatiConOpinioni = await Promise.all(candidati.map(async (candidato) => {
@@ -482,14 +468,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
             const candidatoValue = candidatoData[opinionId];
             const userValue = userOpinions[opinionId];
             
-            console.log(`🔍 DEBUG - Confronto opinione ${opinionId}: candidato=${candidatoValue}, user=${userValue}`);
             
             // Conta come opinione comune SOLO se:
             // 1. Entrambi hanno risposto (non null)
             // 2. Le risposte sono identiche
             if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
               opinioniComuni++;
-              console.log(`✅ OPINIONE COMUNE (${grado_candidatura}): ${opinionId} = "${candidatoValue}"`);
             }
           });
         }
@@ -512,11 +496,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       })
       .slice(0, 4);
     
-    // Debug temporaneo per vedere se opinioniComuni è presente
-    console.log('🔍 DEBUG - Candidati finali:');
-    candidatiOrdinati.forEach((candidato, index) => {
-      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: opinioniComuni=${candidato.opinioniComuni}`);
-    });
+    console.log('🔍 DEBUG - Matching candidati completato, risultati:', candidatiOrdinati.length);
     
     // Mappa opinioniComuni a opinioni_comuni per compatibilità con il frontend
     const candidatiMappati = candidatiOrdinati.map(candidato => ({
@@ -549,7 +529,6 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
     const { campo, candidatoId } = req.body;
     const userId = req.userId; // ID dell'utente autenticato dal token
     
-    console.log('🔍 DEBUG - userId:', userId);
     console.log('🔍 DEBUG - campo:', campo);
     console.log('🔍 DEBUG - candidatoId:', candidatoId);
     
@@ -612,7 +591,6 @@ router.get('/selezioni', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/candidati/selezioni - Richiesta selezioni candidati');
     const userId = req.userId;
-    console.log('🔍 DEBUG - userId:', userId);
     
     // Ottieni le selezioni di candidati dell'utente
     const userQuery = `
@@ -662,7 +640,6 @@ router.get('/selezioni', verifyToken, async (req, res) => {
           WHERE id::text = $1
         `;
         
-        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
         console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
         const candidato = candidatoResult.rows[0];
@@ -670,15 +647,11 @@ router.get('/selezioni', verifyToken, async (req, res) => {
         if (candidato) {
           candidatiSelezionati[categoria] = [candidato];
           idMap[categoria] = candidatoId;
-          console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
         } else {
-          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
         }
       }
     }
     
-    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
-    console.log('🔍 DEBUG Frontend - ID Map finale:', idMap);
     
     res.json({
       success: true,

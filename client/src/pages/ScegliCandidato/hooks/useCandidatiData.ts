@@ -66,7 +66,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
         const opinioniCheck = await checkOpinioni();
         
         if (opinioniCheck && !opinioniCheck.isComplete) {
-          console.log('⚠️ Opinion incomplete trovate:', opinioniCheck);
+          console.log('⚠️ Opinion incomplete trovate, mostrando alert');
           setOpinioniAlertData(opinioniCheck);
           setShowOpinioniAlert(true);
         }
@@ -80,7 +80,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
         console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
         
         const response = await apiRequest("GET", url);
-        console.log('🔍 DEBUG Frontend - Risposta API candidati:', response);
+        console.log('🔍 DEBUG Frontend - Risposta API candidati ricevuta, ok:', response?.ok);
         
         if (!response?.ok || !response?.data) {
           const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati dal server.";
@@ -92,18 +92,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
           throw new Error(result.error || "Errore nel caricamento dei dati dal server.");
         }
         
-        // Debug dettagliato per ogni candidato ricevuto
         const candidatiData = result.data || [];
-        if (Array.isArray(candidatiData)) {
-          console.log('🔍 DEBUG Frontend - Dettagli candidati ricevuti:');
-          candidatiData.forEach((candidato, index) => {
-            console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}:`, {
-              opinioniComuni: candidato.opinioniComuni,
-              ruolo: candidato.ruolo,
-              status: candidato.status
-            });
-          });
-        }
 
         // I dati sono direttamente nell'array data
         const candidati = candidatiData;
@@ -117,7 +106,6 @@ export const useCandidatiData = (user: any, categoria: string) => {
             const { candidati: candidatiSelezionati } = selezioniData.data;
             const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
             setCandidatoSelezionato(candidatoSelezionato?.id || null);
-            console.log('🔍 DEBUG Frontend - Candidato selezionato:', candidatoSelezionato);
           }
         } catch (error) {
           console.log('⚠️ Errore nel recuperare selezioni:', error);

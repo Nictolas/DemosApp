@@ -116,11 +116,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         
         const response = await apiRequest("GET", url);
         
-        console.log('🔍 DEBUG Frontend - Risposta API:', response);
         console.log('🔍 DEBUG Frontend - response.ok:', response?.ok);
-        console.log('🔍 DEBUG Frontend - response.data:', response?.data);
-        console.log('🔍 DEBUG Frontend - response.data type:', typeof response?.data);
-        console.log('🔍 DEBUG Frontend - response.data keys:', response?.data ? Object.keys(response.data) : 'N/A');
         
         if (!response?.ok || !response?.data) {
           const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati dal server.";
@@ -129,9 +125,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         }
         
         const result = response.data;
-        console.log('🔍 DEBUG Frontend - result:', result);
         console.log('🔍 DEBUG Frontend - result.success:', result?.success);
-        console.log('🔍 DEBUG Frontend - result.data:', result?.data);
         console.log('🔍 DEBUG Frontend - result.error:', result?.error);
         
         if (!result || !result.success) {
@@ -154,7 +148,6 @@ export const useRappresentantiData = (user: any, categoria: string) => {
                 const { candidati: candidatiSelezionati } = selezioniResult.data;
                 const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
                 setRappresentanteSelezionato(candidatoSelezionato?.id || null);
-                console.log('🔍 DEBUG Frontend - Candidato selezionato per test (da API):', candidatoSelezionato);
               }
             }
           } catch (error) {
@@ -171,11 +164,8 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           
           const { candidati, utente } = result.data;
           console.log('🔍 DEBUG Frontend - Candidati ricevuti (NORMAL):', candidati?.length || 0);
-          console.log('🔍 DEBUG Frontend - Candidati array completo:', candidati);
-          console.log('🔍 DEBUG Frontend - Utente:', utente);
           const fieldName = getFieldName(categoria, isTestRoute);
           console.log('🔍 DEBUG Frontend - Field name:', fieldName);
-          console.log('🔍 DEBUG Frontend - Rappresentante selezionato:', utente?.[fieldName]);
           setRappresentanteSelezionato(utente?.[fieldName] || null);
           setRappresentanti(candidati || []);
           console.log('🔍 DEBUG Frontend - Stato aggiornato, rappresentanti impostati:', candidati?.length || 0);
