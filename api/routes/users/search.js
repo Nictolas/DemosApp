@@ -1,6 +1,5 @@
 const express = require('express');
-const { pool } = require('../../middleware/auth');
-const { verifyToken, requireAdmin } = require('../../middleware/auth');
+const { pool, verifyToken, requireAdmin, requireAdminOrInstitution } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
 
@@ -88,7 +87,7 @@ router.get('/search', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // GET /api/users/consiglieri-comunali - Cerca consiglieri comunali per comune_residenza dell'utente operante
-router.get('/consiglieri-comunali', verifyToken, requireAdmin, async (req, res) => {
+router.get('/consiglieri-comunali', verifyToken, requireAdminOrInstitution, async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -118,7 +117,7 @@ router.get('/consiglieri-comunali', verifyToken, requireAdmin, async (req, res) 
     
     // Cerca consiglieri comunali con ruolo P, grado_elezione CO e comune_elezione = comune_residenza
     const searchQuery = `
-      SELECT id, nome, cognome, email, comune_elezione
+      SELECT id, nome, cognome, comune_elezione
       FROM users 
       WHERE (ruolo = 'P' OR ruolo = 'Politico')
         AND grado_elezione = 'CO'
@@ -133,7 +132,6 @@ router.get('/consiglieri-comunali', verifyToken, requireAdmin, async (req, res) 
       id: user.id,
       nome: user.nome,
       cognome: user.cognome,
-      email: user.email,
       displayName: `${user.nome} ${user.cognome}`.trim(),
       comune_elezione: user.comune_elezione
     }));
