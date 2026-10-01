@@ -4,6 +4,9 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
+const OPINION_ID_PATTERN = /^[a-z][a-z0-9_]{0,62}$/;
+const quotePgIdentifier = (value) => `"${String(value).replace(/"/g, '""')}"`;
+
 // GET /api/opinioni/profile - Ottieni solo le domande delle opinioni (per EditOpinioniDialog)
 router.get('/profile', verifyToken, async (req, res) => {
   try {
@@ -492,14 +495,23 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     
     // Determina se è un cambio ID (da UUID a ID personalizzato)
     let actualId = id;
-    const isChangingId = customId && customId.trim() && customId.trim() !== id;
+    const normalizedCustomId = typeof customId === 'string' ? customId.trim() : '';
+    const isChangingId = normalizedCustomId && normalizedCustomId !== id;
+
+    if (isChangingId && !OPINION_ID_PATTERN.test(normalizedCustomId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID opinione non valido',
+        message: 'Usa solo lettere minuscole, numeri e underscore; il primo carattere deve essere una lettera (massimo 63 caratteri).'
+      });
+    }
     
     if (isChangingId) {
       console.log('📝 L\'admin vuole cambiare l\'ID da', id, 'a', customId);
       
       // Verifica se il nuovo ID esiste già
       const checkNewIdQuery = `SELECT id FROM opinioni_domande WHERE id = $1`;
-      const checkNewId = await pool.query(checkNewIdQuery, [customId]);
+      const checkNewId = await pool.query(checkNewIdQuery, [normalizedCustomId]);
       
       if (checkNewId.rows.length > 0) {
         return res.status(400).json({
@@ -529,7 +541,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
         VALUES ($1, $2, $3, $4)
       `;
       await pool.query(insertNewQuery, [
-        customId.trim(),
+        normalizedCustomId,
         originalOpinion.text, // Mantieni il testo originale
         gradi_opinione, // Nuovi gradi selezionati
         approfondimento // Nuovo approfondimento
@@ -549,7 +561,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       console.log('✅ Vecchia opinione eliminata con ID:', id);
       
       // Usa il nuovo ID per il resto
-      actualId = customId.trim();
+      actualId = normalizedCustomId;
     }
     
     // Se abbiamo cambiato ID, non serve fare UPDATE (già fatto con INSERT)
@@ -610,7 +622,8 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       if (columnCheck.rows.length === 0) {
         console.log(`📊 Aggiungo colonna ${actualId} a opinioni_risposte...`);
         // Usa un identificatore quotato per il nome della colonna
-        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN "${actualId}" TEXT`;
+        const safeColumnIdentifier = quotePgIdentifier(actualId);
+        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN ${safeColumnIdentifier} TEXT`;
         await pool.query(addColumnQuery);
         console.log(`✅ Colonna ${actualId} aggiunta a opinioni_risposte`);
       }
