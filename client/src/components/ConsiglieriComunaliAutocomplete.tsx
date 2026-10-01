@@ -30,6 +30,7 @@ export const ConsiglieriComunaliAutocomplete: React.FC<ConsiglieriComunaliAutoco
   excludedNames = []
 }) => {
   const { user } = useAuth();
+  const isAdmin = user?.ruolo === "AD";
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,13 +40,13 @@ export const ConsiglieriComunaliAutocomplete: React.FC<ConsiglieriComunaliAutoco
   const { data: consiglieriData, isLoading } = useQuery({
     queryKey: ['consiglieri-comunali', user?.id],
     queryFn: async () => {
-      if (!user?.id) return { consiglieri: [] };
+      if (!user?.id || !isAdmin) return { consiglieri: [] };
       
       const response = await apiRequest("GET", `/api/users/consiglieri-comunali`);
       if (!response.ok) throw new Error('Failed to fetch consiglieri comunali');
       return response.json();
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && isAdmin,
     staleTime: 300000, // Cache per 5 minuti
   });
 
