@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 
 const router = express.Router();
 
@@ -8,10 +8,7 @@ router.post('/delete-temporary-users', async (req, res) => {
   try {
     console.log('🧹 Pulizia utenti temporanei...');
     
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
+    const pool = getPool();
 
     // Trova tutti gli utenti con nome "Temporaneo" e cognome "Utente"
     const result = await pool.query(
@@ -32,7 +29,6 @@ router.post('/delete-temporary-users', async (req, res) => {
       );
       
       console.log(`🗑️  Eliminati ${deleteResult.rowCount} utenti temporanei`);
-      await pool.end();
       
       res.json({
         success: true,
@@ -40,7 +36,6 @@ router.post('/delete-temporary-users', async (req, res) => {
         deletedUsers: result.rows
       });
     } else {
-      await pool.end();
       res.json({
         success: true,
         message: 'Nessun utente temporaneo trovato'
@@ -72,10 +67,7 @@ router.post('/delete-test-user', async (req, res) => {
 
     console.log(`🧹 Eliminazione utente di test: ${email}`);
 
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
+    const pool = getPool();
 
     // Prima controlla se l'utente esiste
     const checkResult = await pool.query('SELECT id, email, created_at FROM users WHERE email = $1', [email]);
@@ -92,7 +84,6 @@ router.post('/delete-test-user', async (req, res) => {
       const verifyResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
       console.log(`✅ Verifica eliminazione: ${verifyResult.rows.length} righe trovate`);
       
-      await pool.end();
       
       res.json({
         success: true,
@@ -101,7 +92,6 @@ router.post('/delete-test-user', async (req, res) => {
       });
       
     } else {
-      await pool.end();
       res.json({
         success: true,
         message: `Utente ${email} non trovato nel database`
