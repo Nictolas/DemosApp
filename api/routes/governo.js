@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
@@ -304,7 +304,7 @@ router.get('/ideale', verifyToken, async (req, res) => {
 });
 
 // POST /api/governo - Aggiungi membro governo
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { nome, cognome, ruolo, partito, data_nominazione } = req.body;
     
@@ -593,7 +593,7 @@ router.get('/attuale', async (req, res) => {
 });
 
 // PUT /api/governo/attuale/:ruolo - Aggiorna o crea un ministro attuale
-router.put('/attuale/:ruolo', verifyToken, async (req, res) => {
+router.put('/attuale/:ruolo', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { ruolo } = req.params;
     const { user_id } = req.body;

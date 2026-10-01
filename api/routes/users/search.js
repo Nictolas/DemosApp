@@ -88,7 +88,7 @@ router.get('/search', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // GET /api/users/consiglieri-comunali - Cerca consiglieri comunali per comune_residenza dell'utente operante
-router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
+router.get('/consiglieri-comunali', verifyToken, requireAdmin, async (req, res) => {
   try {
     const userId = req.user.id;
     
