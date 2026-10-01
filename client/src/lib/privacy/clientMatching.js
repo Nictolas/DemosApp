@@ -2,7 +2,7 @@ const ANSWERED_VALUES = new Set(['f', 'c', 'i']);
 
 const normalizeLimit = (value) => {
   if (!Number.isInteger(value) || value < 1) return 4;
-  return Math.min(value, 50);
+  return Math.min(value, 4);
 };
 
 const isOpinionMap = (value) =>
@@ -10,13 +10,17 @@ const isOpinionMap = (value) =>
   typeof value === 'object' &&
   !Array.isArray(value);
 
+const isMatchHandle = (value) =>
+  typeof value === 'string' && /^mh1_[A-Za-z0-9_-]{32,64}$/.test(value);
+
 /**
  * Pure in-memory matcher for the privacy-first client path.
  *
  * Privacy boundary:
  * - accepts no user/account identifier;
+ * - accepts public-position vectors only behind opaque, context-scoped match handles;
  * - performs no network, storage or logging;
- * - returns only public-figure ids and aggregate scores;
+ * - returns only opaque handles and aggregate scores;
  * - caller owns acquisition/lifetime of the citizen vector.
  */
 export const computeClientMatches = ({
@@ -38,7 +42,7 @@ export const computeClientMatches = ({
   const ranked = [];
 
   for (const publicFigure of publicFigures) {
-    if (!publicFigure || publicFigure.id === undefined || publicFigure.id === null) {
+    if (!publicFigure || !isMatchHandle(publicFigure.matchHandle)) {
       continue;
     }
 
@@ -62,7 +66,7 @@ export const computeClientMatches = ({
     if (comparedOpinions === 0) continue;
 
     ranked.push({
-      publicFigureId: String(publicFigure.id),
+      matchHandle: publicFigure.matchHandle,
       commonOpinions,
       comparedOpinions,
       matchRatio: commonOpinions / comparedOpinions
@@ -76,7 +80,7 @@ export const computeClientMatches = ({
     if (right.matchRatio !== left.matchRatio) {
       return right.matchRatio - left.matchRatio;
     }
-    return left.publicFigureId.localeCompare(right.publicFigureId);
+    return left.matchHandle.localeCompare(right.matchHandle);
   });
 
   return ranked.slice(0, normalizeLimit(limit));
