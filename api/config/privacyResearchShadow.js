@@ -11,6 +11,7 @@ const EXPECTED_TABLES = Object.freeze([
   'identity.credential_issuances',
   'research.participants',
   'research.spent_credentials',
+  'research.proof_challenges',
   'research.participant_dimensions',
   'research.opinion_response_events',
   'content.opinion_questions',

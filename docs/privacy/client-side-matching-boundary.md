@@ -78,3 +78,18 @@ Il servizio `researchOpinionVectorService`:
 - non usa JWT Demos, il database Identity, Firebase o callback verso Identity.
 
 Questo checkpoint non espone ancora una route HTTP. Prima di esporla serve un challenge store Research one-shot con scadenza breve e consumo atomico; il verifier reale dovrà marcare `challengeFresh=true` solo dopo tale consumo.
+
+
+## Challenge Research one-shot
+
+Lo scaffold definisce ora anche la freshness concreta della prova partecipante:
+
+- il client riceve 32 byte casuali codificati base64url;
+- nel database Research viene salvato solo SHA-256 della challenge, mai il valore raw;
+- TTL consentito: 30–300 secondi, default 120;
+- la challenge non contiene e non è associata a participant id, chiave pubblica, account o email;
+- dopo una firma valida, il verifier esegue un singolo `DELETE ... WHERE challenge_digest = ... AND expires_at > NOW() RETURNING`;
+- il primo consumo valido ottiene `challengeFresh=true`; ogni replay successivo ottiene `false`;
+- una firma non valida non consuma la challenge, evitando che un attaccante possa bruciarla senza possedere la chiave.
+
+La tabella `research.proof_challenges` è stata aggiunta soltanto allo schema shadow di progetto. **Non è stata applicata a Supabase/produzione** e nessuna route HTTP di challenge o lettura opinioni è ancora montata.

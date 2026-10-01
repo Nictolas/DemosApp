@@ -72,6 +72,17 @@ create table if not exists research.spent_credentials (
   redeemed_at timestamptz not null default now()
 );
 
+create table if not exists research.proof_challenges (
+  challenge_digest bytea primary key,
+  purpose text not null check (purpose = 'read-opinions-v1'),
+  issued_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  check (expires_at > issued_at)
+);
+
+create index if not exists idx_research_proof_challenges_expiry
+  on research.proof_challenges (expires_at);
+
 create table if not exists research.participant_dimensions (
   participant_id uuid primary key
     references research.participants(participant_id) on delete cascade,
@@ -189,6 +200,8 @@ alter table research.participants enable row level security;
 alter table research.participants force row level security;
 alter table research.spent_credentials enable row level security;
 alter table research.spent_credentials force row level security;
+alter table research.proof_challenges enable row level security;
+alter table research.proof_challenges force row level security;
 alter table research.participant_dimensions enable row level security;
 alter table research.participant_dimensions force row level security;
 alter table research.opinion_response_events enable row level security;
