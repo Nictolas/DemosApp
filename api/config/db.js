@@ -1,11 +1,7 @@
-// File: api/config/db.js
-// Compatibility facade for legacy imports. The canonical pool configuration lives
-// in database.js, where remote connections use certificate verification.
+// Compatibility adapter for legacy routes.
+// Keep a single database pool and inherit the verified TLS configuration from database.js.
 const { getPool } = require('./database');
 
 const pool = getPool();
 
-// Some legacy routes import { pool }, while others import this module and call
-// db.query(...). Export the Pool itself and keep .pool as a compatibility alias.
-module.exports = pool;
-module.exports.pool = pool;
+module.exports = { pool };
