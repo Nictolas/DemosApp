@@ -1,12 +1,9 @@
 const cron = require('node-cron');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 const axios = require('axios');
 
-// Configurazione database PostgreSQL (Supabase)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool canonico con TLS verificato; il job non possiede il lifecycle del pool condiviso.
+const pool = getPool();
 
 /**
  * Funzione helper per recuperare dati da SPARQL (Camera o Senato)
