@@ -60,3 +60,21 @@ Il servizio `api/services/publicFigureMatchBundlePolicy.js` definisce il contrat
 Questo riduce il rischio che la superficie usata per il matching diventi una directory direttamente navigabile. Prima della produzione resta necessario implementare un contesto one-shot/anti-enumerazione: il server dovrà impedire reveal ripetuti dello stesso contesto per risolvere progressivamente tutti gli handle.
 
 Lo scaffold non espone ancora alcuna route HTTP per bundle o reveal.
+
+
+## Boundary vettore cittadino Research
+
+Lo scaffold Research definisce anche il contratto di lettura del vettore politico del partecipante senza account Identity.
+
+Il servizio `researchOpinionVectorService`:
+
+- accetta una chiave pubblica pseudonima Ed25519 già registrata in `research.participants`;
+- richiede una firma su una challenge fresca con purpose fisso `read-opinions-v1`;
+- fallisce prima di interrogare il database se la prova non è valida o la challenge non è fresca;
+- rifiuta output del verifier che contengano riferimenti Identity;
+- legge soltanto `research.current_opinion_responses` tramite la chiave partecipante;
+- restituisce al chiamante esclusivamente la mappa `question_id -> answer_code`;
+- non restituisce `participant_id`, chiave pubblica, account, email o altri identificatori;
+- non usa JWT Demos, il database Identity, Firebase o callback verso Identity.
+
+Questo checkpoint non espone ancora una route HTTP. Prima di esporla serve un challenge store Research one-shot con scadenza breve e consumo atomico; il verifier reale dovrà marcare `challengeFresh=true` solo dopo tale consumo.
