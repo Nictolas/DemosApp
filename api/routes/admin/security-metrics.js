@@ -1,17 +1,12 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { getPool } = require('../../config/database');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { getAuditLogs } = require('../../utils/axiomQueryHelper');
 
 const router = express.Router();
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { 
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  }
-});
+// Usa il pool canonico dell'applicazione e la configurazione TLS centralizzata.
+const pool = getPool();
 
 /**
  * 🔐 JWT TOKEN STATS
