@@ -509,11 +509,13 @@ router.get('/disk-breakdown', async (req, res) => {
     const maxEntries = Math.min(Math.max(parseInt(String(req.query.maxEntries || '15'), 10), 5), 50);
     const root = path.resolve(defaultRoot);
     const target = path.resolve(requestedTarget);
+    const relativeTarget = path.relative(root, target);
+    const targetOutsideRoot = relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget);
 
-    if (!target.startsWith(root)) {
+    if (targetOutsideRoot) {
       return res.status(400).json({
         success: false,
-        error: `target non consentito: ${target}`,
+        error: 'target non consentito',
         message: `Usa un path sotto ${root}`
       });
     }
