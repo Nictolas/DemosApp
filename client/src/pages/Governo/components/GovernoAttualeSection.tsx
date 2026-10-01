@@ -22,7 +22,7 @@ export const GovernoAttualeSection: React.FC = () => {
     avatar_config?: any;
   } | null>(null);
 
-  const isAdmin = user?.ruolo === "A" || user?.ruolo === "AD" || user?.ruolo === "Admin";
+  const isAdmin = user?.ruolo === "AD";
   const isAdminAD = user?.ruolo === "AD";
 
   // Query per ottenere i ministri attuali
