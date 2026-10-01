@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   sanitizeLogMeta
@@ -49,4 +51,30 @@ test('explicit audit logs retain identifiers for the separate audit channel', ()
 
   assert.equal(result.userId, 'admin-1');
   assert.equal(result.ipAddress, '192.0.2.1');
+});
+
+
+const readRoute = (...parts) => fs.readFileSync(path.join(__dirname, '..', 'routes', ...parts), 'utf8');
+
+test('sensitive operational routes do not write direct identity or political-position values to console logs', () => {
+  const sources = [
+    readRoute('users', 'profile.js'),
+    readRoute('opinioni', 'user-answers.js'),
+    readRoute('user', 'political-opinions-consent.js'),
+    readRoute('user', 'gdpr-rights.js')
+  ].join('\n');
+
+  const forbidden = [
+    /console\.(?:log|warn|error)\([^\n;]*,\s*userId\s*\)/,
+    /console\.(?:log|warn|error)\([^\n;]*\$\{userId\}/,
+    /console\.(?:log|warn|error)\([^\n;]*,\s*user\.email\s*\)/,
+    /console\.(?:log|warn|error)\([^\n;]*,\s*updatedUser\.email\s*\)/,
+    /console\.(?:log|warn|error)\([^\n;]*\$\{dbValue\}/,
+    /console\.(?:log|warn|error)\([^\n;]*,\s*opinioni\s*\)/,
+    /console\.(?:log|warn|error)\([^\n;]*,\s*fonti\s*\)/
+  ];
+
+  for (const pattern of forbidden) {
+    assert.doesNotMatch(sources, pattern);
+  }
 });
