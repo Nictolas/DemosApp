@@ -1,10 +1,7 @@
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// Usa il pool canonico dell'applicazione, inclusa la configurazione TLS verificata.
+const pool = getPool();
 
 /**
  * 🛡️ Sistema di Monitoraggio Sicurezza Avanzato
