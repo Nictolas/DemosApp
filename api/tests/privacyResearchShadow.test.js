@@ -17,6 +17,20 @@ const schemaPath = path.join(
   'privacy_first_shadow.sql'
 );
 
+const readShadowSql = () => fs.readFileSync(schemaPath, 'utf8');
+
+const getCreateTableBlock = (sql, qualifiedTable) => {
+  const pattern = new RegExp(
+    'create table if not exists ' +
+      qualifiedTable.replace('.', '\\.') +
+      ' \\(([\\s\\S]*?)\\n\\);',
+    'i'
+  );
+  const match = sql.match(pattern);
+  assert.ok(match, 'missing ' + qualifiedTable + ' definition');
+  return match[1].toLowerCase();
+};
+
 test('research payload accepts pseudonymous fields', () => {
   assert.equal(assertResearchPayloadSeparated({
     participant_id: 'participant-1',
@@ -50,7 +64,7 @@ test('research payload rejects direct identity fields, including nested ones', (
 });
 
 test('shadow SQL does not put direct account identifiers in research tables', () => {
-  const sql = fs.readFileSync(schemaPath, 'utf8');
+  const sql = readShadowSql();
   const researchTables = [
     'participants',
     'spent_credentials',
@@ -59,13 +73,7 @@ test('shadow SQL does not put direct account identifiers in research tables', ()
   ];
 
   for (const table of researchTables) {
-    const pattern = new RegExp(
-      'create table if not exists research\\.' + table + ' \\(([\\s\\S]*?)\\n\\);',
-      'i'
-    );
-    const match = sql.match(pattern);
-    assert.ok(match, 'missing research.' + table + ' definition');
-    const block = match[1].toLowerCase();
+    const block = getCreateTableBlock(sql, 'research.' + table);
 
     for (const forbidden of [
       'account_id',
@@ -85,8 +93,53 @@ test('shadow SQL does not put direct account identifiers in research tables', ()
   }
 });
 
+test('Identity issuance is limited to one credential per account, purpose and epoch', () => {
+  const sql = readShadowSql();
+  const block = getCreateTableBlock(sql, 'identity.credential_issuances');
+
+  assert.match(
+    block,
+    /unique\s*\(\s*account_id\s*,\s*purpose\s*,\s*epoch\s*\)/,
+    'identity issuance must enforce one credential per account/purpose/epoch'
+  );
+
+  for (const forbidden of ['participant_id', 'credential_digest', 'token']) {
+    assert.equal(
+      block.includes(forbidden),
+      false,
+      'identity issuance must not persist Research/token linkage: ' + forbidden
+    );
+  }
+});
+
+test('Research anti-replay spent set is one-shot and contains no Identity or participant identifier', () => {
+  const sql = readShadowSql();
+  const block = getCreateTableBlock(sql, 'research.spent_credentials');
+
+  assert.match(
+    block,
+    /credential_digest\s+bytea\s+primary\s+key/,
+    'spent credential digest must be the one-shot primary key'
+  );
+
+  for (const forbidden of [
+    'account_id',
+    'user_id',
+    'participant_id',
+    'email',
+    'fiscal_number',
+    'session_id'
+  ]) {
+    assert.equal(
+      block.includes(forbidden),
+      false,
+      'spent credential set must not contain linkable identifier: ' + forbidden
+    );
+  }
+});
+
 test('shadow SQL removes browser-role access and enables RLS', () => {
-  const sql = fs.readFileSync(schemaPath, 'utf8').toLowerCase();
+  const sql = readShadowSql().toLowerCase();
 
   for (const schema of ['identity', 'research', 'content', 'politics', 'audit']) {
     assert.ok(
