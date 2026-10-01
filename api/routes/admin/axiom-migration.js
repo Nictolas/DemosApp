@@ -4,6 +4,20 @@ const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
 const { requireAdmin } = require('../../middleware/auth');
 
+// Legacy migration guard: this route was built for Neon -> Axiom.
+// DATABASE_URL now points at the primary Supabase database, so destructive or
+// migration operations must never silently reuse it as the legacy source.
+const requireLegacyMigrationDatabase = (req, res, next) => {
+  if (!process.env.NEON_MIGRATION_DATABASE_URL) {
+    return res.status(503).json({
+      success: false,
+      error: 'Migrazione legacy non configurata',
+      message: 'NEON_MIGRATION_DATABASE_URL non configurato: operazione bloccata per evitare di usare DATABASE_URL/Supabase come sorgente legacy.'
+    });
+  }
+  next();
+};
+
 // Le funzioni di migrazione vengono caricate solo quando necessario (lazy loading)
 // per evitare errori all'avvio se 'pg' non è disponibile
 
@@ -12,7 +26,7 @@ const { requireAdmin } = require('../../middleware/auth');
  * Avvia migrazione dati da Neon a Axiom
  * Richiede autenticazione admin
  */
-router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
+router.post('/migrate', verifyToken, requireAdmin, requireLegacyMigrationDatabase, async (req, res) => {
   try {
     const { tables, dryRun } = req.body;
     
@@ -166,7 +180,7 @@ router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
  * GET /api/admin/axiom-migration/migration-stats
  * Ottiene statistiche sulla migrazione completata (basata sui log di migrazione)
  */
-router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
+router.get('/migration-stats', verifyToken, requireAdmin, requireLegacyMigrationDatabase, async (req, res) => {
   try {
     const { Pool } = require('pg');
     const pool = new Pool({
@@ -233,7 +247,7 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
  * GET /api/admin/axiom-migration/status
  * Ottiene statistiche sui dati da migrare (dry-run)
  */
-router.get('/status', verifyToken, requireAdmin, async (req, res) => {
+router.get('/status', verifyToken, requireAdmin, requireLegacyMigrationDatabase, async (req, res) => {
   try {
     const { Pool } = require('pg');
     const pool = new Pool({
@@ -307,7 +321,7 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
  * Elimina i dati migrati da Neon dopo verifica su Axiom
  * ATTENZIONE: Questa operazione è IRREVERSIBILE
  */
-router.post('/delete-migrated', verifyToken, requireAdmin, async (req, res) => {
+router.post('/delete-migrated', verifyToken, requireAdmin, requireLegacyMigrationDatabase, async (req, res) => {
   try {
     const { tables, confirm } = req.body;
     
