@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 
 const router = express.Router();
 
@@ -16,10 +16,7 @@ router.get('/check-table-structure', async (req, res) => {
       });
     }
 
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    });
+    const pool = getPool();
 
     // 1. Verifica esistenza tabella
     const tableExists = await pool.query(`
@@ -31,7 +28,6 @@ router.get('/check-table-structure', async (req, res) => {
     `);
     
     if (!tableExists.rows[0].exists) {
-      await pool.end();
       return res.status(404).json({
         success: false,
         error: 'Tabella non trovata',
@@ -66,8 +62,6 @@ router.get('/check-table-structure', async (req, res) => {
     const existingColumns = structure.rows.map(row => row.column_name);
     const missingFields = requiredFields.filter(field => !existingColumns.includes(field));
     const extraFields = existingColumns.filter(col => !requiredFields.includes(col));
-
-    await pool.end();
 
     res.json({
       success: true,
