@@ -21,7 +21,7 @@ const assertExactEvidenceShape = (evidence) => {
   const required = [...REQUIRED_EVIDENCE_KEYS].sort();
   if (keys.length !== required.length || keys.some((key, index) => key !== required[index])) throw new Error('Invalid Research readiness evidence keys');
   for (const key of REQUIRED_EVIDENCE_KEYS) {
-    if (evidence[key] !== true) throw new Error('Incomplete Research readiness evidence');
+    if (typeof evidence[key] !== 'boolean') throw new Error('Invalid Research readiness evidence value');
   }
 };
 
@@ -32,7 +32,7 @@ const canonicalizeReadinessManifest = (manifest) => {
   if (!COMMIT_SHA_PATTERN.test(manifest.commitSha || '')) throw new Error('Invalid Research readiness commit SHA');
   const evidence = manifest.evidence;
   assertExactEvidenceShape(evidence);
-  const normalizedEvidence = Object.fromEntries(REQUIRED_EVIDENCE_KEYS.map((key) => [key, true]));
+  const normalizedEvidence = Object.fromEntries(REQUIRED_EVIDENCE_KEYS.map((key) => [key, evidence[key]]));
   return JSON.stringify({
     version: READINESS_MANIFEST_VERSION,
     issuedAt: String(manifest.issuedAt || ''),
