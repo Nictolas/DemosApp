@@ -9,6 +9,8 @@ const READ_ELIGIBLE_POLITICAL_VECTORS_SQL = `
     AND ($4::text IS NULL OR region = $4)
     AND ($5::text IS NULL OR province = $5)
     AND ($6::text IS NULL OR municipality = $6)
+    AND generated_at <= NOW()
+    AND expires_at > NOW()
   ORDER BY candidate_id
   LIMIT 500
 `;
