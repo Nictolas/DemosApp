@@ -4,7 +4,6 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
   'serviceBlueprintConfigured',
   'publicOriginsApproved',
   'distributedRateLimitProviderApproved',
-  'rateLimitSecretLifecycleApproved',
   'telemetrySinkApproved',
   'telemetryRetentionApproved',
   'researchSastCleared',
@@ -12,10 +11,17 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
   'productionApprovalRecorded'
 ]);
 
-const evaluateResearchProductionReadiness = (decisions = {}) => {
+const evaluateResearchProductionReadiness = (
+  decisions = {},
+  { rateLimitSecretLifecycle } = {}
+) => {
   const blockers = REQUIRED_RESEARCH_PRODUCTION_DECISIONS.filter(
     (key) => decisions[key] !== true
   );
+
+  if (rateLimitSecretLifecycle?.approved !== true) {
+    blockers.push('rateLimitSecretLifecycleApproved');
+  }
 
   return Object.freeze({
     ready: blockers.length === 0,
