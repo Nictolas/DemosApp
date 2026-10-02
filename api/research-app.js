@@ -30,6 +30,7 @@ const researchProductionMount = mountResearchPublicApiIfProductionReady(app, {
   readinessManifest: readinessDeployment.manifest,
   readinessManifestSignature: readinessDeployment.signature,
   readinessManifestPublicKey: readinessDeployment.publicKey,
+  expectedCommitSha: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT_SHA,
   mountOptions: {}
 });
 
