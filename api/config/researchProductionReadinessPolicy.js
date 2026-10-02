@@ -1,5 +1,4 @@
 const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
-  'researchSchemaValidated',
   'serviceBlueprintConfigured',
   'researchSastCleared',
   'globalSastDebtCleared',
@@ -13,6 +12,7 @@ const evaluateResearchProductionReadiness = (decisions = {}, evidence = {}) => {
 
   const requiredEvidence = [
     ['researchDatabaseConfiguration', 'researchDatabaseConfigured'],
+    ['researchSchemaValidation', 'researchSchemaValidated'],
     ['rateLimitSecretLifecycle', 'rateLimitSecretLifecycleApproved'],
     ['distributedRateLimitProvider', 'distributedRateLimitProviderApproved'],
     ['telemetryRetention', 'telemetryRetentionApproved'],
