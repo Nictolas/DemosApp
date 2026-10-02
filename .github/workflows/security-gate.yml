@@ -71,6 +71,32 @@ jobs:
           echo "Semgrep incremental baseline: $BASE_SHA"
           semgrep scan --config "p/expressjs" --error --metrics=off --baseline-commit "$BASE_SHA" .
 
+  sast-research-scope:
+    name: Semgrep CE Research scope
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Semgrep CE
+        run: python -m pip install --disable-pip-version-check semgrep==1.178.0
+
+      - name: Scan Research-named API files
+        shell: bash
+        run: |
+          mapfile -t TARGETS < <(find api -type f -iname '*research*.js' -print | sort)
+          if [ "${#TARGETS[@]}" -eq 0 ]; then
+            echo "No Research scope targets found" >&2
+            exit 1
+          fi
+          printf 'Research scope target: %s\n' "${TARGETS[@]}"
+          semgrep scan --config "p/expressjs" --error --metrics=off "${TARGETS[@]}"
+
   deterministic-security:
     name: Deterministic security tests
     runs-on: ubuntu-latest
