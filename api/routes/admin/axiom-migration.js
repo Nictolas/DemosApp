@@ -414,20 +414,35 @@ router.post('/delete-migrated', verifyToken, requireAdmin, requireLegacyMigratio
           };
         }
         
-        // Conta record su Neon prima di eliminare
-        let tableName = table;
-        if (table === 'audit_logs') {
+        // Seleziona solo operazioni SQL statiche per le tabelle supportate.
+        let tableName;
+        let countQuery;
+        let truncateQuery;
+
+        if (table === 'centralized_logs') {
+          tableName = 'centralized_logs';
+          countQuery = 'SELECT COUNT(*) as count FROM centralized_logs';
+          truncateQuery = 'TRUNCATE TABLE centralized_logs';
+        } else {
           const tableCheck = await pool.query(`
             SELECT EXISTS (
-              SELECT FROM information_schema.tables 
-              WHERE table_schema = 'public' 
+              SELECT FROM information_schema.tables
+              WHERE table_schema = 'public'
               AND table_name = 'audit_logs_compressed'
             )
           `);
-          tableName = tableCheck.rows[0].exists ? 'audit_logs_compressed' : 'audit_logs';
+          if (tableCheck.rows[0].exists) {
+            tableName = 'audit_logs_compressed';
+            countQuery = 'SELECT COUNT(*) as count FROM audit_logs_compressed';
+            truncateQuery = 'TRUNCATE TABLE audit_logs_compressed';
+          } else {
+            tableName = 'audit_logs';
+            countQuery = 'SELECT COUNT(*) as count FROM audit_logs';
+            truncateQuery = 'TRUNCATE TABLE audit_logs';
+          }
         }
-        
-        const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+
+        const countResult = await pool.query(countQuery);
         const recordCount = parseInt(countResult.rows[0].count);
         
         if (recordCount === 0) {
@@ -440,10 +455,10 @@ router.post('/delete-migrated', verifyToken, requireAdmin, requireLegacyMigratio
         
         // Elimina i dati
         console.log(`🗑️ Eliminazione dati da ${tableName} (${recordCount.toLocaleString()} record)...`);
-        await pool.query(`TRUNCATE TABLE ${tableName}`);
+        await pool.query(truncateQuery);
         
         // Verifica eliminazione
-        const verifyCount = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+        const verifyCount = await pool.query(countQuery);
         const remainingRecords = parseInt(verifyCount.rows[0].count);
         
         results[table] = {
