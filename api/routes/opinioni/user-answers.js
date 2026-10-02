@@ -4,8 +4,10 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
-const OPINION_ID_PATTERN = /^[a-z][a-z0-9_]{0,62}$/;
-const quotePgIdentifier = (value) => `"${String(value).replace(/"/g, '""')}"`;
+const {
+  OPINION_ID_PATTERN,
+  ensureOpinionResponseColumn
+} = require('../../services/opinionIdentifierPolicy');
 
 // GET /api/opinioni/profile - Ottieni solo le domande delle opinioni (per EditOpinioniDialog)
 router.get('/profile', verifyToken, async (req, res) => {
@@ -609,23 +611,18 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       console.log('✅ Approfondimento salvato con successo per opinione:', actualId);
     }
     
-    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
+    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste.
+    // La costruzione dell'identificatore SQL è confinata in una policy testata.
     try {
-      const checkColumnQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
-        AND column_name = $1
-      `;
-      const columnCheck = await pool.query(checkColumnQuery, [actualId]);
-      
-      if (columnCheck.rows.length === 0) {
-        console.log(`📊 Aggiungo colonna ${actualId} a opinioni_risposte...`);
-        // Usa un identificatore quotato per il nome della colonna
-        const safeColumnIdentifier = quotePgIdentifier(actualId);
-        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN ${safeColumnIdentifier} TEXT`;
-        await pool.query(addColumnQuery);
+      const columnResult = await ensureOpinionResponseColumn({
+        pool,
+        opinionId: actualId
+      });
+
+      if (columnResult.created) {
         console.log(`✅ Colonna ${actualId} aggiunta a opinioni_risposte`);
+      } else if (columnResult.reason === 'invalid_identifier') {
+        console.warn('⚠️ ID opinione non adatto alla creazione dinamica della colonna');
       }
     } catch (error) {
       console.error('❌ Errore nell\'aggiungere colonna opinioni_risposte:', error);
