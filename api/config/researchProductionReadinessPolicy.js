@@ -1,5 +1,4 @@
 const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
-  'globalSastDebtCleared',
   'productionApprovalRecorded'
 ]);
 
