@@ -48,3 +48,19 @@ test('Research production mount gate delegates only after all readiness checks p
   assert.deepEqual(result.blockers, []);
   assert.equal(mountCalls, 1);
 });
+
+
+test('Research production gate stays fail-closed with no decisions or evidence', () => {
+  let mountCalls = 0;
+  const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
+    decisions: {},
+    mount() { mountCalls += 1; return { mounted: true }; }
+  });
+  assert.equal(result.mounted, false);
+  assert.equal(result.blockers.includes('productionApprovalRecorded'), true);
+  assert.equal(result.blockers.includes('researchDatabaseConfigured'), true);
+  assert.equal(result.blockers.includes('researchSchemaValidated'), true);
+  assert.equal(result.blockers.includes('researchSastCleared'), true);
+  assert.equal(result.blockers.includes('serviceBlueprintConfigured'), true);
+  assert.equal(mountCalls, 0);
+});
