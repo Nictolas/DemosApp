@@ -9,6 +9,7 @@ const approved = Object.freeze({ approved: true, blockers: Object.freeze([]) });
 const evidence = () => ({
   researchDatabaseConfiguration: approved,
   researchSchemaValidation: approved,
+  researchSastEvidence: approved,
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
@@ -26,6 +27,7 @@ test('Research production readiness is fail-closed by default', () => {
     ...REQUIRED_RESEARCH_PRODUCTION_DECISIONS,
     'researchDatabaseConfigured',
     'researchSchemaValidated',
+    'researchSastCleared',
     'rateLimitSecretLifecycleApproved',
     'distributedRateLimitProviderApproved',
     'telemetryRetentionApproved',
@@ -34,12 +36,12 @@ test('Research production readiness is fail-closed by default', () => {
   ]);
 });
 
-test('Research production readiness requires schema validation evidence', () => {
+test('Research production readiness requires SAST evidence', () => {
   const partial = evidence();
-  delete partial.researchSchemaValidation;
+  delete partial.researchSastEvidence;
   const result = evaluateResearchProductionReadiness(allReady(), partial);
   assert.equal(result.ready, false);
-  assert.deepEqual(result.blockers, ['researchSchemaValidated']);
+  assert.deepEqual(result.blockers, ['researchSastCleared']);
 });
 
 test('Research production readiness becomes true only with decisions and all evidences', () => {
