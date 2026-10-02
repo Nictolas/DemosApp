@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
-const cors = require('cors');
+const { corsMiddleware, corsPreflight } = require('./middleware/cors');
 const path = require('path');
 const { securityHeaders, securityMiddleware, securityLogger } = require('./middleware/security');
 const { requestLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/loggingMiddleware');
@@ -140,96 +140,9 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', false); // In sviluppo, non fidarti di proxy per evitare errori di rate limiting
 }
 
-// CORS - Configurazione semplificata e robusta
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Lista degli origin consentiti
-    const allowedOrigins = [
-      'https://www.demos.community',
-      'https://demos.community',
-      'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173'
-    ];
-    
-    // Permetti richieste senza origin (es. Postman, mobile apps)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS: Origin autorizzato:', origin);
-      callback(null, true);
-    } else {
-      console.log('🚨 CORS: Origin non autorizzato:', origin);
-      callback(new Error('Non autorizzato da CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
-  optionsSuccessStatus: 200
-};
-
-// Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log('🌐 CORS Middleware - Origin:', origin);
-  
-  // Lista degli origin consentiti
-  const allowedOrigins = [
-    'https://www.demos.community',
-    'https://demos.community',
-    'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173'
-  ];
-  
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('✅ CORS: Header impostati per origin:', origin);
-  } else if (origin) {
-    console.log('🚨 CORS: Origin non autorizzato:', origin);
-  }
-  
-  next();
-});
-
-// Gestione esplicita delle richieste OPTIONS per CORS
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  console.log('🔍 CORS OPTIONS richiesta da:', origin);
-  
-  // Lista degli origin consentiti
-  const allowedOrigins = [
-    'https://www.demos.community',
-    'https://demos.community',
-    'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173'
-  ];
-  
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('✅ CORS OPTIONS: Header impostati per origin:', origin);
-  } else if (origin) {
-    console.log('🚨 CORS OPTIONS: Origin non autorizzato:', origin);
-  }
-  
-  res.status(200).end();
-});
-
-app.use(cors(corsOptions));
+// CORS - policy centralizzata e allowlist esplicita
+app.use(corsPreflight);
+app.use(corsMiddleware);
 
 // DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
 if (process.env.NODE_ENV !== 'production') {
