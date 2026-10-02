@@ -7,15 +7,17 @@ const {
 
 const mountResearchPublicApiIfProductionReady = (
   app,
-  {
-    decisions,
-    rateLimitSecretLifecycle,
-    mount = mountResearchPublicApiIfEnabled,
-    mountOptions
-  } = {}
+  options = {}
 ) => {
+  const decisions = options.decisions;
+  const rateLimitSecretLifecycle = options.rateLimitSecretLifecycle;
+  const distributedRateLimitProvider = options.distributedRateLimitProvider;
+  const mount = options.mount || mountResearchPublicApiIfEnabled;
+  const mountOptions = options.mountOptions;
+
   const readiness = evaluateResearchProductionReadiness(decisions, {
-    rateLimitSecretLifecycle
+    rateLimitSecretLifecycle,
+    distributedRateLimitProvider
   });
 
   if (!readiness.ready) {
