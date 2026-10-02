@@ -9,6 +9,7 @@ const allReady = () => Object.fromEntries(
 );
 const evidence = {
   researchDatabaseConfiguration: approved,
+  researchSchemaValidation: approved,
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
@@ -16,16 +17,16 @@ const evidence = {
   publicOrigins: approved
 };
 
-test('Research production mount gate blocks without database configuration evidence', () => {
+test('Research production mount gate blocks without schema validation evidence', () => {
   let mountCalls = 0;
-  const { researchDatabaseConfiguration, ...withoutDatabase } = evidence;
+  const { researchSchemaValidation, ...withoutSchema } = evidence;
   const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
     decisions: allReady(),
-    ...withoutDatabase,
+    ...withoutSchema,
     mount() { mountCalls += 1; return { mounted: true }; }
   });
   assert.equal(result.mounted, false);
-  assert.deepEqual(result.blockers, ['researchDatabaseConfigured']);
+  assert.deepEqual(result.blockers, ['researchSchemaValidated']);
   assert.equal(mountCalls, 0);
 });
 
