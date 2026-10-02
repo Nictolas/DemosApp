@@ -18,5 +18,6 @@ module.exports = Object.freeze([
   'api/services/researchOpinionVectorService.js',
   'api/services/researchEd25519SignatureVerifier.js',
   'api/services/researchParticipantProofVerifier.js',
-  'api/services/researchParticipantProofPolicy.js'
+  'api/services/researchParticipantProofPolicy.js',
+  'api/config/researchReadinessManifest.js'
 ]);
