@@ -40,6 +40,9 @@ const createResearchPoliticalSnapshotWriter = ({ pool, now = () => new Date() })
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        const scopeLockKey = [scope.kind, scope.grade, scope.country, scope.region, scope.province, scope.municipality]
+          .map((value) => value ?? '').join('|');
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [scopeLockKey]);
         await client.query(
           `DELETE FROM research_public_political_vectors
            WHERE kind = $1 AND grade = $2

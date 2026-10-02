@@ -40,3 +40,15 @@ test('political snapshot writer rejects mixed scopes before opening a transactio
     {candidateId:'c2',kind:'candidate',grade:'E',region:'Lazio',displayName:'Bea',opinions:{q1:1}}
   ]}),/share one political scope/);
 });
+
+
+test('political snapshot writer takes a transaction-scoped advisory lock before replacing a scope', async () => {
+  const calls=[]; const client={query:async(sql,params)=>{calls.push({sql,params});return {rows:[]};},release:()=>{}};
+  const writer=createResearchPoliticalSnapshotWriter({pool:{connect:async()=>client}});
+  await writer.replace({sourceSnapshotId:'snapshot-lock',methodologyVersion:'v1',rows:[{candidateId:'c1',kind:'representative',grade:'C',country:'IT',region:'Toscana',province:'PI',municipality:'Pisa',displayName:'Ada',opinions:{q1:2}}]});
+  const lock=calls.findIndex(({sql})=>/pg_advisory_xact_lock/.test(sql));
+  const scopeDelete=calls.findIndex(({sql})=>/DELETE FROM research_public_political_vectors\s+WHERE kind/.test(sql));
+  assert.equal(lock,1);
+  assert.equal(scopeDelete,2);
+  assert.deepEqual(calls[lock].params,['representative|C|IT|Toscana|PI|Pisa']);
+});
