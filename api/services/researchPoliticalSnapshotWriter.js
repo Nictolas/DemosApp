@@ -29,11 +29,26 @@ const createResearchPoliticalSnapshotWriter = ({ pool, now = () => new Date() })
       assertSnapshotId(sourceSnapshotId, 'source snapshot id');
       assertSnapshotId(methodologyVersion, 'methodology version');
       const normalized = normalizeSnapshotRows(rows);
+      const scope = normalized[0];
+      if (normalized.some((row) =>
+        row.kind !== scope.kind || row.grade !== scope.grade ||
+        row.country !== scope.country || row.region !== scope.region ||
+        row.province !== scope.province || row.municipality !== scope.municipality
+      )) throw new Error('Snapshot rows must share one political scope');
       const generatedAt = now();
       const expiresAt = new Date(generatedAt.getTime() + SNAPSHOT_TTL_MS);
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        await client.query(
+          `DELETE FROM research_public_political_vectors
+           WHERE kind = $1 AND grade = $2
+             AND country IS NOT DISTINCT FROM $3
+             AND region IS NOT DISTINCT FROM $4
+             AND province IS NOT DISTINCT FROM $5
+             AND municipality IS NOT DISTINCT FROM $6`,
+          [scope.kind, scope.grade, scope.country, scope.region, scope.province, scope.municipality]
+        );
         for (const row of normalized) {
           await client.query(
             `INSERT INTO research_public_political_vectors
