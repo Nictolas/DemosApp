@@ -7,6 +7,7 @@ const {
 
 const mountResearchPublicApiIfProductionReady = (app, options = {}) => {
   const evidence = {
+    researchDatabaseConfiguration: options.researchDatabaseConfiguration,
     rateLimitSecretLifecycle: options.rateLimitSecretLifecycle,
     distributedRateLimitProvider: options.distributedRateLimitProvider,
     telemetryRetention: options.telemetryRetention,
