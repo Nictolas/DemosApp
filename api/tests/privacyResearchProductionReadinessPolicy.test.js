@@ -10,6 +10,7 @@ const evidence = () => ({
   researchDatabaseConfiguration: approved,
   researchSchemaValidation: approved,
   researchSastEvidence: approved,
+  researchServiceBlueprint: approved,
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
@@ -28,6 +29,7 @@ test('Research production readiness is fail-closed by default', () => {
     'researchDatabaseConfigured',
     'researchSchemaValidated',
     'researchSastCleared',
+    'serviceBlueprintConfigured',
     'rateLimitSecretLifecycleApproved',
     'distributedRateLimitProviderApproved',
     'telemetryRetentionApproved',
@@ -36,12 +38,12 @@ test('Research production readiness is fail-closed by default', () => {
   ]);
 });
 
-test('Research production readiness requires SAST evidence', () => {
+test('Research production readiness requires service blueprint evidence', () => {
   const partial = evidence();
-  delete partial.researchSastEvidence;
+  delete partial.researchServiceBlueprint;
   const result = evaluateResearchProductionReadiness(allReady(), partial);
   assert.equal(result.ready, false);
-  assert.deepEqual(result.blockers, ['researchSastCleared']);
+  assert.deepEqual(result.blockers, ['serviceBlueprintConfigured']);
 });
 
 test('Research production readiness becomes true only with decisions and all evidences', () => {
