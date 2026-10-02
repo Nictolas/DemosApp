@@ -3,28 +3,27 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
   'researchSchemaValidated',
   'serviceBlueprintConfigured',
   'publicOriginsApproved',
-  'telemetrySinkApproved',
   'researchSastCleared',
   'globalSastDebtCleared',
   'productionApprovalRecorded'
 ]);
 
-const evaluateResearchProductionReadiness = (
-  decisions = {},
-  evidence = {}
-) => {
+const evaluateResearchProductionReadiness = (decisions = {}, evidence = {}) => {
   const blockers = REQUIRED_RESEARCH_PRODUCTION_DECISIONS.filter(
     (key) => decisions[key] !== true
   );
 
-  if (evidence.rateLimitSecretLifecycle?.approved !== true) {
-    blockers.push('rateLimitSecretLifecycleApproved');
-  }
-  if (evidence.distributedRateLimitProvider?.approved !== true) {
-    blockers.push('distributedRateLimitProviderApproved');
-  }
-  if (evidence.telemetryRetention?.approved !== true) {
-    blockers.push('telemetryRetentionApproved');
+  const requiredEvidence = [
+    ['rateLimitSecretLifecycle', 'rateLimitSecretLifecycleApproved'],
+    ['distributedRateLimitProvider', 'distributedRateLimitProviderApproved'],
+    ['telemetryRetention', 'telemetryRetentionApproved'],
+    ['telemetrySink', 'telemetrySinkApproved']
+  ];
+
+  for (const [key, blocker] of requiredEvidence) {
+    if (evidence[key]?.approved !== true) {
+      blockers.push(blocker);
+    }
   }
 
   return Object.freeze({
