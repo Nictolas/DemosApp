@@ -8,6 +8,7 @@ const allReady = () => Object.fromEntries(
   REQUIRED_RESEARCH_PRODUCTION_DECISIONS.map((key) => [key, true])
 );
 const evidence = {
+  researchDatabaseConfiguration: approved,
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
@@ -15,16 +16,16 @@ const evidence = {
   publicOrigins: approved
 };
 
-test('Research production mount gate blocks without public origins evidence', () => {
+test('Research production mount gate blocks without database configuration evidence', () => {
   let mountCalls = 0;
-  const { publicOrigins, ...withoutOrigins } = evidence;
+  const { researchDatabaseConfiguration, ...withoutDatabase } = evidence;
   const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
     decisions: allReady(),
-    ...withoutOrigins,
+    ...withoutDatabase,
     mount() { mountCalls += 1; return { mounted: true }; }
   });
   assert.equal(result.mounted, false);
-  assert.deepEqual(result.blockers, ['publicOriginsApproved']);
+  assert.deepEqual(result.blockers, ['researchDatabaseConfigured']);
   assert.equal(mountCalls, 0);
 });
 
