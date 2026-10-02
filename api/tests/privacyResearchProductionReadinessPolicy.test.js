@@ -7,6 +7,7 @@ const {
 
 const approved = Object.freeze({ approved: true, blockers: Object.freeze([]) });
 const evidence = () => ({
+  researchDatabaseConfiguration: approved,
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
@@ -22,6 +23,7 @@ test('Research production readiness is fail-closed by default', () => {
   assert.equal(result.ready, false);
   assert.deepEqual(result.blockers, [
     ...REQUIRED_RESEARCH_PRODUCTION_DECISIONS,
+    'researchDatabaseConfigured',
     'rateLimitSecretLifecycleApproved',
     'distributedRateLimitProviderApproved',
     'telemetryRetentionApproved',
@@ -30,12 +32,12 @@ test('Research production readiness is fail-closed by default', () => {
   ]);
 });
 
-test('Research production readiness requires public origins evidence', () => {
+test('Research production readiness requires database configuration evidence', () => {
   const partial = evidence();
-  delete partial.publicOrigins;
+  delete partial.researchDatabaseConfiguration;
   const result = evaluateResearchProductionReadiness(allReady(), partial);
   assert.equal(result.ready, false);
-  assert.deepEqual(result.blockers, ['publicOriginsApproved']);
+  assert.deepEqual(result.blockers, ['researchDatabaseConfigured']);
 });
 
 test('Research production readiness becomes true only with decisions and all evidences', () => {
