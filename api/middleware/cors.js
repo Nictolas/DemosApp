@@ -30,12 +30,39 @@ const corsOptions = {
 
 const corsMiddleware = cors(corsOptions);
 
+const setAllowedOriginHeader = (res, origin) => {
+  switch (origin) {
+    case 'https://www.demos.community':
+      res.header('Access-Control-Allow-Origin', 'https://www.demos.community');
+      return true;
+    case 'https://demos.community':
+      res.header('Access-Control-Allow-Origin', 'https://demos.community');
+      return true;
+    case 'https://demos-c7k0.onrender.com':
+      res.header('Access-Control-Allow-Origin', 'https://demos-c7k0.onrender.com');
+      return true;
+    case 'http://localhost:3000':
+      res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+      return true;
+    case 'http://localhost:5173':
+      res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+      return true;
+    case 'http://127.0.0.1:3000':
+      res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:3000');
+      return true;
+    case 'http://127.0.0.1:5173':
+      res.header('Access-Control-Allow-Origin', 'http://127.0.0.1:5173');
+      return true;
+    default:
+      return false;
+  }
+};
+
 const corsPreflight = (req, res, next) => {
   const origin = req.headers.origin;
   const decision = evaluateCorsOrigin(origin);
 
-  if (origin && decision.allowed) {
-    res.header('Access-Control-Allow-Origin', origin);
+  if (origin && decision.allowed && setAllowedOriginHeader(res, origin)) {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header(
       'Access-Control-Allow-Headers',
@@ -50,5 +77,6 @@ const corsPreflight = (req, res, next) => {
 
 module.exports = {
   corsMiddleware,
-  corsPreflight
+  corsPreflight,
+  setAllowedOriginHeader
 };
