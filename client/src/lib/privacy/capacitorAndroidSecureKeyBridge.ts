@@ -2,18 +2,14 @@ import type { SecureKeyBridge } from './deviceOpinionKeyProvider';
 import { assertNativeAndroidSecureStorageRuntime, type CapacitorRuntimeProbe } from './capacitorSecureKeyRuntime';
 
 export interface AparajitaSecureStorageV6Port {
-  get(key: string): Promise<unknown>;
-  set(key: string, value: string): Promise<unknown>;
-  remove(key: string): Promise<unknown>;
+  get(key: string, convertDate?: boolean, sync?: boolean): Promise<string | null>;
+  set(key: string, data: string, convertDate?: boolean, sync?: boolean): Promise<void>;
+  remove(key: string, sync?: boolean): Promise<boolean>;
 }
 
 const normalizeStoredValue = (value: unknown): string | null => {
   if (value == null) return null;
   if (typeof value === 'string') return value;
-  if (typeof value === 'object' && value && 'value' in value) {
-    const nested = (value as { value?: unknown }).value;
-    return nested == null ? null : String(nested);
-  }
   throw new Error('Unexpected secure storage response');
 };
 
