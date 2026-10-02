@@ -19,11 +19,12 @@ test('incremental Semgrep job runs only for pull requests with full git history'
   assert.match(workflow, /fetch-depth: 0/);
 });
 
-test('incremental Semgrep gate uses the explicit PR base SHA and blocks new findings', () => {
+test('incremental Semgrep gate computes a current merge-base and blocks only new findings', () => {
   assert.match(
     workflow,
-    /--baseline-commit "\$\{\{ github\.event\.pull_request\.base\.sha \}\}"/
+    /git merge-base HEAD "origin\/\$\{\{ github\.event\.pull_request\.base\.ref \}\}"/
   );
+  assert.match(workflow, /--baseline-commit "\$BASE_SHA"/);
   assert.match(
     workflow,
     /semgrep scan --config "p\/expressjs" --error --metrics=off --baseline-commit/
