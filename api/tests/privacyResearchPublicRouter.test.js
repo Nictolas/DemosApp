@@ -5,11 +5,12 @@ const path = require('node:path');
 
 const { createResearchPublicRouter } = require('../routes/researchPublicRouter');
 
-test('Research public router composes only challenge/read limiter+handler pairs', () => {
+test('Research public router composes only allowlisted limiter+handler pairs', () => {
   const handlerCalls = [];
   const limiterCalls = [];
   const handlers = {
     issueChallenge: () => handlerCalls.push('challenge'),
+    listPoliticalVectors: () => handlerCalls.push('political-vectors'),
     readOpinionVector: () => handlerCalls.push('read')
   };
   const challengeLimiter = (req, res, next) => {
@@ -37,6 +38,7 @@ test('Research public router composes only challenge/read limiter+handler pairs'
 
   assert.deepEqual(routes, [
     { path: '/v1/proof-challenges', methods: ['post'], stackLength: 2 },
+    { path: '/v1/political-vectors', methods: ['post'], stackLength: 2 },
     { path: '/v1/opinion-vector/read', methods: ['post'], stackLength: 2 }
   ]);
   assert.deepEqual(handlerCalls, []);
