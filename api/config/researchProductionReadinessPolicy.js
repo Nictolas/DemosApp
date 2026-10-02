@@ -7,7 +7,8 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
   'rateLimitSecretLifecycleApproved',
   'telemetrySinkApproved',
   'telemetryRetentionApproved',
-  'sastGateCleared',
+  'researchSastCleared',
+  'globalSastDebtCleared',
   'productionApprovalRecorded'
 ]);
 
