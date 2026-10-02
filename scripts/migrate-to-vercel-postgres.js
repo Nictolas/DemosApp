@@ -35,7 +35,7 @@ const sourcePool = new Pool({
 const targetPool = new Pool({
   connectionString: process.env.POSTGRES_URL,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: true
   }
 });
 
