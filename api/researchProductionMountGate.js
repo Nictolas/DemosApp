@@ -13,7 +13,8 @@ const mountResearchPublicApiIfProductionReady = (app, options = {}) => {
     manifest: options.readinessManifest,
     signature: options.readinessManifestSignature,
     publicKey: options.readinessManifestPublicKey,
-    now: options.now
+    now: options.now,
+    expectedCommitSha: options.expectedCommitSha
   });
   const evidence = verifiedManifest.valid ? verifiedManifest.evidence : {};
   const readiness = evaluateResearchProductionReadiness(options.decisions, evidence);
