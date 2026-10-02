@@ -583,22 +583,27 @@ router.get('/download/:exportId', requireAdmin, async (req, res) => {
     const { exportId } = req.params;
     const exportDir = path.resolve(process.env.EXPORT_DIR || '/mnt/external-drive/archivio');
 
-    // Accetta solo timestamp ISO completi prodotti dal sistema di export.
-    const exportDate = new Date(exportId);
-    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(exportId) || Number.isNaN(exportDate.getTime())) {
-      return res.status(400).json({ error: 'Identificativo export non valido' });
+    // Il client può selezionare solo un export già registrato nell'indice server-side.
+    const indexPath = path.join(exportDir, 'index_generale.json');
+    const indexData = JSON.parse(await fs.readFile(indexPath, 'utf8'));
+    const exportEntry = Array.isArray(indexData.exports)
+      ? indexData.exports.find(item => item && item.exportDate === exportId)
+      : null;
+
+    if (!exportEntry) {
+      return res.status(404).json({ error: 'Export non trovato' });
     }
 
-    // Cerca la directory dell'export usando esclusivamente segmenti derivati dalla data validata.
+    const exportDate = new Date(exportEntry.exportDate);
+    if (Number.isNaN(exportDate.getTime())) {
+      return res.status(500).json({ error: 'Indice export non valido' });
+    }
+
+    // Il path deriva solo da metadati già registrati lato server.
     const year = exportDate.getUTCFullYear();
     const month = String(exportDate.getUTCMonth() + 1).padStart(2, '0');
     const monthName = exportDate.toLocaleString('it-IT', { month: 'long', timeZone: 'UTC' });
-    const exportPath = path.resolve(exportDir, year.toString(), `${month}-${monthName}`);
-    const relativeExportPath = path.relative(exportDir, exportPath);
-
-    if (relativeExportPath.startsWith('..') || path.isAbsolute(relativeExportPath)) {
-      return res.status(400).json({ error: 'Percorso export non valido' });
-    }
+    const exportPath = path.join(exportDir, year.toString(), `${month}-${monthName}`);
     
     try {
       // Verifica se la directory esiste
