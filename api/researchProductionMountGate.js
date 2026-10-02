@@ -5,34 +5,22 @@ const {
   mountResearchPublicApiIfEnabled
 } = require('./researchPublicApiMount');
 
-const mountResearchPublicApiIfProductionReady = (
-  app,
-  options = {}
-) => {
-  const decisions = options.decisions;
+const mountResearchPublicApiIfProductionReady = (app, options = {}) => {
   const evidence = {
     rateLimitSecretLifecycle: options.rateLimitSecretLifecycle,
     distributedRateLimitProvider: options.distributedRateLimitProvider,
-    telemetryRetention: options.telemetryRetention
+    telemetryRetention: options.telemetryRetention,
+    telemetrySink: options.telemetrySink
   };
-  const mount = options.mount || mountResearchPublicApiIfEnabled;
-  const mountOptions = options.mountOptions;
-
-  const readiness = evaluateResearchProductionReadiness(decisions, evidence);
+  const readiness = evaluateResearchProductionReadiness(options.decisions, evidence);
 
   if (!readiness.ready) {
-    return {
-      mounted: false,
-      blockers: readiness.blockers
-    };
+    return { mounted: false, blockers: readiness.blockers };
   }
 
-  const result = mount(app, mountOptions);
-
-  return {
-    ...result,
-    blockers: Object.freeze([])
-  };
+  const mount = options.mount || mountResearchPublicApiIfEnabled;
+  const result = mount(app, options.mountOptions);
+  return { ...result, blockers: Object.freeze([]) };
 };
 
 module.exports = {
