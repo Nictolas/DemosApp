@@ -14,7 +14,7 @@ const allReady = () => Object.fromEntries(
 
 test('Research production mount gate blocks mounting when any prerequisite is missing', () => {
   const decisions = allReady();
-  decisions.sastGateCleared = false;
+  decisions.globalSastDebtCleared = false;
 
   let mountCalls = 0;
   const result = mountResearchPublicApiIfProductionReady(
@@ -29,7 +29,7 @@ test('Research production mount gate blocks mounting when any prerequisite is mi
   );
 
   assert.equal(result.mounted, false);
-  assert.deepEqual(result.blockers, ['sastGateCleared']);
+  assert.deepEqual(result.blockers, ['globalSastDebtCleared']);
   assert.equal(mountCalls, 0);
 });
 
