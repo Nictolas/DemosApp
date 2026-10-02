@@ -23,6 +23,11 @@ const createResearchPublicRouter = ({
     handlers.issueChallenge
   );
   router.post(
+    RESEARCH_PUBLIC_ENDPOINTS.listPoliticalVectors.path,
+    readLimiter,
+    handlers.listPoliticalVectors
+  );
+  router.post(
     RESEARCH_PUBLIC_ENDPOINTS.readOpinionVector.path,
     readLimiter,
     handlers.readOpinionVector
