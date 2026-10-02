@@ -53,9 +53,12 @@ const verifyResearchReadinessManifest = ({
     if (!COMMIT_SHA_PATTERN.test(expectedCommitSha || '') || manifest?.commitSha !== expectedCommitSha) {
       return { valid: false, evidence: {} };
     }
-    const keyObject = crypto.createPublicKey(publicKey);
-    if (keyObject.asymmetricKeyType !== 'ed25519') return { valid: false, evidence: {} };
     if (!publicKey || typeof signature !== 'string' || !/^[A-Za-z0-9_-]+$/.test(signature)) {
+      return { valid: false, evidence: {} };
+    }
+    const keyObject = publicKey instanceof crypto.KeyObject ? publicKey : crypto.createPublicKey(publicKey);
+    if (keyObject.asymmetricKeyType !== 'ed25519') return { valid: false, evidence: {} };
+    if (typeof signature !== 'string' || !/^[A-Za-z0-9_-]+$/.test(signature)) {
       return { valid: false, evidence: {} };
     }
     const issuedAt = new Date(manifest?.issuedAt);
