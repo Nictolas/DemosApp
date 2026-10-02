@@ -52,10 +52,9 @@ test('Research production readiness becomes true only with decisions and all evi
   assert.deepEqual(result.blockers, []);
 });
 
-test('Research readiness keeps global SAST debt as a separate blocker', () => {
-  const decisions = allReady();
-  decisions.globalSastDebtCleared = false;
+test('Research readiness no longer accepts a manually asserted global SAST decision', () => {
+  const decisions = { ...allReady(), globalSastDebtCleared: false };
   const result = evaluateResearchProductionReadiness(decisions, evidence());
-  assert.equal(result.ready, false);
-  assert.deepEqual(result.blockers, ['globalSastDebtCleared']);
+  assert.equal(result.ready, true);
+  assert.deepEqual(result.blockers, []);
 });
