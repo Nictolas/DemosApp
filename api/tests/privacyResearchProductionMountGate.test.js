@@ -11,6 +11,7 @@ const {
 const allReady = () => Object.fromEntries(
   REQUIRED_RESEARCH_PRODUCTION_DECISIONS.map((key) => [key, true])
 );
+const approvedLifecycle = Object.freeze({ approved: true, blockers: Object.freeze([]) });
 
 test('Research production mount gate blocks mounting when any prerequisite is missing', () => {
   const decisions = allReady();
@@ -21,6 +22,7 @@ test('Research production mount gate blocks mounting when any prerequisite is mi
     { use() {} },
     {
       decisions,
+      rateLimitSecretLifecycle: approvedLifecycle,
       mount() {
         mountCalls += 1;
         return { mounted: true };
@@ -43,6 +45,7 @@ test('Research production mount gate blocks separately for every required prereq
       { use() {} },
       {
         decisions,
+        rateLimitSecretLifecycle: approvedLifecycle,
         mount() {
           mountCalls += 1;
           return { mounted: true };
@@ -54,6 +57,24 @@ test('Research production mount gate blocks separately for every required prereq
     assert.deepEqual(result.blockers, [missing], missing);
     assert.equal(mountCalls, 0, missing);
   }
+});
+
+test('Research production mount gate blocks without approved secret lifecycle evidence', () => {
+  let mountCalls = 0;
+  const result = mountResearchPublicApiIfProductionReady(
+    { use() {} },
+    {
+      decisions: allReady(),
+      mount() {
+        mountCalls += 1;
+        return { mounted: true };
+      }
+    }
+  );
+
+  assert.equal(result.mounted, false);
+  assert.deepEqual(result.blockers, ['rateLimitSecretLifecycleApproved']);
+  assert.equal(mountCalls, 0);
 });
 
 test('Research production mount gate delegates only after all readiness checks pass', () => {
@@ -70,6 +91,7 @@ test('Research production mount gate delegates only after all readiness checks p
     app,
     {
       decisions: allReady(),
+      rateLimitSecretLifecycle: approvedLifecycle,
       mount(receivedApp, receivedOptions) {
         calls.push({ receivedApp, receivedOptions });
         return { mounted: true };
