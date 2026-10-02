@@ -3,7 +3,6 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
   'researchSchemaValidated',
   'serviceBlueprintConfigured',
   'publicOriginsApproved',
-  'distributedRateLimitProviderApproved',
   'telemetrySinkApproved',
   'telemetryRetentionApproved',
   'researchSastCleared',
@@ -13,7 +12,10 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
 
 const evaluateResearchProductionReadiness = (
   decisions = {},
-  { rateLimitSecretLifecycle } = {}
+  {
+    rateLimitSecretLifecycle,
+    distributedRateLimitProvider
+  } = {}
 ) => {
   const blockers = REQUIRED_RESEARCH_PRODUCTION_DECISIONS.filter(
     (key) => decisions[key] !== true
@@ -21,6 +23,9 @@ const evaluateResearchProductionReadiness = (
 
   if (rateLimitSecretLifecycle?.approved !== true) {
     blockers.push('rateLimitSecretLifecycleApproved');
+  }
+  if (distributedRateLimitProvider?.approved !== true) {
+    blockers.push('distributedRateLimitProviderApproved');
   }
 
   return Object.freeze({
