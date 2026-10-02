@@ -28,7 +28,8 @@ test('Research runtime SAST manifest contains the current standalone runtime clo
     'api/services/researchParticipantProofVerifier.js',
     'api/services/researchParticipantProofPolicy.js',
     'api/config/researchReadinessManifest.js',
-    'api/config/researchReadinessDeployment.js',  ]);
+    'api/config/researchReadinessDeployment.js',
+    'api/services/researchPoliticalVectorReader.js',  ]);
   manifest.forEach((file) => assert.equal(fs.existsSync(path.join(repoRoot, file)), true));
 });
 

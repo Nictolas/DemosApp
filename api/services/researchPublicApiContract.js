@@ -7,6 +7,12 @@ const RESEARCH_PUBLIC_ENDPOINTS = Object.freeze({
     requestKeys: Object.freeze([]),
     responseKeys: Object.freeze(['challenge', 'purpose'])
   },
+  listPoliticalVectors: {
+    method: 'POST',
+    path: RESEARCH_PUBLIC_ROUTE_PREFIX + '/political-vectors',
+    requestKeys: Object.freeze(['scope']),
+    responseKeys: Object.freeze(['candidates'])
+  },
   readOpinionVector: {
     method: 'POST',
     path: RESEARCH_PUBLIC_ROUTE_PREFIX + '/opinion-vector/read',
@@ -17,7 +23,7 @@ const RESEARCH_PUBLIC_ENDPOINTS = Object.freeze({
 
 const FORBIDDEN_IDENTITY_KEYS = Object.freeze([
   'accountId', 'account_id', 'userId', 'user_id', 'email', 'subject',
-  'sessionId', 'session_id', 'authorization', 'jwt', 'token'
+  'sessionId', 'session_id', 'authorization', 'jwt', 'token', 'opinions', 'opinionVector', 'citizenOpinions'
 ]);
 
 const assertResearchPublicPayload = (value, allowedKeys) => {
