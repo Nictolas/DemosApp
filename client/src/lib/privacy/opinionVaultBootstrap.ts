@@ -1,4 +1,5 @@
 import type { MatchVector } from './localPoliticalMatcher';
+import type { OpinionVaultCutoverPolicy } from './opinionVaultCutoverPolicy';
 
 export interface OpinionVault {
   read(): Promise<MatchVector>;
@@ -14,16 +15,16 @@ export type OpinionVaultBootstrapResult =
 export const readOrBootstrapOpinionVault = async ({
   vault,
   fetchLegacyOpinions,
-  allowLegacyImport = false
+  policy
 }: {
   vault: OpinionVault;
   fetchLegacyOpinions: LegacyOpinionFetcher;
-  allowLegacyImport?: boolean;
+  policy: OpinionVaultCutoverPolicy;
 }): Promise<OpinionVaultBootstrapResult> => {
   try {
     return { source: 'vault', vector: await vault.read() };
   } catch (vaultError) {
-    if (!allowLegacyImport) throw vaultError;
+    if (!policy.allowLegacyImport) throw vaultError;
   }
 
   const vector = await fetchLegacyOpinions();
