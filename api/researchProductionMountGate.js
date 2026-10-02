@@ -4,19 +4,18 @@ const {
 const {
   mountResearchPublicApiIfEnabled
 } = require('./researchPublicApiMount');
+const {
+  verifyResearchReadinessManifest
+} = require('./config/researchReadinessManifest');
 
 const mountResearchPublicApiIfProductionReady = (app, options = {}) => {
-  const evidence = {
-    researchDatabaseConfiguration: options.researchDatabaseConfiguration,
-    researchSchemaValidation: options.researchSchemaValidation,
-    researchSastEvidence: options.researchSastEvidence,
-    researchServiceBlueprint: options.researchServiceBlueprint,
-    rateLimitSecretLifecycle: options.rateLimitSecretLifecycle,
-    distributedRateLimitProvider: options.distributedRateLimitProvider,
-    telemetryRetention: options.telemetryRetention,
-    telemetrySink: options.telemetrySink,
-    publicOrigins: options.publicOrigins
-  };
+  const verifiedManifest = verifyResearchReadinessManifest({
+    manifest: options.readinessManifest,
+    signature: options.readinessManifestSignature,
+    publicKey: options.readinessManifestPublicKey,
+    now: options.now
+  });
+  const evidence = verifiedManifest.valid ? verifiedManifest.evidence : {};
   const readiness = evaluateResearchProductionReadiness(options.decisions, evidence);
 
   if (!readiness.ready) {
