@@ -10,7 +10,8 @@ const evidence = () => ({
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
-  telemetrySink: approved
+  telemetrySink: approved,
+  publicOrigins: approved
 });
 const allReady = () => Object.fromEntries(
   REQUIRED_RESEARCH_PRODUCTION_DECISIONS.map((key) => [key, true])
@@ -24,16 +25,17 @@ test('Research production readiness is fail-closed by default', () => {
     'rateLimitSecretLifecycleApproved',
     'distributedRateLimitProviderApproved',
     'telemetryRetentionApproved',
-    'telemetrySinkApproved'
+    'telemetrySinkApproved',
+    'publicOriginsApproved'
   ]);
 });
 
-test('Research production readiness requires telemetry sink evidence', () => {
+test('Research production readiness requires public origins evidence', () => {
   const partial = evidence();
-  delete partial.telemetrySink;
+  delete partial.publicOrigins;
   const result = evaluateResearchProductionReadiness(allReady(), partial);
   assert.equal(result.ready, false);
-  assert.deepEqual(result.blockers, ['telemetrySinkApproved']);
+  assert.deepEqual(result.blockers, ['publicOriginsApproved']);
 });
 
 test('Research production readiness becomes true only with decisions and all evidences', () => {
