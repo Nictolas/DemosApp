@@ -518,10 +518,1986 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Costruisci la query di aggiornamento dinamicamente
-    const setClause = Object.keys(filteredData).map((key, index) => `${key} = $${index + 1}`).join(', ');
-    const values = Object.values(filteredData);
-    const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
+    // Costruisci SET solo da identificatori SQL costanti già allowlisted.
+    const assignments = [];
+    const values = [];
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'nome')) {
+        assignments.push('nome = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.nome);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'cognome')) {
+        assignments.push('cognome = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.cognome);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'genere')) {
+        assignments.push('genere = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.genere);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'data_nascita')) {
+        assignments.push('data_nascita = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.data_nascita);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'cittadinanza')) {
+        assignments.push('cittadinanza = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.cittadinanza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'ruolo')) {
+        assignments.push('ruolo = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.ruolo);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'paese_residenza')) {
+        assignments.push('paese_residenza = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.paese_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'regione_residenza')) {
+        assignments.push('regione_residenza = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.regione_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'provincia_residenza')) {
+        assignments.push('provincia_residenza = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.provincia_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'comune_residenza')) {
+        assignments.push('comune_residenza = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.comune_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'paese_elezione')) {
+        assignments.push('paese_elezione = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.paese_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'regione_elezione')) {
+        assignments.push('regione_elezione = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.regione_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'provincia_elezione')) {
+        assignments.push('provincia_elezione = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.provincia_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'comune_elezione')) {
+        assignments.push('comune_elezione = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.comune_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'grado_elezione')) {
+        assignments.push('grado_elezione = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.grado_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'paese_candidatura')) {
+        assignments.push('paese_candidatura = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.paese_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'regione_candidatura')) {
+        assignments.push('regione_candidatura = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.regione_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'provincia_candidatura')) {
+        assignments.push('provincia_candidatura = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.provincia_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'comune_candidatura')) {
+        assignments.push('comune_candidatura = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.comune_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'grado_candidatura')) {
+        assignments.push('grado_candidatura = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.grado_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'avatar_config')) {
+        assignments.push('avatar_config = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.avatar_config);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'facebook_url')) {
+        assignments.push('facebook_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.facebook_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'twitter_url')) {
+        assignments.push('twitter_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.twitter_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'instagram_url')) {
+        assignments.push('instagram_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.instagram_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'linkedin_url')) {
+        assignments.push('linkedin_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.linkedin_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'telegram_url')) {
+        assignments.push('telegram_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.telegram_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'website_url')) {
+        assignments.push('website_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.website_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'twitch_url')) {
+        assignments.push('twitch_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.twitch_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'youtube_url')) {
+        assignments.push('youtube_url = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.youtube_url);
+      }
+    const query = 'UPDATE users SET ' + assignments.join(', ') + ', updated_at = NOW() WHERE id = 
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Applica decompressione per i dati geografici e genere
+    const decompressedUser = decompressUserLocation(updatedUser);
+    
+    const responseData = {
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: {
+        ...decompressedUser,
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(updatedUser.genere),
+        ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
+      }
+    };
+    
+    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
+      id: responseData.user.id,
+      nome: responseData.user.nome,
+      cognome: responseData.user.cognome,
+      email: responseData.user.email,
+      genere: responseData.user.genere,
+      ruolo: responseData.user.ruolo,
+      paese_residenza: responseData.user.paese_residenza,
+      regione_residenza: responseData.user.regione_residenza,
+      paese_elezione: responseData.user.paese_elezione,
+      regione_elezione: responseData.user.regione_elezione
+    });
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+module.exports = router;
+ + (values.length + 1) + ' RETURNING *';
     
     const result = await pool.query(query, [...values, userId]);
     
