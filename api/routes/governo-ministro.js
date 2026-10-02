@@ -27,7 +27,80 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
       });
     }
 
-    const tableName = `voti_${categoria}`;
+    // Query statiche per ciascuna categoria ammessa.
+    const ministerQueries = {
+      primo_ministro: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_primo_ministro WHERE userid = $1`,
+        delete: 'DELETE FROM voti_primo_ministro WHERE userid = $1',
+        insert: 'INSERT INTO voti_primo_ministro (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      difesa: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_difesa WHERE userid = $1`,
+        delete: 'DELETE FROM voti_difesa WHERE userid = $1',
+        insert: 'INSERT INTO voti_difesa (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      economia: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_economia WHERE userid = $1`,
+        delete: 'DELETE FROM voti_economia WHERE userid = $1',
+        insert: 'INSERT INTO voti_economia (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      esteri: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_esteri WHERE userid = $1`,
+        delete: 'DELETE FROM voti_esteri WHERE userid = $1',
+        insert: 'INSERT INTO voti_esteri (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      giustizia: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_giustizia WHERE userid = $1`,
+        delete: 'DELETE FROM voti_giustizia WHERE userid = $1',
+        insert: 'INSERT INTO voti_giustizia (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      interno: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_interno WHERE userid = $1`,
+        delete: 'DELETE FROM voti_interno WHERE userid = $1',
+        insert: 'INSERT INTO voti_interno (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      istruzione: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_istruzione WHERE userid = $1`,
+        delete: 'DELETE FROM voti_istruzione WHERE userid = $1',
+        insert: 'INSERT INTO voti_istruzione (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      lavoro: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_lavoro WHERE userid = $1`,
+        delete: 'DELETE FROM voti_lavoro WHERE userid = $1',
+        insert: 'INSERT INTO voti_lavoro (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      salute: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_salute WHERE userid = $1`,
+        delete: 'DELETE FROM voti_salute WHERE userid = $1',
+        insert: 'INSERT INTO voti_salute (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      trasporti: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_trasporti WHERE userid = $1`,
+        delete: 'DELETE FROM voti_trasporti WHERE userid = $1',
+        insert: 'INSERT INTO voti_trasporti (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      ambiente: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_ambiente WHERE userid = $1`,
+        delete: 'DELETE FROM voti_ambiente WHERE userid = $1',
+        insert: 'INSERT INTO voti_ambiente (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      ambiente_sicurezza_energetica: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_ambiente_sicurezza_energetica WHERE userid = $1`,
+        delete: 'DELETE FROM voti_ambiente_sicurezza_energetica WHERE userid = $1',
+        insert: 'INSERT INTO voti_ambiente_sicurezza_energetica (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      cultura: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_cultura WHERE userid = $1`,
+        delete: 'DELETE FROM voti_cultura WHERE userid = $1',
+        insert: 'INSERT INTO voti_cultura (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      },
+      sport: {
+        block: `SELECT CASE WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true ELSE false END as is_blocked FROM voti_sport WHERE userid = $1`,
+        delete: 'DELETE FROM voti_sport WHERE userid = $1',
+        insert: 'INSERT INTO voti_sport (id, userid, nome_ministro, nome_display, timestamp) VALUES (gen_random_uuid(), $1, $2, $3, NOW())'
+      }
+    };
+    const selectedQueries = ministerQueries[categoria];
 
     // Ottieni la classifica dei candidati per questo ministero
     const classificaQuery = `
@@ -142,15 +215,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
     const isAdmin = userRole === 'Admin' || userRole === 'AD' || userRole === 'A';
     
     if (!isAdmin) {
-      const bloccoQuery = `
-        SELECT 
-          CASE 
-            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-            ELSE false
-          END as is_blocked
-        FROM ${tableName}
-        WHERE userid = $1
-      `;
+      const bloccoQuery = selectedQueries.block;
 
       const bloccoResult = await pool.query(bloccoQuery, [userId]);
       const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
@@ -170,7 +235,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
 
       // Elimina i voti esistenti per questo ministero
       await client.query(
-        `DELETE FROM ${tableName} WHERE userid = $1`,
+        selectedQueries.delete,
         [userId]
       );
 
@@ -183,8 +248,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
           ).join(' ');
 
           await client.query(
-            `INSERT INTO ${tableName} (id, userid, nome_ministro, nome_display, timestamp) 
-             VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
+            selectedQueries.insert,
             [userId, nomeKey, nomeDisplay]
           );
         }
