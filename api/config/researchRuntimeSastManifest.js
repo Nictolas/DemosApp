@@ -20,5 +20,6 @@ module.exports = Object.freeze([
   'api/services/researchParticipantProofVerifier.js',
   'api/services/researchParticipantProofPolicy.js',
   'api/config/researchReadinessManifest.js',
-  'api/config/researchReadinessDeployment.js'
+  'api/config/researchReadinessDeployment.js',
+  'api/services/researchPoliticalVectorReader.js'
 ]);
