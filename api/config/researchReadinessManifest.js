@@ -14,6 +14,7 @@ const REQUIRED_EVIDENCE_KEYS = Object.freeze([
 ]);
 
 const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
+const MAX_MANIFEST_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
 const assertExactEvidenceShape = (evidence) => {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) throw new Error('Invalid Research readiness evidence');
@@ -67,11 +68,12 @@ const verifyResearchReadinessManifest = ({
     if (![issuedAt, expiresAt, current].every((value) => Number.isFinite(value.getTime()))) {
       return { valid: false, evidence: {} };
     }
-    if (issuedAt > current || expiresAt <= current || expiresAt <= issuedAt) {
+    if (issuedAt > current || expiresAt <= current || expiresAt <= issuedAt || expiresAt.getTime() - issuedAt.getTime() > MAX_MANIFEST_VALIDITY_MS) {
       return { valid: false, evidence: {} };
     }
     const payload = Buffer.from(canonicalizeReadinessManifest(manifest), 'utf8');
     const signatureBytes = Buffer.from(signature, 'base64url');
+    if (signatureBytes.toString('base64url') !== signature) return { valid: false, evidence: {} };
     if (!crypto.verify(null, payload, keyObject, signatureBytes)) {
       return { valid: false, evidence: {} };
     }
@@ -91,6 +93,7 @@ module.exports = {
   READINESS_MANIFEST_VERSION,
   REQUIRED_EVIDENCE_KEYS,
   COMMIT_SHA_PATTERN,
+  MAX_MANIFEST_VALIDITY_MS,
   assertExactEvidenceShape,
   canonicalizeReadinessManifest,
   verifyResearchReadinessManifest
