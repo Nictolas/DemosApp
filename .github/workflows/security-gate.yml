@@ -28,7 +28,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
   sast:
     name: Semgrep CE SAST
     runs-on: ubuntu-latest
@@ -46,6 +45,27 @@ jobs:
 
       - name: Run local Semgrep Community rules
         run: semgrep scan --config "p/expressjs" --error --metrics=off .
+
+  sast-incremental:
+    name: Semgrep CE incremental
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history for baseline diff
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Semgrep CE
+        run: python -m pip install --disable-pip-version-check semgrep==1.178.0
+
+      - name: Block findings introduced by this PR
+        run: semgrep scan --config "p/expressjs" --error --metrics=off --baseline-commit "${{ github.event.pull_request.base.sha }}" .
 
   deterministic-security:
     name: Deterministic security tests
