@@ -9,10 +9,13 @@ test('political snapshot writer commits insert+expiry cleanup atomically with 24
   const out=await writer.replace({sourceSnapshotId:'snapshot-1',methodologyVersion:'v1',rows:[{candidateId:'c1',kind:'candidate',grade:'E',displayName:'Ada',opinions:{q1:2}}]});
   assert.equal(out.expiresAt.getTime()-out.generatedAt.getTime(),SNAPSHOT_TTL_MS);
   assert.equal(calls[0].sql,'BEGIN');
-  assert.match(calls[1].sql,/INSERT INTO research_public_political_vectors/);
-  assert.match(calls[2].sql,/DELETE FROM research_public_political_vectors WHERE expires_at <= \$1/);
-  assert.equal(calls[3].sql,'COMMIT');
-  assert.equal(calls[4].sql,'RELEASE');
+  assert.match(calls[1].sql,/DELETE FROM research_public_political_vectors/);
+  assert.match(calls[1].sql,/IS NOT DISTINCT FROM/);
+  assert.deepEqual(calls[1].params,['candidate','E',null,null,null,null]);
+  assert.match(calls[2].sql,/INSERT INTO research_public_political_vectors/);
+  assert.match(calls[3].sql,/DELETE FROM research_public_political_vectors WHERE expires_at <= \$1/);
+  assert.equal(calls[4].sql,'COMMIT');
+  assert.equal(calls[5].sql,'RELEASE');
 });
 
 test('political snapshot writer rolls back and never commits partial snapshot', async () => {
@@ -27,4 +30,13 @@ test('political snapshot writer rejects identity-shaped or oversized/unbounded r
   const writer=createResearchPoliticalSnapshotWriter({pool:{connect:async()=>{throw new Error('must not connect');}}});
   await assert.rejects(()=>writer.replace({sourceSnapshotId:'snapshot-3',methodologyVersion:'v1',rows:[]}));
   await assert.rejects(()=>writer.replace({sourceSnapshotId:'snapshot-3',methodologyVersion:'v1',rows:[{candidateId:'c1',kind:'candidate',grade:'E',displayName:'Ada',opinions:null}]}));
+});
+
+
+test('political snapshot writer rejects mixed scopes before opening a transaction', async () => {
+  const writer=createResearchPoliticalSnapshotWriter({pool:{connect:async()=>{throw new Error('must not connect');}}});
+  await assert.rejects(()=>writer.replace({sourceSnapshotId:'snapshot-mixed',methodologyVersion:'v1',rows:[
+    {candidateId:'c1',kind:'candidate',grade:'E',region:'Toscana',displayName:'Ada',opinions:{q1:2}},
+    {candidateId:'c2',kind:'candidate',grade:'E',region:'Lazio',displayName:'Bea',opinions:{q1:1}}
+  ]}),/share one political scope/);
 });
