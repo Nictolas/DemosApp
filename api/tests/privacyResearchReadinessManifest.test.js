@@ -69,3 +69,16 @@ test('Research readiness manifest verifier rejects non-Ed25519 keys', () => {
   const { publicKey } = crypto.generateKeyPairSync('rsa',{modulusLength:2048});
   assert.equal(verifyResearchReadinessManifest({manifest,signature:'AA',publicKey,now:new Date('2026-10-02T19:00:00.000Z'),expectedCommitSha:manifest.commitSha}).valid,false);
 });
+
+
+test('Research readiness manifest rejects non-canonical base64url signatures', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const signature=sign(privateKey);
+  assert.equal(verifyResearchReadinessManifest({manifest,signature:signature+'=',publicKey,now:new Date('2026-10-02T19:00:00.000Z'),expectedCommitSha:manifest.commitSha}).valid,false);
+});
+
+test('Research readiness manifest validity window cannot exceed 24 hours', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const longLived={...manifest,expiresAt:'2026-10-03T18:00:00.001Z'};
+  assert.equal(verifyResearchReadinessManifest({manifest:longLived,signature:sign(privateKey,longLived),publicKey,now:new Date('2026-10-02T19:00:00.000Z'),expectedCommitSha:longLived.commitSha}).valid,false);
+});
