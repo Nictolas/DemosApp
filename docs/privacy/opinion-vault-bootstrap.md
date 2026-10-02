@@ -12,3 +12,7 @@ This module defines a non-live migration boundary for moving the citizen's own p
 - Production hooks are not switched by this scaffold.
 
 A future controlled migration must separately decide when server-side legacy opinion rows can be deleted, how recovery/multi-device works, and how the native secure-storage dependency is approved and built.
+
+## Consumer boundary
+
+`citizenOpinionVectorSource` is the single shadow boundary intended for future matching consumers. Candidate/representative matching should depend on this boundary rather than on the legacy Identity response shape. It is not wired into live hooks yet.
