@@ -11,6 +11,7 @@ const evidence = {
   researchDatabaseConfiguration: approved,
   researchSchemaValidation: approved,
   researchSastEvidence: approved,
+  researchServiceBlueprint: approved,
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
@@ -18,16 +19,16 @@ const evidence = {
   publicOrigins: approved
 };
 
-test('Research production mount gate blocks without SAST evidence', () => {
+test('Research production mount gate blocks without service blueprint evidence', () => {
   let mountCalls = 0;
-  const { researchSastEvidence, ...withoutSast } = evidence;
+  const { researchServiceBlueprint, ...withoutBlueprint } = evidence;
   const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
     decisions: allReady(),
-    ...withoutSast,
+    ...withoutBlueprint,
     mount() { mountCalls += 1; return { mounted: true }; }
   });
   assert.equal(result.mounted, false);
-  assert.deepEqual(result.blockers, ['researchSastCleared']);
+  assert.deepEqual(result.blockers, ['serviceBlueprintConfigured']);
   assert.equal(mountCalls, 0);
 });
 
