@@ -11,20 +11,20 @@ const evidence = {
   rateLimitSecretLifecycle: approved,
   distributedRateLimitProvider: approved,
   telemetryRetention: approved,
-  telemetrySink: approved
+  telemetrySink: approved,
+  publicOrigins: approved
 };
 
-test('Research production mount gate blocks without telemetry sink evidence', () => {
+test('Research production mount gate blocks without public origins evidence', () => {
   let mountCalls = 0;
+  const { publicOrigins, ...withoutOrigins } = evidence;
   const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
     decisions: allReady(),
-    rateLimitSecretLifecycle: approved,
-    distributedRateLimitProvider: approved,
-    telemetryRetention: approved,
+    ...withoutOrigins,
     mount() { mountCalls += 1; return { mounted: true }; }
   });
   assert.equal(result.mounted, false);
-  assert.deepEqual(result.blockers, ['telemetrySinkApproved']);
+  assert.deepEqual(result.blockers, ['publicOriginsApproved']);
   assert.equal(mountCalls, 0);
 });
 
