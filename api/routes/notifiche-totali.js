@@ -377,10 +377,14 @@ router.delete('/:tabella/:id', verifyToken, async (req, res) => {
     }
     
     // Cancella la notifica
-    const result = await pool.query(
-      `DELETE FROM ${tableName} WHERE id = $1`,
-      [id]
-    );
+    const deleteQueries = {
+      notifiche_voti_comuni: 'DELETE FROM notifiche_voti_comuni WHERE id = $1',
+      notifiche_demos: 'DELETE FROM notifiche_demos WHERE id = $1',
+      notifiche_comunali: 'DELETE FROM notifiche_comunali WHERE id = $1',
+      notifiche_avvistamenti: 'DELETE FROM notifiche_avvistamenti WHERE id = $1'
+    };
+
+    const result = await pool.query(deleteQueries[tableName], [id]);
     
     if (result.rowCount === 0) {
       return res.status(404).json({
