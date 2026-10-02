@@ -485,8 +485,33 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
       });
     }
     
-    // Aggiorna il campo del rappresentante
-    const query = `UPDATE users SET ${campo} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
     const client = await pool.connect();
     let result;
     try {
@@ -494,14 +519,7 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
       result = await client.query(query, [rappresentanteId, userId]);
 
       if (REPRESENTATIVE_FIELDS.has(campo)) {
-        await client.query(
-          `INSERT INTO user_representatives (user_id, ${campo})
-           VALUES ($1, $2)
-           ON CONFLICT (user_id) DO UPDATE SET
-             ${campo} = EXCLUDED.${campo},
-             updated_at = NOW()`,
-          [userId, rappresentanteId]
-        );
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
       }
 
       await client.query('COMMIT');
