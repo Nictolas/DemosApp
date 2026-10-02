@@ -379,7 +379,7 @@ router.delete('/:politico', verifyToken, async (req, res) => {
     }
     
     const politicoNome = decodeURIComponent(req.params.politico);
-    console.log(`🗑️ DELETE /api/voti-camera/:politico - Tentativo di cancellare: "${politicoNome}"`);
+    console.log('🗑️ DELETE /api/voti-camera/:politico - Tentativo di cancellazione ricevuto');
     
     // Estrai nome e cognome dal nome completo
     const parts = politicoNome.trim().split(/\s+/);
