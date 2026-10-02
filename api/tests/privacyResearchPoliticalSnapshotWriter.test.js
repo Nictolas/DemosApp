@@ -9,13 +9,15 @@ test('political snapshot writer commits insert+expiry cleanup atomically with 24
   const out=await writer.replace({sourceSnapshotId:'snapshot-1',methodologyVersion:'v1',rows:[{candidateId:'c1',kind:'candidate',grade:'E',displayName:'Ada',opinions:{q1:2}}]});
   assert.equal(out.expiresAt.getTime()-out.generatedAt.getTime(),SNAPSHOT_TTL_MS);
   assert.equal(calls[0].sql,'BEGIN');
-  assert.match(calls[1].sql,/DELETE FROM research_public_political_vectors/);
-  assert.match(calls[1].sql,/IS NOT DISTINCT FROM/);
-  assert.deepEqual(calls[1].params,['candidate','E',null,null,null,null]);
-  assert.match(calls[2].sql,/INSERT INTO research_public_political_vectors/);
-  assert.match(calls[3].sql,/DELETE FROM research_public_political_vectors WHERE expires_at <= \$1/);
-  assert.equal(calls[4].sql,'COMMIT');
-  assert.equal(calls[5].sql,'RELEASE');
+  assert.match(calls[1].sql,/pg_advisory_xact_lock/);
+  assert.deepEqual(calls[1].params,['candidate|E||||']);
+  assert.match(calls[2].sql,/DELETE FROM research_public_political_vectors/);
+  assert.match(calls[2].sql,/IS NOT DISTINCT FROM/);
+  assert.deepEqual(calls[2].params,['candidate','E',null,null,null,null]);
+  assert.match(calls[3].sql,/INSERT INTO research_public_political_vectors/);
+  assert.match(calls[4].sql,/DELETE FROM research_public_political_vectors WHERE expires_at <= \$1/);
+  assert.equal(calls[5].sql,'COMMIT');
+  assert.equal(calls[6].sql,'RELEASE');
 });
 
 test('political snapshot writer rolls back and never commits partial snapshot', async () => {
