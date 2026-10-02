@@ -89,7 +89,7 @@ router.post('/migrate', verifyToken, requireAdmin, requireLegacyMigrationDatabas
           const { Pool } = require('pg');
           const statsPool = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
           });
           
           // Crea tabella se non esiste
@@ -185,7 +185,7 @@ router.get('/migration-stats', verifyToken, requireAdmin, requireLegacyMigration
     const { Pool } = require('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
     
     // Conta quanti record sono stati migrati (basato sui log di migrazione o su una tabella di tracking)
@@ -252,7 +252,7 @@ router.get('/status', verifyToken, requireAdmin, requireLegacyMigrationDatabase,
     const { Pool } = require('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
     
     const stats = {};
@@ -353,7 +353,7 @@ router.post('/delete-migrated', verifyToken, requireAdmin, requireLegacyMigratio
     const { Pool } = require('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
     
     const results = {};
