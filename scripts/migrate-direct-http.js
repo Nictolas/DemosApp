@@ -20,7 +20,7 @@ if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {
 // Inizializza database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: true }
 });
 
 // Configurazione Axiom HTTP API
