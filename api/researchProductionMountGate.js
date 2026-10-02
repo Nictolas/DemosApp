@@ -9,11 +9,14 @@ const mountResearchPublicApiIfProductionReady = (
   app,
   {
     decisions,
+    rateLimitSecretLifecycle,
     mount = mountResearchPublicApiIfEnabled,
     mountOptions
   } = {}
 ) => {
-  const readiness = evaluateResearchProductionReadiness(decisions);
+  const readiness = evaluateResearchProductionReadiness(decisions, {
+    rateLimitSecretLifecycle
+  });
 
   if (!readiness.ready) {
     return {
