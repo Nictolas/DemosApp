@@ -6,6 +6,7 @@ const express = require('express');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const BackupService = require('../../services/backupService');
 const backupJob = require('../../jobs/backupJob');
+const { resolveBackupFilePath } = require('../../services/backupPathPolicy');
 
 const router = express.Router();
 
@@ -158,23 +159,15 @@ router.get('/verify/:fileName', async (req, res) => {
     }
     
     const config = BackupService.getBackupConfig();
-    const path = require('path');
-    const backupRoot = path.resolve(config.backupDir);
-    const normalizedFileName = path.basename(fileName);
+    const backupPath = resolveBackupFilePath({
+      backupDir: config.backupDir,
+      fileName
+    });
 
-    if (normalizedFileName !== fileName || !/^[A-Za-z0-9._-]+$/.test(normalizedFileName)) {
+    if (!backupPath) {
       return res.status(400).json({
         success: false,
         error: 'Nome file backup non valido'
-      });
-    }
-
-    const backupPath = path.resolve(backupRoot, normalizedFileName);
-    const relativeBackupPath = path.relative(backupRoot, backupPath);
-    if (relativeBackupPath.startsWith('..') || path.isAbsolute(relativeBackupPath)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Percorso backup non consentito'
       });
     }
     
