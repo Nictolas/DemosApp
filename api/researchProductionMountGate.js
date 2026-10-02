@@ -10,6 +10,7 @@ const mountResearchPublicApiIfProductionReady = (app, options = {}) => {
     researchDatabaseConfiguration: options.researchDatabaseConfiguration,
     researchSchemaValidation: options.researchSchemaValidation,
     researchSastEvidence: options.researchSastEvidence,
+    researchServiceBlueprint: options.researchServiceBlueprint,
     rateLimitSecretLifecycle: options.rateLimitSecretLifecycle,
     distributedRateLimitProvider: options.distributedRateLimitProvider,
     telemetryRetention: options.telemetryRetention,
