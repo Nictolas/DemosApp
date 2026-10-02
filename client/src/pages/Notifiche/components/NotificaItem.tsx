@@ -379,6 +379,27 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     return scadenze;
   };
 
+  const renderTestoConScadenze = (testo: string, scadenze: Array<{ data: string; passata: boolean }>, evidenziaFreccia = false): React.ReactNode[] => {
+    const datePassate = scadenze.filter(s => s.passata).map(s => s.data);
+    const escapedDates = datePassate.map(data => data.replace(/[.*+?^$()|[\]\\]/g, '\\  // Handler per aprire il dialog con i dettagli della votazione
+'));
+    const patternParts = [...escapedDates, ...(evidenziaFreccia ? ['→'] : [])];
+    const tokens = patternParts.length > 0 ? testo.split(new RegExp(`(${patternParts.join('|')})`, 'gi')) : [testo];
+
+    return tokens.map((token, index) => {
+      if (evidenziaFreccia && token === '→') {
+        return <span key={index} className="text-blue-600 font-semibold">→</span>;
+      }
+      if (datePassate.some(data => data.toLowerCase() === token.toLowerCase())) {
+        return (
+          <span key={index} className="bg-red-200 text-red-900 font-semibold px-1 rounded">
+            {token} ⚠️ (scadenza passata)
+          </span>
+        );
+      }
+      return <React.Fragment key={index}>{token}</React.Fragment>;
+    });
+  };
   // Handler per aprire il dialog con i dettagli della votazione
   const handleNotificaClick = async () => {
     if (tipoNotifica === 'voto_parlamento' && notifica.uri_votazione) {
@@ -878,42 +899,20 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                 
                                 // Formattazione per misure previste (formato compatto con →)
                                 if (sezioneCorrente === 'MISURE PREVISTE' && lineaTrim.startsWith('•')) {
-                                  let lineaFormattata = lineaTrim;
-                                  
-                                  // Evidenzia scadenze passate
-                                  if (haScadenzePassate) {
-                                    scadenze.forEach((scadenza) => {
-                                      if (scadenza.passata) {
-                                        const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                                        lineaFormattata = lineaFormattata.replace(regex, (match) => {
-                                          return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
-                                        });
-                                      }
-                                    });
-                                  }
-                                  
-                                  // Formatta → come freccia visiva
-                                  lineaFormattata = lineaFormattata.replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>');
-                                  
                                   risultato.push(
-                                    <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: lineaFormattata }} />
+                                    <div key={i} className="mb-1.5 ml-4">
+                                      {renderTestoConScadenze(lineaTrim, scadenze, true)}
+                                    </div>
                                   );
                                   return;
                                 }
                                 
                                 // Formattazione normale per altre sezioni
                                 if (haScadenzePassate) {
-                                  let lineaEvidenziata = lineaTrim;
-                                  scadenze.forEach((scadenza) => {
-                                    if (scadenza.passata) {
-                                      const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                                      lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
-                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
-                                      });
-                                    }
-                                  });
                                   risultato.push(
-                                    <p key={i} className="mb-1.5" dangerouslySetInnerHTML={{ __html: lineaEvidenziata }} />
+                                    <p key={i} className="mb-1.5">
+                                      {renderTestoConScadenze(lineaTrim, scadenze)}
+                                    </p>
                                   );
                                 } else if (lineaTrim.startsWith('•')) {
                                   risultato.push(
