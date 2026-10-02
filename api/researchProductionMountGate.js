@@ -10,15 +10,15 @@ const mountResearchPublicApiIfProductionReady = (
   options = {}
 ) => {
   const decisions = options.decisions;
-  const rateLimitSecretLifecycle = options.rateLimitSecretLifecycle;
-  const distributedRateLimitProvider = options.distributedRateLimitProvider;
+  const evidence = {
+    rateLimitSecretLifecycle: options.rateLimitSecretLifecycle,
+    distributedRateLimitProvider: options.distributedRateLimitProvider,
+    telemetryRetention: options.telemetryRetention
+  };
   const mount = options.mount || mountResearchPublicApiIfEnabled;
   const mountOptions = options.mountOptions;
 
-  const readiness = evaluateResearchProductionReadiness(decisions, {
-    rateLimitSecretLifecycle,
-    distributedRateLimitProvider
-  });
+  const readiness = evaluateResearchProductionReadiness(decisions, evidence);
 
   if (!readiness.ready) {
     return {
