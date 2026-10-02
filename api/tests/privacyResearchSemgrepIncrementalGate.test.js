@@ -30,3 +30,14 @@ test('incremental Semgrep gate computes a current merge-base and blocks only new
     /semgrep scan --config "p\/expressjs" --error --metrics=off --baseline-commit/
   );
 });
+
+test('Research-scope Semgrep job scans all Research-named API JavaScript files', () => {
+  assert.match(workflow, /name: Semgrep CE Research scope/);
+  assert.match(workflow, /find api -type f -iname '\*research\*\.js'/);
+  assert.match(workflow, /semgrep scan --config "p\/expressjs" --error --metrics=off "\$\{TARGETS\[@\]\}"/);
+});
+
+test('Research-scope Semgrep job fails closed when its target set is unexpectedly empty', () => {
+  assert.match(workflow, /No Research scope targets found/);
+  assert.match(workflow, /if \[ "\$\{#TARGETS\[@\]\}" -eq 0 \]/);
+});
