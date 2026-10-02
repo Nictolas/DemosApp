@@ -898,7 +898,7 @@ const MonitoringDashboard: React.FC = () => {
                       </thead>
                       <tbody>
                         {databaseDetails.slowQueries.map((q, i) => (
-                          <tr key={`${q.query}-${i}`} className={tableRowClass}>
+                          <tr key={i} className={tableRowClass}>
                             <td className="py-2 pr-3 font-mono text-xs">{q.query}</td>
                             <td className="py-2 pr-3">{Number(q.mean_exec_time || 0).toFixed(2)}</td>
                             <td className="py-2 pr-3">{q.calls ?? 0}</td>
