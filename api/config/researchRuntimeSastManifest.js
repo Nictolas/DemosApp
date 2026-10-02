@@ -13,5 +13,10 @@ module.exports = Object.freeze([
   'api/middleware/researchRateLimiting.js',
   'api/services/researchPublicApiContract.js',
   'api/services/researchProofChallengeStore.js',
-  'api/services/researchOpinionVectorReader.js'
+  'api/services/researchOpinionVectorReader.js',
+  'api/services/researchOpinionVectorProofVerifierFactory.js',
+  'api/services/researchOpinionVectorService.js',
+  'api/services/researchEd25519SignatureVerifier.js',
+  'api/services/researchParticipantProofVerifier.js',
+  'api/services/researchParticipantProofPolicy.js'
 ]);
