@@ -2,5 +2,16 @@ module.exports = Object.freeze([
   'api/research-server.js',
   'api/research-app.js',
   'api/config/privacyResearchShadow.js',
-  'api/config/researchDatabase.js'
+  'api/config/researchDatabase.js',
+  'api/researchProductionMountGate.js',
+  'api/config/researchProductionReadinessPolicy.js',
+  'api/researchPublicApiMount.js',
+  'api/config/researchPublicExposurePolicy.js',
+  'api/middleware/researchPublicBoundary.js',
+  'api/routes/researchPublicRouter.js',
+  'api/handlers/researchPublicHandlers.js',
+  'api/middleware/researchRateLimiting.js',
+  'api/services/researchPublicApiContract.js',
+  'api/services/researchProofChallengeStore.js',
+  'api/services/researchOpinionVectorReader.js'
 ]);
