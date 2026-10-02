@@ -19,5 +19,6 @@ module.exports = Object.freeze([
   'api/services/researchEd25519SignatureVerifier.js',
   'api/services/researchParticipantProofVerifier.js',
   'api/services/researchParticipantProofPolicy.js',
-  'api/config/researchReadinessManifest.js'
+  'api/config/researchReadinessManifest.js',
+  'api/config/researchReadinessDeployment.js'
 ]);
