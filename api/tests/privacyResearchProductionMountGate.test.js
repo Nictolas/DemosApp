@@ -5,11 +5,11 @@ const { REQUIRED_RESEARCH_PRODUCTION_DECISIONS } = require('../config/researchPr
 const { mountResearchPublicApiIfProductionReady } = require('../researchProductionMountGate');
 
 const allReady = () => Object.fromEntries(REQUIRED_RESEARCH_PRODUCTION_DECISIONS.map((key) => [key, true]));
-const approvedLifecycle = Object.freeze({ approved: true, blockers: Object.freeze([]) });
-const approvedProvider = Object.freeze({ approved: true, blockers: Object.freeze([]) });
+const approved = Object.freeze({ approved: true, blockers: Object.freeze([]) });
 const evidence = {
-  rateLimitSecretLifecycle: approvedLifecycle,
-  distributedRateLimitProvider: approvedProvider
+  rateLimitSecretLifecycle: approved,
+  distributedRateLimitProvider: approved,
+  telemetryRetention: approved
 };
 
 test('Research production mount gate blocks mounting when any prerequisite is missing', () => {
@@ -26,15 +26,16 @@ test('Research production mount gate blocks mounting when any prerequisite is mi
   assert.equal(mountCalls, 0);
 });
 
-test('Research production mount gate blocks without provider evidence', () => {
+test('Research production mount gate blocks without telemetry retention evidence', () => {
   let mountCalls = 0;
   const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
     decisions: allReady(),
-    rateLimitSecretLifecycle: approvedLifecycle,
+    rateLimitSecretLifecycle: approved,
+    distributedRateLimitProvider: approved,
     mount() { mountCalls += 1; return { mounted: true }; }
   });
   assert.equal(result.mounted, false);
-  assert.deepEqual(result.blockers, ['distributedRateLimitProviderApproved']);
+  assert.deepEqual(result.blockers, ['telemetryRetentionApproved']);
   assert.equal(mountCalls, 0);
 });
 
