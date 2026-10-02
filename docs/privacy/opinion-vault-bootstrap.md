@@ -16,3 +16,7 @@ A future controlled migration must separately decide when server-side legacy opi
 ## Consumer boundary
 
 `citizenOpinionVectorSource` is the single shadow boundary intended for future matching consumers. Candidate/representative matching should depend on this boundary rather than on the legacy Identity response shape. It is not wired into live hooks yet.
+
+## Legacy import adapter
+
+The shadow legacy adapter is restricted to the authenticated own-profile endpoint and immediately projects the response to the validated opinion vector. Profile fields, email, tokens, and other surrounding Identity response data are not returned to the privacy matching layer.
