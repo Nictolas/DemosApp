@@ -541,17 +541,17 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
       });
     }
     
-    // Mappa i campi test ai campi reali del database
-    const fieldMapping = {
-      'test_europeo': 'candidato_europeo',
-      'test_camera': 'candidato_camera', 
-      'test_senato': 'candidato_senato',
-      'test_regionale': 'candidato_regionale',
-      'test_comune': 'candidato_comune'
+    // Seleziona esclusivamente query statiche per i cinque campi consentiti.
+    const updateQueries = {
+      test_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      test_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      test_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      test_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      test_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
     };
     
-    const realField = fieldMapping[campo];
-    if (!realField) {
+    const query = updateQueries[campo];
+    if (!query) {
       return res.status(400).json({
         success: false,
         error: 'Campo non valido per le selezioni di candidati'
@@ -559,7 +559,6 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
     }
     
     // Aggiorna il campo del candidato
-    const query = `UPDATE users SET ${realField} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
     const result = await pool.query(query, [candidatoId, userId]);
     
     if (result.rows.length === 0) {
