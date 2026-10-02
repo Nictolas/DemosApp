@@ -1,7 +1,7 @@
 import type { SecureKeyBridge } from './deviceOpinionKeyProvider';
 import { assertNativeAndroidSecureStorageRuntime, type CapacitorRuntimeProbe } from './capacitorSecureKeyRuntime';
 
-export interface SecureStoragePluginPort {
+export interface AparajitaSecureStorageV6Port {
   get(key: string): Promise<unknown>;
   set(key: string, value: string): Promise<unknown>;
   remove(key: string): Promise<unknown>;
@@ -22,7 +22,7 @@ export const createCapacitorAndroidSecureKeyBridge = ({
   plugin
 }: {
   runtime: CapacitorRuntimeProbe;
-  plugin: SecureStoragePluginPort;
+  plugin: AparajitaSecureStorageV6Port;
 }): SecureKeyBridge => ({
   async isAvailable() {
     try {
