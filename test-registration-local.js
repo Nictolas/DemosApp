@@ -18,7 +18,7 @@ async function testRegistration() {
     console.log('1️⃣ Test connessione database...');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: true }
     });
 
     const client = await pool.connect();
