@@ -581,14 +581,24 @@ router.get('/history', requireAdmin, async (req, res) => {
 router.get('/download/:exportId', requireAdmin, async (req, res) => {
   try {
     const { exportId } = req.params;
-    const exportDir = process.env.EXPORT_DIR || '/mnt/external-drive/archivio';
-    
-    // Cerca la directory dell'export
-    const year = new Date(exportId).getFullYear();
-    const month = String(new Date(exportId).getMonth() + 1).padStart(2, '0');
-    const monthName = new Date(exportId).toLocaleString('it-IT', { month: 'long' });
-    
-    const exportPath = path.join(exportDir, year.toString(), `${month}-${monthName}`);
+    const exportDir = path.resolve(process.env.EXPORT_DIR || '/mnt/external-drive/archivio');
+
+    // Accetta solo timestamp ISO completi prodotti dal sistema di export.
+    const exportDate = new Date(exportId);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(exportId) || Number.isNaN(exportDate.getTime())) {
+      return res.status(400).json({ error: 'Identificativo export non valido' });
+    }
+
+    // Cerca la directory dell'export usando esclusivamente segmenti derivati dalla data validata.
+    const year = exportDate.getUTCFullYear();
+    const month = String(exportDate.getUTCMonth() + 1).padStart(2, '0');
+    const monthName = exportDate.toLocaleString('it-IT', { month: 'long', timeZone: 'UTC' });
+    const exportPath = path.resolve(exportDir, year.toString(), `${month}-${monthName}`);
+    const relativeExportPath = path.relative(exportDir, exportPath);
+
+    if (relativeExportPath.startsWith('..') || path.isAbsolute(relativeExportPath)) {
+      return res.status(400).json({ error: 'Percorso export non valido' });
+    }
     
     try {
       // Verifica se la directory esiste
