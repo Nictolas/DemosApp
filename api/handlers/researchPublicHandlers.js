@@ -7,6 +7,7 @@ const {
 const {
   createResearchOpinionVectorReader
 } = require('../services/researchOpinionVectorReader');
+const { createResearchPoliticalVectorAdapter } = require('../services/researchPoliticalVectorAdapter');
 const {
   RESEARCH_PUBLIC_ENDPOINTS,
   assertResearchPublicPayload
@@ -35,6 +36,17 @@ const createResearchPublicHandlers = ({ getPool = getResearchPool } = {}) => ({
       });
     } catch {
       res.status(400).json({ error: 'Invalid Research challenge request' });
+    }
+  },
+
+  async listPoliticalVectors(req, res) {
+    try {
+      const body = req.body ?? {};
+      assertResearchPublicPayload(body, RESEARCH_PUBLIC_ENDPOINTS.listPoliticalVectors.requestKeys);
+      const candidates = await createResearchPoliticalVectorAdapter({ client: getPool() }).read(body.scope);
+      res.status(200).json({ candidates });
+    } catch {
+      res.status(400).json({ error: 'Invalid political vector request' });
     }
   },
 
