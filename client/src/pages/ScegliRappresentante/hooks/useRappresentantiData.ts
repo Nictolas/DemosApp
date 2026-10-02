@@ -5,6 +5,7 @@ import { Rappresentante, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/rappresentanteUtils";
 import { getTitolo as getTitoloCandidati } from "../utils/candidatoUtils";
 import { useRoute } from "wouter";
+import { fetchPoliticalVectorsForLocalMatch, isLocalPoliticalMatchingEnabled, matchPoliticalVectorsLocally } from "@/lib/privacy/researchPoliticalMatchingClient";
 
 // Hook per controllare opinioni mancanti
 const useOpinioniCheck = (grado: string) => {
@@ -90,7 +91,30 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       setLoading(true);
       
       try {
-        
+        if (!isTestRoute && isLocalPoliticalMatchingEnabled()) {
+          const opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
+          const citizenOpinions = opinionsResponse?.data?.data?.userAnswers;
+          if (!opinionsResponse?.ok || !citizenOpinions || typeof citizenOpinions !== 'object') {
+            throw new Error("Opinioni locali non disponibili per il matching privacy-first");
+          }
+
+          const scope = { kind: 'representative' as const, grade: grado };
+          const vectors = await fetchPoliticalVectorsForLocalMatch(scope);
+          const localMatches = matchPoliticalVectorsLocally(citizenOpinions, vectors, 4);
+          setRappresentanti(localMatches.map(({ candidate, commonOpinions, comparedOpinions }) => ({
+            ...(candidate as any),
+            commonOpinions,
+            comparedOpinions
+          })) as Rappresentante[]);
+
+          // Selection state remains an Identity concern, but matching data never returns to Identity.
+          const selectionsResponse = await apiRequest("GET", "/api/rappresentanti");
+          const fieldName = getFieldName(categoria, isTestRoute);
+          const selections = selectionsResponse?.data?.data?.rappresentanti;
+          setRappresentanteSelezionato(selections?.[fieldName]?.id || selections?.[fieldName] || null);
+          return;
+        }
+
         let url = '';
         if (isTestRoute) {
           // Per le Europee: solo candidati votabili nella circoscrizione dell'elettore
