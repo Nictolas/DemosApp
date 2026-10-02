@@ -10,7 +10,8 @@ const mountResearchPublicApiIfProductionReady = (app, options = {}) => {
     rateLimitSecretLifecycle: options.rateLimitSecretLifecycle,
     distributedRateLimitProvider: options.distributedRateLimitProvider,
     telemetryRetention: options.telemetryRetention,
-    telemetrySink: options.telemetrySink
+    telemetrySink: options.telemetrySink,
+    publicOrigins: options.publicOrigins
   };
   const readiness = evaluateResearchProductionReadiness(options.decisions, evidence);
 
