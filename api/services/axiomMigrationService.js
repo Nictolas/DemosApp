@@ -18,7 +18,7 @@ function initializeServices() {
     
     pool = new Pool({
       connectionString: dbUrl,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
   }
   
