@@ -2,7 +2,6 @@ const REQUIRED_RESEARCH_PRODUCTION_DECISIONS = Object.freeze([
   'researchDatabaseConfigured',
   'researchSchemaValidated',
   'serviceBlueprintConfigured',
-  'publicOriginsApproved',
   'researchSastCleared',
   'globalSastDebtCleared',
   'productionApprovalRecorded'
@@ -17,7 +16,8 @@ const evaluateResearchProductionReadiness = (decisions = {}, evidence = {}) => {
     ['rateLimitSecretLifecycle', 'rateLimitSecretLifecycleApproved'],
     ['distributedRateLimitProvider', 'distributedRateLimitProviderApproved'],
     ['telemetryRetention', 'telemetryRetentionApproved'],
-    ['telemetrySink', 'telemetrySinkApproved']
+    ['telemetrySink', 'telemetrySinkApproved'],
+    ['publicOrigins', 'publicOriginsApproved']
   ];
 
   for (const [key, blocker] of requiredEvidence) {
