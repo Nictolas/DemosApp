@@ -502,20 +502,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             {(() => {
               const titolo = getNotificaTitle(notifica.titolo);
               const titoloString = String(titolo || 'Notifica').trim() || 'Notifica';
-              const titoloContieneHtml = /<[a-z][\s\S]*>/i.test(titoloString);
-
-              if (tipoNotifica === 'voto_parlamento' || tipoNotifica === 'voto_comune' || titoloContieneHtml) {
-                return (
-                  <h3
-                    className={`font-semibold ${style.textColor}`}
-                    dangerouslySetInnerHTML={{ __html: titoloString }}
-                  />
-                );
-              }
 
               return (
                 <h3 className={`font-semibold ${style.textColor}`}>
-                  {titolo}
+                  {titoloString}
                 </h3>
               );
             })()}
@@ -523,15 +513,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           
           {getNotificaMessage(notifica.messaggio) && (() => {
             const msg = getNotificaMessage(notifica.messaggio);
-            const messaggioContieneHtml = /<[a-z][\s\S]*>/i.test(msg);
-            if (messaggioContieneHtml) {
-              return (
-                <p
-                  className={`${style.textColor} opacity-90 mb-3`}
-                  dangerouslySetInnerHTML={{ __html: msg }}
-                />
-              );
-            }
             return (
               <p className={`${style.textColor} opacity-90 mb-3`}>
                 {msg}
