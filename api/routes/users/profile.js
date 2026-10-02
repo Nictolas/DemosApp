@@ -348,10 +348,15028 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       });
     }
     
-    // Costruisci la query di aggiornamento dinamicamente
-    const setClause = Object.keys(filteredData).map((key, index) => `${key} = $${index + 1}`).join(', ');
-    const values = Object.values(filteredData);
-    const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
+    // Costruisci SET solo da identificatori SQL costanti già allowlisted.
+    const assignments = [];
+    const values = [];
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'nome')) {
+        assignments.push('nome = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.nome);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'cognome')) {
+        assignments.push('cognome = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.cognome);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'genere')) {
+        assignments.push('genere = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.genere);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'data_nascita')) {
+        assignments.push('data_nascita = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.data_nascita);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'cittadinanza')) {
+        assignments.push('cittadinanza = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.cittadinanza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'ruolo')) {
+        assignments.push('ruolo = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.ruolo);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'paese_residenza')) {
+        assignments.push('paese_residenza = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.paese_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'regione_residenza')) {
+        assignments.push('regione_residenza = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.regione_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'provincia_residenza')) {
+        assignments.push('provincia_residenza = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.provincia_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'comune_residenza')) {
+        assignments.push('comune_residenza = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.comune_residenza);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'paese_elezione')) {
+        assignments.push('paese_elezione = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.paese_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'regione_elezione')) {
+        assignments.push('regione_elezione = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.regione_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'provincia_elezione')) {
+        assignments.push('provincia_elezione = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.provincia_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'comune_elezione')) {
+        assignments.push('comune_elezione = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.comune_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'grado_elezione')) {
+        assignments.push('grado_elezione = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.grado_elezione);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'paese_candidatura')) {
+        assignments.push('paese_candidatura = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.paese_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'regione_candidatura')) {
+        assignments.push('regione_candidatura = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.regione_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'provincia_candidatura')) {
+        assignments.push('provincia_candidatura = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.provincia_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'comune_candidatura')) {
+        assignments.push('comune_candidatura = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.comune_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'grado_candidatura')) {
+        assignments.push('grado_candidatura = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.grado_candidatura);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'facebook_url')) {
+        assignments.push('facebook_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.facebook_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'twitter_url')) {
+        assignments.push('twitter_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.twitter_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'instagram_url')) {
+        assignments.push('instagram_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.instagram_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'linkedin_url')) {
+        assignments.push('linkedin_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.linkedin_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'telegram_url')) {
+        assignments.push('telegram_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.telegram_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'website_url')) {
+        assignments.push('website_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.website_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'twitch_url')) {
+        assignments.push('twitch_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.twitch_url);
+      }
+      if (Object.prototype.hasOwnProperty.call(filteredData, 'youtube_url')) {
+        assignments.push('youtube_url = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1));
+        values.push(filteredData.youtube_url);
+      }
+    const query = 'UPDATE users SET ' + assignments.join(', ') + ', updated_at = NOW() WHERE id = 
+    
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+
+      const profileData = {};
+      for (const [k, v] of Object.entries(filteredData)) {
+        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
+      }
+
+      if (Object.keys(profileData).length > 0) {
+        const profileKeys = Object.keys(profileData);
+        const profileValues = Object.values(profileData);
+        const profileColumns = profileKeys.join(', ');
+        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
+        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
+        await client.query(
+          `INSERT INTO user_profile (user_id, ${profileColumns})
+           VALUES ($1, ${profileParams})
+           ON CONFLICT (user_id) DO UPDATE SET
+             ${profileSet},
+             updated_at = NOW()`,
+          [userId, ...profileValues]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato');
+    
+    // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      if (data.getMonth() === 0 && data.getDate() === 1) {
+        dataNascitaFormattata = String(data.getFullYear());
+      } else {
+        dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - Identificatore profilo ricevuto');
+    console.log('🔍 DEBUG - Identità autenticata disponibile');
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Query statiche per i soli campi consentiti.
+    const representativeUpdateQueries = {
+      rappresentante_europeo: 'UPDATE users SET rappresentante_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_camera: 'UPDATE users SET rappresentante_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_senato: 'UPDATE users SET rappresentante_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_regionale: 'UPDATE users SET rappresentante_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      rappresentante_comune: 'UPDATE users SET rappresentante_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_europeo: 'UPDATE users SET candidato_europeo = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_camera: 'UPDATE users SET candidato_camera = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_senato: 'UPDATE users SET candidato_senato = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_regionale: 'UPDATE users SET candidato_regionale = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      candidato_comune: 'UPDATE users SET candidato_comune = $1, updated_at = NOW() WHERE id = $2 RETURNING *'
+    };
+    const representativeMirrorQueries = {
+      rappresentante_europeo: `INSERT INTO user_representatives (user_id, rappresentante_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_europeo = EXCLUDED.rappresentante_europeo, updated_at = NOW()`,
+      rappresentante_camera: `INSERT INTO user_representatives (user_id, rappresentante_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_camera = EXCLUDED.rappresentante_camera, updated_at = NOW()`,
+      rappresentante_senato: `INSERT INTO user_representatives (user_id, rappresentante_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_senato = EXCLUDED.rappresentante_senato, updated_at = NOW()`,
+      rappresentante_regionale: `INSERT INTO user_representatives (user_id, rappresentante_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_regionale = EXCLUDED.rappresentante_regionale, updated_at = NOW()`,
+      rappresentante_comune: `INSERT INTO user_representatives (user_id, rappresentante_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET rappresentante_comune = EXCLUDED.rappresentante_comune, updated_at = NOW()`,
+      candidato_europeo: `INSERT INTO user_representatives (user_id, candidato_europeo) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_europeo = EXCLUDED.candidato_europeo, updated_at = NOW()`,
+      candidato_camera: `INSERT INTO user_representatives (user_id, candidato_camera) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_camera = EXCLUDED.candidato_camera, updated_at = NOW()`,
+      candidato_senato: `INSERT INTO user_representatives (user_id, candidato_senato) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_senato = EXCLUDED.candidato_senato, updated_at = NOW()`,
+      candidato_regionale: `INSERT INTO user_representatives (user_id, candidato_regionale) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_regionale = EXCLUDED.candidato_regionale, updated_at = NOW()`,
+      candidato_comune: `INSERT INTO user_representatives (user_id, candidato_comune) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET candidato_comune = EXCLUDED.candidato_comune, updated_at = NOW()`
+    };
+    const query = representativeUpdateQueries[campo];
+    const mirrorQuery = representativeMirrorQueries[campo];
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [rappresentanteId, userId]);
+
+      if (REPRESENTATIVE_FIELDS.has(campo)) {
+        await client.query(mirrorQuery, [userId, rappresentanteId]);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
+    
+    res.json({
+      success: true,
+      message: `${entityType} selezionato con successo`,
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    const authenticatedUserId = req.userId;
+
+    // Privacy by role:
+    // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
+    // - politici/candidati: opinioni consultabili dagli utenti autenticati.
+    // Non usiamo più opinions_public come controllo di autorizzazione.
+    const userCheckResult = await pool.query(
+      'SELECT id, ruolo FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const targetUser = userCheckResult.rows[0];
+    if (!canReadUserOpinions({
+      requesterId: authenticatedUserId,
+      requesterRole: req.userRole,
+      targetId: targetUser.id,
+      targetRole: targetUser.ruolo
+    })) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Le opinioni dei cittadini sono private'
+      });
+    }
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    let opinioniQuery = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+    `;
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
+    }
+    
+    opinioniQuery += ` ORDER BY text`;
+    
+    let opinioniResult;
+    if (grado) {
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
+    const opinioni = opinioniResult.rows;
+    
+    const userAnswersResult = await pool.query(
+      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    const userAnswers = userAnswersResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
+    
+    const formattedOpinions = opinioni.map(opinion => {
+      const opinionId = opinion.id;
+      const userAnswer = userAnswers[opinionId] || null;
+      
+      let frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      
+      return {
+        id: opinionId,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer,
+        source: fontiOpinioni[opinionId] || 'unknown'
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 Target utente admin verificato');
+    console.log('📋 Payload opinioni ricevuto');
+    console.log('🔗 Metadati fonti ricevuti');
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    // Verifica che gli ID delle opinioni esistano in opinioni_domande
+    // e ottieni la lista delle colonne valide in opinioni_risposte
+    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
+    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    
+    // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
+    const columnsResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni_risposte' 
+      AND column_name != 'user_id' 
+      AND column_name != 'fonti_opinioni'
+    `);
+    const validColumns = new Set(columnsResult.rows.map(row => row.column_name));
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni - usa direttamente l'ID come nome colonna
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
+      if (!validOpinionIds.has(opinionId)) {
+        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        continue;
+      }
+      
+      if (!validColumns.has(opinionId)) {
+        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        continue;
+      }
+      
+      // Usa direttamente l'ID come nome della colonna
+      const dbField = opinionId;
+      let dbValue = null;
+      // Accetta sia il formato leggibile che quello del database
+      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
+      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
+      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
+      else {
+        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
+        dbValue = risposta;
+      }
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      console.log('✅ Opinione processata');
+    }
+    
+    // Processa le fonti se fornite
+    let fontiFinali = {};
+    if (fonti && typeof fonti === 'object') {
+      // Carica le fonti esistenti
+      const existingResult = await pool.query(
+        'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (existingResult.rows[0] && existingResult.rows[0].fonti_opinioni) {
+        fontiFinali = existingResult.rows[0].fonti_opinioni;
+      }
+      
+      // Aggiorna con le nuove fonti - usa direttamente l'ID come chiave nel JSON
+      Object.entries(fonti).forEach(([opinionId, fonte]) => {
+        // Verifica che l'ID sia valido e che la fonte non sia vuota
+        if (validOpinionIds.has(opinionId) && fonte && fonte.trim() !== '') {
+          fontiFinali[opinionId] = fonte;
+        } else if (validOpinionIds.has(opinionId) && (!fonte || fonte.trim() === '')) {
+          // Rimuovi la fonte se è vuota
+          delete fontiFinali[opinionId];
+        }
+      });
+      
+      // Per JSONB, PostgreSQL accetta direttamente l'oggetto JavaScript
+      updateFields.push(`fonti_opinioni = $${paramIndex}::jsonb`);
+      updateValues.push(JSON.stringify(fontiFinali));
+      paramIndex++;
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
+    const checkResult = await pool.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+      [userId]
+    );
+    
+    let result;
+    if (checkResult.rows.length === 0) {
+      // Prima volta: inserisci tutte le opinioni
+      const insertFields = updateFields.map(field => field.split(' = ')[0]);
+      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+      const insertQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertPlaceholders})
+      `;
+      const allValues = [userId, ...updateValues];
+      
+      console.log('📝 Query SQL INSERT:', insertQuery);
+      console.log('📝 Valori:', allValues);
+      
+      result = await pool.query(insertQuery, allValues);
+    } else {
+      // Utente esistente: aggiorna solo le opinioni specifiche
+      updateValues.push(userId);
+      const updateQuery = `
+        UPDATE opinioni_risposte 
+        SET ${updateFields.join(', ')}
+        WHERE user_id = $${updateValues.length}
+      `;
+      
+      console.log('📝 Query SQL UPDATE:', updateQuery);
+      console.log('📝 Valori:', updateValues);
+      
+      result = await pool.query(updateQuery, updateValues);
+    }
+    
+    if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinioni salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - (fonti && typeof fonti === 'object' ? 1 : 0),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+module.exports = router;
+ + (values.length + 1) + ' RETURNING *';
     
     const client = await pool.connect();
     let result;
