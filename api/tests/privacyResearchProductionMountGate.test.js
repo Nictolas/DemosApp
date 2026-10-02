@@ -13,6 +13,7 @@ const readinessManifest = {
   version: 1,
   issuedAt: '2026-10-02T18:00:00.000Z',
   expiresAt: '2026-10-03T18:00:00.000Z',
+  commitSha: '0123456789abcdef0123456789abcdef01234567',
   evidence: manifestEvidence
 };
 const signedManifestOptions = () => {
@@ -25,7 +26,8 @@ const signedManifestOptions = () => {
       privateKey
     ).toString('base64url'),
     readinessManifestPublicKey: publicKey,
-    now: new Date('2026-10-02T19:00:00.000Z')
+    now: new Date('2026-10-02T19:00:00.000Z'),
+    expectedCommitSha: readinessManifest.commitSha
   };
 };
 
@@ -43,6 +45,7 @@ test('Research production mount gate blocks without service blueprint evidence',
     readinessManifestSignature: crypto.sign(null, Buffer.from(canonicalizeReadinessManifest(incomplete)), privateKey).toString('base64url'),
     readinessManifestPublicKey: publicKey,
     now: options.now,
+    expectedCommitSha: incomplete.commitSha,
     mount() { mountCalls += 1; return { mounted: true }; }
   });
   assert.equal(result.mounted, false);
