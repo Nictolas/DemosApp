@@ -11,7 +11,7 @@ const router = express.Router();
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
 });
 
 // Middleware per autenticazione admin
@@ -122,7 +122,7 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
           const { Pool } = require('pg');
           const pool = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
           });
           
           const manualStatsResult = await pool.query(
@@ -248,7 +248,7 @@ router.post('/axiom-stats-manual', requireAdmin, async (req, res) => {
     const { Pool } = require('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
     
     // Crea tabella se non esiste

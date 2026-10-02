@@ -10,7 +10,7 @@ router.post('/reset-rate-limit', async (req, res) => {
     
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
 
     // Elimina tutte le violazioni di rate limiting
@@ -52,7 +52,7 @@ router.post('/reset-rate-limit-ip', async (req, res) => {
     
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
 
     // Elimina le violazioni di rate limiting per l'IP specifico
