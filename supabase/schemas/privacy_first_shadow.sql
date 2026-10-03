@@ -233,7 +233,80 @@ alter table identity.cutover_approval_replays force row level security;
 revoke all on table identity.cutover_approval_replays from public;
 revoke all on table identity.cutover_approval_replays from anon;
 revoke all on table identity.cutover_approval_replays from authenticated;
-grant select, insert, update, delete on table identity.cutover_approval_replays to service_role;
+revoke all on table identity.cutover_approval_replays from service_role;
+create or replace function identity.consume_cutover_approval_replay(p_digest text, p_expires_at timestamptz, p_now timestamptz)
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, identity
+as $
+declare
+  claimed text;
+begin
+  if p_digest !~ '^[0-9a-f]{64}
+
+alter table identity.lifecycle_migration_evidence enable row level security;
+alter table identity.lifecycle_migration_evidence force row level security;
+alter table identity.account_activity enable row level security;
+alter table identity.account_activity force row level security;
+alter table identity.revocation_escrows enable row level security;
+alter table identity.revocation_escrows force row level security;
+alter table identity.credential_issuances enable row level security;
+alter table identity.credential_issuances force row level security;
+alter table content.opinion_questions enable row level security;
+alter table content.opinion_questions force row level security;
+alter table research.participants enable row level security;
+alter table research.participants force row level security;
+alter table research.spent_credentials enable row level security;
+alter table research.spent_credentials force row level security;
+alter table research.proof_challenges enable row level security;
+alter table research.proof_challenges force row level security;
+alter table research.participant_dimensions enable row level security;
+alter table research.participant_dimensions force row level security;
+alter table research.opinion_response_events enable row level security;
+alter table research.opinion_response_events force row level security;
+alter table politics.public_figures enable row level security;
+alter table politics.public_figures force row level security;
+alter table politics.position_sources enable row level security;
+alter table politics.position_sources force row level security;
+alter table politics.figure_positions enable row level security;
+alter table politics.figure_positions force row level security;
+alter table audit.security_events enable row level security;
+alter table audit.security_events force row level security;
+
+revoke all on all tables in schema identity from public, anon, authenticated;
+revoke all on all tables in schema research from public, anon, authenticated;
+revoke all on all tables in schema content from public, anon, authenticated;
+revoke all on all tables in schema politics from public, anon, authenticated;
+revoke all on all tables in schema audit from public, anon, authenticated;
+
+revoke all on all sequences in schema identity from public, anon, authenticated;
+revoke all on all sequences in schema research from public, anon, authenticated;
+revoke all on all sequences in schema content from public, anon, authenticated;
+revoke all on all sequences in schema politics from public, anon, authenticated;
+revoke all on all sequences in schema audit from public, anon, authenticated;
+
+revoke all on research.current_opinion_responses from public, anon, authenticated;
+
+comment on schema research is
+  'Private pseudonymous research domain. Must never contain direct account identifiers.';
+ or p_expires_at <= p_now or p_expires_at > p_now + interval '1 hour' then
+    raise exception 'invalid replay claim';
+  end if;
+  insert into identity.cutover_approval_replays (nonce_digest, expires_at, created_at)
+  values (p_digest, p_expires_at, p_now)
+  on conflict (nonce_digest) do update
+    set expires_at = excluded.expires_at, created_at = excluded.created_at
+    where identity.cutover_approval_replays.expires_at <= excluded.created_at
+  returning nonce_digest into claimed;
+  return claimed is not null;
+end;
+$;
+revoke all on function identity.consume_cutover_approval_replay(text,timestamptz,timestamptz) from public;
+revoke all on function identity.consume_cutover_approval_replay(text,timestamptz,timestamptz) from anon;
+revoke all on function identity.consume_cutover_approval_replay(text,timestamptz,timestamptz) from authenticated;
+grant execute on function identity.consume_cutover_approval_replay(text,timestamptz,timestamptz) to service_role;
+
 
 alter table identity.lifecycle_migration_evidence enable row level security;
 alter table identity.lifecycle_migration_evidence force row level security;
