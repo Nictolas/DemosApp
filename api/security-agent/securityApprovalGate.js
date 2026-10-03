@@ -1,4 +1,4 @@
-const APPROVAL_GATE_VERSION = 'v0.25';
+const APPROVAL_GATE_VERSION = 'v0.26';
 const APPROVAL_STATES = Object.freeze(['pending', 'approved', 'rejected', 'expired']);
 const ALLOWED_ACTIONS = new Set(['investigate','escalate_human','propose_rate_limit','propose_session_revocation','propose_endpoint_isolation','propose_secret_rotation']);
 
