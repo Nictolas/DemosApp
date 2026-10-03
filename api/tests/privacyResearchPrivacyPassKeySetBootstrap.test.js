@@ -187,6 +187,31 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
   );
   assert.equal(bootstrap.readiness().sequence, 12);
 
+  const nearExpiryPayload = {
+    ...payload,
+    sequence: 13,
+    issuedAt: now - 1_000,
+    expiresAt: now + 9_999
+  };
+  const nearExpirySnapshot = {
+    payload: nearExpiryPayload,
+    signature: crypto.sign(
+      null,
+      serializeIssuerKeySetPayload(nearExpiryPayload),
+      privateKey
+    ).toString('base64url')
+  };
+  await assert.rejects(
+    () => bootstrap.installSignedSnapshotJson(JSON.stringify(nearExpirySnapshot)),
+    /not fresh enough/i
+  );
+  assert.deepEqual(bootstrap.readiness(), {
+    ready: true,
+    sequence: 12,
+    expiresAt: payload.expiresAt
+  });
+  assert.equal(bootstrap.usable(), true);
+
   now = payload.expiresAt - 9_999;
   assert.deepEqual(bootstrap.readiness(), {
     ready: false,

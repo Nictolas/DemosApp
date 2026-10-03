@@ -66,8 +66,25 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
     now
   });
 
-  const installSignedSnapshotJson = async (snapshotJson) =>
-    keySetStore.install(parseResearchSignedIssuerKeySetSnapshot(snapshotJson));
+  const installSignedSnapshotJson = async (snapshotJson) => {
+    const parsedSnapshot = parseResearchSignedIssuerKeySetSnapshot(snapshotJson);
+    const candidateStore = createResearchSignedIssuerKeySetStore({
+      trustRootPublicKey,
+      loadVerificationKey,
+      now
+    });
+    const candidateGate = createResearchIssuerKeySetFreshnessGate({
+      snapshotStore: candidateStore,
+      minimumRemainingValidityMs,
+      now
+    });
+    await candidateStore.install(parsedSnapshot);
+    const candidateReadiness = candidateGate.readiness();
+    if (candidateReadiness.ready !== true) {
+      throw new Error('Research issuer key-set candidate is not fresh enough');
+    }
+    return keySetStore.install(parsedSnapshot);
+  };
 
   await installSignedSnapshotJson(signedSnapshotJson);
   const initialReadiness = freshnessGate.readiness();
