@@ -54,6 +54,7 @@ create table if not exists content.opinion_questions (
 create table if not exists research.participants (
   participant_id uuid primary key default gen_random_uuid(),
   participant_public_key bytea not null unique,
+  revocation_capability_digest bytea not null unique,
   key_algorithm text not null default 'ed25519',
   status text not null default 'active'
     check (status in ('active', 'expired', 'revoked')),
