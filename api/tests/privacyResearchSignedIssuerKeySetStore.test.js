@@ -297,3 +297,21 @@ test('issuer key-set accepts the bounded maximum of eight unique canonical epoch
   assert.ok(Buffer.isBuffer(serialized));
   assert.ok(serialized.length > 0);
 });
+
+
+test('issuer key-set enforces the total verification-key snapshot bound', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const entries = (count) => Array.from({ length: count }, (_, index) => ({
+    bytes: makePublicMaterial(index + 11),
+    epochs: ['2026-Q4']
+  }));
+  const payload = (count, sequence) => makePayload({
+    sequence,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: entries(count)
+  });
+
+  assert.doesNotThrow(() => serializeIssuerKeySetPayload(payload(16, 6)));
+  assert.throws(() => serializeIssuerKeySetPayload(payload(17, 7)), /issuer key-set keys/i);
+});
