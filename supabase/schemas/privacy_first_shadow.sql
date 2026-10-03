@@ -25,6 +25,13 @@ create table if not exists identity.participation_eligibility (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists identity.account_activity (
+  account_id uuid primary key references public.users(id) on delete cascade,
+  last_activity_at timestamptz not null,
+  updated_at timestamptz not null default now(),
+  check (last_activity_at <= updated_at)
+);
+
 create table if not exists identity.revocation_escrows (
   account_id uuid primary key references public.users(id) on delete cascade,
   envelope jsonb not null,
@@ -202,6 +209,8 @@ create table if not exists audit.security_events (
 
 alter table identity.participation_eligibility enable row level security;
 alter table identity.participation_eligibility force row level security;
+alter table identity.account_activity enable row level security;
+alter table identity.account_activity force row level security;
 alter table identity.revocation_escrows enable row level security;
 alter table identity.revocation_escrows force row level security;
 alter table identity.credential_issuances enable row level security;

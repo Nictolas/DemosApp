@@ -29,3 +29,7 @@ For the shadow inactivity decision, callers no longer supply the activity timest
 ## Authentication activity coverage audit
 
 Audit found that refresh/logout updated `active_sessions`, but initial OAuth and WebAuthn token issuance did not. A central `recordIssuedSession` helper now creates/updates the session immediately when those flows issue a refresh token, so `last_activity` reflects successful initial login as well as refresh. The CIE callback currently verifies/links identity and does not itself issue Demos login tokens, so it is not a separate activity-producing login path. Production retention/cleanup of `active_sessions` still needs review before automatic 365-day deletion is enabled.
+
+## Durable lifecycle activity source
+
+Repository audit found no application cleanup for `active_sessions`, but the table's historical DDL/retention contract is not versioned here, so 365-day availability cannot be guaranteed. The shadow schema therefore introduces `identity.account_activity`: one Identity-only row per account with a monotonic `last_activity_at`, forced RLS, and cascade deletion with the account. This timestamp is lifecycle evidence, not a session/token store. The helper is intentionally not wired into production authentication yet; deployment requires a controlled schema migration/backfill and then dual-write/cutover verification.
