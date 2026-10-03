@@ -327,4 +327,59 @@ test('snapshot write reports fail-closed if the high-water mark changes immediat
     /changed after snapshot publish/i
   );
   assert.equal(await fs.readFile(snapshotPath, 'utf8'), makeSnapshot(71));
+
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 71 };
+      }
+    }),
+    /does not match high-water mark/i
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('snapshot persistence rejects caller sequence mismatch before advancing the high-water mark', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const highWater = makeHighWaterMarkStore(80);
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: highWater
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({
+      snapshotJson: makeSnapshot(81),
+      sequence: 82
+    }),
+    /sequence mismatch/i
+  );
+  assert.equal(highWater.current(), 80);
+  await assert.rejects(() => fs.stat(snapshotPath), { code: 'ENOENT' });
+});
+
+test('recovery rejects group-readable snapshot files before revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(snapshotPath, makeSnapshot(90), { mode: 0o640 });
+  await fs.chmod(snapshotPath, 0o640);
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: makeHighWaterMarkStore(90)
+  });
+
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 90 };
+      }
+    }),
+    /permissions are too broad/i
+  );
+  assert.equal(revalidateCalls, 0);
 });
