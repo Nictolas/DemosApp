@@ -297,3 +297,34 @@ test('snapshot write fails closed if another writer advances the high-water mark
   assert.equal(await fs.readFile(snapshotPath, 'utf8'), makeSnapshot(60));
   assert.equal(floor, 62);
 });
+
+
+test('snapshot write reports fail-closed if the high-water mark changes immediately after publish', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  let floor = 70;
+  let reads = 0;
+  const highWaterMarkStore = {
+    async readMinimumSequence() {
+      reads += 1;
+      if (reads >= 3) return 72;
+      return floor;
+    },
+    async advanceTo(sequence) {
+      floor = sequence;
+    }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({
+      snapshotJson: makeSnapshot(71),
+      sequence: 71
+    }),
+    /changed after snapshot publish/i
+  );
+  assert.equal(await fs.readFile(snapshotPath, 'utf8'), makeSnapshot(71));
+});
