@@ -212,3 +212,59 @@ test('snapshot persistence serializes concurrent writes fail-closed', async () =
 
   try { await fs.unlink(snapshotPath); } catch {}
 });
+
+
+test('recovery fails closed if the independent high-water mark changes mid-read', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(snapshotPath, makeSnapshot(40), { mode: 0o600 });
+  await fs.chmod(snapshotPath, 0o600);
+  let reads = 0;
+  const highWaterMarkStore = {
+    async readMinimumSequence() {
+      reads += 1;
+      return reads === 1 ? 40 : 41;
+    },
+    async advanceTo() {}
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore
+  });
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 40 };
+      }
+    }),
+    /changed during recovery/i
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('recovery fails closed if the high-water mark changes during revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(snapshotPath, makeSnapshot(50), { mode: 0o600 });
+  await fs.chmod(snapshotPath, 0o600);
+  let floor = 50;
+  const highWaterMarkStore = {
+    async readMinimumSequence() { return floor; },
+    async advanceTo() {}
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore
+  });
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        floor = 51;
+        return { ready: true, sequence: 50 };
+      }
+    }),
+    /changed during recovery/i
+  );
+});
