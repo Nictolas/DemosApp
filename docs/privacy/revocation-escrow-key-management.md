@@ -15,3 +15,7 @@ Production requirements not implemented here:
 - define disaster recovery and destruction procedure.
 
 No production key, Render environment variable, KMS resource or secret is created by this shadow step.
+
+## Shadow service integration
+
+The orchestration service now composes provider + AES-256-GCM envelope + Identity store. Rotation reads the historical key by envelope version, decrypts only in process memory, re-encrypts under the active version and overwrites the Identity envelope. The temporary plaintext buffer used during rotation is zeroed in a finally block. This is still not a production KMS integration or scheduled rotation job.
