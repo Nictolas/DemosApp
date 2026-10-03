@@ -323,6 +323,14 @@ test('recovery bootstrap fails closed when persistence cannot revalidate the sna
       minimumRemainingValidityMs: 10_000,
       subtle: { importKey: async () => importedKey }
     }),
-    /restart revalidation/i
+    (error) => {
+      assert.equal(error.message, 'Research issuer key-set recovery failed');
+      assert.deepEqual(error.health, {
+        ready: false,
+        reason: 'recovery-failed'
+      });
+      assert.doesNotMatch(error.message, /snapshot|JSON|signature|sequence|key/i);
+      return true;
+    }
   );
 });

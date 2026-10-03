@@ -96,20 +96,30 @@ const createResearchPrivacyPassKeySetBootstrapFromRecovery = async ({
   }
 
   let recoveredBootstrap = null;
-  const recovered = await persistence.recoverAuthenticatedSnapshot({
-    revalidate: async (snapshotJson) => {
-      const candidate = await createResearchPrivacyPassKeySetBootstrap({
-        ...bootstrapOptions,
-        signedSnapshotJson: snapshotJson
-      });
-      const readiness = candidate.readiness();
-      if (readiness.ready !== true) {
+  let recovered;
+  try {
+    recovered = await persistence.recoverAuthenticatedSnapshot({
+      revalidate: async (snapshotJson) => {
+        const candidate = await createResearchPrivacyPassKeySetBootstrap({
+          ...bootstrapOptions,
+          signedSnapshotJson: snapshotJson
+        });
+        const readiness = candidate.readiness();
+        if (readiness.ready !== true) {
+          return readiness;
+        }
+        recoveredBootstrap = candidate;
         return readiness;
       }
-      recoveredBootstrap = candidate;
-      return readiness;
-    }
-  });
+    });
+  } catch {
+    const error = new Error('Research issuer key-set recovery failed');
+    Object.defineProperty(error, 'health', {
+      value: toResearchIssuerKeySetHealth(null, { recoveryFailed: true }),
+      enumerable: true
+    });
+    throw error;
+  }
 
   if (!recoveredBootstrap || recoveredBootstrap.readiness().ready !== true) {
     throw new Error('Recovered Research issuer key-set bootstrap is not ready');
