@@ -124,6 +124,11 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
 
       await io.rename(temporaryPath, snapshotPath);
       await syncDirectory();
+
+      const publishedFloor = await readFloor();
+      if (publishedFloor !== sequence) {
+        throw new Error('Issuer key-set high-water mark changed after snapshot publish');
+      }
     } catch (error) {
       if (temporaryHandle) {
         try { await temporaryHandle.close(); } catch {}
