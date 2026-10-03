@@ -13,6 +13,7 @@ function createSecurityCenterRouter({ service, verifyToken, requireAdmin } = {})
   router.get('/overview', verifyToken, requireAdmin, handlers.overview);
   router.get('/incidents', verifyToken, requireAdmin, handlers.incidents);
   router.get('/health', verifyToken, requireAdmin, handlers.health);
+  router.get('/notifications', verifyToken, requireAdmin, handlers.notifications);
 
   return router;
 }

@@ -40,6 +40,16 @@ function createSecurityCenterHandlers(service) {
       } catch (_error) {
         return sendError(res);
       }
+    },
+
+    async notifications(req, res) {
+      try {
+        if (typeof service.getNotifications !== 'function') throw new Error('notification read unavailable');
+        const data = await service.getNotifications({ limit: req?.query?.limit });
+        return res.json({ success: true, data });
+      } catch (_error) {
+        return sendError(res);
+      }
     }
   };
 }

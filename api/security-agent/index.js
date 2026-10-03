@@ -45,6 +45,12 @@ const {
   buildDefaultNoopAdapters,
   NotificationDispatcher
 } = require('./securityNotificationAdapters');
+const {
+  NOTIFICATION_SIMULATION_VERSION: SECURITY_NOTIFICATION_SIMULATION_VERSION,
+  validateAuditLimit: validateNotificationAuditLimit,
+  emptyNotificationSimulationStatus,
+  SecurityNotificationSimulation
+} = require('./securityNotificationSimulation');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -91,6 +97,10 @@ module.exports = {
   createNoopNotificationAdapter,
   buildDefaultNoopAdapters,
   NotificationDispatcher,
+  SECURITY_NOTIFICATION_SIMULATION_VERSION,
+  validateNotificationAuditLimit,
+  emptyNotificationSimulationStatus,
+  SecurityNotificationSimulation,
   runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,
