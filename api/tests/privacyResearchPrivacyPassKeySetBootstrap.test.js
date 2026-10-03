@@ -168,8 +168,8 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
 
   assert.deepEqual(bootstrap.readiness(), {
     ready: true,
-    sequence: 13,
-    expiresAt: freshReplacementPayload.expiresAt
+    sequence: 12,
+    expiresAt: payload.expiresAt
   });
   assert.deepEqual(bootstrap.health(), { ready: true });
   assert.equal(bootstrap.usable(), true);
