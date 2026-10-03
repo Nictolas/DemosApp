@@ -73,3 +73,62 @@ test('Research handler accepts one valid Ed25519 proof and rejects replay', asyn
   assert.equal(replay.state.statusCode, 400);
   assert.deepEqual(replay.state.body, { error: 'Invalid or replayed Research proof' });
 });
+
+
+test('Research opinion-vector proof path is keyed only by participant public key, not account identity', async () => {
+  const challenges = new Map();
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const participantPublicKey = rawPublicKey(publicKey);
+  const observedSql = [];
+  const observedParams = [];
+  const client = {
+    async query(sql, params) {
+      observedSql.push(sql);
+      observedParams.push(params);
+      if (/INSERT INTO research\.proof_challenges/i.test(sql)) {
+        challenges.set(params[0].toString('hex'), params[1]);
+        return { rows: [] };
+      }
+      if (/DELETE FROM research\.proof_challenges/i.test(sql)) {
+        const digest = params[0].toString('hex');
+        if (!challenges.has(digest) || challenges.get(digest) !== params[1]) return { rows: [] };
+        challenges.delete(digest);
+        return { rows: [{ issued_at: new Date() }] };
+      }
+      if (/FROM research\.current_opinion_responses/i.test(sql)) {
+        assert.deepEqual(params, [participantPublicKey]);
+        return { rows: [{ question_id: 'q-privacy', answer_code: 'f' }] };
+      }
+      throw new Error('Unexpected query');
+    }
+  };
+  const handlers = createResearchPublicHandlers({ getPool: () => client });
+  const challengeResponse = responseRecorder();
+  await handlers.issueChallenge({ body: {} }, challengeResponse.res);
+  const { challenge, purpose } = challengeResponse.state.body;
+  const signature = crypto.sign(
+    null,
+    canonicalResearchProofMessage({ purpose, challenge }),
+    privateKey
+  );
+  const response = responseRecorder();
+  await handlers.readOpinionVector({
+    headers: {
+      authorization: 'Bearer should-not-be-used',
+      cookie: 'identity_session=should-not-be-used'
+    },
+    user: { id: 'identity-account-should-not-be-used' },
+    body: {
+      participantPublicKey: participantPublicKey.toString('base64url'),
+      challenge,
+      signature: signature.toString('base64url')
+    }
+  }, response.res);
+
+  assert.equal(response.state.statusCode, 200);
+  assert.deepEqual(response.state.body, { opinions: { 'q-privacy': 'f' } });
+  const sqlText = observedSql.join('\n');
+  assert.doesNotMatch(sqlText, /\baccounts?\b|\busers?\b|email|identity/i);
+  assert.equal(JSON.stringify(observedParams).includes('identity-account-should-not-be-used'), false);
+  assert.equal(JSON.stringify(observedParams).includes('should-not-be-used'), false);
+});
