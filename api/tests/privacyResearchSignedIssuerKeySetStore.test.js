@@ -172,6 +172,47 @@ test('snapshot validity window and trust root are bounded and verification-only'
   }), /public key|public key material|public/i);
 });
 
+test('issuer key-set epoch scopes are bounded, canonical and duplicate-free', () => {
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const bytes = makePublicMaterial(6);
+  const base = makePayload({
+    sequence: 1,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [{ bytes, epochs: ['2026-Q4'] }]
+  });
+
+  for (const invalidEpoch of ['', 'x'.repeat(65), '2026 Q4', '2026/Q4', 42, null]) {
+    const payload = structuredClone(base);
+    payload.keys[0].epochs = [invalidEpoch];
+    assert.throws(
+      () => serializeIssuerKeySetPayload(payload),
+      /epoch scope/i
+    );
+  }
+
+  const duplicate = structuredClone(base);
+  duplicate.keys[0].epochs = ['2026-Q4', '2026-Q4'];
+  assert.throws(
+    () => serializeIssuerKeySetPayload(duplicate),
+    /duplicate.*epoch scope/i
+  );
+
+  const canonicalA = structuredClone(base);
+  canonicalA.keys[0].epochs = ['2027-Q1', '2026-Q4'];
+  const canonicalB = structuredClone(base);
+  canonicalB.keys[0].epochs = ['2026-Q4', '2027-Q1'];
+  assert.deepEqual(
+    serializeIssuerKeySetPayload(canonicalA),
+    serializeIssuerKeySetPayload(canonicalB)
+  );
+  assert.equal(
+    crypto.sign(null, serializeIssuerKeySetPayload(canonicalA), privateKey).length,
+    64
+  );
+});
+
 test('signed key-set store has no request-time Identity or network dependency', () => {
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'services', 'researchSignedIssuerKeySetStore.js'),
