@@ -85,11 +85,25 @@ const normalizePayload = (payload) => {
     if (!Array.isArray(entry.epochs) || entry.epochs.length === 0) {
       throw new Error('Invalid issuer key epoch scope');
     }
+    const normalizedEpochs = entry.epochs.map((epoch) => {
+      if (
+        typeof epoch !== 'string' ||
+        epoch.length === 0 ||
+        epoch.length > 64 ||
+        !/^[A-Za-z0-9._:-]+$/.test(epoch)
+      ) {
+        throw new Error('Invalid issuer key epoch scope');
+      }
+      return epoch;
+    });
+    if (new Set(normalizedEpochs).size !== normalizedEpochs.length) {
+      throw new Error('Duplicate issuer key epoch scope');
+    }
 
     return {
       tokenKeyId: tokenKeyIdText,
       publicKey: publicKeyBytes.toString('base64url'),
-      epochs: [...entry.epochs].sort()
+      epochs: normalizedEpochs.sort()
     };
   });
 

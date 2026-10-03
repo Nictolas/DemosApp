@@ -17,7 +17,7 @@ The persisted JSON remains untrusted at boot. Recovery succeeds only after the c
 - a snapshot that the caller has already authenticated;
 - the authenticated sequence number, which must match the embedded payload sequence.
 
-A replacement is written to a same-directory exclusive temporary file with mode `0600`, fsynced, and only then is the independent high-water mark advanced. After the monotonic floor is confirmed durable, the temporary file is atomically renamed over the visible snapshot and the directory is fsynced.
+A replacement is written to a same-directory exclusive temporary file with mode `0600`, fsynced, and only then is the independent high-water mark advanced. After the monotonic floor is confirmed durable and still exactly equal to the candidate sequence, the temporary file is atomically renamed over the visible snapshot and the directory is fsynced. The floor is then checked again before the write can report success.
 
 The ordering is intentional. If the process crashes after advancing the monotonic floor but before rename, recovery fails closed because the old file sequence is below the floor. It does not silently resume with the old key-set.
 
@@ -29,8 +29,9 @@ Recovery:
 2. opens the file without following symlinks where the platform supports `O_NOFOLLOW`;
 3. rejects non-files, empty/oversized files, or group/world-readable permissions;
 4. requires the embedded sequence to equal the independently stored high-water mark;
-5. invokes a mandatory `revalidate(snapshotJson)` callback;
-6. accepts the snapshot only if revalidation reports `ready: true` for the same sequence.
+5. re-reads the high-water mark after file read and again after revalidation, rejecting concurrent changes;
+6. invokes a mandatory `revalidate(snapshotJson)` callback;
+7. accepts the snapshot only if revalidation reports `ready: true` for the same sequence.
 
 The intended callback must re-run signed snapshot validation and freshness/readiness checks. Therefore persistence alone never makes a snapshot trusted.
 
@@ -48,7 +49,7 @@ The persisted material is issuer public-key metadata and signatures only. This m
 
 - choose the independently protected high-water-mark backend;
 - choose the production filesystem/path and backup policy;
-- define behavior after a high-water advance succeeds but filesystem rename fails;
-- wire recovery to the authenticated Privacy Pass bootstrap;
+- define operational repair after a high-water advance succeeds but filesystem rename fails, or after the floor advances again immediately after publish;
+- promote the already-tested recovery/bootstrap composition into a production lifecycle only after the storage and distribution design is approved;
 - define refresh/freshness alerting and emergency key revocation;
 - perform deployment and incident-recovery review.
