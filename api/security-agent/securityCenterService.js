@@ -2,6 +2,7 @@ const { buildSecurityCenterOverview, pickIncident } = require('./securityCenterR
 const { emptyNotificationSimulationStatus } = require('./securityNotificationSimulation');
 const { emptyAiAnalystMockStatus } = require('./securityAiAnalystMockRunner');
 const { policyStatus } = require('./securityPolicyEngine');
+const { buildApprovalConsistencyAlerts } = require('./securityApprovalConsistencyAlertPolicy');
 
 const ALLOWED_STATUSES = new Set(['open', 'acknowledged', 'resolved']);
 const ALLOWED_SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
@@ -55,7 +56,8 @@ class SecurityCenterService {
     const recentAiAnalyses = this.aiAnalyst ? this.aiAnalyst.listRecent({ limit: 10 }) : [];
     const aiOrchestrator = this.aiOrchestrator ? { status: this.aiOrchestrator.status(), recentDecisions: this.aiOrchestrator.listDecisions({ limit: 10 }) } : { status: null, recentDecisions: [] };
     const aiPolicy = this.aiPolicy ? { status: this.aiPolicy.status(), recent: this.aiPolicy.listRecent({ limit: 10 }).map(item => ({ analyzedAt: item.analyzedAt, decision: item.policy?.decision || 'deny', reasonCode: item.policy?.reasonCode || 'POLICY_DENIED', actionCount: Number(item.policy?.actionCount || 0), executable: false })) } : { status: policyStatus(), recent: [] };
-    const approvals = this.approvalGate ? { status: this.approvalGate.status(), recent: this.approvalGate.list({ limit: 10 }), recentAudit: this.approvalGate.listAudit({ limit: 10 }), consistency: this.approvalGate.consistency() } : { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, recent: [], recentAudit: [], consistency: { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false } };
+    const consistency = this.approvalGate ? this.approvalGate.consistency() : { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false };
+    const approvals = this.approvalGate ? { status: this.approvalGate.status(), recent: this.approvalGate.list({ limit: 10 }), recentAudit: this.approvalGate.listAudit({ limit: 10 }), consistency, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) } : { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, recent: [], recentAudit: [], consistency, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) };
     return { ...overview, notifications: { status: notificationStatus, recentAudit: recentNotificationAudit }, aiAnalyst: { status: aiStatus, recent: recentAiAnalyses }, aiOrchestrator, aiPolicy, approvals };
   }
 
@@ -96,7 +98,7 @@ class SecurityCenterService {
   async getApprovals({ limit } = {}) {
     const safeLimit = validateLimit(limit, 20);
     if (!this.approvalGate) return { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, approvals: [], audit: [], consistency: { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false } };
-    return { status: this.approvalGate.status(), approvals: this.approvalGate.list({ limit: Math.min(safeLimit, 100) }), audit: this.approvalGate.listAudit({ limit: Math.min(safeLimit, 100) }), consistency: this.approvalGate.consistency() };
+    const consistency=this.approvalGate.consistency(); return { status: this.approvalGate.status(), approvals: this.approvalGate.list({ limit: Math.min(safeLimit, 100) }), audit: this.approvalGate.listAudit({ limit: Math.min(safeLimit, 100) }), consistency, consistencyAlerts:buildApprovalConsistencyAlerts(consistency) };
   }
 
   async getHealth({ now = new Date() } = {}) {
