@@ -6,7 +6,8 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const { getPool } = require('../../config/database');
-const { generateTokenPair } = require('../../utils/jwt');
+const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
+const { recordIssuedSession } = require('../../services/sessionService');
 const {
   setRegistrationChallenge,
   consumeRegistrationChallenge,
@@ -366,6 +367,8 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
       };
 
       const tokens = generateTokenPair(tokenPayload);
+      const sid = verifyRefreshToken(tokens.refreshToken).sid;
+      await recordIssuedSession({ sessionId:sid, userId:user.id, refreshToken:tokens.refreshToken, ipAddress:req.ip||null, userAgent:req.get('User-Agent')||null });
 
       res.json({
         success: true,
@@ -595,6 +598,8 @@ router.post('/webauthn/login/verify', webauthnVerifyLimiter, async (req, res) =>
     };
 
     const tokens = generateTokenPair(tokenPayload);
+    const sid = verifyRefreshToken(tokens.refreshToken).sid;
+    await recordIssuedSession({ sessionId:sid, userId:user.id, refreshToken:tokens.refreshToken, ipAddress:req.ip||null, userAgent:req.get('User-Agent')||null });
 
     res.json({
       success: true,
