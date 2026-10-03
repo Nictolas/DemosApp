@@ -110,6 +110,15 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
   });
 };
 
+const createResearchRecoveryFailedError = () => {
+  const error = new Error('Research issuer key-set recovery failed');
+  Object.defineProperty(error, 'health', {
+    value: toResearchIssuerKeySetHealth(null, { recoveryFailed: true }),
+    enumerable: true
+  });
+  return error;
+};
+
 const createResearchPrivacyPassKeySetBootstrapFromRecovery = async ({
   persistence,
   ...bootstrapOptions
@@ -136,20 +145,15 @@ const createResearchPrivacyPassKeySetBootstrapFromRecovery = async ({
       }
     });
   } catch {
-    const error = new Error('Research issuer key-set recovery failed');
-    Object.defineProperty(error, 'health', {
-      value: toResearchIssuerKeySetHealth(null, { recoveryFailed: true }),
-      enumerable: true
-    });
-    throw error;
+    throw createResearchRecoveryFailedError();
   }
 
   if (!recoveredBootstrap || recoveredBootstrap.readiness().ready !== true) {
-    throw new Error('Recovered Research issuer key-set bootstrap is not ready');
+    throw createResearchRecoveryFailedError();
   }
   const readiness = recoveredBootstrap.readiness();
-  if (readiness.sequence !== recovered.sequence) {
-    throw new Error('Recovered Research issuer key-set sequence mismatch');
+  if (!recovered || readiness.sequence !== recovered.sequence) {
+    throw createResearchRecoveryFailedError();
   }
   return recoveredBootstrap;
 };
