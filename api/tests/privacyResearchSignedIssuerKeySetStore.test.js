@@ -222,3 +222,42 @@ test('signed key-set store has no request-time Identity or network dependency', 
   assert.doesNotMatch(source, /\bfetch\s*\(|https?:\/\//);
   assert.doesNotMatch(source, /process\.env/);
 });
+
+
+test('issuer key-set epoch scope normalization rejects control characters and non-ASCII ambiguity', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const bytes = makePublicMaterial(7);
+  const base = makePayload({
+    sequence: 2,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [{ bytes, epochs: ['2026-Q4'] }]
+  });
+
+  for (const invalidEpoch of ['2026-Q4\\n', '2026-Q4\\t', '2026–Q4', 'époque']) {
+    const payload = structuredClone(base);
+    payload.keys[0].epochs = [invalidEpoch];
+    assert.throws(
+      () => serializeIssuerKeySetPayload(payload),
+      /epoch scope/i
+    );
+  }
+});
+
+test('issuer key-set canonical epoch ordering is deterministic across multiple scopes', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const bytes = makePublicMaterial(8);
+  const first = makePayload({
+    sequence: 3,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [{ bytes, epochs: ['z:9', 'A.1', 'm_2', 'B-3'] }]
+  });
+  const second = structuredClone(first);
+  second.keys[0].epochs = ['B-3', 'm_2', 'z:9', 'A.1'];
+
+  assert.deepEqual(
+    serializeIssuerKeySetPayload(first),
+    serializeIssuerKeySetPayload(second)
+  );
+});
