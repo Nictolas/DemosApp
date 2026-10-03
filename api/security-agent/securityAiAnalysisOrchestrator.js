@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 const { createSecurityAiShadowIntegration } = require('./securityAiShadowIntegration');
 
-const AI_ANALYSIS_ORCHESTRATOR_VERSION = 'v0.19';
+const AI_ANALYSIS_ORCHESTRATOR_VERSION = 'v0.20';
+const DEFAULT_DECISION_HISTORY = 100;
 const SEVERITY_RANK = Object.freeze({ info: 0, low: 1, medium: 2, high: 3, critical: 4 });
 const DEFAULT_COOLDOWN_MS = 15 * 60 * 1000;
 const DEFAULT_MAX_INCIDENTS = 10;
@@ -79,17 +80,21 @@ function publicCycleResult(result = {}) {
 }
 
 class SecurityAiAnalysisOrchestrator {
-  constructor({ config = buildAiAnalysisOrchestratorConfig(), aiIntegration, now = () => new Date(), maxHistory = 5000 } = {}) {
+  constructor({ config = buildAiAnalysisOrchestratorConfig(), aiIntegration, now = () => new Date(), maxHistory = 5000, maxDecisionHistory = DEFAULT_DECISION_HISTORY } = {}) {
     if (!config || typeof config !== 'object') throw new TypeError('AI orchestrator config is required');
     if (!aiIntegration || typeof aiIntegration.analyze !== 'function' || typeof aiIntegration.status !== 'function') {
       throw new TypeError('AI shadow integration contract is required');
     }
     if (typeof now !== 'function') throw new TypeError('AI orchestrator clock is required');
     if (!Number.isInteger(maxHistory) || maxHistory < 100 || maxHistory > 50000) throw new Error('invalid AI orchestrator history limit');
+    if (!Number.isInteger(maxDecisionHistory) || maxDecisionHistory < 10 || maxDecisionHistory > 1000) throw new Error('invalid AI orchestrator decision history limit');
     this.config = config;
     this.aiIntegration = aiIntegration;
     this.now = now;
     this.maxHistory = maxHistory;
+    this.maxDecisionHistory = maxDecisionHistory;
+    this.decisionHistory = [];
+    this.decisionCounters = { analyzed: 0, deduplicated: 0, cooldown: 0, belowThreshold: 0, closed: 0, rateLimited: 0, targetNotReady: 0, disabled: 0, errors: 0 };
     this.history = new Map();
     this.historyOrder = [];
     this.bucket = hourBucket(asDate(this.now()));
@@ -119,6 +124,28 @@ class SecurityAiAnalysisOrchestrator {
     }
   }
 
+  _recordDecision(status, at, counts = {}) {
+    const entry = Object.freeze({
+      at: at.toISOString(),
+      status: String(status || 'unknown').slice(0, 48),
+      eligibleCount: Number(counts.eligibleCount || 0),
+      selectedCount: Number(counts.selectedCount || 0),
+      duplicateCount: Number(counts.duplicateCount || 0),
+      cooldownCount: Number(counts.cooldownCount || 0),
+      belowThresholdCount: Number(counts.belowThresholdCount || 0),
+      closedCount: Number(counts.closedCount || 0)
+    });
+    this.decisionHistory.unshift(entry);
+    if (this.decisionHistory.length > this.maxDecisionHistory) this.decisionHistory.length = this.maxDecisionHistory;
+    return entry;
+  }
+
+  listDecisions({ limit = 20 } = {}) {
+    const parsed = Number(limit);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) throw new Error('invalid AI orchestrator decision limit');
+    return this.decisionHistory.slice(0, parsed).map(item => ({ ...item }));
+  }
+
   async analyzeCycle({ incidents = [], alerts = [], health = {}, now = this.now() } = {}) {
     const current = asDate(now);
     this.runCount += 1;
@@ -127,13 +154,19 @@ class SecurityAiAnalysisOrchestrator {
 
     if (this.config.ready !== true) {
       this.lastStatus = 'skipped_disabled';
-      return publicCycleResult({ status: this.lastStatus, eligibleCount: 0, selectedCount: 0 });
+      this.decisionCounters.disabled += 1;
+      const result = publicCycleResult({ status: this.lastStatus, eligibleCount: 0, selectedCount: 0 });
+      this._recordDecision(this.lastStatus, current, result);
+      return result;
     }
 
     const integrationStatus = this.aiIntegration.status();
     if (integrationStatus?.ready !== true) {
       this.lastStatus = 'skipped_target_not_ready';
-      return publicCycleResult({ status: this.lastStatus, eligibleCount: 0, selectedCount: 0 });
+      this.decisionCounters.targetNotReady += 1;
+      const result = publicCycleResult({ status: this.lastStatus, eligibleCount: 0, selectedCount: 0 });
+      this._recordDecision(this.lastStatus, current, result);
+      return result;
     }
 
     if (!Array.isArray(incidents)) throw new TypeError('incidents must be an array');
@@ -166,6 +199,11 @@ class SecurityAiAnalysisOrchestrator {
     });
 
     const selected = candidates.slice(0, this.config.maxIncidentsPerAnalysis);
+    this.decisionCounters.deduplicated += duplicateCount;
+    this.decisionCounters.cooldown += cooldownCount;
+    this.decisionCounters.belowThreshold += belowThresholdCount;
+    this.decisionCounters.closed += closedCount;
+
     const baseResult = {
       eligibleCount: candidates.length,
       selectedCount: selected.length,
@@ -177,11 +215,16 @@ class SecurityAiAnalysisOrchestrator {
 
     if (!selected.length) {
       this.lastStatus = 'skipped_no_eligible_incidents';
-      return publicCycleResult({ status: this.lastStatus, ...baseResult });
+      const result = publicCycleResult({ status: this.lastStatus, ...baseResult });
+      this._recordDecision(this.lastStatus, current, result);
+      return result;
     }
     if (this.bucketCount >= this.config.maxAnalysesPerHour) {
       this.lastStatus = 'skipped_rate_limit';
-      return publicCycleResult({ status: this.lastStatus, ...baseResult });
+      this.decisionCounters.rateLimited += 1;
+      const result = publicCycleResult({ status: this.lastStatus, ...baseResult });
+      this._recordDecision(this.lastStatus, current, result);
+      return result;
     }
 
     this.bucketCount += 1;
@@ -195,14 +238,20 @@ class SecurityAiAnalysisOrchestrator {
         this._remember(item.key, { signature: item.signature, severity: item.severity, atMs: current.getTime(), success: true });
       }
       this.analysisCount += 1;
+      this.decisionCounters.analyzed += 1;
       this.lastStatus = 'analyzed';
       this.lastErrorCode = null;
-      return publicCycleResult({ status: this.lastStatus, ...baseResult });
+      const result = publicCycleResult({ status: this.lastStatus, ...baseResult });
+      this._recordDecision(this.lastStatus, current, result);
+      return result;
     } catch (_error) {
       this.failureCount += 1;
+      this.decisionCounters.errors += 1;
       this.lastStatus = 'error';
       this.lastErrorCode = 'AI_ORCHESTRATOR_ANALYSIS_FAILED';
-      return Object.freeze({ ...publicCycleResult({ status: this.lastStatus, ...baseResult }), errorCode: this.lastErrorCode });
+      const result = Object.freeze({ ...publicCycleResult({ status: this.lastStatus, ...baseResult }), errorCode: this.lastErrorCode });
+      this._recordDecision(this.lastStatus, current, result);
+      return result;
     }
   }
 
@@ -223,7 +272,9 @@ class SecurityAiAnalysisOrchestrator {
       failureCount: this.failureCount,
       lastRunAt: this.lastRunAt,
       lastStatus: this.lastStatus,
-      lastErrorCode: this.lastErrorCode
+      lastErrorCode: this.lastErrorCode,
+      counters: Object.freeze({ ...this.decisionCounters }),
+      decisionHistorySize: this.decisionHistory.length
     });
   }
 }

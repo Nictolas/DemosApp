@@ -30,6 +30,13 @@ function createSecurityCenterHandlers(service) {
         return res.json({ success: true, data });
       } catch (_error) { return sendError(res); }
     },
+    async aiOrchestrator(req, res) {
+      try {
+        if (typeof service.getAiOrchestrator !== 'function') throw new Error('AI orchestrator read unavailable');
+        const data = await service.getAiOrchestrator({ limit: req?.query?.limit });
+        return res.json({ success: true, data });
+      } catch (_error) { return sendError(res); }
+    },
     async aiAnalyses(req, res) {
       try {
         if (typeof service.getAiAnalyses !== 'function') throw new Error('AI analyst read unavailable');

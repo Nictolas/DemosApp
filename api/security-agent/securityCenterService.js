@@ -20,17 +20,19 @@ function validateLimit(value, fallback = 100) {
 }
 
 class SecurityCenterService {
-  constructor({ runner, runtime = null, store, notificationSimulation = null, aiAnalyst = null, sourceName = 'axiom-security', staleAfterMs = 10 * 60 * 1000 } = {}) {
+  constructor({ runner, runtime = null, store, notificationSimulation = null, aiAnalyst = null, aiOrchestrator = null, sourceName = 'axiom-security', staleAfterMs = 10 * 60 * 1000 } = {}) {
     if (!runner || typeof runner.status !== 'function') throw new TypeError('runner.status() is required');
     if (runtime !== null && (!runtime || typeof runtime.status !== 'function')) throw new TypeError('runtime.status() is required when runtime is provided');
     if (!store || typeof store.listIncidents !== 'function' || typeof store.stats !== 'function' || typeof store.getSourceState !== 'function') throw new TypeError('store read contract is required');
     if (notificationSimulation !== null && (!notificationSimulation || typeof notificationSimulation.status !== 'function' || typeof notificationSimulation.listAudit !== 'function')) throw new TypeError('notification simulation read contract is required when provided');
     if (aiAnalyst !== null && (!aiAnalyst || typeof aiAnalyst.status !== 'function' || typeof aiAnalyst.listRecent !== 'function')) throw new TypeError('AI analyst read contract is required when provided');
+    if (aiOrchestrator !== null && (!aiOrchestrator || typeof aiOrchestrator.status !== 'function' || typeof aiOrchestrator.listDecisions !== 'function')) throw new TypeError('AI orchestrator read contract is required when provided');
     this.runner = runner;
     this.runtime = runtime;
     this.store = store;
     this.notificationSimulation = notificationSimulation;
     this.aiAnalyst = aiAnalyst;
+    this.aiOrchestrator = aiOrchestrator;
     this.sourceName = String(sourceName || 'axiom-security').slice(0, 80);
     this.staleAfterMs = staleAfterMs;
   }
@@ -46,7 +48,8 @@ class SecurityCenterService {
     const recentNotificationAudit = this.notificationSimulation ? this.notificationSimulation.listAudit({ limit: 10 }) : [];
     const aiStatus = this.aiAnalyst ? this.aiAnalyst.status() : emptyAiAnalystMockStatus();
     const recentAiAnalyses = this.aiAnalyst ? this.aiAnalyst.listRecent({ limit: 10 }) : [];
-    return { ...overview, notifications: { status: notificationStatus, recentAudit: recentNotificationAudit }, aiAnalyst: { status: aiStatus, recent: recentAiAnalyses } };
+    const aiOrchestrator = this.aiOrchestrator ? { status: this.aiOrchestrator.status(), recentDecisions: this.aiOrchestrator.listDecisions({ limit: 10 }) } : { status: null, recentDecisions: [] };
+    return { ...overview, notifications: { status: notificationStatus, recentAudit: recentNotificationAudit }, aiAnalyst: { status: aiStatus, recent: recentAiAnalyses }, aiOrchestrator };
   }
 
   async listIncidents({ status, severity, limit } = {}) {
@@ -69,9 +72,15 @@ class SecurityCenterService {
     return { status: this.aiAnalyst.status(), analyses: this.aiAnalyst.listRecent({ limit: safeLimit }) };
   }
 
+  async getAiOrchestrator({ limit } = {}) {
+    const safeLimit = validateLimit(limit, 20);
+    if (!this.aiOrchestrator) return { status: null, decisions: [] };
+    return { status: this.aiOrchestrator.status(), decisions: this.aiOrchestrator.listDecisions({ limit: Math.min(safeLimit, 100) }) };
+  }
+
   async getHealth({ now = new Date() } = {}) {
     const overview = await this.getOverview({ now, recentLimit: 1 });
-    return { generatedAt: overview.generatedAt, shield: overview.shield, health: overview.health, alerts: overview.alerts, agent: overview.agent, telemetry: overview.telemetry, notifications: overview.notifications.status, aiAnalyst: overview.aiAnalyst.status, openIncidentCount: overview.incidents.open, highestOpenSeverity: overview.incidents.highestOpenSeverity };
+    return { generatedAt: overview.generatedAt, shield: overview.shield, health: overview.health, alerts: overview.alerts, agent: overview.agent, telemetry: overview.telemetry, notifications: overview.notifications.status, aiAnalyst: overview.aiAnalyst.status, aiOrchestrator: overview.aiOrchestrator.status, openIncidentCount: overview.incidents.open, highestOpenSeverity: overview.incidents.highestOpenSeverity };
   }
 }
 
