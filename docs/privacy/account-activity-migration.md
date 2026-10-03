@@ -43,3 +43,7 @@ The cutover policy no longer accepts a boolean approval. It requires an HMAC-SHA
 ## Approval verifier boundary and replay protection
 
 Cutover policy now consumes an injected verifier interface rather than raw approval key material. This boundary is compatible with a future non-exportable KMS/HSM verifier. After evidence, approval, and live readiness all pass, the approval nonce must be atomically consumed by a replay store before authorization is returned. The included in-memory replay store is test/POC only and stores only a domain-separated nonce digest; it is not durable or distributed and therefore must not be used as the production replay authority. No KMS, secret, or persistent replay backend is provisioned here.
+
+## Distributed approval replay-store contract
+
+A production replay backend must expose one atomic `consumeDigestOnce({digest, ttlSeconds})` operation. The application hashes the nonce before crossing that boundary; the backend must never receive the raw approval nonce or identity data. The operation must return true only for the first successful claim and false for an already-live digest, with native expiry. The cutover policy requests a 900-second TTL matching the approval freshness window. The adapter rejects malformed TTLs and ambiguous backend results. No Redis/database/vendor is selected or provisioned by this commit.
