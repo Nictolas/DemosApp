@@ -83,8 +83,43 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
   });
 };
 
+const createResearchPrivacyPassKeySetBootstrapFromRecovery = async ({
+  persistence,
+  ...bootstrapOptions
+} = {}) => {
+  if (!persistence || typeof persistence.recoverAuthenticatedSnapshot !== 'function') {
+    throw new Error('Research issuer key-set persistence recovery is required');
+  }
+
+  let recoveredBootstrap = null;
+  const recovered = await persistence.recoverAuthenticatedSnapshot({
+    revalidate: async (snapshotJson) => {
+      const candidate = await createResearchPrivacyPassKeySetBootstrap({
+        ...bootstrapOptions,
+        signedSnapshotJson: snapshotJson
+      });
+      const readiness = candidate.readiness();
+      if (readiness.ready !== true) {
+        return readiness;
+      }
+      recoveredBootstrap = candidate;
+      return readiness;
+    }
+  });
+
+  if (!recoveredBootstrap || recoveredBootstrap.readiness().ready !== true) {
+    throw new Error('Recovered Research issuer key-set bootstrap is not ready');
+  }
+  const readiness = recoveredBootstrap.readiness();
+  if (readiness.sequence !== recovered.sequence) {
+    throw new Error('Recovered Research issuer key-set sequence mismatch');
+  }
+  return recoveredBootstrap;
+};
+
 module.exports = {
   MAX_SNAPSHOT_JSON_BYTES,
   parseResearchSignedIssuerKeySetSnapshot,
-  createResearchPrivacyPassKeySetBootstrap
+  createResearchPrivacyPassKeySetBootstrap,
+  createResearchPrivacyPassKeySetBootstrapFromRecovery
 };
