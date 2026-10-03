@@ -17,3 +17,7 @@ The shadow Identity store persists only an authenticated-encryption envelope und
 ## Authorized release workflow
 
 Identity may recover an escrowed capability only after an explicit authorization decision supplied by the future account-deletion/deceased-account workflow. The relay callback receives exactly `{ capability }`; no account or participant identifier is passed. The Identity escrow is deleted only after relay acceptance and only if its key version has not changed concurrently. Rejection leaves the escrow available for retry. Plaintext capability memory is zeroed in `finally`. This shadow helper is not an endpoint and does not define who may authorize a real deletion.
+
+## Identity authorization policy
+
+The shadow release workflow no longer accepts a raw `authorized=true`. Identity evaluates one of three explicit reasons: confirmed self-deletion, inactivity reaching 365 days, or independently verified deceased status. Unknown reasons and malformed/future activity timestamps fail closed. The reason remains inside Identity; the relay still receives only the opaque capability. Production definitions for who verifies a death, how self-deletion is strongly authenticated, and the authoritative activity timestamp source remain separate controls.
