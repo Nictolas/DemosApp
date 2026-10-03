@@ -26,3 +26,7 @@ The Android shadow composition now exposes `createNativeAndroidCitizenOpinionVec
 ## Local matching pipeline invariant
 
 The shadow local matching pipeline reads the citizen vector locally first, then requests only public political vectors by scope from Research with credentials omitted. The citizen vector is passed only to the local matcher and is never serialized into the Research request. If the private vector source fails, Research is not contacted.
+
+## Runtime selection policy
+
+The shadow runtime policy keeps legacy matching as the default until both local matching and an explicit vault cutover phase are active. Once privacy-first mode is selected, failures are propagated fail-closed; they must not trigger a silent fallback to server-side legacy matching.
