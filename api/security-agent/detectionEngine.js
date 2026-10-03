@@ -8,6 +8,14 @@ const DEFAULT_RULES = Object.freeze([
     match: event => event.category === 'auth' && event.type === 'login.failed'
   },
   {
+    id: 'DET-BRUTE-FORCE',
+    title: 'Brute force segnalato dal monitor applicativo',
+    severity: 'high',
+    windowMs: 5 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'auth' && event.type === 'auth.brute_force'
+  },
+  {
     id: 'DET-ADMIN-FAILED-BURST',
     title: 'Tentativi admin falliti ripetuti',
     severity: 'critical',
@@ -16,12 +24,60 @@ const DEFAULT_RULES = Object.freeze([
     match: event => event.category === 'auth' && event.type === 'admin.login.failed'
   },
   {
+    id: 'DET-ADMIN-EXCESSIVE',
+    title: 'Accessi amministrativi eccessivi',
+    severity: 'high',
+    windowMs: 15 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'admin' && event.type === 'admin.access.excessive'
+  },
+  {
+    id: 'DET-SUSPICIOUS-REQUEST',
+    title: 'Richiesta applicativa sospetta bloccata',
+    severity: 'critical',
+    windowMs: 5 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'application' && event.type === 'request.suspicious'
+  },
+  {
     id: 'DET-RATE-LIMIT-SURGE',
     title: 'Aumento rapido dei blocchi rate-limit',
     severity: 'medium',
     windowMs: 5 * 60 * 1000,
     threshold: 20,
     match: event => event.category === 'edge' && event.type === 'rate_limit.triggered'
+  },
+  {
+    id: 'DET-UNAUTHORIZED-ACCESS',
+    title: 'Accesso non autorizzato segnalato dal detector esistente',
+    severity: 'high',
+    windowMs: 24 * 60 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'access' && event.type === 'access.unauthorized'
+  },
+  {
+    id: 'DET-SECURITY-BREACH',
+    title: 'Violazione di sicurezza segnalata',
+    severity: 'critical',
+    windowMs: 60 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'security' && event.type === 'security.breach'
+  },
+  {
+    id: 'DET-DATA-BREACH',
+    title: 'Possibile data breach segnalato',
+    severity: 'critical',
+    windowMs: 24 * 60 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'privacy' && event.type === 'privacy.data_breach'
+  },
+  {
+    id: 'DET-AUDIT-FAILURE',
+    title: 'Fallimento del canale audit',
+    severity: 'high',
+    windowMs: 10 * 60 * 1000,
+    threshold: 1,
+    match: event => event.category === 'telemetry' && event.type === 'telemetry.audit_failure'
   },
   {
     id: 'DET-INTEGRITY-FAILURE',
@@ -56,10 +112,12 @@ class DetectionEngine {
     const findings = [];
 
     for (const rule of this.rules) {
-      const matches = events.filter(event => {
-        const ts = eventTime(event);
-        return Number.isFinite(ts) && ts <= nowMs && ts >= nowMs - rule.windowMs && rule.match(event);
-      });
+      const matches = events
+        .filter(event => {
+          const ts = eventTime(event);
+          return Number.isFinite(ts) && ts <= nowMs && ts >= nowMs - rule.windowMs && rule.match(event);
+        })
+        .sort((a, b) => eventTime(a) - eventTime(b));
 
       if (matches.length >= rule.threshold) {
         findings.push(Object.freeze({

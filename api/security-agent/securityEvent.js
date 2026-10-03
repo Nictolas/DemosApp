@@ -44,9 +44,14 @@ function normalizeSecurityEvent(input, now = new Date()) {
     throw new Error(`unsupported security event severity: ${severity}`);
   }
 
+  const parsedTimestamp = input.timestamp ? new Date(input.timestamp) : now;
+  if (Number.isNaN(parsedTimestamp.getTime())) {
+    throw new Error('security event timestamp must be valid');
+  }
+
   return Object.freeze({
     eventId: input.eventId ? sanitizeString(input.eventId) : crypto.randomUUID(),
-    timestamp: input.timestamp ? new Date(input.timestamp).toISOString() : now.toISOString(),
+    timestamp: parsedTimestamp.toISOString(),
     source,
     type,
     category,
