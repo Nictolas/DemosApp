@@ -9,6 +9,7 @@ const verifyAndRedeemEnrollmentCredential = async (
     purpose,
     epoch,
     participantPublicKey,
+    revocationCapability,
     keyAlgorithm = 'ed25519'
   },
   verifier
@@ -26,6 +27,7 @@ const verifyAndRedeemEnrollmentCredential = async (
     purpose,
     epoch,
     participantPublicKey,
+    revocationCapability,
     keyAlgorithm,
     credentialVersion: verified.credentialVersion
   });

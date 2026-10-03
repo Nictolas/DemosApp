@@ -30,6 +30,7 @@ const redeemRenewalCredential = async (
            status = 'active',
            credential_version = GREATEST(credential_version, $2)
        WHERE participant_public_key = $1
+         AND status IN ('active', 'expired')
        RETURNING participant_id, key_algorithm, credential_version, status,
                  created_at, last_confirmed_at, expires_at`,
       [participantPublicKey, credentialVersion]
