@@ -30,4 +30,14 @@ const replaceRevocationEscrowIfVersion=async(client,{accountId,expectedKeyVersio
   );
   return result.rows[0]||null;
 };
-module.exports={storeRevocationEscrow,readRevocationEscrow,replaceRevocationEscrowIfVersion};
+const deleteRevocationEscrowIfVersion=async(client,{accountId,expectedKeyVersion})=>{
+  if(!client||typeof client.query!=='function'||!accountId||!Number.isSafeInteger(expectedKeyVersion)||expectedKeyVersion<1) throw new Error('Invalid escrow deletion');
+  const result=await client.query(
+    `DELETE FROM identity.revocation_escrows
+     WHERE account_id = $1 AND key_version = $2
+     RETURNING key_version`,
+    [accountId,expectedKeyVersion]
+  );
+  return result.rows.length===1;
+};
+module.exports={storeRevocationEscrow,readRevocationEscrow,replaceRevocationEscrowIfVersion,deleteRevocationEscrowIfVersion};
