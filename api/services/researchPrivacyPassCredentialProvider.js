@@ -34,15 +34,29 @@ const assertPrivacyPassVerificationApi = (privacyPass) => {
   }
 };
 
+const isVerificationOnlyPublicKey = (key) => {
+  if (!key || typeof key !== 'object' || key.type === 'private') return false;
+  return !Array.isArray(key.usages) || key.usages.every((usage) => usage === 'verify');
+};
+
 const createResearchPrivacyPassCredentialProvider = ({
   privacyPass,
   issuerPublicKey,
+  issuerPublicKeyRing,
   issuerName = DEFAULT_ISSUER_NAME,
   originInfo = DEFAULT_ORIGIN_INFO
 }) => {
   assertPrivacyPassVerificationApi(privacyPass);
-  if (!issuerPublicKey) {
-    throw new Error('Privacy Pass issuer public key is required');
+  const hasSingleKey = Boolean(issuerPublicKey);
+  const hasKeyRing = Boolean(issuerPublicKeyRing);
+  if (hasSingleKey === hasKeyRing) {
+    throw new Error('Exactly one Privacy Pass issuer public-key source is required');
+  }
+  if (hasKeyRing && typeof issuerPublicKeyRing.resolve !== 'function') {
+    throw new Error('Privacy Pass issuer public-key ring must resolve verification keys');
+  }
+  if (hasSingleKey && !isVerificationOnlyPublicKey(issuerPublicKey)) {
+    throw new Error('Privacy Pass issuer key must be verification-only public material');
   }
   if (typeof issuerName !== 'string' || issuerName.length === 0) {
     throw new Error('Privacy Pass issuer name is required');
@@ -86,13 +100,24 @@ const createResearchPrivacyPassCredentialProvider = ({
           return { valid: false };
         }
 
-        const issuerPublicKeyBytes = await getPublicKeyBytes(issuerPublicKey);
-        const expectedTokenKeyId = sha256(Buffer.from(issuerPublicKeyBytes));
-        if (!buffersEqual(token.authInput?.tokenKeyId, expectedTokenKeyId)) {
-          return { valid: false };
+        let verificationKey = issuerPublicKey;
+        if (issuerPublicKeyRing) {
+          verificationKey = await issuerPublicKeyRing.resolve({
+            tokenKeyId: token.authInput?.tokenKeyId,
+            epoch
+          });
+          if (!isVerificationOnlyPublicKey(verificationKey)) {
+            return { valid: false };
+          }
+        } else {
+          const issuerPublicKeyBytes = await getPublicKeyBytes(issuerPublicKey);
+          const expectedTokenKeyId = sha256(Buffer.from(issuerPublicKeyBytes));
+          if (!buffersEqual(token.authInput?.tokenKeyId, expectedTokenKeyId)) {
+            return { valid: false };
+          }
         }
 
-        const valid = await origin.verify(token, issuerPublicKey);
+        const valid = await origin.verify(token, verificationKey);
         return valid === true
           ? { valid: true, credentialVersion: 1 }
           : { valid: false };
