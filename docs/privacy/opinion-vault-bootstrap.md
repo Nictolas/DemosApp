@@ -20,3 +20,5 @@ A future controlled migration must separately decide when server-side legacy opi
 ## Legacy import adapter
 
 The shadow legacy adapter is restricted to the authenticated own-profile endpoint and immediately projects the response to the validated opinion vector. Profile fields, email, tokens, and other surrounding Identity response data are not returned to the privacy matching layer.
+
+The Android shadow composition now exposes `createNativeAndroidCitizenOpinionVectorSourceFromIdentity`, which binds bootstrap to the minimized own-profile adapter rather than requiring matching consumers to construct a legacy fetcher themselves.
