@@ -9,3 +9,7 @@ Goal: permit deletion/revocation when the user's normal Research device/key is u
 5. The capability is a bearer deletion secret. Logs must never contain it. Rate limiting, authenticated deletion workflow, encryption-at-rest/escrow key management and one-time destruction remain mandatory before production.
 
 Privacy limitation: if Identity itself sends the capability directly to Research, timing/network metadata could correlate the deletion event. Production should use a client-mediated or delayed/batched relay and a dedicated security review. This commit therefore defines only the Research-side shadow primitive and schema field; it does not implement Identity escrow or a production endpoint.
+
+## Identity escrow persistence
+
+The shadow Identity store persists only an authenticated-encryption envelope under the account. It has no Research participant identifier, public key, credential digest or opinion data. Production key custody/rotation and capability relay remain disabled and require separate approval.
