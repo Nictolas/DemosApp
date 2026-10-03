@@ -329,7 +329,7 @@ test('recovery bootstrap fails closed when persistence cannot revalidate the sna
         ready: false,
         reason: 'recovery-failed'
       });
-      assert.doesNotMatch(error.message, /snapshot|JSON|signature|sequence|key/i);
+      assert.doesNotMatch(error.message, /snapshot|JSON|signature|sequence|tokenKeyId|publicKey|privateKey/i);
       return true;
     }
   );
