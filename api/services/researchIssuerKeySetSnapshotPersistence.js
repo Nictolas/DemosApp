@@ -90,23 +90,23 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
     }
     writeInProgress = true;
     try {
-    const bytes = normalizeSnapshotBytes(snapshotJson);
-    const embeddedSequence = readEmbeddedSequence(bytes);
-    assertSequence(sequence);
-    if (embeddedSequence !== sequence) {
-      throw new Error('Authenticated issuer key-set sequence mismatch');
-    }
+      const bytes = normalizeSnapshotBytes(snapshotJson);
+      const embeddedSequence = readEmbeddedSequence(bytes);
+      assertSequence(sequence);
+      if (embeddedSequence !== sequence) {
+        throw new Error('Authenticated issuer key-set sequence mismatch');
+      }
 
-    const floor = await readFloor();
-    if (sequence <= floor) {
-      throw new Error('Issuer key-set rollback or replay rejected by persistence');
-    }
+      const floor = await readFloor();
+      if (sequence <= floor) {
+        throw new Error('Issuer key-set rollback or replay rejected by persistence');
+      }
 
-    await io.mkdir(directory, { recursive: true, mode: 0o700 });
-    const suffix = Buffer.from(randomBytes(12)).toString('hex');
-    const temporaryPath = `${snapshotPath}.tmp-${process.pid}-${suffix}`;
-    let temporaryHandle;
-    try {
+      await io.mkdir(directory, { recursive: true, mode: 0o700 });
+      const suffix = Buffer.from(randomBytes(12)).toString('hex');
+      const temporaryPath = `${snapshotPath}.tmp-${process.pid}-${suffix}`;
+      let temporaryHandle;
+      try {
       temporaryHandle = await io.open(temporaryPath, 'wx', 0o600);
       await temporaryHandle.writeFile(bytes);
       await temporaryHandle.sync();
@@ -129,18 +129,18 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
       if (publishedFloor !== sequence) {
         throw new Error('Issuer key-set high-water mark changed after snapshot publish');
       }
-    } catch (error) {
-      if (temporaryHandle) {
-        try { await temporaryHandle.close(); } catch {}
+      } catch (error) {
+        if (temporaryHandle) {
+          try { await temporaryHandle.close(); } catch {}
+        }
+        try { await io.unlink(temporaryPath); } catch {}
+        throw error;
       }
-      try { await io.unlink(temporaryPath); } catch {}
-      throw error;
-    }
 
-    return Object.freeze({
-      sequence,
-      digest: crypto.createHash('sha256').update(bytes).digest('base64url')
-    });
+      return Object.freeze({
+        sequence,
+        digest: crypto.createHash('sha256').update(bytes).digest('base64url')
+      });
     } finally {
       writeInProgress = false;
     }
