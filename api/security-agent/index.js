@@ -3,6 +3,8 @@ const { DetectionEngine } = require('./detectionEngine');
 const { IncidentManager } = require('./incidentManager');
 const { ShadowSecurityPipeline } = require('./shadowPipeline');
 const { ReadOnlySecuritySource, createAxiomReadOnlySecuritySource } = require('./readOnlySecuritySource');
+const { MemorySecurityStore, sanitizeIncidentForStore, sanitizeSourceState } = require('./securityStore');
+const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { normalizeSecurityEvent, sanitizeMeta } = require('./securityEvent');
 const { adaptLegacySecurityRecord, adaptLegacyViolation } = require('./legacyAdapters');
 
@@ -13,6 +15,11 @@ module.exports = {
   ShadowSecurityPipeline,
   ReadOnlySecuritySource,
   createAxiomReadOnlySecuritySource,
+  MemorySecurityStore,
+  sanitizeIncidentForStore,
+  sanitizeSourceState,
+  ShadowSecurityRunner,
+  createShadowSecurityRunner,
   normalizeSecurityEvent,
   sanitizeMeta,
   adaptLegacySecurityRecord,
