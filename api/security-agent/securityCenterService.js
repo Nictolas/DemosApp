@@ -18,12 +18,14 @@ function validateLimit(value, fallback = 100) {
 }
 
 class SecurityCenterService {
-  constructor({ runner, store, sourceName = 'axiom-security', staleAfterMs = 10 * 60 * 1000 } = {}) {
+  constructor({ runner, runtime = null, store, sourceName = 'axiom-security', staleAfterMs = 10 * 60 * 1000 } = {}) {
     if (!runner || typeof runner.status !== 'function') throw new TypeError('runner.status() is required');
+    if (runtime !== null && (!runtime || typeof runtime.status !== 'function')) throw new TypeError('runtime.status() is required when runtime is provided');
     if (!store || typeof store.listIncidents !== 'function' || typeof store.stats !== 'function' || typeof store.getSourceState !== 'function') {
       throw new TypeError('store read contract is required');
     }
     this.runner = runner;
+    this.runtime = runtime;
     this.store = store;
     this.sourceName = String(sourceName || 'axiom-security').slice(0, 80);
     this.staleAfterMs = staleAfterMs;
@@ -38,6 +40,7 @@ class SecurityCenterService {
 
     return buildSecurityCenterOverview({
       runnerStatus: this.runner.status(),
+      runtimeStatus: this.runtime ? this.runtime.status() : null,
       sourceState,
       storeStats,
       incidents,
@@ -64,6 +67,8 @@ class SecurityCenterService {
     return {
       generatedAt: overview.generatedAt,
       shield: overview.shield,
+      health: overview.health,
+      alerts: overview.alerts,
       agent: overview.agent,
       telemetry: overview.telemetry,
       openIncidentCount: overview.incidents.open,

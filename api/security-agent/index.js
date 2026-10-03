@@ -22,6 +22,11 @@ const {
   HEALTH_LEVELS: SECURITY_AGENT_HEALTH_LEVELS,
   buildSecurityAgentHealth
 } = require('./securityAgentHealth');
+const {
+  ALERT_POLICY_VERSION: SECURITY_ALERT_POLICY_VERSION,
+  PRIORITY_ORDER: SECURITY_ALERT_PRIORITY_ORDER,
+  buildSecurityAlerts
+} = require('./securityAlertPolicy');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -51,6 +56,9 @@ module.exports = {
   createSecurityAgentRuntime,
   SECURITY_AGENT_HEALTH_LEVELS,
   buildSecurityAgentHealth,
+  SECURITY_ALERT_POLICY_VERSION,
+  SECURITY_ALERT_PRIORITY_ORDER,
+  buildSecurityAlerts,
   runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,

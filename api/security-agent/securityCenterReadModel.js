@@ -1,3 +1,6 @@
+const { buildSecurityAgentHealth } = require('./securityAgentHealth');
+const { buildSecurityAlerts } = require('./securityAlertPolicy');
+
 const SEVERITY_ORDER = Object.freeze({
   info: 0,
   low: 1,
@@ -81,19 +84,37 @@ function sourceHealth(sourceState, now, staleAfterMs) {
   };
 }
 
-function deriveShield({ runnerStatus, telemetry, openBySeverity }) {
-  if (runnerStatus?.enabled !== true) {
-    return { color: 'gray', state: 'disabled', reason: 'runner_disabled' };
-  }
+function fallbackRuntimeStatus(runnerStatus, sourceState) {
+  const enabled = runnerStatus?.enabled === true;
+  const running = runnerStatus?.running === true;
+  const lastRunStatus = String(runnerStatus?.lastRunStatus || 'never').slice(0, 32);
+  return {
+    state: !enabled ? 'disabled' : (running ? 'running' : 'ready'),
+    intervalMs: Number(runnerStatus?.intervalMs || 60000),
+    startedAt: runnerStatus?.lastRunAt || sourceState?.lastSuccessAt || null,
+    lastCycleStatus: lastRunStatus,
+    lastSuccessAt: sourceState?.lastSuccessAt || (lastRunStatus === 'ok' ? runnerStatus?.lastRunAt || null : null),
+    consecutiveFailures: Number(sourceState?.consecutiveFailures ?? runnerStatus?.failureCount ?? 0),
+    inFlight: runnerStatus?.inFlight === true,
+    inFlightStartedAt: runnerStatus?.inFlight === true ? runnerStatus?.lastRunAt || null : null
+  };
+}
+
+function deriveShield({ agentHealth, telemetry, openBySeverity }) {
   if (openBySeverity.critical > 0) {
     return { color: 'red', state: 'critical', reason: 'open_critical_incident' };
   }
-  if (runnerStatus?.lastRunStatus === 'error') {
-    return { color: 'red', state: 'error', reason: 'runner_error' };
+  if (agentHealth?.level === 'red') {
+    return { color: 'red', state: 'critical', reason: 'security_agent_critical' };
+  }
+  if (openBySeverity.high > 0) {
+    return { color: 'orange', state: 'attention', reason: 'open_high_incident' };
+  }
+  if (agentHealth?.level === 'gray') {
+    return { color: 'gray', state: 'disabled', reason: 'security_agent_inactive' };
   }
   if (
-    openBySeverity.high > 0 ||
-    runnerStatus?.lastRunStatus === 'degraded' ||
+    agentHealth?.level === 'orange' ||
     ['degraded', 'stale', 'unknown'].includes(telemetry.status)
   ) {
     return { color: 'orange', state: 'attention', reason: 'security_attention_required' };
@@ -103,6 +124,7 @@ function deriveShield({ runnerStatus, telemetry, openBySeverity }) {
 
 function buildSecurityCenterOverview({
   runnerStatus = {},
+  runtimeStatus = null,
   sourceState = null,
   storeStats = {},
   incidents = [],
@@ -122,11 +144,18 @@ function buildSecurityCenterOverview({
   const safeIncidents = Array.isArray(incidents) ? incidents.map(pickIncident) : [];
   const openBySeverity = countOpenBySeverity(safeIncidents);
   const telemetry = sourceHealth(sourceState, current, staleAfterMs);
-  const shield = deriveShield({ runnerStatus, telemetry, openBySeverity });
+  const effectiveRuntimeStatus = runtimeStatus && typeof runtimeStatus === 'object'
+    ? runtimeStatus
+    : fallbackRuntimeStatus(runnerStatus, sourceState);
+  const health = buildSecurityAgentHealth(effectiveRuntimeStatus, { now: current, staleAfterMs });
+  const alerts = buildSecurityAlerts({ agentHealth: health, telemetry, openBySeverity });
+  const shield = deriveShield({ agentHealth: health, telemetry, openBySeverity });
 
   return {
     generatedAt: current.toISOString(),
     shield,
+    health,
+    alerts,
     agent: {
       enabled: runnerStatus?.enabled === true,
       running: runnerStatus?.running === true,
