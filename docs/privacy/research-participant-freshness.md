@@ -15,3 +15,9 @@ A `renew` unlinkable credential may extend only an already-known pseudonymous pa
 ## Identity renewal eligibility
 
 Identity may record a blind `renew` issuance only when `identity.participation_eligibility` is active/eligible and the supplied account activity is less than 365 days old. The Identity policy never receives a Research participant identifier, participant public key or credential digest. The actual blind-signing transport remains a separate cryptographic boundary; this shadow policy does not deploy it.
+
+## Revocation and deletion
+
+A participant that still controls its pseudonymous Research key can request immediate revocation after proving control; Research marks it revoked and expires it immediately. This path carries no Identity identifier. Account deletion must also block future Identity renewals.
+
+For inactivity or a deceased account where the Research device/key is unavailable, the privacy-preserving fallback is lease expiry: no new blind renewal is issued and the contribution falls out no later than its existing 365-day lease. An immediate server-side death/inactivity revocation would require an Identity-to-Research correlation mechanism and is therefore not claimed by this design. A future privacy review may add a stronger cryptographic revocation scheme if immediate removal is required without device participation.
