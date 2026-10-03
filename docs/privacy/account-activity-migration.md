@@ -51,3 +51,7 @@ A production replay backend must expose one atomic `consumeDigestOnce({digest, t
 ## SQL replay-store shadow adapter
 
 The shadow schema includes `identity.cutover_approval_replays`, keyed only by the 64-hex nonce digest with expiry and creation timestamps, forced RLS, and no account/evidence identifiers. The SQL adapter implements the contract in one atomic INSERT/ON CONFLICT statement: a live digest cannot be claimed again; an expired row can be atomically replaced and receives a fresh bounded expiry. Cleanup of expired rows may be added operationally later, but correctness does not depend on cleanup. This schema is not applied by this commit.
+
+## Replay-store database privileges
+
+The shadow DDL explicitly revokes all table privileges from `public`, `anon`, and `authenticated`, keeps forced RLS, and grants the backend `service_role` only the CRUD operations needed for atomic consume/expiry maintenance. No client-facing policy is created. Static tests also assert that the replay table has no account, user, participant, evidence, email, or opinion linkage columns. These grants remain unapplied shadow DDL.

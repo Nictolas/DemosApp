@@ -230,6 +230,11 @@ alter table identity.participation_eligibility enable row level security;
 alter table identity.participation_eligibility force row level security;
 alter table identity.cutover_approval_replays enable row level security;
 alter table identity.cutover_approval_replays force row level security;
+revoke all on table identity.cutover_approval_replays from public;
+revoke all on table identity.cutover_approval_replays from anon;
+revoke all on table identity.cutover_approval_replays from authenticated;
+grant select, insert, update, delete on table identity.cutover_approval_replays to service_role;
+
 alter table identity.lifecycle_migration_evidence enable row level security;
 alter table identity.lifecycle_migration_evidence force row level security;
 alter table identity.account_activity enable row level security;
