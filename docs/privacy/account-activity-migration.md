@@ -39,3 +39,7 @@ A recorder can persist evidence only after the live readiness evaluator returns 
 ## Bound approval proof (shadow)
 
 The cutover policy no longer accepts a boolean approval. It requires an HMAC-SHA-256 approval proof bound to the exact migration version and evidence digest, carrying a nonce and an approval timestamp no older than 15 minutes. Missing, stale, tampered, or differently-bound approval fails closed. The 32-byte key is an injected interface for tests/future secret management; this commit creates no production key, secret, signer endpoint, or approval. A production design should move signing to a non-exportable KMS/HSM or equivalent controlled approval service rather than an application environment secret.
+
+## Approval verifier boundary and replay protection
+
+Cutover policy now consumes an injected verifier interface rather than raw approval key material. This boundary is compatible with a future non-exportable KMS/HSM verifier. After evidence, approval, and live readiness all pass, the approval nonce must be atomically consumed by a replay store before authorization is returned. The included in-memory replay store is test/POC only and stores only a domain-separated nonce digest; it is not durable or distributed and therefore must not be used as the production replay authority. No KMS, secret, or persistent replay backend is provisioned here.
