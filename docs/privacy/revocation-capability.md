@@ -13,3 +13,7 @@ Privacy limitation: if Identity itself sends the capability directly to Research
 ## Identity escrow persistence
 
 The shadow Identity store persists only an authenticated-encryption envelope under the account. It has no Research participant identifier, public key, credential digest or opinion data. Production key custody/rotation and capability relay remain disabled and require separate approval.
+
+## Authorized release workflow
+
+Identity may recover an escrowed capability only after an explicit authorization decision supplied by the future account-deletion/deceased-account workflow. The relay callback receives exactly `{ capability }`; no account or participant identifier is passed. The Identity escrow is deleted only after relay acceptance and only if its key version has not changed concurrently. Rejection leaves the escrow available for retry. Plaintext capability memory is zeroed in `finally`. This shadow helper is not an endpoint and does not define who may authorize a real deletion.
