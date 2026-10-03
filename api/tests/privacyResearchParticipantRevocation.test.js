@@ -19,7 +19,7 @@ test('physical deletion of a pseudonymous participant removes owned research row
  const sql=fs.readFileSync(path.join(__dirname,'..','..','supabase','schemas','privacy_first_shadow.sql'),'utf8');
  const owned=['participant_dimensions','opinion_response_events'];
  for(const table of owned){
-  const block=sql.match(new RegExp('create table if not exists research\\\\.'+table+'[\\\\s\\\\S]*?\\\\);','i'))?.[0]||'';
+  const start='create table if not exists research.'+table; const startIndex=sql.toLowerCase().indexOf(start); assert.notEqual(startIndex,-1); const block=sql.slice(startIndex,sql.indexOf(';',startIndex)+1);
   assert.match(block,/references research\.participants\(participant_id\) on delete cascade/i);
   assert.doesNotMatch(block,/identity\.|account_id|user_id|email/i);
  }
