@@ -6,7 +6,7 @@ const {
   createResearchPublicIntegrationPoc
 } = require('../researchPublicIntegrationPoc');
 
-const request = (app, { method = 'POST', path = '/v1/proof-challenges', origin } = {}) => new Promise((resolve, reject) => {
+const request = (app, { method = 'POST', path = '/v1/proof-challenges', origin, headers = {} } = {}) => new Promise((resolve, reject) => {
   const server = app.listen(0, '127.0.0.1', () => {
     const address = server.address();
     const req = http.request({
@@ -14,7 +14,7 @@ const request = (app, { method = 'POST', path = '/v1/proof-challenges', origin }
       port: address.port,
       path,
       method,
-      headers: origin ? { Origin: origin } : {}
+      headers: { ...headers, ...(origin ? { Origin: origin } : {}) }
     }, (res) => {
       let body = '';
       res.setEncoding('utf8');
@@ -50,4 +50,73 @@ test('HTTP POC traverses boundary then router only when explicitly enabled', asy
   const response = await request(app, { origin: 'https://app.example' });
   assert.equal(response.status, 204);
   assert.deepEqual(calls, ['boundary', 'router']);
+});
+
+
+test('HTTP POC rejects a foreign origin before the Research router observes identity-bearing headers', async () => {
+  let routerCalls = 0;
+  const { createResearchPublicBoundaryMiddleware } = require('../middleware/researchPublicBoundary');
+  const policy = {
+    mountAllowed: true,
+    allowedOrigins: ['https://app.example'],
+    cacheControl: 'no-store'
+  };
+  const { app, mounted } = createResearchPublicIntegrationPoc({
+    policy,
+    boundary: createResearchPublicBoundaryMiddleware({ policy }),
+    router: (req, res) => {
+      routerCalls += 1;
+      res.status(204).end();
+    },
+    errorHandler: (err, req, res, next) => next(err)
+  });
+
+  assert.equal(mounted, true);
+  const response = await request(app, {
+    origin: 'https://evil.example',
+    headers: {
+      Authorization: 'Bearer identity-session-token',
+      Cookie: 'session=identity-cookie'
+    }
+  });
+  assert.equal(response.status, 403);
+  assert.equal(routerCalls, 0);
+  assert.equal(response.headers['access-control-allow-origin'], undefined);
+  assert.equal(response.headers['access-control-allow-credentials'], undefined);
+  assert.equal(response.headers['cache-control'], 'no-store');
+  assert.equal(response.headers['referrer-policy'], 'no-referrer');
+});
+
+test('HTTP POC preflight exposes only the narrow Research browser contract', async () => {
+  const { createResearchPublicBoundaryMiddleware } = require('../middleware/researchPublicBoundary');
+  const policy = {
+    mountAllowed: true,
+    allowedOrigins: ['https://app.example'],
+    cacheControl: 'no-store'
+  };
+  let routerCalls = 0;
+  const { app } = createResearchPublicIntegrationPoc({
+    policy,
+    boundary: createResearchPublicBoundaryMiddleware({ policy }),
+    router: (req, res) => {
+      routerCalls += 1;
+      res.status(204).end();
+    },
+    errorHandler: (err, req, res, next) => next(err)
+  });
+  const response = await request(app, {
+    method: 'OPTIONS',
+    origin: 'https://app.example',
+    headers: {
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'authorization, cookie, content-type'
+    }
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(routerCalls, 0);
+  assert.equal(response.headers['access-control-allow-origin'], 'https://app.example');
+  assert.equal(response.headers['access-control-allow-credentials'], undefined);
+  assert.equal(response.headers['access-control-allow-headers'], 'Content-Type');
+  assert.equal(response.headers['access-control-allow-methods'], 'POST, OPTIONS');
 });
