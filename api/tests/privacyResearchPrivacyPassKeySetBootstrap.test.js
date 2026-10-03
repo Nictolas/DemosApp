@@ -363,3 +363,84 @@ test('recovery bootstrap fails closed when persistence cannot revalidate the sna
     }
   );
 });
+
+
+test('recovery bootstrap minimizes post-recovery invariant failures to recovery-failed health', async () => {
+  const { createResearchPrivacyPassKeySetBootstrapFromRecovery } =
+    require('../services/researchPrivacyPassKeySetBootstrap');
+  const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const now = Date.UTC(2026, 9, 3, 17, 0, 0);
+  const publicKeyBytes = Buffer.alloc(96, 7);
+  const keyId = sha256(publicKeyBytes);
+  const importedKey = makeVerificationKey();
+  const privacyPass = makePrivacyPass({ importedKey, keyId });
+  const payload = {
+    version: 1,
+    sequence: 31,
+    issuedAt: now - 1_000,
+    expiresAt: now + 60_000,
+    keys: [{
+      tokenKeyId: keyId.toString('base64url'),
+      publicKey: publicKeyBytes.toString('base64url'),
+      epochs: ['2026-Q4']
+    }]
+  };
+  const snapshotJson = JSON.stringify({
+    payload,
+    signature: crypto.sign(
+      null,
+      serializeIssuerKeySetPayload(payload),
+      privateKey
+    ).toString('base64url')
+  });
+  const persistence = {
+    async recoverAuthenticatedSnapshot({ revalidate }) {
+      await revalidate(snapshotJson);
+      return { snapshotJson, sequence: 32, expiresAt: payload.expiresAt };
+    }
+  };
+
+  await assert.rejects(
+    () => createResearchPrivacyPassKeySetBootstrapFromRecovery({
+      persistence,
+      privacyPass,
+      trustRootPublicKey: trustRoot,
+      minimumRemainingValidityMs: 10_000,
+      subtle: { importKey: async () => importedKey },
+      now: () => now
+    }),
+    (error) => {
+      assert.equal(error.message, 'Research issuer key-set recovery failed');
+      assert.deepEqual(error.health, {
+        ready: false,
+        reason: 'recovery-failed'
+      });
+      assert.doesNotMatch(error.message, /mismatch|sequence|snapshot|JSON|signature/i);
+      return true;
+    }
+  );
+
+  const missingCandidatePersistence = {
+    async recoverAuthenticatedSnapshot() {
+      return { snapshotJson, sequence: 31, expiresAt: payload.expiresAt };
+    }
+  };
+  await assert.rejects(
+    () => createResearchPrivacyPassKeySetBootstrapFromRecovery({
+      persistence: missingCandidatePersistence,
+      privacyPass,
+      trustRootPublicKey: trustRoot,
+      minimumRemainingValidityMs: 10_000,
+      subtle: { importKey: async () => importedKey },
+      now: () => now
+    }),
+    (error) => {
+      assert.equal(error.message, 'Research issuer key-set recovery failed');
+      assert.deepEqual(error.health, {
+        ready: false,
+        reason: 'recovery-failed'
+      });
+      return true;
+    }
+  );
+});
