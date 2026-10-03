@@ -22,3 +22,7 @@ A future controlled migration must separately decide when server-side legacy opi
 The shadow legacy adapter is restricted to the authenticated own-profile endpoint and immediately projects the response to the validated opinion vector. Profile fields, email, tokens, and other surrounding Identity response data are not returned to the privacy matching layer.
 
 The Android shadow composition now exposes `createNativeAndroidCitizenOpinionVectorSourceFromIdentity`, which binds bootstrap to the minimized own-profile adapter rather than requiring matching consumers to construct a legacy fetcher themselves.
+
+## Local matching pipeline invariant
+
+The shadow local matching pipeline reads the citizen vector locally first, then requests only public political vectors by scope from Research with credentials omitted. The citizen vector is passed only to the local matcher and is never serialized into the Research request. If the private vector source fails, Research is not contacted.
