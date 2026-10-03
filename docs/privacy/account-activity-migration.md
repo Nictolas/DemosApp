@@ -55,3 +55,7 @@ The shadow schema includes `identity.cutover_approval_replays`, keyed only by th
 ## Replay-store database privileges
 
 The shadow DDL explicitly revokes all table privileges from `public`, `anon`, and `authenticated`, keeps forced RLS, and grants the backend `service_role` only the CRUD operations needed for atomic consume/expiry maintenance. No client-facing policy is created. Static tests also assert that the replay table has no account, user, participant, evidence, email, or opinion linkage columns. These grants remain unapplied shadow DDL.
+
+## Non-exportable KMS/HSM verifier contract
+
+The application-side verifier can now be constructed around a provider `verifyDigest({keyId, digest, signature})` operation. It canonicalizes and binds the approval locally, sends only a SHA-256 digest plus signature and opaque key identifier across the provider boundary, and exposes only `verify` to cutover policy. There is no API to export key material or sign arbitrary application data. Provider errors fail closed without surfacing provider details. This is vendor-neutral scaffolding: no cloud KMS/HSM resource, credential, key, environment variable, or network integration is created here.
