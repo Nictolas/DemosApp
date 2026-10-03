@@ -1,5 +1,6 @@
 import type { MatchVector } from './localPoliticalMatcher';
 import type { OpinionVaultCutoverPolicy } from './opinionVaultCutoverPolicy';
+import { OpinionVaultMissingError } from './opinionVaultErrors';
 
 export interface OpinionVault {
   read(): Promise<MatchVector>;
@@ -21,10 +22,11 @@ export const readOrBootstrapOpinionVault = async ({
   fetchLegacyOpinions: LegacyOpinionFetcher;
   policy: OpinionVaultCutoverPolicy;
 }): Promise<OpinionVaultBootstrapResult> => {
+  if (!policy.allowVaultRead) throw new Error('Opinion vault cutover disabled');
   try {
     return { source: 'vault', vector: await vault.read() };
   } catch (vaultError) {
-    if (!policy.allowLegacyImport) throw vaultError;
+    if (!policy.allowLegacyImport || !(vaultError instanceof OpinionVaultMissingError)) throw vaultError;
   }
 
   const vector = await fetchLegacyOpinions();

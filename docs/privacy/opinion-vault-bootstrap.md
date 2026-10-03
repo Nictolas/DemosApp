@@ -38,3 +38,7 @@ The runtime executor accepts separate legacy and privacy-first callbacks and exe
 `getLivePoliticalMatchingRuntimeMode` is the single environment-derived gate intended for the live hook. Existing local-matching configuration alone is insufficient: privacy-first requires both a configured Research endpoint and an explicit vault cutover phase. With current/default vault configuration the live mode remains legacy.
 
 The live representative-selection hook now consults the centralized cutover gate instead of the historical local-matching flag directly. This deliberately makes the current live default legacy until the vault cutover is explicitly enabled. The hook's privacy-first body still uses the legacy own-profile read and is therefore not considered final; replacing that body with the encrypted vault pipeline remains required before enabling the cutover.
+
+## Missing vs corrupt vault
+
+Legacy bootstrap import is now allowed only when the encrypted ciphertext is genuinely absent (`OpinionVaultMissingError`). Existing-but-invalid ciphertext, missing device keys, authentication/decryption failures, and invalid plaintext fail closed and never trigger a legacy reimport/overwrite.

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readOrBootstrapOpinionVault } from './opinionVaultBootstrap';
+import { OpinionVaultMissingError } from './opinionVaultErrors';
 
 describe('opinionVaultBootstrap', () => {
   it('uses the encrypted vault without contacting legacy Identity when available', async () => {
@@ -13,7 +14,7 @@ describe('opinionVaultBootstrap', () => {
   });
 
   it('fails closed when vault is unavailable and migration import is disabled', async () => {
-    const vault={read:vi.fn(async()=>{throw new Error('missing')}),write:vi.fn(async()=>{})};
+    const vault={read:vi.fn(async()=>{throw new OpinionVaultMissingError()}),write:vi.fn(async()=>{})};
     const fetchLegacyOpinions=vi.fn(async()=>({q1:2}));
     await expect(readOrBootstrapOpinionVault({vault,fetchLegacyOpinions,policy:{mode:'vault-only',allowVaultRead:true,allowLegacyImport:false}})).rejects.toThrow('missing');
     expect(fetchLegacyOpinions).not.toHaveBeenCalled();
@@ -22,7 +23,7 @@ describe('opinionVaultBootstrap', () => {
   it('imports once only when explicitly enabled, then writes before returning', async () => {
     const calls:string[]=[];
     const vector={q1:2};
-    const vault={read:vi.fn(async()=>{throw new Error('missing')}),write:vi.fn(async(v)=>{calls.push('write');expect(v).toEqual(vector)})};
+    const vault={read:vi.fn(async()=>{throw new OpinionVaultMissingError()}),write:vi.fn(async(v)=>{calls.push('write');expect(v).toEqual(vector)})};
     const fetchLegacyOpinions=vi.fn(async()=>{calls.push('fetch');return vector});
     const result=await readOrBootstrapOpinionVault({vault,fetchLegacyOpinions,policy:{mode:'bootstrap',allowVaultRead:true,allowLegacyImport:true}});
     expect(result).toEqual({source:'legacy-import',vector});
@@ -31,7 +32,7 @@ describe('opinionVaultBootstrap', () => {
 
   it('never deletes or mutates legacy server data', async () => {
     const source={q1:2};
-    const vault={read:vi.fn(async()=>{throw new Error('missing')}),write:vi.fn(async()=>{})};
+    const vault={read:vi.fn(async()=>{throw new OpinionVaultMissingError()}),write:vi.fn(async()=>{})};
     const fetchLegacyOpinions=vi.fn(async()=>({...source}));
     await readOrBootstrapOpinionVault({vault,fetchLegacyOpinions,policy:{mode:'bootstrap',allowVaultRead:true,allowLegacyImport:true}});
     expect(source).toEqual({q1:2});
@@ -42,6 +43,20 @@ describe('opinionVaultBootstrap', () => {
     const fetchLegacyOpinions=vi.fn(async()=>({q1:2}));
     await expect(readOrBootstrapOpinionVault({vault,fetchLegacyOpinions,policy:{mode:'off',allowVaultRead:false,allowLegacyImport:false}})).rejects.toThrow(/cutover disabled/);
     expect(vault.read).not.toHaveBeenCalled();
+    expect(fetchLegacyOpinions).not.toHaveBeenCalled();
+  });
+
+  it('does not reimport when an existing vault is corrupt',async()=>{
+    const vault={read:vi.fn(async()=>{throw new Error('Invalid encrypted opinion envelope')}),write:vi.fn(async()=>{})};
+    const fetchLegacyOpinions=vi.fn(async()=>({q1:2}));
+    await expect(readOrBootstrapOpinionVault({vault,fetchLegacyOpinions,policy:{mode:'bootstrap',allowVaultRead:true,allowLegacyImport:true}})).rejects.toThrow(/Invalid encrypted/);
+    expect(fetchLegacyOpinions).not.toHaveBeenCalled();
+    expect(vault.write).not.toHaveBeenCalled();
+  });
+  it('does not reimport when the device key is missing',async()=>{
+    const vault={read:vi.fn(async()=>{throw new Error('Device opinion key missing')}),write:vi.fn(async()=>{})};
+    const fetchLegacyOpinions=vi.fn(async()=>({q1:2}));
+    await expect(readOrBootstrapOpinionVault({vault,fetchLegacyOpinions,policy:{mode:'bootstrap',allowVaultRead:true,allowLegacyImport:true}})).rejects.toThrow(/key missing/);
     expect(fetchLegacyOpinions).not.toHaveBeenCalled();
   });
 
