@@ -6,6 +6,7 @@ import "./index.css";
 import GestisciGrazia from "./pages/GestisciGrazia";
 import Limiti from "./pages/Limiti";
 import GestisciGoverno from "./pages/GestisciGoverno";
+import { assertLivePrivacyStartupReady } from "./lib/privacy/livePrivacyStartupGuard";
 
 // Inizializza Capacitor se disponibile (app native)
 if (typeof window !== 'undefined') {
@@ -32,4 +33,5 @@ if (typeof window !== 'undefined') {
 //   });
 // }
 
+assertLivePrivacyStartupReady();
 createRoot(document.getElementById("root")!).render(<App />);
