@@ -12,6 +12,13 @@ const {
   publicCredentialStatus,
   parseRetentionDays
 } = require('./securityDbCredentialGate');
+const {
+  RUNTIME_MODES: SECURITY_AGENT_RUNTIME_MODES,
+  buildSecurityAgentRuntimeConfig,
+  SecurityAgentRuntime,
+  createSecurityAgentRuntime
+} = require('./securityAgentRuntime');
+const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
 const { createSecurityCenterHandlers } = require('./securityCenterApi');
@@ -34,6 +41,11 @@ module.exports = {
   createPoolForPurpose,
   publicCredentialStatus,
   parseRetentionDays,
+  SECURITY_AGENT_RUNTIME_MODES,
+  buildSecurityAgentRuntimeConfig,
+  SecurityAgentRuntime,
+  createSecurityAgentRuntime,
+  runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,
   ShadowSecurityRunner,
