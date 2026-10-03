@@ -18,3 +18,23 @@ export const assertNoPrivacyFallback = (
   }
   throw new Error('Legacy matching fallback assertion used outside privacy-first mode');
 };
+
+
+export const runPoliticalMatchingRuntime = async <T>({
+  mode,
+  runLegacy,
+  runPrivacyFirst
+}: {
+  mode: PoliticalMatchingRuntimeMode;
+  runLegacy: () => Promise<T>;
+  runPrivacyFirst: () => Promise<T>;
+}): Promise<T> => {
+  if (mode === 'privacy-first') {
+    try {
+      return await runPrivacyFirst();
+    } catch (error) {
+      return assertNoPrivacyFallback(mode, error);
+    }
+  }
+  return runLegacy();
+};

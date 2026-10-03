@@ -30,3 +30,5 @@ The shadow local matching pipeline reads the citizen vector locally first, then 
 ## Runtime selection policy
 
 The shadow runtime policy keeps legacy matching as the default until both local matching and an explicit vault cutover phase are active. Once privacy-first mode is selected, failures are propagated fail-closed; they must not trigger a silent fallback to server-side legacy matching.
+
+The runtime executor accepts separate legacy and privacy-first callbacks and executes exactly one. A privacy-first exception is rethrown; the legacy callback is never invoked as recovery. This is the hook-facing boundary for the eventual cutover.
