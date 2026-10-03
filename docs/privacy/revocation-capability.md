@@ -25,3 +25,7 @@ The shadow release workflow no longer accepts a raw `authorized=true`. Identity 
 ## Authoritative inactivity source
 
 For the shadow inactivity decision, callers no longer supply the activity timestamp. Identity reads `MAX(active_sessions.last_activity)` for the account and evaluates the 365-day threshold internally. Missing or malformed activity fails closed. This reuses the existing session activity source rather than creating a parallel client-controlled timestamp. Before production, coverage of every authentication path and retention of `active_sessions` must be verified so the source is complete enough for account-lifecycle decisions.
+
+## Authentication activity coverage audit
+
+Audit found that refresh/logout updated `active_sessions`, but initial OAuth and WebAuthn token issuance did not. A central `recordIssuedSession` helper now creates/updates the session immediately when those flows issue a refresh token, so `last_activity` reflects successful initial login as well as refresh. The CIE callback currently verifies/links identity and does not itself issue Demos login tokens, so it is not a separate activity-producing login path. Production retention/cleanup of `active_sessions` still needs review before automatic 365-day deletion is enabled.
