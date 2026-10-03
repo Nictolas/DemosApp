@@ -21,3 +21,7 @@ Identity may recover an escrowed capability only after an explicit authorization
 ## Identity authorization policy
 
 The shadow release workflow no longer accepts a raw `authorized=true`. Identity evaluates one of three explicit reasons: confirmed self-deletion, inactivity reaching 365 days, or independently verified deceased status. Unknown reasons and malformed/future activity timestamps fail closed. The reason remains inside Identity; the relay still receives only the opaque capability. Production definitions for who verifies a death, how self-deletion is strongly authenticated, and the authoritative activity timestamp source remain separate controls.
+
+## Authoritative inactivity source
+
+For the shadow inactivity decision, callers no longer supply the activity timestamp. Identity reads `MAX(active_sessions.last_activity)` for the account and evaluates the 365-day threshold internally. Missing or malformed activity fails closed. This reuses the existing session activity source rather than creating a parallel client-controlled timestamp. Before production, coverage of every authentication path and retention of `active_sessions` must be verified so the source is complete enough for account-lifecycle decisions.
