@@ -4,3 +4,23 @@ test('verified pseudonymous participant can be revoked immediately without Ident
 test('revocation fails closed without verified participant proof',async()=>{let n=0;const client={query:async()=>{n++;return{rows:[]}}};await assert.rejects(()=>revokeResearchParticipant(client,{participantPublicKey:Buffer.from('key'),participantSignatureVerified:false}),/Verified pseudonymous/);assert.equal(n,0)});
 test('revocation service contains no Identity linkage',()=>{const src=fs.readFileSync(path.join(__dirname,'..','services','researchParticipantRevocationService.js'),'utf8').toLowerCase();for(const x of ['identity.','account_id','user_id','email','jwt_secret'])assert.equal(src.includes(x),false)});
 test('shadow participant lease is bounded from last confirmation, allowing later renewals',()=>{const sql=fs.readFileSync(path.join(__dirname,'..','..','supabase','schemas','privacy_first_shadow.sql'),'utf8');assert.match(sql,/expires_at <= last_confirmed_at \+ interval '365 days'/i);assert.doesNotMatch(sql,/expires_at <= created_at \+ interval '365 days'/i)});
+
+
+test('revocation immediately makes participant contributions ineligible for current projections',()=>{
+ const sql=fs.readFileSync(path.join(__dirname,'..','..','supabase','schemas','privacy_first_shadow.sql'),'utf8');
+ const view=sql.match(/create or replace view research\.current_opinion_responses[\s\S]*?;/i)?.[0]||'';
+ assert.match(view,/where p\.status = 'active'/i);
+ assert.match(view,/and p\.expires_at > now\(\)/i);
+ const service=fs.readFileSync(path.join(__dirname,'..','services','researchParticipantRevocationService.js'),'utf8');
+ assert.match(service,/SET status = 'revoked', expires_at = LEAST\(expires_at, NOW\(\)\)/i);
+});
+
+test('physical deletion of a pseudonymous participant removes owned research rows without an Identity lookup',()=>{
+ const sql=fs.readFileSync(path.join(__dirname,'..','..','supabase','schemas','privacy_first_shadow.sql'),'utf8');
+ const owned=['participant_dimensions','opinion_response_events'];
+ for(const table of owned){
+  const block=sql.match(new RegExp('create table if not exists research\\\\.'+table+'[\\\\s\\\\S]*?\\\\);','i'))?.[0]||'';
+  assert.match(block,/references research\.participants\(participant_id\) on delete cascade/i);
+  assert.doesNotMatch(block,/identity\.|account_id|user_id|email/i);
+ }
+});
