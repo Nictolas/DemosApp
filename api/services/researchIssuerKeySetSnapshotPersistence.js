@@ -118,8 +118,8 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
       // recovery instead of silently accepting the older snapshot.
       await highWater.advanceTo(sequence);
       const advancedFloor = await readFloor();
-      if (advancedFloor < sequence) {
-        throw new Error('Issuer key-set high-water mark did not advance durably');
+      if (advancedFloor !== sequence) {
+        throw new Error('Issuer key-set high-water mark changed concurrently');
       }
 
       await io.rename(temporaryPath, snapshotPath);
