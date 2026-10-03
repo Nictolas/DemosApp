@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { publicVerif, Token } from '@cloudflare/privacypass-ts';
 import providerModule from '../../api/services/researchPrivacyPassCredentialProvider.js';
+import keyLoaderModule from '../../api/services/researchPrivacyPassPublicKeyLoader.js';
 
 const {
   BlindRSAMode,
@@ -14,6 +16,9 @@ const {
   buildCredentialRedemptionContext,
   createResearchPrivacyPassCredentialProvider
 } = providerModule;
+const {
+  createResearchPrivacyPassPublicKeyLoader
+} = keyLoaderModule;
 
 const ISSUER_NAME = 'identity.demos.invalid';
 const ORIGIN_INFO = ['research.demos.invalid'];
@@ -85,4 +90,47 @@ test('Demos Research provider verifies a real Blind-RSA Privacy Pass token and b
     }),
     { valid: false }
   );
+});
+
+test('Demos imports real Privacy Pass issuer bytes as a non-extractable verify-only RSA-PSS key', async () => {
+  const issuer = await createIssuer();
+  const publicKeyBytes = await getPublicKeyBytes(issuer.publicKey);
+  const loadVerificationKey = createResearchPrivacyPassPublicKeyLoader({
+    privacyPass: { publicVerif }
+  });
+  const importedKey = await loadVerificationKey(Buffer.from(publicKeyBytes));
+
+  assert.equal(importedKey.type, 'public');
+  assert.deepEqual(importedKey.usages, ['verify']);
+  assert.equal(importedKey.extractable, false);
+  assert.equal(importedKey.algorithm.name, 'RSA-PSS');
+  assert.equal(importedKey.algorithm.hash.name, 'SHA-384');
+
+  const token = await issueCredential({
+    issuer,
+    purpose: 'renew',
+    epoch: '2026-Q4'
+  });
+  const expectedKeyId = Buffer.from(
+    await crypto.webcrypto.subtle.digest('SHA-256', publicKeyBytes)
+  );
+  const provider = createResearchPrivacyPassCredentialProvider({
+    privacyPass: { publicVerif, Token },
+    issuerPublicKeyRing: {
+      async resolve({ tokenKeyId, epoch }) {
+        return epoch === '2026-Q4' &&
+          Buffer.from(tokenKeyId).equals(expectedKeyId)
+          ? importedKey
+          : null;
+      }
+    },
+    issuerName: issuer.name,
+    originInfo: ORIGIN_INFO
+  });
+
+  assert.deepEqual(await provider.verify({
+    credentialBytes: Buffer.from(token.serialize()),
+    purpose: 'renew',
+    epoch: '2026-Q4'
+  }), { valid: true, credentialVersion: 1 });
 });
