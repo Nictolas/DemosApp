@@ -42,3 +42,7 @@ The live representative-selection hook now consults the centralized cutover gate
 ## Missing vs corrupt vault
 
 Legacy bootstrap import is now allowed only when the encrypted ciphertext is genuinely absent (`OpinionVaultMissingError`). Existing-but-invalid ciphertext, missing device keys, authentication/decryption failures, and invalid plaintext fail closed and never trigger a legacy reimport/overwrite.
+
+## Live source injection boundary
+
+The representative-selection hook no longer reads `/api/opinioni/profile` inside its privacy-first branch. It now obtains a pre-installed local source and delegates to `runLocalPoliticalMatchingPipeline`. No source is installed by default, so an accidentally enabled privacy-first cutover fails closed instead of falling back to Identity. Source replacement is rejected. The concrete Android secure-storage source remains intentionally uninstalled until the native dependency is approved.

@@ -5,7 +5,8 @@ import { Rappresentante, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/rappresentanteUtils";
 import { getTitolo as getTitoloCandidati } from "../utils/candidatoUtils";
 import { useRoute } from "wouter";
-import { fetchPoliticalVectorsForLocalMatch, matchPoliticalVectorsLocally } from "@/lib/privacy/researchPoliticalMatchingClient";
+import { runLocalPoliticalMatchingPipeline } from "@/lib/privacy/localPoliticalMatchingPipeline";
+import { getLivePoliticalMatchingSource } from "@/lib/privacy/livePoliticalMatchingSource";
 import { getLivePoliticalMatchingRuntimeMode } from "@/lib/privacy/liveMatchingCutoverPolicy";
 
 // Hook per controllare opinioni mancanti
@@ -93,15 +94,11 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       
       try {
         if (!isTestRoute && getLivePoliticalMatchingRuntimeMode().mode === "privacy-first") {
-          const opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
-          const citizenOpinions = opinionsResponse?.data?.data?.userAnswers;
-          if (!opinionsResponse?.ok || !citizenOpinions || typeof citizenOpinions !== 'object') {
-            throw new Error("Opinioni locali non disponibili per il matching privacy-first");
-          }
-
-          const scope = { kind: 'representative' as const, grade: grado };
-          const vectors = await fetchPoliticalVectorsForLocalMatch(scope);
-          const localMatches = matchPoliticalVectorsLocally(citizenOpinions, vectors, 4);
+          const localMatches = await runLocalPoliticalMatchingPipeline({
+            source: getLivePoliticalMatchingSource(),
+            scope: { kind: 'representative' as const, grade: grado },
+            limit: 4
+          });
           setRappresentanti(localMatches.map(({ candidate, commonOpinions, comparedOpinions }) => ({
             ...(candidate as any),
             commonOpinions,
