@@ -62,7 +62,7 @@ create table if not exists research.participants (
   last_confirmed_at timestamptz,
   expires_at timestamptz not null,
   check (expires_at > created_at),
-  check (expires_at <= created_at + interval '365 days')
+  check (last_confirmed_at is null or expires_at <= last_confirmed_at + interval '365 days')
 );
 
 -- Anti-replay set. Deliberately no participant_id.

@@ -43,7 +43,7 @@ const redeemEnrollmentCredential = async (
        VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '365 days')
        ON CONFLICT (participant_public_key) DO UPDATE
        SET last_confirmed_at = NOW(),
-           expires_at = LEAST(NOW() + INTERVAL '365 days', EXCLUDED.created_at + INTERVAL '365 days'),
+           expires_at = NOW() + INTERVAL '365 days',
            status = 'active',
            credential_version = GREATEST(
              research.participants.credential_version,
