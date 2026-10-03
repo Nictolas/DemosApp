@@ -23,3 +23,7 @@ A non-wired shadow mirror can copy successful Identity activity into the lifecyc
 ## Auth hook with schema-readiness gate
 
 The session service now contains the shadow hook after successful legacy session issuance/rotation/revocation. It remains inert because the feature flag defaults OFF. Even if the flag is set, the writer refuses lifecycle writes until this process has positively attested `identity.account_activity` with `to_regclass`. Attestation errors fail closed. No startup code currently performs that attestation and no environment value is set by this commit, so production behavior remains legacy-only.
+
+## Cutover readiness orchestration
+
+Cutover authorization now has four independent prerequisites: positive schema attestation, explicit process-local backfill attestation, live parity with zero missing/lagging accounts, and an explicit manual approval input. None is inferred from the others and none is automatically set by startup. Missing prerequisites fail closed. This is policy/test scaffolding only; it does not switch the inactivity reader or mutate production state.
