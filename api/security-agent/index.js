@@ -34,6 +34,17 @@ const {
   buildAlertRoutingPlan,
   acknowledgeAlert
 } = require('./securityAlertRouting');
+const {
+  NOTIFICATION_CONTRACT_VERSION: SECURITY_NOTIFICATION_CONTRACT_VERSION,
+  EXTERNAL_CHANNELS: SECURITY_NOTIFICATION_EXTERNAL_CHANNELS,
+  INTERNAL_CHANNELS: SECURITY_NOTIFICATION_INTERNAL_CHANNELS,
+  sanitizeNotificationTask,
+  sanitizeAuditRecord: sanitizeNotificationAuditRecord,
+  MemoryNotificationAudit,
+  createNoopNotificationAdapter,
+  buildDefaultNoopAdapters,
+  NotificationDispatcher
+} = require('./securityNotificationAdapters');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -71,6 +82,15 @@ module.exports = {
   alertFingerprint,
   buildAlertRoutingPlan,
   acknowledgeAlert,
+  SECURITY_NOTIFICATION_CONTRACT_VERSION,
+  SECURITY_NOTIFICATION_EXTERNAL_CHANNELS,
+  SECURITY_NOTIFICATION_INTERNAL_CHANNELS,
+  sanitizeNotificationTask,
+  sanitizeNotificationAuditRecord,
+  MemoryNotificationAudit,
+  createNoopNotificationAdapter,
+  buildDefaultNoopAdapters,
+  NotificationDispatcher,
   runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,
