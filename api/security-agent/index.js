@@ -15,6 +15,7 @@ const { NOTIFICATION_SIMULATION_VERSION: SECURITY_NOTIFICATION_SIMULATION_VERSIO
 const { AI_ANALYST_CONTRACT_VERSION: SECURITY_AI_ANALYST_CONTRACT_VERSION, AI_ANALYST_MODE: SECURITY_AI_ANALYST_MODE, AI_ANALYST_SYSTEM_POLICY: SECURITY_AI_ANALYST_SYSTEM_POLICY, ASSESSMENTS: SECURITY_AI_ANALYST_ASSESSMENTS, PRIORITIES: SECURITY_AI_ANALYST_PRIORITIES, RECOMMENDED_ACTIONS: SECURITY_AI_ANALYST_RECOMMENDED_ACTIONS, sanitizeIncidentForAi, sanitizeAlertForAi, sanitizeHealthForAi, buildAiAnalystInput, validateAiAnalystOutput, buildAiAnalystRequest } = require('./securityAiAnalystContract');
 const { AI_ANALYST_MOCK_RUNNER_VERSION: SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION, createDeterministicMockAiProvider, emptyAiAnalystMockStatus, SecurityAiAnalystMockRunner } = require('./securityAiAnalystMockRunner');
 const { MODEL_GATEWAY_VERSION: SECURITY_AI_MODEL_GATEWAY_VERSION, DEFAULT_TIMEOUT_MS: SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS, buildModelGatewayConfig, SecurityAiModelGateway } = require('./securityAiModelGateway');
+const { AI_SHADOW_INTEGRATION_VERSION: SECURITY_AI_SHADOW_INTEGRATION_VERSION, ALLOWED_BACKENDS: SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig, SecurityAiShadowIntegration, createSecurityAiShadowIntegration } = require('./securityAiShadowIntegration');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -35,7 +36,8 @@ module.exports = {
   SECURITY_AI_ANALYST_SYSTEM_POLICY, SECURITY_AI_ANALYST_ASSESSMENTS, SECURITY_AI_ANALYST_PRIORITIES, SECURITY_AI_ANALYST_RECOMMENDED_ACTIONS, sanitizeIncidentForAi,
   sanitizeAlertForAi, sanitizeHealthForAi, buildAiAnalystInput, validateAiAnalystOutput, buildAiAnalystRequest, SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
   createDeterministicMockAiProvider, emptyAiAnalystMockStatus, SecurityAiAnalystMockRunner, SECURITY_AI_MODEL_GATEWAY_VERSION, SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS,
-  buildModelGatewayConfig, SecurityAiModelGateway, runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner,
-  SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident, normalizeSecurityEvent, sanitizeMeta,
-  adaptLegacySecurityRecord, adaptLegacyViolation
+  buildModelGatewayConfig, SecurityAiModelGateway, SECURITY_AI_SHADOW_INTEGRATION_VERSION, SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig,
+  SecurityAiShadowIntegration, createSecurityAiShadowIntegration, runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner,
+  createShadowSecurityRunner, SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
+  normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation
 };
