@@ -25,6 +25,14 @@ create table if not exists identity.participation_eligibility (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists identity.revocation_escrows (
+  account_id uuid primary key references public.users(id) on delete cascade,
+  envelope jsonb not null,
+  key_version integer not null check (key_version > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Identity records issuance eligibility, never the final token or participant_id.
 create table if not exists identity.credential_issuances (
   issuance_id uuid primary key default gen_random_uuid(),
@@ -194,6 +202,8 @@ create table if not exists audit.security_events (
 
 alter table identity.participation_eligibility enable row level security;
 alter table identity.participation_eligibility force row level security;
+alter table identity.revocation_escrows enable row level security;
+alter table identity.revocation_escrows force row level security;
 alter table identity.credential_issuances enable row level security;
 alter table identity.credential_issuances force row level security;
 alter table content.opinion_questions enable row level security;
