@@ -98,3 +98,57 @@ test('Research production gate rejects unsigned direct evidence booleans', () =>
   assert.equal(result.mounted, false);
   assert.equal(mountCalls, 0);
 });
+
+
+test('Research production gate rejects a signed manifest bound to a different commit', () => {
+  let mountCalls = 0;
+  const options = signedManifestOptions();
+  const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
+    decisions: allReady(),
+    ...options,
+    expectedCommitSha: 'ffffffffffffffffffffffffffffffffffffffff',
+    mount() { mountCalls += 1; return { mounted: true }; }
+  });
+  assert.equal(result.mounted, false);
+  assert.equal(mountCalls, 0);
+});
+
+test('Research production gate rejects expired signed readiness evidence', () => {
+  let mountCalls = 0;
+  const options = signedManifestOptions();
+  const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
+    decisions: allReady(),
+    ...options,
+    now: new Date('2026-10-03T18:00:00.000Z'),
+    mount() { mountCalls += 1; return { mounted: true }; }
+  });
+  assert.equal(result.mounted, false);
+  assert.equal(mountCalls, 0);
+});
+
+test('Research production gate requires human approval even with valid signed technical evidence', () => {
+  let mountCalls = 0;
+  const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
+    decisions: {},
+    ...signedManifestOptions(),
+    mount() { mountCalls += 1; return { mounted: true }; }
+  });
+  assert.equal(result.mounted, false);
+  assert.equal(result.blockers.includes('productionApprovalRecorded'), true);
+  assert.equal(mountCalls, 0);
+});
+
+test('Research production gate never delegates when the readiness signature is tampered', () => {
+  let mountCalls = 0;
+  const options = signedManifestOptions();
+  const tampered = options.readinessManifestSignature.slice(0, -1) +
+    (options.readinessManifestSignature.endsWith('A') ? 'B' : 'A');
+  const result = mountResearchPublicApiIfProductionReady({ use() {} }, {
+    decisions: allReady(),
+    ...options,
+    readinessManifestSignature: tampered,
+    mount() { mountCalls += 1; return { mounted: true }; }
+  });
+  assert.equal(result.mounted, false);
+  assert.equal(mountCalls, 0);
+});
