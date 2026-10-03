@@ -1,5 +1,8 @@
 const crypto = require('crypto');
-const { READ_OPINIONS_PURPOSE } = require('./researchParticipantProofPolicy');
+const {
+  READ_OPINIONS_PURPOSE,
+  PARTICIPANT_PROOF_PURPOSES
+} = require('./researchParticipantProofPolicy');
 
 const MIN_TTL_SECONDS = 30;
 const MAX_TTL_SECONDS = 300;
@@ -10,6 +13,12 @@ const normalizeTtlSeconds = (value = DEFAULT_TTL_SECONDS) => {
     throw new Error('Invalid Research proof challenge TTL');
   }
   return value;
+};
+
+const assertSupportedPurpose = (purpose) => {
+  if (!PARTICIPANT_PROOF_PURPOSES.includes(purpose)) {
+    throw new Error('Unsupported Research proof challenge purpose');
+  }
 };
 
 const digestChallenge = (challenge) => {
@@ -30,9 +39,7 @@ const issueResearchProofChallenge = async (
   if (!client || typeof client.query !== 'function') {
     throw new Error('Research proof challenge issuance requires a PostgreSQL client');
   }
-  if (purpose !== READ_OPINIONS_PURPOSE) {
-    throw new Error('Unsupported Research proof challenge purpose');
-  }
+  assertSupportedPurpose(purpose);
   if (typeof randomBytes !== 'function') {
     throw new Error('Research proof challenge random source is required');
   }
@@ -72,9 +79,7 @@ const consumeResearchProofChallenge = async (
   if (!client || typeof client.query !== 'function') {
     throw new Error('Research proof challenge consumption requires a PostgreSQL client');
   }
-  if (purpose !== READ_OPINIONS_PURPOSE) {
-    throw new Error('Unsupported Research proof challenge purpose');
-  }
+  assertSupportedPurpose(purpose);
 
   const challengeDigest = digestChallenge(challenge);
   const result = await client.query(

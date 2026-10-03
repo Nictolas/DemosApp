@@ -1,5 +1,5 @@
 const {
-  READ_OPINIONS_PURPOSE
+  PARTICIPANT_PROOF_PURPOSES
 } = require('./researchParticipantProofPolicy');
 const {
   consumeResearchProofChallenge
@@ -23,7 +23,7 @@ const createResearchParticipantProofVerifier = ({
       challenge,
       signature
     }) {
-      if (purpose !== READ_OPINIONS_PURPOSE) {
+      if (!PARTICIPANT_PROOF_PURPOSES.includes(purpose)) {
         return {
           valid: false,
           challengeFresh: false,
