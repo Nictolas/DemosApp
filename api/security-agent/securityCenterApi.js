@@ -30,6 +30,13 @@ function createSecurityCenterHandlers(service) {
         return res.json({ success: true, data });
       } catch (_error) { return sendError(res); }
     },
+    async boundaryAudit(req, res) {
+      try {
+        if (typeof service.getBoundaryAudit !== 'function') throw new Error('read unavailable');
+        const data = await service.getBoundaryAudit({ limit: req?.query?.limit });
+        return res.json({ success: true, data });
+      } catch (_error) { return sendError(res); }
+    },
     async approvals(req, res) {
       try {
         if (typeof service.getApprovals !== 'function') throw new Error('approval read unavailable');
