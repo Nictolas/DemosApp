@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const src=fs.readFileSync(path.join(__dirname,'..','services','sessionService.js'),'utf8');
+test('session issuance and rotation contain shadow lifecycle hook',()=>{assert.match(src,/shadowRecordAccountActivity/);assert.ok((src.match(/shadowRecordAccountActivity/g)||[]).length>=3)});
