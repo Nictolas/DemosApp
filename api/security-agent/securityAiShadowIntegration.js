@@ -1,4 +1,6 @@
-const AI_SHADOW_INTEGRATION_VERSION = 'v0.18';
+const { evaluateAiPolicy, policyStatus } = require('./securityPolicyEngine');
+
+const AI_SHADOW_INTEGRATION_VERSION = 'v0.22';
 const ALLOWED_BACKENDS = Object.freeze(['mock', 'gateway']);
 
 function safeBackend(value) {
@@ -34,6 +36,7 @@ function normalizeAnalysis(value, analyzedAt, backend) {
   if (!Array.isArray(value.toolCalls) || value.toolCalls.length !== 0) throw new Error('AI_SHADOW_TOOL_CALLS_FORBIDDEN');
   const summary = String(value.summary || '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 300);
   if (!summary) throw new Error('AI_SHADOW_OUTPUT_INVALID');
+  const policy = evaluateAiPolicy(value);
   return Object.freeze({
     analyzedAt,
     backend,
@@ -45,7 +48,8 @@ function normalizeAnalysis(value, analyzedAt, backend) {
     recommendedActions: Object.freeze(Array.isArray(value.recommendedActions) ? value.recommendedActions.slice(0, 5) : []),
     requiresHumanReview: value.requiresHumanReview === true,
     executable: false,
-    toolCalls: Object.freeze([])
+    toolCalls: Object.freeze([]),
+    policy: Object.freeze({ version: policy.version, decision: policy.decision, reasonCode: policy.reasonCode, executable: false, actionCount: policy.actions.length })
   });
 }
 
@@ -66,6 +70,7 @@ class SecurityAiShadowIntegration {
     this.failureCount = 0;
     this.lastRunAt = null;
     this.lastErrorCode = null;
+    this.policyCounters = { allow: 0, deny: 0, escalate: 0 };
   }
 
   _target() {
@@ -103,6 +108,7 @@ class SecurityAiShadowIntegration {
       this._fail('AI_SHADOW_OUTPUT_INVALID');
     }
     this.successCount += 1;
+    if (Object.prototype.hasOwnProperty.call(this.policyCounters, record.policy.decision)) this.policyCounters[record.policy.decision] += 1;
     this.lastErrorCode = null;
     this.recent.push(record);
     if (this.recent.length > this.maxRecent) this.recent.splice(0, this.recent.length - this.maxRecent);
@@ -131,7 +137,8 @@ class SecurityAiShadowIntegration {
       failureCount: this.failureCount,
       lastRunAt: this.lastRunAt,
       lastErrorCode: this.lastErrorCode,
-      target: publicTargetStatus(targetStatus)
+      target: publicTargetStatus(targetStatus),
+      policy: Object.freeze({ ...policyStatus(), counters: Object.freeze({ ...this.policyCounters }) })
     });
   }
 
