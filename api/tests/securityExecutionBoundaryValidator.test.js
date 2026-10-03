@@ -1,0 +1,9 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {buildExecutionBoundary}=require('../security-agent/securityExecutionBoundary');const {validateExecutionBoundary,boundaryValidationStatus}=require('../security-agent/securityExecutionBoundaryValidator');
+const now=()=>new Date('2026-10-03T18:00:00Z');const approval={approvalId:'apr_1_1',action:'investigate',priority:'P2',state:'approved'};
+test('valid boundary passes',()=>{const b=buildExecutionBoundary(approval,{now});assert.equal(validateExecutionBoundary(b,{now}).ok,true);});
+test('expired boundary fails',()=>{const b=buildExecutionBoundary(approval,{now,ttlMs:60000});const r=validateExecutionBoundary(b,{now:()=>new Date('2026-10-03T18:02:00Z')});assert.equal(r.ok,false);assert.ok(r.issues.includes('BOUNDARY_EXPIRED'));});
+test('authorized true fails closed',()=>{const b={...buildExecutionBoundary(approval,{now}),authorized:true};assert.ok(validateExecutionBoundary(b,{now}).issues.includes('AUTHORIZED_MUST_BE_FALSE'));});
+test('executable true fails closed',()=>{const b={...buildExecutionBoundary(approval,{now}),executable:true};assert.ok(validateExecutionBoundary(b,{now}).issues.includes('EXECUTABLE_MUST_BE_FALSE'));});
+test('runner availability fails closed',()=>{const b={...buildExecutionBoundary(approval,{now}),actionRunnerAvailable:true};assert.ok(validateExecutionBoundary(b,{now}).issues.includes('RUNNER_MUST_BE_FALSE'));});
+test('unknown action fails',()=>{const b={...buildExecutionBoundary(approval,{now}),action:'shell'};assert.ok(validateExecutionBoundary(b,{now}).issues.includes('ACTION_INVALID'));});
+test('status remains shadow and non operational',()=>{const s=boundaryValidationStatus();assert.equal(s.mode,'shadow');assert.equal(s.executable,false);assert.equal(s.actionRunnerAvailable,false);});
