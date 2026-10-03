@@ -20,9 +20,9 @@ Pinned for the POC:
 
 The upstream package was re-verified on 30/09/2026. It is ESM-only and requires Node >=20.
 
-## What the test demonstrates
+## What the tests demonstrate
 
-The test follows the upstream public-verifiable Blind-RSA flow:
+The first test follows the upstream public-verifiable Blind-RSA flow:
 
 1. **Identity/Issuer** owns the signing private key.
 2. **Research/Origin** creates a token challenge.
@@ -30,6 +30,13 @@ The test follows the upstream public-verifiable Blind-RSA flow:
 4. **Identity** signs the blinded request.
 5. **Client** finalizes/unblinds the token.
 6. **Research** verifies the token using only the issuer public key.
+
+The Research verifier integration test then passes a real finalized token through the Demos verify-only provider boundary. It additionally requires:
+
+- the token challenge digest to match a Research challenge deterministically bound to `purpose + epoch`;
+- the token key ID to match the configured issuer public key;
+- Blind-RSA verification to succeed with the issuer public key;
+- the same token to fail if `purpose` or `epoch` is changed.
 
 This is the cryptographic primitive we want for:
 
@@ -43,14 +50,17 @@ A successful cryptographic test does **not** prove that a deployed system is unl
 
 IP address, timestamps, request IDs, cookies, device fingerprints, analytics SDKs or shared infrastructure can still correlate issuance and redemption. Those risks remain governed by the Demos threat model.
 
-It also does not yet implement:
+It also does not yet implement or authorize:
 
-- one credential per account/epoch;
-- anti-replay persistence;
-- participant key/recovery;
-- consent enforcement;
+- production key provisioning/rotation;
+- audited issuer infrastructure;
+- production mounting of Research renewal routes;
+- distributed rate limiting;
+- consent enforcement and operational DPIA decisions;
 - network/timing separation;
-- deletion/revocation flow.
+- production deletion/revocation scheduling.
+
+The deterministic 32-byte redemption context used for `purpose + epoch` is a Demos shadow design choice and must receive protocol/security review before production activation.
 
 ## Run in an isolated environment
 
