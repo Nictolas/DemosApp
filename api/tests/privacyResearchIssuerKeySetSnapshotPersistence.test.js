@@ -1,0 +1,164 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+
+const {
+  createResearchIssuerKeySetSnapshotPersistence
+} = require('../services/researchIssuerKeySetSnapshotPersistence');
+
+const makeSnapshot = (sequence, extra = {}) => JSON.stringify({
+  payload: { sequence, ...extra },
+  signature: 'fixture'
+});
+
+const makeHighWaterMarkStore = (initial = 0) => {
+  let floor = initial;
+  return {
+    async readMinimumSequence() {
+      return floor;
+    },
+    async advanceTo(sequence) {
+      if (sequence < floor) throw new Error('rollback');
+      floor = sequence;
+    },
+    current() {
+      return floor;
+    }
+  };
+};
+
+const makeTempTarget = async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'demos-keyset-persist-'));
+  return { dir, snapshotPath: path.join(dir, 'issuer-keyset.json') };
+};
+
+test('authenticated issuer key-set snapshot persists atomically and recovers only after restart revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const highWater = makeHighWaterMarkStore();
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: highWater
+  });
+
+  const snapshotJson = makeSnapshot(7, { issuedAt: 1, expiresAt: 2 });
+  const persisted = await persistence.persistAuthenticatedSnapshot({
+    snapshotJson,
+    sequence: 7
+  });
+  assert.equal(persisted.sequence, 7);
+  assert.equal(highWater.current(), 7);
+
+  const stat = await fs.stat(snapshotPath);
+  assert.equal(stat.mode & 0o077, 0);
+
+  let revalidateCalls = 0;
+  const recovered = await persistence.recoverAuthenticatedSnapshot({
+    revalidate: async (candidate) => {
+      revalidateCalls += 1;
+      assert.equal(candidate, snapshotJson);
+      return { ready: true, sequence: 7, expiresAt: 2 };
+    }
+  });
+  assert.equal(revalidateCalls, 1);
+  assert.equal(recovered.snapshotJson, snapshotJson);
+  assert.equal(recovered.sequence, 7);
+  assert.equal(recovered.expiresAt, 2);
+});
+
+test('rollback of the persisted file below the independent high-water mark fails closed before revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const highWater = makeHighWaterMarkStore();
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: highWater
+  });
+
+  await persistence.persistAuthenticatedSnapshot({ snapshotJson: makeSnapshot(10), sequence: 10 });
+  await persistence.persistAuthenticatedSnapshot({ snapshotJson: makeSnapshot(11), sequence: 11 });
+
+  await fs.writeFile(snapshotPath, makeSnapshot(10), { mode: 0o600 });
+  await fs.chmod(snapshotPath, 0o600);
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 10 };
+      }
+    }),
+    /high-water mark/i
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('failed high-water mark advance does not replace the previous snapshot', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const highWater = makeHighWaterMarkStore();
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: highWater
+  });
+
+  const first = makeSnapshot(3);
+  await persistence.persistAuthenticatedSnapshot({ snapshotJson: first, sequence: 3 });
+  const failingHighWater = {
+    async readMinimumSequence() {
+      return 3;
+    },
+    async advanceTo() {
+      throw new Error('durable monotonic store unavailable');
+    }
+  };
+  const failingPersistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: failingHighWater
+  });
+
+  await assert.rejects(
+    () => failingPersistence.persistAuthenticatedSnapshot({
+      snapshotJson: makeSnapshot(4),
+      sequence: 4
+    }),
+    /monotonic store unavailable/i
+  );
+  assert.equal(await fs.readFile(snapshotPath, 'utf8'), first);
+});
+
+test('restart recovery rejects tampered or stale material when cryptographic/freshness revalidation fails', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const highWater = makeHighWaterMarkStore();
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: highWater
+  });
+
+  await persistence.persistAuthenticatedSnapshot({ snapshotJson: makeSnapshot(21), sequence: 21 });
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => ({ ready: false, reason: 'freshness-window', sequence: 21 })
+    }),
+    /restart revalidation/i
+  );
+});
+
+test('persistence requires an absolute path and an independently supplied monotonic store', () => {
+  assert.throws(
+    () => createResearchIssuerKeySetSnapshotPersistence({
+      snapshotPath: 'relative.json',
+      highWaterMarkStore: makeHighWaterMarkStore()
+    }),
+    /absolute/i
+  );
+  assert.throws(
+    () => createResearchIssuerKeySetSnapshotPersistence({
+      snapshotPath: path.join(os.tmpdir(), 'x.json')
+    }),
+    /high-water mark/i
+  );
+});
