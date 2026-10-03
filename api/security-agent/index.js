@@ -17,6 +17,7 @@ const { AI_ANALYST_MOCK_RUNNER_VERSION: SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
 const { MODEL_GATEWAY_VERSION: SECURITY_AI_MODEL_GATEWAY_VERSION, DEFAULT_TIMEOUT_MS: SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS, buildModelGatewayConfig, SecurityAiModelGateway } = require('./securityAiModelGateway');
 const { AI_SHADOW_INTEGRATION_VERSION: SECURITY_AI_SHADOW_INTEGRATION_VERSION, ALLOWED_BACKENDS: SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig, SecurityAiShadowIntegration, createSecurityAiShadowIntegration } = require('./securityAiShadowIntegration');
 const { AI_ANALYSIS_ORCHESTRATOR_VERSION: SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SEVERITY_RANK: SECURITY_AI_ANALYSIS_SEVERITY_RANK, buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicCycleResult: publicAiAnalysisCycleResult } = require('./securityAiAnalysisOrchestrator');
+const { POLICY_ENGINE_VERSION: SECURITY_POLICY_ENGINE_VERSION, POLICY_DECISIONS: SECURITY_POLICY_DECISIONS, ACTION_POLICY: SECURITY_ACTION_POLICY, evaluateActionPolicy: evaluateSecurityActionPolicy, evaluateAiPolicy: evaluateSecurityAiPolicy, policyStatus: securityPolicyStatus } = require('./securityPolicyEngine');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -40,6 +41,7 @@ module.exports = {
   buildModelGatewayConfig, SecurityAiModelGateway, SECURITY_AI_SHADOW_INTEGRATION_VERSION, SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig,
   SecurityAiShadowIntegration, createSecurityAiShadowIntegration, SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SECURITY_AI_ANALYSIS_SEVERITY_RANK,
   buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicAiAnalysisCycleResult,
+  SECURITY_POLICY_ENGINE_VERSION, SECURITY_POLICY_DECISIONS, SECURITY_ACTION_POLICY, evaluateSecurityActionPolicy, evaluateSecurityAiPolicy, securityPolicyStatus,
   runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult,
   SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
   normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation
