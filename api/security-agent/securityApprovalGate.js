@@ -1,4 +1,4 @@
-const APPROVAL_GATE_VERSION = 'v0.28';
+const APPROVAL_GATE_VERSION = 'v0.29';
 const APPROVAL_STATES = Object.freeze(['pending', 'approved', 'rejected', 'expired']);
 const ALLOWED_ACTIONS = new Set(['investigate','escalate_human','propose_rate_limit','propose_session_revocation','propose_endpoint_isolation','propose_secret_rotation']);
 
@@ -61,12 +61,30 @@ class SecurityApprovalGate {
     this._expire(); const n=Number(limit); if(!Number.isInteger(n)||n<1||n>100) throw new Error('invalid approval audit limit');
     return Object.freeze(this.audit.slice(0,n).map(item=>Object.freeze({ ...item, executable:false })));
   }
+  consistency() {
+    this._expire();
+    const live = { pending:0, approved:0, rejected:0, expired:0 };
+    const ids = new Set();
+    let duplicateIds = 0;
+    for (const record of this.records) {
+      if (live[record.state] !== undefined) live[record.state] += 1;
+      if (ids.has(record.approvalId)) duplicateIds += 1;
+      ids.add(record.approvalId);
+    }
+    const issues = [];
+    if (duplicateIds) issues.push('DUPLICATE_APPROVAL_ID');
+    if (this.counters.pending !== live.pending) issues.push('PENDING_COUNTER_MISMATCH');
+    for (const key of APPROVAL_STATES) if (!Number.isInteger(this.counters[key]) || this.counters[key] < 0) issues.push('COUNTER_INVALID');
+    if (this.records.length > this.maxRecords) issues.push('RECORD_LIMIT_EXCEEDED');
+    if (this.audit.length > this.maxRecords) issues.push('AUDIT_LIMIT_EXCEEDED');
+    return Object.freeze({ ok:issues.length===0, issues:Object.freeze([...new Set(issues)]), live:Object.freeze(live), recordCount:this.records.length, auditCount:this.audit.length, executable:false });
+  }
   simulateDecision(approvalId, decision) {
     return this.decide(approvalId, decision);
   }
   status() {
     this._expire();
-    return Object.freeze({ version:APPROVAL_GATE_VERSION, mode:'shadow', actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true, capacityFailClosed:true, ttlMs:this.ttlMs, maxRecords:this.maxRecords, auditSize:this.audit.length, counters:Object.freeze({ ...this.counters }) });
+    return Object.freeze({ version:APPROVAL_GATE_VERSION, mode:'shadow', actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true, capacityFailClosed:true, consistencyCheckAvailable:true, ttlMs:this.ttlMs, maxRecords:this.maxRecords, auditSize:this.audit.length, counters:Object.freeze({ ...this.counters }) });
   }
 }
 module.exports={ APPROVAL_GATE_VERSION, APPROVAL_STATES, SecurityApprovalGate };
