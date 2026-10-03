@@ -65,6 +65,12 @@ const {
   validateAiAnalystOutput,
   buildAiAnalystRequest
 } = require('./securityAiAnalystContract');
+const {
+  AI_ANALYST_MOCK_RUNNER_VERSION: SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
+  createDeterministicMockAiProvider,
+  emptyAiAnalystMockStatus,
+  SecurityAiAnalystMockRunner
+} = require('./securityAiAnalystMockRunner');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -127,6 +133,10 @@ module.exports = {
   buildAiAnalystInput,
   validateAiAnalystOutput,
   buildAiAnalystRequest,
+  SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
+  createDeterministicMockAiProvider,
+  emptyAiAnalystMockStatus,
+  SecurityAiAnalystMockRunner,
   runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,
