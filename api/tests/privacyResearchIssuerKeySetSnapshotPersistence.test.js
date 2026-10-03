@@ -268,3 +268,32 @@ test('recovery fails closed if the high-water mark changes during revalidation',
     /changed during recovery/i
   );
 });
+
+
+test('snapshot write fails closed if another writer advances the high-water mark past its sequence', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(snapshotPath, makeSnapshot(60), { mode: 0o600 });
+  await fs.chmod(snapshotPath, 0o600);
+  let floor = 60;
+  const highWaterMarkStore = {
+    async readMinimumSequence() { return floor; },
+    async advanceTo(sequence) {
+      floor = sequence + 1;
+    }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({
+      snapshotJson: makeSnapshot(61),
+      sequence: 61
+    }),
+    /changed concurrently/i
+  );
+  assert.equal(await fs.readFile(snapshotPath, 'utf8'), makeSnapshot(60));
+  assert.equal(floor, 62);
+});
