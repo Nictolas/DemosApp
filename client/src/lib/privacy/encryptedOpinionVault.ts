@@ -1,5 +1,6 @@
 import type { MatchVector } from './localPoliticalMatcher';
 import { validateLocalOpinionVector } from './localOpinionVault';
+import { OpinionVaultMissingError } from './opinionVaultErrors';
 
 const CIPHERTEXT_KEY = 'demos.encrypted-opinion-vault.v1';
 const encoder = new TextEncoder();
@@ -45,7 +46,7 @@ export const createEncryptedOpinionVault = ({
 
   async read(): Promise<MatchVector> {
     const raw = storage.getItem(CIPHERTEXT_KEY);
-    if (!raw) throw new Error('Encrypted local opinion vector missing');
+    if (!raw) throw new OpinionVaultMissingError();
     const envelope = JSON.parse(raw);
     if (envelope?.version !== 1 || envelope?.algorithm !== 'AES-GCM' || typeof envelope.iv !== 'string' || typeof envelope.ciphertext !== 'string') {
       throw new Error('Invalid encrypted opinion envelope');
