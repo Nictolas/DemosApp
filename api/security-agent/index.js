@@ -27,6 +27,13 @@ const {
   PRIORITY_ORDER: SECURITY_ALERT_PRIORITY_ORDER,
   buildSecurityAlerts
 } = require('./securityAlertPolicy');
+const {
+  ROUTING_POLICY_VERSION: SECURITY_ALERT_ROUTING_VERSION,
+  ROUTES: SECURITY_ALERT_ROUTES,
+  alertFingerprint,
+  buildAlertRoutingPlan,
+  acknowledgeAlert
+} = require('./securityAlertRouting');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -59,6 +66,11 @@ module.exports = {
   SECURITY_ALERT_POLICY_VERSION,
   SECURITY_ALERT_PRIORITY_ORDER,
   buildSecurityAlerts,
+  SECURITY_ALERT_ROUTING_VERSION,
+  SECURITY_ALERT_ROUTES,
+  alertFingerprint,
+  buildAlertRoutingPlan,
+  acknowledgeAlert,
   runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,
