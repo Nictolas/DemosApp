@@ -31,3 +31,7 @@ Cutover authorization now has four independent prerequisites: positive schema at
 ## Durable migration evidence (shadow)
 
 The shadow schema defines an Identity-only `lifecycle_migration_evidence` table with forced RLS. Evidence records contain migration version, schema/backfill booleans, aggregate missing/lagging counts, observation time, and a domain-separated SHA-256 integrity digest. They contain no account identifiers, session metadata, opinions, or Research identifiers. The digest detects accidental/tampered field changes but is not an operator signature; production approval must remain separate and stronger. No evidence table is created or written in production by this commit.
+
+## Fresh evidence binding
+
+A recorder can persist evidence only after the live readiness evaluator returns complete parity counts. Cutover policy now independently requires manual approval, integrity-valid evidence, evidence no older than 15 minutes (and not from the future), zero recorded defects, and a fresh live readiness check. The evidence therefore cannot replace live verification or human approval. Nothing invokes the recorder or cutover policy automatically.
