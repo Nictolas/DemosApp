@@ -1,0 +1,5 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {BoundaryAudit}=require('../security-agent/securityBoundaryAudit');const {SecurityCenterService}=require('../security-agent/securityCenterService');
+const store={listIncidents:async()=>[],getSourceState:async()=>null,stats:async()=>({incidentCount:0})};const runner={status:()=>({enabled:false})};
+test('boundary audit read is bounded',async()=>{const a=new BoundaryAudit();a.record({action:'investigate'},{ok:true});const s=new SecurityCenterService({runner,store,boundaryAudit:a});const d=await s.getBoundaryAudit({limit:1});assert.equal(d.audit.length,1);});
+test('boundary audit read remains non operational',async()=>{const s=new SecurityCenterService({runner,store,boundaryAudit:new BoundaryAudit()});const d=await s.getBoundaryAudit();assert.equal(d.status.executable,false);assert.equal(d.status.actionRunnerAvailable,false);});
+test('missing audit has safe empty read model',async()=>{const s=new SecurityCenterService({runner,store});const d=await s.getBoundaryAudit();assert.deepEqual(d.audit,[]);assert.equal(d.status.executable,false);});

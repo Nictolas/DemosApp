@@ -22,7 +22,7 @@ function validateLimit(value, fallback = 100) {
 }
 
 class SecurityCenterService {
-  constructor({ runner, runtime = null, store, notificationSimulation = null, aiAnalyst = null, aiOrchestrator = null, aiPolicy = null, approvalGate = null, sourceName = 'axiom-security', staleAfterMs = 10 * 60 * 1000 } = {}) {
+  constructor({ runner, runtime = null, store, notificationSimulation = null, aiAnalyst = null, aiOrchestrator = null, aiPolicy = null, approvalGate = null, boundaryAudit = null, sourceName = 'axiom-security', staleAfterMs = 10 * 60 * 1000 } = {}) {
     if (!runner || typeof runner.status !== 'function') throw new TypeError('runner.status() is required');
     if (runtime !== null && (!runtime || typeof runtime.status !== 'function')) throw new TypeError('runtime.status() is required when runtime is provided');
     if (!store || typeof store.listIncidents !== 'function' || typeof store.stats !== 'function' || typeof store.getSourceState !== 'function') throw new TypeError('store read contract is required');
@@ -39,6 +39,7 @@ class SecurityCenterService {
     this.aiOrchestrator = aiOrchestrator;
     this.aiPolicy = aiPolicy;
     this.approvalGate = approvalGate;
+    this.boundaryAudit = boundaryAudit;
     this.sourceName = String(sourceName || 'axiom-security').slice(0, 80);
     this.staleAfterMs = staleAfterMs;
   }
@@ -99,6 +100,12 @@ class SecurityCenterService {
     const safeLimit = validateLimit(limit, 20);
     if (!this.approvalGate) return { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, approvals: [], audit: [], consistency: { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false } };
     const consistency=this.approvalGate.consistency(); return { status: this.approvalGate.status(), approvals: this.approvalGate.list({ limit: Math.min(safeLimit, 100) }), audit: this.approvalGate.listAudit({ limit: Math.min(safeLimit, 100) }), consistency, consistencyAlerts:buildApprovalConsistencyAlerts(consistency) };
+  }
+
+  async getBoundaryAudit({ limit } = {}) {
+    const safeLimit=validateLimit(limit,20);
+    if(!this.boundaryAudit) return { status:{version:'v0.36',mode:'shadow',recordCount:0,authorized:false,executable:false,actionRunnerAvailable:false}, audit:[] };
+    return { status:this.boundaryAudit.status(), audit:this.boundaryAudit.list({limit:Math.min(safeLimit,100)}) };
   }
 
   async getHealth({ now = new Date() } = {}) {
