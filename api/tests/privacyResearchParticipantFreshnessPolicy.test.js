@@ -46,3 +46,28 @@ test('freshness sweep returns only pseudonymous participant ids and never Identi
  assert.doesNotMatch(sql,/participant_public_key|account_id|user_id|email|identity\./i);
  assert.deepEqual(calls[0].params,[new Date('2027-01-01T00:00:00Z')]);
 });
+
+
+test('aggregate publication suppresses small cells and has no implicit threshold',()=>{
+ const {publishResearchAggregateCell}=require('../services/researchAggregatePublicationPolicy');
+ assert.deepEqual(publishResearchAggregateCell({answerCode:'f',participantCount:7,minimumCellSize:8}),{answerCode:'f',suppressed:true,participantCount:null});
+ assert.deepEqual(publishResearchAggregateCell({answerCode:'f',participantCount:8,minimumCellSize:8}),{answerCode:'f',suppressed:false,participantCount:8});
+ assert.throws(()=>publishResearchAggregateCell({answerCode:'f',participantCount:100}),/Explicit aggregate minimum cell size/);
+});
+
+test('aggregate publication discards pseudonymous source metadata',()=>{
+ const {publishResearchAggregateRows}=require('../services/researchAggregatePublicationPolicy');
+ const result=publishResearchAggregateRows([
+  {answer_code:'f',participant_count:'12',participant_id:'source-a'},
+  {answer_code:'c',participant_count:'3',participant_public_key:'source-b'}
+ ],{minimumCellSize:8});
+ assert.deepEqual(result,[
+  {answerCode:'f',suppressed:false,participantCount:12},
+  {answerCode:'c',suppressed:true,participantCount:null}
+ ]);
+ const serialized=JSON.stringify(result);
+ assert.equal(serialized.includes('participant_id'),false);
+ assert.equal(serialized.includes('participant_public_key'),false);
+ assert.equal(serialized.includes('source-a'),false);
+ assert.equal(serialized.includes('source-b'),false);
+});
