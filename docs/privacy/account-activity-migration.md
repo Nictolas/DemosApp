@@ -15,3 +15,7 @@ No schema application, backfill, dual-write activation or cutover is performed b
 ## Shadow dual-write and parity gate
 
 A non-wired shadow mirror can copy successful Identity activity into the lifecycle store. Mirror failure returns `mirrored:false` and may emit only a fixed failure code, so enabling observation later does not require logging account identifiers. The legacy authentication write remains authoritative during this phase; mirror failure must not break login. A parity checker counts missing lifecycle rows and rows lagging `MAX(active_sessions.last_activity)`. Cutover is allowed only when both counts are zero. These helpers are not connected to production auth by this commit.
+
+## Feature-gated shadow wiring
+
+`IDENTITY_ACTIVITY_SHADOW_DUAL_WRITE` is exact opt-in and defaults OFF. The shadow writer performs no lifecycle write and records no mirror metric while disabled. When explicitly enabled after schema/backfill approval, it uses the non-blocking mirror and records only process-local aggregate counters (`attempted`, `mirrored`, `failed`). No account ID, activity timestamp, error text or database detail is exposed through this telemetry. This commit does not set the environment variable or connect the writer to production authentication.
