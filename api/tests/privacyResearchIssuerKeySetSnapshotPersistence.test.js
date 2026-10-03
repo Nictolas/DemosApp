@@ -383,3 +383,112 @@ test('recovery rejects group-readable snapshot files before revalidation', async
   );
   assert.equal(revalidateCalls, 0);
 });
+
+
+test('recovery fails closed when no persisted snapshot exists and never reaches revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: makeHighWaterMarkStore(100)
+  });
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 100 };
+      }
+    }),
+    { code: 'ENOENT' }
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('recovery rejects an empty high-water anchor before opening the snapshot', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(snapshotPath, makeSnapshot(1), { mode: 0o600 });
+  await fs.chmod(snapshotPath, 0o600);
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: makeHighWaterMarkStore(0)
+  });
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 1 };
+      }
+    }),
+    /established high-water mark/i
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('recovery rejects a non-regular snapshot target before revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.mkdir(snapshotPath, { mode: 0o700 });
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: makeHighWaterMarkStore(110)
+  });
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 110 };
+      }
+    })
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('recovery rejects malformed persisted JSON before revalidation', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(snapshotPath, '{not-json', { mode: 0o600 });
+  await fs.chmod(snapshotPath, 0o600);
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: makeHighWaterMarkStore(120)
+  });
+  let revalidateCalls = 0;
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 120 };
+      }
+    }),
+    /invalid authenticated issuer key-set snapshot JSON/i
+  );
+  assert.equal(revalidateCalls, 0);
+});
+
+test('failed persistence releases the in-process writer guard for a later valid write', async (t) => {
+  const { dir, snapshotPath } = await makeTempTarget();
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const highWater = makeHighWaterMarkStore(130);
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore: highWater
+  });
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({
+      snapshotJson: makeSnapshot(131),
+      sequence: 132
+    }),
+    /sequence mismatch/i
+  );
+  const persisted = await persistence.persistAuthenticatedSnapshot({
+    snapshotJson: makeSnapshot(131),
+    sequence: 131
+  });
+  assert.equal(persisted.sequence, 131);
+  assert.equal(highWater.current(), 131);
+  assert.equal(await fs.readFile(snapshotPath, 'utf8'), makeSnapshot(131));
+});
