@@ -3,6 +3,7 @@ const { emptyNotificationSimulationStatus } = require('./securityNotificationSim
 const { emptyAiAnalystMockStatus } = require('./securityAiAnalystMockRunner');
 const { policyStatus } = require('./securityPolicyEngine');
 const { buildApprovalConsistencyAlerts } = require('./securityApprovalConsistencyAlertPolicy');
+const { buildBoundaryAuditHealth } = require('./securityBoundaryAuditHealth');
 
 const ALLOWED_STATUSES = new Set(['open', 'acknowledged', 'resolved']);
 const ALLOWED_SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
@@ -104,8 +105,8 @@ class SecurityCenterService {
 
   async getBoundaryAudit({ limit } = {}) {
     const safeLimit=validateLimit(limit,20);
-    if(!this.boundaryAudit) return { status:{version:'v0.36',mode:'shadow',recordCount:0,authorized:false,executable:false,actionRunnerAvailable:false}, audit:[] };
-    return { status:this.boundaryAudit.status(), audit:this.boundaryAudit.list({limit:Math.min(safeLimit,100)}) };
+    if(!this.boundaryAudit) { const status={version:'v0.36',mode:'unavailable',recordCount:0,authorized:false,executable:false,actionRunnerAvailable:false}; return { status, audit:[], health:buildBoundaryAuditHealth(status,[]) }; }
+    const status=this.boundaryAudit.status(); const audit=this.boundaryAudit.list({limit:Math.min(safeLimit,100)}); return { status, audit, health:buildBoundaryAuditHealth(status,audit) };
   }
 
   async getHealth({ now = new Date() } = {}) {

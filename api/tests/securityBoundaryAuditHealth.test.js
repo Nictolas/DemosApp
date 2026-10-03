@@ -1,0 +1,6 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {buildBoundaryAuditHealth}=require('../security-agent/securityBoundaryAuditHealth');
+test('empty shadow audit is green',()=>{const h=buildBoundaryAuditHealth({mode:'shadow'},[]);assert.equal(h.level,'green');assert.equal(h.available,true);});
+test('failed validation is orange',()=>{const h=buildBoundaryAuditHealth({mode:'shadow'},[{validationOk:false}]);assert.equal(h.level,'orange');assert.equal(h.invalidCount,1);});
+test('non shadow audit is gray',()=>{const h=buildBoundaryAuditHealth({},[]);assert.equal(h.level,'gray');assert.equal(h.available,false);});
+test('health is never operational',()=>{const h=buildBoundaryAuditHealth({mode:'shadow'},[]);assert.equal(h.authorized,false);assert.equal(h.executable,false);assert.equal(h.actionRunnerAvailable,false);});
+test('counts only explicit failed validations',()=>{const h=buildBoundaryAuditHealth({mode:'shadow'},[{validationOk:true},{validationOk:false},{}]);assert.equal(h.invalidCount,1);});
