@@ -4,6 +4,7 @@ const { emptyAiAnalystMockStatus } = require('./securityAiAnalystMockRunner');
 const { policyStatus } = require('./securityPolicyEngine');
 const { buildApprovalConsistencyAlerts } = require('./securityApprovalConsistencyAlertPolicy');
 const { buildBoundaryAuditHealth } = require('./securityBoundaryAuditHealth');
+const { buildBoundaryHealthAlerts } = require('./securityBoundaryHealthAlertPolicy');
 
 const ALLOWED_STATUSES = new Set(['open', 'acknowledged', 'resolved']);
 const ALLOWED_SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
@@ -59,9 +60,9 @@ class SecurityCenterService {
     const aiOrchestrator = this.aiOrchestrator ? { status: this.aiOrchestrator.status(), recentDecisions: this.aiOrchestrator.listDecisions({ limit: 10 }) } : { status: null, recentDecisions: [] };
     const aiPolicy = this.aiPolicy ? { status: this.aiPolicy.status(), recent: this.aiPolicy.listRecent({ limit: 10 }).map(item => ({ analyzedAt: item.analyzedAt, decision: item.policy?.decision || 'deny', reasonCode: item.policy?.reasonCode || 'POLICY_DENIED', actionCount: Number(item.policy?.actionCount || 0), executable: false })) } : { status: policyStatus(), recent: [] };
     const consistency = this.approvalGate ? this.approvalGate.consistency() : { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false };
-    const boundaryStatus=this.boundaryAudit?this.boundaryAudit.status():{mode:'unavailable'}; const boundaryRecent=this.boundaryAudit?this.boundaryAudit.list({limit:10}):[]; const boundaryHealth=buildBoundaryAuditHealth(boundaryStatus,boundaryRecent);
+    const boundaryStatus=this.boundaryAudit?this.boundaryAudit.status():{mode:'unavailable'}; const boundaryRecent=this.boundaryAudit?this.boundaryAudit.list({limit:10}):[]; const boundaryHealth=buildBoundaryAuditHealth(boundaryStatus,boundaryRecent); const boundaryAlerts=buildBoundaryHealthAlerts(boundaryHealth);
     const approvals = this.approvalGate ? { status: this.approvalGate.status(), recent: this.approvalGate.list({ limit: 10 }), recentAudit: this.approvalGate.listAudit({ limit: 10 }), consistency, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) } : { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, recent: [], recentAudit: [], consistency, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) };
-    return { ...overview, boundaryAudit:{health:boundaryHealth}, notifications: { status: notificationStatus, recentAudit: recentNotificationAudit }, aiAnalyst: { status: aiStatus, recent: recentAiAnalyses }, aiOrchestrator, aiPolicy, approvals };
+    return { ...overview, boundaryAudit:{health:boundaryHealth,alerts:boundaryAlerts}, notifications: { status: notificationStatus, recentAudit: recentNotificationAudit }, aiAnalyst: { status: aiStatus, recent: recentAiAnalyses }, aiOrchestrator, aiPolicy, approvals };
   }
 
   async listIncidents({ status, severity, limit } = {}) {
@@ -106,13 +107,13 @@ class SecurityCenterService {
 
   async getBoundaryAudit({ limit } = {}) {
     const safeLimit=validateLimit(limit,20);
-    if(!this.boundaryAudit) { const status={version:'v0.36',mode:'unavailable',recordCount:0,authorized:false,executable:false,actionRunnerAvailable:false}; return { status, audit:[], health:buildBoundaryAuditHealth(status,[]) }; }
-    const status=this.boundaryAudit.status(); const audit=this.boundaryAudit.list({limit:Math.min(safeLimit,100)}); return { status, audit, health:buildBoundaryAuditHealth(status,audit) };
+    if(!this.boundaryAudit) { const status={version:'v0.36',mode:'unavailable',recordCount:0,authorized:false,executable:false,actionRunnerAvailable:false}; const health=buildBoundaryAuditHealth(status,[]); return { status, audit:[], health, alerts:buildBoundaryHealthAlerts(health) }; }
+    const status=this.boundaryAudit.status(); const audit=this.boundaryAudit.list({limit:Math.min(safeLimit,100)}); const health=buildBoundaryAuditHealth(status,audit); return { status, audit, health, alerts:buildBoundaryHealthAlerts(health) };
   }
 
   async getHealth({ now = new Date() } = {}) {
     const overview = await this.getOverview({ now, recentLimit: 1 });
-    return { generatedAt: overview.generatedAt, shield: overview.shield, health: overview.health, alerts: overview.alerts, agent: overview.agent, telemetry: overview.telemetry, notifications: overview.notifications.status, aiAnalyst: overview.aiAnalyst.status, aiOrchestrator: overview.aiOrchestrator.status, aiPolicy: overview.aiPolicy.status, approvals: overview.approvals.status, boundaryAudit: overview.boundaryAudit.health, openIncidentCount: overview.incidents.open, highestOpenSeverity: overview.incidents.highestOpenSeverity };
+    return { generatedAt: overview.generatedAt, shield: overview.shield, health: overview.health, alerts: overview.alerts, agent: overview.agent, telemetry: overview.telemetry, notifications: overview.notifications.status, aiAnalyst: overview.aiAnalyst.status, aiOrchestrator: overview.aiOrchestrator.status, aiPolicy: overview.aiPolicy.status, approvals: overview.approvals.status, boundaryAudit: {health:overview.boundaryAudit.health,alerts:overview.boundaryAudit.alerts}, openIncidentCount: overview.incidents.open, highestOpenSeverity: overview.incidents.highestOpenSeverity };
   }
 }
 
