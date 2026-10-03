@@ -10,6 +10,9 @@ const {
 const {
   createResearchIssuerKeySetFreshnessGate
 } = require('./researchIssuerKeySetFreshnessGate');
+const {
+  toResearchIssuerKeySetHealth
+} = require('./researchIssuerKeySetHealth');
 
 const MAX_SNAPSHOT_JSON_BYTES = 64 * 1024;
 
@@ -79,6 +82,7 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
   return Object.freeze({
     credentialProvider,
     readiness: () => freshnessGate.readiness(),
+    health: () => toResearchIssuerKeySetHealth(freshnessGate.readiness()),
     installSignedSnapshotJson
   });
 };

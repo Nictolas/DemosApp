@@ -171,6 +171,7 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
     sequence: 12,
     expiresAt: payload.expiresAt
   });
+  assert.deepEqual(bootstrap.health(), { ready: true });
   assert.deepEqual(await bootstrap.credentialProvider.verify({
     credentialBytes: Buffer.from('opaque-credential'),
     purpose: 'renew',
@@ -192,6 +193,10 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
     sequence: 12,
     expiresAt: payload.expiresAt
   });
+  assert.deepEqual(bootstrap.health(), {
+    ready: false,
+    reason: 'freshness-window'
+  });
   assert.deepEqual(await bootstrap.credentialProvider.verify({
     credentialBytes: Buffer.from('opaque-credential'),
     purpose: 'renew',
@@ -200,6 +205,7 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
 
   now = payload.expiresAt;
   assert.deepEqual(bootstrap.readiness(), { ready: false, reason: 'expired' });
+  assert.deepEqual(bootstrap.health(), { ready: false, reason: 'expired' });
   assert.deepEqual(await bootstrap.credentialProvider.verify({
     credentialBytes: Buffer.from('opaque-credential'),
     purpose: 'renew',
