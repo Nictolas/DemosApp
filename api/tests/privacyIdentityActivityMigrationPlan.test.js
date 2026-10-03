@@ -1,0 +1,4 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const sql=fs.readFileSync(path.join(__dirname,'..','..','supabase','schemas','privacy_first_activity_migration_shadow.sql'),'utf8');
+test('backfill is idempotent and monotonic',()=>{assert.match(sql,/ON CONFLICT \(account_id\) DO UPDATE/);assert.match(sql,/GREATEST\(identity\.account_activity\.last_activity_at/);assert.match(sql,/MAX\(s\.last_activity\)/)});
+test('accounts without session evidence receive conservative creation baseline',()=>{assert.match(sql,/COALESCE\(MAX\(s\.last_activity\),u\.created_at\)/)});
+test('migration includes completeness and no-lag validation plus non-destructive rollback',()=>{assert.match(sql,/WHERE a\.account_id IS NULL/);assert.match(sql,/HAVING a\.last_activity_at < MAX\(s\.last_activity\)/);assert.match(sql,/Do not delete account_activity during rollback/)});
