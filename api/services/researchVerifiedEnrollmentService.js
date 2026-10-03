@@ -1,5 +1,6 @@
 const { verifyUnlinkableCredential } = require('./unlinkableCredentialVerifier');
 const { redeemEnrollmentCredential } = require('./researchEnrollmentRedemptionService');
+const { redeemRenewalCredential } = require('./researchRenewalRedemptionService');
 
 const verifyAndRedeemEnrollmentCredential = async (
   client,
@@ -19,7 +20,8 @@ const verifyAndRedeemEnrollmentCredential = async (
     verifier
   });
 
-  return redeemEnrollmentCredential(client, {
+  const redemption = purpose === 'renew' ? redeemRenewalCredential : redeemEnrollmentCredential;
+  return redemption(client, {
     credentialDigest: verified.credentialDigest,
     purpose,
     epoch,
