@@ -3,6 +3,7 @@ const { PostgresSecurityStore } = require('./postgresSecurityStore');
 const { createAxiomReadOnlySecuritySource } = require('./readOnlySecuritySource');
 const { createShadowSecurityRunner } = require('./shadowRunner');
 const { createPoolForPurpose } = require('./securityDbCredentialGate');
+const { buildSecurityAgentHealth } = require('./securityAgentHealth');
 
 const RUNTIME_MODES = new Set(['memory', 'postgres']);
 
@@ -61,10 +62,16 @@ class SecurityAgentRuntime {
     this.credentialStatus = credentialStatus;
     this.timer = null;
     this.inFlight = null;
+    this.inFlightStartedAt = null;
     this.startedAt = null;
     this.stoppedAt = null;
     this.lastCycleAt = null;
+    this.lastCycleDurationMs = null;
     this.lastCycleStatus = 'never';
+    this.lastSuccessAt = null;
+    this.lastFailureAt = null;
+    this.consecutiveFailures = 0;
+    this.totalFailures = 0;
     this.cycleCount = 0;
     this.shutdownRequested = false;
   }
@@ -84,18 +91,34 @@ class SecurityAgentRuntime {
     if (this.inFlight) return { status: 'skipped_busy' };
 
     this.cycleCount += 1;
-    this.lastCycleAt = new Date().toISOString();
+    const startedMs = Date.now();
+    this.lastCycleAt = new Date(startedMs).toISOString();
+    this.inFlightStartedAt = this.lastCycleAt;
     const operation = Promise.resolve().then(() => this.runner.runOnce());
     this.inFlight = operation;
     try {
       const result = await operation;
-      this.lastCycleStatus = String(result?.status || 'unknown').slice(0, 32);
+      const cycleStatus = String(result?.status || 'unknown').slice(0, 32);
+      this.lastCycleStatus = cycleStatus;
+      if (cycleStatus === 'ok') {
+        this.lastSuccessAt = new Date().toISOString();
+        this.consecutiveFailures = 0;
+      } else if (cycleStatus === 'error' || cycleStatus === 'degraded') {
+        this.lastFailureAt = new Date().toISOString();
+        this.consecutiveFailures += 1;
+        this.totalFailures += 1;
+      }
       return result;
     } catch (_error) {
       this.lastCycleStatus = 'error';
+      this.lastFailureAt = new Date().toISOString();
+      this.consecutiveFailures += 1;
+      this.totalFailures += 1;
       return { status: 'error', errorCode: 'SECURITY_RUNTIME_CYCLE_FAILED' };
     } finally {
+      this.lastCycleDurationMs = Math.max(0, Date.now() - startedMs);
       this.inFlight = null;
+      this.inFlightStartedAt = null;
     }
   }
 
@@ -141,8 +164,15 @@ class SecurityAgentRuntime {
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       lastCycleAt: this.lastCycleAt,
+      lastCycleDurationMs: this.lastCycleDurationMs,
       lastCycleStatus: this.lastCycleStatus,
+      lastSuccessAt: this.lastSuccessAt,
+      lastFailureAt: this.lastFailureAt,
+      consecutiveFailures: this.consecutiveFailures,
+      totalFailures: this.totalFailures,
       cycleCount: this.cycleCount,
+      inFlight: this.inFlight !== null,
+      inFlightStartedAt: this.inFlightStartedAt,
       shutdownRequested: this.shutdownRequested,
       runner: runnerStatus ? {
         enabled: runnerStatus.enabled === true,
@@ -169,6 +199,10 @@ class SecurityAgentRuntime {
         tlsVerified: null
       }
     });
+  }
+
+  health(options = {}) {
+    return buildSecurityAgentHealth(this.status(), options);
   }
 
   #schedule(delayMs) {
