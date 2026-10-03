@@ -12,4 +12,8 @@ const getAuthoritativeLastAccountActivity=async(client,{accountId})=>{
   if(!Number.isFinite(activity.getTime())) throw new Error('Invalid authoritative account activity');
   return activity;
 };
-module.exports={getAuthoritativeLastAccountActivity};
+const getCutoverLastAccountActivity=async(client,{accountId})=>{
+  const {getLifecycleLastActivity}=require('./identityLifecycleActivityStore');
+  return getLifecycleLastActivity(client,{accountId});
+};
+module.exports={getAuthoritativeLastAccountActivity,getCutoverLastAccountActivity};
