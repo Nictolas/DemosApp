@@ -11,4 +11,11 @@ const authorizeRevocation=({reason,selfDeletionConfirmed=false,lastAccountActivi
   }
   return false;
 };
-module.exports={MAX_INACTIVITY_DAYS,authorizeRevocation};
+const authorizeRevocationWithIdentityState=async({client,accountId,reason,selfDeletionConfirmed=false,deceasedVerified=false,now=new Date()})=>{
+  if(reason!=='inactive') return authorizeRevocation({reason,selfDeletionConfirmed,deceasedVerified,now});
+  const {getAuthoritativeLastAccountActivity}=require('./identityAccountActivityStore');
+  const lastAccountActivityAt=await getAuthoritativeLastAccountActivity(client,{accountId});
+  if(!lastAccountActivityAt) return false;
+  return authorizeRevocation({reason,lastAccountActivityAt,now});
+};
+module.exports={MAX_INACTIVITY_DAYS,authorizeRevocation,authorizeRevocationWithIdentityState};

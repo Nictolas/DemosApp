@@ -1,9 +1,9 @@
 const {recoverRevocationCapability}=require('./identityRevocationEscrowService');
 const {readRevocationEscrow,deleteRevocationEscrowIfVersion}=require('./identityRevocationEscrowStore');
-const {authorizeRevocation}=require('./identityRevocationAuthorizationPolicy');
+const {authorizeRevocationWithIdentityState}=require('./identityRevocationAuthorizationPolicy');
 
 const releaseRevocationForRelay=async({client,keyProvider,accountId,authorization,relayAccept})=>{
-  if(!authorizeRevocation(authorization||{})) throw new Error('Authorized Identity revocation required');
+  if(!await authorizeRevocationWithIdentityState({client,accountId,...(authorization||{})})) throw new Error('Authorized Identity revocation required');
   if(typeof relayAccept!=='function') throw new Error('Revocation relay unavailable');
   const row=await readRevocationEscrow(client,{accountId});
   if(!row||!row.envelope) throw new Error('Revocation escrow not found');
