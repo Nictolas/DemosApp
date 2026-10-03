@@ -47,3 +47,7 @@ Cutover policy now consumes an injected verifier interface rather than raw appro
 ## Distributed approval replay-store contract
 
 A production replay backend must expose one atomic `consumeDigestOnce({digest, ttlSeconds})` operation. The application hashes the nonce before crossing that boundary; the backend must never receive the raw approval nonce or identity data. The operation must return true only for the first successful claim and false for an already-live digest, with native expiry. The cutover policy requests a 900-second TTL matching the approval freshness window. The adapter rejects malformed TTLs and ambiguous backend results. No Redis/database/vendor is selected or provisioned by this commit.
+
+## SQL replay-store shadow adapter
+
+The shadow schema includes `identity.cutover_approval_replays`, keyed only by the 64-hex nonce digest with expiry and creation timestamps, forced RLS, and no account/evidence identifiers. The SQL adapter implements the contract in one atomic INSERT/ON CONFLICT statement: a live digest cannot be claimed again; an expired row can be atomically replaced and receives a fresh bounded expiry. Cleanup of expired rows may be added operationally later, but correctness does not depend on cleanup. This schema is not applied by this commit.

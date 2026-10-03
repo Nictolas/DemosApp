@@ -25,6 +25,13 @@ create table if not exists identity.participation_eligibility (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists identity.cutover_approval_replays (
+  nonce_digest text primary key check (nonce_digest ~ '^[0-9a-f]{64}$'),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  check (expires_at > created_at)
+);
+
 create table if not exists identity.lifecycle_migration_evidence (
   evidence_id uuid primary key,
   migration_version text not null,
@@ -221,6 +228,8 @@ create table if not exists audit.security_events (
 
 alter table identity.participation_eligibility enable row level security;
 alter table identity.participation_eligibility force row level security;
+alter table identity.cutover_approval_replays enable row level security;
+alter table identity.cutover_approval_replays force row level security;
 alter table identity.lifecycle_migration_evidence enable row level security;
 alter table identity.lifecycle_migration_evidence force row level security;
 alter table identity.account_activity enable row level security;
