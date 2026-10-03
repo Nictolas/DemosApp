@@ -69,8 +69,9 @@ function rowToSourceState(row) {
 }
 
 class PostgresSecurityStore {
-  constructor({ pool, retentionMs = DEFAULT_RETENTION_MS } = {}) {
+  constructor({ pool, maintenancePool = null, retentionMs = DEFAULT_RETENTION_MS } = {}) {
     this.pool = validatePool(pool);
+    this.maintenancePool = maintenancePool ? validatePool(maintenancePool) : null;
     if (!Number.isInteger(retentionMs) || retentionMs < 60 * 60 * 1000) {
       throw new Error('retentionMs must be an integer >= 3600000');
     }
@@ -205,9 +206,10 @@ class PostgresSecurityStore {
   }
 
   async prune({ now = new Date() } = {}) {
+    if (!this.maintenancePool) return 0;
     const threshold = new Date(new Date(now).getTime() - this.retentionMs);
     if (Number.isNaN(threshold.getTime())) throw new Error('invalid prune timestamp');
-    const result = await this.pool.query(`
+    const result = await this.maintenancePool.query(`
       DELETE FROM ${INCIDENTS_TABLE}
       WHERE updated_at < $1
     `, [threshold.toISOString()]);
