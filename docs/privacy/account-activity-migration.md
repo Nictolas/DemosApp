@@ -27,3 +27,7 @@ The session service now contains the shadow hook after successful legacy session
 ## Cutover readiness orchestration
 
 Cutover authorization now has four independent prerequisites: positive schema attestation, explicit process-local backfill attestation, live parity with zero missing/lagging accounts, and an explicit manual approval input. None is inferred from the others and none is automatically set by startup. Missing prerequisites fail closed. This is policy/test scaffolding only; it does not switch the inactivity reader or mutate production state.
+
+## Durable migration evidence (shadow)
+
+The shadow schema defines an Identity-only `lifecycle_migration_evidence` table with forced RLS. Evidence records contain migration version, schema/backfill booleans, aggregate missing/lagging counts, observation time, and a domain-separated SHA-256 integrity digest. They contain no account identifiers, session metadata, opinions, or Research identifiers. The digest detects accidental/tampered field changes but is not an operator signature; production approval must remain separate and stronger. No evidence table is created or written in production by this commit.
