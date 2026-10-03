@@ -297,6 +297,11 @@ test('persisted key-set recovery revalidates signature and freshness through the
 test('recovery bootstrap fails closed when persistence cannot revalidate the snapshot', async () => {
   const { createResearchPrivacyPassKeySetBootstrapFromRecovery } =
     require('../services/researchPrivacyPassKeySetBootstrap');
+  const importedKey = makeVerificationKey();
+  const privacyPass = makePrivacyPass({
+    importedKey,
+    keyId: Buffer.alloc(32, 1)
+  });
   const persistence = {
     async recoverAuthenticatedSnapshot({ revalidate }) {
       await assert.rejects(() => revalidate('{'), /JSON/i);
@@ -307,9 +312,10 @@ test('recovery bootstrap fails closed when persistence cannot revalidate the sna
   await assert.rejects(
     () => createResearchPrivacyPassKeySetBootstrapFromRecovery({
       persistence,
-      privacyPass: {},
+      privacyPass,
       trustRootPublicKey: crypto.generateKeyPairSync('ed25519').publicKey,
-      minimumRemainingValidityMs: 10_000
+      minimumRemainingValidityMs: 10_000,
+      subtle: { importKey: async () => importedKey }
     }),
     /restart revalidation/i
   );
