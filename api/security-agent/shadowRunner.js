@@ -1,9 +1,19 @@
 const { MemorySecurityStore } = require('./securityStore');
 
+function publicAiAnalysisResult(value = {}) {
+  const safe = { status: String(value.status || 'unknown').slice(0, 48) };
+  for (const key of ['eligibleCount', 'selectedCount', 'duplicateCount', 'cooldownCount', 'belowThresholdCount', 'closedCount']) {
+    if (Number.isFinite(Number(value[key]))) safe[key] = Math.max(0, Math.floor(Number(value[key])));
+  }
+  if (value.errorCode) safe.errorCode = String(value.errorCode).replace(/[^A-Z0-9_]/g, '_').slice(0, 64);
+  return safe;
+}
+
 class ShadowSecurityRunner {
   constructor({
     source,
     store = new MemorySecurityStore(),
+    aiOrchestrator = null,
     enabled = false,
     sourceName = 'axiom-security',
     intervalMs = 60 * 1000
@@ -14,12 +24,16 @@ class ShadowSecurityRunner {
     if (!store || typeof store.upsertIncidents !== 'function' || typeof store.saveSourceState !== 'function') {
       throw new TypeError('store must implement the Security Store contract');
     }
+    if (aiOrchestrator !== null && (!aiOrchestrator || typeof aiOrchestrator.analyzeCycle !== 'function' || typeof aiOrchestrator.status !== 'function')) {
+      throw new TypeError('aiOrchestrator must implement analyzeCycle() and status()');
+    }
     if (!Number.isInteger(intervalMs) || intervalMs < 10 * 1000 || intervalMs > 60 * 60 * 1000) {
       throw new Error('intervalMs must be an integer between 10000 and 3600000');
     }
 
     this.source = source;
     this.store = store;
+    this.aiOrchestrator = aiOrchestrator;
     this.enabled = enabled === true;
     this.sourceName = String(sourceName || 'axiom-security').slice(0, 80);
     this.intervalMs = intervalMs;
@@ -52,6 +66,15 @@ class ShadowSecurityRunner {
         ? await this.store.prune({ now: runTime })
         : 0;
 
+      let aiAnalysis = { status: 'not_configured' };
+      if (this.aiOrchestrator) {
+        try {
+          aiAnalysis = publicAiAnalysisResult(await this.aiOrchestrator.analyzeCycle({ incidents, now: runTime }));
+        } catch (_error) {
+          aiAnalysis = { status: 'error', errorCode: 'AI_ORCHESTRATION_FAILED' };
+        }
+      }
+
       this.lastRunStatus = poll.status === 'error' ? 'degraded' : 'ok';
       if (poll.status === 'error') this.failureCount += 1;
 
@@ -70,6 +93,7 @@ class ShadowSecurityRunner {
         },
         storedIncidentCount: storedIncidents.length,
         prunedIncidentCount: pruned,
+        aiAnalysis,
         sourceState
       };
     } catch (_error) {
@@ -107,7 +131,8 @@ class ShadowSecurityRunner {
       lastRunAt: this.lastRunAt,
       lastRunStatus: this.lastRunStatus,
       runCount: this.runCount,
-      failureCount: this.failureCount
+      failureCount: this.failureCount,
+      aiOrchestrator: this.aiOrchestrator ? this.aiOrchestrator.status() : null
     };
   }
 
@@ -122,6 +147,7 @@ class ShadowSecurityRunner {
 function createShadowSecurityRunner({
   source,
   store,
+  aiOrchestrator,
   env = process.env,
   intervalMs,
   sourceName
@@ -130,9 +156,14 @@ function createShadowSecurityRunner({
     const { createAxiomReadOnlySecuritySource } = require('./readOnlySecuritySource');
     source = createAxiomReadOnlySecuritySource({ env });
   }
+  if (aiOrchestrator === undefined) {
+    const { createSecurityAiAnalysisOrchestrator } = require('./securityAiAnalysisOrchestrator');
+    aiOrchestrator = createSecurityAiAnalysisOrchestrator({ env });
+  }
   return new ShadowSecurityRunner({
     source,
     store,
+    aiOrchestrator,
     enabled: env.SECURITY_AGENT_RUNNER_ENABLED === 'true',
     intervalMs: intervalMs || Number(env.SECURITY_AGENT_RUNNER_INTERVAL_MS || 60 * 1000),
     sourceName
@@ -141,5 +172,6 @@ function createShadowSecurityRunner({
 
 module.exports = {
   ShadowSecurityRunner,
-  createShadowSecurityRunner
+  createShadowSecurityRunner,
+  publicAiAnalysisResult
 };

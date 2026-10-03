@@ -16,8 +16,9 @@ const { AI_ANALYST_CONTRACT_VERSION: SECURITY_AI_ANALYST_CONTRACT_VERSION, AI_AN
 const { AI_ANALYST_MOCK_RUNNER_VERSION: SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION, createDeterministicMockAiProvider, emptyAiAnalystMockStatus, SecurityAiAnalystMockRunner } = require('./securityAiAnalystMockRunner');
 const { MODEL_GATEWAY_VERSION: SECURITY_AI_MODEL_GATEWAY_VERSION, DEFAULT_TIMEOUT_MS: SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS, buildModelGatewayConfig, SecurityAiModelGateway } = require('./securityAiModelGateway');
 const { AI_SHADOW_INTEGRATION_VERSION: SECURITY_AI_SHADOW_INTEGRATION_VERSION, ALLOWED_BACKENDS: SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig, SecurityAiShadowIntegration, createSecurityAiShadowIntegration } = require('./securityAiShadowIntegration');
+const { AI_ANALYSIS_ORCHESTRATOR_VERSION: SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SEVERITY_RANK: SECURITY_AI_ANALYSIS_SEVERITY_RANK, buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicCycleResult: publicAiAnalysisCycleResult } = require('./securityAiAnalysisOrchestrator');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
-const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
+const { ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
 const { createSecurityCenterHandlers } = require('./securityCenterApi');
 const { createSecurityCenterRouter } = require('./securityCenterRouter');
@@ -37,7 +38,9 @@ module.exports = {
   sanitizeAlertForAi, sanitizeHealthForAi, buildAiAnalystInput, validateAiAnalystOutput, buildAiAnalystRequest, SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
   createDeterministicMockAiProvider, emptyAiAnalystMockStatus, SecurityAiAnalystMockRunner, SECURITY_AI_MODEL_GATEWAY_VERSION, SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS,
   buildModelGatewayConfig, SecurityAiModelGateway, SECURITY_AI_SHADOW_INTEGRATION_VERSION, SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig,
-  SecurityAiShadowIntegration, createSecurityAiShadowIntegration, runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner,
-  createShadowSecurityRunner, SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
+  SecurityAiShadowIntegration, createSecurityAiShadowIntegration, SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SECURITY_AI_ANALYSIS_SEVERITY_RANK,
+  buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicAiAnalysisCycleResult,
+  runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult,
+  SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
   normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation
 };
