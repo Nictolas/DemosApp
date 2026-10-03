@@ -59,3 +59,7 @@ The shadow DDL explicitly revokes all table privileges from `public`, `anon`, an
 ## Non-exportable KMS/HSM verifier contract
 
 The application-side verifier can now be constructed around a provider `verifyDigest({keyId, digest, signature})` operation. It canonicalizes and binds the approval locally, sends only a SHA-256 digest plus signature and opaque key identifier across the provider boundary, and exposes only `verify` to cutover policy. There is no API to export key material or sign arbitrary application data. Provider errors fail closed without surfacing provider details. This is vendor-neutral scaffolding: no cloud KMS/HSM resource, credential, key, environment variable, or network integration is created here.
+
+## Execute-only replay database boundary
+
+Direct `service_role` CRUD on the replay table is revoked. The only granted operation is EXECUTE on `identity.consume_cutover_approval_replay(...)`, a SECURITY DEFINER function with a fixed search_path and internal validation of digest and expiry bounds. Client roles cannot execute it. The application adapter now calls only this function and receives one boolean. This remains unapplied shadow DDL.
