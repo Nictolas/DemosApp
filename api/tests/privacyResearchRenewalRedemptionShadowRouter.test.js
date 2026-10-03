@@ -152,3 +152,40 @@ test('renewal redemption shadow route stays unmounted and has no Identity auth d
     /middleware\/auth|jsonwebtoken|requireAuth|authenticate|authorization|Bearer|JWT/
   );
 });
+
+
+test('renewal redemption route ignores ambient Identity session context and forwards only the exact opaque proof payload', async () => {
+  let capturedPayload;
+  const router = createResearchRenewalRedemptionShadowRouter({
+    getPool: () => ({ name: 'research-only' }),
+    renewalLimiter: (req, res, next) => next(),
+    redeemRenewal: async (_client, payload) => {
+      capturedPayload = payload;
+      return { redeemed: true };
+    }
+  });
+  const handler = router.stack.find((entry) => entry.route).route.stack[1].handle;
+  const response = makeResponse();
+  await handler({
+    headers: {
+      authorization: 'Bearer identity-token-ignored',
+      cookie: 'identity_session=ignored'
+    },
+    user: { id: 'identity-account-ignored', email: 'ignored@example.test' },
+    body: validBody()
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(Object.keys(capturedPayload).sort(), [
+    'challenge',
+    'credentialBytes',
+    'epoch',
+    'participantPublicKey',
+    'signature'
+  ]);
+  const serialized = JSON.stringify(capturedPayload);
+  assert.equal(serialized.includes('identity-account-ignored'), false);
+  assert.equal(serialized.includes('ignored@example.test'), false);
+  assert.equal(serialized.includes('identity-token-ignored'), false);
+  assert.equal(serialized.includes('identity_session'), false);
+});
