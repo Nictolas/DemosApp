@@ -2,12 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const {
   redeemEnrollmentCredential
 } = require('../services/researchEnrollmentRedemptionService');
 
-const makeClient = ({ replay = false, failParticipant = false } = {}) => {
+const makeClient = ({ replay = false, failParticipant = false, participantConflict = false } = {}) => {
   const calls = [];
   return {
     calls,
@@ -22,6 +23,7 @@ const makeClient = ({ replay = false, failParticipant = false } = {}) => {
       }
       if (normalized.includes('insert into research.participants')) {
         if (failParticipant) throw new Error('simulated participant failure');
+        if (participantConflict) return { rows: [] };
         return { rows: [{
           participant_id: '11111111-1111-1111-1111-111111111111',
           key_algorithm: 'ed25519',
@@ -39,6 +41,7 @@ const args = {
   purpose: 'enroll',
   epoch: '2026-Q4',
   participantPublicKey: Buffer.from('participant-public-key'),
+  revocationCapability: Buffer.alloc(32, 7),
   keyAlgorithm: 'ed25519',
   credentialVersion: 1
 };
@@ -53,6 +56,17 @@ test('Research enrollment commits spent marker and pseudonymous participant atom
   assert.match(client.calls[1].sql, /research\.spent_credentials/i);
   assert.match(client.calls[2].sql, /research\.participants/i);
   assert.equal(client.calls[3].sql, 'COMMIT');
+});
+
+test('Research enrollment persists only the digest of the opaque revocation capability', async () => {
+  const client = makeClient();
+  await redeemEnrollmentCredential(client, args);
+  const insert = client.calls.find(({ sql }) => /insert into research\.participants/i.test(sql));
+  const expectedDigest = crypto.createHash('sha256').update(args.revocationCapability).digest();
+
+  assert.match(insert.sql, /revocation_capability_digest/i);
+  assert.equal(insert.params.some((value) => Buffer.isBuffer(value) && value.equals(expectedDigest)), true);
+  assert.equal(insert.params.some((value) => Buffer.isBuffer(value) && value.equals(args.revocationCapability)), false);
 });
 
 test('Research replay rolls back before participant mutation', async () => {
@@ -77,11 +91,24 @@ test('participant failure rolls back the spent marker transaction', async () => 
   assert.equal(client.calls.some(({ sql }) => sql === 'COMMIT'), false);
 });
 
-test('validation rejects invalid purpose/key/version before opening a transaction', async () => {
+test('existing participant key cannot be re-enrolled or reactivated', async () => {
+  const client = makeClient({ participantConflict: true });
+  const result = await redeemEnrollmentCredential(client, args);
+  const insert = client.calls.find(({ sql }) => /insert into research\.participants/i.test(sql));
+
+  assert.deepEqual(result, { redeemed: false, participant: null });
+  assert.match(insert.sql, /ON CONFLICT \(participant_public_key\) DO NOTHING/i);
+  assert.doesNotMatch(insert.sql, /status\s*=\s*'active'/i);
+  assert.equal(client.calls.at(-1).sql, 'ROLLBACK');
+});
+
+test('validation rejects invalid purpose/key/version/capability before opening a transaction', async () => {
   for (const invalid of [
     { ...args, purpose: 'renew' },
     { ...args, keyAlgorithm: 'rsa' },
-    { ...args, credentialVersion: 0 }
+    { ...args, credentialVersion: 0 },
+    { ...args, revocationCapability: undefined },
+    { ...args, revocationCapability: Buffer.alloc(16) }
   ]) {
     const client = makeClient();
     await assert.rejects(() => redeemEnrollmentCredential(client, invalid));
