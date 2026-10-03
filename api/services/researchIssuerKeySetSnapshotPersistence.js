@@ -68,6 +68,8 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
   const highWater = assertHighWaterMarkStore(highWaterMarkStore);
   const directory = path.dirname(snapshotPath);
 
+  let writeInProgress = false;
+
   const readFloor = async () => assertSequence(
     await highWater.readMinimumSequence(),
     'issuer key-set high-water mark'
@@ -83,6 +85,11 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
   };
 
   const persistAuthenticatedSnapshot = async ({ snapshotJson, sequence }) => {
+    if (writeInProgress) {
+      throw new Error('Issuer key-set persistence write already in progress');
+    }
+    writeInProgress = true;
+    try {
     const bytes = normalizeSnapshotBytes(snapshotJson);
     const embeddedSequence = readEmbeddedSequence(bytes);
     assertSequence(sequence);
@@ -129,6 +136,9 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
       sequence,
       digest: crypto.createHash('sha256').update(bytes).digest('base64url')
     });
+    } finally {
+      writeInProgress = false;
+    }
   };
 
   const recoverAuthenticatedSnapshot = async ({ revalidate }) => {

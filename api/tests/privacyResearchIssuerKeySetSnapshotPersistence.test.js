@@ -162,3 +162,53 @@ test('persistence requires an absolute path and an independently supplied monoto
     /high-water mark/i
   );
 });
+
+
+test('snapshot persistence serializes concurrent writes fail-closed', async () => {
+  let floor = 0;
+  let releaseAdvance;
+  const advanceBlocked = new Promise((resolve) => { releaseAdvance = resolve; });
+  let firstAdvanceStarted;
+  const firstAdvance = new Promise((resolve) => { firstAdvanceStarted = resolve; });
+  const highWaterMarkStore = {
+    async readMinimumSequence() { return floor; },
+    async advanceTo(sequence) {
+      firstAdvanceStarted();
+      await advanceBlocked;
+      floor = sequence;
+    }
+  };
+  const snapshotPath = path.join(
+    os.tmpdir(),
+    `demos-keyset-concurrency-${process.pid}-${Date.now()}.json`
+  );
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath,
+    highWaterMarkStore,
+    randomBytes: () => Buffer.alloc(12, 4)
+  });
+  const snapshot = (sequence) => JSON.stringify({ payload: { sequence } });
+
+  const first = persistence.persistAuthenticatedSnapshot({
+    snapshotJson: snapshot(1),
+    sequence: 1
+  });
+  await firstAdvance;
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({
+      snapshotJson: snapshot(2),
+      sequence: 2
+    }),
+    /write already in progress/i
+  );
+  releaseAdvance();
+  await first;
+
+  const second = await persistence.persistAuthenticatedSnapshot({
+    snapshotJson: snapshot(2),
+    sequence: 2
+  });
+  assert.equal(second.sequence, 2);
+
+  try { await fs.unlink(snapshotPath); } catch {}
+});
