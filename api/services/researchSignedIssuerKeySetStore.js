@@ -7,6 +7,7 @@ const {
 const KEYSET_SIGNATURE_DOMAIN = 'demos.research.issuer-keyset.v1';
 const KEYSET_SCHEMA_VERSION = 1;
 const MAX_KEYS_PER_SNAPSHOT = 16;
+const MAX_EPOCHS_PER_KEY = 8;
 const MAX_SNAPSHOT_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const MIN_PUBLIC_KEY_BYTES = 64;
@@ -82,7 +83,11 @@ const normalizePayload = (payload) => {
       throw new Error('Duplicate issuer token key id');
     }
     seenIds.add(tokenKeyIdText);
-    if (!Array.isArray(entry.epochs) || entry.epochs.length === 0) {
+    if (
+      !Array.isArray(entry.epochs) ||
+      entry.epochs.length === 0 ||
+      entry.epochs.length > MAX_EPOCHS_PER_KEY
+    ) {
       throw new Error('Invalid issuer key epoch scope');
     }
     const normalizedEpochs = entry.epochs.map((epoch) => {
@@ -237,6 +242,7 @@ module.exports = {
   KEYSET_SIGNATURE_DOMAIN,
   KEYSET_SCHEMA_VERSION,
   MAX_KEYS_PER_SNAPSHOT,
+  MAX_EPOCHS_PER_KEY,
   MAX_SNAPSHOT_VALIDITY_MS,
   MAX_CLOCK_SKEW_MS,
   MIN_PUBLIC_KEY_BYTES,

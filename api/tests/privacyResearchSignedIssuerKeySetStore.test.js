@@ -261,3 +261,39 @@ test('issuer key-set canonical epoch ordering is deterministic across multiple s
     serializeIssuerKeySetPayload(second)
   );
 });
+
+
+test('issuer key-set rejects excessive epoch fan-out per verification key', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const bytes = makePublicMaterial(9);
+  const payload = makePayload({
+    sequence: 4,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [{
+      bytes,
+      epochs: Array.from({ length: 9 }, (_, index) => `epoch-${index + 1}`)
+    }]
+  });
+
+  assert.throws(
+    () => serializeIssuerKeySetPayload(payload),
+    /epoch scope/i
+  );
+});
+
+test('issuer key-set accepts the bounded maximum of eight unique canonical epochs', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const bytes = makePublicMaterial(10);
+  const epochs = Array.from({ length: 8 }, (_, index) => `epoch-${index + 1}`);
+  const payload = makePayload({
+    sequence: 5,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [{ bytes, epochs: [...epochs].reverse() }]
+  });
+
+  const serialized = serializeIssuerKeySetPayload(payload);
+  assert.ok(Buffer.isBuffer(serialized));
+  assert.ok(serialized.length > 0);
+});
