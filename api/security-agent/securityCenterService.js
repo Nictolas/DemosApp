@@ -5,6 +5,7 @@ const { policyStatus } = require('./securityPolicyEngine');
 const { buildApprovalConsistencyAlerts } = require('./securityApprovalConsistencyAlertPolicy');
 const { buildBoundaryAuditHealth } = require('./securityBoundaryAuditHealth');
 const { buildBoundaryHealthAlerts } = require('./securityBoundaryHealthAlertPolicy');
+const { readApprovalConsistency, approvalHealth } = require('./securityApprovalObservability');
 
 const ALLOWED_STATUSES = new Set(['open', 'acknowledged', 'resolved']);
 const ALLOWED_SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
@@ -32,7 +33,7 @@ class SecurityCenterService {
     if (aiAnalyst !== null && (!aiAnalyst || typeof aiAnalyst.status !== 'function' || typeof aiAnalyst.listRecent !== 'function')) throw new TypeError('AI analyst read contract is required when provided');
     if (aiOrchestrator !== null && (!aiOrchestrator || typeof aiOrchestrator.status !== 'function' || typeof aiOrchestrator.listDecisions !== 'function')) throw new TypeError('AI orchestrator read contract is required when provided');
     if (aiPolicy !== null && (!aiPolicy || typeof aiPolicy.status !== 'function' || typeof aiPolicy.listRecent !== 'function')) throw new TypeError('AI policy read contract is required when provided');
-    if (approvalGate !== null && (!approvalGate || typeof approvalGate.status !== 'function' || typeof approvalGate.list !== 'function' || typeof approvalGate.listAudit !== 'function' || typeof approvalGate.consistency !== 'function')) throw new TypeError('approval gate read contract is required when provided');
+    if (approvalGate !== null && (!approvalGate || typeof approvalGate.status !== 'function' || typeof approvalGate.list !== 'function' || typeof approvalGate.listAudit !== 'function')) throw new TypeError('approval gate read contract is required when provided');
     this.runner = runner;
     this.runtime = runtime;
     this.store = store;
@@ -59,9 +60,9 @@ class SecurityCenterService {
     const recentAiAnalyses = this.aiAnalyst ? this.aiAnalyst.listRecent({ limit: 10 }) : [];
     const aiOrchestrator = this.aiOrchestrator ? { status: this.aiOrchestrator.status(), recentDecisions: this.aiOrchestrator.listDecisions({ limit: 10 }) } : { status: null, recentDecisions: [] };
     const aiPolicy = this.aiPolicy ? { status: this.aiPolicy.status(), recent: this.aiPolicy.listRecent({ limit: 10 }).map(item => ({ analyzedAt: item.analyzedAt, decision: item.policy?.decision || 'deny', reasonCode: item.policy?.reasonCode || 'POLICY_DENIED', actionCount: Number(item.policy?.actionCount || 0), executable: false })) } : { status: policyStatus(), recent: [] };
-    const consistency = this.approvalGate ? this.approvalGate.consistency() : { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false };
+    const consistency = readApprovalConsistency(this.approvalGate); const approvalHealthState=approvalHealth(consistency);
     const boundaryStatus=this.boundaryAudit?this.boundaryAudit.status():{mode:'unavailable'}; const boundaryRecent=this.boundaryAudit?this.boundaryAudit.list({limit:10}):[]; const boundaryHealth=buildBoundaryAuditHealth(boundaryStatus,boundaryRecent); const boundaryAlerts=buildBoundaryHealthAlerts(boundaryHealth);
-    const approvals = this.approvalGate ? { status: this.approvalGate.status(), recent: this.approvalGate.list({ limit: 10 }), recentAudit: this.approvalGate.listAudit({ limit: 10 }), consistency, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) } : { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, recent: [], recentAudit: [], consistency, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) };
+    const approvals = this.approvalGate ? { status: this.approvalGate.status(), recent: this.approvalGate.list({ limit: 10 }), recentAudit: this.approvalGate.listAudit({ limit: 10 }), consistency, health:approvalHealthState, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) } : { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, recent: [], recentAudit: [], consistency, health:approvalHealthState, consistencyAlerts: buildApprovalConsistencyAlerts(consistency) };
     return { ...overview, boundaryAudit:{health:boundaryHealth,alerts:boundaryAlerts}, notifications: { status: notificationStatus, recentAudit: recentNotificationAudit }, aiAnalyst: { status: aiStatus, recent: recentAiAnalyses }, aiOrchestrator, aiPolicy, approvals };
   }
 
@@ -101,8 +102,8 @@ class SecurityCenterService {
 
   async getApprovals({ limit } = {}) {
     const safeLimit = validateLimit(limit, 20);
-    if (!this.approvalGate) return { status: { enabled:false, actionRunnerAvailable:false, executionEnabled:false, simulationOnly:true }, approvals: [], audit: [], consistency: { ok:true, issues:[], live:{pending:0,approved:0,rejected:0,expired:0}, recordCount:0, auditCount:0, executable:false } };
-    const consistency=this.approvalGate.consistency(); return { status: this.approvalGate.status(), approvals: this.approvalGate.list({ limit: Math.min(safeLimit, 100) }), audit: this.approvalGate.listAudit({ limit: Math.min(safeLimit, 100) }), consistency, consistencyAlerts:buildApprovalConsistencyAlerts(consistency) };
+    if (!this.approvalGate) { const consistency=readApprovalConsistency(null); return { status:{enabled:false,actionRunnerAvailable:false,executionEnabled:false,simulationOnly:true}, approvals:[], audit:[], consistency, health:approvalHealth(consistency), consistencyAlerts:buildApprovalConsistencyAlerts(consistency) }; }
+    const consistency=readApprovalConsistency(this.approvalGate); return { status: this.approvalGate.status(), approvals: this.approvalGate.list({ limit: Math.min(safeLimit, 100) }), audit: this.approvalGate.listAudit({ limit: Math.min(safeLimit, 100) }), consistency, health:approvalHealth(consistency), consistencyAlerts:buildApprovalConsistencyAlerts(consistency) };
   }
 
   async getBoundaryAudit({ limit } = {}) {
@@ -113,7 +114,7 @@ class SecurityCenterService {
 
   async getHealth({ now = new Date() } = {}) {
     const overview = await this.getOverview({ now, recentLimit: 1 });
-    return { generatedAt: overview.generatedAt, shield: overview.shield, health: overview.health, alerts: overview.alerts, agent: overview.agent, telemetry: overview.telemetry, notifications: overview.notifications.status, aiAnalyst: overview.aiAnalyst.status, aiOrchestrator: overview.aiOrchestrator.status, aiPolicy: overview.aiPolicy.status, approvals: overview.approvals.status, boundaryAudit: {health:overview.boundaryAudit.health,alerts:overview.boundaryAudit.alerts}, openIncidentCount: overview.incidents.open, highestOpenSeverity: overview.incidents.highestOpenSeverity };
+    return { generatedAt: overview.generatedAt, shield: overview.shield, health: overview.health, alerts: overview.alerts, agent: overview.agent, telemetry: overview.telemetry, notifications: overview.notifications.status, aiAnalyst: overview.aiAnalyst.status, aiOrchestrator: overview.aiOrchestrator.status, aiPolicy: overview.aiPolicy.status, approvals: {status:overview.approvals.status,health:overview.approvals.health,consistencyAlerts:overview.approvals.consistencyAlerts}, boundaryAudit: {health:overview.boundaryAudit.health,alerts:overview.boundaryAudit.alerts}, openIncidentCount: overview.incidents.open, highestOpenSeverity: overview.incidents.highestOpenSeverity };
   }
 }
 
