@@ -35,3 +35,7 @@ The shadow schema defines an Identity-only `lifecycle_migration_evidence` table 
 ## Fresh evidence binding
 
 A recorder can persist evidence only after the live readiness evaluator returns complete parity counts. Cutover policy now independently requires manual approval, integrity-valid evidence, evidence no older than 15 minutes (and not from the future), zero recorded defects, and a fresh live readiness check. The evidence therefore cannot replace live verification or human approval. Nothing invokes the recorder or cutover policy automatically.
+
+## Bound approval proof (shadow)
+
+The cutover policy no longer accepts a boolean approval. It requires an HMAC-SHA-256 approval proof bound to the exact migration version and evidence digest, carrying a nonce and an approval timestamp no older than 15 minutes. Missing, stale, tampered, or differently-bound approval fails closed. The 32-byte key is an injected interface for tests/future secret management; this commit creates no production key, secret, signer endpoint, or approval. A production design should move signing to a non-exportable KMS/HSM or equivalent controlled approval service rather than an application environment secret.
