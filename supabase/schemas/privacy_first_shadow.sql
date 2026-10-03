@@ -60,8 +60,9 @@ create table if not exists research.participants (
   credential_version integer not null default 1 check (credential_version > 0),
   created_at timestamptz not null default now(),
   last_confirmed_at timestamptz,
-  expires_at timestamptz,
-  check (expires_at is null or expires_at > created_at)
+  expires_at timestamptz not null,
+  check (expires_at > created_at),
+  check (expires_at <= created_at + interval '365 days')
 );
 
 -- Anti-replay set. Deliberately no participant_id.
@@ -131,7 +132,7 @@ select distinct on (e.participant_id, e.question_id)
 from research.opinion_response_events e
 join research.participants p on p.participant_id = e.participant_id
 where p.status = 'active'
-  and (p.expires_at is null or p.expires_at > now())
+  and p.expires_at > now()
   and (e.valid_until is null or e.valid_until > now())
 order by e.participant_id, e.question_id, e.recorded_at desc;
 
