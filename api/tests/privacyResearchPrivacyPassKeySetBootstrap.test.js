@@ -228,3 +228,89 @@ test('local key-set bootstrap parser bounds input and shadow composition has no 
   const combined = `${bootstrapSource}\n${loaderSource}`;
   assert.doesNotMatch(combined, /DATABASE_URL|RESEARCH_DATABASE_URL|axios|fetch\s*\(|https?:\/\/|identityAuth|sessionService/);
 });
+
+
+test('persisted key-set recovery revalidates signature and freshness through the Privacy Pass bootstrap', async () => {
+  const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const now = Date.UTC(2026, 9, 3, 16, 0, 0);
+  const publicKeyBytes = Buffer.alloc(96, 7);
+  const keyId = sha256(publicKeyBytes);
+  const importedKey = makeVerificationKey();
+  const privacyPass = makePrivacyPass({ importedKey, keyId });
+  const payload = {
+    version: 1,
+    sequence: 21,
+    issuedAt: now - 1_000,
+    expiresAt: now + 60_000,
+    keys: [{
+      tokenKeyId: keyId.toString('base64url'),
+      publicKey: publicKeyBytes.toString('base64url'),
+      epochs: ['2026-Q4']
+    }]
+  };
+  const snapshotJson = JSON.stringify({
+    payload,
+    signature: crypto.sign(
+      null,
+      serializeIssuerKeySetPayload(payload),
+      privateKey
+    ).toString('base64url')
+  });
+  let revalidate;
+  const persistence = {
+    async recoverAuthenticatedSnapshot(options) {
+      revalidate = options.revalidate;
+      const validation = await revalidate(snapshotJson);
+      assert.deepEqual(validation, {
+        ready: true,
+        sequence: 21,
+        expiresAt: payload.expiresAt
+      });
+      return { snapshotJson, sequence: 21, expiresAt: payload.expiresAt };
+    }
+  };
+
+  const { createResearchPrivacyPassKeySetBootstrapFromRecovery } =
+    require('../services/researchPrivacyPassKeySetBootstrap');
+  const bootstrap = await createResearchPrivacyPassKeySetBootstrapFromRecovery({
+    persistence,
+    privacyPass,
+    trustRootPublicKey: trustRoot,
+    minimumRemainingValidityMs: 10_000,
+    subtle: { importKey: async () => importedKey },
+    now: () => now
+  });
+
+  assert.equal(typeof revalidate, 'function');
+  assert.deepEqual(bootstrap.readiness(), {
+    ready: true,
+    sequence: 21,
+    expiresAt: payload.expiresAt
+  });
+  assert.deepEqual(await bootstrap.credentialProvider.verify({
+    credentialBytes: Buffer.from('opaque-credential'),
+    purpose: 'renew',
+    epoch: '2026-Q4'
+  }), { valid: true, credentialVersion: 1 });
+});
+
+test('recovery bootstrap fails closed when persistence cannot revalidate the snapshot', async () => {
+  const { createResearchPrivacyPassKeySetBootstrapFromRecovery } =
+    require('../services/researchPrivacyPassKeySetBootstrap');
+  const persistence = {
+    async recoverAuthenticatedSnapshot({ revalidate }) {
+      await assert.rejects(() => revalidate('{'), /JSON/i);
+      throw new Error('Persisted issuer key-set snapshot failed restart revalidation');
+    }
+  };
+
+  await assert.rejects(
+    () => createResearchPrivacyPassKeySetBootstrapFromRecovery({
+      persistence,
+      privacyPass: {},
+      trustRootPublicKey: crypto.generateKeyPairSync('ed25519').publicKey,
+      minimumRemainingValidityMs: 10_000
+    }),
+    /restart revalidation/i
+  );
+});
