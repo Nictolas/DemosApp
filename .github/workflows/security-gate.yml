@@ -99,6 +99,43 @@ jobs:
           mapfile -t TARGETS < /tmp/research-sast-targets.txt
           semgrep scan --config "p/expressjs" --error --metrics=off "${TARGETS[@]}"
 
+  shadow-sql-validate:
+    name: PostgreSQL shadow DDL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: demos_shadow_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_shadow_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Execute shadow DDL inside rollback transaction
+        shell: bash
+        run: |
+          psql -h 127.0.0.1 -U postgres -d demos_shadow_ci <<'SQL'
+          \set ON_ERROR_STOP on
+          BEGIN;
+          \i supabase/schemas/privacy_first_shadow_ci_bootstrap.sql
+          \i supabase/schemas/privacy_first_shadow.sql
+          \i supabase/schemas/privacy_first_cutover_replay_rpc_shadow.sql
+          ROLLBACK;
+          SQL
+
   deterministic-security:
     name: Deterministic security tests
     runs-on: ubuntu-latest
