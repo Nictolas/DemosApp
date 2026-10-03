@@ -17,6 +17,7 @@ function createSecurityCenterRouter({ service, verifyToken, requireAdmin } = {})
   router.get('/ai-analyses', verifyToken, requireAdmin, handlers.aiAnalyses);
   router.get('/ai-orchestrator', verifyToken, requireAdmin, handlers.aiOrchestrator);
   router.get('/ai-policy', verifyToken, requireAdmin, handlers.aiPolicy);
+  router.get('/approvals', verifyToken, requireAdmin, handlers.approvals);
 
   return router;
 }

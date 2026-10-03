@@ -30,6 +30,13 @@ function createSecurityCenterHandlers(service) {
         return res.json({ success: true, data });
       } catch (_error) { return sendError(res); }
     },
+    async approvals(req, res) {
+      try {
+        if (typeof service.getApprovals !== 'function') throw new Error('approval read unavailable');
+        const data = await service.getApprovals({ limit: req?.query?.limit });
+        return res.json({ success: true, data });
+      } catch (_error) { return sendError(res); }
+    },
     async aiPolicy(req, res) {
       try {
         if (typeof service.getAiPolicy !== 'function') throw new Error('AI policy read unavailable');

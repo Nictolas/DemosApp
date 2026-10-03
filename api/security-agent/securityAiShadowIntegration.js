@@ -1,6 +1,7 @@
 const { evaluateAiPolicy, policyStatus } = require('./securityPolicyEngine');
+const { SecurityApprovalGate } = require('./securityApprovalGate');
 
-const AI_SHADOW_INTEGRATION_VERSION = 'v0.22';
+const AI_SHADOW_INTEGRATION_VERSION = 'v0.24';
 const ALLOWED_BACKENDS = Object.freeze(['mock', 'gateway']);
 
 function safeBackend(value) {
@@ -54,7 +55,7 @@ function normalizeAnalysis(value, analyzedAt, backend) {
 }
 
 class SecurityAiShadowIntegration {
-  constructor({ config = buildAiShadowIntegrationConfig(), mockRunner = null, modelGateway = null, maxRecent = 50, now = () => new Date() } = {}) {
+  constructor({ config = buildAiShadowIntegrationConfig(), mockRunner = null, modelGateway = null, approvalGate = null, maxRecent = 50, now = () => new Date() } = {}) {
     if (!config || typeof config !== 'object') throw new TypeError('AI shadow integration config is required');
     if (mockRunner !== null && (!mockRunner || typeof mockRunner.analyze !== 'function' || typeof mockRunner.status !== 'function')) throw new TypeError('mock runner contract is required');
     if (modelGateway !== null && (!modelGateway || typeof modelGateway.analyze !== 'function' || typeof modelGateway.status !== 'function')) throw new TypeError('model gateway contract is required');
@@ -62,6 +63,7 @@ class SecurityAiShadowIntegration {
     this.config = config;
     this.mockRunner = mockRunner;
     this.modelGateway = modelGateway;
+    this.approvalGate = approvalGate;
     this.maxRecent = Number.isInteger(maxRecent) && maxRecent > 0 && maxRecent <= 200 ? maxRecent : 50;
     this.now = now;
     this.recent = [];
@@ -109,6 +111,12 @@ class SecurityAiShadowIntegration {
     }
     this.successCount += 1;
     if (Object.prototype.hasOwnProperty.call(this.policyCounters, record.policy.decision)) this.policyCounters[record.policy.decision] += 1;
+    if (record.policy.decision === 'escalate' && this.approvalGate) {
+      const rawPolicy = evaluateAiPolicy(raw);
+      for (const item of rawPolicy.actions.filter(action => action.decision === 'escalate')) {
+        this.approvalGate.request({ action: item.action, reasonCode: item.reasonCode, priority: record.prioritySuggestion });
+      }
+    }
     this.lastErrorCode = null;
     this.recent.push(record);
     if (this.recent.length > this.maxRecent) this.recent.splice(0, this.recent.length - this.maxRecent);
@@ -138,7 +146,8 @@ class SecurityAiShadowIntegration {
       lastRunAt: this.lastRunAt,
       lastErrorCode: this.lastErrorCode,
       target: publicTargetStatus(targetStatus),
-      policy: Object.freeze({ ...policyStatus(), counters: Object.freeze({ ...this.policyCounters }) })
+      policy: Object.freeze({ ...policyStatus(), counters: Object.freeze({ ...this.policyCounters }) }),
+      approvalGate: this.approvalGate ? this.approvalGate.status() : Object.freeze({ enabled: false, actionRunnerAvailable: false, executionEnabled: false })
     });
   }
 
@@ -149,7 +158,7 @@ class SecurityAiShadowIntegration {
   }
 }
 
-function createSecurityAiShadowIntegration({ env = {}, mockRunner = null, modelGateway = null, maxRecent = 50, now = () => new Date() } = {}) {
+function createSecurityAiShadowIntegration({ env = {}, mockRunner = null, modelGateway = null, approvalGate = null, maxRecent = 50, now = () => new Date() } = {}) {
   const config = buildAiShadowIntegrationConfig(env);
   if (!mockRunner && config.backend === 'mock') {
     const { SecurityAiAnalystMockRunner } = require('./securityAiAnalystMockRunner');
@@ -159,7 +168,8 @@ function createSecurityAiShadowIntegration({ env = {}, mockRunner = null, modelG
     const { buildModelGatewayConfig, SecurityAiModelGateway } = require('./securityAiModelGateway');
     modelGateway = new SecurityAiModelGateway({ config: buildModelGatewayConfig(env), providerAdapter: null, now });
   }
-  return new SecurityAiShadowIntegration({ config, mockRunner, modelGateway, maxRecent, now });
+  if (!approvalGate) approvalGate = new SecurityApprovalGate({ now });
+  return new SecurityAiShadowIntegration({ config, mockRunner, modelGateway, approvalGate, maxRecent, now });
 }
 
 module.exports = {
