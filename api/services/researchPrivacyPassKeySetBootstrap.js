@@ -13,6 +13,9 @@ const {
 const {
   toResearchIssuerKeySetHealth
 } = require('./researchIssuerKeySetHealth');
+const {
+  canResearchUseIssuerKeySet
+} = require('./researchIssuerKeySetHealthPolicy');
 
 const MAX_SNAPSHOT_JSON_BYTES = 64 * 1024;
 
@@ -83,6 +86,9 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
     credentialProvider,
     readiness: () => freshnessGate.readiness(),
     health: () => toResearchIssuerKeySetHealth(freshnessGate.readiness()),
+    usable: () => canResearchUseIssuerKeySet(
+      toResearchIssuerKeySetHealth(freshnessGate.readiness())
+    ),
     installSignedSnapshotJson
   });
 };
