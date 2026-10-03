@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { getPool } = require('../config/database');
 
 const pool = getPool();
+const { shadowRecordAccountActivity } = require('./identityActivityShadowWriter');
 
 function hashRefreshToken(token) {
   return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
@@ -32,6 +33,7 @@ async function recordIssuedSession({ sessionId, userId, refreshToken, ipAddress=
        last_activity=NOW(), is_active=TRUE, expires_at=EXCLUDED.expires_at`,
     [sessionId,String(userId),tokenHash,ipAddress,userAgent,expiresAt]
   );
+  await shadowRecordAccountActivity({client:pool,accountId:String(userId)});
 }
 
 async function rotateRefreshSession({
@@ -111,6 +113,7 @@ async function rotateRefreshSession({
     );
 
     await client.query('COMMIT');
+    await shadowRecordAccountActivity({client:pool,accountId:String(userId)});
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

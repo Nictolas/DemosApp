@@ -19,3 +19,7 @@ A non-wired shadow mirror can copy successful Identity activity into the lifecyc
 ## Feature-gated shadow wiring
 
 `IDENTITY_ACTIVITY_SHADOW_DUAL_WRITE` is exact opt-in and defaults OFF. The shadow writer performs no lifecycle write and records no mirror metric while disabled. When explicitly enabled after schema/backfill approval, it uses the non-blocking mirror and records only process-local aggregate counters (`attempted`, `mirrored`, `failed`). No account ID, activity timestamp, error text or database detail is exposed through this telemetry. This commit does not set the environment variable or connect the writer to production authentication.
+
+## Auth hook with schema-readiness gate
+
+The session service now contains the shadow hook after successful legacy session issuance/rotation/revocation. It remains inert because the feature flag defaults OFF. Even if the flag is set, the writer refuses lifecycle writes until this process has positively attested `identity.account_activity` with `to_regclass`. Attestation errors fail closed. No startup code currently performs that attestation and no environment value is set by this commit, so production behavior remains legacy-only.
