@@ -168,8 +168,8 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
 
   assert.deepEqual(bootstrap.readiness(), {
     ready: true,
-    sequence: 12,
-    expiresAt: payload.expiresAt
+    sequence: 13,
+    expiresAt: freshReplacementPayload.expiresAt
   });
   assert.deepEqual(bootstrap.health(), { ready: true });
   assert.equal(bootstrap.usable(), true);
@@ -187,9 +187,31 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
   );
   assert.equal(bootstrap.readiness().sequence, 12);
 
-  const nearExpiryPayload = {
+  const freshReplacementPayload = {
     ...payload,
     sequence: 13,
+    issuedAt: now,
+    expiresAt: now + 120_000
+  };
+  const freshReplacementSnapshot = {
+    payload: freshReplacementPayload,
+    signature: crypto.sign(
+      null,
+      serializeIssuerKeySetPayload(freshReplacementPayload),
+      privateKey
+    ).toString('base64url')
+  };
+  await bootstrap.installSignedSnapshotJson(JSON.stringify(freshReplacementSnapshot));
+  assert.deepEqual(bootstrap.readiness(), {
+    ready: true,
+    sequence: 13,
+    expiresAt: freshReplacementPayload.expiresAt
+  });
+  assert.equal(bootstrap.usable(), true);
+
+  const nearExpiryPayload = {
+    ...payload,
+    sequence: 14,
     issuedAt: now - 1_000,
     expiresAt: now + 9_999
   };
@@ -207,12 +229,12 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
   );
   assert.deepEqual(bootstrap.readiness(), {
     ready: true,
-    sequence: 12,
-    expiresAt: payload.expiresAt
+    sequence: 13,
+    expiresAt: freshReplacementPayload.expiresAt
   });
   assert.equal(bootstrap.usable(), true);
 
-  now = payload.expiresAt - 9_999;
+  now = freshReplacementPayload.expiresAt - 9_999;
   assert.deepEqual(bootstrap.readiness(), {
     ready: false,
     reason: 'freshness-window',
@@ -230,7 +252,7 @@ test('authenticated local key-set bootstrap enforces freshness and fails closed 
     epoch: '2026-Q4'
   }), { valid: false });
 
-  now = payload.expiresAt;
+  now = freshReplacementPayload.expiresAt;
   assert.deepEqual(bootstrap.readiness(), { ready: false, reason: 'expired' });
   assert.deepEqual(bootstrap.health(), { ready: false, reason: 'expired' });
   assert.equal(bootstrap.usable(), false);
