@@ -10,15 +10,19 @@ This directory is deliberately outside `api/`:
 - it does not write to Supabase;
 - it does not contain production keys or secrets.
 
-## Library
+## Library and exact dependency tree
 
-Pinned for the POC:
+The public Privacy Pass API remains pinned for the POC:
 
 ```
 @cloudflare/privacypass-ts 0.9.0
 ```
 
-The upstream package was re-verified on 30/09/2026. It is ESM-only and requires Node >=20.
+The published 0.9.0 package pins `@cloudflare/blindrsa-ts 0.4.5`. An exact npm audit found that tree vulnerable through `sjcl <=1.0.8` (high severity, GHSA-2w8x-224x-785m). The isolated POC therefore overrides BlindRSA to `0.4.6`, matching the newer upstream dependency line and resolving `sjcl 1.0.9`.
+
+`package-lock.json` is committed. The repeat production-dependency audit reports **0 vulnerabilities** at the high-severity gate. Because BlindRSA 0.4.6 requires Node >=24, this POC now declares Node >=24; the validation run uses Node 26.
+
+This override is a POC compatibility measure, not production approval. Prefer an upstream Privacy Pass release that natively includes the fixed dependency before production adoption.
 
 ## What the tests demonstrate
 
@@ -34,9 +38,11 @@ The first test follows the upstream public-verifiable Blind-RSA flow:
 The Research verifier integration test then passes a real finalized token through the Demos verify-only provider boundary. It additionally requires:
 
 - the token challenge digest to match a Research challenge deterministically bound to `purpose + epoch`;
-- the token key ID to match the configured issuer public key;
-- Blind-RSA verification to succeed with the issuer public key;
+- the token key ID to match an accepted issuer public key;
+- Blind-RSA verification to succeed with that public key;
 - the same token to fail if `purpose` or `epoch` is changed.
+
+The shadow rotation policy supports a bounded old/new public-key overlap: at most two verification keys may be active for one epoch, and a token must resolve by key ID + epoch to exactly one key.
 
 This is the cryptographic primitive we want for:
 
@@ -52,7 +58,7 @@ IP address, timestamps, request IDs, cookies, device fingerprints, analytics SDK
 
 It also does not yet implement or authorize:
 
-- production key provisioning/rotation;
+- production key provisioning or authenticated public-key distribution;
 - audited issuer infrastructure;
 - production mounting of Research renewal routes;
 - distributed rate limiting;
@@ -66,8 +72,7 @@ The deterministic 32-byte redemption context used for `purpose + epoch` is a Dem
 
 ```bash
 cd experiments/privacy-pass-poc
-npm install
+npm ci --ignore-scripts
 npm test
+npm audit --omit=dev --audit-level=high
 ```
-
-Before any production adoption, generate and commit a lockfile for this package and review the dependency tree/security advisories.
