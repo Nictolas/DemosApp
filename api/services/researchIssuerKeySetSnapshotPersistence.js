@@ -107,28 +107,28 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
       const temporaryPath = `${snapshotPath}.tmp-${process.pid}-${suffix}`;
       let temporaryHandle;
       try {
-      temporaryHandle = await io.open(temporaryPath, 'wx', 0o600);
-      await temporaryHandle.writeFile(bytes);
-      await temporaryHandle.sync();
-      await temporaryHandle.close();
-      temporaryHandle = null;
+        temporaryHandle = await io.open(temporaryPath, 'wx', 0o600);
+        await temporaryHandle.writeFile(bytes);
+        await temporaryHandle.sync();
+        await temporaryHandle.close();
+        temporaryHandle = null;
 
-      // Advance the independently protected monotonic floor before exposing the
-      // replacement. A crash after this point but before rename fails closed on
-      // recovery instead of silently accepting the older snapshot.
-      await highWater.advanceTo(sequence);
-      const advancedFloor = await readFloor();
-      if (advancedFloor !== sequence) {
-        throw new Error('Issuer key-set high-water mark changed concurrently');
-      }
+        // Advance the independently protected monotonic floor before exposing the
+        // replacement. A crash after this point but before rename fails closed on
+        // recovery instead of silently accepting the older snapshot.
+        await highWater.advanceTo(sequence);
+        const advancedFloor = await readFloor();
+        if (advancedFloor !== sequence) {
+          throw new Error('Issuer key-set high-water mark changed concurrently');
+        }
 
-      await io.rename(temporaryPath, snapshotPath);
-      await syncDirectory();
+        await io.rename(temporaryPath, snapshotPath);
+        await syncDirectory();
 
-      const publishedFloor = await readFloor();
-      if (publishedFloor !== sequence) {
-        throw new Error('Issuer key-set high-water mark changed after snapshot publish');
-      }
+        const publishedFloor = await readFloor();
+        if (publishedFloor !== sequence) {
+          throw new Error('Issuer key-set high-water mark changed after snapshot publish');
+        }
       } catch (error) {
         if (temporaryHandle) {
           try { await temporaryHandle.close(); } catch {}
