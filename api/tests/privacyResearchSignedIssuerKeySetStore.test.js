@@ -315,3 +315,94 @@ test('issuer key-set enforces the total verification-key snapshot bound', () => 
   assert.doesNotThrow(() => serializeIssuerKeySetPayload(payload(16, 6)));
   assert.throws(() => serializeIssuerKeySetPayload(payload(17, 7)), /issuer key-set keys/i);
 });
+
+
+test('failed verification-key loading leaves the previously authenticated snapshot intact', async () => {
+  const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const stableBytes = makePublicMaterial(40);
+  const candidateBytes = makePublicMaterial(41);
+  const stableKey = { type: 'public', usages: ['verify'], label: 'stable' };
+  const store = createResearchSignedIssuerKeySetStore({
+    trustRootPublicKey: trustRoot,
+    loadVerificationKey: async (bytes) => {
+      if (bytes.equals(stableBytes)) return stableKey;
+      throw new Error('fixture loader failure');
+    },
+    now: () => now
+  });
+
+  const stablePayload = makePayload({
+    sequence: 20,
+    issuedAt: now - 1_000,
+    expiresAt: now + 60_000,
+    entries: [{ bytes: stableBytes, epochs: ['2026-Q4'] }]
+  });
+  await store.install(signSnapshot(stablePayload, privateKey));
+
+  const replacement = makePayload({
+    sequence: 21,
+    issuedAt: now - 1_000,
+    expiresAt: now + 60_000,
+    entries: [{ bytes: candidateBytes, epochs: ['2027-Q1'] }]
+  });
+  await assert.rejects(store.install(signSnapshot(replacement, privateKey)), /loader failure/i);
+
+  assert.equal(store.readiness().sequence, 20);
+  assert.equal(store.resolve({
+    tokenKeyId: Buffer.from(tokenKeyId(stableBytes), 'base64url'),
+    epoch: '2026-Q4'
+  }), stableKey);
+  assert.equal(store.resolve({
+    tokenKeyId: Buffer.from(tokenKeyId(candidateBytes), 'base64url'),
+    epoch: '2027-Q1'
+  }), null);
+});
+
+test('issuer key-set canonicalization is deterministic across key ordering', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const firstBytes = makePublicMaterial(42);
+  const secondBytes = makePublicMaterial(43);
+  const first = makePayload({
+    sequence: 22,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [
+      { bytes: firstBytes, epochs: ['2026-Q4'] },
+      { bytes: secondBytes, epochs: ['2027-Q1'] }
+    ]
+  });
+  const second = makePayload({
+    sequence: 22,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [
+      { bytes: secondBytes, epochs: ['2027-Q1'] },
+      { bytes: firstBytes, epochs: ['2026-Q4'] }
+    ]
+  });
+
+  assert.deepEqual(
+    serializeIssuerKeySetPayload(first),
+    serializeIssuerKeySetPayload(second)
+  );
+});
+
+test('issuer key-set rejects duplicate verification keys before installation', () => {
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const bytes = makePublicMaterial(44);
+  const payload = makePayload({
+    sequence: 23,
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    entries: [
+      { bytes, epochs: ['2026-Q4'] },
+      { bytes, epochs: ['2027-Q1'] }
+    ]
+  });
+
+  assert.throws(
+    () => serializeIssuerKeySetPayload(payload),
+    /duplicate issuer token key id/i
+  );
+});
