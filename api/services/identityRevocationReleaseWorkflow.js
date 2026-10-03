@@ -10,8 +10,8 @@ const releaseRevocationForRelay=async({client,keyProvider,accountId,authorizatio
   const envelope=typeof row.envelope==='string'?JSON.parse(row.envelope):row.envelope;
   const capability=await recoverRevocationCapability({client,keyProvider,accountId});
   try{
-    const accepted=await relayAccept({capability});
-    if(accepted!==true) throw new Error('Revocation relay did not accept capability');
+    const acknowledgement=await relayAccept({capability});
+    if(!acknowledgement||acknowledgement.accepted!==true||acknowledgement.durable!==true) throw new Error('Revocation relay durable acknowledgement required');
     const deleted=await deleteRevocationEscrowIfVersion(client,{accountId,expectedKeyVersion:envelope.keyVersion});
     if(!deleted) throw new Error('Revocation escrow changed before destruction');
     return {released:true,escrowDestroyed:true};
