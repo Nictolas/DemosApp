@@ -7,7 +7,7 @@ const authorizeIdentityActivityCutover=async(client,{evidence,evidenceDigest,app
  if(!approvalCheck||approvalCheck.valid!==true)return{authorized:false,reason:approvalCheck?.reason||'APPROVAL_PROOF_INVALID'};
  const readiness=await evaluateIdentityActivityCutoverReadiness(client);if(!readiness.ready)return{authorized:false,reason:'READINESS_INCOMPLETE',readiness};
  if(!replayStore||typeof replayStore.consumeOnce!=='function')return{authorized:false,reason:'APPROVAL_REPLAY_STORE_REQUIRED'};
- const consumed=await replayStore.consumeOnce(approval.nonce);if(consumed!==true)return{authorized:false,reason:'APPROVAL_REPLAYED'};
+ const consumed=await replayStore.consumeOnce(approval.nonce,{ttlSeconds:900});if(consumed!==true)return{authorized:false,reason:'APPROVAL_REPLAYED'};
  return{authorized:true,readiness};
 };
 module.exports={authorizeIdentityActivityCutover};
