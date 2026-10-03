@@ -8,7 +8,9 @@ const {
   ShadowSecurityPipeline,
   normalizeSecurityEvent,
   adaptLegacySecurityRecord,
-  adaptLegacyViolation
+  adaptLegacyViolation,
+  ReadOnlySecuritySource,
+  createAxiomReadOnlySecuritySource
 } = require('../security-agent');
 
 test('security events drop sensitive/linkable metadata by default', () => {
@@ -251,4 +253,131 @@ test('legacy unauthorized-access detector feeds the new incident manager without
   assert.ok(result.findings.some(item => item.ruleId === 'DET-UNAUTHORIZED-ACCESS'));
   const snapshot = JSON.stringify(pipeline.snapshot());
   assert.doesNotMatch(snapshot, /actor-secret|target-secret|192\.0\.2\.4|raw target/);
+});
+
+
+test('read-only source is disabled by default and never calls its fetcher', async () => {
+  let calls = 0;
+  const source = new ReadOnlySecuritySource({
+    fetchEvents: async () => {
+      calls += 1;
+      return [];
+    }
+  });
+
+  const result = await source.poll({ now: new Date('2026-10-03T12:00:00.000Z') });
+  assert.equal(result.status, 'disabled');
+  assert.equal(calls, 0);
+});
+
+test('read-only source advances watermark and feeds the shadow pipeline', async () => {
+  const now = new Date('2026-10-03T12:00:00.000Z');
+  const source = new ReadOnlySecuritySource({
+    enabled: true,
+    environment: 'test',
+    fetchEvents: async ({ startTime, endTime, limit }) => {
+      assert.equal(limit, 500);
+      assert.equal(endTime.toISOString(), now.toISOString());
+      assert.equal(startTime.toISOString(), '2026-10-03T11:55:00.000Z');
+      return [{
+        _time: '2026-10-03T11:59:30.000Z',
+        type: 'failed_login',
+        severity: 'medium',
+        user_id: 'must-not-persist',
+        ip_address: '203.0.113.8'
+      }];
+    }
+  });
+
+  const result = await source.poll({ now });
+  assert.equal(result.status, 'ok');
+  assert.equal(result.accepted, 1);
+  assert.equal(result.watermark, '2026-10-03T11:59:30.000Z');
+  assert.doesNotMatch(JSON.stringify(source.pipeline.snapshot()), /must-not-persist|203\.0\.113\.8/);
+});
+
+test('watermark overlap tolerates late events while deterministic IDs prevent double counting', async () => {
+  const now = new Date('2026-10-03T12:00:00.000Z');
+  let poll = 0;
+  const repeated = {
+    _time: '2026-10-03T11:59:30.000Z',
+    type: 'failed_login',
+    severity: 'medium',
+    user_id: 'raw-id'
+  };
+  const late = {
+    _time: '2026-10-03T11:59:20.000Z',
+    type: 'failed_login',
+    severity: 'medium'
+  };
+
+  const source = new ReadOnlySecuritySource({
+    enabled: true,
+    environment: 'test',
+    overlapMs: 30_000,
+    fetchEvents: async ({ startTime }) => {
+      poll += 1;
+      if (poll === 1) return [repeated];
+      assert.equal(startTime.toISOString(), '2026-10-03T11:59:00.000Z');
+      return [repeated, late];
+    }
+  });
+
+  const first = await source.poll({ now });
+  const second = await source.poll({ now: new Date('2026-10-03T12:01:00.000Z') });
+
+  assert.equal(first.accepted, 1);
+  assert.equal(second.accepted, 1);
+  assert.equal(second.duplicates, 1);
+  assert.equal(source.pipeline.snapshot().events.length, 2);
+  assert.equal(source.status().totals.duplicates, 1);
+});
+
+test('failed source poll does not advance watermark and exposes only a generic error code', async () => {
+  const source = new ReadOnlySecuritySource({
+    enabled: true,
+    fetchEvents: async () => {
+      throw new Error('secret provider error with credentials');
+    }
+  });
+
+  const result = await source.poll({ now: new Date('2026-10-03T12:00:00.000Z') });
+  assert.equal(result.status, 'error');
+  assert.equal(result.errorCode, 'SECURITY_SOURCE_POLL_FAILED');
+  assert.equal(result.watermark, null);
+  assert.equal(source.status().consecutiveFailures, 1);
+  assert.doesNotMatch(JSON.stringify(result), /secret provider error|credentials/);
+});
+
+test('stale source heartbeat becomes a deterministic high telemetry incident', async () => {
+  const source = new ReadOnlySecuritySource({
+    enabled: true,
+    heartbeatTimeoutMs: 10 * 60 * 1000,
+    fetchEvents: async () => []
+  });
+
+  await source.poll({ now: new Date('2026-10-03T12:00:00.000Z') });
+  const heartbeat = await source.checkHeartbeat({
+    now: new Date('2026-10-03T12:11:00.000Z')
+  });
+
+  assert.equal(heartbeat.status, 'stale');
+  assert.equal(heartbeat.incidentCreated, true);
+  assert.ok(source.pipeline.snapshot().incidents.some(i => i.ruleId === 'DET-TELEMETRY-GAP'));
+});
+
+test('Axiom source factory remains OFF unless the explicit shadow feature flag is true', async () => {
+  let calls = 0;
+  const source = createAxiomReadOnlySecuritySource({
+    env: { NODE_ENV: 'test' },
+    fetchSecurityEvents: async () => {
+      calls += 1;
+      return [];
+    }
+  });
+
+  assert.equal(source.status().enabled, false);
+  const result = await source.poll({ now: new Date('2026-10-03T12:00:00.000Z') });
+  assert.equal(result.status, 'disabled');
+  assert.equal(calls, 0);
 });
