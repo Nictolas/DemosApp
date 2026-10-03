@@ -132,6 +132,7 @@ jobs:
           BEGIN;
           \i supabase/schemas/privacy_first_shadow_ci_bootstrap.sql
           \i supabase/schemas/privacy_first_shadow.sql
+          \i supabase/schemas/privacy_first_research_renewal_proof_shadow.sql
           \i supabase/schemas/privacy_first_cutover_replay_rpc_shadow.sql
           ROLLBACK;
           SQL
