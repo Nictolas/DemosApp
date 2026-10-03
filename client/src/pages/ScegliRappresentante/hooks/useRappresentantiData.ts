@@ -5,7 +5,8 @@ import { Rappresentante, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/rappresentanteUtils";
 import { getTitolo as getTitoloCandidati } from "../utils/candidatoUtils";
 import { useRoute } from "wouter";
-import { fetchPoliticalVectorsForLocalMatch, isLocalPoliticalMatchingEnabled, matchPoliticalVectorsLocally } from "@/lib/privacy/researchPoliticalMatchingClient";
+import { fetchPoliticalVectorsForLocalMatch, matchPoliticalVectorsLocally } from "@/lib/privacy/researchPoliticalMatchingClient";
+import { getLivePoliticalMatchingRuntimeMode } from "@/lib/privacy/liveMatchingCutoverPolicy";
 
 // Hook per controllare opinioni mancanti
 const useOpinioniCheck = (grado: string) => {
@@ -91,7 +92,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       setLoading(true);
       
       try {
-        if (!isTestRoute && isLocalPoliticalMatchingEnabled()) {
+        if (!isTestRoute && getLivePoliticalMatchingRuntimeMode().mode === "privacy-first") {
           const opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
           const citizenOpinions = opinionsResponse?.data?.data?.userAnswers;
           if (!opinionsResponse?.ok || !citizenOpinions || typeof citizenOpinions !== 'object') {
