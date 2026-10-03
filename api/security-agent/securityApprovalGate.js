@@ -1,4 +1,4 @@
-const APPROVAL_GATE_VERSION = 'v0.26';
+const APPROVAL_GATE_VERSION = 'v0.27';
 const APPROVAL_STATES = Object.freeze(['pending', 'approved', 'rejected', 'expired']);
 const ALLOWED_ACTIONS = new Set(['investigate','escalate_human','propose_rate_limit','propose_session_revocation','propose_endpoint_isolation','propose_secret_rotation']);
 
@@ -11,7 +11,7 @@ class SecurityApprovalGate {
     if (typeof now !== 'function') throw new TypeError('approval clock required');
     if (!Number.isInteger(ttlMs) || ttlMs < 60000 || ttlMs > 86400000) throw new Error('invalid approval ttl');
     if (!Number.isInteger(maxRecords) || maxRecords < 10 || maxRecords > 1000) throw new Error('invalid approval record limit');
-    this.now = now; this.ttlMs = ttlMs; this.maxRecords = maxRecords; this.records = [];
+    this.now = now; this.ttlMs = ttlMs; this.maxRecords = maxRecords; this.records = []; this.sequence = 0;
     this.counters = { pending:0, approved:0, rejected:0, expired:0 };
     this.audit = [];
   }
@@ -27,10 +27,13 @@ class SecurityApprovalGate {
     }
   }
   request({ action, reasonCode = 'HUMAN_APPROVAL_REQUIRED', priority = 'P3' } = {}) {
+    this._expire();
     if (!ALLOWED_ACTIONS.has(action)) throw new Error('APPROVAL_ACTION_NOT_ALLOWED');
     if (!['P0','P1','P2','P3'].includes(priority)) throw new Error('APPROVAL_PRIORITY_INVALID');
     const now = this.now();
-    const record = { approvalId: `apr_${String(now.getTime())}_${String(this.records.length + 1)}`, action, reasonCode:safeToken(reasonCode), priority, state:'pending', requestedAt:now.toISOString(), expiresAt:new Date(now.getTime()+this.ttlMs).toISOString(), decidedAt:null, executable:false };
+    if (!(now instanceof Date) || Number.isNaN(now.getTime())) throw new Error('APPROVAL_CLOCK_INVALID');
+    this.sequence += 1;
+    const record = { approvalId: `apr_${String(now.getTime())}_${String(this.sequence)}`, action, reasonCode:safeToken(reasonCode), priority, state:'pending', requestedAt:now.toISOString(), expiresAt:new Date(now.getTime()+this.ttlMs).toISOString(), decidedAt:null, executable:false };
     this.records.push(record); this.counters.pending += 1; this._audit('requested', record, now);
     if (this.records.length > this.maxRecords) this.records.splice(0, this.records.length-this.maxRecords);
     return Object.freeze({ ...record });
