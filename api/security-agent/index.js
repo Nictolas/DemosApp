@@ -51,6 +51,20 @@ const {
   emptyNotificationSimulationStatus,
   SecurityNotificationSimulation
 } = require('./securityNotificationSimulation');
+const {
+  AI_ANALYST_CONTRACT_VERSION: SECURITY_AI_ANALYST_CONTRACT_VERSION,
+  AI_ANALYST_MODE: SECURITY_AI_ANALYST_MODE,
+  AI_ANALYST_SYSTEM_POLICY: SECURITY_AI_ANALYST_SYSTEM_POLICY,
+  ASSESSMENTS: SECURITY_AI_ANALYST_ASSESSMENTS,
+  PRIORITIES: SECURITY_AI_ANALYST_PRIORITIES,
+  RECOMMENDED_ACTIONS: SECURITY_AI_ANALYST_RECOMMENDED_ACTIONS,
+  sanitizeIncidentForAi,
+  sanitizeAlertForAi,
+  sanitizeHealthForAi,
+  buildAiAnalystInput,
+  validateAiAnalystOutput,
+  buildAiAnalystRequest
+} = require('./securityAiAnalystContract');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -101,6 +115,18 @@ module.exports = {
   validateNotificationAuditLimit,
   emptyNotificationSimulationStatus,
   SecurityNotificationSimulation,
+  SECURITY_AI_ANALYST_CONTRACT_VERSION,
+  SECURITY_AI_ANALYST_MODE,
+  SECURITY_AI_ANALYST_SYSTEM_POLICY,
+  SECURITY_AI_ANALYST_ASSESSMENTS,
+  SECURITY_AI_ANALYST_PRIORITIES,
+  SECURITY_AI_ANALYST_RECOMMENDED_ACTIONS,
+  sanitizeIncidentForAi,
+  sanitizeAlertForAi,
+  sanitizeHealthForAi,
+  buildAiAnalystInput,
+  validateAiAnalystOutput,
+  buildAiAnalystRequest,
   runSecurityAgentWorker,
   sanitizeIncidentForStore,
   sanitizeSourceState,
