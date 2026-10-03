@@ -46,3 +46,7 @@ Legacy bootstrap import is now allowed only when the encrypted ciphertext is gen
 ## Live source injection boundary
 
 The representative-selection hook no longer reads `/api/opinioni/profile` inside its privacy-first branch. It now obtains a pre-installed local source and delegates to `runLocalPoliticalMatchingPipeline`. No source is installed by default, so an accidentally enabled privacy-first cutover fails closed instead of falling back to Identity. Source replacement is rejected. The concrete Android secure-storage source remains intentionally uninstalled until the native dependency is approved.
+
+## Startup guard
+
+Client startup fails closed if privacy-first is selected but no secure local opinion source is installed. Default legacy startup is unaffected.

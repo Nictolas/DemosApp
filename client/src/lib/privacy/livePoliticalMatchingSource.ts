@@ -7,6 +7,8 @@ export const installLivePoliticalMatchingSource = (source: CitizenOpinionVectorR
   injectedSource = source;
 };
 
+export const hasLivePoliticalMatchingSource = (): boolean => injectedSource !== null;
+
 export const getLivePoliticalMatchingSource = (): CitizenOpinionVectorReader => {
   if (!injectedSource) throw new Error('Privacy-first opinion source unavailable');
   return injectedSource;
