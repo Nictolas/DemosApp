@@ -62,3 +62,51 @@ test('Research boundary handles preflight narrowly and error handler leaks no in
   assert.deepEqual(failure.state.body, { error: 'Invalid Research request' });
   assert.equal(JSON.stringify(failure.state.body).includes('database'), false);
 });
+
+
+test('Research boundary never opts into cookies, authorization headers or browser credential sharing', () => {
+  const middleware = createResearchPublicBoundaryMiddleware({
+    policy: {
+      allowedOrigins: ['https://app.example'],
+      cacheControl: 'no-store'
+    }
+  });
+  const allowed = responseRecorder();
+  middleware(
+    { method: 'OPTIONS', get: () => 'https://app.example' },
+    allowed.res,
+    () => assert.fail('preflight reached next')
+  );
+
+  assert.equal(allowed.state.headers['Access-Control-Allow-Credentials'], undefined);
+  assert.equal(allowed.state.headers['Access-Control-Allow-Headers'], 'Content-Type');
+  assert.equal(
+    String(allowed.state.headers['Access-Control-Allow-Headers']).toLowerCase().includes('authorization'),
+    false
+  );
+  assert.equal(
+    String(allowed.state.headers['Access-Control-Allow-Headers']).toLowerCase().includes('cookie'),
+    false
+  );
+});
+
+test('Research boundary applies privacy headers even when an origin is rejected', () => {
+  const middleware = createResearchPublicBoundaryMiddleware({
+    policy: {
+      allowedOrigins: ['https://app.example'],
+      cacheControl: 'no-store'
+    }
+  });
+  const denied = responseRecorder();
+  middleware(
+    { method: 'POST', get: () => 'https://evil.example' },
+    denied.res,
+    () => assert.fail('denied origin reached next')
+  );
+
+  assert.equal(denied.state.statusCode, 403);
+  assert.equal(denied.state.headers['Cache-Control'], 'no-store');
+  assert.equal(denied.state.headers['X-Content-Type-Options'], 'nosniff');
+  assert.equal(denied.state.headers['Referrer-Policy'], 'no-referrer');
+  assert.equal(denied.state.headers['Access-Control-Allow-Origin'], undefined);
+});
