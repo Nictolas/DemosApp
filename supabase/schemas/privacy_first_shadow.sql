@@ -25,6 +25,18 @@ create table if not exists identity.participation_eligibility (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists identity.lifecycle_migration_evidence (
+  evidence_id uuid primary key,
+  migration_version text not null,
+  schema_ready boolean not null,
+  backfill_ready boolean not null,
+  missing_accounts integer not null check (missing_accounts >= 0),
+  lagging_accounts integer not null check (lagging_accounts >= 0),
+  observed_at timestamptz not null,
+  evidence_digest bytea not null unique,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists identity.account_activity (
   account_id uuid primary key references public.users(id) on delete cascade,
   last_activity_at timestamptz not null,
@@ -209,6 +221,8 @@ create table if not exists audit.security_events (
 
 alter table identity.participation_eligibility enable row level security;
 alter table identity.participation_eligibility force row level security;
+alter table identity.lifecycle_migration_evidence enable row level security;
+alter table identity.lifecycle_migration_evidence force row level security;
 alter table identity.account_activity enable row level security;
 alter table identity.account_activity force row level security;
 alter table identity.revocation_escrows enable row level security;
