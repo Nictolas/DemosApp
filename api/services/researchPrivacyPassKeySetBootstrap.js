@@ -7,6 +7,9 @@ const {
 const {
   createResearchPrivacyPassCredentialProvider
 } = require('./researchPrivacyPassCredentialProvider');
+const {
+  createResearchIssuerKeySetFreshnessGate
+} = require('./researchIssuerKeySetFreshnessGate');
 
 const MAX_SNAPSHOT_JSON_BYTES = 64 * 1024;
 
@@ -36,6 +39,7 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
   privacyPass,
   trustRootPublicKey,
   signedSnapshotJson,
+  minimumRemainingValidityMs,
   subtle,
   now = () => Date.now(),
   issuerName,
@@ -50,26 +54,31 @@ const createResearchPrivacyPassKeySetBootstrap = async ({
     loadVerificationKey,
     now
   });
+  const freshnessGate = createResearchIssuerKeySetFreshnessGate({
+    snapshotStore: keySetStore,
+    minimumRemainingValidityMs,
+    now
+  });
 
   const installSignedSnapshotJson = async (snapshotJson) =>
     keySetStore.install(parseResearchSignedIssuerKeySetSnapshot(snapshotJson));
 
   await installSignedSnapshotJson(signedSnapshotJson);
-  const initialReadiness = keySetStore.readiness();
+  const initialReadiness = freshnessGate.readiness();
   if (initialReadiness.ready !== true) {
     throw new Error('Research issuer key-set bootstrap is not ready');
   }
 
   const credentialProvider = createResearchPrivacyPassCredentialProvider({
     privacyPass,
-    issuerPublicKeyRing: keySetStore,
+    issuerPublicKeyRing: freshnessGate,
     ...(issuerName === undefined ? {} : { issuerName }),
     ...(originInfo === undefined ? {} : { originInfo })
   });
 
   return Object.freeze({
     credentialProvider,
-    readiness: () => keySetStore.readiness(),
+    readiness: () => freshnessGate.readiness(),
     installSignedSnapshotJson
   });
 };

@@ -117,7 +117,7 @@ test('Privacy Pass public-key loader fails closed for unexpected algorithms, mal
   await assert.rejects(() => privateLoader(Buffer.alloc(96, 2)), /public|verification/i);
 });
 
-test('authenticated local key-set bootstrap loads Privacy Pass keys atomically and becomes fail-closed on expiry', async () => {
+test('authenticated local key-set bootstrap enforces freshness and fails closed before expiry', async () => {
   const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
   let now = Date.UTC(2026, 9, 3, 15, 0, 0);
   const publicKeyBytes = Buffer.alloc(96, 7);
@@ -145,10 +145,23 @@ test('authenticated local key-set bootstrap loads Privacy Pass keys atomically a
     ).toString('base64url')
   };
 
+  await assert.rejects(
+    () => createResearchPrivacyPassKeySetBootstrap({
+      privacyPass,
+      trustRootPublicKey: trustRoot,
+      signedSnapshotJson: JSON.stringify(snapshot),
+      minimumRemainingValidityMs: 0,
+      subtle,
+      now: () => now
+    }),
+    /freshness margin/i
+  );
+
   const bootstrap = await createResearchPrivacyPassKeySetBootstrap({
     privacyPass,
     trustRootPublicKey: trustRoot,
     signedSnapshotJson: JSON.stringify(snapshot),
+    minimumRemainingValidityMs: 10_000,
     subtle,
     now: () => now
   });
@@ -171,6 +184,19 @@ test('authenticated local key-set bootstrap loads Privacy Pass keys atomically a
     /signature/i
   );
   assert.equal(bootstrap.readiness().sequence, 12);
+
+  now = payload.expiresAt - 9_999;
+  assert.deepEqual(bootstrap.readiness(), {
+    ready: false,
+    reason: 'freshness-window',
+    sequence: 12,
+    expiresAt: payload.expiresAt
+  });
+  assert.deepEqual(await bootstrap.credentialProvider.verify({
+    credentialBytes: Buffer.from('opaque-credential'),
+    purpose: 'renew',
+    epoch: '2026-Q4'
+  }), { valid: false });
 
   now = payload.expiresAt;
   assert.deepEqual(bootstrap.readiness(), { ready: false, reason: 'expired' });

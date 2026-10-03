@@ -21,6 +21,12 @@ If the snapshot is inside the freshness window, readiness is false with reason `
 
 Missing, expired, malformed or unavailable snapshot state remains fail closed.
 
+## Bootstrap wiring
+
+`createResearchPrivacyPassKeySetBootstrap` now requires the freshness margin explicitly and wraps the authenticated issuer key-set store with this gate before exposing any verification capability. The bootstrap readiness surface is therefore the freshness-gated readiness surface, and the Privacy Pass credential provider resolves issuer public keys only through the gate.
+
+This means a snapshot can remain cryptographically authentic and not yet absolutely expired while Research already refuses credential verification because the configured safety margin has been crossed. The margin is not read from environment state and is not hard-coded to a production value in this shadow path.
+
 ## Atomicity relationship
 
 The signed snapshot store already materializes and validates a full candidate key ring before replacing its current snapshot. The freshness gate is read-only and observes only the store's published readiness state; it does not partially update key material or introduce a second mutable key-set copy.
