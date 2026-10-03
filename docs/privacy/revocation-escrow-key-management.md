@@ -19,3 +19,7 @@ No production key, Render environment variable, KMS resource or secret is create
 ## Shadow service integration
 
 The orchestration service now composes provider + AES-256-GCM envelope + Identity store. Rotation reads the historical key by envelope version, decrypts only in process memory, re-encrypts under the active version and overwrites the Identity envelope. The temporary plaintext buffer used during rotation is zeroed in a finally block. This is still not a production KMS integration or scheduled rotation job.
+
+## Concurrent rotation guard
+
+Re-encryption now uses compare-and-swap semantics on the stored key version. If another writer changes the escrow between read and write, the conditional update affects zero rows and rotation fails closed instead of overwriting the newer envelope. A production batch rotation job still needs retry/backoff, transaction/isolation policy and operational metrics.

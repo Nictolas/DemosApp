@@ -1,5 +1,5 @@
 const {getActiveEscrowKey,getEscrowKeyByVersion}=require('./identityRevocationEscrowKeyProvider');
-const {storeRevocationEscrow,readRevocationEscrow}=require('./identityRevocationEscrowStore');
+const {storeRevocationEscrow,readRevocationEscrow,replaceRevocationEscrowIfVersion}=require('./identityRevocationEscrowStore');
 
 const loadEnvelopeModule=()=>import('./identityRevocationEscrowEnvelope.js');
 
@@ -31,7 +31,8 @@ const rotateRevocationEscrow=async({client,keyProvider,accountId})=>{
   const capability=openRevocationCapability({envelope,accountId,key:oldKey});
   try{
     const next=sealRevocationCapability({capability,accountId,key:active.key,keyVersion:active.keyVersion});
-    await storeRevocationEscrow(client,{accountId,envelope:next});
+    const replaced=await replaceRevocationEscrowIfVersion(client,{accountId,expectedKeyVersion:envelope.keyVersion,envelope:next});
+    if(!replaced) throw new Error('Revocation escrow changed concurrently');
     return {rotated:true,keyVersion:active.keyVersion};
   }finally{
     capability.fill(0);
