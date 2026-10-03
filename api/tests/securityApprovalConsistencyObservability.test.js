@@ -1,0 +1,7 @@
+const test=require('node:test'); const assert=require('node:assert/strict');
+const {SecurityApprovalGate}=require('../security-agent/securityApprovalGate'); const {SecurityCenterService}=require('../security-agent/securityCenterService');
+function service(gate){const store={listIncidents:async()=>[],getSourceState:async()=>null,stats:async()=>({incidentCount:0})};return new SecurityCenterService({runner:{status:()=>({enabled:false})},store,approvalGate:gate});}
+test('approval read includes consistency',async()=>{const g=new SecurityApprovalGate();g.request({action:'investigate'});const d=await service(g).getApprovals();assert.equal(d.consistency.ok,true);assert.equal(d.consistency.live.pending,1);assert.equal(d.consistency.executable,false);});
+test('overview includes consistency',async()=>{const g=new SecurityApprovalGate();g.request({action:'investigate'});const d=await service(g).getOverview();assert.equal(d.approvals.consistency.ok,true);assert.equal(d.approvals.consistency.recordCount,1);});
+test('inconsistency is visible read only',async()=>{const g=new SecurityApprovalGate();g.request({action:'investigate'});g.counters.pending=0;const d=await service(g).getApprovals();assert.equal(d.consistency.ok,false);assert.ok(d.consistency.issues.includes('PENDING_COUNTER_MISMATCH'));});
+test('observability remains non operational',async()=>{const d=await service(new SecurityApprovalGate()).getApprovals();assert.equal(d.status.executionEnabled,false);assert.equal(d.consistency.executable,false);});
