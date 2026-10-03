@@ -47,3 +47,14 @@ Before activation, Demos must separately decide and document:
 - behavior during a prolonged distribution outage.
 
 Those decisions may trade availability against revocation/freshness guarantees and therefore remain outside this shadow-only checkpoint.
+
+
+## Crash-safe persistence and multi-writer boundary
+
+The shadow persistence layer uses a separate monotonic high-water mark as the anti-rollback anchor. Snapshot publication advances that anchor before the atomic file rename, verifies exact equality before publication, and verifies it again after rename plus directory fsync. Recovery reads the anchor before the file, after the file read, and after cryptographic/freshness revalidation; any change fails closed.
+
+Writes are serialized only inside one process. The repeated high-water checks also detect several external-writer races, but they are not a distributed transaction and do not provide cross-replica mutual exclusion. A production deployment must therefore use an independently protected high-water backend whose monotonic advance/read semantics are strong enough for concurrent writers, or introduce explicit distributed coordination.
+
+A crash after advancing the high-water mark but before publishing the matching snapshot intentionally leaves recovery unavailable rather than accepting the older file. Likewise, if another writer advances the floor immediately after publication, the publishing call reports failure and later recovery rejects the now-stale file.
+
+No production backend, quorum model, lock service, database transaction, KMS/HSM integration or deployment topology is selected by this shadow design.
