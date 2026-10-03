@@ -4,6 +4,7 @@ const { IncidentManager } = require('./incidentManager');
 const { ShadowSecurityPipeline } = require('./shadowPipeline');
 const { ReadOnlySecuritySource, createAxiomReadOnlySecuritySource } = require('./readOnlySecuritySource');
 const { MemorySecurityStore, sanitizeIncidentForStore, sanitizeSourceState } = require('./securityStore');
+const { PostgresSecurityStore } = require('./postgresSecurityStore');
 const { ShadowSecurityRunner, createShadowSecurityRunner } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
 const { createSecurityCenterHandlers } = require('./securityCenterApi');
@@ -20,6 +21,7 @@ module.exports = {
   ReadOnlySecuritySource,
   createAxiomReadOnlySecuritySource,
   MemorySecurityStore,
+  PostgresSecurityStore,
   sanitizeIncidentForStore,
   sanitizeSourceState,
   ShadowSecurityRunner,

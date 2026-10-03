@@ -9,10 +9,10 @@ function createSecurityCenterHandlers(service) {
   });
 
   return {
-    overview(req, res) {
+    async overview(req, res) {
       try {
         const recentLimit = req?.query?.recentLimit;
-        const data = service.getOverview({
+        const data = await service.getOverview({
           recentLimit: recentLimit === undefined ? 10 : Number(recentLimit)
         });
         return res.json({ success: true, data });
@@ -21,9 +21,9 @@ function createSecurityCenterHandlers(service) {
       }
     },
 
-    incidents(req, res) {
+    async incidents(req, res) {
       try {
-        const data = service.listIncidents({
+        const data = await service.listIncidents({
           status: req?.query?.status,
           severity: req?.query?.severity,
           limit: req?.query?.limit
@@ -34,9 +34,9 @@ function createSecurityCenterHandlers(service) {
       }
     },
 
-    health(_req, res) {
+    async health(_req, res) {
       try {
-        return res.json({ success: true, data: service.getHealth() });
+        return res.json({ success: true, data: await service.getHealth() });
       } catch (_error) {
         return sendError(res);
       }

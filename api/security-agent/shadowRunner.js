@@ -46,9 +46,11 @@ class ShadowSecurityRunner {
       const poll = await this.source.poll({ now: runTime });
       const heartbeat = await this.source.checkHeartbeat({ now: runTime });
       const incidents = this.#readIncidents();
-      const storedIncidents = this.store.upsertIncidents(incidents, runTime);
-      const sourceState = this.store.saveSourceState(this.sourceName, this.source.status(), runTime);
-      const pruned = typeof this.store.prune === 'function' ? this.store.prune({ now: runTime }) : 0;
+      const storedIncidents = await this.store.upsertIncidents(incidents, runTime);
+      const sourceState = await this.store.saveSourceState(this.sourceName, this.source.status(), runTime);
+      const pruned = typeof this.store.prune === 'function'
+        ? await this.store.prune({ now: runTime })
+        : 0;
 
       this.lastRunStatus = poll.status === 'error' ? 'degraded' : 'ok';
       if (poll.status === 'error') this.failureCount += 1;
@@ -70,7 +72,7 @@ class ShadowSecurityRunner {
         prunedIncidentCount: pruned,
         sourceState
       };
-    } catch (error) {
+    } catch (_error) {
       this.lastRunStatus = 'error';
       this.failureCount += 1;
       return { status: 'error', errorCode: 'SECURITY_RUNNER_FAILED' };

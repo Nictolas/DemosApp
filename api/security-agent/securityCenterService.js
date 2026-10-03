@@ -29,12 +29,17 @@ class SecurityCenterService {
     this.staleAfterMs = staleAfterMs;
   }
 
-  getOverview({ now = new Date(), recentLimit = 10 } = {}) {
-    const incidents = this.store.listIncidents({ limit: Math.max(100, recentLimit) });
+  async getOverview({ now = new Date(), recentLimit = 10 } = {}) {
+    const [incidents, sourceState, storeStats] = await Promise.all([
+      this.store.listIncidents({ limit: Math.max(100, recentLimit) }),
+      this.store.getSourceState(this.sourceName),
+      this.store.stats()
+    ]);
+
     return buildSecurityCenterOverview({
       runnerStatus: this.runner.status(),
-      sourceState: this.store.getSourceState(this.sourceName),
-      storeStats: this.store.stats(),
+      sourceState,
+      storeStats,
       incidents,
       now,
       staleAfterMs: this.staleAfterMs,
@@ -42,17 +47,20 @@ class SecurityCenterService {
     });
   }
 
-  listIncidents({ status, severity, limit } = {}) {
+  async listIncidents({ status, severity, limit } = {}) {
     const safeStatus = validateOptionalFilter(status, ALLOWED_STATUSES, 'status');
     const safeSeverity = validateOptionalFilter(severity, ALLOWED_SEVERITIES, 'severity');
     const safeLimit = validateLimit(limit, 100);
-    return this.store
-      .listIncidents({ status: safeStatus, severity: safeSeverity, limit: safeLimit })
-      .map(pickIncident);
+    const incidents = await this.store.listIncidents({
+      status: safeStatus,
+      severity: safeSeverity,
+      limit: safeLimit
+    });
+    return incidents.map(pickIncident);
   }
 
-  getHealth({ now = new Date() } = {}) {
-    const overview = this.getOverview({ now, recentLimit: 1 });
+  async getHealth({ now = new Date() } = {}) {
+    const overview = await this.getOverview({ now, recentLimit: 1 });
     return {
       generatedAt: overview.generatedAt,
       shield: overview.shield,
