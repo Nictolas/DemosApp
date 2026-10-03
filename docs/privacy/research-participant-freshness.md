@@ -11,3 +11,7 @@ Shadow-only design. No production schema or data migration is applied by this ch
 ## Renewal boundary
 
 A `renew` unlinkable credential may extend only an already-known pseudonymous participant key. Redemption is one-shot through `research.spent_credentials` and the participant lease is reset to 365 days from redemption. Research receives no account identifier. Identity issuance policy still needs to enforce that only an active account may receive the blind renewal credential; production wiring remains disabled.
+
+## Identity renewal eligibility
+
+Identity may record a blind `renew` issuance only when `identity.participation_eligibility` is active/eligible and the supplied account activity is less than 365 days old. The Identity policy never receives a Research participant identifier, participant public key or credential digest. The actual blind-signing transport remains a separate cryptographic boundary; this shadow policy does not deploy it.
