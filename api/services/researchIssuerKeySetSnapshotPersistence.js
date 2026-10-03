@@ -145,8 +145,8 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
     if (typeof revalidate !== 'function') {
       throw new Error('Issuer key-set recovery revalidator is required');
     }
-    const floor = await readFloor();
-    if (floor < 1) {
+    const floorBeforeRead = await readFloor();
+    if (floorBeforeRead < 1) {
       throw new Error('Issuer key-set recovery requires an established high-water mark');
     }
 
@@ -167,8 +167,12 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
     }
 
     const sequence = readEmbeddedSequence(bytes);
-    if (sequence !== floor) {
+    if (sequence !== floorBeforeRead) {
       throw new Error('Persisted issuer key-set snapshot does not match high-water mark');
+    }
+    const floorAfterRead = await readFloor();
+    if (floorAfterRead !== floorBeforeRead) {
+      throw new Error('Issuer key-set high-water mark changed during recovery');
     }
 
     const validation = await revalidate(bytes.toString('utf8'));
@@ -178,6 +182,10 @@ const createResearchIssuerKeySetSnapshotPersistence = ({
       validation.sequence !== sequence
     ) {
       throw new Error('Persisted issuer key-set snapshot failed restart revalidation');
+    }
+    const floorAfterValidation = await readFloor();
+    if (floorAfterValidation !== floorBeforeRead) {
+      throw new Error('Issuer key-set high-water mark changed during recovery');
     }
 
     return Object.freeze({
