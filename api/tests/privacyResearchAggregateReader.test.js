@@ -14,25 +14,40 @@ test('aggregate reader reads the fresh projection and suppresses small cells', a
 
   const result = await readPublishedResearchAnswerAggregates(client, {
     questionId: 'energia_nucleare',
-    minimumCellSize: 8
+    minimumCellSize: 8,
+    generatedAt: '2026-10-04T02:00:00Z'
   });
 
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /FROM research\.current_opinion_responses/i);
   assert.match(calls[0].sql, /COUNT\(DISTINCT participant_id\)/i);
   assert.deepEqual(calls[0].params, ['energia_nucleare']);
-  assert.deepEqual(result, [
-    { answerCode: 'c', suppressed: true, participantCount: null },
-    { answerCode: 'f', suppressed: false, participantCount: 12 }
-  ]);
+  assert.deepEqual(result, {
+    methodology: {
+      datasetVersion: 'research-answer-aggregate-v1',
+      generatedAt: '2026-10-04T02:00:00.000Z',
+      sourceProjection: 'research.current_opinion_responses',
+      freshnessSemantics: 'active-and-unexpired-at-query-time',
+      countingUnit: 'distinct-participant-per-answer',
+      grouping: ['question_id', 'answer_code'],
+      suppression: { policy: 'small-cell', minimumCellSize: 8 }
+    },
+    rows: [
+      { answerCode: 'c', suppressed: true, participantCount: null },
+      { answerCode: 'f', suppressed: false, participantCount: 12 }
+    ]
+  });
 });
 
 test('aggregate reader fails closed without an explicit threshold', async () => {
-  const client = { query: async () => ({
-    rows: [{ answer_code: 'f', participant_count: '100' }]
-  }) };
+  let queryCalls = 0;
+  const client = { query: async () => {
+    queryCalls += 1;
+    return { rows: [{ answer_code: 'f', participant_count: '100' }] };
+  } };
   await assert.rejects(
     () => readPublishedResearchAnswerAggregates(client, { questionId: 'q-1' }),
     /Explicit aggregate minimum cell size/
   );
+  assert.equal(queryCalls, 0);
 });
