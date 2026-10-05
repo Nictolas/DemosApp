@@ -22,6 +22,7 @@ function npmStep(cwd, script, label) {
 }
 steps.push(npmStep(path.join(root, 'api'), 'test:security-agent', 'Security Agent test suite'));
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityDetectionCoverage.test.js')], root, 'Deterministic detection coverage']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securitySeverityPrioritySafety.test.js')], root, 'Severity and priority safety']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
