@@ -13,7 +13,8 @@
     "test:identity": "node --test tests/identityVerificationService.test.js tests/identityVerificationStore.test.js tests/cieVerificationService.test.js tests/cieOidcTransactionService.test.js tests/cieMockFlowService.test.js tests/cieOidcAuthorizationService.test.js tests/cieOidcTransactionStore.test.js tests/cieOidcTokenService.test.js tests/cieOidcIdTokenService.test.js tests/cieOidcUserInfoService.test.js tests/cieCallbackRedirectService.test.js",
     "test:webauthn": "node --test tests/webauthnAtomicConsume.test.js tests/webauthnChallengePayloadPolicy.test.js tests/webauthnChallengeStore.integration.test.js tests/webauthnClientInstancePolicy.test.js tests/webauthnCredentialIdPolicy.test.js tests/webauthnCredentialRegistrationService.test.js tests/webauthnLoginSessionPolicy.test.js tests/webauthnPublicErrorService.test.js tests/webauthnRateLimiting.test.js tests/webauthnRegistrationPolicy.test.js tests/webauthnRegistrationSessionPolicy.test.js tests/webauthnSecurityPolicy.test.js tests/webauthnSignCounterService.test.js tests/webauthnUserHandleService.test.js",
     "test:privacy": "node --test tests/opinionPrivacy.test.js",
-    "test:logging-privacy": "node --test tests/logPrivacy.test.js"
+    "test:logging-privacy": "node --test tests/logPrivacy.test.js",
+    "test:firebase-admin-compat": "node --test tests/firebaseAdminCompatibility.test.js"
   },
   "keywords": [
     "democracy",
@@ -36,7 +37,7 @@
     "express": "^4.22.3",
     "express-async-errors": "^3.1.1",
     "express-rate-limit": "^7.1.5",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.5.0",
     "google-auth-library": "^9.14.0",
     "groq-sdk": "^0.5.0",
     "jsonwebtoken": "^9.0.2",

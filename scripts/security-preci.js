@@ -21,6 +21,7 @@ function npmStep(cwd, script, label) {
   return ['npm', ['run', script], cwd, label];
 }
 steps.push(npmStep(path.join(root, 'api'), 'test:security-agent', 'Security Agent test suite'));
+steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
 for (const [command, args, cwd, label] of steps) {

@@ -1,28 +1,39 @@
-/**
- * Servizio per inizializzare Firebase Admin SDK
- * Usato per inviare notifiche push FCM
+﻿/**
+ * Firebase Admin SDK bootstrap for FCM push notifications.
+ *
+ * Firebase Admin 14 removed the legacy namespace API used by older DEMOS code.
+ * This service uses the modular v14 API internally and exposes only the tiny
+ * compatibility facade the existing routes need: admin.messaging().
  */
 
-let admin = null;
+let firebaseApp = null;
+let adminFacade = null;
 let isInitialized = false;
 
+function createAdminFacade(app) {
+  const { getMessaging } = require('firebase-admin/messaging');
+  return Object.freeze({
+    messaging: () => getMessaging(app),
+  });
+}
+
 function initializeFirebaseAdmin() {
-  if (isInitialized && admin) {
-    return admin;
+  if (isInitialized && adminFacade) {
+    return adminFacade;
   }
 
   try {
-    // Prova a caricare firebase-admin
-    admin = require('firebase-admin');
-    
-    // Verifica se Firebase è già inizializzato
-    if (admin.apps.length > 0) {
+    const { getApps, initializeApp, cert } = require('firebase-admin/app');
+
+    const existingApps = getApps();
+    if (existingApps.length > 0) {
+      firebaseApp = existingApps[0];
+      adminFacade = createAdminFacade(firebaseApp);
       isInitialized = true;
       console.log('✅ Firebase Admin già inizializzato');
-      return admin;
+      return adminFacade;
     }
 
-    // Usa solo variabili d'ambiente (come configurato su Render.com)
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
@@ -33,7 +44,6 @@ function initializeFirebaseAdmin() {
       return null;
     }
 
-    // Pulisci la chiave privata: rimuovi virgolette iniziali/finali e converti \n
     let privateKey = privateKeyRaw.trim();
     if (
       (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
@@ -49,44 +59,39 @@ function initializeFirebaseAdmin() {
       );
     }
 
-    const credential = admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
+    firebaseApp = initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
-
-    admin.initializeApp({ credential });
-
+    adminFacade = createAdminFacade(firebaseApp);
     isInitialized = true;
+
     console.log('✅ Firebase Admin inizializzato con successo (env)');
-    return admin;
+    return adminFacade;
   } catch (error) {
-    console.error('❌ Errore nell\'inizializzazione Firebase Admin:', error.message);
+    console.error("❌ Errore nell'inizializzazione Firebase Admin:", error.message);
     console.error('❌ Stack:', error.stack);
     return null;
   }
 }
 
 function getFirebaseAdmin() {
-  // Se non è inizializzato, prova a inizializzarlo
-  if (!isInitialized || !admin) {
+  if (!isInitialized || !adminFacade) {
     console.log('🔄 getFirebaseAdmin: Firebase Admin non inizializzato, tentativo di inizializzazione...');
     const result = initializeFirebaseAdmin();
     if (!result) {
       console.error('❌ getFirebaseAdmin: Firebase Admin non disponibile dopo tentativo di inizializzazione');
-      console.error('❌ Verifica le variabili d\'ambiente su Render.com:');
+      console.error("❌ Verifica le variabili d'ambiente su Render.com:");
       console.error('   - FIREBASE_PROJECT_ID');
       console.error('   - FIREBASE_CLIENT_EMAIL');
       console.error('   - FIREBASE_PRIVATE_KEY (deve essere la chiave completa senza virgolette)');
     }
     return result;
   }
-  return admin;
+  return adminFacade;
 }
 
 module.exports = {
   initializeFirebaseAdmin,
   getFirebaseAdmin,
-  isInitialized: () => isInitialized && admin !== null
+  isInitialized: () => isInitialized && adminFacade !== null && firebaseApp !== null,
 };
-
