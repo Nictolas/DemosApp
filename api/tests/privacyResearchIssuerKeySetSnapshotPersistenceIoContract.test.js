@@ -173,3 +173,167 @@ test('recovery opens snapshot read-only with no-follow when supported before rea
   assert.equal(recovered.sequence, 4);
   assert.deepEqual(events, ['open', 'stat', 'read', 'close']);
 });
+
+test('temp fsync failure cleans unpublished material before touching the monotonic floor', async () => {
+  const events = [];
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  const io = {
+    async mkdir() { events.push('mkdir'); },
+    async open(actual) {
+      assert.match(actual, /\.tmp-/);
+      return {
+        async writeFile() { events.push('temp:write'); },
+        async sync() {
+          events.push('temp:sync');
+          throw new Error('fsync unavailable');
+        },
+        async close() { events.push('temp:close'); }
+      };
+    },
+    async rename() { events.push('rename'); },
+    async unlink() { events.push('unlink'); }
+  };
+  const highWater = {
+    async readMinimumSequence() {
+      events.push('floor:read');
+      return 0;
+    },
+    async advanceTo() { events.push('floor:advance'); }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: highWater,
+    io,
+    randomBytes: () => Buffer.alloc(12, 3)
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({ snapshotJson: snapshot(1), sequence: 1 }),
+    /fsync unavailable/
+  );
+  assert.equal(events.includes('floor:advance'), false);
+  assert.equal(events.includes('rename'), false);
+  assert.equal(events.at(-1), 'unlink');
+});
+
+test('recovery rejects oversized metadata before reading snapshot bytes or revalidating', async () => {
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  let readCalls = 0;
+  let revalidateCalls = 0;
+  const io = {
+    async open() {
+      return {
+        async stat() {
+          return { isFile: () => true, size: (64 * 1024) + 1, mode: 0o100600 };
+        },
+        async readFile() {
+          readCalls += 1;
+          return Buffer.from(snapshot(5));
+        },
+        async close() {}
+      };
+    },
+    async rename() { throw new Error('not used'); }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: {
+      async readMinimumSequence() { return 5; },
+      async advanceTo() {}
+    },
+    io
+  });
+
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 5 };
+      }
+    }),
+    /invalid persisted issuer key-set snapshot file/i
+  );
+  assert.equal(readCalls, 0);
+  assert.equal(revalidateCalls, 0);
+});
+
+test('recovery rejects broad permission metadata before reading bytes or revalidating', async () => {
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  let readCalls = 0;
+  let revalidateCalls = 0;
+  const io = {
+    async open() {
+      return {
+        async stat() {
+          return { isFile: () => true, size: Buffer.byteLength(snapshot(6)), mode: 0o100640 };
+        },
+        async readFile() {
+          readCalls += 1;
+          return Buffer.from(snapshot(6));
+        },
+        async close() {}
+      };
+    },
+    async rename() { throw new Error('not used'); }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: {
+      async readMinimumSequence() { return 6; },
+      async advanceTo() {}
+    },
+    io
+  });
+
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 6 };
+      }
+    }),
+    /permissions are too broad/i
+  );
+  assert.equal(readCalls, 0);
+  assert.equal(revalidateCalls, 0);
+});
+
+test('invalid input size fails before filesystem or high-water side effects', async () => {
+  let ioCalls = 0;
+  let floorCalls = 0;
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: {
+      async readMinimumSequence() {
+        floorCalls += 1;
+        return 0;
+      },
+      async advanceTo() {
+        floorCalls += 1;
+      }
+    },
+    io: {
+      async open() {
+        ioCalls += 1;
+        throw new Error('must not open');
+      },
+      async rename() {
+        ioCalls += 1;
+      },
+      async mkdir() {
+        ioCalls += 1;
+      }
+    }
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({
+      snapshotJson: Buffer.alloc((64 * 1024) + 1),
+      sequence: 1
+    }),
+    /invalid authenticated issuer key-set snapshot size/i
+  );
+  assert.equal(ioCalls, 0);
+  assert.equal(floorCalls, 0);
+});
