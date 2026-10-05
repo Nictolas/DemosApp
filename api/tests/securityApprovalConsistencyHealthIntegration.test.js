@@ -1,6 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');const {SecurityApprovalGate}=require('../security-agent/securityApprovalGate');const {SecurityCenterService}=require('../security-agent/securityCenterService');
 const store={listIncidents:async()=>[],getSourceState:async()=>null,stats:async()=>({incidentCount:0})};
 function svc(g){return new SecurityCenterService({runner:{status:()=>({enabled:false})},store,approvalGate:g});}
-test('health keeps approval safety disabled',async()=>{const h=await svc(new SecurityApprovalGate()).getHealth();assert.equal(h.approvals.executionEnabled,false);assert.equal(h.approvals.actionRunnerAvailable,false);});
+test('health keeps approval safety disabled',async()=>{const h=await svc(new SecurityApprovalGate()).getHealth();assert.equal(h.approvals.status.executionEnabled,false);assert.equal(h.approvals.status.actionRunnerAvailable,false);assert.equal(h.approvals.health.actionRunnerAvailable,false);});
 test('overview exposes approval consistency alerts',async()=>{const g=new SecurityApprovalGate();g.request({action:'investigate'});g.counters.pending=0;const o=await svc(g).getOverview();assert.equal(o.approvals.consistencyAlerts.highestPriority,'P1');assert.equal(o.approvals.consistencyAlerts.executable,false);});
 test('healthy overview has no consistency alerts',async()=>{const o=await svc(new SecurityApprovalGate()).getOverview();assert.equal(o.approvals.consistencyAlerts.activeCount,0);});
