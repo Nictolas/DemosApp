@@ -8,6 +8,8 @@ const {
   verifyResearchParticipantProof
 } = require('../services/researchParticipantProofPolicy');
 const {
+  MAX_RESEARCH_OPINION_VECTOR_READ_ROWS,
+  RESEARCH_OPINION_VECTOR_OVERFLOW_LIMIT,
   readCurrentResearchOpinionVector
 } = require('../services/researchOpinionVectorService');
 const {
@@ -109,7 +111,8 @@ test('Research vector read authenticates pseudonymously and returns only opinion
   assert.match(calls[0].sql, /research\.current_opinion_responses/i);
   assert.match(calls[0].sql, /research\.participants/i);
   assert.match(calls[0].sql, /participant_public_key\s*=\s*\$1/i);
-  assert.deepEqual(calls[0].params, [participantPublicKey]);
+  assert.match(calls[0].sql, /LIMIT\s+\$2/i);
+  assert.deepEqual(calls[0].params, [participantPublicKey, RESEARCH_OPINION_VECTOR_OVERFLOW_LIMIT]);
 
   const serialized = JSON.stringify(result);
   for (const forbidden of [
@@ -121,6 +124,30 @@ test('Research vector read authenticates pseudonymously and returns only opinion
   ]) {
     assert.equal(serialized.includes(forbidden), false);
   }
+});
+
+test('Research vector read caps database rows and fails closed on overflow', async () => {
+  const rows = Array.from(
+    { length: RESEARCH_OPINION_VECTOR_OVERFLOW_LIMIT },
+    (_, index) => ({ question_id: 'q' + index, answer_code: 'f' })
+  );
+  const client = {
+    async query(sql, params) {
+      assert.match(sql, /LIMIT\s+\$2/i);
+      assert.deepEqual(params, [participantPublicKey, RESEARCH_OPINION_VECTOR_OVERFLOW_LIMIT]);
+      return { rows };
+    }
+  };
+
+  await assert.rejects(
+    () => readCurrentResearchOpinionVector(
+      client,
+      { participantPublicKey, challenge, signature },
+      validVerifier
+    ),
+    /exceeds read row limit/
+  );
+  assert.equal(RESEARCH_OPINION_VECTOR_OVERFLOW_LIMIT, MAX_RESEARCH_OPINION_VECTOR_READ_ROWS + 1);
 });
 
 test('Research vector services import no Identity auth or main database connector', () => {

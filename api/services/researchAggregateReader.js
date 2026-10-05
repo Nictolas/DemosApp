@@ -34,6 +34,7 @@ const readPublishedResearchAnswerAggregates = async (
     `SELECT answer_code, COUNT(DISTINCT participant_id)::bigint AS participant_count
      FROM research.current_opinion_responses
      WHERE question_id = $1
+       AND answer_code IN ('f', 'c', 'i')
      GROUP BY answer_code
      ORDER BY answer_code`,
     [questionId]

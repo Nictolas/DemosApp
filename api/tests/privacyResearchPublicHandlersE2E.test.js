@@ -96,7 +96,7 @@ test('Research opinion-vector proof path is keyed only by participant public key
         return { rows: [{ issued_at: new Date() }] };
       }
       if (/FROM research\.current_opinion_responses/i.test(sql)) {
-        assert.deepEqual(params, [participantPublicKey]);
+        assert.deepEqual(params, [participantPublicKey, 2049]);
         return { rows: [{ question_id: 'q-privacy', answer_code: 'f' }] };
       }
       throw new Error('Unexpected query');
