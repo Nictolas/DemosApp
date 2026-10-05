@@ -1,5 +1,6 @@
 const ALLOWED_SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
 const ALLOWED_STATUSES = new Set(['open', 'acknowledged', 'resolved']);
+const SEVERITY_RANK = Object.freeze({ info: 0, low: 1, medium: 2, high: 3, critical: 4 });
 const MAX_ID_LENGTH = 160;
 const DEFAULT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -96,8 +97,15 @@ class MemorySecurityStore {
     const stored = [];
     for (const input of inputs) {
       const incident = sanitizeIncidentForStore(input, now);
-      this.incidents.set(incident.incidentId, incident);
-      stored.push({ ...incident });
+      const existing = this.incidents.get(incident.incidentId);
+      let merged = incident;
+      if (existing) {
+        const severity = SEVERITY_RANK[incident.severity] > SEVERITY_RANK[existing.severity] ? incident.severity : existing.severity;
+        const status = existing.status === 'resolved' ? 'resolved' : (existing.status === 'acknowledged' && incident.status === 'open' ? 'acknowledged' : incident.status);
+        merged = Object.freeze({ ...incident, severity, status, count: Math.max(existing.count, incident.count), firstSeen: existing.firstSeen < incident.firstSeen ? existing.firstSeen : incident.firstSeen, lastSeen: existing.lastSeen > incident.lastSeen ? existing.lastSeen : incident.lastSeen, createdAt: existing.createdAt, updatedAt: existing.updatedAt > incident.updatedAt ? existing.updatedAt : incident.updatedAt });
+      }
+      this.incidents.set(merged.incidentId, merged);
+      stored.push({ ...merged });
     }
     this.#enforceMax();
     return stored;
@@ -119,8 +127,14 @@ class MemorySecurityStore {
     const name = cleanString(sourceName, 80);
     if (!name) throw new Error('sourceName is required');
     const sanitized = sanitizeSourceState(state, now);
-    this.sourceStates.set(name, sanitized);
-    return { ...sanitized, totals: { ...sanitized.totals } };
+    const existing = this.sourceStates.get(name);
+    let merged = sanitized;
+    if (existing) {
+      const latest = (a, b) => !a ? b : (!b ? a : (a > b ? a : b));
+      merged = Object.freeze({ ...sanitized, watermark: latest(existing.watermark, sanitized.watermark), lastPollStartedAt: latest(existing.lastPollStartedAt, sanitized.lastPollStartedAt), lastSuccessAt: latest(existing.lastSuccessAt, sanitized.lastSuccessAt), lastFailureAt: latest(existing.lastFailureAt, sanitized.lastFailureAt), totals: Object.freeze({ polls: Math.max(existing.totals.polls, sanitized.totals.polls), fetched: Math.max(existing.totals.fetched, sanitized.totals.fetched), accepted: Math.max(existing.totals.accepted, sanitized.totals.accepted), duplicates: Math.max(existing.totals.duplicates, sanitized.totals.duplicates) }), storedAt: latest(existing.storedAt, sanitized.storedAt) });
+    }
+    this.sourceStates.set(name, merged);
+    return { ...merged, totals: { ...merged.totals } };
   }
 
   getSourceState(sourceName) {
