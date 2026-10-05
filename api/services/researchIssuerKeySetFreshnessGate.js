@@ -76,8 +76,21 @@ const createResearchIssuerKeySetFreshnessGate = ({
   return Object.freeze({
     readiness,
     resolve(input) {
-      if (!readiness().ready) return null;
-      return snapshotStore.resolve(input);
+      const beforeResolve = readiness();
+      if (!beforeResolve.ready) return null;
+
+      const resolved = snapshotStore.resolve(input);
+      if (resolved == null) return null;
+
+      const afterResolve = readiness();
+      if (
+        !afterResolve.ready ||
+        afterResolve.sequence !== beforeResolve.sequence ||
+        afterResolve.expiresAt !== beforeResolve.expiresAt
+      ) {
+        return null;
+      }
+      return resolved;
     }
   });
 };
