@@ -164,3 +164,27 @@ test('Research diagnostics injection accepts only own data-property callables', 
   normalizeFailureDiagnostics(candidate).record({ kind: 'infrastructure' });
   assert.equal(calls, 1);
 });
+
+test('Research diagnostics callable is detached from mutable receiver state after normalization', () => {
+  const receiver = {
+    secret: 'E416_SECRET',
+    record() {
+      if (this && this.secret) throw new Error(this.secret);
+    }
+  };
+  const diagnostics = normalizeFailureDiagnostics(receiver);
+  receiver.secret = 'MUTATED_SECRET';
+  receiver.record = () => { throw new Error('replacement callable must not run'); };
+  assert.doesNotThrow(() => diagnostics.record({ kind: 'request' }));
+});
+
+test('Research diagnostics callable replacement after normalization cannot alter captured behavior', () => {
+  let originalCalls = 0;
+  let replacementCalls = 0;
+  const receiver = { record: () => { originalCalls += 1; } };
+  const diagnostics = normalizeFailureDiagnostics(receiver);
+  receiver.record = () => { replacementCalls += 1; };
+  diagnostics.record({ kind: 'policy' });
+  assert.equal(originalCalls, 1);
+  assert.equal(replacementCalls, 0);
+});

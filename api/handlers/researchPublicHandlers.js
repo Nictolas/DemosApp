@@ -44,7 +44,7 @@ const normalizeFailureDiagnostics = (candidate) => {
   return Object.freeze({
     record(classification) {
       try {
-        Reflect.apply(record, candidate, [classification]);
+        Reflect.apply(record, undefined, [classification]);
       } catch {}
     }
   });
