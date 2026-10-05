@@ -97,9 +97,18 @@ class PostgresSecurityStore {
           ON CONFLICT (incident_id) DO UPDATE SET
             finding_id = EXCLUDED.finding_id,
             rule_id = EXCLUDED.rule_id,
-            severity = EXCLUDED.severity,
-            status = EXCLUDED.status,
-            event_count = EXCLUDED.event_count,
+            severity = CASE
+              WHEN array_position(ARRAY['info','low','medium','high','critical'], EXCLUDED.severity)
+                   > array_position(ARRAY['info','low','medium','high','critical'], security_agent.incidents.severity)
+                THEN EXCLUDED.severity
+              ELSE security_agent.incidents.severity
+            END,
+            status = CASE
+              WHEN security_agent.incidents.status = 'resolved' THEN 'resolved'
+              WHEN security_agent.incidents.status = 'acknowledged' AND EXCLUDED.status = 'open' THEN 'acknowledged'
+              ELSE EXCLUDED.status
+            END,
+            event_count = GREATEST(security_agent.incidents.event_count, EXCLUDED.event_count),
             first_seen = LEAST(${INCIDENTS_TABLE}.first_seen, EXCLUDED.first_seen),
             last_seen = GREATEST(${INCIDENTS_TABLE}.last_seen, EXCLUDED.last_seen),
             updated_at = EXCLUDED.updated_at
