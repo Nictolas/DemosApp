@@ -2,8 +2,8 @@ name: Sync ECI (Iniziative Cittadini Europei)
 
 on:
   schedule:
-    # Ogni 6 ore: mantiene i dati aggiornati riducendo il consumo di GitHub Actions.
-    - cron: '0 */6 * * *'
+    # Una volta al giorno: dati sufficientemente aggiornati con consumo Actions ridotto.
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
