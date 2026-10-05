@@ -92,6 +92,71 @@ test('missing, expired and malformed upstream state remain fail closed', () => {
   });
 });
 
+test('resolution fails closed if freshness expires during store resolution', () => {
+  const baseNow = Date.UTC(2026, 9, 3, 15, 0, 0);
+  let observedNow = baseNow;
+  const store = {
+    readiness: () => ({
+      ready: true,
+      sequence: 20,
+      expiresAt: baseNow + 120_000
+    }),
+    resolve: () => {
+      observedNow = baseNow + 90_001;
+      return { key: 'fixture' };
+    }
+  };
+  const gate = createResearchIssuerKeySetFreshnessGate({
+    snapshotStore: store,
+    minimumRemainingValidityMs: 30_000,
+    now: () => observedNow
+  });
+
+  assert.equal(gate.resolve({}), null);
+});
+
+test('resolution fails closed if snapshot generation changes during store resolution', () => {
+  const now = Date.UTC(2026, 9, 3, 15, 0, 0);
+  let sequence = 30;
+  const store = {
+    readiness: () => ({
+      ready: true,
+      sequence,
+      expiresAt: now + 120_000
+    }),
+    resolve: () => {
+      sequence = 31;
+      return { key: 'fixture' };
+    }
+  };
+  const gate = createResearchIssuerKeySetFreshnessGate({
+    snapshotStore: store,
+    minimumRemainingValidityMs: 30_000,
+    now: () => now
+  });
+
+  assert.equal(gate.resolve({}), null);
+});
+
+test('resolution fails closed if snapshot expiry metadata changes during store resolution', () => {
+  const now = Date.UTC(2026, 9, 3, 15, 0, 0);
+  let expiresAt = now + 120_000;
+  const store = {
+    readiness: () => ({ ready: true, sequence: 40, expiresAt }),
+    resolve: () => {
+      expiresAt += 1;
+      return { key: 'fixture' };
+    }
+  };
+  const gate = createResearchIssuerKeySetFreshnessGate({
+    snapshotStore: store,
+    minimumRemainingValidityMs: 30_000,
+    now: () => now
+  });
+
+  assert.equal(gate.resolve({}), null);
+});
+
 test('freshness policy requires an explicit positive bounded margin', () => {
   assert.throws(() => assertFreshnessMargin(0), /freshness margin/i);
   assert.throws(() => assertFreshnessMargin(-1), /freshness margin/i);
