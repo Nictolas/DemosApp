@@ -40,3 +40,15 @@ test('Research service blueprint approves only the complete contract', () => {
   assert.equal(result.approved, true);
   assert.deepEqual(result.blockers, []);
 });
+
+test('Research service blueprint requires client-address trust and proxy topology evidence', () => {
+  const decisions = allApproved();
+  decisions.clientAddressTrustPolicyDefined = false;
+  decisions.proxyTopologyEvidenceRecorded = false;
+  const result = evaluateResearchServiceBlueprint(decisions);
+  assert.equal(result.approved, false);
+  assert.deepEqual(result.blockers, [
+    'clientAddressTrustPolicyDefined',
+    'proxyTopologyEvidenceRecorded'
+  ]);
+});

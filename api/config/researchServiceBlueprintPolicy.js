@@ -8,6 +8,8 @@ const REQUIRED_RESEARCH_SERVICE_BLUEPRINT_DECISIONS = Object.freeze([
   'healthCheckDefined',
   'autoDeployPolicyDefined',
   'publicExposurePolicyDefined',
+  'clientAddressTrustPolicyDefined',
+  'proxyTopologyEvidenceRecorded',
   'rollbackProcedureDefined'
 ]);
 
