@@ -393,6 +393,58 @@ test('failed verification-key loading leaves the previously authenticated snapsh
   }), null);
 });
 
+test('install rechecks validity after asynchronous key loading', async () => {
+  const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const start = Date.UTC(2026, 9, 3, 14, 0, 0);
+  let observedNow = start;
+  const bytes = makePublicMaterial(46);
+  const store = createResearchSignedIssuerKeySetStore({
+    trustRootPublicKey: trustRoot,
+    loadVerificationKey: async () => {
+      observedNow = start + 60_000;
+      return { type: 'public', usages: ['verify'] };
+    },
+    now: () => observedNow
+  });
+  const payload = makePayload({
+    sequence: 25,
+    issuedAt: start - 1_000,
+    expiresAt: start + 30_000,
+    entries: [{ bytes, epochs: ['2026-Q4'] }]
+  });
+  await assert.rejects(store.install(signSnapshot(payload, privateKey)), /expired during installation/i);
+  assert.deepEqual(store.readiness(), { ready: false, reason: 'missing' });
+});
+
+test('slower older install cannot replace a newer published sequence', async () => {
+  const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const now = Date.UTC(2026, 9, 3, 14, 0, 0);
+  const olderBytes = makePublicMaterial(47);
+  const newerBytes = makePublicMaterial(48);
+  let releaseOlder;
+  const gate = new Promise((resolve) => { releaseOlder = resolve; });
+  const store = createResearchSignedIssuerKeySetStore({
+    trustRootPublicKey: trustRoot,
+    loadVerificationKey: async (bytes) => {
+      if (bytes.equals(olderBytes)) await gate;
+      return { type: 'public', usages: ['verify'], marker: bytes[0] };
+    },
+    now: () => now
+  });
+  const snapshot = (sequence, bytes, epoch) => signSnapshot(makePayload({
+    sequence,
+    issuedAt: now - 1_000,
+    expiresAt: now + 60_000,
+    entries: [{ bytes, epochs: [epoch] }]
+  }), privateKey);
+
+  const olderInstall = store.install(snapshot(26, olderBytes, '2026-Q4'));
+  await store.install(snapshot(27, newerBytes, '2027-Q1'));
+  releaseOlder();
+  await assert.rejects(olderInstall, /superseded during installation/i);
+  assert.equal(store.readiness().sequence, 27);
+});
+
 test('issuer key-set canonicalization is deterministic across key ordering', () => {
   const now = Date.UTC(2026, 9, 3, 14, 0, 0);
   const firstBytes = makePublicMaterial(42);
