@@ -1,0 +1,8 @@
+﻿const test=require('node:test');const assert=require('node:assert/strict');
+const {MemorySecurityStore}=require('../security-agent/securityStore');const {PostgresSecurityStore}=require('../security-agent/postgresSecurityStore');
+const H=3600000;const goodPool=()=>({query:async()=>({rows:[]}),connect:async()=>({query:async()=>({rows:[]}),release(){}})});
+test('both stores fail fast on invalid retention configuration',()=>{for(const bad of [H-1,1.5,'3600000',NaN,Infinity]){assert.throws(()=>new MemorySecurityStore({retentionMs:bad}),/retentionMs/);assert.throws(()=>new PostgresSecurityStore({pool:goodPool(),retentionMs:bad}),/retentionMs/);}});
+test('Memory maxIncidents is fail-fast bounded configuration',()=>{for(const bad of [0,-1,1.5,'10',NaN,Infinity])assert.throws(()=>new MemorySecurityStore({maxIncidents:bad}),/maxIncidents/);assert.doesNotThrow(()=>new MemorySecurityStore({maxIncidents:1}));});
+test('Postgres runtime pool requires query and connect capabilities',()=>{for(const bad of [null,{}, {query(){}},{connect(){}}])assert.throws(()=>new PostgresSecurityStore({pool:bad}),/query\(\) and connect\(\)/);assert.doesNotThrow(()=>new PostgresSecurityStore({pool:goodPool()}));});
+test('Postgres optional maintenance pool is validated eagerly',()=>{for(const bad of [{},{query(){}},{connect(){}}])assert.throws(()=>new PostgresSecurityStore({pool:goodPool(),maintenancePool:bad}),/query\(\) and connect\(\)/);assert.doesNotThrow(()=>new PostgresSecurityStore({pool:goodPool(),maintenancePool:goodPool()}));});
+test('store defaults are valid and bounded',()=>{assert.doesNotThrow(()=>new MemorySecurityStore());const d=new PostgresSecurityStore({pool:goodPool()});assert.ok(Number.isInteger(d.retentionMs));assert.ok(d.retentionMs>=H);});
