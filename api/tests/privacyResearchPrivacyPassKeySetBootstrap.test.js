@@ -117,6 +117,32 @@ test('Privacy Pass public-key loader fails closed for unexpected algorithms, mal
   await assert.rejects(() => privateLoader(Buffer.alloc(96, 2)), /public|verification/i);
 });
 
+test('Privacy Pass public-key loader rejects coercible input and contains hostile algorithm getters', async () => {
+  const importedKey = makeVerificationKey();
+  const privacyPass = makePrivacyPass({ importedKey, keyId: Buffer.alloc(32, 1) });
+  const loader = createResearchPrivacyPassPublicKeyLoader({
+    privacyPass,
+    subtle: { importKey: async () => importedKey }
+  });
+  await assert.rejects(
+    () => loader({ valueOf: () => Buffer.alloc(96, 2) }),
+    /public-key bytes/i
+  );
+
+  const hostileKey = { type: 'public', usages: ['verify'] };
+  Object.defineProperty(hostileKey, 'algorithm', {
+    get() { throw new Error('hostile algorithm getter'); }
+  });
+  const hostileLoader = createResearchPrivacyPassPublicKeyLoader({
+    privacyPass,
+    subtle: { importKey: async () => hostileKey }
+  });
+  await assert.rejects(
+    () => hostileLoader(Buffer.alloc(96, 2)),
+    /algorithm inspection failed/i
+  );
+});
+
 test('authenticated local key-set bootstrap enforces freshness and fails closed before expiry', async () => {
   const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
   let now = Date.UTC(2026, 9, 3, 15, 0, 0);
