@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  PUBLIC_ANSWER_CODES,
   MAX_PUBLISHED_AGGREGATE_ROWS,
   publishResearchAggregateCell,
   publishResearchAggregateRows
@@ -22,14 +23,43 @@ const publishOne = (participantCount, extra = {}) => publishResearchAggregateRow
   }
 ], { minimumCellSize: 5 });
 
+const fullySuppressedRows = () => PUBLIC_ANSWER_CODES.map((answerCode) => ({
+  answerCode,
+  suppressed: true,
+  participantCount: null
+}));
+
 test('sub-threshold aggregate counts are publication-indistinguishable', () => {
   const countOne = publishOne(1);
   const countFour = publishOne(4, { participant_public_key: 'internal-key' });
 
   assert.deepEqual(countOne, countFour);
-  assert.deepEqual(countOne, [
-    { answerCode: 'f', suppressed: true, participantCount: null }
-  ]);
+  assert.deepEqual(countOne, fullySuppressedRows());
+});
+
+test('zero, absent and sub-threshold answer populations have the same fixed public shape', () => {
+  const noRows = publishResearchAggregateRows([], { minimumCellSize: 5 });
+  const explicitZero = publishResearchAggregateRows([
+    { answer_code: 'f', participant_count: '0' }
+  ], { minimumCellSize: 5 });
+  const smallPopulation = publishResearchAggregateRows([
+    { answer_code: 'f', participant_count: '4' }
+  ], { minimumCellSize: 5 });
+
+  assert.deepEqual(noRows, explicitZero);
+  assert.deepEqual(explicitZero, smallPopulation);
+  assert.deepEqual(noRows, fullySuppressedRows());
+});
+
+test('aggregate publication canonicalizes row order regardless of database order', () => {
+  const rows = publishResearchAggregateRows([
+    { answer_code: 'i', participant_count: '7' },
+    { answer_code: 'f', participant_count: '9' },
+    { answer_code: 'c', participant_count: '6' }
+  ], { minimumCellSize: 5 });
+
+  assert.deepEqual(rows.map((row) => row.answerCode), ['f', 'c', 'i']);
+  assert.deepEqual(rows.map((row) => row.participantCount), [9, 6, 7]);
 });
 
 test('aggregate publication boundary allowlists only public fields', () => {

@@ -59,8 +59,9 @@ test('unmounted aggregate handler publishes only live privacy-safe aggregate out
   assert.equal(out.state.body.methodology.materialization, 'disabled');
   assert.equal(out.state.body.methodology.cacheTtlSeconds, 0);
   assert.deepEqual(out.state.body.rows, [
+    { answerCode: 'f', suppressed: false, participantCount: 9 },
     { answerCode: 'c', suppressed: true, participantCount: null },
-    { answerCode: 'f', suppressed: false, participantCount: 9 }
+    { answerCode: 'i', suppressed: true, participantCount: null }
   ]);
   assert.equal(JSON.stringify(out.state.body).includes('internal-a'), false);
   assert.equal(JSON.stringify(out.state.body).includes('ambient-identity'), false);
