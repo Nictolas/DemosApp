@@ -33,7 +33,10 @@ const createResearchPrivacyPassPublicKeyLoader = ({
   const algorithm = normalizeAlgorithm(publicVerif?.BLIND_RSA?.rsaParams);
 
   return async (publicKeyBytes) => {
-    const material = Buffer.from(publicKeyBytes || []);
+    if (!Buffer.isBuffer(publicKeyBytes) && !ArrayBuffer.isView(publicKeyBytes)) {
+      throw new Error('Invalid Privacy Pass issuer public-key bytes');
+    }
+    const material = Buffer.from(publicKeyBytes);
     if (
       material.length < MIN_PUBLIC_KEY_BYTES ||
       material.length > MAX_PUBLIC_KEY_BYTES
@@ -65,12 +68,19 @@ const createResearchPrivacyPassPublicKeyLoader = ({
     }
 
     const verifiedKey = assertVerificationOnlyPublicKey(publicKey);
-    const hashName = typeof verifiedKey.algorithm?.hash === 'string'
-      ? verifiedKey.algorithm.hash
-      : verifiedKey.algorithm?.hash?.name;
+    let importedAlgorithm;
+    let hashName;
+    try {
+      importedAlgorithm = verifiedKey.algorithm;
+      hashName = typeof importedAlgorithm?.hash === 'string'
+        ? importedAlgorithm.hash
+        : importedAlgorithm?.hash?.name;
+    } catch {
+      throw new Error('Imported Privacy Pass issuer key algorithm inspection failed');
+    }
     if (
-      verifiedKey.algorithm?.name &&
-      (verifiedKey.algorithm.name !== EXPECTED_ALGORITHM || hashName !== EXPECTED_HASH)
+      importedAlgorithm?.name &&
+      (importedAlgorithm.name !== EXPECTED_ALGORITHM || hashName !== EXPECTED_HASH)
     ) {
       throw new Error('Imported Privacy Pass issuer key uses unexpected algorithm');
     }
