@@ -170,16 +170,16 @@ class PostgresSecurityStore {
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT (source_name) DO UPDATE SET
         enabled = EXCLUDED.enabled,
-        watermark = EXCLUDED.watermark,
-        last_poll_started_at = EXCLUDED.last_poll_started_at,
-        last_success_at = EXCLUDED.last_success_at,
-        last_failure_at = EXCLUDED.last_failure_at,
+        watermark = GREATEST(security_agent.source_state.watermark, EXCLUDED.watermark),
+        last_poll_started_at = GREATEST(security_agent.source_state.last_poll_started_at, EXCLUDED.last_poll_started_at),
+        last_success_at = GREATEST(security_agent.source_state.last_success_at, EXCLUDED.last_success_at),
+        last_failure_at = GREATEST(security_agent.source_state.last_failure_at, EXCLUDED.last_failure_at),
         consecutive_failures = EXCLUDED.consecutive_failures,
-        total_polls = EXCLUDED.total_polls,
-        total_fetched = EXCLUDED.total_fetched,
-        total_accepted = EXCLUDED.total_accepted,
-        total_duplicates = EXCLUDED.total_duplicates,
-        stored_at = EXCLUDED.stored_at
+        total_polls = GREATEST(security_agent.source_state.total_polls, EXCLUDED.total_polls),
+        total_fetched = GREATEST(security_agent.source_state.total_fetched, EXCLUDED.total_fetched),
+        total_accepted = GREATEST(security_agent.source_state.total_accepted, EXCLUDED.total_accepted),
+        total_duplicates = GREATEST(security_agent.source_state.total_duplicates, EXCLUDED.total_duplicates),
+        stored_at = GREATEST(security_agent.source_state.stored_at, EXCLUDED.stored_at)
       RETURNING source_name, enabled, watermark, last_poll_started_at, last_success_at,
                 last_failure_at, consecutive_failures, total_polls, total_fetched,
                 total_accepted, total_duplicates, stored_at
