@@ -3,13 +3,51 @@ const {
 } = require('./researchPublicRequestPolicy');
 
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([]);
+const MAX_RESEARCH_PUBLIC_ORIGINS = 8;
+const MAX_RESEARCH_PUBLIC_ORIGIN_LENGTH = 256;
 
-const parseAllowedOrigins = (value = '') => Object.freeze(
-  String(value)
+const normalizeAllowedOrigin = (value) => {
+  const candidate = String(value || '').trim();
+  if (!candidate || candidate.length > MAX_RESEARCH_PUBLIC_ORIGIN_LENGTH) {
+    throw new Error('Invalid Research allowed origin');
+  }
+
+  let url;
+  try {
+    url = new URL(candidate);
+  } catch {
+    throw new Error('Invalid Research allowed origin');
+  }
+
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    url.origin === 'null'
+  ) {
+    throw new Error('Invalid Research allowed origin');
+  }
+
+  return url.origin;
+};
+
+const normalizeAllowedOrigins = (values = DEFAULT_ALLOWED_ORIGINS) => {
+  if (!Array.isArray(values) || values.length > MAX_RESEARCH_PUBLIC_ORIGINS) {
+    throw new Error('Invalid Research allowed origins');
+  }
+  return Object.freeze([...new Set(values.map(normalizeAllowedOrigin))]);
+};
+
+const parseAllowedOrigins = (value = '') => {
+  const values = String(value)
     .split(',')
     .map((origin) => origin.trim())
-    .filter(Boolean)
-);
+    .filter(Boolean);
+  return normalizeAllowedOrigins(values);
+};
 
 const createResearchPublicExposurePolicy = ({
   shadowEnabled,
@@ -17,7 +55,7 @@ const createResearchPublicExposurePolicy = ({
   allowedOrigins = DEFAULT_ALLOWED_ORIGINS
 }) => Object.freeze({
   mountAllowed: shadowEnabled === true && publicApiEnabled === true,
-  allowedOrigins: Object.freeze([...allowedOrigins]),
+  allowedOrigins: normalizeAllowedOrigins(allowedOrigins),
   allowCredentials: false,
   maxBodyBytes: RESEARCH_PUBLIC_MAX_BODY_BYTES,
   cacheControl: 'no-store',
@@ -31,6 +69,10 @@ const researchPublicExposurePolicyFromEnv = () => createResearchPublicExposurePo
 });
 
 module.exports = {
+  MAX_RESEARCH_PUBLIC_ORIGINS,
+  MAX_RESEARCH_PUBLIC_ORIGIN_LENGTH,
+  normalizeAllowedOrigin,
+  normalizeAllowedOrigins,
   parseAllowedOrigins,
   createResearchPublicExposurePolicy,
   researchPublicExposurePolicyFromEnv
