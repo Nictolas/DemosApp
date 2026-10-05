@@ -6,6 +6,8 @@ const {
   buildResearchAggregateMethodology
 } = require('./researchAggregateMethodology');
 
+const MAX_RESEARCH_AGGREGATE_QUESTION_ID_LENGTH = 128;
+
 const readPublishedResearchAnswerAggregates = async (
   client,
   { questionId, minimumCellSize } = {},
@@ -14,8 +16,12 @@ const readPublishedResearchAnswerAggregates = async (
   if (!client || typeof client.query !== 'function') {
     throw new Error('Research aggregate reader requires PostgreSQL client');
   }
-  if (typeof questionId !== 'string' || questionId.length === 0) {
-    throw new Error('Research aggregate question id required');
+  if (
+    typeof questionId !== 'string' ||
+    questionId.length === 0 ||
+    questionId.length > MAX_RESEARCH_AGGREGATE_QUESTION_ID_LENGTH
+  ) {
+    throw new Error('Research aggregate question id required and bounded');
   }
   if (typeof clock !== 'function') {
     throw new Error('Research aggregate reader clock required');
@@ -47,5 +53,6 @@ const readPublishedResearchAnswerAggregates = async (
 };
 
 module.exports = {
+  MAX_RESEARCH_AGGREGATE_QUESTION_ID_LENGTH,
   readPublishedResearchAnswerAggregates
 };

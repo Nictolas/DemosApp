@@ -11,7 +11,8 @@ test('Research public router composes only allowlisted limiter+handler pairs', (
   const handlers = {
     issueChallenge: () => handlerCalls.push('challenge'),
     listPoliticalVectors: () => handlerCalls.push('political-vectors'),
-    readOpinionVector: () => handlerCalls.push('read')
+    readOpinionVector: () => handlerCalls.push('read'),
+    readAnswerAggregates: () => handlerCalls.push('aggregates')
   };
   const challengeLimiter = (req, res, next) => {
     limiterCalls.push('challenge');
@@ -39,7 +40,8 @@ test('Research public router composes only allowlisted limiter+handler pairs', (
   assert.deepEqual(routes, [
     { path: '/v1/proof-challenges', methods: ['post'], stackLength: 2 },
     { path: '/v1/political-vectors', methods: ['post'], stackLength: 2 },
-    { path: '/v1/opinion-vector/read', methods: ['post'], stackLength: 2 }
+    { path: '/v1/opinion-vector/read', methods: ['post'], stackLength: 2 },
+    { path: '/v1/answer-aggregates/read', methods: ['post'], stackLength: 2 }
   ]);
   assert.deepEqual(handlerCalls, []);
   assert.deepEqual(limiterCalls, []);

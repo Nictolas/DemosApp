@@ -32,6 +32,11 @@ const createResearchPublicRouter = ({
     readLimiter,
     handlers.readOpinionVector
   );
+  router.post(
+    RESEARCH_PUBLIC_ENDPOINTS.readAnswerAggregates.path,
+    readLimiter,
+    handlers.readAnswerAggregates
+  );
 
   return router;
 };

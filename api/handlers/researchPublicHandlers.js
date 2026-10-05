@@ -7,7 +7,12 @@ const {
 const {
   createResearchOpinionVectorReader
 } = require('../services/researchOpinionVectorReader');
-const { createResearchPoliticalVectorAdapter } = require('../services/researchPoliticalVectorAdapter');
+const {
+  createResearchPoliticalVectorAdapter
+} = require('../services/researchPoliticalVectorAdapter');
+const {
+  readPublishedResearchAnswerAggregates
+} = require('../services/researchAggregateReader');
 const {
   RESEARCH_PUBLIC_ENDPOINTS,
   assertResearchPublicPayload
@@ -24,7 +29,11 @@ const decodeBase64UrlExact = (value, length, label) => {
   return decoded;
 };
 
-const createResearchPublicHandlers = ({ getPool = getResearchPool } = {}) => ({
+const createResearchPublicHandlers = ({
+  getPool = getResearchPool,
+  aggregateMinimumCellSize,
+  aggregateClock
+} = {}) => ({
   async issueChallenge(req, res) {
     try {
       const body = req.body ?? {};
@@ -63,6 +72,27 @@ const createResearchPublicHandlers = ({ getPool = getResearchPool } = {}) => ({
       res.status(200).json({ opinions: result.opinions });
     } catch {
       res.status(400).json({ error: 'Invalid or replayed Research proof' });
+    }
+  },
+
+  async readAnswerAggregates(req, res) {
+    try {
+      const body = req.body ?? {};
+      assertResearchPublicPayload(body, RESEARCH_PUBLIC_ENDPOINTS.readAnswerAggregates.requestKeys);
+      const result = await readPublishedResearchAnswerAggregates(
+        getPool(),
+        {
+          questionId: body.questionId,
+          minimumCellSize: aggregateMinimumCellSize
+        },
+        { clock: aggregateClock }
+      );
+      res.status(200).json({
+        methodology: result.methodology,
+        rows: result.rows
+      });
+    } catch {
+      res.status(400).json({ error: 'Invalid aggregate publication request' });
     }
   }
 });
