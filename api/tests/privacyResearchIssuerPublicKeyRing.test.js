@@ -77,6 +77,48 @@ test('Research issuer key ring rejects private/signing capability and excessive 
   }), /Too many/);
 });
 
+test('Privacy Pass key-ring builder rejects non-binary, oversized and excessive serialization work', async () => {
+  let calls = 0;
+  const publicKey = key('bounded');
+  const makePrivacyPass = (result) => ({
+    publicVerif: {
+      async getPublicKeyBytes() {
+        calls += 1;
+        return result;
+      }
+    }
+  });
+
+  await assert.rejects(
+    createResearchPrivacyPassIssuerKeyRing({
+      privacyPass: makePrivacyPass({ valueOf: () => Buffer.from('coerce') }),
+      entries: [{ publicKey, epochs: ['2026-Q4'] }]
+    }),
+    /binary data/i
+  );
+
+  await assert.rejects(
+    createResearchPrivacyPassIssuerKeyRing({
+      privacyPass: makePrivacyPass(Buffer.alloc(4097)),
+      entries: [{ publicKey, epochs: ['2026-Q4'] }]
+    }),
+    /size/i
+  );
+
+  calls = 0;
+  await assert.rejects(
+    createResearchPrivacyPassIssuerKeyRing({
+      privacyPass: makePrivacyPass(Buffer.from('unused')),
+      entries: Array.from({ length: 17 }, () => ({
+        publicKey,
+        epochs: ['2026-Q4']
+      }))
+    }),
+    /entries/i
+  );
+  assert.equal(calls, 0);
+});
+
 test('Privacy Pass key-ring builder derives token key ids only from issuer public keys', async () => {
   const a = key('a');
   const b = key('b');
