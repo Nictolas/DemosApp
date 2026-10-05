@@ -12,7 +12,8 @@
     "install-server": "npm install",
     "install-all": "npm run install-server && npm run install-client",
     "deploy": "npm run install-all && npm run build",
-    "test:security-preci": "node scripts/security-preci.js"
+    "test:security-preci": "node scripts/security-preci.js",
+    "test:security-phase-evidence": "node scripts/security-phase-evidence-gate.js"
   },
   "dependencies": {
     "@axiomhq/axiom-node": "^0.12.0",

@@ -1,0 +1,26 @@
+﻿{
+  "version": "0.52",
+  "phase0": {
+    "required": ["assetInventory", "dataClassification", "threatModel", "targetArchitecture", "gapAssessment", "privacyBoundary"],
+    "evidence": {
+      "assetInventory": "docs/security/phase0-phase1-evidence-v0.52.md",
+      "dataClassification": "docs/security/phase0-phase1-evidence-v0.52.md",
+      "threatModel": "docs/security/phase0-phase1-evidence-v0.52.md",
+      "targetArchitecture": "sheet:Target Architecture v1",
+      "gapAssessment": "sheet:Gap Assessment v1",
+      "privacyBoundary": "docs/security/security-agent-foundation-v0.1.md"
+    }
+  },
+  "phase1": {
+    "required": ["collector", "privacySafeEvents", "readOnlySource", "heartbeat", "minimalStore", "health", "securityCenterReadModel"],
+    "evidence": {
+      "collector": "api/security-agent/securityCollector.js",
+      "privacySafeEvents": "api/security-agent/securityEvent.js",
+      "readOnlySource": "api/security-agent/readOnlySecuritySource.js",
+      "heartbeat": "api/security-agent/readOnlySecuritySource.js",
+      "minimalStore": "api/security-agent/securityStore.js",
+      "health": "api/security-agent/securityAgentHealth.js",
+      "securityCenterReadModel": "api/security-agent/securityCenterReadModel.js"
+    }
+  }
+}
