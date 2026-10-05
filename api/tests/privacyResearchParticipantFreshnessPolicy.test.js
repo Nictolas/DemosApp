@@ -63,7 +63,8 @@ test('aggregate publication discards pseudonymous source metadata',()=>{
  ],{minimumCellSize:8});
  assert.deepEqual(result,[
   {answerCode:'f',suppressed:false,participantCount:12},
-  {answerCode:'c',suppressed:true,participantCount:null}
+  {answerCode:'c',suppressed:true,participantCount:null},
+  {answerCode:'i',suppressed:true,participantCount:null}
  ]);
  const serialized=JSON.stringify(result);
  assert.equal(serialized.includes('participant_id'),false);

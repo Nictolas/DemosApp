@@ -37,8 +37,9 @@ test('aggregate reader reads the fresh projection and suppresses small cells', a
       suppression: { policy: 'small-cell', minimumCellSize: 8 }
     },
     rows: [
+      { answerCode: 'f', suppressed: false, participantCount: 12 },
       { answerCode: 'c', suppressed: true, participantCount: null },
-      { answerCode: 'f', suppressed: false, participantCount: 12 }
+      { answerCode: 'i', suppressed: true, participantCount: null }
     ]
   });
 });

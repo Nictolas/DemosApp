@@ -14,28 +14,28 @@ const methodology = () => buildResearchAggregateMethodology({
   minimumCellSize: 5
 });
 
+const validRows = () => [
+  { answerCode: 'f', suppressed: false, participantCount: 8 },
+  { answerCode: 'c', suppressed: true, participantCount: null },
+  { answerCode: 'i', suppressed: true, participantCount: null }
+];
+
 test('aggregate public response allowlists methodology and row fields', () => {
+  const rows = validRows();
+  rows[0] = {
+    ...rows[0],
+    participant_id: 'internal-row-link',
+    recordedAt: 'internal-time'
+  };
+  rows[1] = { ...rows[1], extra: 'internal-extra' };
+
   const response = buildResearchAggregatePublicResponse({
     methodology: {
       ...methodology(),
       participant_id: 'internal-methodology-link',
       debug: 'internal-debug'
     },
-    rows: [
-      {
-        answerCode: 'f',
-        suppressed: false,
-        participantCount: 8,
-        participant_id: 'internal-row-link',
-        recordedAt: 'internal-time'
-      },
-      {
-        answerCode: 'c',
-        suppressed: true,
-        participantCount: null,
-        extra: 'internal-extra'
-      }
-    ]
+    rows
   });
 
   assert.deepEqual(Object.keys(response).sort(), ['methodology', 'rows']);
@@ -54,30 +54,47 @@ test('aggregate public response allowlists methodology and row fields', () => {
 });
 
 test('aggregate public response validates suppression semantics against the threshold', () => {
+  const leakedSuppressed = validRows();
+  leakedSuppressed[1] = { answerCode: 'c', suppressed: true, participantCount: 1 };
   assert.throws(() => buildResearchAggregatePublicResponse({
     methodology: methodology(),
-    rows: [{ answerCode: 'f', suppressed: true, participantCount: 1 }]
+    rows: leakedSuppressed
   }), /remain hidden/i);
 
+  const tooSmallPublished = validRows();
+  tooSmallPublished[0] = { answerCode: 'f', suppressed: false, participantCount: 4 };
   assert.throws(() => buildResearchAggregatePublicResponse({
     methodology: methodology(),
-    rows: [{ answerCode: 'f', suppressed: false, participantCount: 4 }]
+    rows: tooSmallPublished
   }), /published aggregate count/i);
 });
 
-test('aggregate public response rejects duplicate or unknown answer codes', () => {
+test('aggregate public response requires the complete canonical answer-code shape', () => {
   assert.throws(() => buildResearchAggregatePublicResponse({
     methodology: methodology(),
-    rows: [
-      { answerCode: 'f', suppressed: false, participantCount: 5 },
-      { answerCode: 'f', suppressed: false, participantCount: 6 }
-    ]
-  }), /answer code/i);
+    rows: validRows().slice(0, 2)
+  }), /public rows/i);
 
+  const wrongOrder = validRows();
+  [wrongOrder[0], wrongOrder[1]] = [wrongOrder[1], wrongOrder[0]];
   assert.throws(() => buildResearchAggregatePublicResponse({
     methodology: methodology(),
-    rows: [{ answerCode: 'x', suppressed: false, participantCount: 5 }]
-  }), /answer code/i);
+    rows: wrongOrder
+  }), /answer code order/i);
+
+  const duplicate = validRows();
+  duplicate[1] = { answerCode: 'f', suppressed: true, participantCount: null };
+  assert.throws(() => buildResearchAggregatePublicResponse({
+    methodology: methodology(),
+    rows: duplicate
+  }), /answer code order/i);
+
+  const unknown = validRows();
+  unknown[2] = { answerCode: 'x', suppressed: true, participantCount: null };
+  assert.throws(() => buildResearchAggregatePublicResponse({
+    methodology: methodology(),
+    rows: unknown
+  }), /answer code order/i);
 });
 
 test('aggregate public response rejects altered freshness or materialization methodology', () => {
@@ -90,7 +107,7 @@ test('aggregate public response rejects altered freshness or materialization met
   ]) {
     assert.throws(() => buildResearchAggregatePublicResponse({
       methodology: { ...methodology(), ...patch },
-      rows: []
+      rows: validRows()
     }), /methodology contract/i);
   }
 });

@@ -66,23 +66,27 @@ const publishResearchAggregateRows = (rows, { minimumCellSize } = {}) => {
   }
 
   const threshold = assertMinimumCellSize(minimumCellSize);
-  const seenAnswerCodes = new Set();
-  const published = rows.map((row) => {
+  const countsByAnswerCode = new Map();
+
+  for (const row of rows) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
       throw new Error('Invalid aggregate row');
     }
     const answerCode = assertPublicAnswerCode(row.answer_code);
-    if (seenAnswerCodes.has(answerCode)) {
+    if (countsByAnswerCode.has(answerCode)) {
       throw new Error('Duplicate aggregate answer code');
     }
-    seenAnswerCodes.add(answerCode);
+    countsByAnswerCode.set(answerCode, normalizeParticipantCount(row.participant_count));
+  }
 
-    return publishResearchAggregateCell({
-      answerCode,
-      participantCount: row.participant_count,
-      minimumCellSize: threshold
-    });
-  });
+  // Always publish the same three rows in the same order. Missing database rows
+  // are treated as zero so an observer cannot distinguish 0 from a sub-threshold
+  // population merely by checking whether an answer-code row exists.
+  const published = PUBLIC_ANSWER_CODES.map((answerCode) => publishResearchAggregateCell({
+    answerCode,
+    participantCount: countsByAnswerCode.get(answerCode) ?? 0,
+    minimumCellSize: threshold
+  }));
 
   return Object.freeze(published);
 };

@@ -61,19 +61,20 @@ const assertExactMethodology = (methodology) => {
 };
 
 const assertPublicRows = (rows, minimumCellSize) => {
-  if (!Array.isArray(rows) || rows.length > MAX_PUBLISHED_AGGREGATE_ROWS) {
+  if (!Array.isArray(rows) || rows.length !== MAX_PUBLISHED_AGGREGATE_ROWS) {
     throw new Error('Invalid aggregate public rows');
   }
 
-  const seen = new Set();
-  return Object.freeze(rows.map((row) => {
+  return Object.freeze(rows.map((row, index) => {
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
       throw new Error('Invalid aggregate public row');
     }
-    if (!PUBLIC_ANSWER_CODES.includes(row.answerCode) || seen.has(row.answerCode)) {
-      throw new Error('Invalid aggregate public answer code');
+
+    // Fixed shape/order prevents row-presence or ordering from becoming a
+    // side-channel for zero versus sub-threshold answer populations.
+    if (row.answerCode !== PUBLIC_ANSWER_CODES[index]) {
+      throw new Error('Invalid aggregate public answer code order');
     }
-    seen.add(row.answerCode);
 
     if (row.suppressed === true) {
       if (row.participantCount !== null) {
