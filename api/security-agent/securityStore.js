@@ -112,6 +112,8 @@ class MemorySecurityStore {
   }
 
   listIncidents({ status, severity, limit = 100 } = {}) {
+    if (status != null && !ALLOWED_STATUSES.has(status)) throw new Error('invalid status filter');
+    if (severity != null && !ALLOWED_SEVERITIES.has(severity)) throw new Error('invalid severity filter');
     if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
       throw new Error('limit must be an integer between 1 and 1000');
     }
