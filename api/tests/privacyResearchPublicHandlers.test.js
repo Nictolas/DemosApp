@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 
 const {
+  normalizeFailureDiagnostics,
   createResearchPublicHandlers
 } = require('../handlers/researchPublicHandlers');
 
@@ -68,4 +69,30 @@ test('unmounted Research read handler rejects Identity fields before any databas
   assert.equal(out.state.statusCode, 400);
   assert.equal(queryCalls, 0);
   assert.deepEqual(out.state.body, { error: 'Invalid Research request' });
+});
+
+test('Research handler diagnostics injection fails closed for missing or partial objects', () => {
+  for (const candidate of [null, {}, { record: true }, { enabled: true }]) {
+    const diagnostics = normalizeFailureDiagnostics(candidate);
+    assert.doesNotThrow(() => diagnostics.record({ kind: 'request' }));
+    assert.equal(typeof diagnostics.record, 'function');
+  }
+});
+
+test('Research handler diagnostics wrapper isolates hostile injected record functions', async () => {
+  let diagnosticCalls = 0;
+  const handlers = createResearchPublicHandlers({
+    getPool: () => { throw new Error('database unavailable'); },
+    failureDiagnostics: {
+      record() {
+        diagnosticCalls += 1;
+        throw new Error('hostile diagnostics');
+      }
+    }
+  });
+  const response = responseRecorder();
+  await handlers.issueChallenge({ body: {} }, response.res);
+  assert.equal(diagnosticCalls, 1);
+  assert.equal(response.state.statusCode, 400);
+  assert.deepEqual(response.state.body, { error: 'Invalid Research request' });
 });

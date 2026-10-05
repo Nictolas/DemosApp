@@ -35,6 +35,19 @@ const {
   createResearchFailureDiagnostics
 } = require('../services/researchFailureDiagnostics');
 
+const normalizeFailureDiagnostics = (candidate) => {
+  if (!candidate || typeof candidate.record !== 'function') {
+    return createResearchFailureDiagnostics();
+  }
+  return Object.freeze({
+    record(classification) {
+      try {
+        candidate.record(classification);
+      } catch {}
+    }
+  });
+};
+
 const decodeBase64UrlExact = (value, length, label) => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) {
     throw new Error('Invalid ' + label);
@@ -51,7 +64,9 @@ const createResearchPublicHandlers = ({
   aggregateMinimumCellSize,
   aggregateClock,
   failureDiagnostics = createResearchFailureDiagnostics()
-} = {}) => ({
+} = {}) => {
+  const diagnostics = normalizeFailureDiagnostics(failureDiagnostics);
+  return ({
   async issueChallenge(req, res) {
     try {
       const body = req.body ?? {};
@@ -62,7 +77,7 @@ const createResearchPublicHandlers = ({
         purpose: result.purpose
       });
     } catch (error) {
-      failureDiagnostics.record(classifyResearchFailure(error));
+      diagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   },
@@ -76,7 +91,7 @@ const createResearchPublicHandlers = ({
       , getPool);
       res.status(200).json(buildResearchPoliticalVectorsPublicResponse(candidates));
     } catch (error) {
-      failureDiagnostics.record(classifyResearchFailure(error));
+      diagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   },
@@ -95,7 +110,7 @@ const createResearchPublicHandlers = ({
       , getPool);
       res.status(200).json(buildResearchOpinionVectorPublicResponse(result));
     } catch (error) {
-      failureDiagnostics.record(classifyResearchFailure(error));
+      diagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   },
@@ -118,13 +133,15 @@ const createResearchPublicHandlers = ({
       const response = buildResearchAggregatePublicResponse(result);
       res.status(200).json(response);
     } catch (error) {
-      failureDiagnostics.record(classifyResearchFailure(error));
+      diagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   }
-});
+  });
+};
 
 module.exports = {
+  normalizeFailureDiagnostics,
   decodeBase64UrlExact,
   createResearchPublicHandlers
 };
