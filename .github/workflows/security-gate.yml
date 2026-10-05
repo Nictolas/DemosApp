@@ -35,7 +35,15 @@ jobs:
           sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      - name: Scan repository for committed secrets
+      - name: Scan pull-request commits for committed secrets
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: gitleaks git --redact --no-banner --exit-code 1 --log-opts="${BASE_SHA}..HEAD" .
+
+      - name: Scan full committed history on main
+        if: github.event_name != 'pull_request'
         shell: bash
         run: gitleaks git --redact --no-banner --exit-code 1 .
 
