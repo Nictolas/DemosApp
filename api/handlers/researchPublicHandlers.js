@@ -24,6 +24,9 @@ const {
   buildResearchPoliticalVectorsPublicResponse,
   buildResearchOpinionVectorPublicResponse
 } = require('../services/researchPublicVectorResponsePolicy');
+const {
+  sendResearchPublicError
+} = require('../services/researchPublicErrorPolicy');
 
 const decodeBase64UrlExact = (value, length, label) => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) {
@@ -51,7 +54,7 @@ const createResearchPublicHandlers = ({
         purpose: result.purpose
       });
     } catch {
-      res.status(400).json({ error: 'Invalid Research challenge request' });
+      sendResearchPublicError(res, 400);
     }
   },
 
@@ -62,7 +65,7 @@ const createResearchPublicHandlers = ({
       const candidates = await createResearchPoliticalVectorAdapter({ client: getPool() }).read(body.scope);
       res.status(200).json(buildResearchPoliticalVectorsPublicResponse(candidates));
     } catch {
-      res.status(400).json({ error: 'Invalid political vector request' });
+      sendResearchPublicError(res, 400);
     }
   },
 
@@ -78,7 +81,7 @@ const createResearchPublicHandlers = ({
       const result = await createResearchOpinionVectorReader({ client: getPool() }).read(proof);
       res.status(200).json(buildResearchOpinionVectorPublicResponse(result));
     } catch {
-      res.status(400).json({ error: 'Invalid or replayed Research proof' });
+      sendResearchPublicError(res, 400);
     }
   },
 
@@ -97,7 +100,7 @@ const createResearchPublicHandlers = ({
       const response = buildResearchAggregatePublicResponse(result);
       res.status(200).json(response);
     } catch {
-      res.status(400).json({ error: 'Invalid aggregate publication request' });
+      sendResearchPublicError(res, 400);
     }
   }
 });

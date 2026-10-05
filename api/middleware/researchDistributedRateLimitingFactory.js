@@ -2,6 +2,9 @@ const rateLimit = require('express-rate-limit');
 const {
   ResearchDistributedRateLimitStore
 } = require('../services/researchDistributedRateLimitStore');
+const {
+  sendResearchPublicError
+} = require('../services/researchPublicErrorPolicy');
 
 const RESEARCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RESEARCH_CHALLENGE_MAX = 30;
@@ -17,7 +20,7 @@ const createLimiterOptions = ({ max, store, keyGenerator }) => ({
   keyGenerator,
   store,
   handler: (req, res) => {
-    res.status(429).json({ error: 'Research request rate limit exceeded' });
+    sendResearchPublicError(res, 429);
   }
 });
 

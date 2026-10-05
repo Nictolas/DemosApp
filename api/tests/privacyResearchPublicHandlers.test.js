@@ -67,5 +67,5 @@ test('unmounted Research read handler rejects Identity fields before any databas
 
   assert.equal(out.state.statusCode, 400);
   assert.equal(queryCalls, 0);
-  assert.deepEqual(out.state.body, { error: 'Invalid or replayed Research proof' });
+  assert.deepEqual(out.state.body, { error: 'Invalid Research request' });
 });

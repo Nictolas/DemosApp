@@ -71,7 +71,7 @@ test('Research handler accepts one valid Ed25519 proof and rejects replay', asyn
   const replay = responseRecorder();
   await handlers.readOpinionVector(request, replay.res);
   assert.equal(replay.state.statusCode, 400);
-  assert.deepEqual(replay.state.body, { error: 'Invalid or replayed Research proof' });
+  assert.deepEqual(replay.state.body, { error: 'Invalid Research request' });
 });
 
 
