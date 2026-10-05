@@ -111,7 +111,7 @@ class PostgresSecurityStore {
             event_count = GREATEST(security_agent.incidents.event_count, EXCLUDED.event_count),
             first_seen = LEAST(${INCIDENTS_TABLE}.first_seen, EXCLUDED.first_seen),
             last_seen = GREATEST(${INCIDENTS_TABLE}.last_seen, EXCLUDED.last_seen),
-            updated_at = EXCLUDED.updated_at
+            updated_at = GREATEST(security_agent.incidents.updated_at, EXCLUDED.updated_at)
           RETURNING incident_id, finding_id, rule_id, severity, status, event_count,
                     first_seen, last_seen, created_at, updated_at
         `, [
