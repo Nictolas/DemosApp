@@ -21,7 +21,7 @@ const buildResearchAggregateMethodology = ({
     sourceProjection: RESEARCH_AGGREGATE_SOURCE_PROJECTION,
     freshnessSemantics: 'active-and-unexpired-at-query-time',
     countingUnit: RESEARCH_AGGREGATE_COUNTING_UNIT,
-    grouping: [...RESEARCH_AGGREGATE_GROUPING],
+    grouping: Object.freeze([...RESEARCH_AGGREGATE_GROUPING]),
     suppression: Object.freeze({
       policy: 'small-cell',
       minimumCellSize
