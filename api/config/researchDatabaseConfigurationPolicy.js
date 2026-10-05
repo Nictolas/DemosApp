@@ -5,7 +5,9 @@ const REQUIRED_RESEARCH_DATABASE_DECISIONS = Object.freeze([
   'leastPrivilegeRoleRequired',
   'connectionSecretStoredOutsideSourceControl',
   'dataRegionApproved',
+  'poolConcurrencyBounded',
   'connectionTimeoutDefined',
+  'queryTimeoutDefined',
   'statementTimeoutDefined'
 ]);
 
