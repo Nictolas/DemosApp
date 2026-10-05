@@ -120,3 +120,95 @@ test('HTTP POC preflight exposes only the narrow Research browser contract', asy
   assert.equal(response.headers['access-control-allow-headers'], 'Content-Type');
   assert.equal(response.headers['access-control-allow-methods'], 'POST, OPTIONS');
 });
+
+
+test('HTTP POC rejects ambient Identity credentials even from an allowed origin', async () => {
+  const { createResearchPublicBoundaryMiddleware } = require('../middleware/researchPublicBoundary');
+  const policy = {
+    mountAllowed: true,
+    allowedOrigins: ['https://app.example'],
+    cacheControl: 'no-store'
+  };
+  let routerCalls = 0;
+  const { app } = createResearchPublicIntegrationPoc({
+    policy,
+    boundary: createResearchPublicBoundaryMiddleware({ policy }),
+    router: (req, res) => {
+      routerCalls += 1;
+      res.status(204).end();
+    },
+    errorHandler: (err, req, res, next) => next(err)
+  });
+
+  const response = await request(app, {
+    origin: 'https://app.example',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer identity-session-token'
+    }
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(routerCalls, 0);
+  assert.deepEqual(JSON.parse(response.body), { error: 'Invalid Research request' });
+  assert.equal(response.headers['access-control-allow-origin'], 'https://app.example');
+  assert.equal(response.headers['access-control-allow-credentials'], undefined);
+});
+
+test('HTTP POC requires JSON content type on /v1 before routing', async () => {
+  const { createResearchPublicBoundaryMiddleware } = require('../middleware/researchPublicBoundary');
+  const policy = {
+    mountAllowed: true,
+    allowedOrigins: ['https://app.example'],
+    cacheControl: 'no-store'
+  };
+  let routerCalls = 0;
+  const { app } = createResearchPublicIntegrationPoc({
+    policy,
+    boundary: createResearchPublicBoundaryMiddleware({ policy }),
+    router: (req, res) => {
+      routerCalls += 1;
+      res.status(204).end();
+    },
+    errorHandler: (err, req, res, next) => next(err)
+  });
+
+  const rejected = await request(app, { origin: 'https://app.example' });
+  assert.equal(rejected.status, 415);
+  assert.equal(routerCalls, 0);
+
+  const accepted = await request(app, {
+    origin: 'https://app.example',
+    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+  });
+  assert.equal(accepted.status, 204);
+  assert.equal(routerCalls, 1);
+});
+
+test('HTTP POC rejects query-string input before the Research router', async () => {
+  const { createResearchPublicBoundaryMiddleware } = require('../middleware/researchPublicBoundary');
+  const policy = {
+    mountAllowed: true,
+    allowedOrigins: ['https://app.example'],
+    cacheControl: 'no-store'
+  };
+  let routerCalls = 0;
+  const { app } = createResearchPublicIntegrationPoc({
+    policy,
+    boundary: createResearchPublicBoundaryMiddleware({ policy }),
+    router: (req, res) => {
+      routerCalls += 1;
+      res.status(204).end();
+    },
+    errorHandler: (err, req, res, next) => next(err)
+  });
+
+  const response = await request(app, {
+    path: '/v1/proof-challenges?userId=identity-link',
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(routerCalls, 0);
+  assert.deepEqual(JSON.parse(response.body), { error: 'Invalid Research request' });
+});
