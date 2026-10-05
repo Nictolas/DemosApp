@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readPublishedResearchAnswerAggregates } = require('../services/researchAggregateReader');
 
+const fixedClock = () => new Date('2026-10-04T02:00:00Z');
+
 test('aggregate reader reads the fresh projection and suppresses small cells', async () => {
   const calls = [];
   const client = { query: async (sql, params) => {
@@ -14,9 +16,8 @@ test('aggregate reader reads the fresh projection and suppresses small cells', a
 
   const result = await readPublishedResearchAnswerAggregates(client, {
     questionId: 'energia_nucleare',
-    minimumCellSize: 8,
-    generatedAt: '2026-10-04T02:00:00Z'
-  });
+    minimumCellSize: 8
+  }, { clock: fixedClock });
 
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /FROM research\.current_opinion_responses/i);
@@ -30,6 +31,9 @@ test('aggregate reader reads the fresh projection and suppresses small cells', a
       freshnessSemantics: 'active-and-unexpired-at-query-time',
       countingUnit: 'distinct-participant-per-answer',
       grouping: ['question_id', 'answer_code'],
+      publicationMode: 'live-query',
+      materialization: 'disabled',
+      cacheTtlSeconds: 0,
       suppression: { policy: 'small-cell', minimumCellSize: 8 }
     },
     rows: [
@@ -39,7 +43,7 @@ test('aggregate reader reads the fresh projection and suppresses small cells', a
   });
 });
 
-test('aggregate reader fails closed without an explicit threshold', async () => {
+test('aggregate reader fails closed without an explicit threshold before querying', async () => {
   let queryCalls = 0;
   const client = { query: async () => {
     queryCalls += 1;
@@ -48,6 +52,41 @@ test('aggregate reader fails closed without an explicit threshold', async () => 
   await assert.rejects(
     () => readPublishedResearchAnswerAggregates(client, { questionId: 'q-1' }),
     /Explicit aggregate minimum cell size/
+  );
+  assert.equal(queryCalls, 0);
+});
+
+test('aggregate reader does not accept caller-supplied generation timestamps', async () => {
+  const client = { query: async () => ({
+    rows: [{ answer_code: 'f', participant_count: '10' }]
+  }) };
+
+  const result = await readPublishedResearchAnswerAggregates(client, {
+    questionId: 'q-1',
+    minimumCellSize: 5,
+    generatedAt: '2099-01-01T00:00:00Z'
+  }, { clock: fixedClock });
+
+  assert.equal(result.methodology.generatedAt, '2026-10-04T02:00:00.000Z');
+  assert.equal(result.methodology.publicationMode, 'live-query');
+  assert.equal(result.methodology.materialization, 'disabled');
+  assert.equal(result.methodology.cacheTtlSeconds, 0);
+});
+
+test('aggregate reader rejects an invalid clock and never queries Research', async () => {
+  let queryCalls = 0;
+  const client = { query: async () => {
+    queryCalls += 1;
+    return { rows: [] };
+  } };
+
+  await assert.rejects(
+    () => readPublishedResearchAnswerAggregates(
+      client,
+      { questionId: 'q-1', minimumCellSize: 5 },
+      { clock: 'not-a-function' }
+    ),
+    /clock required/i
   );
   assert.equal(queryCalls, 0);
 });
