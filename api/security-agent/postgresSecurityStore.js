@@ -48,6 +48,11 @@ function persistedCounter(value, kind) {
   return parsed;
 }
 
+function resultRows(result) {
+  if (!result || !Array.isArray(result.rows)) throw new Error('invalid postgres result');
+  return result.rows;
+}
+
 function persistedStatCount(value) {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error('invalid persisted stats');
@@ -179,7 +184,7 @@ class PostgresSecurityStore {
       ORDER BY updated_at DESC
       LIMIT $${values.length}
     `, values);
-    return result.rows.map(rowToIncident);
+    return resultRows(result).map(rowToIncident);
   }
 
   async saveSourceState(sourceName, state, now = new Date()) {
@@ -221,7 +226,7 @@ class PostgresSecurityStore {
       sanitized.totals.duplicates,
       sanitized.storedAt
     ]);
-    return rowToSourceState(result.rows[0]);
+    return rowToSourceState(resultRows(result)[0]);
   }
 
   async getSourceState(sourceName) {
@@ -235,7 +240,7 @@ class PostgresSecurityStore {
       WHERE source_name = $1
       LIMIT 1
     `, [name]);
-    return rowToSourceState(result.rows[0]);
+    return rowToSourceState(resultRows(result)[0]);
   }
 
   async prune({ now = new Date() } = {}) {
@@ -258,17 +263,21 @@ class PostgresSecurityStore {
     ]);
     const severity = {};
     const status = {};
-    for (const row of bySeverity.rows) {
-      if (!ALLOWED_SEVERITIES.has(row.severity)) throw new Error('invalid persisted stats');
+    const severityRows = resultRows(bySeverity);
+    const statusRows = resultRows(byStatus);
+    const summaryRows = resultRows(summary);
+    const sourceRows = resultRows(sources);
+    for (const row of severityRows) {
+      if (!ALLOWED_SEVERITIES.has(row.severity) || Object.prototype.hasOwnProperty.call(severity, row.severity)) throw new Error('invalid persisted stats');
       severity[row.severity] = persistedStatCount(row.count ?? 0);
     }
-    for (const row of byStatus.rows) {
-      if (!ALLOWED_STATUSES.has(row.status)) throw new Error('invalid persisted stats');
+    for (const row of statusRows) {
+      if (!ALLOWED_STATUSES.has(row.status) || Object.prototype.hasOwnProperty.call(status, row.status)) throw new Error('invalid persisted stats');
       status[row.status] = persistedStatCount(row.count ?? 0);
     }
     return {
-      incidentCount: persistedStatCount(summary.rows[0]?.incident_count ?? 0),
-      sourceCount: persistedStatCount(sources.rows[0]?.source_count ?? 0),
+      incidentCount: persistedStatCount(summaryRows[0]?.incident_count ?? 0),
+      sourceCount: persistedStatCount(sourceRows[0]?.source_count ?? 0),
       bySeverity: severity,
       byStatus: status
     };
