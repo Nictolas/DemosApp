@@ -15,11 +15,10 @@ test('Research runtime SAST manifest contains the current standalone runtime clo
     'api/config/researchProductionReadinessPolicy.js',
     'api/researchPublicApiMount.js',
     'api/config/researchPublicExposurePolicy.js',
-  'api/config/researchPublicRequestPolicy.js',
+    'api/config/researchPublicRequestPolicy.js',
     'api/middleware/researchPublicBoundary.js',
     'api/routes/researchPublicRouter.js',
     'api/handlers/researchPublicHandlers.js',
-    'api/middleware/researchRateLimiting.js',
     'api/services/researchPublicApiContract.js',
     'api/services/researchProofChallengeStore.js',
     'api/services/researchOpinionVectorReader.js',
@@ -33,7 +32,7 @@ test('Research runtime SAST manifest contains the current standalone runtime clo
     'api/services/researchPoliticalVectorReader.js',
     'api/services/researchPoliticalVectorAdapter.js',
     'api/services/researchAggregateReader.js',
-  'api/services/researchAggregatePublicResponsePolicy.js',
+    'api/services/researchAggregatePublicResponsePolicy.js',
     'api/services/researchAggregatePublicationPolicy.js',
     'api/services/researchAggregateMethodology.js'
   ]);

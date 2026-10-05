@@ -86,3 +86,36 @@ test('Research public mount never invokes boundary/router when exposure policy i
   assert.equal(routerCalls, 0);
   assert.equal(errorCalls, 0);
 });
+
+
+test('Research public mount stays closed when exposure is enabled but runtime limiters are absent', () => {
+  const app = fakeApp();
+  const result = mountResearchPublicApiIfEnabled(app, {
+    policy: { mountAllowed: true, allowedOrigins: ['https://app.example'] }
+  });
+
+  assert.deepEqual(result, { mounted: false });
+  assert.equal(app.mounted.length, 0);
+});
+
+test('Research public mount can build the router only from explicit runtime limiters', () => {
+  const app = fakeApp();
+  const boundary = () => {};
+  const challengeLimiter = (req, res, next) => next();
+  const readLimiter = (req, res, next) => next();
+  const errorHandler = () => {};
+
+  const result = mountResearchPublicApiIfEnabled(app, {
+    policy: { mountAllowed: true, allowedOrigins: ['https://app.example'] },
+    boundary,
+    challengeLimiter,
+    readLimiter,
+    errorHandler
+  });
+
+  assert.deepEqual(result, { mounted: true });
+  assert.equal(app.mounted.length, 3);
+  assert.equal(app.mounted[0], boundary);
+  assert.equal(typeof app.mounted[1], 'function');
+  assert.equal(app.mounted[2], errorHandler);
+});

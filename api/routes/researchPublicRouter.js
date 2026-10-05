@@ -3,18 +3,21 @@ const {
   createResearchPublicHandlers
 } = require('../handlers/researchPublicHandlers');
 const {
-  researchChallengeLimiter,
-  researchReadLimiter
-} = require('../middleware/researchRateLimiting');
-const {
   RESEARCH_PUBLIC_ENDPOINTS
 } = require('../services/researchPublicApiContract');
 
 const createResearchPublicRouter = ({
   handlers = createResearchPublicHandlers(),
-  challengeLimiter = researchChallengeLimiter,
-  readLimiter = researchReadLimiter
+  challengeLimiter,
+  readLimiter
 } = {}) => {
+  if (typeof challengeLimiter !== 'function') {
+    throw new Error('Research challenge rate limiter is required');
+  }
+  if (typeof readLimiter !== 'function') {
+    throw new Error('Research read rate limiter is required');
+  }
+
   const router = express.Router();
 
   router.post(
