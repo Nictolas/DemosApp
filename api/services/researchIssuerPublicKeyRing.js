@@ -26,19 +26,30 @@ const assertVerificationOnlyPublicKey = (publicKey) => {
   if (!publicKey || typeof publicKey !== 'object') {
     throw new Error('Research issuer public key is required');
   }
-  if (publicKey.type && publicKey.type !== 'public') {
+
+  let type;
+  let usages;
+  try {
+    type = publicKey.type;
+    usages = publicKey.usages;
+    for (const capability of FORBIDDEN_KEY_CAPABILITIES) {
+      if (Reflect.has(publicKey, capability)) {
+        throw new Error('Research issuer key exposes forbidden private capability');
+      }
+    }
+  } catch (error) {
+    if (error?.message === 'Research issuer key exposes forbidden private capability') throw error;
+    throw new Error('Research issuer public key inspection failed');
+  }
+
+  if (type && type !== 'public') {
     throw new Error('Research issuer key must be public');
   }
   if (
-    Array.isArray(publicKey.usages) &&
-    publicKey.usages.some((usage) => usage !== 'verify')
+    Array.isArray(usages) &&
+    usages.some((usage) => usage !== 'verify')
   ) {
     throw new Error('Research issuer key exposes non-verification usage');
-  }
-  for (const capability of FORBIDDEN_KEY_CAPABILITIES) {
-    if (capability in publicKey) {
-      throw new Error('Research issuer key exposes forbidden private capability');
-    }
   }
   return publicKey;
 };

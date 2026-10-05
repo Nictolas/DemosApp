@@ -63,6 +63,30 @@ test('Research issuer key resolution fails closed on absent or hostile input obj
   assert.equal(ring.resolve(hostile), null);
 });
 
+test('Research issuer public-key inspection contains hostile getters and Proxy traps', () => {
+  const hostileGetter = {};
+  Object.defineProperty(hostileGetter, 'type', {
+    get() { throw new Error('hostile type getter'); }
+  });
+  assert.throws(() => createResearchIssuerPublicKeyRing({
+    keys: [{ keyId: keyId(4), publicKey: hostileGetter, epochs: ['2026-Q4'] }]
+  }), /inspection failed/i);
+
+  const hostileHas = new Proxy({ type: 'public', usages: ['verify'] }, {
+    has() { throw new Error('hostile has trap'); }
+  });
+  assert.throws(() => createResearchIssuerPublicKeyRing({
+    keys: [{ keyId: keyId(5), publicKey: hostileHas, epochs: ['2026-Q4'] }]
+  }), /inspection failed/i);
+
+  const inheritedPrivate = Object.create({ sign() {} });
+  inheritedPrivate.type = 'public';
+  inheritedPrivate.usages = ['verify'];
+  assert.throws(() => createResearchIssuerPublicKeyRing({
+    keys: [{ keyId: keyId(6), publicKey: inheritedPrivate, epochs: ['2026-Q4'] }]
+  }), /forbidden private capability/i);
+});
+
 test('Research issuer key ring rejects private/signing capability and excessive overlap', () => {
   assert.throws(() => createResearchIssuerPublicKeyRing({
     keys: [{ keyId: keyId(1), publicKey: { type: 'private', usages: ['sign'] }, epochs: ['2026-Q4'] }]
