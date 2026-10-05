@@ -1,9 +1,9 @@
 const express = require('express');
-const shadowConfig = require('./config/privacyResearchShadow');
 const {
   RESEARCH_PUBLIC_MAX_BODY_BYTES
 } = require('./config/researchPublicRequestPolicy');
 const {
+  applyResearchPublicSafetyHeaders,
   sendResearchPublicError
 } = require('./services/researchPublicErrorPolicy');
 const {
@@ -18,14 +18,20 @@ const {
 // participant cryptographically, not through an account session.
 const app = express();
 
-app.disable('x-powered-by');
+const RESEARCH_PUBLIC_HEALTH_BODY = Object.freeze({ success: true });
+const RESEARCH_PUBLIC_HEALTH_MAX_BYTES = 32;
 
-// Privacy headers are applied before parsing so rejected JSON bodies receive the
-// same no-store / no-referrer boundary as successful Research requests.
+if (Buffer.byteLength(JSON.stringify(RESEARCH_PUBLIC_HEALTH_BODY), 'utf8') > RESEARCH_PUBLIC_HEALTH_MAX_BYTES) {
+  throw new Error('Research public health response exceeds size bound');
+}
+
+app.disable('x-powered-by');
+app.disable('etag');
+
+// Privacy headers are applied before parsing so every public response, including
+// malformed input and health probes, is non-cacheable and non-indexable.
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'no-referrer');
+  applyResearchPublicSafetyHeaders(res);
   next();
 });
 
@@ -52,18 +58,16 @@ const researchProductionMount = mountResearchPublicApiIfProductionReady(app, {
   mountOptions: {}
 });
 
+// Public liveness is intentionally constant: deployment mode, readiness blockers
+// and mount state remain available only to local process state, not to the network.
 app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    service: 'demos-research-shadow',
-    mode: shadowConfig.mode,
-    enabled: shadowConfig.enabled,
-    publicApiMounted: researchProductionMount.mounted
-  });
+  res.status(200).json(RESEARCH_PUBLIC_HEALTH_BODY);
 });
 
+// Unknown paths use the same minimal public error body as other rejected input so
+// route discovery does not expose framework or service detail.
 app.use('*', (req, res) => {
-  res.status(404).json({ success: false, error: 'Route not found' });
+  sendResearchPublicError(res, 404);
 });
 
 app.locals.researchProductionMount = researchProductionMount;
