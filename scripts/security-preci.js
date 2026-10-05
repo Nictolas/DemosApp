@@ -27,6 +27,7 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPostgresLifecycleSafety.test.js')], root, 'Postgres lifecycle safety']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPostgresTemporalSafety.test.js')], root, 'Postgres temporal safety']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPostgresSourceStateSafety.test.js')], root, 'Postgres source-state safety']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityShadowRunnerPersistenceSafety.test.js')], root, 'Shadow runner persistence safety']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
