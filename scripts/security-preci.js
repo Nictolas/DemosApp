@@ -1,0 +1,33 @@
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const steps = [['git', ['diff', '--check'], root, 'Git whitespace/conflict check']];
+
+const securityAgentDir = path.join(root, 'api', 'security-agent');
+const securityTestDir = path.join(root, 'api', 'tests');
+for (const file of fs.readdirSync(securityAgentDir).filter(name => name.endsWith('.js')).sort()) {
+  steps.push([process.execPath, ['--check', path.join(securityAgentDir, file)], root, `Syntax ${file}`]);
+}
+for (const file of fs.readdirSync(securityTestDir).filter(name => /^security.*\.test\.js$/i.test(name)).sort()) {
+  steps.push([process.execPath, ['--check', path.join(securityTestDir, file)], root, `Syntax ${file}`]);
+}
+
+function npmStep(cwd, script, label) {
+  if (process.platform === 'win32') {
+    return [process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `npm run ${script}`], cwd, label];
+  }
+  return ['npm', ['run', script], cwd, label];
+}
+steps.push(npmStep(path.join(root, 'api'), 'test:security-agent', 'Security Agent test suite'));
+steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
+
+for (const [command, args, cwd, label] of steps) {
+  process.stdout.write(`\n[pre-CI] ${label}\n`);
+  const result = spawnSync(command, args, { cwd, stdio: 'inherit', shell: false });
+  if (result.error) { console.error(`[pre-CI] ERROR: ${label}: ${result.error.message}`); process.exit(1); }
+  if (result.status !== 0) { console.error(`[pre-CI] FAIL: ${label}`); process.exit(result.status || 1); }
+}
+
+console.log('\n[pre-CI] PASS: local security gate is green. No network, deploy, migration, production write, or GitHub Action was started by this script.');
