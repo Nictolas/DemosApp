@@ -1,4 +1,4 @@
-﻿module.exports = Object.freeze([
+module.exports = Object.freeze([
   'api/research-server.js',
   'api/research-app.js',
   'api/config/privacyResearchShadow.js',
@@ -7,6 +7,7 @@
   'api/config/researchProductionReadinessPolicy.js',
   'api/researchPublicApiMount.js',
   'api/config/researchPublicExposurePolicy.js',
+  'api/config/researchPublicRequestPolicy.js',
   'api/middleware/researchPublicBoundary.js',
   'api/routes/researchPublicRouter.js',
   'api/handlers/researchPublicHandlers.js',

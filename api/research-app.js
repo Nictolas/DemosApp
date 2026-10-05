@@ -1,6 +1,9 @@
 const express = require('express');
 const shadowConfig = require('./config/privacyResearchShadow');
 const {
+  RESEARCH_PUBLIC_MAX_BODY_BYTES
+} = require('./config/researchPublicRequestPolicy');
+const {
   mountResearchPublicApiIfProductionReady
 } = require('./researchProductionMountGate');
 const {
@@ -13,13 +16,25 @@ const {
 const app = express();
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '64kb' }));
 
+// Privacy headers are applied before parsing so rejected JSON bodies receive the
+// same no-store / no-referrer boundary as successful Research requests.
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   next();
+});
+
+app.use(express.json({ limit: RESEARCH_PUBLIC_MAX_BODY_BYTES }));
+app.use((error, req, res, next) => {
+  if (error?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Invalid Research request' });
+  }
+  if (error?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid Research request' });
+  }
+  return next(error);
 });
 
 const readinessDeployment = loadResearchReadinessDeployment(process.env);
