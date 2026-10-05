@@ -14,7 +14,8 @@ const FORBIDDEN_KEY_CAPABILITIES = Object.freeze([
 ]);
 
 const normalizeKeyId = (value) => {
-  const keyId = Buffer.from(value || []);
+  if (!Buffer.isBuffer(value) && !ArrayBuffer.isView(value)) throw new Error('Invalid Research issuer public key id');
+  const keyId = Buffer.from(value);
   if (keyId.length !== KEY_ID_BYTES) {
     throw new Error('Invalid Research issuer public key id');
   }
@@ -95,8 +96,17 @@ const createResearchIssuerPublicKeyRing = ({ keys }) => {
   });
 
   return Object.freeze({
-    resolve({ tokenKeyId, epoch }) {
-      validateCredentialContext({ purpose: 'renew', epoch });
+    resolve(input) {
+      if (!input || typeof input !== 'object') return null;
+      let tokenKeyId;
+      let epoch;
+      try {
+        tokenKeyId = input.tokenKeyId;
+        epoch = input.epoch;
+        validateCredentialContext({ purpose: 'renew', epoch });
+      } catch {
+        return null;
+      }
       let wanted;
       try {
         wanted = normalizeKeyId(tokenKeyId);
