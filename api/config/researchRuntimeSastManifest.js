@@ -13,6 +13,7 @@ module.exports = Object.freeze([
   'api/services/researchPublicApiContract.js',
   'api/services/researchPublicErrorPolicy.js',
   'api/services/researchFailureClassification.js',
+  'api/services/researchFailureDiagnostics.js',
   'api/services/researchPublicVectorResponsePolicy.js',
   'api/services/researchProofChallengeStore.js',
   'api/services/researchOpinionVectorReader.js',
