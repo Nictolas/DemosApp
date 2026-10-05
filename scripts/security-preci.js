@@ -32,6 +32,7 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStoreSharedContract.test.js')], root, 'Shared store contract']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStoreRetentionContract.test.js')], root, 'Store retention contract']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStoreReadParity.test.js')], root, 'Store read parity']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securitySourceStateReadParity.test.js')], root, 'Source-state read parity']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
