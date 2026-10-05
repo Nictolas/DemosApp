@@ -24,3 +24,33 @@ test('unknown values classify fail-closed as request failures', () => {
   assert.deepEqual(classifyResearchFailure(null), { kind: RESEARCH_FAILURE_KIND.REQUEST });
   assert.deepEqual(classifyResearchFailure({}), { kind: RESEARCH_FAILURE_KIND.REQUEST });
 });
+
+test('classification fails closed when error message getter throws', () => {
+  const hostile = Object.defineProperty({}, 'message', {
+    get() { throw new Error('message getter side effect'); }
+  });
+  assert.doesNotThrow(() => classifyResearchFailure(hostile));
+  assert.deepEqual(classifyResearchFailure(hostile), { kind: RESEARCH_FAILURE_KIND.REQUEST });
+});
+
+test('classification fails closed when proxy message access throws', () => {
+  const hostile = new Proxy({}, {
+    get(_target, property) {
+      if (property === 'message') throw new Error('proxy message trap');
+      return undefined;
+    }
+  });
+  assert.deepEqual(classifyResearchFailure(hostile), { kind: RESEARCH_FAILURE_KIND.REQUEST });
+});
+
+test('classification reads error message once', () => {
+  let reads = 0;
+  const error = Object.defineProperty({}, 'message', {
+    get() {
+      reads += 1;
+      return 'privacy threshold not met';
+    }
+  });
+  assert.deepEqual(classifyResearchFailure(error), { kind: RESEARCH_FAILURE_KIND.POLICY });
+  assert.equal(reads, 1);
+});

@@ -6,11 +6,21 @@ const RESEARCH_FAILURE_KIND = Object.freeze({
 
 const makeResearchFailure = (kind) => Object.freeze({ kind });
 
+const readErrorMessage = (error) => {
+  try {
+    const message = error?.message;
+    return typeof message === 'string' ? message : null;
+  } catch {
+    return null;
+  }
+};
+
 const classifyResearchFailure = (error) => {
-  if (error?.message === 'Research database unavailable') {
+  const message = readErrorMessage(error);
+  if (message === 'Research database unavailable') {
     return makeResearchFailure(RESEARCH_FAILURE_KIND.INFRASTRUCTURE);
   }
-  if (typeof error?.message === 'string' && /policy|threshold|proof|challenge/i.test(error.message)) {
+  if (message && /policy|threshold|proof|challenge/i.test(message)) {
     return makeResearchFailure(RESEARCH_FAILURE_KIND.POLICY);
   }
   return makeResearchFailure(RESEARCH_FAILURE_KIND.REQUEST);
