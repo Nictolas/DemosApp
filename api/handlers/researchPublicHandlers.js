@@ -28,6 +28,9 @@ const {
 const {
   sendResearchPublicError
 } = require('../services/researchPublicErrorPolicy');
+const {
+  classifyResearchFailure
+} = require('../services/researchFailureClassification');
 
 const decodeBase64UrlExact = (value, length, label) => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) {
@@ -54,7 +57,8 @@ const createResearchPublicHandlers = ({
         challenge: result.challenge,
         purpose: result.purpose
       });
-    } catch {
+    } catch (error) {
+      classifyResearchFailure(error);
       sendResearchPublicError(res, 400);
     }
   },
@@ -67,7 +71,8 @@ const createResearchPublicHandlers = ({
         createResearchPoliticalVectorAdapter({ client: pool }).read(body.scope)
       , getPool);
       res.status(200).json(buildResearchPoliticalVectorsPublicResponse(candidates));
-    } catch {
+    } catch (error) {
+      classifyResearchFailure(error);
       sendResearchPublicError(res, 400);
     }
   },
@@ -85,7 +90,8 @@ const createResearchPublicHandlers = ({
         createResearchOpinionVectorReader({ client: pool }).read(proof)
       , getPool);
       res.status(200).json(buildResearchOpinionVectorPublicResponse(result));
-    } catch {
+    } catch (error) {
+      classifyResearchFailure(error);
       sendResearchPublicError(res, 400);
     }
   },
@@ -107,7 +113,8 @@ const createResearchPublicHandlers = ({
       );
       const response = buildResearchAggregatePublicResponse(result);
       res.status(200).json(response);
-    } catch {
+    } catch (error) {
+      classifyResearchFailure(error);
       sendResearchPublicError(res, 400);
     }
   }
