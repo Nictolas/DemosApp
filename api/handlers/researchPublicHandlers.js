@@ -20,6 +20,10 @@ const {
   RESEARCH_PUBLIC_ENDPOINTS,
   assertResearchPublicPayload
 } = require('../services/researchPublicApiContract');
+const {
+  buildResearchPoliticalVectorsPublicResponse,
+  buildResearchOpinionVectorPublicResponse
+} = require('../services/researchPublicVectorResponsePolicy');
 
 const decodeBase64UrlExact = (value, length, label) => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) {
@@ -56,7 +60,7 @@ const createResearchPublicHandlers = ({
       const body = req.body ?? {};
       assertResearchPublicPayload(body, RESEARCH_PUBLIC_ENDPOINTS.listPoliticalVectors.requestKeys);
       const candidates = await createResearchPoliticalVectorAdapter({ client: getPool() }).read(body.scope);
-      res.status(200).json({ candidates });
+      res.status(200).json(buildResearchPoliticalVectorsPublicResponse(candidates));
     } catch {
       res.status(400).json({ error: 'Invalid political vector request' });
     }
@@ -72,7 +76,7 @@ const createResearchPublicHandlers = ({
         signature: decodeBase64UrlExact(body.signature, 64, 'participant signature')
       };
       const result = await createResearchOpinionVectorReader({ client: getPool() }).read(proof);
-      res.status(200).json({ opinions: result.opinions });
+      res.status(200).json(buildResearchOpinionVectorPublicResponse(result));
     } catch {
       res.status(400).json({ error: 'Invalid or replayed Research proof' });
     }
