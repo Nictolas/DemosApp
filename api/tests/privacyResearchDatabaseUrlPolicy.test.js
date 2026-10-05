@@ -42,6 +42,18 @@ test('Research database URL strips caller-controlled TLS query parameters but pr
   assert.equal(normalized.searchParams.get('pgbouncer'), 'true');
 });
 
+test('Research database URL rejects unexpected query parameters that could carry credentials or connection overrides', () => {
+  for (const query of ['password=hidden', 'user=other', 'application_name=override', 'options=-cstatement_timeout%3D0']) {
+    assert.throws(
+      () => parseResearchDatabaseUrl(`postgresql://user:secret@db.example.test/research?${query}`),
+      /unsupported query parameter/
+    );
+  }
+  assert.doesNotThrow(() =>
+    parseResearchDatabaseUrl('postgresql://user:secret@db.example.test/research?pgbouncer=true&sslmode=require')
+  );
+});
+
 test('Research database TLS exemption is restricted to exact loopback hosts', () => {
   for (const host of ['localhost', '127.0.0.1', '[::1]']) {
     assert.equal(isLocalDatabaseUrl(`postgresql://user:secret@${host}/research`), true);
