@@ -24,20 +24,49 @@ const parseResearchPoolMax = (value = process.env.RESEARCH_DATABASE_POOL_MAX) =>
   return parsed;
 };
 
+const RESEARCH_TLS_QUERY_PARAMS = Object.freeze([
+  'sslmode',
+  'sslcert',
+  'sslkey',
+  'sslrootcert',
+  'sslaccept'
+]);
+const RESEARCH_DATABASE_PROTOCOLS = new Set(['postgres:', 'postgresql:']);
+const RESEARCH_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
+const parseResearchDatabaseUrl = (value) => {
+  if (typeof value !== 'string' || value.length === 0 || value !== value.trim()) {
+    throw new Error('RESEARCH_DATABASE_URL must be a canonical PostgreSQL URL');
+  }
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('RESEARCH_DATABASE_URL must be a canonical PostgreSQL URL');
+  }
+
+  if (!RESEARCH_DATABASE_PROTOCOLS.has(url.protocol)) {
+    throw new Error('RESEARCH_DATABASE_URL must use postgres:// or postgresql://');
+  }
+  if (!url.hostname || !url.username || !url.pathname || url.pathname === '/') {
+    throw new Error('RESEARCH_DATABASE_URL must include host, username and database name');
+  }
+  if (url.hash) {
+    throw new Error('RESEARCH_DATABASE_URL fragments are forbidden');
+  }
+
+  return url;
+};
+
 const normalizeDatabaseUrl = (value) => {
-  if (!value) return value;
-  const url = new URL(value);
-  ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslaccept'].forEach((param) => {
-    url.searchParams.delete(param);
-  });
+  const url = parseResearchDatabaseUrl(value);
+  RESEARCH_TLS_QUERY_PARAMS.forEach((param) => url.searchParams.delete(param));
   return url.toString();
 };
 
-const isLocalDatabaseUrl = (value) => {
-  if (!value) return false;
-  const hostname = new URL(value).hostname;
-  return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname);
-};
+const isLocalDatabaseUrl = (value) =>
+  RESEARCH_LOCAL_HOSTS.has(parseResearchDatabaseUrl(value).hostname);
 
 const getResearchPool = () => {
   if (researchPool) return researchPool;
@@ -85,5 +114,8 @@ module.exports = {
   RESEARCH_IDLE_TIMEOUT_MS,
   RESEARCH_CONNECTION_TIMEOUT_MS,
   RESEARCH_QUERY_TIMEOUT_MS,
-  RESEARCH_STATEMENT_TIMEOUT_MS
+  RESEARCH_STATEMENT_TIMEOUT_MS,
+  parseResearchDatabaseUrl,
+  normalizeDatabaseUrl,
+  isLocalDatabaseUrl
 };
