@@ -54,3 +54,30 @@ test('Research public router remains unmounted from research-app', () => {
   );
   assert.doesNotMatch(source, /researchPublicRouter|createResearchPublicRouter/);
 });
+
+
+test('Research public router fails closed without explicit runtime rate limiters', () => {
+  const handlers = {
+    issueChallenge() {},
+    listPoliticalVectors() {},
+    readOpinionVector() {},
+    readAnswerAggregates() {}
+  };
+
+  assert.throws(
+    () => createResearchPublicRouter({ handlers, readLimiter: (req, res, next) => next() }),
+    /challenge rate limiter is required/i
+  );
+  assert.throws(
+    () => createResearchPublicRouter({ handlers, challengeLimiter: (req, res, next) => next() }),
+    /read rate limiter is required/i
+  );
+});
+
+test('Research public router has no process-local rate-limit dependency', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'routes', 'researchPublicRouter.js'),
+    'utf8'
+  );
+  assert.doesNotMatch(source, /researchRateLimiting|MemoryStore/);
+});

@@ -13,8 +13,10 @@ const mountResearchPublicApiIfEnabled = (
   app,
   {
     policy = researchPublicExposurePolicyFromEnv(),
-    boundary = createResearchPublicBoundaryMiddleware({ policy }),
-    router = createResearchPublicRouter(),
+    boundary,
+    router,
+    challengeLimiter,
+    readLimiter,
     errorHandler = researchPublicErrorHandler
   } = {}
 ) => {
@@ -26,8 +28,21 @@ const mountResearchPublicApiIfEnabled = (
     return { mounted: false };
   }
 
-  app.use(boundary);
-  app.use(router);
+  const resolvedBoundary = boundary || createResearchPublicBoundaryMiddleware({ policy });
+  let resolvedRouter = router;
+
+  // Production exposure must never silently fall back to the process-local
+  // express-rate-limit MemoryStore. Runtime limiters must be supplied explicitly
+  // (for example by the approved distributed rate-limit composition).
+  if (!resolvedRouter) {
+    if (typeof challengeLimiter !== 'function' || typeof readLimiter !== 'function') {
+      return { mounted: false };
+    }
+    resolvedRouter = createResearchPublicRouter({ challengeLimiter, readLimiter });
+  }
+
+  app.use(resolvedBoundary);
+  app.use(resolvedRouter);
   app.use(errorHandler);
 
   return { mounted: true };
