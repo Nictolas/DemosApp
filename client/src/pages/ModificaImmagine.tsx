@@ -106,7 +106,7 @@ export default function ModificaImmagine() {
   })();
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       {isLoadingInfo ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

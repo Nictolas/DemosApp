@@ -268,7 +268,7 @@ export default function VotiPolitici() {
   };
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100">
       <div className="w-full px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -277,7 +277,7 @@ export default function VotiPolitici() {
               variant="outline"
               size="icon"
               onClick={() => setLocation("/gestisci")}
-              className="flex-shrink-0"
+              className="shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -490,7 +490,7 @@ export default function VotiPolitici() {
                           </TableCell>
                           <TableCell>
                             {votazione.voto ? (
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${getVotoColor(votazione.voto)}`}>
+                              <span className={`px-2 py-1 rounded-sm text-xs font-medium ${getVotoColor(votazione.voto)}`}>
                                 {votazione.voto}
                               </span>
                             ) : (
@@ -612,7 +612,7 @@ export default function VotiPolitici() {
                                               });
                                             });
                                         }}
-                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer whitespace-pre-wrap break-words block w-full text-left"
+                                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer whitespace-pre-wrap wrap-break-word block w-full text-left"
                                         title={votazione.titolo_votazione}
                                       >
                                         {votazione.titolo_votazione}
@@ -723,7 +723,7 @@ export default function VotiPolitici() {
                     href={politicoDialog?.url_openpolis}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 hover:bg-gray-100 rounded"
+                    className="p-2 hover:bg-gray-100 rounded-sm"
                   >
                     <ExternalLink className="h-4 w-4 text-blue-600" />
                   </a>
@@ -742,7 +742,7 @@ export default function VotiPolitici() {
               {politicoDialog?.voto && (
                 <div>
                   <label className="text-sm font-medium mb-2 block">Voto</label>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getVotoColor(politicoDialog.voto)}`}>
+                  <span className={`px-2 py-1 rounded-sm text-xs font-medium ${getVotoColor(politicoDialog.voto)}`}>
                     {politicoDialog.voto}
                   </span>
                 </div>
@@ -866,7 +866,7 @@ export default function VotiPolitici() {
                       <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                         <span className="text-sm font-medium">{politico.politico_nome}</span>
                         {politico.voto && (
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${getVotoColor(politico.voto)}`}>
+                          <span className={`px-2 py-1 rounded-sm text-xs font-medium ${getVotoColor(politico.voto)}`}>
                             {politico.voto}
                           </span>
                         )}

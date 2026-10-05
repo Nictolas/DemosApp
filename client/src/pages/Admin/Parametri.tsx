@@ -513,8 +513,8 @@ const Parametri: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="utilizzo" className="mt-0 outline-none space-y-6">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2 shadow-sm">
+          <TabsContent value="utilizzo" className="mt-0 outline-hidden space-y-6">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2 shadow-xs">
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <h1 className="text-xl font-bold text-slate-900">Parametri</h1>
                 <Badge variant="outline" className="text-cyan-700 border-cyan-300 bg-cyan-50">
@@ -575,7 +575,7 @@ const Parametri: React.FC = () => {
                   return (
                     <Card
                       key={platform.id}
-                      className={`border-slate-200 bg-white shadow-sm h-full ${
+                      className={`border-slate-200 bg-white shadow-xs h-full ${
                         multi ? "sm:col-span-2 xl:col-span-2" : ""
                       }`}
                     >
@@ -701,7 +701,7 @@ const Parametri: React.FC = () => {
             </section>
           </TabsContent>
 
-          <TabsContent value="guida" className="mt-0 outline-none">
+          <TabsContent value="guida" className="mt-0 outline-hidden">
             <RiduzioneComputeGuide />
           </TabsContent>
         </Tabs>

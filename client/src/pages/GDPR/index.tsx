@@ -203,7 +203,7 @@ export default function GDPR() {
 
   if (isLoading) {
     return (
-      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </PageContainer>
     );
@@ -211,7 +211,7 @@ export default function GDPR() {
 
   if (!user) {
     return (
-      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -228,7 +228,7 @@ export default function GDPR() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-b from-blue-50 to-white">
+    <PageContainer className="bg-linear-to-b from-blue-50 to-white">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -240,7 +240,7 @@ export default function GDPR() {
             ← Torna alle Impostazioni
           </Button>
           
-          <Card className="border-0 shadow-lg bg-gradient-to-r from-green-600 to-blue-600 text-white">
+          <Card className="border-0 shadow-lg bg-linear-to-r from-green-600 to-blue-600 text-white">
             <CardHeader className="text-center py-6">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Shield className="h-8 w-8 text-white" />
@@ -371,7 +371,7 @@ export default function GDPR() {
                   </div>
                   
                   {hasConsent && consent?.timestamp && (
-                    <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+                    <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded-sm">
                       Consenso concesso il: {new Date(consent.timestamp).toLocaleString('it-IT')}
                     </div>
                   )}

@@ -116,19 +116,19 @@ export default function Governo() {
   const votiCambiati = JSON.stringify(selectedVoti) !== JSON.stringify(data?.mieiVoti || {});
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-7xl">
         <Button variant="ghost" className="mb-4 flex items-center" onClick={() => window.location.href = "/menu"}><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button>
         <Card className="mb-6">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full"><Building2 className="h-12 w-12 text-white" /></div></div>
+            <div className="flex justify-center mb-4"><div className="p-4 bg-linear-to-r from-blue-500 to-blue-700 rounded-full"><Building2 className="h-12 w-12 text-white" /></div></div>
             <CardTitle className="text-3xl font-bold">Il Tuo Governo Ideale</CardTitle>
             <CardDescription className="text-lg">Scegli chi vorresti a capo di ogni ministero.</CardDescription>
           </CardHeader>
         </Card>
 
         {data?.blocco.isBlocked && unlockDate && (
-          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
+          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-sm">
             <b>Hai già modificato le tue preferenze questa settimana.</b><br />
             Potrai modificarle di nuovo dal: {unlockDate}
           </div>
@@ -147,7 +147,7 @@ export default function Governo() {
                             </div>
                             <CardTitle className="text-lg">{ministero.title}</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex-grow flex flex-col justify-between space-y-4">
+                        <CardContent className="grow flex flex-col justify-between space-y-4">
                             <div>
                                 <div className="flex space-x-2">
                                     <Input placeholder="Nome del candidato..." value={selectedVoti[ministero.categoria] || ""} onChange={e => handleChangeMinistro(ministero.categoria, e.target.value)} disabled={data?.blocco.isBlocked} />
@@ -161,9 +161,9 @@ export default function Governo() {
                                         {/* Primi 3 candidati sempre visibili */}
                                         <div className="space-y-1">
                                             {data?.classifiche[ministero.categoria]?.slice(0, 3).map((candidato, index) => (
-                                                <div key={candidato.nome} className="flex items-center justify-between p-2 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300">
+                                                <div key={candidato.nome} className="flex items-center justify-between p-2 bg-linear-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300">
                                                     <div className="flex items-center space-x-2">
-                                                        <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full text-xs font-bold">
+                                                        <div className="flex items-center justify-center w-6 h-6 bg-linear-to-br from-yellow-400 to-yellow-600 text-white rounded-full text-xs font-bold">
                                                             {index + 1}
                                                         </div>
                                                         <span className="font-medium text-sm">{candidato.nome}</span>
@@ -181,7 +181,7 @@ export default function Governo() {
                                                     onClick={() => toggleCategoryExpansion(ministero.categoria)} 
                                                     variant="outline" 
                                                     size="sm"
-                                                    className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 text-xs"
+                                                    className="w-full bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 text-xs"
                                                 >
                                                     <Trophy className="h-3 w-3 mr-1 text-blue-600" />
                                                     {expandedCategories[ministero.categoria] && data?.classifiche[ministero.categoria]
@@ -194,9 +194,9 @@ export default function Governo() {
                                                 {expandedCategories[ministero.categoria] && data?.classifiche[ministero.categoria] && (
                                                     <div className="space-y-1 transition-all duration-500 ease-out">
                                                         {data.classifiche[ministero.categoria].slice(3).map((candidato, index) => (
-                                                            <div key={candidato.nome} className="flex items-center justify-between p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300">
+                                                            <div key={candidato.nome} className="flex items-center justify-between p-2 bg-linear-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300">
                                                                 <div className="flex items-center space-x-2">
-                                                                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full text-xs font-bold">
+                                                                    <div className="flex items-center justify-center w-6 h-6 bg-linear-to-br from-blue-400 to-indigo-600 text-white rounded-full text-xs font-bold">
                                                                         {index + 4}
                                                                     </div>
                                                                     <span className="font-medium text-sm">{candidato.nome}</span>
@@ -217,7 +217,7 @@ export default function Governo() {
             </div>
         )}
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-xs border-t">
             <div className="container mx-auto max-w-7xl flex justify-end">
                 <Button size="lg" onClick={handleSalvaVoti} disabled={saveVotiMutation.isPending || data?.blocco.isBlocked || !votiCambiati}>
                     {saveVotiMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

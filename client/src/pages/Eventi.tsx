@@ -256,7 +256,7 @@ export default function Eventi() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 select-none page-with-navbar" style={{ paddingBottom: '280px' }}>
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 select-none page-with-navbar" style={{ paddingBottom: '280px' }}>
       <div className="container mx-auto px-4 py-8">
         
         {/* Header */}
@@ -281,7 +281,7 @@ export default function Eventi() {
         {/* Admin Tabs */}
         {isAdmin && (
           <div className="flex justify-center mb-8">
-            <div className="bg-white rounded-lg p-1 shadow-sm border">
+            <div className="bg-white rounded-lg p-1 shadow-xs border">
               <button
                 onClick={() => setActiveTab('personal')}
                 className={`px-6 py-2 rounded-md font-medium transition-colors ${

@@ -33,7 +33,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
     }`}>
       <div className="flex flex-col items-center text-center space-y-3">
         {/* Avatar */}
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
+        <div className="w-16 h-16 rounded-full bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
           {candidato.nome?.charAt(0) || 'C'}
         </div>
         

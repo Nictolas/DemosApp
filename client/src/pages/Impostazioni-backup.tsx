@@ -32,7 +32,7 @@ export default function Impostazioni() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -40,7 +40,7 @@ export default function Impostazioni() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -148,7 +148,7 @@ export default function Impostazioni() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-8">
           <Link href="/menu">

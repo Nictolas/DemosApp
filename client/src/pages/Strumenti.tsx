@@ -204,7 +204,7 @@ export default function Strumenti() {
   // Show loading while user data is being fetched
   if (!user) {
     return (
-      <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <div className="text-center">
@@ -230,7 +230,7 @@ export default function Strumenti() {
   // Blocca completamente l'accesso solo per utenti "Elettore" e altri ruoli non autorizzati
   if (!hasAdvancedAccess) {
     return (
-      <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+      <PageContainer className="bg-linear-to-br from-purple-50 to-pink-100 p-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -273,7 +273,7 @@ export default function Strumenti() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <PageContainer className="strumenti-page bg-gradient-to-br from-purple-50 to-pink-100">
+    <PageContainer className="strumenti-page bg-linear-to-br from-purple-50 to-pink-100">
       <div className="strumenti-page__inner flex h-full min-h-0 max-w-4xl mx-auto w-full flex-col px-2 py-2">
         <Card className="mb-1 shrink-0">
           <CardHeader className="text-center py-3">
@@ -292,7 +292,7 @@ export default function Strumenti() {
           {/* Menu (Bacheca) - accesso alla pagina Menu */}
           <button
             type="button"
-            className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
+            className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
             onClick={() => setLocation("/menu")}
             onContextMenu={e => e.preventDefault()}
           >
@@ -312,7 +312,7 @@ export default function Strumenti() {
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-lg"
               onClick={() => setLocation('/comunica')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -333,7 +333,7 @@ export default function Strumenti() {
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-emerald-300 hover:shadow-lg"
               onClick={() => setLocation('/informa-cittadini')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -353,7 +353,7 @@ export default function Strumenti() {
           {/* Evento (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-green-300 hover:shadow-lg"
+            className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-green-300 hover:shadow-lg"
             onClick={() => setLocation('/evento')}
             onContextMenu={e => e.preventDefault()}
           >
@@ -373,7 +373,7 @@ export default function Strumenti() {
           {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
               onClick={() => setLocation('/programma')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -394,7 +394,7 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-pink-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-pink-300 hover:shadow-lg"
               onClick={() => setLocation('/sostenitori')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -415,7 +415,7 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
               onClick={() => setLocation('/riscontro')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -436,7 +436,7 @@ export default function Strumenti() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-yellow-300 hover:shadow-lg"
               onClick={() => setLocation('/sondaggi')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -457,7 +457,7 @@ export default function Strumenti() {
           {(user?.ruolo === "A" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
+              className="relative w-full min-h-20 shrink-0 rounded-xl shadow-md active:shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
               onClick={() => setLocation('/social')}
               onContextMenu={e => e.preventDefault()}
             >

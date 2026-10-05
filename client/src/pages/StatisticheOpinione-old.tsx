@@ -209,7 +209,7 @@ export default function StatisticheOpinione() {
 
 
      return (
-     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
+     <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-7xl p-6">
         {/* Header con navigazione */}
         <div className="mb-8">

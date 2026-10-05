@@ -270,15 +270,15 @@ export default function Preferiti() {
   }
 
   return (
-    <PageContainer className="preferiti-page bg-gradient-to-b from-blue-50 to-white select-none">
+    <PageContainer className="preferiti-page bg-linear-to-b from-blue-50 to-white select-none">
       <div className="preferiti-page__inner flex h-full min-h-0 flex-col px-3 py-1 sm:px-4 sm:py-2">
-        <Card className="preferiti-page__logo w-full shrink-0 shadow-sm">
+        <Card className="preferiti-page__logo w-full shrink-0 shadow-xs">
             <CardHeader className="text-center py-1 px-3 sm:py-2 sm:px-4">
               {user?.ruolo === "AD" ? (
                 <button
                   type="button"
                   onClick={() => setLocation("/gestisci")}
-                  className="block mx-auto cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
+                  className="block mx-auto cursor-pointer hover:opacity-80 transition-opacity focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
                   title="Clicca per accedere alla sezione Gestisci"
                   aria-label="Vai a Gestisci"
                 >

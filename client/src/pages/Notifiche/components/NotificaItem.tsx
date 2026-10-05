@@ -472,7 +472,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   return (
     <>
     <div
-      className={`p-4 rounded-lg border-2 ${style.bgColor} ${style.textColor} shadow-sm hover:shadow-md transition-shadow ${tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? 'cursor-pointer' : ''}`}
+      className={`p-4 rounded-lg border-2 ${style.bgColor} ${style.textColor} shadow-xs hover:shadow-md transition-shadow ${tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? 'cursor-pointer' : ''}`}
       onClick={tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? handleNotificaClick : undefined}
     >
       <div className="flex items-start justify-between">
@@ -480,7 +480,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           <div className="flex items-center gap-3 mb-2">
             {/* Mostra avatar del politico per voti comuni e parlamentari, altrimenti emoji */}
             {(tipoNotifica === 'voto_comune' || tipoNotifica === 'voto_parlamento') && notifica.politico_avatar_config ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-300">
+              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 border-blue-300">
                 <CustomAvatar 
                   config={(() => {
                     try {
@@ -554,7 +554,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {notifica.autore && (
                 <div className={`text-sm ${style.textColor} mb-2`}>
                   <strong>Autore:</strong> {notifica.autore.nome} {notifica.autore.cognome} 
-                  <span className={`ml-2 text-xs px-2 py-1 rounded ${style.bgColor} border`}>
+                  <span className={`ml-2 text-xs px-2 py-1 rounded-sm ${style.bgColor} border`}>
                     {notifica.autore.ruolo}
                   </span>
                 </div>
@@ -612,7 +612,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 {notifica.tipo_segnalazione && (
                   <div className="text-sm">
                     <strong className="text-orange-800">Tipo:</strong>
-                    <span className="ml-2 px-2 py-1 rounded text-xs bg-orange-100 text-orange-800">
+                    <span className="ml-2 px-2 py-1 rounded-sm text-xs bg-orange-100 text-orange-800">
                       {notifica.tipo_segnalazione === 'bug' ? '🐛 Bug' :
                        notifica.tipo_segnalazione === 'feature' ? '💡 Suggerimento' :
                        notifica.tipo_segnalazione === 'ui' ? '🎨 Interfaccia' :
@@ -664,7 +664,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {notifica.passaggi && (
                 <div className="mt-3 text-sm">
                   <strong className="text-orange-800 block mb-1">Passaggi per riprodurre:</strong>
-                  <div className="bg-white p-2 rounded border text-gray-700 whitespace-pre-line">
+                  <div className="bg-white p-2 rounded-sm border text-gray-700 whitespace-pre-line">
                     {notifica.passaggi}
                   </div>
                 </div>
@@ -676,7 +676,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   {notifica.comportamento_atteso && (
                     <div>
                       <strong className="text-green-800 block mb-1">✅ Comportamento atteso:</strong>
-                      <div className="bg-green-50 p-2 rounded border text-gray-700">
+                      <div className="bg-green-50 p-2 rounded-sm border text-gray-700">
                         {notifica.comportamento_atteso}
                       </div>
                     </div>
@@ -684,7 +684,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   {notifica.comportamento_effettivo && (
                     <div>
                       <strong className="text-red-800 block mb-1">❌ Comportamento effettivo:</strong>
-                      <div className="bg-red-50 p-2 rounded border text-gray-700">
+                      <div className="bg-red-50 p-2 rounded-sm border text-gray-700">
                         {notifica.comportamento_effettivo}
                       </div>
                     </div>
@@ -698,7 +698,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           {(notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'voto_parlamento') && user?.id && (
             <div className="mb-3 flex items-center gap-2">
               <Button
-                variant={userReaction === 'like' ? 'default' : 'outline'}
+                variant={userReaction === 'like' ? 'default' : 'outline-solid'}
                 size="sm"
                 onClick={() => handleReaction('like')}
                 disabled={reactionMutation.isPending}
@@ -708,7 +708,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 {Number(likes) || 0}
               </Button>
               <Button
-                variant={userReaction === 'dislike' ? 'default' : 'outline'}
+                variant={userReaction === 'dislike' ? 'default' : 'outline-solid'}
                 size="sm"
                 onClick={() => handleReaction('dislike')}
                 disabled={reactionMutation.isPending}
@@ -730,7 +730,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           {notifica.tipo_notifica === 'comunicazione' && user?.id && (
             <div className="mt-4 flex items-center gap-2">
               <Button
-                variant={userReaction === 'like' ? 'default' : 'outline'}
+                variant={userReaction === 'like' ? 'default' : 'outline-solid'}
                 size="sm"
                 onClick={() => handleReaction('like')}
                 disabled={reactionMutation.isPending}
@@ -740,7 +740,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 {Number(likes) || 0}
               </Button>
               <Button
-                variant={userReaction === 'dislike' ? 'default' : 'outline'}
+                variant={userReaction === 'dislike' ? 'default' : 'outline-solid'}
                 size="sm"
                 onClick={() => handleReaction('dislike')}
                 disabled={reactionMutation.isPending}
@@ -798,7 +798,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     {/* Dialog Dettagli Votazione - Solo per notifiche voto_parlamento */}
     {tipoNotifica === 'voto_parlamento' && (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !m-0 !rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 overflow-hidden flex flex-col p-6">
+        <DialogContent className="max-w-[100vw]! w-screen! h-screen! max-h-screen! m-0! rounded-none! left-0! top-0! translate-x-0! translate-y-0! overflow-hidden flex flex-col p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
               <Vote className="h-6 w-6 text-green-600" />
@@ -905,7 +905,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                       if (scadenza.passata) {
                                         const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
                                         lineaFormattata = lineaFormattata.replace(regex, (match) => {
-                                          return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                          return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded-sm">${match} ⚠️ (scadenza passata)</span>`;
                                         });
                                       }
                                     });
@@ -927,7 +927,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                     if (scadenza.passata) {
                                       const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
                                       lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
-                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded-sm">${match} ⚠️ (scadenza passata)</span>`;
                                       });
                                     }
                                   });
@@ -992,7 +992,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                 const testo = lineaTrim.replace(/^[✓•-]\s/, '').replace(/^\d+[\.)]\s/, '');
                                 return (
                                   <div key={i} className="mb-1.5 flex items-start gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                                     <span>{testo}</span>
                                   </div>
                                 );
@@ -1001,7 +1001,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                               if (lineaTrim.startsWith('✓')) {
                                 return (
                                   <div key={i} className="mb-1.5 flex items-start gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                                     <span>{lineaTrim.substring(1).trim()}</span>
                                   </div>
                                 );
@@ -1044,7 +1044,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                 const testo = lineaTrim.replace(/^[✗•-]\s/, '').replace(/^\d+[\.)]\s/, '');
                                 return (
                                   <div key={i} className="mb-1.5 flex items-start gap-2">
-                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                                     <span>{testo}</span>
                                   </div>
                                 );
@@ -1053,7 +1053,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                               if (lineaTrim.startsWith('✗')) {
                                 return (
                                   <div key={i} className="mb-1.5 flex items-start gap-2">
-                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                                     <span>{lineaTrim.substring(1).trim()}</span>
                                   </div>
                                 );

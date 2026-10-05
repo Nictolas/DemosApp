@@ -20,7 +20,7 @@ export function MobilePreviewToggle() {
       <button
         type="button"
         onClick={toggleMobilePreview}
-        className="fixed top-4 right-4 z-[10000] flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-md backdrop-blur hover:bg-white hover:text-slate-900"
+        className="fixed top-4 right-4 z-10000 flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-md backdrop-blur-sm hover:bg-white hover:text-slate-900"
         title="Anteprima come su cellulare"
         aria-label="Anteprima come su cellulare"
       >
@@ -32,11 +32,11 @@ export function MobilePreviewToggle() {
 
   return (
     <div
-      className={`fixed z-[10000] flex flex-col items-end gap-2 ${
+      className={`fixed z-10000 flex flex-col items-end gap-2 ${
         isMobileLayout ? "bottom-4 right-4" : "top-4 right-4"
       }`}
     >
-      <div className="flex items-center gap-2 rounded-full border border-slate-300 bg-white/95 px-2 py-1.5 shadow-md backdrop-blur">
+      <div className="flex items-center gap-2 rounded-full border border-slate-300 bg-white/95 px-2 py-1.5 shadow-md backdrop-blur-sm">
         <label htmlFor="demos-preview-preset" className="sr-only">
           Formato schermo anteprima
         </label>
@@ -44,7 +44,7 @@ export function MobilePreviewToggle() {
           id="demos-preview-preset"
           value={previewPreset.id}
           onChange={(e) => setPreviewPreset(e.target.value)}
-          className="max-w-[8.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="max-w-34 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           title="Scegli dimensione schermo"
         >
           {previewPresets.map((preset) => (

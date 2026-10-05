@@ -652,7 +652,7 @@ export default function Attivisti() {
             {!isLoading && !isError && attivisti.length > 0 && filteredAttivisti.length > 0 && (
               <div className="space-y-6">
                 {/* Desktop Table View */}
-                <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
+                <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden">
                   <div className="overflow-x-auto max-w-full">
                     <table className="w-full divide-y divide-gray-200 min-w-0">
                       <thead className="bg-gray-50">
@@ -706,7 +706,7 @@ export default function Attivisti() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <Button 
                                 size="sm" 
-                                variant={followingUsers.has(attivista.id) ? "default" : "outline"}
+                                variant={followingUsers.has(attivista.id) ? "default" : "outline-solid"}
                                 className={followingUsers.has(attivista.id) 
                                   ? "bg-blue-600 text-white hover:bg-blue-700" 
                                   : "text-blue-600 border-blue-600 hover:bg-blue-50"}
@@ -726,9 +726,9 @@ export default function Attivisti() {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-4" style={{ touchAction: 'pan-y' }}>
                   {filteredAttivisti.map((attivista) => (
-                    <div key={attivista.id} className="bg-white rounded-lg shadow p-4" style={{ touchAction: 'pan-y' }}>
+                    <div key={attivista.id} className="bg-white rounded-lg shadow-sm p-4" style={{ touchAction: 'pan-y' }}>
                       <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
+                        <div className="shrink-0">
                           {parseAvatarConfig(attivista.avatar_config) ? (
                             <CustomAvatar 
                               config={parseAvatarConfig(attivista.avatar_config) as any}
@@ -754,10 +754,10 @@ export default function Attivisti() {
                             {(attivista as any).supporters_count ?? 0} sostenitori
                           </div>
                         </div>
-                        <div className="flex-shrink-0">
+                        <div className="shrink-0">
                           <Button 
                             size="sm" 
-                            variant={followingUsers.has(attivista.id) ? "default" : "outline"}
+                            variant={followingUsers.has(attivista.id) ? "default" : "outline-solid"}
                             className={followingUsers.has(attivista.id) 
                               ? "bg-blue-600 text-white hover:bg-blue-700" 
                               : "text-blue-600 border-blue-600 hover:bg-blue-50"}

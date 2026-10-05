@@ -10,7 +10,7 @@ export default function Proponi() {
 
   if (isLoading) {
     return (
-      <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
+      <PageContainer className="bg-linear-to-br from-purple-50 to-pink-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </PageContainer>
     );
@@ -21,7 +21,7 @@ export default function Proponi() {
   }
 
   return (
-    <PageContainer className="page-with-navbar bg-gradient-to-br from-purple-50 to-pink-100">
+    <PageContainer className="page-with-navbar bg-linear-to-br from-purple-50 to-pink-100">
       <div className="max-w-4xl mx-auto w-full flex flex-1 min-h-0 flex-col p-4">
         {/* Titolo */}
         <Card>
@@ -41,7 +41,7 @@ export default function Proponi() {
           {/* Iniziative Popolari */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/iniziative-popolari"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -61,7 +61,7 @@ export default function Proponi() {
           {/* Referendum Abrogativi */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/referendum-abrogativi"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -81,7 +81,7 @@ export default function Proponi() {
           {/* ECI */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/eci"}
             onContextMenu={e => e.preventDefault()}
           >

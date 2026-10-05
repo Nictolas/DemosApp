@@ -275,7 +275,7 @@ export default function Riconoscimento() {
   const mostraCandidatura = form.tipo_ruolo === "C" || form.tipo_ruolo === "CP";
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+    <PageContainer className="bg-linear-to-br from-blue-50 via-white to-emerald-50">
       <div className="w-full h-full flex items-start justify-center pt-6 pb-24 px-4">
         <Card className="w-full max-w-2xl shadow-xl border-0">
           <CardHeader>

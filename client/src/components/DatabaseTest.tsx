@@ -158,7 +158,7 @@ const DatabaseTest: React.FC = () => {
               <p><strong>Utenti caricati:</strong> {users.length}</p>
               <div className="max-h-40 overflow-y-auto">
                 {users.slice(0, 5).map((user: any) => (
-                  <div key={user.id} className="text-sm p-2 border rounded">
+                  <div key={user.id} className="text-sm p-2 border rounded-sm">
                     {user.nome} {user.cognome} ({user.email})
                   </div>
                 ))}
@@ -188,7 +188,7 @@ const DatabaseTest: React.FC = () => {
               <p><strong>Opinion caricate:</strong> {opinions.length}</p>
               <div className="max-h-40 overflow-y-auto">
                 {opinions.slice(0, 3).map((opinion: any) => (
-                  <div key={opinion.id} className="text-sm p-2 border rounded">
+                  <div key={opinion.id} className="text-sm p-2 border rounded-sm">
                     {opinion.titolo || opinion.text?.substring(0, 50)}...
                   </div>
                 ))}
@@ -249,7 +249,7 @@ const DatabaseTest: React.FC = () => {
               <p><strong>Voti caricati:</strong> {votes.length}</p>
               <div className="max-h-40 overflow-y-auto">
                 {votes.slice(0, 3).map((vote: any) => (
-                  <div key={vote.id} className="text-sm p-2 border rounded">
+                  <div key={vote.id} className="text-sm p-2 border rounded-sm">
                     Voto: {vote.nome || vote.userId} - {new Date(vote.timestamp).toLocaleDateString()}
                   </div>
                 ))}

@@ -373,7 +373,7 @@ const ValidationDashboard: React.FC = () => {
               </div>
               <div>
                 <strong>Dati Input:</strong>
-                <pre className="bg-gray-100 p-2 rounded mt-2 text-xs overflow-x-auto">
+                <pre className="bg-gray-100 p-2 rounded-sm mt-2 text-xs overflow-x-auto">
                   {JSON.stringify(selectedFailure.input_data, null, 2)}
                 </pre>
               </div>

@@ -14,7 +14,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, totaleUtent
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+      <Card className="bg-linear-to-br from-green-50 to-green-100 border-green-200">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-green-800">Favorevoli</CardTitle>
           <TrendingUp className="h-4 w-4 text-green-600" />
@@ -27,7 +27,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, totaleUtent
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+      <Card className="bg-linear-to-br from-red-50 to-red-100 border-red-200">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-red-800">Contrari</CardTitle>
           <TrendingUp className="h-4 w-4 text-red-600" />
@@ -40,7 +40,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, totaleUtent
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+      <Card className="bg-linear-to-br from-yellow-50 to-yellow-100 border-yellow-200">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-yellow-800">Indecisi</CardTitle>
           <TrendingUp className="h-4 w-4 text-yellow-600" />
@@ -53,7 +53,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, totaleUtent
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-blue-200">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-blue-800">Totale Utenti</CardTitle>
           <Users className="h-4 w-4 text-blue-600" />

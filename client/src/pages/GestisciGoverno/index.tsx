@@ -53,7 +53,7 @@ export default function GestisciGoverno() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
         <Header />
         

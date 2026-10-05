@@ -19,7 +19,7 @@ export function NavigationButtons({ user, onNavigate }: NavigationButtonsProps) 
           <button
             key={button.id}
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => onNavigate(button.path)}
             onContextMenu={e => e.preventDefault()}
           >

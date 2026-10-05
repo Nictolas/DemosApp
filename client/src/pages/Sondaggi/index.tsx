@@ -17,7 +17,7 @@ export default function Sondaggi() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100">
+      <div className="flex items-center justify-center min-h-screen bg-linear-to-b from-blue-50 to-indigo-100">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -30,7 +30,7 @@ export default function Sondaggi() {
   const totalVotes = calculateTotalVotes(sondaggiData?.stats);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar overflow-y-auto">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar overflow-y-auto">
       <div className="w-full px-4 lg:px-8 py-6">
         <Header />
 

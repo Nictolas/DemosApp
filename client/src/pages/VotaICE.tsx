@@ -115,7 +115,7 @@ export default function VotaICE() {
   iceQuorum.sort((a: any, b: any) => (b.voti || 0) - (a.voti || 0));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-linear-to-br from-cyan-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Card className="w-full max-w-3xl mx-auto">
           <CardHeader className="text-center">
@@ -156,7 +156,7 @@ export default function VotaICE() {
                         <TableCell>{ice.voti || 0}</TableCell>
                         <TableCell>
                           <Button
-                            variant={userLikes.includes(ice.id) ? "default" : "outline"}
+                            variant={userLikes.includes(ice.id) ? "default" : "outline-solid"}
                             onClick={() => likeMutation.mutate(ice.id)}
                             disabled={likeMutation.isPending || userLikes.includes(ice.id)}
                           >

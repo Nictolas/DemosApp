@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({ unlockDate }) => {
       <Card className="mb-6">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full">
+            <div className="p-4 bg-linear-to-r from-blue-500 to-blue-700 rounded-full">
               <Building2 className="h-12 w-12 text-white" />
             </div>
           </div>
@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ unlockDate }) => {
       </Card>
 
       {unlockDate && (
-        <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
+        <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-sm">
           <b>Hai già modificato le tue preferenze questa settimana.</b><br />
           Potrai modificarle di nuovo dal: {unlockDate}
         </div>

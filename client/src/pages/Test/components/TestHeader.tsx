@@ -12,7 +12,7 @@ export const TestHeader: React.FC<TestHeaderProps> = ({ isAdmin, onAdminClick })
     <div className="p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xl font-bold">
+          <div className="w-12 h-12 rounded-full bg-linear-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xl font-bold">
             T
           </div>
           <div>

@@ -100,12 +100,12 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
 
   if (isSubmitted) {
     return (
-      <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-green-50 via-white to-emerald-50 backdrop-blur-sm">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
+      <Card className="relative overflow-hidden border-0 shadow-2xl bg-linear-to-br from-green-50 via-white to-emerald-50 backdrop-blur-xs">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
         
         <CardHeader className="relative text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+            <div className="h-16 w-16 rounded-full bg-linear-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
               <CheckCircle className="h-8 w-8 text-white" />
             </div>
           </div>
@@ -133,7 +133,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
                 device: ""
               });
             }}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
           >
             Invia un'altra segnalazione
           </Button>
@@ -143,17 +143,17 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
   }
 
   return (
-    <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white via-orange-50/30 to-yellow-50/50 backdrop-blur-sm">
+    <Card className="relative overflow-hidden border-0 shadow-2xl bg-linear-to-br from-white via-orange-50/30 to-yellow-50/50 backdrop-blur-xs">
       {/* Decorative background */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/20 to-yellow-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-red-400/20 to-orange-500/20 rounded-full translate-y-12 -translate-x-12"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-orange-400/20 to-yellow-500/20 rounded-full -translate-y-16 translate-x-16"></div>
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-linear-to-tr from-red-400/20 to-orange-500/20 rounded-full translate-y-12 -translate-x-12"></div>
       
       <CardHeader className="relative">
         <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-yellow-600 flex items-center justify-center shadow-lg">
+          <div className="h-10 w-10 rounded-xl bg-linear-to-br from-orange-500 to-yellow-600 flex items-center justify-center shadow-lg">
             <AlertCircle className="h-5 w-5 text-white" />
           </div>
-          <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
             Form Segnalazione
           </span>
         </CardTitle>
@@ -314,7 +314,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
             <Button
               type="submit"
               disabled={isSubmitting || !formData.type || !formData.title || !formData.description}
-              className="w-full h-14 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-14 rounded-xl bg-linear-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>

@@ -13,7 +13,7 @@ export const MenuHeader: React.FC<MenuHeaderProps> = ({
   // Debug logging rimosso per evitare re-render
   
   return (
-    <CardHeader className="text-center flex-shrink-0 pt-3 pb-1">
+    <CardHeader className="text-center shrink-0 pt-3 pb-1">
       <img 
         src="/icona.png" 
         alt="Logo Demos" 

@@ -59,7 +59,7 @@ export default function Governo() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 pt-4 page-with-navbar">
+      <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 pt-4 page-with-navbar">
         <div className="container mx-auto max-w-6xl p-4">
           {/* Sezione Consenso Governo */}
           {consensoData && (

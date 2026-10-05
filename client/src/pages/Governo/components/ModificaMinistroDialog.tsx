@@ -128,7 +128,7 @@ export const ModificaMinistroDialog: React.FC<ModificaMinistroDialogProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="relative p-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-2xl">
+        <div className="relative p-6 bg-linear-to-r from-blue-600 to-blue-700 text-white rounded-t-2xl">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"

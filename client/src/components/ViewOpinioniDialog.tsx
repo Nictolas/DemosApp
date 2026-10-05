@@ -314,7 +314,7 @@ export function ViewOpinioniDialog({
         {/* Avatar centrato separato dal DialogTitle */}
         {avatarConfig && (
           <div className="flex justify-center mb-4">
-            <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm" style={{ width: 64, height: 64 }}>
+            <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-xs" style={{ width: 64, height: 64 }}>
               <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
             </div>
           </div>
@@ -491,24 +491,24 @@ export function ViewOpinioniDialog({
         <div className="w-full bg-white shadow-[0_-2px_8px_-2px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.08)] border-t border-gray-200 border-b border-gray-200 flex flex-col items-center justify-center gap-2 p-4 fixed left-0 right-0 bottom-0 sm:static sm:shadow-none sm:border-0" style={{ zIndex: 50, marginBottom: 80 }}>
           {/* Prima riga: filtri opinioni — mobile: 3 tab; desktop: solo Opinioni */}
           <div className="flex sm:hidden justify-center gap-2 w-full mb-2">
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Indeciso</button>
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'contrario' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('contrario')}>Contrario</button>
+            <button className={`flex-1 px-4 py-2 rounded-sm ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
+            <button className={`flex-1 px-4 py-2 rounded-sm ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Indeciso</button>
+            <button className={`flex-1 px-4 py-2 rounded-sm ${tab === 'contrario' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('contrario')}>Contrario</button>
           </div>
           <div className="hidden sm:flex justify-center gap-2 w-full mb-2">
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'opinioni' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('opinioni')}>Opinioni</button>
+            <button className={`flex-1 px-4 py-2 rounded-sm ${tab === 'opinioni' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('opinioni')}>Opinioni</button>
           </div>
           {/* Seconda riga: azioni */}
           <div className="flex justify-center gap-2 w-full">
-            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => setShowProgrammaModal(true)}>Programma</button>
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
+            <button className="flex-1 px-4 py-2 rounded-sm bg-gray-100 text-gray-700" onClick={() => setShowProgrammaModal(true)}>Programma</button>
+            <button className={`flex-1 px-4 py-2 rounded-sm ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
             <Button className="flex-1" onClick={() => onOpenChange(false)}>Chiudi</Button>
           </div>
         </div>
       </DialogContent>
       {/* Modal scelta tipo ricerca rappresentante */}
       {showCambiaModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-40">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xs flex flex-col items-center">
             <h2 className="text-lg font-bold mb-4 text-center">Come vuoi cercare un nuovo rappresentante?</h2>
             <Button className="w-full mb-2" onClick={() => {

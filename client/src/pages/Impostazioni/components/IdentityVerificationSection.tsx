@@ -87,7 +87,7 @@ export const IdentityVerificationSection: React.FC = () => {
   };
 
   return (
-    <Card className="border border-slate-200 bg-white/80 shadow-sm">
+    <Card className="border border-slate-200 bg-white/80 shadow-xs">
       <CardContent className="flex items-center gap-3 p-4">
         {isLoading ? (
           <Loader2 className="h-5 w-5 shrink-0 animate-spin text-slate-500" />

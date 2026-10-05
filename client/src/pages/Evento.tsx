@@ -80,7 +80,7 @@ export default function Evento() {
   // Show loading while user is being fetched
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <div className="text-center">
@@ -173,7 +173,7 @@ export default function Evento() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 page-with-navbar" style={{ paddingBottom: '120px' }}>
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 page-with-navbar" style={{ paddingBottom: '120px' }}>
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>

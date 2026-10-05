@@ -75,7 +75,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
         return (
           <div 
             key={referendum.id} 
-            className={`${getBackgroundClass()} border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
+            className={`${getBackgroundClass()} border rounded-lg p-6 shadow-xs hover:shadow-md transition-shadow cursor-pointer`}
             onClick={() => onView && onView(referendum)}
           >
             <div className="flex items-start justify-between">

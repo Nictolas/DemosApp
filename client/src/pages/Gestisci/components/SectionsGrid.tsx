@@ -15,7 +15,7 @@ export const SectionsGrid: React.FC = () => {
       {/* Desktop 16:9: layout compatto a colonne, tutte le voci visibili */}
       <div className="hidden xl:grid xl:grid-cols-4 gap-3">
         {groupedSections.map(({ category, sections }) => (
-          <div key={category} className="rounded-2xl border border-white/60 bg-white/65 backdrop-blur-sm p-2.5 space-y-2 shadow-sm">
+          <div key={category} className="rounded-2xl border border-white/60 bg-white/65 backdrop-blur-xs p-2.5 space-y-2 shadow-xs">
             <div className="pb-1 border-b border-slate-200/70">
               <h2 className="text-[11px] font-semibold tracking-wide text-slate-800 uppercase leading-tight">
                 {gestisciCategoryMeta[category].title}

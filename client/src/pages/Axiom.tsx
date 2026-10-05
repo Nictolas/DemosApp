@@ -376,7 +376,7 @@ export default function Axiom() {
                 {datasets.map((dataset) => (
                   <Button
                     key={dataset.name}
-                    variant={selectedDataset === dataset.name ? 'default' : 'outline'}
+                    variant={selectedDataset === dataset.name ? 'default' : 'outline-solid'}
                     onClick={() => handleDatasetChange(dataset.name)}
                     className="flex items-center gap-2"
                   >
@@ -471,10 +471,10 @@ export default function Axiom() {
                           return (
                             <td
                               key={field}
-                              className={`px-4 py-3 text-sm ${colorClass} break-words`}
+                              className={`px-4 py-3 text-sm ${colorClass} wrap-break-word`}
                               style={{ minWidth: '150px', maxWidth: '500px' }}
                             >
-                              <div className="whitespace-pre-wrap break-words">
+                              <div className="whitespace-pre-wrap wrap-break-word">
                                 {value}
                               </div>
                             </td>

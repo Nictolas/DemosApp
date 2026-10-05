@@ -75,7 +75,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         <Users className="h-8 md:h-10 w-8 md:w-10 mb-3" style={{ color: colorMap.icon }} />
         
         <div 
-          className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm cursor-pointer h-16 w-16 flex items-center justify-center bg-white mb-3"
+          className="rounded-full overflow-hidden border-2 border-gray-300 shadow-xs cursor-pointer h-16 w-16 flex items-center justify-center bg-white mb-3"
           onClick={handleViewOpinioni}
         >
           {renderAvatar()}

@@ -1,889 +1,932 @@
 /* Import del layout robusto */
-@import './robust-layout.css';
+@import './robust-layout.css' layer(base);
 
 /* Import del fix specifico per Android */
-@import './css/android-navbar-fix.css';
+@import './css/android-navbar-fix.css' layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 /* Definizione custom delle classi border-border e text-foreground */
+
+@utility border-border {
+  border-color: hsl(214, 32%, 91%); /* valore simile a --border */
+}
+
+@utility text-foreground {
+  color: hsl(var(--foreground));
+}
+
 @layer utilities {
-  .border-border {
-    border-color: hsl(214, 32%, 91%); /* valore simile a --border */
+  /* --- BLOCCO OVERSCROLL MOBILE E SFONDO --- */
+  html,
+  body,
+  #root {
+    min-height: 100vh;
+    height: 100%;
+    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: none;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    background: white;
   }
-  .text-foreground {
-    color: hsl(var(--foreground));
+
+  /* Layout mobile: catena altezze fino alla navbar in basso */
+  html.demos-mobile-layout,
+  html.demos-mobile-layout body,
+  html.demos-mobile-layout #root,
+  html.demos-mobile-layout .App {
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
   }
-}
 
-/* --- BLOCCO OVERSCROLL MOBILE E SFONDO --- */
-html, body, #root {
-  min-height: 100vh;
-  height: 100%;
-  overscroll-behavior: none;
-  overscroll-behavior-x: none;
-  overscroll-behavior-y: none;
-  overflow-x: hidden;
-  touch-action: pan-y;
-  background: white;
-}
+  html.demos-mobile-layout .App,
+  html.demos-desktop-layout .App {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
 
-/* Layout mobile: catena altezze fino alla navbar in basso */
-html.demos-mobile-layout,
-html.demos-mobile-layout body,
-html.demos-mobile-layout #root,
-html.demos-mobile-layout .App {
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-}
-
-html.demos-mobile-layout .App,
-html.demos-desktop-layout .App {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-/* Disabilita overscroll su tutti gli elementi */
-* {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su tutti gli elementi scrollabili */
-[class*="overflow-y-auto"],
-[class*="overflow-x-auto"],
-[class*="overflow-auto"],
-[class*="overflow-y-scroll"],
-[class*="overflow-x-scroll"],
-[class*="overflow-scroll"],
-div[style*="overflow-y"],
-div[style*="overflow-x"],
-div[style*="overflow"],
-pre[class*="overflow"],
-pre[style*="overflow"],
-dialog,
-[role="dialog"],
-[data-state="open"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su elementi con classi Tailwind overflow */
-.overflow-y-auto,
-.overflow-x-auto,
-.overflow-auto,
-.overflow-y-scroll,
-.overflow-x-scroll,
-.overflow-scroll {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su dialog, modal e popup */
-[data-radix-dialog-content],
-[data-radix-dialog-overlay],
-dialog,
-[role="dialog"],
-.modal,
-.popup,
-.DialogContent {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su elementi con max-height e overflow */
-[style*="max-height"][style*="overflow"],
-[class*="max-h-"][class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su ScrollArea e componenti Radix */
-[data-radix-scroll-area-viewport],
-[data-radix-scroll-area-root],
-.scroll-area,
-[class*="ScrollArea"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su contenitori flex con overflow */
-.flex-1[class*="overflow"],
-[class*="flex"][class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su tutti i div con overflow inline style */
-div[style*="overflow-y: auto"],
-div[style*="overflow-y: scroll"],
-div[style*="overflow-x: auto"],
-div[style*="overflow-x: scroll"],
-div[style*="overflow: auto"],
-div[style*="overflow: scroll"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su pre, code e tabelle */
-pre[class*="overflow"],
-code[class*="overflow"],
-table[class*="overflow"],
-tbody[class*="overflow"],
-thead[class*="overflow"],
-tr[class*="overflow"],
-td[class*="overflow"],
-th[class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Disabilita overscroll su elementi con min-h-screen e overflow */
-[class*="min-h-screen"][class*="overflow"],
-[class*="h-screen"][class*="overflow"] {
-  overscroll-behavior: none !important;
-  overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none !important;
-}
-
-/* Prevenzione scroll orizzontale su mobile */
-@media (max-width: 768px) {
+  /* Disabilita overscroll su tutti gli elementi */
   * {
-    touch-action: pan-y !important;
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
   }
-  
-  .overflow-x-auto {
-    touch-action: pan-y !important;
+
+  /* Disabilita overscroll su tutti gli elementi scrollabili */
+  [class*='overflow-y-auto'],
+  [class*='overflow-x-auto'],
+  [class*='overflow-auto'],
+  [class*='overflow-y-scroll'],
+  [class*='overflow-x-scroll'],
+  [class*='overflow-scroll'],
+  div[style*='overflow-y'],
+  div[style*='overflow-x'],
+  div[style*='overflow'],
+  pre[class*='overflow'],
+  pre[style*='overflow'],
+  dialog,
+  [role='dialog'],
+  [data-state='open'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
   }
-}
 
-body {
-  min-height: 100vh;
-  height: 100%;
-  /* Permetti lo scroll solo del contenuto, non della pagina intera */
-  width: 100vw;
-  overflow-x: hidden;
-  /* overflow-y: auto;  // decommenta se vuoi lo scroll solo verticale */
-}
+  /* Disabilita overscroll su elementi con classi Tailwind overflow */
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .overflow-auto,
+  .overflow-y-scroll,
+  .overflow-x-scroll,
+  .overflow-scroll {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-/* --- CLASSI PER BLOCCARE SCROLL COMPLETAMENTE --- */
-.no-scroll {
-  overflow: hidden !important;
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
-  overscroll-behavior: none !important;
-  touch-action: none !important;
-  -webkit-overflow-scrolling: auto !important;
-}
+  /* Disabilita overscroll su dialog, modal e popup */
+  [data-radix-dialog-content],
+  [data-radix-dialog-overlay],
+  dialog,
+  [role='dialog'],
+  .modal,
+  .popup,
+  .DialogContent {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-/* Blocca scroll per pagine specifiche */
-.page-no-scroll {
-  overflow: hidden !important;
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
-  overscroll-behavior: none !important;
-  touch-action: none !important;
-  -webkit-overflow-scrolling: auto !important;
-}
+  /* Disabilita overscroll su elementi con max-height e overflow */
+  [style*='max-height'][style*='overflow'],
+  [class*='max-h-'][class*='overflow'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-/* ===== PAGINE MOBILE ANCORATE (contratto unico dentro app-main) ===== */
-.demos-mobile-layout .preferiti-page,
-.demos-mobile-layout .impostazioni-page,
-.demos-mobile-layout .strumenti-page,
-.demos-mobile-layout .opinioni-page,
-.demos-mobile-layout .attivisti-page,
-.demos-mobile-layout .rappresentanti-page,
-.demos-mobile-layout .app-main .preferiti-page,
-.demos-mobile-layout .app-main .impostazioni-page,
-.demos-mobile-layout .app-main .strumenti-page,
-.demos-mobile-layout .app-main .opinioni-page,
-.demos-mobile-layout .app-main .attivisti-page,
-.demos-mobile-layout .app-main .rappresentanti-page,
-.app-main .preferiti-page,
-.app-main .impostazioni-page,
-.app-main .strumenti-page,
-.app-main .opinioni-page,
-.app-main .attivisti-page,
-.app-main .rappresentanti-page {
-  height: 100% !important;
-  max-height: none !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-}
+  /* Disabilita overscroll su ScrollArea e componenti Radix */
+  [data-radix-scroll-area-viewport],
+  [data-radix-scroll-area-root],
+  .scroll-area,
+  [class*='ScrollArea'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-/* Dentro la shell mobile: niente doppia contabilità viewport/navbar */
-.demos-mobile-layout .app-main .min-h-screen,
-.demos-mobile-layout .app-main .h-screen {
-  min-height: 0 !important;
-  height: 100% !important;
-  max-height: none !important;
-}
+  /* Disabilita overscroll su contenitori flex con overflow */
+  .flex-1[class*='overflow'],
+  [class*='flex'][class*='overflow'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-.demos-mobile-layout .app-main .page-with-navbar {
-  padding-bottom: 0 !important;
-}
+  /* Disabilita overscroll su tutti i div con overflow inline style */
+  div[style*='overflow-y: auto'],
+  div[style*='overflow-y: scroll'],
+  div[style*='overflow-x: auto'],
+  div[style*='overflow-x: scroll'],
+  div[style*='overflow: auto'],
+  div[style*='overflow: scroll'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-.demos-mobile-layout .app-main .page-transition {
-  min-height: 0 !important;
-  height: 100% !important;
-}
+  /* Disabilita overscroll su pre, code e tabelle */
+  pre[class*='overflow'],
+  code[class*='overflow'],
+  table[class*='overflow'],
+  tbody[class*='overflow'],
+  thead[class*='overflow'],
+  tr[class*='overflow'],
+  td[class*='overflow'],
+  th[class*='overflow'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-.demos-mobile-layout .app-main .opinioni-page {
-  min-height: 0 !important;
-  max-height: none !important;
-}
+  /* Disabilita overscroll su elementi con min-h-screen e overflow */
+  [class*='min-h-screen'][class*='overflow'],
+  [class*='h-screen'][class*='overflow'] {
+    overscroll-behavior: none !important;
+    overscroll-behavior-x: none !important;
+    overscroll-behavior-y: none !important;
+  }
 
-.demos-mobile-layout .app-main .app-page-scroll,
-.demos-mobile-layout .app-main [class*="__scroll"],
-.demos-mobile-layout .app-main [class*="__inner"].overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 1rem;
-}
+  /* Prevenzione scroll orizzontale su mobile */
+  @media (max-width: 768px) {
+    * {
+      touch-action: pan-y !important;
+    }
 
-.preferiti-page__inner,
-.impostazioni-page__inner,
-.strumenti-page__inner,
-.opinioni-page__inner,
-.attivisti-page__inner,
-.rappresentanti-page__inner {
-  height: 100%;
-  min-height: 0;
-}
+    .overflow-x-auto {
+      touch-action: pan-y !important;
+    }
+  }
 
-.preferiti-page__grid {
-  display: grid;
-  min-height: 0;
-}
+  body {
+    min-height: 100vh;
+    height: 100%;
+    /* Permetti lo scroll solo del contenuto, non della pagina intera */
+    width: 100vw;
+    overflow-x: hidden;
+    /* overflow-y: auto;  // decommenta se vuoi lo scroll solo verticale */
+  }
 
-.demos-mobile-layout .preferiti-page__grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(5rem, 1fr));
-}
+  /* --- CLASSI PER BLOCCARE SCROLL COMPLETAMENTE --- */
+  .no-scroll {
+    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+    -webkit-overflow-scrolling: auto !important;
+  }
 
-.demos-mobile-layout .opinioni-page__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(5rem, 1fr));
-  min-height: 0;
-}
+  /* Blocca scroll per pagine specifiche */
+  .page-no-scroll {
+    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+    -webkit-overflow-scrolling: auto !important;
+  }
 
-.demos-mobile-layout .opinioni-page__grid .opinioni-button {
-  height: 100%;
-  width: 100%;
-  min-height: 5rem;
-}
+  /* ===== PAGINE MOBILE ANCORATE (contratto unico dentro app-main) ===== */
+  .demos-mobile-layout .preferiti-page,
+  .demos-mobile-layout .impostazioni-page,
+  .demos-mobile-layout .strumenti-page,
+  .demos-mobile-layout .opinioni-page,
+  .demos-mobile-layout .attivisti-page,
+  .demos-mobile-layout .rappresentanti-page,
+  .demos-mobile-layout .app-main .preferiti-page,
+  .demos-mobile-layout .app-main .impostazioni-page,
+  .demos-mobile-layout .app-main .strumenti-page,
+  .demos-mobile-layout .app-main .opinioni-page,
+  .demos-mobile-layout .app-main .attivisti-page,
+  .demos-mobile-layout .app-main .rappresentanti-page,
+  .app-main .preferiti-page,
+  .app-main .impostazioni-page,
+  .app-main .strumenti-page,
+  .app-main .opinioni-page,
+  .app-main .attivisti-page,
+  .app-main .rappresentanti-page {
+    height: 100% !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
 
-.demos-mobile-layout .preferiti-button {
-  height: 100%;
-  width: 100%;
-  min-height: 5rem;
-}
+  /* Dentro la shell mobile: niente doppia contabilità viewport/navbar */
+  .demos-mobile-layout .app-main .min-h-screen,
+  .demos-mobile-layout .app-main .h-screen {
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: none !important;
+  }
 
-.demos-mobile-layout .preferiti-page__logo-img {
-  width: 3.5rem;
-  height: 3.5rem;
-}
+  .demos-mobile-layout .app-main .page-with-navbar {
+    padding-bottom: 0 !important;
+  }
 
-.demos-desktop-layout .preferiti-page__grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(7rem, 1fr));
-}
+  .demos-mobile-layout .app-main .page-transition {
+    min-height: 0 !important;
+    height: 100% !important;
+  }
 
-.demos-desktop-layout .preferiti-button {
-  height: 100%;
-  width: 100%;
-  min-height: 7rem;
-}
+  .demos-mobile-layout .app-main .opinioni-page {
+    min-height: 0 !important;
+    max-height: none !important;
+  }
 
-.preferiti-button__description {
-  display: none;
-}
+  .demos-mobile-layout .app-main .app-page-scroll,
+  .demos-mobile-layout .app-main [class*='__scroll'],
+  .demos-mobile-layout .app-main [class*='__inner'].overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1rem;
+  }
 
-.demos-desktop-layout .preferiti-button__description {
-  display: block;
-  max-width: 16rem;
-}
+  .preferiti-page__inner,
+  .impostazioni-page__inner,
+  .strumenti-page__inner,
+  .opinioni-page__inner,
+  .attivisti-page__inner,
+  .rappresentanti-page__inner {
+    height: 100%;
+    min-height: 0;
+  }
 
-@media (max-width: 1100px) {
-  .demos-desktop-layout .preferiti-page__grid {
+  .preferiti-page__grid {
+    display: grid;
+    min-height: 0;
+  }
+
+  .demos-mobile-layout .preferiti-page__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(6rem, 1fr));
+    grid-template-rows: repeat(3, minmax(5rem, 1fr));
+  }
+
+  .demos-mobile-layout .opinioni-page__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(5rem, 1fr));
+    min-height: 0;
+  }
+
+  .demos-mobile-layout .opinioni-page__grid .opinioni-button {
+    height: 100%;
+    width: 100%;
+    min-height: 5rem;
+  }
+
+  .demos-mobile-layout .preferiti-button {
+    height: 100%;
+    width: 100%;
+    min-height: 5rem;
+  }
+
+  .demos-mobile-layout .preferiti-page__logo-img {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .demos-desktop-layout .preferiti-page__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(7rem, 1fr));
+  }
+
+  .demos-desktop-layout .preferiti-button {
+    height: 100%;
+    width: 100%;
+    min-height: 7rem;
+  }
+
+  .preferiti-button__description {
+    display: none;
   }
 
   .demos-desktop-layout .preferiti-button__description {
-    max-width: 14rem;
-  }
-}
-
-/* ===== PREFERITI DESKTOP HUB — premium dashboard ===== */
-.demos-desktop-layout .preferiti-page--desktop {
-  height: 100% !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  background: #f7f9fc !important;
-}
-
-/* Capo di Stato — layout desktop a tutta altezza viewport (meno topbar) */
-.demos-desktop-layout .app-header {
-  display: none;
-  height: 0;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  overflow: hidden;
-}
-
-.demos-desktop-layout .app-main:has(.capo-di-stato-page) {
-  overflow: hidden !important;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.demos-desktop-layout .app-main:has(.capo-di-stato-page) > .app-main__inner,
-.demos-desktop-layout .app-main:has(.capo-di-stato-page) .app-main__inner {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.demos-desktop-layout .capo-di-stato-page {
-  flex: 1 1 auto;
-  height: 100% !important;
-  max-height: 100% !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  padding-bottom: 1rem !important;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
-
-.demos-desktop-layout .capo-di-stato-page > div:first-child {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.demos-desktop-layout .capo-di-stato-page,
-.demos-desktop-layout .capo-di-stato-page * {
-  scrollbar-width: none;
-}
-
-.demos-desktop-layout .capo-di-stato-page::-webkit-scrollbar,
-.demos-desktop-layout .capo-di-stato-page *::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-.demos-dash {
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 1rem 1.35rem 2rem;
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  box-sizing: border-box;
-  background: #f7f9fc;
-  -webkit-overflow-scrolling: touch;
-  color: #0f172a;
-}
-
-/* ===== DESKTOP SHARED TOPBAR ===== */
-.demos-desktop-topbar {
-  flex-shrink: 0;
-  padding: 0.75rem 1.35rem 0.5rem;
-  background: #f7f9fc;
-}
-
-.demos-mobile-layout .demos-desktop-topbar {
-  display: none;
-}
-
-.demos-desktop-layout .demos-dash {
-  padding-top: 0.5rem;
-}
-
-/* Top navigation */
-.demos-dash-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  padding: 1rem 1.25rem;
-  min-height: 4.5rem;
-  margin-bottom: 0;
-  background: #ffffff;
-  border: 1px solid #e8eef5;
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
-}
-
-.demos-dash-nav__left {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.demos-dash-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-div.demos-dash-brand {
-  cursor: default;
-}
-
-.demos-dash-brand__logo {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 10px;
-}
-
-.demos-dash-brand__text {
-  font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  color: #0f172a;
-}
-
-.demos-dash-search {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  width: 100%;
-  min-width: 0;
-  height: 2.65rem;
-  padding: 0 0.9rem;
-  background: #f7f9fc;
-  border: 1px solid #e8eef5;
-  border-radius: 10px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-}
-
-.demos-dash-search:focus-within {
-  background: #ffffff;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.demos-dash-search__icon {
-  color: #94a3b8;
-  flex-shrink: 0;
-}
-
-.demos-dash-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  font-size: 0.95rem;
-  color: #0f172a;
-}
-
-.demos-dash-search input::placeholder {
-  color: #94a3b8;
-}
-
-.demos-dash-nav__right {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-self: end;
-}
-
-.demos-dash-nav__text-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 3rem;
-  padding: 0 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1.2;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.demos-dash-nav__text-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
-
-.demos-dash-nav__icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #475569;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.demos-dash-nav__icon-btn:hover {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #0f172a;
-}
-
-.demos-dash-avatar-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  margin-left: 0.25rem;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 9999px;
-}
-
-.demos-dash-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 9999px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #fff;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
-  overflow: hidden;
-}
-
-.demos-dash-avatar--image {
-  background: transparent;
-  box-shadow: inset 0 0 0 2px rgba(226, 232, 240, 0.9);
-  padding: 0;
-}
-
-.preferiti-user-menu-content {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0;
-}
-
-/* Welcome */
-.demos-dash-welcome {
-  margin-bottom: 1.35rem;
-  padding: 0 0.15rem;
-}
-
-.demos-dash-welcome__text h1 {
-  margin: 0;
-  font-size: 1.95rem;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
-  color: #0f172a;
-}
-
-.demos-dash-welcome__text p {
-  margin: 0.4rem 0 0;
-  font-size: 1.05rem;
-  line-height: 1.45;
-  color: #64748b;
-}
-
-/* 2 colonne: Preferiti+Vota | Opinioni+Firma */
-.demos-dash-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
-  align-items: start;
-  width: 100%;
-}
-
-.demos-dash-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1.35rem;
-  min-width: 0;
-}
-
-.demos-dash-section {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.demos-dash-section__head {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  margin-bottom: 0.55rem;
-}
-
-.demos-dash-section__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.15rem;
-  height: 2.15rem;
-  border-radius: 9px;
-  flex-shrink: 0;
-}
-
-.demos-dash-section__title {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  color: #0f172a;
-  text-align: center;
-}
-
-.demos-dash-section__divider {
-  height: 1px;
-  margin-bottom: 0.75rem;
-  background: linear-gradient(90deg, #e2e8f0 0%, #e2e8f0 70%, transparent 100%);
-}
-
-/* Dentro ogni colonna: card impilate in verticale (default) */
-.demos-dash-section__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-/* Preferiti: 2×2 — Politici|Candidati / Attivisti|Organizzazioni */
-.demos-dash-section__grid--preferiti {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-}
-
-/* Opinioni: 2×2 + Proponi a tutta larghezza sotto */
-.demos-dash-section__grid--opinioni {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-}
-
-/* Vota: 3×2 — Capo|Governo / Grazia|Amnistia / Iniziativa|Referendum */
-.demos-dash-section__grid--vota {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-}
-
-.demos-dash-card--span {
-  grid-column: 1 / -1;
-}
-
-/* Card: icona a sinistra, testi centrati a destra */
-.demos-dash-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  width: 100%;
-  min-height: 96px;
-  height: auto;
-  padding: 0.95rem 1rem;
-  text-align: center;
-  border: 1px solid #e8eef5;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px rgba(15, 23, 42, 0.03);
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-.demos-dash-card:hover {
-  transform: translateY(-3px);
-  border-color: #93c5fd;
-  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06), 0 16px 32px rgba(37, 99, 235, 0.12);
-}
-
-.demos-dash-card:active {
-  transform: translateY(-1px);
-}
-
-.demos-dash-card__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-
-.demos-dash-card__body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  min-width: 0;
-  flex: 1;
-  text-align: center;
-}
-
-.demos-dash-card__title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: #0f172a;
-  line-height: 1.25;
-  text-align: center;
-  width: 100%;
-}
-
-.demos-dash-card__desc {
-  font-size: 0.875rem;
-  line-height: 1.35;
-  color: #64748b;
-  text-align: center;
-  width: 100%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.demos-dash-empty {
-  margin: 2rem 0 0;
-  text-align: center;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-@media (max-width: 1280px) {
-  .demos-dash-columns {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 960px) {
-  .demos-dash-nav {
-    flex-wrap: wrap;
-  }
-}
-
-@media (max-width: 720px) {
-  .demos-dash {
-    padding: 0.75rem 0.85rem 1.5rem;
+    display: block;
+    max-width: 16rem;
   }
 
-  .demos-dash-nav {
+  @media (max-width: 1100px) {
+    .demos-desktop-layout .preferiti-page__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(6rem, 1fr));
+    }
+
+    .demos-desktop-layout .preferiti-button__description {
+      max-width: 14rem;
+    }
+  }
+
+  /* ===== PREFERITI DESKTOP HUB — premium dashboard ===== */
+  .demos-desktop-layout .preferiti-page--desktop {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #f7f9fc !important;
+  }
+
+  /* Capo di Stato — layout desktop a tutta altezza viewport (meno topbar) */
+  .demos-desktop-layout .app-header {
+    display: none;
+    height: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    overflow: hidden;
+  }
+
+  .demos-desktop-layout .app-main:has(.capo-di-stato-page) {
+    overflow: hidden !important;
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 0.65rem;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .demos-desktop-layout .app-main:has(.capo-di-stato-page) > .app-main__inner,
+  .demos-desktop-layout .app-main:has(.capo-di-stato-page) .app-main__inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .demos-desktop-layout .capo-di-stato-page {
+    flex: 1 1 auto;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-bottom: 1rem !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .demos-desktop-layout .capo-di-stato-page > div:first-child {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .demos-desktop-layout .capo-di-stato-page,
+  .demos-desktop-layout .capo-di-stato-page * {
+    scrollbar-width: none;
+  }
+
+  .demos-desktop-layout .capo-di-stato-page::-webkit-scrollbar,
+  .demos-desktop-layout .capo-di-stato-page *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .demos-dash {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1rem 1.35rem 2rem;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    box-sizing: border-box;
+    background: #f7f9fc;
+    -webkit-overflow-scrolling: touch;
+    color: #0f172a;
+  }
+
+  /* ===== DESKTOP SHARED TOPBAR ===== */
+  .demos-desktop-topbar {
+    flex-shrink: 0;
+    padding: 0.75rem 1.35rem 0.5rem;
+    background: #f7f9fc;
+  }
+
+  .demos-mobile-layout .demos-desktop-topbar {
+    display: none;
+  }
+
+  .demos-desktop-layout .demos-dash {
+    padding-top: 0.5rem;
+  }
+
+  /* Top navigation */
+  .demos-dash-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1rem 1.25rem;
+    min-height: 4.5rem;
+    margin-bottom: 0;
+    background: #ffffff;
+    border: 1px solid #e8eef5;
+    border-radius: 16px;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px rgba(15, 23, 42, 0.03);
+  }
+
+  .demos-dash-nav__left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .demos-dash-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  div.demos-dash-brand {
+    cursor: default;
+  }
+
+  .demos-dash-brand__logo {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 10px;
+  }
+
+  .demos-dash-brand__text {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    color: #0f172a;
+  }
+
+  .demos-dash-search {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    min-width: 0;
+    height: 2.65rem;
+    padding: 0 0.9rem;
+    background: #f7f9fc;
+    border: 1px solid #e8eef5;
+    border-radius: 10px;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .demos-dash-search:focus-within {
+    background: #ffffff;
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .demos-dash-search__icon {
+    color: #94a3b8;
+    flex-shrink: 0;
+  }
+
+  .demos-dash-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-size: 0.95rem;
+    color: #0f172a;
+  }
+
+  .demos-dash-search input::placeholder {
+    color: #94a3b8;
   }
 
   .demos-dash-nav__right {
-    justify-content: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-self: end;
   }
 
+  .demos-dash-nav__text-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 3rem;
+    padding: 0 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .demos-dash-nav__text-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .demos-dash-nav__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .demos-dash-nav__icon-btn:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #0f172a;
+  }
+
+  .demos-dash-avatar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin-left: 0.25rem;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 9999px;
+  }
+
+  .demos-dash-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+    overflow: hidden;
+  }
+
+  .demos-dash-avatar--image {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px rgba(226, 232, 240, 0.9);
+    padding: 0;
+  }
+
+  .preferiti-user-menu-content {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* Welcome */
+  .demos-dash-welcome {
+    margin-bottom: 1.35rem;
+    padding: 0 0.15rem;
+  }
+
+  .demos-dash-welcome__text h1 {
+    margin: 0;
+    font-size: 1.95rem;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    color: #0f172a;
+  }
+
+  .demos-dash-welcome__text p {
+    margin: 0.4rem 0 0;
+    font-size: 1.05rem;
+    line-height: 1.45;
+    color: #64748b;
+  }
+
+  /* 2 colonne: Preferiti+Vota | Opinioni+Firma */
   .demos-dash-columns {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-items: start;
+    width: 100%;
   }
-}
 
-.impostazioni-page__inner,
-.strumenti-page__scroll {
-  -webkit-overflow-scrolling: touch;
-}
+  .demos-dash-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.35rem;
+    min-width: 0;
+  }
 
-/* ===== INIZIATIVE POPOLARI — griglia desktop ===== */
-.iniziative-popolari-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
+  .demos-dash-section {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
 
-.demos-desktop-layout .iniziative-popolari-page.container {
-  max-width: none;
-  width: 100%;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
-}
+  .demos-dash-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    margin-bottom: 0.55rem;
+  }
 
-.demos-desktop-layout .iniziative-popolari-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: stretch;
-}
+  .demos-dash-section__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 9px;
+    flex-shrink: 0;
+  }
 
-.demos-desktop-layout .iniziative-popolari-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
+  .demos-dash-section__title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+    text-align: center;
+  }
 
-.demos-desktop-layout .iniziative-popolari-card > div {
-  flex: 1;
-  height: 100%;
-}
+  .demos-dash-section__divider {
+    height: 1px;
+    margin-bottom: 0.75rem;
+    background: linear-gradient(
+      90deg,
+      #e2e8f0 0%,
+      #e2e8f0 70%,
+      transparent 100%
+    );
+  }
 
-/* ===== ECI — griglia desktop a tutta pagina ===== */
-.eci-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
+  /* Dentro ogni colonna: card impilate in verticale (default) */
+  .demos-dash-section__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
 
-.demos-desktop-layout .eci-page.container {
-  max-width: none;
-  width: 100%;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
-}
+  /* Preferiti: 2×2 — Politici|Candidati / Attivisti|Organizzazioni */
+  .demos-dash-section__grid--preferiti {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
 
-.demos-desktop-layout .eci-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: stretch;
-}
+  /* Opinioni: 2×2 + Proponi a tutta larghezza sotto */
+  .demos-dash-section__grid--opinioni {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
 
-.demos-desktop-layout .eci-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  /* Vota: 3×2 — Capo|Governo / Grazia|Amnistia / Iniziativa|Referendum */
+  .demos-dash-section__grid--vota {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .demos-dash-card--span {
+    grid-column: 1 / -1;
+  }
+
+  /* Card: icona a sinistra, testi centrati a destra */
+  .demos-dash-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 96px;
+    height: auto;
+    padding: 0.95rem 1rem;
+    text-align: center;
+    border: 1px solid #e8eef5;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 6px 16px rgba(15, 23, 42, 0.03);
+    cursor: pointer;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .demos-dash-card:hover {
+    transform: translateY(-3px);
+    border-color: #93c5fd;
+    box-shadow:
+      0 4px 8px rgba(15, 23, 42, 0.06),
+      0 16px 32px rgba(37, 99, 235, 0.12);
+  }
+
+  .demos-dash-card:active {
+    transform: translateY(-1px);
+  }
+
+  .demos-dash-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .demos-dash-card__body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 0;
+    flex: 1;
+    text-align: center;
+  }
+
+  .demos-dash-card__title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: #0f172a;
+    line-height: 1.25;
+    text-align: center;
+    width: 100%;
+  }
+
+  .demos-dash-card__desc {
+    font-size: 0.875rem;
+    line-height: 1.35;
+    color: #64748b;
+    text-align: center;
+    width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .demos-dash-empty {
+    margin: 2rem 0 0;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 1280px) {
+    .demos-dash-columns {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 960px) {
+    .demos-dash-nav {
+      flex-wrap: wrap;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .demos-dash {
+      padding: 0.75rem 0.85rem 1.5rem;
+    }
+
+    .demos-dash-nav {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.65rem;
+    }
+
+    .demos-dash-nav__right {
+      justify-content: flex-start;
+    }
+
+    .demos-dash-columns {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .impostazioni-page__inner,
+  .strumenti-page__scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ===== INIZIATIVE POPOLARI — griglia desktop ===== */
+  .iniziative-popolari-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .demos-desktop-layout .iniziative-popolari-page.container {
+    max-width: none;
+    width: 100%;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .demos-desktop-layout .iniziative-popolari-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .demos-desktop-layout .iniziative-popolari-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .demos-desktop-layout .iniziative-popolari-card > div {
+    flex: 1;
+    height: 100%;
+  }
+
+  /* ===== ECI — griglia desktop a tutta pagina ===== */
+  .eci-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .demos-desktop-layout .eci-page.container {
+    max-width: none;
+    width: 100%;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .demos-desktop-layout .eci-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .demos-desktop-layout .eci-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 @layer base {

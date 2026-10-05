@@ -162,7 +162,7 @@ export default function NotifichePreferenze() {
   ];
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
@@ -170,7 +170,7 @@ export default function NotifichePreferenze() {
             variant="ghost"
             size="icon"
             onClick={() => setLocation("/notifiche")}
-            className="flex-shrink-0"
+            className="shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -203,7 +203,7 @@ export default function NotifichePreferenze() {
               {sezioni.map((sezione, idx) => {
                 const SectionIcon = sezione.icon;
                 return (
-                  <Card key={idx} className="bg-white shadow-sm">
+                  <Card key={idx} className="bg-white shadow-xs">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <SectionIcon className="h-5 w-5 text-blue-600" />
@@ -220,7 +220,7 @@ export default function NotifichePreferenze() {
                             className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                           >
                             <div className="flex items-center gap-4 flex-1">
-                              <div className={`p-2 rounded-full bg-white shadow-sm border ${item.color.replace('text-', 'border-')}`}>
+                              <div className={`p-2 rounded-full bg-white shadow-xs border ${item.color.replace('text-', 'border-')}`}>
                                 <ItemIcon className={`h-5 w-5 ${item.color}`} />
                               </div>
                               <div className="flex-1">

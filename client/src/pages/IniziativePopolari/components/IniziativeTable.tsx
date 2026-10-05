@@ -78,7 +78,7 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
         return (
           <div 
             key={iniziativa.id} 
-            className={`${getBackgroundClass()} iniziative-popolari-card border rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer`}
+            className={`${getBackgroundClass()} iniziative-popolari-card border rounded-lg p-5 shadow-xs hover:shadow-md transition-shadow cursor-pointer`}
             onClick={() => onView && onView(iniziativa)}
           >
           <div className="flex flex-col items-center text-center">

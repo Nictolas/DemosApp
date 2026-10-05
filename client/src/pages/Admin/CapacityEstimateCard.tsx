@@ -206,7 +206,7 @@ export function CapacityEstimateCard({
   ];
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card className="border-slate-200 bg-white shadow-xs">
       <CardContent className="p-5 sm:p-6 space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1 min-w-0">

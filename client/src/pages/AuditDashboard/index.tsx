@@ -165,7 +165,7 @@ export default function AuditDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-indigo-600" />
           <p className="text-gray-600">Caricamento dashboard audit...</p>
@@ -176,7 +176,7 @@ export default function AuditDashboard() {
 
   if (!user?.ruolo || user.ruolo !== "AD") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -195,11 +195,11 @@ export default function AuditDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold bg-linear-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
             Dashboard Audit
           </h1>
           <p className="text-gray-600 text-lg">
@@ -208,7 +208,7 @@ export default function AuditDashboard() {
         </div>
 
         {/* Istruzioni */}
-        <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-800">
               <Activity className="h-5 w-5" />
@@ -416,7 +416,7 @@ export default function AuditDashboard() {
             <CardContent>
               <div className="space-y-2">
                 {topActions.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-sm">
                     <div className="flex items-center gap-2">
                       {getActionIcon(item.action || '')}
                       <span className="font-medium">{item.action}</span>
@@ -439,7 +439,7 @@ export default function AuditDashboard() {
             <CardContent>
               <div className="space-y-2">
                 {topResources.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-sm">
                     <span className="font-medium">{item.resource}</span>
                     <Badge variant="secondary">{item.count}</Badge>
                   </div>
@@ -459,7 +459,7 @@ export default function AuditDashboard() {
             <CardContent>
               <div className="space-y-2">
                 {topUsers.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-sm">
                     <span className="font-medium">{item.user_id}</span>
                     <Badge variant="secondary">{item.count}</Badge>
                   </div>

@@ -57,7 +57,7 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
     <div>
       <ul className="space-y-2">
         {proposte.map((op) => (
-          <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">
+          <li key={op.id} className="flex items-center justify-between border rounded-sm px-3 py-2 bg-fuchsia-50">
             <div className="flex flex-col">
               <span className="font-medium">{op.testo}</span>
               <span className="text-xs text-muted-foreground">

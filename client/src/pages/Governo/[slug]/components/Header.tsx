@@ -21,11 +21,11 @@ export const Header: React.FC<HeaderProps> = ({ ministero, unlockDate }) => {
       <Card className="mb-6">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-700 rounded-full">
+            <div className="p-4 bg-linear-to-r from-blue-500 to-indigo-700 rounded-full">
               <IconComponent className="h-12 w-12 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-800 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl font-bold bg-linear-to-r from-blue-600 to-indigo-800 bg-clip-text text-transparent">
             {ministero.nome}
           </CardTitle>
           <CardDescription className="text-lg mt-4 text-left max-w-3xl mx-auto">

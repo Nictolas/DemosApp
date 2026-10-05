@@ -306,7 +306,7 @@ export default function SecurityDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 page-with-navbar flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 page-with-navbar flex items-center justify-center">
         <div className="text-center">
           <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Caricamento dati di sicurezza...</p>
@@ -316,13 +316,13 @@ export default function SecurityDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 page-with-navbar">
       <div className="w-full px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              <h1 className="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
                 🛡️ Dashboard Sicurezza e Monitoraggio
               </h1>
               <p className="text-gray-600 text-lg">

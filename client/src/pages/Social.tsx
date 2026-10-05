@@ -101,7 +101,7 @@ export default function Social() {
 
   if (isAuthLoading || (user && isLoading)) {
     return (
-      <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100">
+      <PageContainer className="bg-linear-to-br from-purple-50 to-pink-100">
         <div className="min-h-screen flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
@@ -117,7 +117,7 @@ export default function Social() {
 
   if (!canEdit) {
     return (
-      <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+      <PageContainer className="bg-linear-to-br from-purple-50 to-pink-100 p-4">
         <div className="min-h-screen flex items-center justify-center">
           <Card>
             <CardHeader>
@@ -131,7 +131,7 @@ export default function Social() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+    <PageContainer className="bg-linear-to-br from-purple-50 to-pink-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
         <Card>
           <CardHeader className="text-center">

@@ -492,7 +492,7 @@ export default function DataExport() {
     } as const;
 
     return (
-      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
+      <Badge variant={variants[status as keyof typeof variants] || 'outline-solid'}>
         {status === 'completed' && 'Completato'}
         {status === 'failed' && 'Fallito'}
         {status === 'running' && 'In corso'}
@@ -976,7 +976,7 @@ export default function DataExport() {
                     placeholder="Cerca tabella..."
                     value={tableSearch}
                     onChange={(e) => setTableSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <Button
@@ -1020,7 +1020,7 @@ export default function DataExport() {
               ) : (
                 <div className="space-y-4">
                   {filteredTables.map((table) => (
-                  <div key={table.name} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
+                  <div key={table.name} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-xs">
                     <div className="flex items-center space-x-3">
                       <input
                         type="checkbox"
@@ -1142,7 +1142,7 @@ export default function DataExport() {
                       Aggiorna
                     </Button>
                     <Button
-                      variant={autoRefresh ? "default" : "outline"}
+                      variant={autoRefresh ? "default" : "outline-solid"}
                       size="sm"
                       onClick={() => setAutoRefresh(!autoRefresh)}
                     >
@@ -1331,7 +1331,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.users.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-blue-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-blue-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1365,7 +1365,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.content.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1399,7 +1399,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.system.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-yellow-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-yellow-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1433,7 +1433,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.ministries.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1467,7 +1467,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.votes.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-purple-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-purple-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1501,7 +1501,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.tools.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1535,7 +1535,7 @@ export default function DataExport() {
                           {databaseAnalysis.categories.other.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-3 border rounded-md bg-white border-gray-200 hover:shadow-sm transition-all"
+                              className="p-3 border rounded-md bg-white border-gray-200 hover:shadow-xs transition-all"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
@@ -1783,7 +1783,7 @@ export default function DataExport() {
                                     {realtimeLogTypes.map((logType, idx) => (
                                       <div key={idx} className="flex items-start gap-2 text-xs">
                                         <div 
-                                          className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" 
+                                          className="w-2 h-2 rounded-full mt-1.5 shrink-0"
                                           style={{ backgroundColor: logType.color }}
                                         ></div>
                                         <div className="flex-1">
@@ -1887,7 +1887,7 @@ export default function DataExport() {
                               <div className="text-sm font-medium mb-3">Distribuzione per Gravità:</div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {Object.entries(securityEventsStats.severityStats).map(([severity, count]: [string, any]) => (
-                                  <div key={severity} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                  <div key={severity} className="flex items-center justify-between p-2 bg-gray-50 rounded-sm">
                                     <span className="text-xs font-medium capitalize">{severity}</span>
                                     <span className="text-xs font-bold">{count || 0}</span>
                                   </div>
@@ -1973,7 +1973,7 @@ export default function DataExport() {
               ) : (
                 <div className="space-y-4">
                   {exportHistory.map((exportItem) => (
-                    <div key={exportItem.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
+                    <div key={exportItem.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-xs">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(exportItem.status)}
                         <div>

@@ -12,7 +12,7 @@ export default function SegnalaProblema() {
 
   if (isLoading) {
     return (
-      <PageContainer className="bg-gradient-to-b from-orange-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-orange-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </PageContainer>
     );
@@ -20,7 +20,7 @@ export default function SegnalaProblema() {
 
   if (!user) {
     return (
-      <PageContainer className="bg-gradient-to-b from-orange-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-orange-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -37,7 +37,7 @@ export default function SegnalaProblema() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-orange-50 via-white to-yellow-50">
+    <PageContainer className="bg-linear-to-br from-orange-50 via-white to-yellow-50">
       <div className="container mx-auto px-4 py-8 h-full flex flex-col">
         <Header />
 

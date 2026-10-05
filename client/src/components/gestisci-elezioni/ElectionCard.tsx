@@ -7,7 +7,7 @@ import { formatDate } from "./electionsUtils";
 
 export function ElectionCard({ elezione, onEdit, onDelete }: ElectionCardProps) {
   return (
-    <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-blue-100">
+    <Card className="group hover:shadow-xl transition-all duration-300 border-0 bg-linear-to-br from-white to-gray-50 hover:from-blue-50 hover:to-blue-100">
       <CardContent className="p-6">
         {/* Header con status */}
         <div className="flex items-start justify-between mb-4">

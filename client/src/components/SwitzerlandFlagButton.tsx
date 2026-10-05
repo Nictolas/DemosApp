@@ -28,11 +28,11 @@ export function SwitzerlandFlagButton({ onClick, label = "Svizzera" }: Switzerla
       aria-label="Seleziona Svizzera"
     >
       <div className="p-3">
-        <div className="w-full h-20 rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-[#DA291C] relative">
+        <div className="w-full h-20 rounded-xl overflow-hidden shadow-xs border border-gray-200 bg-[#DA291C] relative">
           {/* Croce bianca svizzera */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="absolute w-[55%] h-[20%] bg-white rounded-sm" />
-            <div className="absolute h-[55%] w-[20%] bg-white rounded-sm" />
+            <div className="absolute w-[55%] h-[20%] bg-white rounded-xs" />
+            <div className="absolute h-[55%] w-[20%] bg-white rounded-xs" />
           </div>
         </div>
         <div className="mt-3 text-center">

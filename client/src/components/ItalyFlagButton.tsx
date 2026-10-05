@@ -28,7 +28,7 @@ export function ItalyFlagButton({ onClick, label = "Cittadinanza italiana" }: It
       aria-label="Seleziona cittadinanza italiana"
     >
       <div className="p-3">
-        <div className="w-full h-20 rounded-xl overflow-hidden shadow-sm border border-gray-200">
+        <div className="w-full h-20 rounded-xl overflow-hidden shadow-xs border border-gray-200">
           <div className="w-full h-full flex">
             <div className="flex-1 bg-[#008C45]" /> {/* Verde */}
             <div className="flex-1 bg-[#F4F5F0]" /> {/* Bianco */}

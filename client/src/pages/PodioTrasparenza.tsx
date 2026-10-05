@@ -33,11 +33,11 @@ export default function PodioTrasparenza() {
   const getRankColor = (position: number) => {
     switch (position) {
       case 1:
-        return "bg-gradient-to-r from-yellow-100 to-yellow-50 dark:from-yellow-900/20 dark:to-yellow-800/10 border-yellow-200 dark:border-yellow-800";
+        return "bg-linear-to-r from-yellow-100 to-yellow-50 dark:from-yellow-900/20 dark:to-yellow-800/10 border-yellow-200 dark:border-yellow-800";
       case 2:
-        return "bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800/20 dark:to-gray-700/10 border-gray-200 dark:border-gray-700";
+        return "bg-linear-to-r from-gray-100 to-gray-50 dark:from-gray-800/20 dark:to-gray-700/10 border-gray-200 dark:border-gray-700";
       case 3:
-        return "bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200 dark:border-amber-800";
+        return "bg-linear-to-r from-amber-100 to-amber-50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200 dark:border-amber-800";
       default:
         return "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700";
     }
@@ -45,7 +45,7 @@ export default function PodioTrasparenza() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
@@ -60,11 +60,11 @@ export default function PodioTrasparenza() {
                       <div className="flex items-center space-x-4">
                         <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
                         <div className="space-y-2">
-                          <div className="w-48 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                          <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                          <div className="w-48 h-4 bg-gray-200 dark:bg-gray-700 rounded-sm"></div>
+                          <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded-sm"></div>
                         </div>
                       </div>
-                      <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded-sm"></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -78,7 +78,7 @@ export default function PodioTrasparenza() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-6 text-center">
@@ -93,11 +93,11 @@ export default function PodioTrasparenza() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold mb-2 bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Podio Trasparenza
             </h1>
             <p className="text-muted-foreground">

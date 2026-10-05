@@ -368,7 +368,7 @@ export function EditOpinioniDialog({
                 const key = question.id;
                 const label = question.text;
                 return (
-                  <div key={key} className="border rounded-lg p-4 shadow-sm bg-white">
+                  <div key={key} className="border rounded-lg p-4 shadow-xs bg-white">
                     <h3 className="text-lg font-semibold mb-2">{label}</h3>
                     <div className="flex gap-2 mb-2">
                       {options.map((option) => {

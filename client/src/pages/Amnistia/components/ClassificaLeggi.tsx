@@ -40,7 +40,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-gray-500">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <div className="w-20 h-20 bg-linear-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Trophy className="h-10 w-10 text-gray-400" />
             </div>
             <p className="text-lg font-medium text-gray-600">Nessuna classifica disponibile al momento</p>
@@ -53,12 +53,12 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
 
   return (
     <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-yellow-100">
+      <CardHeader className="bg-linear-to-r from-yellow-50 to-amber-50 border-b border-yellow-100">
         <CardTitle className="flex items-center space-x-2 text-xl">
-          <div className="p-2 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-lg">
+          <div className="p-2 bg-linear-to-br from-yellow-400 to-amber-500 rounded-lg">
             <Trophy className="h-5 w-5 text-white" />
           </div>
-          <span className="bg-gradient-to-r from-yellow-600 to-amber-700 bg-clip-text text-transparent font-bold">
+          <span className="bg-linear-to-r from-yellow-600 to-amber-700 bg-clip-text text-transparent font-bold">
             Classifica Leggi
           </span>
         </CardTitle>

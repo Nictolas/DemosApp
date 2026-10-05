@@ -53,7 +53,7 @@ export const ICETable: React.FC<ICETableProps> = ({
         const hasVoted = mieiVoti.includes(ice.id);
         
         return (
-          <div key={ice.id} className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${
+          <div key={ice.id} className={`bg-white border rounded-lg p-6 shadow-xs hover:shadow-md transition-shadow ${
             ice.quorum === 'proposta' 
               ? 'border-blue-200 bg-blue-50' 
               : 'border-gray-200'
@@ -63,26 +63,26 @@ export const ICETable: React.FC<ICETableProps> = ({
                 <span
                   className={
                     ice.quorum === 'ok'
-                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-green-500 flex-shrink-0'
+                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-green-500 shrink-0'
                       : ice.quorum === 'pending'
-                        ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0'
+                        ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 shrink-0'
                         : ice.quorum === 'no'
-                          ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-red-500 flex-shrink-0'
+                          ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-red-500 shrink-0'
                         : ice.quorum === 'proposta'
-                          ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-blue-500 flex-shrink-0'
-                          : 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-gray-400 flex-shrink-0'
+                          ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-blue-500 shrink-0'
+                          : 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-gray-400 shrink-0'
                   }
                   aria-hidden="true"
                 />
                 <span
                   className={
                     ice.esito === 'Attuata'
-                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-green-500 flex-shrink-0'
+                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-green-500 shrink-0'
                       : ice.esito === 'In Attesa'
-                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0'
+                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 shrink-0'
                       : ice.esito === 'Non Accolta'
-                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-red-500 flex-shrink-0'
-                      : 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-gray-300 flex-shrink-0'
+                      ? 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-red-500 shrink-0'
+                      : 'inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-gray-300 shrink-0'
                   }
                   aria-hidden="true"
                 />

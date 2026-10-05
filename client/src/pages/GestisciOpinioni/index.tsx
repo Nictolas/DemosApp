@@ -11,7 +11,7 @@ export default function GestisciOpinioni() {
   const { opinioni, proposte, isLoading, isLoadingProposte, isOpinioniError, isProposteError } = useOpinioniData();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-full px-4">
         <Button 
           variant="ghost" 

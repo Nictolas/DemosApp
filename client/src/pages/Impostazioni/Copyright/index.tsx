@@ -13,7 +13,7 @@ export default function CopyrightPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -21,7 +21,7 @@ export default function CopyrightPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -38,7 +38,7 @@ export default function CopyrightPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -50,7 +50,7 @@ export default function CopyrightPage() {
             ← Torna alle Impostazioni
           </Button>
           
-          <Card className="border-0 shadow-lg bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+          <Card className="border-0 shadow-lg bg-linear-to-r from-indigo-600 to-blue-600 text-white">
             <CardHeader className="text-center py-6">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Copyright className="h-8 w-8 text-white" />
@@ -77,7 +77,7 @@ export default function CopyrightPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-200">
+            <div className="bg-linear-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-200">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Demos versione 1.0</h3>
               <p className="text-lg text-gray-700 mb-4">
                 <strong>Copyright © 2025 Nicolas Micheletti. Tutti i diritti riservati.</strong>

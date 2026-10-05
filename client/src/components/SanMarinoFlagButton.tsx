@@ -28,7 +28,7 @@ export function SanMarinoFlagButton({ onClick, label = "San Marino" }: SanMarino
       aria-label="Seleziona San Marino"
     >
       <div className="p-3">
-        <div className="w-full h-20 rounded-xl overflow-hidden shadow-sm border border-gray-200">
+        <div className="w-full h-20 rounded-xl overflow-hidden shadow-xs border border-gray-200">
           <div className="w-full h-full flex flex-col">
             <div className="flex-1 bg-white" /> {/* Bianco */}
             <div className="flex-1 bg-[#5EB3E6]" /> {/* Azzurro bandiera San Marino */}

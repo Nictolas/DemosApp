@@ -35,7 +35,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
       {/* Filtri di ordinamento */}
       <div className="flex flex-wrap gap-2">
         <Button
-          variant={sortBy === "firme" ? "default" : "outline"}
+          variant={sortBy === "firme" ? "default" : "outline-solid"}
           size="sm"
           onClick={() => onSortChange(sortBy === "firme" ? null : "firme")}
           className="flex items-center gap-2"
@@ -44,7 +44,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
           Ordina per Firme
         </Button>
         <Button
-          variant={sortBy === "scadenza" ? "default" : "outline"}
+          variant={sortBy === "scadenza" ? "default" : "outline-solid"}
           size="sm"
           onClick={() => onSortChange(sortBy === "scadenza" ? null : "scadenza")}
           className="flex items-center gap-2"

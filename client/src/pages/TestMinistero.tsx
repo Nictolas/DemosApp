@@ -137,7 +137,7 @@ export default function TestMinistero() {
   }
 
   return (
-    <PageContainer className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <PageContainer className="min-h-screen bg-linear-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-6 w-full">
         {/* Header */}
         <div className="mb-6">
@@ -157,7 +157,7 @@ export default function TestMinistero() {
                   type="checkbox"
                   checked={autoRefreshEnabled}
                   onChange={(e) => setAutoRefreshEnabled(e.target.checked)}
-                  className="rounded"
+                  className="rounded-sm"
                 />
                 Auto-refresh (5 min)
               </label>
@@ -267,13 +267,13 @@ export default function TestMinistero() {
 
             {/* Statistiche - sempre mostrate */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Totale Iniziative</h3>
                 <p className="text-3xl font-bold text-gray-900">
                   {data.statistiche?.totaleIniziative ?? 0}
                 </p>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Totale Firme</h3>
                 <p className="text-3xl font-bold text-gray-900">
                   {(data.statistiche?.totaleFirme ?? 0).toLocaleString('it-IT')}
@@ -284,7 +284,7 @@ export default function TestMinistero() {
             {/* Grafici - sempre mostrati, anche con dati vuoti */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Grafico per Stato */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Iniziative per Stato</h2>
                 {chartDataPerStato.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
@@ -312,7 +312,7 @@ export default function TestMinistero() {
               </div>
 
               {/* Grafico per Tipo */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Iniziative per Tipo</h2>
                 {chartDataPerTipo.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
@@ -387,7 +387,7 @@ export default function TestMinistero() {
                     }
                   }}
                   disabled={isLoading}
-                  className="text-sm px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
+                  className="text-sm px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-sm transition-colors disabled:opacity-50"
                 >
                   Vedi Dati dal Database
                 </button>
@@ -410,7 +410,7 @@ export default function TestMinistero() {
                     }
                   }}
                   disabled={isLoading}
-                  className="text-sm px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors disabled:opacity-50"
+                  className="text-sm px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-sm transition-colors disabled:opacity-50"
                 >
                   Vedi Log Sincronizzazione
                 </button>
@@ -419,7 +419,7 @@ export default function TestMinistero() {
 
             {/* Log di sincronizzazione */}
             {syncLogs.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-6 mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   Log Sincronizzazione ({syncLogs.length} log trovati)
                 </h2>
@@ -439,7 +439,7 @@ export default function TestMinistero() {
                         <span className="font-semibold">
                           {new Date(log.timestamp).toLocaleString('it-IT')}
                         </span>
-                        <span className="text-xs px-2 py-1 rounded bg-gray-200">
+                        <span className="text-xs px-2 py-1 rounded-sm bg-gray-200">
                           {log.level || 'INFO'}
                         </span>
                       </div>
@@ -451,7 +451,7 @@ export default function TestMinistero() {
                           <summary className="cursor-pointer text-xs text-gray-600 hover:text-gray-800">
                             Dettagli aggiuntivi
                           </summary>
-                          <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+                          <pre className="mt-2 text-xs bg-gray-100 p-2 rounded-sm overflow-x-auto">
                             {JSON.stringify(log.meta, null, 2)}
                           </pre>
                         </details>
@@ -464,7 +464,7 @@ export default function TestMinistero() {
 
             {/* Tabella con tutte le colonne */}
             {(data.iniziative && data.iniziative.length > 0) || (data.data && Array.isArray(data.data) && data.data.length > 0) ? (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 overflow-x-auto">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-6 overflow-x-auto">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   Tabella Iniziative ({data.iniziative?.length || (Array.isArray(data.data) ? data.data.length : 0)} elementi)
                 </h2>
@@ -529,7 +529,7 @@ export default function TestMinistero() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg shadow-xs border border-gray-200 p-6">
                 <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-center">
                   <p className="text-gray-500">Nessun dato disponibile per la tabella</p>
                 </div>
@@ -541,7 +541,7 @@ export default function TestMinistero() {
               <summary className="cursor-pointer font-semibold text-gray-700 mb-2">
                 Dati Raw Completi (Debug)
               </summary>
-              <pre className="text-xs overflow-x-auto text-gray-800 mt-2 p-4 bg-white rounded border border-gray-200">
+              <pre className="text-xs overflow-x-auto text-gray-800 mt-2 p-4 bg-white rounded-sm border border-gray-200">
                 {JSON.stringify(data, null, 2)}
               </pre>
             </details>

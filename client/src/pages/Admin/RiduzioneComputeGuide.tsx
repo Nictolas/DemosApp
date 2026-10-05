@@ -27,8 +27,8 @@ function Kbd({ children }: { children: React.ReactNode }) {
 /** Contenuto guida carico DB — usato come tab in Parametri */
 export default function RiduzioneComputeGuide() {
   return (
-    <div className="bg-[radial-gradient(ellipse_at_top,_#eef2ff_0%,_#f8fafc_45%,_#ffffff_100%)] w-full rounded-lg overflow-hidden border border-violet-100">
-      <header className="w-full bg-gradient-to-br from-violet-600 via-indigo-600 to-slate-900 text-white">
+    <div className="bg-[radial-gradient(ellipse_at_top,#eef2ff_0%,#f8fafc_45%,#ffffff_100%)] w-full rounded-lg overflow-hidden border border-violet-100">
+      <header className="w-full bg-linear-to-br from-violet-600 via-indigo-600 to-slate-900 text-white">
         <div className="w-full max-w-[min(100%,100rem)] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
             <div className="max-w-3xl space-y-3">
@@ -118,8 +118,8 @@ export default function RiduzioneComputeGuide() {
         </Alert>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12 items-start">
-          <Card className="border-slate-200/80 shadow-sm overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-violet-50/50 border-b">
+          <Card className="border-slate-200/80 shadow-xs overflow-hidden">
+            <CardHeader className="bg-linear-to-r from-slate-50 to-violet-50/50 border-b">
               <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                 <BookOpen className="h-5 w-5 text-violet-600" />
                 Analogia: gli sportelli del database
@@ -144,8 +144,8 @@ export default function RiduzioneComputeGuide() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200/80 shadow-sm overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-indigo-50/50 border-b">
+          <Card className="border-slate-200/80 shadow-xs overflow-hidden">
+            <CardHeader className="bg-linear-to-r from-slate-50 to-indigo-50/50 border-b">
               <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                 <Zap className="h-5 w-5 text-indigo-600" />
                 Cosa ci fa spendere / saturare di più
@@ -202,7 +202,7 @@ export default function RiduzioneComputeGuide() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-violet-100/80 bg-white shadow-sm">
+            <Card className="border-violet-100/80 bg-white shadow-xs">
               <CardHeader>
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-violet-100 p-2.5">
@@ -235,7 +235,7 @@ export default function RiduzioneComputeGuide() {
               </CardContent>
             </Card>
 
-            <Card className="border-indigo-100/80 bg-white shadow-sm">
+            <Card className="border-indigo-100/80 bg-white shadow-xs">
               <CardHeader>
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-indigo-100 p-2.5">
@@ -268,7 +268,7 @@ export default function RiduzioneComputeGuide() {
               </CardContent>
             </Card>
 
-            <Card className="border-emerald-100/80 bg-white shadow-sm">
+            <Card className="border-emerald-100/80 bg-white shadow-xs">
               <CardHeader>
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-emerald-100 p-2.5">
@@ -289,7 +289,7 @@ export default function RiduzioneComputeGuide() {
               </CardContent>
             </Card>
 
-            <Card className="border-sky-100/80 bg-white shadow-sm">
+            <Card className="border-sky-100/80 bg-white shadow-xs">
               <CardHeader>
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-sky-100 p-2.5">
@@ -323,7 +323,7 @@ LIMIT 20;`}
           <h2 id="checklist" className="text-2xl font-bold text-slate-900 mb-4">
             Checklist
           </h2>
-          <Card className="border-violet-200 bg-gradient-to-br from-white to-violet-50/40 shadow-md">
+          <Card className="border-violet-200 bg-linear-to-br from-white to-violet-50/40 shadow-md">
             <CardContent className="pt-6 pb-6">
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-800 text-base leading-relaxed">
                 <li className="flex gap-3 items-start rounded-lg bg-white/80 p-4 border border-violet-100">

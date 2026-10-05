@@ -18,14 +18,14 @@ export default function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-full flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-full flex items-center justify-center bg-linear-to-b from-blue-50 to-white">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="landing-page min-h-full bg-gradient-to-b from-blue-50 to-white">
+    <div className="landing-page min-h-full bg-linear-to-b from-blue-50 to-white">
       <main>
         <section className="py-10 md:py-16">
           <div className="container mx-auto px-4">
@@ -35,7 +35,7 @@ export default function LandingPage() {
                   <img src={appIcon} alt="Logo Demos" className={`w-24 h-24 mb-6 ${!isMobileLayout ? "mx-auto md:mx-0" : "mx-auto"}`} />
                   <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
                     <span
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                      className="bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
                       style={{ WebkitTextStroke: "1px #2563eb" }}
                     >
                       DEMOS
@@ -86,7 +86,7 @@ export default function LandingPage() {
               Cosa puoi fare con Demos
             </h2>
             <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              <div className="bg-blue-50 rounded-lg p-6 shadow-sm">
+              <div className="bg-blue-50 rounded-lg p-6 shadow-xs">
                 <h3 className="text-lg font-semibold mb-3 text-gray-900">Come cittadino</h3>
                 <ul className="list-disc list-inside text-gray-700 space-y-2 text-sm leading-relaxed">
                   <li>Trova politici e candidati compatibili con le tue idee</li>
@@ -95,7 +95,7 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-6 shadow-sm">
+              <div className="bg-blue-50 rounded-lg p-6 shadow-xs">
                 <h3 className="text-lg font-semibold mb-3 text-gray-900">Come politico o candidato</h3>
                 <ul className="list-disc list-inside text-gray-700 space-y-2 text-sm leading-relaxed">
                   <li>Amplia il tuo bacino di elettori e sostenitori</li>
@@ -104,7 +104,7 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-6 shadow-sm">
+              <div className="bg-blue-50 rounded-lg p-6 shadow-xs">
                 <h3 className="text-lg font-semibold mb-3 text-gray-900">Partecipazione democratica</h3>
                 <p className="text-gray-700 text-sm leading-relaxed">
                   Vota, proponi, discuti e partecipa alle attività democratiche come elettore, candidato
@@ -115,7 +115,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="py-12 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <section className="py-12 bg-linear-to-r from-blue-600 to-indigo-600 text-white">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-3">
               Diventa protagonista della democrazia digitale

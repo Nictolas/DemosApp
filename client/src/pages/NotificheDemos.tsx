@@ -326,7 +326,7 @@ export default function NotificheDemos() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-[1800px] mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
@@ -334,7 +334,7 @@ export default function NotificheDemos() {
             variant="ghost"
             size="icon"
             onClick={() => setLocation("/gestisci")}
-            className="flex-shrink-0"
+            className="shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -353,7 +353,7 @@ export default function NotificheDemos() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Sezione 1: Diagnostica Firebase Admin */}
           <div className="flex flex-col">
-            <Card className="bg-white shadow-sm border-2 border-purple-300 h-full flex flex-col">
+            <Card className="bg-white shadow-xs border-2 border-purple-300 h-full flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-purple-600" />
@@ -443,7 +443,7 @@ export default function NotificheDemos() {
                 </Alert>
 
                 {/* Variabili d'ambiente */}
-                <div className="bg-gray-50 p-3 rounded">
+                <div className="bg-gray-50 p-3 rounded-sm">
                   <div className="font-semibold mb-2 text-sm">Variabili d'ambiente:</div>
                   <div className="space-y-1 text-xs">
                     <div className="flex items-center gap-2">
@@ -470,7 +470,7 @@ export default function NotificheDemos() {
                       {firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente && 
                        firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore_completo && (
                         <div className="text-xs text-gray-600 mt-1">
-                          Email completa: <code className="bg-gray-100 px-1 rounded">{firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore_completo}</code>
+                          Email completa: <code className="bg-gray-100 px-1 rounded-sm">{firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.valore_completo}</code>
                         </div>
                       )}
                       {firebaseDebugData.data.environment.FIREBASE_CLIENT_EMAIL.presente && 
@@ -503,8 +503,8 @@ export default function NotificheDemos() {
                     <div className="mt-3 pt-3 border-t border-gray-300 text-xs">
                       <div className="font-semibold mb-1">Analisi chiave privata:</div>
                       <div className="space-y-1">
-                        <div>Inizia con: <code className="bg-gray-200 px-1 rounded">{firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.inizia_con || 'N/A'}</code></div>
-                        <div>Finisce con: <code className="bg-gray-200 px-1 rounded">{firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.finisce_con || 'N/A'}</code></div>
+                        <div>Inizia con: <code className="bg-gray-200 px-1 rounded-sm">{firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.inizia_con || 'N/A'}</code></div>
+                        <div>Finisce con: <code className="bg-gray-200 px-1 rounded-sm">{firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.finisce_con || 'N/A'}</code></div>
                         <div className="flex items-center gap-2">
                           <span className={firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_begin ? "text-green-600" : "text-red-600"}>
                             {firebaseDebugData.data.environment.FIREBASE_PRIVATE_KEY.contiene_begin ? "✅" : "❌"}
@@ -532,7 +532,7 @@ export default function NotificheDemos() {
                 {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <div className="font-semibold mb-2 text-xs">Dettagli Parsing Chiave Privata:</div>
-                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded-sm">
                       <div>Lunghezza RAW: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.lunghezza_raw} caratteri</div>
                       <div>Lunghezza dopo pulizia: {firebaseDebugData.data.stato_inizializzazione.dettagli_parsing.lunghezza_dopo_pulizia} caratteri</div>
                       <div className="flex items-center gap-2">
@@ -596,19 +596,19 @@ export default function NotificheDemos() {
                         <div className="mb-2">{firebaseDebugData.data.stato_inizializzazione.test_invio.messaggio}</div>
                       )}
                       {firebaseDebugData.data.stato_inizializzazione.test_invio.message_id && (
-                        <div className="text-xs text-gray-600 font-mono bg-green-50 p-2 rounded">
+                        <div className="text-xs text-gray-600 font-mono bg-green-50 p-2 rounded-sm">
                           Message ID: {firebaseDebugData.data.stato_inizializzazione.test_invio.message_id}
                         </div>
                       )}
                       {firebaseDebugData.data.stato_inizializzazione.test_invio.errore && (
-                        <div className="text-xs text-red-600 font-mono bg-red-50 p-2 rounded mt-2">
+                        <div className="text-xs text-red-600 font-mono bg-red-50 p-2 rounded-sm mt-2">
                           <div><strong>Errore:</strong> {firebaseDebugData.data.stato_inizializzazione.test_invio.errore}</div>
                           {firebaseDebugData.data.stato_inizializzazione.test_invio.codice && (
                             <div><strong>Codice:</strong> {firebaseDebugData.data.stato_inizializzazione.test_invio.codice}</div>
                           )}
                           {/* Suggerimenti specifici basati sul codice errore */}
                           {firebaseDebugData.data.stato_inizializzazione.test_invio.codice === 'app/invalid-credential' && (
-                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-sm">
                               <strong>💡 Suggerimenti per invalid-credential:</strong>
                               <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
                                 <li>Verifica che la chiave privata corrisponda al service account corretto</li>
@@ -620,7 +620,7 @@ export default function NotificheDemos() {
                             </div>
                           )}
                           {firebaseDebugData.data.stato_inizializzazione.test_invio.errore.includes('invalid_grant') && (
-                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-sm">
                               <strong>💡 Suggerimenti per invalid_grant (account not found):</strong>
                               <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
                                 <li><strong>VERIFICA CRITICA:</strong> Il FIREBASE_CLIENT_EMAIL su Render.com deve corrispondere ESATTAMENTE all'email nel file JSON scaricato</li>
@@ -646,7 +646,7 @@ export default function NotificheDemos() {
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
                       <div className="font-semibold mb-2">Errore durante l'inizializzazione:</div>
-                      <div className="text-sm font-mono bg-red-50 p-2 rounded">
+                      <div className="text-sm font-mono bg-red-50 p-2 rounded-sm">
                         <div><strong>Messaggio:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.message}</div>
                         {firebaseDebugData.data.stato_inizializzazione.errore.code && (
                           <div><strong>Codice:</strong> {firebaseDebugData.data.stato_inizializzazione.errore.code}</div>
@@ -682,7 +682,7 @@ export default function NotificheDemos() {
                           <ol className="list-decimal list-inside space-y-1 text-sm">
                             <li>Vai su Render.com → demos-backend → Environment Variables</li>
                             <li>Trova <code>FIREBASE_CLIENT_EMAIL</code></li>
-                            <li>Aggiorna il valore con: <code className="bg-gray-100 px-1 rounded">firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com</code></li>
+                            <li>Aggiorna il valore con: <code className="bg-gray-100 px-1 rounded-sm">firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com</code></li>
                             <li>Assicurati che corrisponda ESATTAMENTE all'email nel file JSON scaricato (campo <code>"client_email"</code>)</li>
                             <li>Salva e riavvia il servizio</li>
                           </ol>
@@ -698,7 +698,7 @@ export default function NotificheDemos() {
                             <li>Riavvia il servizio dopo aver modificato le variabili</li>
                           </ol>
                           {firebaseDebugData.data.stato_inizializzazione.errore?.code === 'app/invalid-credential' && (
-                            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-sm">
                               <strong>⚠️ Errore invalid-credential specifico:</strong>
                               <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
                                 <li>Genera una nuova chiave dal service account su Firebase Console</li>
@@ -717,7 +717,7 @@ export default function NotificheDemos() {
                 {firebaseDebugData.data.verifica_corrispondenza && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <div className="font-semibold mb-2 text-xs">Verifica Corrispondenza:</div>
-                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded-sm">
                       <div className="flex items-center gap-2">
                         <span className={firebaseDebugData.data.verifica_corrispondenza.project_id_match ? "text-green-600" : "text-red-600"}>
                           {firebaseDebugData.data.verifica_corrispondenza.project_id_match ? "✅" : "❌"}
@@ -737,7 +737,7 @@ export default function NotificheDemos() {
                         <span>Client Email corrisponde esattamente</span>
                       </div>
                       {!firebaseDebugData.data.verifica_corrispondenza.client_email_matches && (
-                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-sm text-xs">
                           <div><strong>Atteso:</strong> <code>{firebaseDebugData.data.verifica_corrispondenza.client_email_expected}</code></div>
                           <div><strong>Attuale:</strong> <code>{firebaseDebugData.data.verifica_corrispondenza.client_email_actual}</code></div>
                           <div className="mt-1 text-red-600 font-semibold">⚠️ I valori non corrispondono! Aggiorna FIREBASE_CLIENT_EMAIL su Render.com</div>
@@ -751,7 +751,7 @@ export default function NotificheDemos() {
                 {firebaseDebugData.data.tempo_server && (
                   <div className="mt-3 pt-3 border-t border-gray-300">
                     <div className="font-semibold mb-2 text-xs">Tempo Server:</div>
-                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                    <div className="text-xs space-y-1 bg-gray-50 p-2 rounded-sm">
                       <div className="flex items-center gap-2">
                         <span className={firebaseDebugData.data.tempo_server.sincronizzato ? "text-green-600" : "text-yellow-600"}>
                           {firebaseDebugData.data.tempo_server.sincronizzato ? "✅" : "⚠️"}
@@ -761,7 +761,7 @@ export default function NotificheDemos() {
                       <div>Differenza: {firebaseDebugData.data.tempo_server.differenza_secondi} secondi</div>
                       <div>Timestamp: {firebaseDebugData.data.tempo_server.timestamp}</div>
                       {firebaseDebugData.data.tempo_server.avviso && (
-                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-sm text-xs text-yellow-800">
                           {firebaseDebugData.data.tempo_server.avviso}
                         </div>
                       )}
@@ -791,7 +791,7 @@ export default function NotificheDemos() {
 
           {/* Sezione 2: Test Notifiche Push */}
           <div className="flex flex-col">
-        <Card className="bg-white shadow-sm h-full flex flex-col">
+        <Card className="bg-white shadow-xs h-full flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <TestTube className="h-5 w-5 text-emerald-600" />
@@ -888,7 +888,7 @@ export default function NotificheDemos() {
         </Card>
 
         {/* Form */}
-        <Card className="bg-white shadow-sm">
+        <Card className="bg-white shadow-xs">
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center gap-2">
               <Bell className="h-5 w-5" />
@@ -975,7 +975,7 @@ export default function NotificheDemos() {
 
           {/* Sezione 3: Notifica a Utente */}
           <div className="flex flex-col">
-            <Card className="bg-white shadow-sm h-full flex flex-col sticky top-4">
+            <Card className="bg-white shadow-xs h-full flex flex-col sticky top-4">
               <CardHeader>
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <User className="h-5 w-5 text-purple-600" />

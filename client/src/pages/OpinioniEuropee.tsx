@@ -203,7 +203,7 @@ export default function OpinioniEuropee() {
   const unlockDate = null;
 
   return (
-    <div className="flex flex-col bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <div className="flex flex-col bg-linear-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         <Card className="w-full max-w-4xl mx-auto">
           <CardHeader className="text-center">
@@ -237,7 +237,7 @@ export default function OpinioniEuropee() {
                             {options.map((option, idx) => (
                               <button
                                 key={option.value} type="button"
-                                className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${normalizeAnswer(opinions[question.id]) === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
+                                className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-hidden border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${normalizeAnswer(opinions[question.id]) === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
                                 onClick={() => handleOpinionChange(question.id, option.value)}
                                 disabled={blocco?.isBlocked}
                               >
@@ -275,7 +275,7 @@ export default function OpinioniEuropee() {
                             {options.map((option, idx) => (
                               <button
                                 key={option.value} type="button"
-                                className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${normalizeAnswer(opinions[question.id]) === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
+                                className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-hidden border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${normalizeAnswer(opinions[question.id]) === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
                                 onClick={() => handleOpinionChange(question.id, option.value)}
                                 disabled={blocco?.isBlocked}
                               >
@@ -299,7 +299,7 @@ export default function OpinioniEuropee() {
                   </Button>
                 </div>
                 {blocco?.isBlocked && (
-                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
+                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-sm text-center">
                     <b>Hai già modificato le opinioni questa settimana.</b><br />
                     Potrai farlo di nuovo dal: {unlockDate || "-"}
                   </div>

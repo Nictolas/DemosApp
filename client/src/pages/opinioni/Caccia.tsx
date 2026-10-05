@@ -200,7 +200,7 @@ export default function Caccia() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       {isLoading || isLoadingStats ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -217,7 +217,7 @@ export default function Caccia() {
           
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center">
+              <CardTitle className="text-2xl font-bold bg-linear-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center">
                 <Target className="mr-2 h-6 w-6 text-primary" /> Caccia
               </CardTitle>
               <CardDescription>
@@ -234,7 +234,7 @@ export default function Caccia() {
                 <div className="space-y-8">
                   
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardContent className="pt-6">
                         <div className="flex items-center space-x-2">
                           <User className="h-6 w-6 text-primary" />
@@ -246,10 +246,10 @@ export default function Caccia() {
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardContent className="pt-6">
                         <div className="flex items-center space-x-2">
-                          <div className="h-6 w-6 bg-emerald-500 rounded"></div>
+                          <div className="h-6 w-6 bg-emerald-500 rounded-sm"></div>
                           <div>
                             <p className="text-2xl font-bold text-emerald-600">{stats.favorevoli}</p>
                             <p className="text-sm text-muted-foreground">Favorevoli</p>
@@ -258,10 +258,10 @@ export default function Caccia() {
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardContent className="pt-6">
                         <div className="flex items-center space-x-2">
-                          <div className="h-6 w-6 bg-amber-500 rounded"></div>
+                          <div className="h-6 w-6 bg-amber-500 rounded-sm"></div>
                           <div>
                             <p className="text-2xl font-bold text-amber-600">{stats.indecisi}</p>
                             <p className="text-sm text-muted-foreground">Indecisi</p>
@@ -270,10 +270,10 @@ export default function Caccia() {
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardContent className="pt-6">
                         <div className="flex items-center space-x-2">
-                          <div className="h-6 w-6 bg-red-500 rounded"></div>
+                          <div className="h-6 w-6 bg-red-500 rounded-sm"></div>
                           <div>
                             <p className="text-2xl font-bold text-red-600">{stats.contrari}</p>
                             <p className="text-sm text-muted-foreground">Contrari</p>
@@ -283,7 +283,7 @@ export default function Caccia() {
                     </Card>
                   </div>
 
-                  <Card className="shadow-sm">
+                  <Card className="shadow-xs">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xl">Distribuzione Generale</CardTitle>
                     </CardHeader>
@@ -305,7 +305,7 @@ export default function Caccia() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm">
+                  <Card className="shadow-xs">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xl flex items-center">
                         <Calendar className="mr-2 h-5 w-5" />
@@ -331,7 +331,7 @@ export default function Caccia() {
                   </Card>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
                       </CardHeader>
@@ -356,7 +356,7 @@ export default function Caccia() {
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xl">Distribuzione per Fascia d'Età</CardTitle>
                       </CardHeader>

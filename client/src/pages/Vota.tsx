@@ -24,7 +24,7 @@ export default function Vota() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -49,7 +49,7 @@ export default function Vota() {
           {/* Capo di Stato */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/capo-di-stato"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -68,7 +68,7 @@ export default function Vota() {
           {/* Governo */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/governo"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -87,7 +87,7 @@ export default function Vota() {
           {/* Grazia */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/grazia"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -106,7 +106,7 @@ export default function Vota() {
           {/* Amnistia */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/amnistia"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -125,7 +125,7 @@ export default function Vota() {
           {/* Iniziativa Popolare */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/vota-iniziativa-popolare"}
             onContextMenu={e => e.preventDefault()}
           >
@@ -144,7 +144,7 @@ export default function Vota() {
           {/* Referendum Abrogativo */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => window.location.href = "/vota-referendum-abrogativo"}
             onContextMenu={e => e.preventDefault()}
           >

@@ -13,17 +13,17 @@ export const LogoutSection: React.FC<LogoutSectionProps> = ({
   onLogout
 }) => {
   return (
-    <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white via-red-50/30 to-pink-50/50 backdrop-blur-sm">
+    <Card className="relative overflow-hidden border-0 shadow-2xl bg-linear-to-br from-white via-red-50/30 to-pink-50/50 backdrop-blur-xs">
       {/* Decorative background */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-red-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-linear-to-tr from-orange-400/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
       
       <CardHeader className="relative">
         <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-lg">
+          <div className="h-10 w-10 rounded-xl bg-linear-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-lg">
             <LogOut className="h-5 w-5 text-white" />
           </div>
-          <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
             Esci dall'Account
           </span>
         </CardTitle>
@@ -35,7 +35,7 @@ export const LogoutSection: React.FC<LogoutSectionProps> = ({
       <CardContent className="relative">
         <Button 
           variant="destructive" 
-          className="w-full h-14 rounded-xl bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
+          className="w-full h-14 rounded-xl bg-linear-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
           onClick={onLogout}
           disabled={isLoggingOut}
         >

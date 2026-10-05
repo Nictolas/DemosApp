@@ -63,7 +63,7 @@ export default function Sondaggi() {
 
   const GENERE_COLORS = ['#3B82F6', '#EC4899', '#FCD34D']; // Blu, Rosa, Giallo
 
-  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen bg-linear-to-b from-blue-50 to-indigo-100"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
   
   // Controllo più flessibile per l'accesso ai sondaggi
@@ -72,7 +72,7 @@ export default function Sondaggi() {
   if (!hasAdvancedAccess) return <Redirect to="/menu" />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
       <div className="container mx-auto max-w-7xl p-6">
         {/* Header con navigazione */}
         <div className="mb-8">

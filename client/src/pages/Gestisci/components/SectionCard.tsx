@@ -90,7 +90,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section, compact = fal
       <div className={`relative z-10 w-full h-full ${compact ? "px-3 py-2" : "p-4"}`}>
         <div className={`w-full h-full ${compact ? "flex items-center gap-3" : "flex flex-col justify-between gap-3"}`}>
           <span
-            className={`relative flex items-center justify-center flex-shrink-0 rounded-xl ${
+            className={`relative flex items-center justify-center shrink-0 rounded-xl ${
               compact ? "w-8 h-8" : "w-14 h-14"
             }`}
             style={{ backgroundColor: `${bgColor}22` }}

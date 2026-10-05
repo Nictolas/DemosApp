@@ -124,7 +124,7 @@ export const ConsensoGovernoSection: React.FC<ConsensoGovernoSectionProps> = ({
                 <button
                   key={option.value}
                   type="button"
-                  className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                  className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-hidden border border-gray-200 ${
                     idx === 0 ? 'rounded-l-full' : ''
                   } ${
                     idx === 2 ? 'rounded-r-full' : ''

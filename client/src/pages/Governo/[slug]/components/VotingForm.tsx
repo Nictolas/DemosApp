@@ -40,11 +40,11 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   const hasReachedLimit = currentVotes >= limit;
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4">
+    <Card className="bg-linear-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
+      <CardHeader className="bg-linear-to-r from-blue-600 to-indigo-600 text-white pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-xs">
               <ThumbsUp className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -60,7 +60,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               className={`flex items-center space-x-1.5 px-3 py-1.5 text-sm font-semibold ${
                 hasReachedLimit 
                   ? "bg-red-500 hover:bg-red-600 text-white" 
-                  : "bg-white/20 backdrop-blur-sm text-white border-white/30"
+                  : "bg-white/20 backdrop-blur-xs text-white border-white/30"
               }`}
             >
               <Info className="h-4 w-4" />
@@ -69,7 +69,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         </div>
         {hasReachedLimit && (
-          <div className="mt-3 p-3 bg-yellow-500/20 backdrop-blur-sm rounded-lg border border-yellow-300/30">
+          <div className="mt-3 p-3 bg-yellow-500/20 backdrop-blur-xs rounded-lg border border-yellow-300/30">
             <p className="text-yellow-100 font-medium flex items-center">
               <Info className="h-4 w-4 mr-2" />
               Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
@@ -131,11 +131,11 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               {votingState.selectedVoti.map((voto) => (
                 <div
                   key={voto}
-                  className="group relative p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                  className="group relative p-4 bg-linear-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 flex-1">
-                      <div className="flex-shrink-0 p-2 bg-green-500 rounded-full">
+                      <div className="shrink-0 p-2 bg-green-500 rounded-full">
                         <CheckCircle2 className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -147,7 +147,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
                     <button
                       onClick={() => onRemove(voto)}
                       disabled={isBlocked}
-                      className="ml-4 flex-shrink-0 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-300 transform hover:scale-110 shadow-md hover:shadow-xl group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-4 shrink-0 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-300 transform hover:scale-110 shadow-md hover:shadow-xl group/btn disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Rimuovi voto"
                     >
                       <X className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-300" />
@@ -159,7 +159,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         ) : (
           <div className="text-center py-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-20 h-20 bg-linear-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
               <ThumbsUp className="h-10 w-10 text-gray-400" />
             </div>
             <p className="text-gray-600 font-medium">Nessun candidato selezionato</p>

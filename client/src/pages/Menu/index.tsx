@@ -35,7 +35,7 @@ export default function Menu() {
   // Mostra loader se l'utente non è ancora caricato ma c'è un token
   if ((isLoading || !user) && hasToken) {
     return (
-      <PageContainer className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
+      <PageContainer className={`menu-page flex flex-col bg-linear-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
           <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -46,10 +46,10 @@ export default function Menu() {
   }
 
   return (
-    <div className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`} style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+    <div className={`menu-page flex flex-col bg-linear-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`} style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
       <div className="container mx-auto px-4 py-4 flex flex-col" style={{ flex: '0 0 auto' }}>
         <div className="w-full max-w-4xl mx-auto flex flex-col pb-4">
-          <Card className="w-full flex-shrink-0">
+          <Card className="w-full shrink-0">
             <MenuHeader 
               key={`header-${user?.email || 'no-user'}`}
               isAdmin={isAdmin}

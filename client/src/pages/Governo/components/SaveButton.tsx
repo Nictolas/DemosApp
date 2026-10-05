@@ -10,7 +10,7 @@ export const SaveButton: React.FC<SaveButtonProps> = ({
   onSave
 }) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t">
+    <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-xs border-t">
       <div className="container mx-auto max-w-7xl flex justify-end">
         <Button 
           size="lg" 

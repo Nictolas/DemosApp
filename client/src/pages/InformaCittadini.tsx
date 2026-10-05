@@ -221,7 +221,7 @@ export default function InformaCittadini() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
@@ -229,7 +229,7 @@ export default function InformaCittadini() {
             variant="ghost"
             size="icon"
             onClick={() => setLocation("/strumenti")}
-            className="flex-shrink-0"
+            className="shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -245,7 +245,7 @@ export default function InformaCittadini() {
         </div>
 
         {/* Form */}
-        <Card className="bg-white shadow-sm">
+        <Card className="bg-white shadow-xs">
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center gap-2">
               <Bell className="h-5 w-5 text-emerald-600" />
@@ -266,7 +266,7 @@ export default function InformaCittadini() {
                         key={tematica.id}
                         type="button"
                         variant="outline"
-                        className={`min-h-[6rem] rounded-2xl border-0 bg-gradient-to-br ${tematica.bgColor} text-white text-sm px-3 py-3 flex flex-col items-center justify-center gap-2 transition-all duration-200 opacity-90 hover:opacity-100 hover:scale-105`}
+                        className={`min-h-24 rounded-2xl border-0 bg-linear-to-br ${tematica.bgColor} text-white text-sm px-3 py-3 flex flex-col items-center justify-center gap-2 transition-all duration-200 opacity-90 hover:opacity-100 hover:scale-105`}
                         onClick={() => setTematicheSelezionata(tematica.id)}
                       >
                         <span className="text-4xl leading-none">{tematica.emoji}</span>
@@ -300,7 +300,7 @@ export default function InformaCittadini() {
                         key={tipo.value}
                         type="button"
                         variant="outline"
-                        className={`min-h-[6.5rem] rounded-2xl border-0 bg-gradient-to-br ${tematicaSelezionata.bgColor} text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
+                        className={`min-h-26 rounded-2xl border-0 bg-linear-to-br ${tematicaSelezionata.bgColor} text-white text-sm px-2 py-2 flex flex-col items-center justify-center gap-1 transition-all duration-200
                           ${tipologia === tipo.value ? "ring-2 ring-emerald-500 scale-95" : "opacity-90 hover:opacity-100 hover:scale-105"}`}
                         onClick={() => {
                           setTipologia(tipo.value);
@@ -308,7 +308,7 @@ export default function InformaCittadini() {
                         }}
                       >
                         <span className="text-3xl leading-none">{tipo.emoji}</span>
-                        <span className="text-[11px] text-center leading-snug break-words whitespace-normal">
+                        <span className="text-[11px] text-center leading-snug wrap-break-word whitespace-normal">
                           {tipo.value}
                         </span>
                       </Button>

@@ -101,7 +101,7 @@ export const EmergencyDialog: React.FC<EmergencyDialogProps> = ({
             <div key={index} className="flex flex-col gap-2">
               <Button
                 onClick={() => handleCall(emergencyNumber.number)}
-                className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3"
+                className="w-full h-14 rounded-xl bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3"
               >
                 <Phone className="h-5 w-5" />
                 <span>{emergencyNumber.label}</span>
@@ -120,7 +120,7 @@ export const EmergencyDialog: React.FC<EmergencyDialogProps> = ({
               <Button
                 onClick={handleNotifyNeighbors}
                 disabled={isNotifying}
-                className="w-full h-14 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full h-14 rounded-xl bg-linear-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
               >
                 {isNotifying ? (
                   <>

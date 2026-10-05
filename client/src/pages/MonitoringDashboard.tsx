@@ -453,13 +453,13 @@ const MonitoringDashboard: React.FC = () => {
     { key: 'performance', label: 'Performance', href: '/monitoring-dashboard/performance', icon: Activity }
   ] as const;
 
-  const surfaceCardClass = 'border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm';
-  const sectionCardClass = 'border-slate-200/70 bg-white/90 shadow-sm';
+  const surfaceCardClass = 'border-slate-200/70 bg-white/85 backdrop-blur-xs shadow-xs';
+  const sectionCardClass = 'border-slate-200/70 bg-white/90 shadow-xs';
   const tableHeadClass = 'text-left border-b bg-slate-50 text-slate-700';
   const tableRowClass = 'border-b last:border-0 hover:bg-slate-50/70 transition-colors';
 
   return (
-    <div className="w-full mx-auto px-4 md:px-8 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef2ff_0%,_#f8fbff_38%,_#ffffff_72%)]">
+    <div className="w-full mx-auto px-4 md:px-8 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0%,#f8fbff_38%,#ffffff_72%)]">
       <div className={`mb-6 rounded-2xl p-5 md:p-6 ${surfaceCardClass}`}>
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
@@ -507,7 +507,7 @@ const MonitoringDashboard: React.FC = () => {
                 onClick={toggleMonitoring} 
                 disabled={isToggling}
                 variant={isMonitoring ? 'destructive' : 'default'}
-                className="shadow-sm"
+                className="shadow-xs"
               >
                 {isMonitoring ? (
                   <>
@@ -531,7 +531,7 @@ const MonitoringDashboard: React.FC = () => {
       </Card>
 
       <div className="space-y-6">
-        <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 p-1 rounded-xl border border-slate-200/70 bg-white/80 backdrop-blur-sm">
+        <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 p-1 rounded-xl border border-slate-200/70 bg-white/80 backdrop-blur-xs">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (

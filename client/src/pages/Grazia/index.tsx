@@ -55,14 +55,14 @@ export default function Grazia() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-6xl">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
 
         {error ? (
-          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
+          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-sm">
             <b>Errore nel caricamento dei dati:</b><br />
             {error.message}
           </div>

@@ -122,7 +122,7 @@ export default function Riconoscimenti() {
 
   if (!isAdmin) {
     return (
-      <PageContainer className="flex items-center justify-center bg-gradient-to-b from-slate-50 to-white">
+      <PageContainer className="flex items-center justify-center bg-linear-to-b from-slate-50 to-white">
         <Card className="max-w-lg w-full">
           <CardHeader>
             <CardTitle>Accesso negato</CardTitle>
@@ -136,7 +136,7 @@ export default function Riconoscimenti() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+    <PageContainer className="bg-linear-to-br from-slate-50 via-white to-emerald-50">
       <Card className="w-full max-w-5xl mx-auto shadow-xl border-0">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">

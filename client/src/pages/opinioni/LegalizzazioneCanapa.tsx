@@ -150,7 +150,7 @@ export default function LegalizzazioneCanapa() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4">
       {isLoading || isLoadingStats ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -163,7 +163,7 @@ export default function LegalizzazioneCanapa() {
           
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center">
+              <CardTitle className="text-2xl font-bold bg-linear-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center">
                 <Leaf className="mr-2 h-6 w-6 text-primary" /> Legalizzazione Canapa
               </CardTitle>
               <CardDescription>Statistiche dettagliate sull'opinione riguardo la legalizzazione della canapa</CardDescription>
@@ -177,11 +177,11 @@ export default function LegalizzazioneCanapa() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
                       { icon: User, value: stats.total, label: "Totale Risposte", color: "text-primary" },
-                      { icon: () => <div className="h-6 w-6 bg-emerald-500 rounded"></div>, value: stats.favorevoli, label: "Favorevoli", color: "text-emerald-600" },
-                      { icon: () => <div className="h-6 w-6 bg-amber-500 rounded"></div>, value: stats.indecisi, label: "Indecisi", color: "text-amber-600" },
-                      { icon: () => <div className="h-6 w-6 bg-red-500 rounded"></div>, value: stats.contrari, label: "Contrari", color: "text-red-600" }
+                      { icon: () => <div className="h-6 w-6 bg-emerald-500 rounded-sm"></div>, value: stats.favorevoli, label: "Favorevoli", color: "text-emerald-600" },
+                      { icon: () => <div className="h-6 w-6 bg-amber-500 rounded-sm"></div>, value: stats.indecisi, label: "Indecisi", color: "text-amber-600" },
+                      { icon: () => <div className="h-6 w-6 bg-red-500 rounded-sm"></div>, value: stats.contrari, label: "Contrari", color: "text-red-600" }
                     ].map((item, index) => (
-                      <Card key={index} className="shadow-sm">
+                      <Card key={index} className="shadow-xs">
                         <CardContent className="pt-6">
                           <div className="flex items-center space-x-2">
                             <item.icon className="h-6 w-6 text-primary" />
@@ -195,7 +195,7 @@ export default function LegalizzazioneCanapa() {
                     ))}
                   </div>
 
-                  <Card className="shadow-sm">
+                  <Card className="shadow-xs">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xl">Distribuzione Generale</CardTitle>
                     </CardHeader>
@@ -206,7 +206,7 @@ export default function LegalizzazioneCanapa() {
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm">
+                  <Card className="shadow-xs">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-xl flex items-center">
                         <Calendar className="mr-2 h-5 w-5" />
@@ -230,7 +230,7 @@ export default function LegalizzazioneCanapa() {
                   </Card>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
                       </CardHeader>
@@ -240,7 +240,7 @@ export default function LegalizzazioneCanapa() {
                         </div>
                       </CardContent>
                     </Card>
-                    <Card className="shadow-sm">
+                    <Card className="shadow-xs">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xl">Distribuzione per Fascia d'Età</CardTitle>
                       </CardHeader>

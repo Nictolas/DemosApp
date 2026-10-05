@@ -94,11 +94,11 @@ export function SelectMobileTest() {
       <h3 className="text-xl font-bold text-green-700 mb-4">📱 SELECT MOBILE TEST - SIMULAZIONE PROBLEMA UTENTE</h3>
       
       {/* Test Results */}
-      <div className="mb-4 p-3 bg-white rounded border">
+      <div className="mb-4 p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">Risultati Test:</h4>
         <div className="space-y-1">
           {testResults.map((result, index) => (
-            <div key={index} className="text-sm p-1 bg-gray-50 rounded">
+            <div key={index} className="text-sm p-1 bg-gray-50 rounded-sm">
               {result}
             </div>
           ))}
@@ -109,7 +109,7 @@ export function SelectMobileTest() {
       <div className="mb-4 space-y-2">
         <button
           onClick={runMobileTest}
-          className="px-4 py-2 bg-green-500 text-white rounded font-semibold"
+          className="px-4 py-2 bg-green-500 text-white rounded-sm font-semibold"
           disabled={testStep > 0}
         >
           🚀 Esegui Test Mobile Completo
@@ -117,21 +117,21 @@ export function SelectMobileTest() {
         
         <button
           onClick={testTouchStability}
-          className="px-4 py-2 bg-blue-500 text-white rounded ml-2"
+          className="px-4 py-2 bg-blue-500 text-white rounded-sm ml-2"
         >
           🧪 Test Stabilità Touch
         </button>
         
         <button
           onClick={testOrientation}
-          className="px-4 py-2 bg-purple-500 text-white rounded ml-2"
+          className="px-4 py-2 bg-purple-500 text-white rounded-sm ml-2"
         >
           📱 Test Orientamento
         </button>
         
         <button
           onClick={testZoom}
-          className="px-4 py-2 bg-orange-500 text-white rounded ml-2"
+          className="px-4 py-2 bg-orange-500 text-white rounded-sm ml-2"
         >
           🔍 Test Zoom
         </button>
@@ -150,7 +150,7 @@ export function SelectMobileTest() {
             onOpenChange={setIsOpen}
           >
             <SelectPrimitive.Trigger
-              className="flex h-10 w-full items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 backgroundColor: 'white',
                 color: 'black',
@@ -167,7 +167,7 @@ export function SelectMobileTest() {
 
             <SelectPrimitive.Portal>
               <SelectPrimitive.Content
-                className="relative min-w-[8rem] overflow-hidden rounded-md border shadow-md"
+                className="relative min-w-32 overflow-hidden rounded-md border shadow-md"
                 style={{
                   backgroundColor: 'white',
                   color: 'black',
@@ -178,7 +178,7 @@ export function SelectMobileTest() {
                 <SelectPrimitive.Viewport className="p-1">
                   <SelectPrimitive.Item
                     value="uomo"
-                    className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none"
+                    className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden"
                     style={{
                       backgroundColor: 'white',
                       color: 'black',
@@ -195,7 +195,7 @@ export function SelectMobileTest() {
 
                   <SelectPrimitive.Item
                     value="donna"
-                    className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none"
+                    className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden"
                     style={{
                       backgroundColor: 'white',
                       color: 'black',
@@ -212,7 +212,7 @@ export function SelectMobileTest() {
 
                   <SelectPrimitive.Item
                     value="altro"
-                    className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none"
+                    className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden"
                     style={{
                       backgroundColor: 'white',
                       color: 'black',
@@ -238,7 +238,7 @@ export function SelectMobileTest() {
       </div>
 
       {/* Stato attuale */}
-      <div className="p-3 bg-white rounded border">
+      <div className="p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">Stato Attuale:</h4>
         <p><strong>Valore:</strong> {value || 'Nessuno'}</p>
         <p><strong>Is Open:</strong> {isOpen ? 'Sì' : 'No'}</p>

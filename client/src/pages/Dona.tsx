@@ -6,7 +6,7 @@ import { Link } from "wouter";
 
 export default function Dona() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 page-with-navbar">
       <div className="container mx-auto p-4 max-w-xl flex flex-col items-center justify-center">
         <Card className="mt-10 w-full">
           <CardHeader className="flex flex-col items-center">

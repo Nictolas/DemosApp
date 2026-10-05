@@ -70,7 +70,7 @@ export default function Approfondimento() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-lg text-gray-600">Caricamento approfondimento...</p>
@@ -81,7 +81,7 @@ export default function Approfondimento() {
 
   if (error || !approfondimento) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-red-100 to-red-200 page-with-navbar flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-red-50 via-red-100 to-red-200 page-with-navbar flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-lg shadow-xl">
           <FileText className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-red-700 mb-4">Errore</h2>
@@ -96,7 +96,7 @@ export default function Approfondimento() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
       <div className="container mx-auto max-w-4xl p-6">
         <Button 
           variant="ghost" 
@@ -108,7 +108,7 @@ export default function Approfondimento() {
         </Button>
         
         <Card className="shadow-lg">
-          <CardHeader className="text-center bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+          <CardHeader className="text-center bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
             <CardTitle className="text-2xl font-bold">
               Approfondimento
             </CardTitle>

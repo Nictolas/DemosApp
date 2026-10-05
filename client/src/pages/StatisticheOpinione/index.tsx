@@ -28,7 +28,7 @@ export default function StatisticheOpinione() {
   // Se non c'è un opinionId, mostra il selettore delle opinioni
   if (!opinionId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
         <div className="container mx-auto max-w-7xl p-6">
           <OpinionSelector />
         </div>
@@ -64,7 +64,7 @@ export default function StatisticheOpinione() {
   console.log('🔍 DEBUG - etaBarData processed:', etaBarData);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-7xl p-6">
         {/* Header con navigazione */}
         <Header questionText={questionText} />

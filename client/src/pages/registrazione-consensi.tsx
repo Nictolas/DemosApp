@@ -161,7 +161,7 @@ export default function RegistrazioneConsensiWizard() {
       </p>
       <Button
         type="button"
-        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
+        className="w-full h-12 text-lg font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
         onClick={handleNext}
       >
         Accetto
@@ -201,7 +201,7 @@ export default function RegistrazioneConsensiWizard() {
       </p>
       <Button
         type="button"
-        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
+        className="w-full h-12 text-lg font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
         onClick={handleNext}
       >
         Accetto
@@ -242,7 +242,7 @@ export default function RegistrazioneConsensiWizard() {
       </p>
       <Button
         type="button"
-        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
+        className="w-full h-12 text-lg font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
         onClick={handleNext}
       >
         Accetto
@@ -437,7 +437,7 @@ export default function RegistrazioneConsensiWizard() {
       </div>
       <Button
         type="button"
-        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
+        className="w-full h-12 text-lg font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
         onClick={handleNext}
         disabled={!regioneResidenza}
       >
@@ -495,7 +495,7 @@ export default function RegistrazioneConsensiWizard() {
       </div>
       <Button
         type="button"
-        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
+        className="w-full h-12 text-lg font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
         onClick={handleNext}
         disabled={!provinciaResidenza}
       >
@@ -553,7 +553,7 @@ export default function RegistrazioneConsensiWizard() {
       </div>
       <Button
         type="button"
-        className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
+        className="w-full h-12 text-lg font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
         onClick={handleNext}
         disabled={!comuneResidenza}
       >
@@ -572,7 +572,7 @@ export default function RegistrazioneConsensiWizard() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 overflow-x-hidden overflow-y-auto">
       {/* Contenitore orizzontale: ogni step è un intero riquadro che scorre */}
       <div className="w-full max-w-md overflow-x-hidden min-h-0">
         <div
@@ -580,49 +580,49 @@ export default function RegistrazioneConsensiWizard() {
           style={{ transform: `translateX(-${(step - 1) * 100}%)` }}
         >
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 1 ? 1 : 0.8})` }}
           >
             {step1Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 2 ? 1 : 0.8})` }}
           >
             {step2Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 3 ? 1 : 0.8})` }}
           >
             {step3Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 4 ? 1 : 0.8})` }}
           >
             {step5Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 5 ? 1 : 0.8})` }}
           >
             {step7Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 6 ? 1 : 0.8})` }}
           >
             {step8Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 7 ? 1 : 0.8})` }}
           >
             {step9Content}
           </div>
           <div
-            className="w-full flex-shrink-0 flex-grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
+            className="w-full shrink-0 grow-0 basis-full flex justify-center transition-transform duration-300 ease-out"
             style={{ transform: `scale(${step === 8 ? 1 : 0.8})` }}
           >
             {step10Content}

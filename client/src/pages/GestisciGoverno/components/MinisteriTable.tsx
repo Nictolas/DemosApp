@@ -31,7 +31,7 @@ export function MinisteriTable({
 }: MinisteriTableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full border text-sm bg-white rounded shadow">
+      <table className="min-w-full border text-sm bg-white rounded-sm shadow-sm">
         <thead>
           <tr className="bg-yellow-100">
             <th className="px-3 py-2 border-b text-left">Nome</th>

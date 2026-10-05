@@ -44,7 +44,7 @@ export function TestFormMinimal() {
 
   if (!formVisible) {
     return (
-      <div className="p-4 bg-yellow-100 border border-yellow-400 rounded">
+      <div className="p-4 bg-yellow-100 border border-yellow-400 rounded-sm">
         <h3>Form Nascosto</h3>
         <Button onClick={toggleForm}>Mostra Form</Button>
       </div>
@@ -52,8 +52,8 @@ export function TestFormMinimal() {
   }
 
   return (
-    <div className="p-4 border border-gray-300 rounded space-y-4">
-      <div className="bg-blue-100 p-2 rounded text-sm">
+    <div className="p-4 border border-gray-300 rounded-sm space-y-4">
+      <div className="bg-blue-100 p-2 rounded-sm text-sm">
         <p><strong>Render Count:</strong> {renderCount}</p>
         <p><strong>Last Action:</strong> {lastAction}</p>
         <p><strong>Form Visibile:</strong> Sì</p>

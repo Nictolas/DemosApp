@@ -33,7 +33,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-gray-500">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <div className="w-20 h-20 bg-linear-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Trophy className="h-10 w-10 text-gray-400" />
             </div>
             <p className="text-lg font-medium text-gray-600">
@@ -74,7 +74,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                     {classifica.find(c => c.nome === ref.nome)?.voti || 0} voti
                   </span>
                   <Button
-                    variant={haVotato ? "default" : "outline"}
+                    variant={haVotato ? "default" : "outline-solid"}
                     size="sm"
                     onClick={() => onToggleSelezione(ref.id)}
                     disabled={isPending || isBlocked}

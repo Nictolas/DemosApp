@@ -7,8 +7,8 @@ export const Header: React.FC = () => {
   return (
     <div className="relative mb-12">
       {/* Background decorative elements */}
-      <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
-      <div className="absolute -top-2 -right-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
+      <div className="absolute -top-4 -left-4 w-24 h-24 bg-linear-to-br from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
+      <div className="absolute -top-2 -right-4 w-16 h-16 bg-linear-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
       
       <div className="relative flex items-center gap-4">
         <Link href="/menu">
@@ -22,11 +22,11 @@ export const Header: React.FC = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
             <Settings className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
               Impostazioni
             </h1>
             <p className="text-gray-600 text-lg font-medium">

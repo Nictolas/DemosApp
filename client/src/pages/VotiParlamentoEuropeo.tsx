@@ -135,7 +135,7 @@ function evidenziaScadenzePassate(testo: string): string {
   scadenze.forEach((scadenza) => {
     if (scadenza.passata) {
       const regex = new RegExp(scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      testoEvidenziato = testoEvidenziato.replace(regex, `<span class="bg-yellow-200 text-yellow-900 px-1 rounded font-semibold">${scadenza.data} ⚠️ (scadenza passata)</span>`);
+      testoEvidenziato = testoEvidenziato.replace(regex, `<span class="bg-yellow-200 text-yellow-900 px-1 rounded-sm font-semibold">${scadenza.data} ⚠️ (scadenza passata)</span>`);
     }
   });
   

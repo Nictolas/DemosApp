@@ -26,7 +26,7 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
           <div className="flex flex-col items-center">
             <img src={appIcon} alt="Logo Demos" className="w-20 h-20 mb-2" />
             <h1 className="text-3xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 DEMOS
               </span>
             </h1>
@@ -53,7 +53,7 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
           <Button
             type="button"
             size="lg"
-            className="w-full h-14 text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 border border-blue-600"
+            className="w-full h-14 text-base font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 border border-blue-600"
             disabled={oauthBusy}
             onClick={handleGoogleLogin}
           >

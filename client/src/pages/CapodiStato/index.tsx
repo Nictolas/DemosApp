@@ -61,7 +61,7 @@ export default function CapodiStato() {
   }
 
   return (
-    <div className="capo-di-stato-page min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="capo-di-stato-page min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="w-full max-w-full mx-auto h-full min-h-0 lg:overflow-hidden flex flex-col">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />

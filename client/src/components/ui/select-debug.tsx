@@ -38,7 +38,7 @@ export function SelectDebug({
       <h3 className="text-lg font-bold text-red-700 mb-4">🔍 SELECT DEBUG</h3>
       
       {/* Info di debug */}
-      <div className="mb-4 p-3 bg-white rounded border">
+      <div className="mb-4 p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">Debug Info:</h4>
         <pre className="text-xs overflow-auto">
           {JSON.stringify(debugInfo, null, 2)}
@@ -55,7 +55,7 @@ export function SelectDebug({
         >
           <SelectPrimitive.Trigger
             className={cn(
-              "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
               "bg-white text-black"
             )}
             style={{
@@ -72,7 +72,7 @@ export function SelectDebug({
 
           <SelectPrimitive.Portal>
             <SelectPrimitive.Content
-              className="relative z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white text-black shadow-md"
+              className="relative z-9999 min-w-32 overflow-hidden rounded-md border bg-white text-black shadow-md"
               style={{
                 backgroundColor: 'white',
                 color: 'black',
@@ -85,7 +85,7 @@ export function SelectDebug({
                   <SelectPrimitive.Item
                     key={option.value}
                     value={option.value}
-                    className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-blue-50"
+                    className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden hover:bg-gray-100 focus:bg-blue-50"
                     style={{
                       backgroundColor: 'white',
                       color: 'black'
@@ -109,28 +109,28 @@ export function SelectDebug({
       <div className="space-y-2">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="px-3 py-2 bg-blue-500 text-white rounded text-sm"
+          className="px-3 py-2 bg-blue-500 text-white rounded-sm text-sm"
         >
           Toggle Open: {isOpen ? 'CHIUSO' : 'APERTO'}
         </button>
         
         <button
           onClick={() => onValueChange?.('opzione1')}
-          className="px-3 py-2 bg-green-500 text-white rounded text-sm ml-2"
+          className="px-3 py-2 bg-green-500 text-white rounded-sm text-sm ml-2"
         >
           Set Opzione 1
         </button>
         
         <button
           onClick={() => onValueChange?.('')}
-          className="px-3 py-2 bg-red-500 text-white rounded text-sm ml-2"
+          className="px-3 py-2 bg-red-500 text-white rounded-sm text-sm ml-2"
         >
           Clear
         </button>
       </div>
 
       {/* Stato attuale */}
-      <div className="mt-4 p-3 bg-white rounded border">
+      <div className="mt-4 p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">Stato Attuale:</h4>
         <p><strong>Valore:</strong> {value || 'Nessuno'}</p>
         <p><strong>Is Open:</strong> {isOpen ? 'Sì' : 'No'}</p>

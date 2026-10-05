@@ -59,10 +59,10 @@ export default function VotaIniziativaPopolare() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4">
       <div className="w-full max-w-full mx-auto">
         {error ? (
-          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
+          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-sm">
             <b>Errore nel caricamento dei dati:</b><br />
             {error.message}
           </div>

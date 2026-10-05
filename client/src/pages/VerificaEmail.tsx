@@ -36,14 +36,14 @@ const VerificaEmail: React.FC = () => {
   // Se non abbiamo email, mostra un messaggio di errore
   if (!email) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
           <Card className="shadow-2xl border-0 bg-white">
             <CardHeader className="text-center pb-6">
-              <div className="mx-auto mb-6 w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg">
+              <div className="mx-auto mb-6 w-20 h-20 bg-linear-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg">
                 <AlertCircle className="w-10 h-10 text-white" />
               </div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-600 bg-clip-text text-transparent">
+              <CardTitle className="text-3xl font-bold bg-linear-to-r from-red-600 to-red-600 bg-clip-text text-transparent">
                 Errore
               </CardTitle>
               <CardDescription className="text-lg text-gray-600 mt-2">
@@ -53,7 +53,7 @@ const VerificaEmail: React.FC = () => {
             <CardContent className="px-6 pb-6">
               <Button
                 onClick={handleGoHome}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full h-12 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Home className="w-5 h-5 mr-3" />
                 Torna alla Homepage
@@ -205,14 +205,14 @@ const VerificaEmail: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <Card className="shadow-2xl border-0 bg-white">
           <CardHeader className="text-center pb-6">
-            <div className="mx-auto mb-6 w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+            <div className="mx-auto mb-6 w-20 h-20 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
               <Mail className="w-10 h-10 text-white" />
             </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <CardTitle className="text-3xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Verifica la tua email
             </CardTitle>
             <CardDescription className="text-lg text-gray-600 mt-2">
@@ -227,7 +227,7 @@ const VerificaEmail: React.FC = () => {
           <CardContent className="space-y-6 px-6 pb-6">
             {isVerifying ? (
               <div className="text-center py-12">
-                <div className="mx-auto mb-6 w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+                <div className="mx-auto mb-6 w-16 h-16 bg-linear-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
                   <RefreshCw className="w-8 h-8 text-white animate-spin" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Verifica in corso...</h3>
@@ -235,24 +235,24 @@ const VerificaEmail: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                <div className="bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-xs">
                   <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div className="shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                       <AlertCircle className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="text-sm">
                       <p className="font-semibold text-blue-900 mb-3">Cosa fare ora:</p>
                       <ol className="space-y-2 text-blue-800">
                         <li className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 w-5 h-5 bg-blue-200 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                          <span className="shrink-0 w-5 h-5 bg-blue-200 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold">1</span>
                           <span>Controlla la tua casella di posta</span>
                         </li>
                         <li className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 w-5 h-5 bg-blue-200 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                          <span className="shrink-0 w-5 h-5 bg-blue-200 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold">2</span>
                           <span>Clicca sul link di verifica nell'email</span>
                         </li>
                         <li className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 w-5 h-5 bg-blue-200 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                          <span className="shrink-0 w-5 h-5 bg-blue-200 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold">3</span>
                           <span>Se non trovi l'email, controlla anche la cartella spam</span>
                         </li>
                       </ol>
@@ -264,7 +264,7 @@ const VerificaEmail: React.FC = () => {
                   <Button
                     onClick={resendVerificationEmail}
                     disabled={isResending}
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                    className="w-full h-12 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                     variant="default"
                   >
                     {isResending ? (

@@ -101,7 +101,7 @@ export function SelectUltraDebug() {
       <h3 className="text-xl font-bold text-purple-700 mb-4">🔬 SELECT ULTRA DEBUG</h3>
       
       {/* Info di debug ultra-dettagliate */}
-      <div className="mb-4 p-3 bg-white rounded border">
+      <div className="mb-4 p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">Debug Info Ultra:</h4>
         <pre className="text-xs overflow-auto">
           {JSON.stringify(debugInfo, null, 2)}
@@ -109,11 +109,11 @@ export function SelectUltraDebug() {
       </div>
 
       {/* Info CSS in tempo reale */}
-      <div className="mb-4 p-3 bg-white rounded border">
+      <div className="mb-4 p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">CSS Info Realtime:</h4>
         <button 
           onClick={refreshCssInfo}
-          className="mb-2 px-2 py-1 bg-purple-500 text-white rounded text-xs"
+          className="mb-2 px-2 py-1 bg-purple-500 text-white rounded-sm text-xs"
         >
           🔄 Refresh CSS Info
         </button>
@@ -131,7 +131,7 @@ export function SelectUltraDebug() {
           onOpenChange={setIsOpen}
         >
           <SelectPrimitive.Trigger
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               backgroundColor: 'white',
               color: 'black',
@@ -148,7 +148,7 @@ export function SelectUltraDebug() {
 
           <SelectPrimitive.Portal>
             <SelectPrimitive.Content
-              className="relative min-w-[8rem] overflow-hidden rounded-md border shadow-md"
+              className="relative min-w-32 overflow-hidden rounded-md border shadow-md"
               style={{
                 backgroundColor: 'white',
                 color: 'black',
@@ -163,7 +163,7 @@ export function SelectUltraDebug() {
               <SelectPrimitive.Viewport className="p-1">
                 <SelectPrimitive.Item
                   value="opzione1"
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none"
+                  className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden"
                   style={{
                     backgroundColor: 'white',
                     color: 'black',
@@ -180,7 +180,7 @@ export function SelectUltraDebug() {
 
                 <SelectPrimitive.Item
                   value="opzione2"
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none"
+                  className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden"
                   style={{
                     backgroundColor: 'white',
                     color: 'black',
@@ -204,21 +204,21 @@ export function SelectUltraDebug() {
       <div className="space-y-2">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="px-3 py-2 bg-purple-500 text-white rounded text-sm"
+          className="px-3 py-2 bg-purple-500 text-white rounded-sm text-sm"
         >
           Toggle Open: {isOpen ? 'CHIUSO' : 'APERTO'}
         </button>
         
         <button
           onClick={() => setValue('opzione1')}
-          className="px-3 py-2 bg-green-500 text-white rounded text-sm ml-2"
+          className="px-3 py-2 bg-green-500 text-white rounded-sm text-sm ml-2"
         >
           Set Opzione 1
         </button>
         
         <button
           onClick={() => setValue('')}
-          className="px-3 py-2 bg-red-500 text-white rounded text-sm ml-2"
+          className="px-3 py-2 bg-red-500 text-white rounded-sm text-sm ml-2"
         >
           Clear
         </button>
@@ -228,14 +228,14 @@ export function SelectUltraDebug() {
             // Forza refresh della pagina
             window.location.reload()
           }}
-          className="px-3 py-2 bg-orange-500 text-white rounded text-sm ml-2"
+          className="px-3 py-2 bg-orange-500 text-white rounded-sm text-sm ml-2"
         >
           🔄 Reload Page
         </button>
       </div>
 
       {/* Stato attuale ultra-dettagliato */}
-      <div className="mt-4 p-3 bg-white rounded border">
+      <div className="mt-4 p-3 bg-white rounded-sm border">
         <h4 className="font-semibold mb-2">Stato Attuale Ultra:</h4>
         <p><strong>Valore:</strong> {value || 'Nessuno'}</p>
         <p><strong>Is Open:</strong> {isOpen ? 'Sì' : 'No'}</p>

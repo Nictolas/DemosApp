@@ -49,7 +49,7 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
   const generePieData = prepareGenerePieData(genereData);
 
   return (
-    <div className={filterPath ? "min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-y-auto" : ""}>
+    <div className={filterPath ? "min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-y-auto" : ""}>
       <div className={filterPath ? "w-full px-4 lg:px-8 py-6" : ""}>
         {/* Header con navigazione */}
         <SondaggiHeader

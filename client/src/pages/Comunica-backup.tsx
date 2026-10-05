@@ -203,7 +203,7 @@ export default function Comunica() {
   // Show loading while user data is being fetched
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <div className="text-center">
@@ -231,7 +231,7 @@ export default function Comunica() {
   // Blocca completamente l'accesso per utenti "Elettore"
   if (!hasAdvancedAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+      <div className="min-h-screen bg-linear-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -274,7 +274,7 @@ export default function Comunica() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Pulsante Riscontro */}
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
@@ -306,7 +306,7 @@ export default function Comunica() {
           {/* Votazione (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation('/comunica')}
             onContextMenu={e => e.preventDefault()}
           >
@@ -325,7 +325,7 @@ export default function Comunica() {
           {/* Evento (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation('/evento')}
             onContextMenu={e => e.preventDefault()}
           >
@@ -345,7 +345,7 @@ export default function Comunica() {
           {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
               onClick={() => setLocation('/programma')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -366,7 +366,7 @@ export default function Comunica() {
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
               onClick={() => setLocation('/sostenitori')}
               onContextMenu={e => e.preventDefault()}
             >
@@ -386,7 +386,7 @@ export default function Comunica() {
           {/* Riscontro (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation('/riscontro')}
             onContextMenu={e => e.preventDefault()}
           >
@@ -405,7 +405,7 @@ export default function Comunica() {
           {/* Sondaggi (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation('/sondaggi')}
             onContextMenu={e => e.preventDefault()}
           >

@@ -43,7 +43,7 @@ export const EditableDropdown: React.FC<EditableDropdownProps> = ({
       <SelectTrigger className={`w-full ${className}`}>
         <SelectValue placeholder={placeholder}>
           {value && (
-            <span className={`px-2 py-1 rounded text-xs font-medium border ${getOptionColors(value)}`}>
+            <span className={`px-2 py-1 rounded-sm text-xs font-medium border ${getOptionColors(value)}`}>
               {value}
             </span>
           )}
@@ -51,13 +51,13 @@ export const EditableDropdown: React.FC<EditableDropdownProps> = ({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="empty">
-          <span className={`px-2 py-1 rounded text-xs font-medium border ${getOptionColors('empty')}`}>
+          <span className={`px-2 py-1 rounded-sm text-xs font-medium border ${getOptionColors('empty')}`}>
             {placeholder}
           </span>
         </SelectItem>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
-            <span className={`px-2 py-1 rounded text-xs font-medium border ${getOptionColors(option)}`}>
+            <span className={`px-2 py-1 rounded-sm text-xs font-medium border ${getOptionColors(option)}`}>
               {option}
             </span>
           </SelectItem>

@@ -55,7 +55,7 @@ export default function Riscontro() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 p-4 page-with-navbar">
       <div className="container mx-auto max-w-2xl">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
         <Card className="bg-white">

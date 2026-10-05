@@ -28,13 +28,13 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
 
   return (
     <Card className="mb-6 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100">
-        <CardTitle className="text-xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
+      <CardHeader className="bg-linear-to-r from-purple-50 to-pink-50 border-b border-purple-100">
+        <CardTitle className="text-xl bg-linear-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
           Proponi Amnistia
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Alert className="mb-4 bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300 shadow-md">
+        <Alert className="mb-4 bg-linear-to-r from-yellow-50 to-amber-50 border-yellow-300 shadow-md">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800 font-medium">
             <strong>ATTENZIONE:</strong> Per proporre un'amnistia, assicurati di avere 
@@ -101,7 +101,7 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
               <Button 
                 type="submit" 
                 disabled={isLoading}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                className="bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
               >
                 {isLoading ? "Invio in corso..." : "Proponi Amnistia"}
               </Button>

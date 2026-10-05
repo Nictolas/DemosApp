@@ -65,7 +65,7 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
   return (
     <div className="space-y-4">
       {users.map((user) => (
-        <Card key={user.id} className="w-full shadow-sm hover:shadow-md transition-shadow">
+        <Card key={user.id} className="w-full shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             {/* Header con nome e azioni */}
             <div className="flex items-start justify-between mb-3">
@@ -73,7 +73,7 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
                 <div className="flex items-center space-x-3 mb-1">
                   {/* Avatar */}
                   <div 
-                    className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => onEditAvatar?.(user)}
                     title="Clicca per modificare l'avatar"
                   >

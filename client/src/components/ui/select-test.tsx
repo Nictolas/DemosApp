@@ -29,7 +29,7 @@ export function SelectTest() {
           
           <SelectPrimitive.Portal>
             <SelectPrimitive.Content 
-              className="relative z-50 min-w-[8rem] overflow-hidden rounded-md border bg-white text-black shadow-md"
+              className="relative z-50 min-w-32 overflow-hidden rounded-md border bg-white text-black shadow-md"
               style={{
                 backgroundColor: 'white',
                 color: 'black',
@@ -40,7 +40,7 @@ export function SelectTest() {
               <SelectPrimitive.Viewport className="p-1">
                 <SelectPrimitive.Item 
                   value="opzione1"
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-blue-50"
+                  className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden hover:bg-gray-100 focus:bg-blue-50"
                   style={{
                     backgroundColor: 'white',
                     color: 'black'
@@ -56,7 +56,7 @@ export function SelectTest() {
                 
                 <SelectPrimitive.Item 
                   value="opzione2"
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-blue-50"
+                  className="relative flex w-full cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden hover:bg-gray-100 focus:bg-blue-50"
                   style={{
                     backgroundColor: 'white',
                     color: 'black'

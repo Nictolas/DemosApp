@@ -9,7 +9,7 @@ export function ElectionsStats({ elezioni }: ElectionsStatsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-blue-200">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-500 rounded-lg">
@@ -23,7 +23,7 @@ export function ElectionsStats({ elezioni }: ElectionsStatsProps) {
         </CardContent>
       </Card>
       
-      <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+      <Card className="bg-linear-to-br from-green-50 to-green-100 border-green-200">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-500 rounded-lg">
@@ -37,7 +37,7 @@ export function ElectionsStats({ elezioni }: ElectionsStatsProps) {
         </CardContent>
       </Card>
       
-      <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+      <Card className="bg-linear-to-br from-purple-50 to-purple-100 border-purple-200">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-purple-500 rounded-lg">
@@ -51,7 +51,7 @@ export function ElectionsStats({ elezioni }: ElectionsStatsProps) {
         </CardContent>
       </Card>
       
-      <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+      <Card className="bg-linear-to-br from-orange-50 to-orange-100 border-orange-200">
         <CardContent className="p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-orange-500 rounded-lg">

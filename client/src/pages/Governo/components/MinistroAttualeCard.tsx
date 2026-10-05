@@ -116,7 +116,7 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
         {hasMinistro ? (
           <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {avatarConfig ? (
                 <div
                   className={`rounded-full ${isAdminAD ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
@@ -148,7 +148,7 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
             {isAdmin && (
               <button
                 onClick={onEdit}
-                className="flex-shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                className="shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                 title="Modifica ministro"
               >
                 <Edit3 className="h-5 w-5" />
@@ -163,7 +163,7 @@ export const MinistroAttualeCard: React.FC<MinistroAttualeCardProps> = ({
             {isAdmin && (
               <button
                 onClick={onEdit}
-                className="flex-shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                className="shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                 title="Aggiungi ministro"
               >
                 <Edit3 className="h-5 w-5" />

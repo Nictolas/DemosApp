@@ -28,7 +28,7 @@ export const TopTen: React.FC<TopTenProps> = ({
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-gray-500">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <div className="w-20 h-20 bg-linear-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Trophy className="h-10 w-10 text-gray-400" />
             </div>
             <p className="text-lg font-medium text-gray-600">
@@ -59,10 +59,10 @@ export const TopTen: React.FC<TopTenProps> = ({
             {classifiche.slice(0, 3).map((item, index) => (
               <div 
                 key={item.nome} 
-                className="group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                className="group flex items-center justify-between p-4 bg-linear-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
+                  <div className="flex items-center justify-center w-10 h-10 bg-linear-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
                     {index + 1}
                   </div>
                   <div>
@@ -113,7 +113,7 @@ export const TopTen: React.FC<TopTenProps> = ({
                   onClick={handleShowClassifica} 
                   variant="outline" 
                   size="lg"
-                  className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
+                  className="w-full bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
                 >
                   <Trophy className="h-5 w-5 mr-2 text-blue-600" />
                   {showAllClassificaLocal 
@@ -129,10 +129,10 @@ export const TopTen: React.FC<TopTenProps> = ({
                   {classifiche.slice(3).map((item, index) => (
                     <div 
                       key={item.nome} 
-                      className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                      className="group flex items-center justify-between p-4 bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
+                        <div className="flex items-center justify-center w-10 h-10 bg-linear-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
                           {index + 4}
                         </div>
                         <div>

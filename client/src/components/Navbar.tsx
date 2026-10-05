@@ -11,7 +11,7 @@ export default function Navbar() {
 
   const getLinkClasses = (path: string) => {
     const baseClasses =
-      "flex flex-col items-center justify-center min-w-0 flex-1 max-w-[3.5rem] transition-all duration-200";
+      "flex flex-col items-center justify-center min-w-0 flex-1 max-w-14 transition-all duration-200";
     const activeClasses = "text-blue-600 scale-110 font-semibold";
     const inactiveClasses = "text-gray-600 hover:text-blue-500 hover:scale-105";
 

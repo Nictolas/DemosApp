@@ -401,7 +401,7 @@ export default function VotiParlamento() {
   };
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100">
       <div className="w-full px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -410,7 +410,7 @@ export default function VotiParlamento() {
               variant="outline"
               size="icon"
               onClick={() => setLocation("/gestisci")}
-              className="flex-shrink-0"
+              className="shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -846,12 +846,12 @@ export default function VotiParlamento() {
 
         {/* Dialog Dettagli Votazione */}
         <Dialog open={!!selectedVotazione} onOpenChange={(open) => !open && setSelectedVotazione(null)}>
-          <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !m-0 !rounded-none !left-0 !top-0 !translate-x-0 !translate-y-0 overflow-hidden flex flex-col p-6">
+          <DialogContent className="max-w-[100vw]! w-screen! h-screen! max-h-screen! m-0! rounded-none! left-0! top-0! translate-x-0! translate-y-0! overflow-hidden flex flex-col p-6">
             <DialogHeader>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <DialogTitle className="text-2xl flex items-center gap-2">
-                    <Vote className="h-6 w-6 text-green-600 flex-shrink-0" />
+                    <Vote className="h-6 w-6 text-green-600 shrink-0" />
                     {formattaTitoloCompatto(dettagliVotazione?.titolo || selectedVotazione?.titolo_votazione || "Dettagli Votazione")}
                   </DialogTitle>
                   <DialogDescription>
@@ -862,7 +862,7 @@ export default function VotiParlamento() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-shrink-0"
+                    className="shrink-0"
                     asChild
                   >
                     <a
@@ -1283,7 +1283,7 @@ export default function VotiParlamento() {
                                       if (scadenza.passata) {
                                         const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
                                         lineaFormattata = lineaFormattata.replace(regex, (match) => {
-                                          return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                          return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded-sm">${match} ⚠️ (scadenza passata)</span>`;
                                         });
                                       }
                                     });
@@ -1305,7 +1305,7 @@ export default function VotiParlamento() {
                                     if (scadenza.passata) {
                                       const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
                                       lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
-                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
+                                        return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded-sm">${match} ⚠️ (scadenza passata)</span>`;
                                       });
                                     }
                                   });
@@ -1370,7 +1370,7 @@ export default function VotiParlamento() {
                                   const testo = lineaTrim.replace(/^[✓•-]\s/, '').replace(/^\d+[\.)]\s/, '');
                                   return (
                                     <div key={i} className="mb-1.5 flex items-start gap-2">
-                                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                                       <span>{testo}</span>
                                     </div>
                                   );
@@ -1379,7 +1379,7 @@ export default function VotiParlamento() {
                                 if (lineaTrim.startsWith('✓')) {
                                   return (
                                     <div key={i} className="mb-1.5 flex items-start gap-2">
-                                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                                       <span>{lineaTrim.substring(1).trim()}</span>
                                     </div>
                                   );
@@ -1422,7 +1422,7 @@ export default function VotiParlamento() {
                                   const testo = lineaTrim.replace(/^[✗•-]\s/, '').replace(/^\d+[\.)]\s/, '');
                                   return (
                                     <div key={i} className="mb-1.5 flex items-start gap-2">
-                                      <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                      <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                                       <span>{testo}</span>
                                     </div>
                                   );
@@ -1431,7 +1431,7 @@ export default function VotiParlamento() {
                                 if (lineaTrim.startsWith('✗')) {
                                   return (
                                     <div key={i} className="mb-1.5 flex items-start gap-2">
-                                      <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                      <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                                       <span>{lineaTrim.substring(1).trim()}</span>
                                     </div>
                                   );

@@ -22,7 +22,7 @@ export function ItalyMapButton({ onClick }: ItalyMapButtonProps) {
       onMouseLeave={handlePressEnd}
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
-      className="w-full max-w-xs mx-auto rounded-2xl overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 transition-transform duration-150 ease-out"
+      className="w-full max-w-xs mx-auto rounded-2xl overflow-hidden bg-linear-to-br from-slate-50 to-slate-100 border border-slate-200 transition-transform duration-150 ease-out"
       aria-label="Seleziona Italia come Paese di residenza"
     >
       <div className="p-4">

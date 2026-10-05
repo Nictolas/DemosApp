@@ -53,13 +53,13 @@ export default function GDPRLegalManagement() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-green-50 to-blue-50 page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
+              <h1 className="text-4xl font-bold bg-linear-to-r from-green-600 to-blue-600 bg-clip-text text-transparent mb-2">
                 Gestione GDPR e Legale
               </h1>
               <p className="text-gray-600 text-lg">
@@ -78,7 +78,7 @@ export default function GDPRLegalManagement() {
 
         {/* Statistiche Generali */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+          <Card className="bg-linear-to-r from-blue-50 to-blue-100 border-blue-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -90,7 +90,7 @@ export default function GDPRLegalManagement() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+          <Card className="bg-linear-to-r from-yellow-50 to-yellow-100 border-yellow-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -102,7 +102,7 @@ export default function GDPRLegalManagement() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+          <Card className="bg-linear-to-r from-green-50 to-green-100 border-green-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -114,7 +114,7 @@ export default function GDPRLegalManagement() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+          <Card className="bg-linear-to-r from-purple-50 to-purple-100 border-purple-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>

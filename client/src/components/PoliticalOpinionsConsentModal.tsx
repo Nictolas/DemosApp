@@ -100,7 +100,7 @@ export function PoliticalOpinionsConsentModal({
           {/* Alert informativo */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
               <div className="flex-1">
                 <h4 className="font-semibold text-blue-900 mb-2">
                   Perché serve il tuo consenso?

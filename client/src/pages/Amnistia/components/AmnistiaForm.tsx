@@ -22,12 +22,12 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
 }) => {
   return (
     <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+      <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
         <CardTitle className="flex items-center space-x-2 text-xl">
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
+          <div className="p-2 bg-linear-to-br from-blue-500 to-indigo-600 rounded-lg">
             <Plus className="h-5 w-5 text-white" />
           </div>
-          <span className="bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent font-bold">
+          <span className="bg-linear-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent font-bold">
             La tua richiesta di amnistia
           </span>
         </CardTitle>
@@ -68,7 +68,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
             <Button 
               type="submit" 
               disabled={isPending || !leggeInput.trim() || hasReachedLimit}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-200"
+              className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-200"
             >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -81,7 +81,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
         </form>
 
         {mieiVoti && mieiVoti.length > 0 && (
-          <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+          <div className="mt-6 p-4 bg-linear-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
             <h4 className="text-sm font-semibold mb-3 text-gray-700 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
               Le tue richieste di amnistia:
@@ -91,7 +91,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
                 <Badge 
                   key={index} 
                   variant="default"
-                  className="cursor-pointer bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 px-3 py-1.5"
+                  className="cursor-pointer bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 px-3 py-1.5"
                   onClick={() => onRemoveVote(voto)}
                 >
                   <X className="h-3.5 w-3.5" />

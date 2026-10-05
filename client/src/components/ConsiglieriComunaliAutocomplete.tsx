@@ -115,7 +115,7 @@ export const ConsiglieriComunaliAutocomplete: React.FC<ConsiglieriComunaliAutoco
         onChange={handleInputChange}
         onFocus={handleFocus}
         placeholder={placeholder}
-        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${className}`}
       />
       
       {isOpen && (
@@ -132,7 +132,7 @@ export const ConsiglieriComunaliAutocomplete: React.FC<ConsiglieriComunaliAutoco
               <button
                 key={consigliere.id}
                 type="button"
-                className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-hidden"
                 onClick={() => handleConsigliereSelect(consigliere)}
               >
                 <div className="font-medium text-gray-900">{consigliere.displayName}</div>

@@ -68,7 +68,7 @@ export function FormTestIsolated() {
         <p className="text-red-700 mb-4">Il form è stato reso invisibile. Clicca "Recupera Form" per ripristinarlo.</p>
         <button
           onClick={recoverForm}
-          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          className="px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700"
         >
           🔄 Recupera Form
         </button>
@@ -81,7 +81,7 @@ export function FormTestIsolated() {
       <h2 className="text-xl font-bold text-blue-800 mb-4">🧪 FORM TEST ISOLATO</h2>
       
       {/* Info di debug */}
-      <div className="mb-4 p-3 bg-blue-100 rounded text-sm">
+      <div className="mb-4 p-3 bg-blue-100 rounded-sm text-sm">
         <p><strong>Render Count:</strong> {renderCount}</p>
         <p><strong>Last Action:</strong> {lastAction}</p>
         <p><strong>Form Visible:</strong> {isVisible ? "✅ Sì" : "❌ No"}</p>
@@ -91,25 +91,25 @@ export function FormTestIsolated() {
       <div className="mb-4 space-y-2">
         <button
           onClick={forceRender}
-          className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+          className="w-full px-3 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 text-sm"
         >
           🔄 Force Render
         </button>
         <button
           onClick={toggleVisibility}
-          className="w-full px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm"
+          className="w-full px-3 py-2 bg-yellow-600 text-white rounded-sm hover:bg-yellow-700 text-sm"
         >
           👁️ Toggle Visibility
         </button>
         <button
           onClick={resetForm}
-          className="w-full px-3 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
+          className="w-full px-3 py-2 bg-orange-600 text-white rounded-sm hover:bg-orange-700 text-sm"
         >
           🔄 Reset Form
         </button>
         <button
           onClick={simulateCrash}
-          className="w-full px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+          className="w-full px-3 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 text-sm"
         >
           💥 Simula Crash
         </button>
@@ -125,7 +125,7 @@ export function FormTestIsolated() {
             type="text"
             value={formData.nome}
             onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             placeholder="Inserisci nome"
           />
         </div>
@@ -138,7 +138,7 @@ export function FormTestIsolated() {
             type="text"
             value={formData.cognome}
             onChange={(e) => setFormData(prev => ({ ...prev, cognome: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             placeholder="Inserisci cognome"
           />
         </div>
@@ -150,7 +150,7 @@ export function FormTestIsolated() {
           <select
             value={formData.genere}
             onChange={(e) => setFormData(prev => ({ ...prev, genere: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Seleziona genere</option>
             <option value="uomo">Uomo</option>
@@ -166,7 +166,7 @@ export function FormTestIsolated() {
           <select
             value={formData.cittadinanza}
             onChange={(e) => setFormData(prev => ({ ...prev, cittadinanza: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Seleziona cittadinanza</option>
             <option value="italiana">Italiana</option>
@@ -181,7 +181,7 @@ export function FormTestIsolated() {
           <select
             value={formData.ruolo}
             onChange={(e) => setFormData(prev => ({ ...prev, ruolo: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Seleziona ruolo</option>
             <option value="cittadino">Cittadino</option>
@@ -192,14 +192,14 @@ export function FormTestIsolated() {
         
         <button
           type="submit"
-          className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          className="w-full px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700"
         >
           ✅ Invia Form
         </button>
       </form>
       
       {/* Stato del form */}
-      <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
+      <div className="mt-4 p-3 bg-gray-100 rounded-sm text-xs">
         <p><strong>Form Data:</strong></p>
         <pre className="text-xs overflow-auto">
           {JSON.stringify(formData, null, 2)}

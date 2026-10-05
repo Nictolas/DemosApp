@@ -33,7 +33,7 @@ export default function Test() {
   }
 
   return (
-    <PageContainer className={`test-page flex flex-col bg-gradient-to-b from-amber-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
+    <PageContainer className={`test-page flex flex-col bg-linear-to-b from-amber-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
       {isLoading || !user ? (
         <div className="flex items-center justify-center flex-1">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

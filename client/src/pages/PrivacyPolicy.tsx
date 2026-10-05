@@ -18,7 +18,7 @@ export default function PrivacyPolicy() {
             <strong>DemosApp</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
           </p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="[&>*+*]:mt-6">
           
           {/* Introduzione */}
           <section>

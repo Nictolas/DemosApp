@@ -85,7 +85,7 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({ canAccessP
           <button
             key={button.id}
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation(button.route)}
             onContextMenu={e => e.preventDefault()}
           >

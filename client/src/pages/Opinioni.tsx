@@ -59,7 +59,7 @@ export default function Opinioni() {
   };
 
   return (
-    <PageContainer className="opinioni-page bg-gradient-to-b from-fuchsia-50 to-white select-none">
+    <PageContainer className="opinioni-page bg-linear-to-b from-fuchsia-50 to-white select-none">
       <div className="opinioni-page__inner flex h-full min-h-0 flex-col px-3 py-2 sm:px-4">
         <div className="text-center mb-3 shrink-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Le tue Opinioni</h1>
@@ -71,7 +71,7 @@ export default function Opinioni() {
         <div className="mb-3 shrink-0">
           <button
             type="button"
-            className="relative w-full h-28 sm:h-32 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-28 sm:h-32 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation("/proponi-opinione")}
             onContextMenu={(e) => e.preventDefault()}
           >

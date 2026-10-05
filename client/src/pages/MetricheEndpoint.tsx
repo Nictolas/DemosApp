@@ -140,8 +140,8 @@ export default function MetricheEndpoint() {
   }
 
   return (
-    <PageContainer className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#eef2ff_0%,_#f8fafc_45%,_#ffffff_100%)]">
-      <div className="sticky top-0 z-10 w-full border-b border-indigo-100 bg-white/85 backdrop-blur-sm">
+    <PageContainer className="min-h-screen w-full bg-[radial-gradient(circle_at_top,#eef2ff_0%,#f8fafc_45%,#ffffff_100%)]">
+      <div className="sticky top-0 z-10 w-full border-b border-indigo-100 bg-white/85 backdrop-blur-xs">
         <div className="mx-auto flex w-full max-w-[min(100%,100rem)] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <Button variant="ghost" size="sm" className="-ml-2 text-slate-700" onClick={() => setLocation("/admin/ops-center")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -162,7 +162,7 @@ export default function MetricheEndpoint() {
         </div>
       </div>
 
-      <header className="w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-slate-900 text-white">
+      <header className="w-full bg-linear-to-br from-indigo-600 via-violet-600 to-slate-900 text-white">
         <div className="mx-auto w-full max-w-[min(100%,100rem)] px-4 py-12 sm:px-6 lg:px-10">
           <div className="max-w-4xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-indigo-100">

@@ -226,7 +226,7 @@ const RateLimitingDashboard: React.FC = () => {
                 type="number"
                 value={cleanupDays}
                 onChange={(e) => setCleanupDays(parseInt(e.target.value))}
-                className="w-20 px-2 py-1 border rounded"
+                className="w-20 px-2 py-1 border rounded-sm"
                 min="1"
                 max="365"
               />

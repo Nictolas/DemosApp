@@ -152,7 +152,7 @@ export default function Profilo() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4">
       {isLoading || isLoadingInfo ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -169,7 +169,7 @@ export default function Profilo() {
           
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              <CardTitle className="text-2xl font-bold bg-linear-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Il tuo Profilo
               </CardTitle>
               <CardDescription>
@@ -209,7 +209,7 @@ export default function Profilo() {
                           <CustomAvatar 
                             config={avatarConfig} 
                             size={120}
-                            className="mx-auto border-2 border-gray-200 rounded-lg p-2 bg-white shadow-sm"
+                            className="mx-auto border-2 border-gray-200 rounded-lg p-2 bg-white shadow-xs"
                           />
                         </div>
                       </div>

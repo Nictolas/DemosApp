@@ -101,9 +101,9 @@ export const getLeggeStyle = (isTopThree: boolean): string => {
 
 export const getLeggeNumberStyle = (isTopThree: boolean): string => {
   if (isTopThree) {
-    return "bg-gradient-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700";
+    return "bg-linear-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700";
   }
-  return "bg-gradient-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700";
+  return "bg-linear-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700";
 };
 
 export const getLeggeTextStyle = (isTopThree: boolean): string => {

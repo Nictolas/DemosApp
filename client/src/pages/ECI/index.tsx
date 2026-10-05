@@ -205,7 +205,7 @@ export default function ECI() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={sortBy === "firme" ? "default" : "outline"}
+                    variant={sortBy === "firme" ? "default" : "outline-solid"}
                     size="sm"
                     onClick={() => setSortBy(sortBy === "firme" ? null : "firme")}
                     className="flex items-center gap-2"
@@ -214,7 +214,7 @@ export default function ECI() {
                     Ordina per Firme
                   </Button>
                   <Button
-                    variant={sortBy === "scadenza" ? "default" : "outline"}
+                    variant={sortBy === "scadenza" ? "default" : "outline-solid"}
                     size="sm"
                     onClick={() => setSortBy(sortBy === "scadenza" ? null : "scadenza")}
                     className="flex items-center gap-2"
@@ -249,7 +249,7 @@ export default function ECI() {
                   {displayList.map((item) => (
                     <div
                       key={item.id}
-                      className="eci-card border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white"
+                      className="eci-card border border-gray-200 rounded-lg p-5 shadow-xs hover:shadow-md transition-shadow cursor-pointer bg-white"
                       onClick={() => setViewItem(item)}
                     >
                       <div className="flex flex-col items-center text-center h-full">

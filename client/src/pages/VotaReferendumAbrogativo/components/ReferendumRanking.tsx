@@ -40,7 +40,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-gray-500">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <div className="w-20 h-20 bg-linear-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Trophy className="h-10 w-10 text-gray-400" />
             </div>
             <p className="text-lg font-medium text-gray-600">
@@ -73,8 +73,8 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                 key={item.nome} 
                 className={`group flex items-center justify-between p-4 ${
                   index < 3 
-                    ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200' 
-                    : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100'
+                    ? 'bg-linear-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200'
+                    : 'bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100'
                 } rounded-xl border transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
                   onViewReferendum ? 'cursor-pointer' : ''
                 }`}
@@ -88,8 +88,8 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                 <div className="flex items-center space-x-4">
                   <div className={`flex items-center justify-center w-10 h-10 ${
                     index < 3 
-                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700' 
-                      : 'bg-gradient-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700'
+                      ? 'bg-linear-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700'
+                      : 'bg-linear-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700'
                   } text-white rounded-full font-bold text-lg shadow-md transition-all duration-300`}>
                     {index + 1}
                   </div>

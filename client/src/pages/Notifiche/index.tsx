@@ -52,11 +52,11 @@ export default function Notifiche() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full flex flex-col" style={{ minHeight: 'calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px))' }}>
         <LoadingStates isAuthLoading={isAuthLoading} />
         
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Header />
         </div>
 

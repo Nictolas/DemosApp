@@ -92,7 +92,7 @@ export default function ReferendumAbrogativi() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-100 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-orange-50 to-yellow-100 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl space-y-6">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
         <Card>
@@ -102,7 +102,7 @@ export default function ReferendumAbrogativi() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-center mb-4">
-              <Button onClick={() => setShowForm(!showForm)} variant={showForm ? "outline" : "default"}>
+              <Button onClick={() => setShowForm(!showForm)} variant={showForm ? "outline-solid" : "default"}>
                 <Plus className="mr-2 h-4 w-4" />{showForm ? "Annulla" : "Proponi Referendum"}
               </Button>
             </div>
@@ -135,7 +135,7 @@ export default function ReferendumAbrogativi() {
                                             <TableCell>{new Date(r.dataInizio).toLocaleDateString('it-IT')} - {new Date(r.dataFine).toLocaleDateString('it-IT')}</TableCell>
                                             <TableCell>
                                                 {user.ruolo === "AD" ? (
-                                                    <select className="border rounded px-2 py-1 bg-white" value={r.quorum} disabled={quorumMutation.isPending} onChange={e => quorumMutation.mutate({id: r.id, quorum: e.target.value as any})}>
+                                                    <select className="border rounded-sm px-2 py-1 bg-white" value={r.quorum} disabled={quorumMutation.isPending} onChange={e => quorumMutation.mutate({id: r.id, quorum: e.target.value as any})}>
                                                         {quorumOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                     </select>
                                                 ) : (

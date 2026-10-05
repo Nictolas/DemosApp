@@ -334,7 +334,7 @@ export default function CentralizedLogs() {
                     <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
                       Metadata ({Object.keys(log.meta_data).length} campi)
                     </summary>
-                    <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
+                    <pre className="text-xs bg-gray-100 p-2 rounded-sm mt-1 overflow-x-auto">
                       {JSON.stringify(log.meta_data, null, 2)}
                     </pre>
                   </details>

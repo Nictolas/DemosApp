@@ -8,7 +8,7 @@ export const AccessDenied: React.FC = () => {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -39,7 +39,7 @@ export const AccessDenied: React.FC = () => {
           {/* Programma (solo Admin/Candidato) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation('/programma')}
             onContextMenu={e => e.preventDefault()}
           >
@@ -58,7 +58,7 @@ export const AccessDenied: React.FC = () => {
           {/* Riscontro (solo per ruoli avanzati) */}
           <button
             type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
             onClick={() => setLocation('/riscontro')}
             onContextMenu={e => e.preventDefault()}
           >

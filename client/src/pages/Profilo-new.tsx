@@ -167,7 +167,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-blue-100 to-blue-400 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl space-y-4">
         {/* Gestione stati di caricamento e errore unificata */}
         <ProfileLoading isLoading={isLoading} isLoadingInfo={isLoadingInfo} />

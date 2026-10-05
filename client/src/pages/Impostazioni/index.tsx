@@ -65,7 +65,7 @@ export default function Impostazioni() {
 
   if (isLoading) {
     return (
-      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </PageContainer>
     );
@@ -73,7 +73,7 @@ export default function Impostazioni() {
 
   if (!user) {
     return (
-      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -90,7 +90,7 @@ export default function Impostazioni() {
   }
 
   return (
-    <PageContainer className="impostazioni-page bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <PageContainer className="impostazioni-page bg-linear-to-br from-indigo-50 via-white to-purple-50">
       <div className="impostazioni-page__inner app-page-scroll flex h-full min-h-0 flex-col overflow-y-auto px-3 py-2 sm:px-4">
         <div className="w-full max-w-2xl mx-auto py-2 sm:px-1 space-y-4">
           <IdentityVerificationSection />

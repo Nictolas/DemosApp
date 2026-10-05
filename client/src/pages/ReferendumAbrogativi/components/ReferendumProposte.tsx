@@ -62,13 +62,13 @@ export const ReferendumProposte: React.FC<ReferendumProposteProps> = ({
           {referendumProposte.map((referendum) => (
             <div 
               key={referendum.id} 
-              className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-xs cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => onView && onView(referendum)}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-full shrink-0"></div>
                     <h3 className="text-lg font-semibold text-gray-900">
                       {referendum.nome}
                     </h3>

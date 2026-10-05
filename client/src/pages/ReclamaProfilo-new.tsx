@@ -197,13 +197,13 @@ export default function ReclamaProfilo() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 page-with-navbar">
       <div className="container mx-auto p-4 max-w-6xl">
         
         {/* Header */}
         <Card className="mt-6 mb-8">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
+            <CardTitle className="text-2xl font-bold bg-linear-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
               <Shield className="h-8 w-8 text-primary" />
               Reclama Profilo
             </CardTitle>

@@ -16,11 +16,11 @@ export const Header: React.FC = () => {
       <Card className="mb-6">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-4 bg-gradient-to-r from-red-500 to-red-700 rounded-full">
+            <div className="p-4 bg-linear-to-r from-red-500 to-red-700 rounded-full">
               <Trophy className="h-12 w-12 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl font-bold bg-linear-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
             Referendum Abrogativi
           </CardTitle>
           <CardDescription className="text-lg">

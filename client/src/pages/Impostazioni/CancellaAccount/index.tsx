@@ -106,7 +106,7 @@ export default function CancellaAccount() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -114,7 +114,7 @@ export default function CancellaAccount() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -131,7 +131,7 @@ export default function CancellaAccount() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -143,7 +143,7 @@ export default function CancellaAccount() {
             ← Torna alle Impostazioni
           </Button>
           
-          <Card className="border-0 shadow-lg bg-gradient-to-r from-red-600 to-orange-600 text-white">
+          <Card className="border-0 shadow-lg bg-linear-to-r from-red-600 to-orange-600 text-white">
             <CardHeader className="text-center py-6">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="h-8 w-8 text-white" />

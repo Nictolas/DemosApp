@@ -16,11 +16,11 @@ export const Header: React.FC = () => {
       <Card className="mb-6 lg:mb-0 shrink-0">
         <CardHeader className="text-center lg:py-4 lg:pb-3">
           <div className="flex justify-center mb-4 lg:mb-2">
-            <div className="p-4 lg:p-2.5 bg-gradient-to-r from-purple-500 to-purple-700 rounded-full">
+            <div className="p-4 lg:p-2.5 bg-linear-to-r from-purple-500 to-purple-700 rounded-full">
               <Crown className="h-12 w-12 lg:h-8 lg:w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+          <CardTitle className="text-3xl lg:text-2xl font-bold bg-linear-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
             Capo di Stato
           </CardTitle>
           <CardDescription className="text-lg lg:text-sm lg:mt-1">

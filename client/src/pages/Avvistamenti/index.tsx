@@ -373,7 +373,7 @@ export default function Avvistamenti() {
 
   if (isLoading) {
     return (
-      <PageContainer className="bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-emerald-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </PageContainer>
     );
@@ -381,7 +381,7 @@ export default function Avvistamenti() {
 
   if (!user) {
     return (
-      <PageContainer className="bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-linear-to-b from-emerald-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -403,16 +403,16 @@ export default function Avvistamenti() {
   };
 
   return (
-    <PageContainer className="bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+    <PageContainer className="bg-linear-to-br from-emerald-50 via-white to-teal-50">
       <div className="container mx-auto px-4 py-8 h-full flex flex-col">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+            <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
               <Phone className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                 Avvistamenti
               </h1>
               <p className="text-gray-600 text-lg font-medium">
@@ -438,7 +438,7 @@ export default function Avvistamenti() {
                     <Button
                       key={category.id}
                       variant="outline"
-                      className={`w-full h-28 rounded-2xl border-0 bg-gradient-to-br ${category.bgClass} hover:brightness-110 hover:shadow-xl transition-all duration-300 p-0`}
+                      className={`w-full h-28 rounded-2xl border-0 bg-linear-to-br ${category.bgClass} hover:brightness-110 hover:shadow-xl transition-all duration-300 p-0`}
                       onClick={() => handleCategoryClick(category)}
                     >
                       <div className="flex flex-col items-center justify-center w-full h-full gap-2 text-white">
@@ -446,7 +446,7 @@ export default function Avvistamenti() {
                           {category.icon}
                         </div>
                         <div className="text-center px-2 w-full">
-                          <div className="font-semibold text-xs sm:text-sm break-words whitespace-normal">
+                          <div className="font-semibold text-xs sm:text-sm wrap-break-word whitespace-normal">
                             {category.title}
                           </div>
                         </div>

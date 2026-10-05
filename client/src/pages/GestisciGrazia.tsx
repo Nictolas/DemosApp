@@ -87,12 +87,12 @@ export default function GestisciGrazia() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-3xl">
         <Button variant="ghost" className="mb-4 flex items-center" onClick={() => setLocation("/gestisci")}> <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Gestisci </Button>
         <Card>
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-green-500 to-green-700 rounded-full"><Heart className="h-10 w-10 text-white" /></div></div>
+            <div className="flex justify-center mb-4"><div className="p-4 bg-linear-to-r from-green-500 to-green-700 rounded-full"><Heart className="h-10 w-10 text-white" /></div></div>
             <CardTitle className="text-2xl font-bold">Gestisci Grazia</CardTitle>
             <CardDescription>Gestisci le richieste di grazia pendenti.</CardDescription>
           </CardHeader>

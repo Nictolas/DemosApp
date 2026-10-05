@@ -29,7 +29,7 @@ export default function ReclamaProfilo() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-background to-secondary/20">
+      <div className="flex items-center justify-center min-h-screen bg-linear-to-b from-background to-secondary/20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -68,7 +68,7 @@ export default function ReclamaProfilo() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/20 page-with-navbar">
       <div className="container mx-auto p-4 max-w-6xl">
         
         {/* Header */}

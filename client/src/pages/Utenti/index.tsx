@@ -311,7 +311,7 @@ export default function Utenti() {
   // Controllo accesso
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-lg text-gray-600">Caricamento...</p>
@@ -322,7 +322,7 @@ export default function Utenti() {
 
   if (!user || (user.role !== 'Admin' && (user as any).ruolo !== "AD")) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-red-100 to-red-200 page-with-navbar flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-red-50 via-red-100 to-red-200 page-with-navbar flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-lg shadow-xl">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-red-700 mb-4">Accesso Negato</h2>
@@ -507,7 +507,7 @@ export default function Utenti() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-full px-4 py-4 md:px-6 md:py-6">
         {/* Header */}
         <Header />
@@ -578,7 +578,7 @@ export default function Utenti() {
               <>
                 {/* Statistiche */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                  <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-blue-200">
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-3">
                         <div className="p-2 bg-blue-500 rounded-lg">
@@ -592,7 +592,7 @@ export default function Utenti() {
                     </CardContent>
                   </Card>
                   
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                  <Card className="bg-linear-to-br from-green-50 to-green-100 border-green-200">
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-3">
                         <div className="p-2 bg-green-500 rounded-lg">
@@ -606,7 +606,7 @@ export default function Utenti() {
                     </CardContent>
                   </Card>
                   
-                  <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+                  <Card className="bg-linear-to-br from-yellow-50 to-yellow-100 border-yellow-200">
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-3">
                         <div className="p-2 bg-yellow-500 rounded-lg">

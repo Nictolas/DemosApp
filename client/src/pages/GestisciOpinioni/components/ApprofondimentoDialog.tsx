@@ -470,7 +470,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                 value={customId}
                 onChange={(e) => setCustomId(e.target.value)}
                 placeholder="es. club_scolastici"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
               <p className="text-xs text-muted-foreground">
                 Questo ID verrà usato sia come riga in opinioni_domande che come colonna in opinioni_risposte

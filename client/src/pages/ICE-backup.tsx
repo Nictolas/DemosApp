@@ -110,18 +110,18 @@ export default function ICE() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-cyan-50 to-blue-100 page-with-navbar">
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
         <Card className="w-full max-w-6xl mx-auto">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-cyan-500 to-blue-700 rounded-full"><Globe2 className="h-12 w-12 text-white" /></div></div>
+            <div className="flex justify-center mb-4"><div className="p-4 bg-linear-to-r from-cyan-500 to-blue-700 rounded-full"><Globe2 className="h-12 w-12 text-white" /></div></div>
             <CardTitle className="text-3xl font-bold">ICE - Iniziative dei Cittadini Europei</CardTitle>
             <CardDescription>Proponi o consulta le ICE. Le più recenti sono mostrate di seguito.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
-              <Button onClick={() => setShowForm(!showForm)} variant={showForm ? "outline" : "default"}>
+              <Button onClick={() => setShowForm(!showForm)} variant={showForm ? "outline-solid" : "default"}>
                 <Plus className="mr-2 h-4 w-4" />{showForm ? "Annulla" : "Proponi Nuova ICE"}
               </Button>
             </div>

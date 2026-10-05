@@ -23,16 +23,16 @@ export const isTopThree = (index: number): boolean => {
 
 export const getCarceratoStyle = (isTopThree: boolean): string => {
   if (isTopThree) {
-    return "bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200";
+    return "bg-linear-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200";
   }
-  return "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100";
+  return "bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100";
 };
 
 export const getCarceratoNumberStyle = (isTopThree: boolean): string => {
   if (isTopThree) {
-    return "bg-gradient-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700";
+    return "bg-linear-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700";
   }
-  return "bg-gradient-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700";
+  return "bg-linear-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700";
 };
 
 export const getCarceratoTextStyle = (isTopThree: boolean): string => {

@@ -9,8 +9,8 @@ const OpsCenter: React.FC = () => {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="w-full mx-auto px-4 md:px-6 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
-      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 p-5 md:p-6 shadow-sm backdrop-blur-sm">
+    <div className="w-full mx-auto px-4 md:px-6 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,#eef4ff_0%,#f6f9ff_36%,#ffffff_72%)]">
+      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 p-5 md:p-6 shadow-xs backdrop-blur-xs">
         <Badge variant="outline" className="mb-3 text-indigo-700 border-indigo-300">Admin Hub</Badge>
         <h1 className="text-3xl font-bold mb-2">Ops Center</h1>
         <p className="text-slate-600 max-w-4xl">
@@ -21,7 +21,7 @@ const OpsCenter: React.FC = () => {
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-900 mb-3">Monitoring</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Monitoraggio Sistema</CardTitle>
               <CardDescription>Ti mostra se il sistema sta funzionando bene oppure no.</CardDescription>
@@ -36,7 +36,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Supabase)</CardTitle>
               <CardDescription>Ti aiuta a capire se il database e sotto stress o sta rallentando.</CardDescription>
@@ -50,7 +50,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><HardDrive className="h-5 w-5" /> Spazio Disco App</CardTitle>
               <CardDescription>Ti dice quanto spazio sta usando il server dell'applicazione.</CardDescription>
@@ -64,7 +64,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5" /> Parametri e carico DB</CardTitle>
               <CardDescription>Limiti piani free (live) e guida per ridurre query e connessioni.</CardDescription>
@@ -81,7 +81,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><PieChart className="h-5 w-5" /> Metriche endpoint</CardTitle>
               <CardDescription>Classifica delle API piu chiamate e piu lente.</CardDescription>
@@ -101,7 +101,7 @@ const OpsCenter: React.FC = () => {
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-900 mb-3">Security</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Security Dashboard</CardTitle>
               <CardDescription>Raccoglie segnali di sicurezza per capire se ci sono rischi o anomalie.</CardDescription>
@@ -115,7 +115,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Alert e Log</CardTitle>
               <CardDescription>Mostra messaggi e avvisi del sistema quando qualcosa non va.</CardDescription>
@@ -129,7 +129,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Gauge className="h-5 w-5" /> Rate Limiting</CardTitle>
               <CardDescription>Controlla i limiti di richieste per proteggere API e login.</CardDescription>
@@ -149,7 +149,7 @@ const OpsCenter: React.FC = () => {
       <section>
         <h2 className="text-lg font-semibold text-slate-900 mb-3">Compliance</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Scale className="h-5 w-5" /> GDPR e Legale</CardTitle>
               <CardDescription>Raccoglie strumenti per rispettare GDPR e obblighi legali.</CardDescription>
@@ -163,7 +163,7 @@ const OpsCenter: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+          <Card className="border-slate-200/70 bg-white/90 shadow-xs">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><HardDrive className="h-5 w-5" /> Backup e Export</CardTitle>
               <CardDescription>Ti permette di mettere al sicuro i dati e scaricarli quando serve.</CardDescription>

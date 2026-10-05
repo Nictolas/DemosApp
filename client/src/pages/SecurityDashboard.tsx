@@ -113,12 +113,12 @@ export default function SecurityDashboard() {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
+            <div className="h-8 bg-gray-300 rounded-sm w-1/4 mb-6"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white p-6 rounded-lg shadow">
-                  <div className="h-4 bg-gray-300 rounded w-1/2 mb-2"></div>
-                  <div className="h-8 bg-gray-300 rounded w-3/4"></div>
+                <div key={i} className="bg-white p-6 rounded-lg shadow-sm">
+                  <div className="h-4 bg-gray-300 rounded-sm w-1/2 mb-2"></div>
+                  <div className="h-8 bg-gray-300 rounded-sm w-3/4"></div>
                 </div>
               ))}
             </div>
@@ -142,7 +142,7 @@ export default function SecurityDashboard() {
             <select
               value={selectedTimeRange}
               onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               {timeRangeOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -153,7 +153,7 @@ export default function SecurityDashboard() {
             
             <button
               onClick={fetchSecurityData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               Aggiorna
             </button>
@@ -162,7 +162,7 @@ export default function SecurityDashboard() {
 
         {/* Statistiche */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center">
               <Activity className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
@@ -172,7 +172,7 @@ export default function SecurityDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center">
               <AlertTriangle className="w-8 h-8 text-red-600" />
               <div className="ml-4">
@@ -182,7 +182,7 @@ export default function SecurityDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center">
               <Lock className="w-8 h-8 text-orange-600" />
               <div className="ml-4">
@@ -192,7 +192,7 @@ export default function SecurityDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center">
               <Users className="w-8 h-8 text-green-600" />
               <div className="ml-4">
@@ -205,7 +205,7 @@ export default function SecurityDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Eventi di Sicurezza Recenti */}
-          <div className="bg-white rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Eventi Recenti</h2>
             </div>
@@ -245,7 +245,7 @@ export default function SecurityDashboard() {
           </div>
 
           {/* Alert Attivi */}
-          <div className="bg-white rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Alert Attivi</h2>
             </div>
@@ -282,7 +282,7 @@ export default function SecurityDashboard() {
         </div>
 
         {/* Grafico Trend (placeholder) */}
-        <div className="mt-8 bg-white rounded-lg shadow">
+        <div className="mt-8 bg-white rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Trend Eventi di Sicurezza</h2>
           </div>

@@ -27,7 +27,7 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
   return (
     <button
       type="button"
-      className={`ministero-card relative w-full rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform ${
+      className={`ministero-card relative w-full rounded-2xl shadow-lg active:shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform ${
         isWide ? 'col-span-3' : ''
       }`}
       onClick={handleClick}

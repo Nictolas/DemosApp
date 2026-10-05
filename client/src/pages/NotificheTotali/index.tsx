@@ -252,7 +252,7 @@ export default function NotificheTotali() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <PageContainer className="bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full">
         <Card className="bg-white">
           <CardHeader>

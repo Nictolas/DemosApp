@@ -91,7 +91,7 @@ const ComunicaVotiCard = React.memo(({
           placeholder="Es: Approvazione legge..."
           value={titoloVotazione}
           onChange={(e) => setTitoloVotazione(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
@@ -140,7 +140,7 @@ const ComunicaVotiCard = React.memo(({
                         <button
                           key={option.value}
                           type="button"
-                          className={`flex-1 py-2 text-sm font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                          className={`flex-1 py-2 text-sm font-medium transition-transform duration-150 focus:outline-hidden border border-gray-200 ${
                             idx === 0 ? 'rounded-l-full' : ''
                           } ${
                             idx === 2 ? 'rounded-r-full' : ''
@@ -162,7 +162,7 @@ const ComunicaVotiCard = React.memo(({
               <button
                 type="button"
                 onClick={() => removeVotoEntry(entry.id)}
-                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -175,7 +175,7 @@ const ComunicaVotiCard = React.memo(({
       {/* Pulsante salva */}
       <button
         type="button"
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
         disabled={!titoloVotazione.trim() || submitComunicaVoti.isPending}
         onClick={() => submitComunicaVoti.mutate()}
       >
@@ -460,7 +460,7 @@ const Votazione = React.memo(function Votazione() {
                 placeholder="Es: Approvazione legge..."
                 value={titolo}
                 onChange={(e) => setTitolo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
               {form.formState.errors.titolo && (
                 <p className="text-sm text-red-600">{form.formState.errors.titolo.message}</p>
@@ -480,7 +480,7 @@ const Votazione = React.memo(function Votazione() {
                     <button
                       key={option.value}
                       type="button"
-                      className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                      className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-hidden border border-gray-200 ${
                         idx === 0 ? 'rounded-l-full' : ''
                       } ${
                         idx === 2 ? 'rounded-r-full' : ''
@@ -509,7 +509,7 @@ const Votazione = React.memo(function Votazione() {
                 placeholder="Inserisci commento..."
                 value={commento}
                 onChange={(e) => setCommento(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-y min-h-[100px]"
               />
               {form.formState.errors.commento && (
                 <p className="text-sm text-red-600">{form.formState.errors.commento.message}</p>
@@ -529,7 +529,7 @@ const Votazione = React.memo(function Votazione() {
                     <button
                       key={option.value}
                       type="button"
-                      className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                      className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-hidden border border-gray-200 ${
                         idx === 0 ? 'rounded-l-full' : ''
                       } ${
                         idx === 2 ? 'rounded-r-full' : ''
@@ -553,7 +553,7 @@ const Votazione = React.memo(function Votazione() {
             {/* Pulsante invio */}
             <button
               type="button"
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={submitComunicazione.isPending}
               onClick={handleSubmit}
             >
@@ -568,7 +568,7 @@ const Votazione = React.memo(function Votazione() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 page-with-navbar">
       <div className="container mx-auto px-4 py-8 pb-24">
         {isAdmin ? (
           // Admin vede solo le sezioni Istituzione

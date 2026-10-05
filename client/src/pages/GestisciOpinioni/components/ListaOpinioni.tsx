@@ -138,7 +138,7 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
   return (
     <div className="space-y-2">
         {opinioniOrdinate.map((op) => (
-        <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
+        <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-xs">
           {editingId === op.id ? (
             <div className="flex flex-col md:flex-row gap-2 flex-1">
               <Input 
