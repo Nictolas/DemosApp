@@ -4,6 +4,26 @@ const { Pool } = require('pg');
 
 let researchPool = null;
 
+const RESEARCH_POOL_DEFAULT_MAX = 5;
+const RESEARCH_POOL_HARD_MAX = 10;
+const RESEARCH_IDLE_TIMEOUT_MS = 15000;
+const RESEARCH_CONNECTION_TIMEOUT_MS = 5000;
+const RESEARCH_QUERY_TIMEOUT_MS = 10000;
+const RESEARCH_STATEMENT_TIMEOUT_MS = 10000;
+
+const parseResearchPoolMax = (value = process.env.RESEARCH_DATABASE_POOL_MAX) => {
+  if (value === undefined || value === null || value === '') return RESEARCH_POOL_DEFAULT_MAX;
+  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+    throw new Error('RESEARCH_DATABASE_POOL_MAX must be an integer between 1 and 10');
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed > RESEARCH_POOL_HARD_MAX) {
+    throw new Error('RESEARCH_DATABASE_POOL_MAX must be an integer between 1 and 10');
+  }
+  return parsed;
+};
+
 const normalizeDatabaseUrl = (value) => {
   if (!value) return value;
   const url = new URL(value);
@@ -38,11 +58,11 @@ const getResearchPool = () => {
     connectionString: normalizeDatabaseUrl(rawUrl),
     ssl,
     min: 0,
-    max: Math.max(1, parseInt(process.env.RESEARCH_DATABASE_POOL_MAX || '5', 10)),
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-    query_timeout: 15000,
-    statement_timeout: 15000,
+    max: parseResearchPoolMax(),
+    idleTimeoutMillis: RESEARCH_IDLE_TIMEOUT_MS,
+    connectionTimeoutMillis: RESEARCH_CONNECTION_TIMEOUT_MS,
+    query_timeout: RESEARCH_QUERY_TIMEOUT_MS,
+    statement_timeout: RESEARCH_STATEMENT_TIMEOUT_MS,
     keepAlive: true,
     application_name: 'demos-research-shadow'
   });
@@ -56,4 +76,14 @@ const closeResearchPool = async () => {
   researchPool = null;
 };
 
-module.exports = { getResearchPool, closeResearchPool };
+module.exports = {
+  getResearchPool,
+  closeResearchPool,
+  parseResearchPoolMax,
+  RESEARCH_POOL_DEFAULT_MAX,
+  RESEARCH_POOL_HARD_MAX,
+  RESEARCH_IDLE_TIMEOUT_MS,
+  RESEARCH_CONNECTION_TIMEOUT_MS,
+  RESEARCH_QUERY_TIMEOUT_MS,
+  RESEARCH_STATEMENT_TIMEOUT_MS
+};
