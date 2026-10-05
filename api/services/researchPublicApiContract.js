@@ -38,6 +38,9 @@ const assertResearchPublicPayload = (value, allowedKeys) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Invalid Research public payload');
   }
+  if (!Array.isArray(allowedKeys)) {
+    throw new Error('Invalid Research public payload contract');
+  }
 
   const keys = Object.keys(value);
   for (const forbidden of FORBIDDEN_IDENTITY_KEYS) {
@@ -48,6 +51,11 @@ const assertResearchPublicPayload = (value, allowedKeys) => {
   for (const key of keys) {
     if (!allowedKeys.includes(key)) {
       throw new Error('Unexpected Research public boundary field: ' + key);
+    }
+  }
+  for (const required of allowedKeys) {
+    if (!Object.hasOwn(value, required)) {
+      throw new Error('Missing Research public boundary field: ' + required);
     }
   }
   return true;
