@@ -8,6 +8,8 @@ const {
   createResearchDistributedRateLimitPoc
 } = require('../researchDistributedRateLimitPoc');
 
+const keyGenerator = (req) => req.ip;
+
 test('Research distributed rate-limit POC composes one atomic backend into isolated challenge/read stores', async () => {
   const evalCalls = [];
   const limiterOptions = [];
@@ -20,6 +22,7 @@ test('Research distributed rate-limit POC composes one atomic backend into isola
     evalScript,
     now: () => 1_000,
     keySecret: Buffer.alloc(32, 4),
+    keyGenerator,
     rateLimitFactory: (options) => {
       limiterOptions.push(options);
       return options;
@@ -27,6 +30,11 @@ test('Research distributed rate-limit POC composes one atomic backend into isola
   });
 
   assert.equal(limiterOptions.length, 2);
+  assert.equal(limiterOptions[0].keyGenerator, keyGenerator);
+  assert.equal(limiterOptions[1].keyGenerator, keyGenerator);
+  assert.equal(limiterOptions[0].passOnStoreError, false);
+  assert.equal(limiterOptions[1].passOnStoreError, false);
+
   const challengeStore = limiterOptions[0].store;
   const readStore = limiterOptions[1].store;
 
@@ -52,6 +60,7 @@ test('Research distributed rate-limit POC fails closed without injected backend 
   assert.throws(
     () => createResearchDistributedRateLimitPoc({
       keySecret: Buffer.alloc(32, 4),
+      keyGenerator,
       rateLimitFactory: (options) => options
     }),
     /evalScript dependency is required/
@@ -63,8 +72,20 @@ test('Research distributed rate-limit POC fails closed without strong HMAC secre
     () => createResearchDistributedRateLimitPoc({
       evalScript: async () => [1, 60_000],
       keySecret: Buffer.alloc(16),
+      keyGenerator,
       rateLimitFactory: (options) => options
     }),
     /at least 32 bytes/
+  );
+});
+
+test('Research distributed rate-limit POC fails closed without explicit client-key resolution', () => {
+  assert.throws(
+    () => createResearchDistributedRateLimitPoc({
+      evalScript: async () => [1, 60_000],
+      keySecret: Buffer.alloc(32, 4),
+      rateLimitFactory: (options) => options
+    }),
+    /key generator is required/
   );
 });

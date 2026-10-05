@@ -8,6 +8,7 @@ const {
 const createResearchDistributedRateLimitPoc = ({
   evalScript,
   keySecret,
+  keyGenerator,
   rateLimitFactory,
   now
 }) => {
@@ -19,6 +20,7 @@ const createResearchDistributedRateLimitPoc = ({
   const limiters = createResearchDistributedRateLimiters({
     backend,
     keySecret,
+    keyGenerator,
     rateLimitFactory
   });
 
