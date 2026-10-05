@@ -48,6 +48,12 @@ function persistedCounter(value, kind) {
   return parsed;
 }
 
+function persistedStatCount(value) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error('invalid persisted stats');
+  return parsed;
+}
+
 function rowToIncident(row) {
   const required = [row?.incident_id, row?.finding_id, row?.rule_id];
   if (required.some(value => typeof value !== 'string' || value.trim() === '') ||
@@ -252,11 +258,17 @@ class PostgresSecurityStore {
     ]);
     const severity = {};
     const status = {};
-    for (const row of bySeverity.rows) severity[row.severity] = Number(row.count || 0);
-    for (const row of byStatus.rows) status[row.status] = Number(row.count || 0);
+    for (const row of bySeverity.rows) {
+      if (!ALLOWED_SEVERITIES.has(row.severity)) throw new Error('invalid persisted stats');
+      severity[row.severity] = persistedStatCount(row.count ?? 0);
+    }
+    for (const row of byStatus.rows) {
+      if (!ALLOWED_STATUSES.has(row.status)) throw new Error('invalid persisted stats');
+      status[row.status] = persistedStatCount(row.count ?? 0);
+    }
     return {
-      incidentCount: Number(summary.rows[0]?.incident_count || 0),
-      sourceCount: Number(sources.rows[0]?.source_count || 0),
+      incidentCount: persistedStatCount(summary.rows[0]?.incident_count ?? 0),
+      sourceCount: persistedStatCount(sources.rows[0]?.source_count ?? 0),
       bySeverity: severity,
       byStatus: status
     };
