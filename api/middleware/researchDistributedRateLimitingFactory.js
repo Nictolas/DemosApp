@@ -7,12 +7,14 @@ const RESEARCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RESEARCH_CHALLENGE_MAX = 30;
 const RESEARCH_READ_MAX = 60;
 
-const createLimiterOptions = ({ max, store }) => ({
+const createLimiterOptions = ({ max, store, keyGenerator }) => ({
   windowMs: RESEARCH_RATE_LIMIT_WINDOW_MS,
   max,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
+  passOnStoreError: false,
+  keyGenerator,
   store,
   handler: (req, res) => {
     res.status(429).json({ error: 'Research request rate limit exceeded' });
@@ -22,6 +24,7 @@ const createLimiterOptions = ({ max, store }) => ({
 const createResearchDistributedRateLimiters = ({
   backend,
   keySecret,
+  keyGenerator,
   rateLimitFactory = rateLimit
 }) => {
   if (!backend || typeof backend.increment !== 'function') {
@@ -29,6 +32,9 @@ const createResearchDistributedRateLimiters = ({
   }
   if (!Buffer.isBuffer(keySecret) || keySecret.length < 32) {
     throw new Error('Research rate-limit key secret must be at least 32 bytes');
+  }
+  if (typeof keyGenerator !== 'function') {
+    throw new Error('Research rate-limit key generator is required');
   }
   if (typeof rateLimitFactory !== 'function') {
     throw new Error('Research rate-limit factory is required');
@@ -47,10 +53,10 @@ const createResearchDistributedRateLimiters = ({
 
   return {
     researchChallengeLimiter: rateLimitFactory(
-      createLimiterOptions({ max: RESEARCH_CHALLENGE_MAX, store: challengeStore })
+      createLimiterOptions({ max: RESEARCH_CHALLENGE_MAX, store: challengeStore, keyGenerator })
     ),
     researchReadLimiter: rateLimitFactory(
-      createLimiterOptions({ max: RESEARCH_READ_MAX, store: readStore })
+      createLimiterOptions({ max: RESEARCH_READ_MAX, store: readStore, keyGenerator })
     )
   };
 };
