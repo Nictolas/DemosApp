@@ -1,4 +1,6 @@
-const RESEARCH_PUBLIC_ROUTE_PREFIX = '/v1';
+const {
+  RESEARCH_PUBLIC_ROUTE_PREFIX
+} = require('../config/researchPublicRequestPolicy');
 
 const RESEARCH_PUBLIC_ENDPOINTS = Object.freeze({
   issueChallenge: Object.freeze({
@@ -52,6 +54,7 @@ const assertResearchPublicPayload = (value, allowedKeys) => {
 };
 
 module.exports = {
+  RESEARCH_PUBLIC_ROUTE_PREFIX,
   RESEARCH_PUBLIC_ENDPOINTS,
   FORBIDDEN_IDENTITY_KEYS,
   assertResearchPublicPayload

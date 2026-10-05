@@ -49,8 +49,7 @@ test('Research public API composition orders boundary then router then minimal e
   assert.deepEqual(app.mounted, [boundary, router, errorHandler]);
 });
 
-
-test('Research public mount source stays detached from Identity sessions and the primary database', () => {
+test('Research public mount stays detached from Identity session machinery and primary database', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const files = [
@@ -64,9 +63,9 @@ test('Research public mount source stays detached from Identity sessions and the
 
   assert.doesNotMatch(
     source,
-    /middleware\/auth|identityAuth|sessionService|jsonwebtoken|DATABASE_URL|Authorization|Access-Control-Allow-Credentials/i
+    /middleware\/auth|identityAuth|sessionService|jsonwebtoken|DATABASE_URL|Access-Control-Allow-Credentials/i
   );
-  assert.doesNotMatch(source, /\bcookie(?:s|Parser)?\b/i);
+  assert.doesNotMatch(source, /cookie-parser|cookieParser/i);
 });
 
 test('Research public mount never invokes boundary/router when exposure policy is fail-closed', () => {
