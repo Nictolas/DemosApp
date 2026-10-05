@@ -22,6 +22,7 @@ test('Research runtime SAST manifest contains the current standalone runtime clo
     'api/services/researchPublicErrorPolicy.js',
     'api/services/researchFailureClassification.js',
     'api/services/researchFailureDiagnostics.js',
+    'api/services/researchSafeInjection.js',
     'api/services/researchPublicVectorResponsePolicy.js',
     'api/services/researchProofChallengeStore.js',
     'api/services/researchOpinionVectorReader.js',

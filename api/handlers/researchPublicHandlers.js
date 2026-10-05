@@ -34,15 +34,17 @@ const {
 const {
   createResearchFailureDiagnostics
 } = require('../services/researchFailureDiagnostics');
+const { readCallableProperty } = require('../services/researchSafeInjection');
 
 const normalizeFailureDiagnostics = (candidate) => {
-  if (!candidate || typeof candidate.record !== 'function') {
+  const record = readCallableProperty(candidate, 'record');
+  if (!record) {
     return createResearchFailureDiagnostics();
   }
   return Object.freeze({
     record(classification) {
       try {
-        candidate.record(classification);
+        Reflect.apply(record, candidate, [classification]);
       } catch {}
     }
   });
