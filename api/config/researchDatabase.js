@@ -3,7 +3,9 @@ const path = require('path');
 const { Pool } = require('pg');
 
 let researchPool = null;
+let researchPoolClosing = null;
 
+const RESEARCH_DATABASE_ERROR_MESSAGE = 'Research database unavailable';
 const RESEARCH_POOL_DEFAULT_MAX = 5;
 const RESEARCH_POOL_HARD_MAX = 10;
 const RESEARCH_IDLE_TIMEOUT_MS = 15000;
@@ -106,15 +108,36 @@ const getResearchPool = () => {
   return researchPool;
 };
 
+const sanitizeResearchDatabaseError = () => new Error(RESEARCH_DATABASE_ERROR_MESSAGE);
+
+const withResearchDatabaseBoundary = async (operation) => {
+  if (typeof operation !== 'function') throw sanitizeResearchDatabaseError();
+  try {
+    return await operation(getResearchPool());
+  } catch {
+    throw sanitizeResearchDatabaseError();
+  }
+};
+
 const closeResearchPool = async () => {
+  if (researchPoolClosing) return researchPoolClosing;
   if (!researchPool) return;
-  await researchPool.end();
+  const poolToClose = researchPool;
   researchPool = null;
+  researchPoolClosing = Promise.resolve().then(() => poolToClose.end()).catch(() => {
+    throw sanitizeResearchDatabaseError();
+  }).finally(() => {
+    researchPoolClosing = null;
+  });
+  return researchPoolClosing;
 };
 
 module.exports = {
   getResearchPool,
   closeResearchPool,
+  sanitizeResearchDatabaseError,
+  withResearchDatabaseBoundary,
+  RESEARCH_DATABASE_ERROR_MESSAGE,
   parseResearchPoolMax,
   RESEARCH_POOL_DEFAULT_MAX,
   RESEARCH_POOL_HARD_MAX,
