@@ -201,6 +201,17 @@ const createResearchSignedIssuerKeySetStore = ({
       });
     }
 
+    const publishNow = now();
+    if (!Number.isSafeInteger(publishNow)) {
+      throw new Error('Invalid Research issuer key-set clock');
+    }
+    if (normalized.expiresAt <= publishNow) {
+      throw new Error('Issuer key-set snapshot expired during installation');
+    }
+    if (current && normalized.sequence <= current.sequence) {
+      throw new Error('Issuer key-set superseded during installation');
+    }
+
     const ring = createResearchIssuerPublicKeyRing({ keys: ringEntries });
     const candidate = Object.freeze({
       sequence: normalized.sequence,
