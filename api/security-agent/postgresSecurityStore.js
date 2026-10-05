@@ -33,41 +33,59 @@ function normalizeLimit(value, fallback = 100) {
   return parsed;
 }
 
+function persistedDate(value, { optional = false, kind = 'incident' } = {}) {
+  if ((value === null || value === undefined || value === '') && optional) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error(`invalid persisted ${kind}`);
+  return date.toISOString();
+}
+
+function persistedCounter(value, kind) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    throw new Error(`invalid persisted ${kind}`);
+  }
+  return parsed;
+}
+
 function rowToIncident(row) {
+  const required = [row?.incident_id, row?.finding_id, row?.rule_id];
+  if (required.some(value => typeof value !== 'string' || value.trim() === '') ||
+      !ALLOWED_SEVERITIES.has(row?.severity) || !ALLOWED_STATUSES.has(row?.status)) {
+    throw new Error('invalid persisted incident');
+  }
   return {
     incidentId: row.incident_id,
     findingId: row.finding_id,
     ruleId: row.rule_id,
     severity: row.severity,
     status: row.status,
-    count: Number(row.event_count || 0),
-    firstSeen: new Date(row.first_seen).toISOString(),
-    lastSeen: new Date(row.last_seen).toISOString(),
-    createdAt: new Date(row.created_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString()
+    count: persistedCounter(row.event_count, 'incident'),
+    firstSeen: persistedDate(row.first_seen),
+    lastSeen: persistedDate(row.last_seen),
+    createdAt: persistedDate(row.created_at),
+    updatedAt: persistedDate(row.updated_at)
   };
 }
 
 function rowToSourceState(row) {
   if (!row) return null;
-  const iso = value => value ? new Date(value).toISOString() : null;
   return {
     enabled: row.enabled === true,
-    watermark: iso(row.watermark),
-    lastPollStartedAt: iso(row.last_poll_started_at),
-    lastSuccessAt: iso(row.last_success_at),
-    lastFailureAt: iso(row.last_failure_at),
-    consecutiveFailures: Number(row.consecutive_failures || 0),
+    watermark: persistedDate(row.watermark, { optional: true, kind: 'source state' }),
+    lastPollStartedAt: persistedDate(row.last_poll_started_at, { optional: true, kind: 'source state' }),
+    lastSuccessAt: persistedDate(row.last_success_at, { optional: true, kind: 'source state' }),
+    lastFailureAt: persistedDate(row.last_failure_at, { optional: true, kind: 'source state' }),
+    consecutiveFailures: persistedCounter(row.consecutive_failures, 'source state'),
     totals: {
-      polls: Number(row.total_polls || 0),
-      fetched: Number(row.total_fetched || 0),
-      accepted: Number(row.total_accepted || 0),
-      duplicates: Number(row.total_duplicates || 0)
+      polls: persistedCounter(row.total_polls, 'source state'),
+      fetched: persistedCounter(row.total_fetched, 'source state'),
+      accepted: persistedCounter(row.total_accepted, 'source state'),
+      duplicates: persistedCounter(row.total_duplicates, 'source state')
     },
-    storedAt: iso(row.stored_at)
+    storedAt: persistedDate(row.stored_at, { kind: 'source state' })
   };
 }
-
 class PostgresSecurityStore {
   constructor({ pool, maintenancePool = null, retentionMs = DEFAULT_RETENTION_MS } = {}) {
     this.pool = validatePool(pool);
