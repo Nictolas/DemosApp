@@ -1,4 +1,4 @@
-const test = require('node:test');
+﻿const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('node:path');
@@ -32,6 +32,7 @@ test('Research runtime SAST manifest contains the current standalone runtime clo
     'api/services/researchPoliticalVectorReader.js',
     'api/services/researchPoliticalVectorAdapter.js',
     'api/services/researchAggregateReader.js',
+  'api/services/researchAggregatePublicResponsePolicy.js',
     'api/services/researchAggregatePublicationPolicy.js',
     'api/services/researchAggregateMethodology.js'
   ]);

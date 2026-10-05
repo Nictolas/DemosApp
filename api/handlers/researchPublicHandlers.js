@@ -14,6 +14,9 @@ const {
   readPublishedResearchAnswerAggregates
 } = require('../services/researchAggregateReader');
 const {
+  buildResearchAggregatePublicResponse
+} = require('../services/researchAggregatePublicResponsePolicy');
+const {
   RESEARCH_PUBLIC_ENDPOINTS,
   assertResearchPublicPayload
 } = require('../services/researchPublicApiContract');
@@ -87,10 +90,8 @@ const createResearchPublicHandlers = ({
         },
         { clock: aggregateClock }
       );
-      res.status(200).json({
-        methodology: result.methodology,
-        rows: result.rows
-      });
+      const response = buildResearchAggregatePublicResponse(result);
+      res.status(200).json(response);
     } catch {
       res.status(400).json({ error: 'Invalid aggregate publication request' });
     }
