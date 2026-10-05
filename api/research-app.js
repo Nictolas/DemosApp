@@ -4,6 +4,9 @@ const {
   RESEARCH_PUBLIC_MAX_BODY_BYTES
 } = require('./config/researchPublicRequestPolicy');
 const {
+  sendResearchPublicError
+} = require('./services/researchPublicErrorPolicy');
+const {
   mountResearchPublicApiIfProductionReady
 } = require('./researchProductionMountGate');
 const {
@@ -29,10 +32,10 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: RESEARCH_PUBLIC_MAX_BODY_BYTES }));
 app.use((error, req, res, next) => {
   if (error?.type === 'entity.too.large') {
-    return res.status(413).json({ error: 'Invalid Research request' });
+    return sendResearchPublicError(res, 413);
   }
   if (error?.type === 'entity.parse.failed') {
-    return res.status(400).json({ error: 'Invalid Research request' });
+    return sendResearchPublicError(res, 400);
   }
   return next(error);
 });

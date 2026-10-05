@@ -6,6 +6,9 @@ const {
   RESEARCH_PUBLIC_JSON_MEDIA_TYPE,
   FORBIDDEN_RESEARCH_PUBLIC_HEADERS
 } = require('../config/researchPublicRequestPolicy');
+const {
+  sendResearchPublicError
+} = require('../services/researchPublicErrorPolicy');
 
 const requestHeader = (req, name) => {
   if (req && typeof req.get === 'function') return req.get(name);
@@ -41,7 +44,7 @@ const createResearchPublicBoundaryMiddleware = ({
   const origin = requestHeader(req, 'Origin');
   if (origin) {
     if (!policy.allowedOrigins.includes(origin)) {
-      return res.status(403).json({ error: 'Research origin not allowed' });
+      return sendResearchPublicError(res, 403);
     }
 
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -60,19 +63,19 @@ const createResearchPublicBoundaryMiddleware = ({
 
   for (const header of FORBIDDEN_RESEARCH_PUBLIC_HEADERS) {
     if (requestHeader(req, header) !== undefined) {
-      return res.status(400).json({ error: 'Invalid Research request' });
+      return sendResearchPublicError(res, 400);
     }
   }
 
   if (hasQueryString(req)) {
-    return res.status(400).json({ error: 'Invalid Research request' });
+    return sendResearchPublicError(res, 400);
   }
 
   if (
     req.method === 'POST' &&
     mediaType(requestHeader(req, 'Content-Type')) !== RESEARCH_PUBLIC_JSON_MEDIA_TYPE
   ) {
-    return res.status(415).json({ error: 'Invalid Research request' });
+    return sendResearchPublicError(res, 415);
   }
 
   return next();
@@ -82,7 +85,7 @@ const researchPublicErrorHandler = (error, req, res, next) => {
   if (res.headersSent) {
     return next(error);
   }
-  return res.status(400).json({ error: 'Invalid Research request' });
+  return sendResearchPublicError(res, 400);
 };
 
 module.exports = {

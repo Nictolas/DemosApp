@@ -39,7 +39,7 @@ test('Research boundary allows only configured origins and never enables credent
   const denied = responseRecorder();
   middleware({ method: 'POST', get: () => 'https://evil.example' }, denied.res, () => assert.fail('denied origin reached next'));
   assert.equal(denied.state.statusCode, 403);
-  assert.deepEqual(denied.state.body, { error: 'Research origin not allowed' });
+  assert.deepEqual(denied.state.body, { error: 'Invalid Research request' });
 });
 
 test('Research boundary handles preflight narrowly and error handler leaks no internals', () => {

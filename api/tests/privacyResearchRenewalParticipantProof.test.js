@@ -28,7 +28,7 @@ const makeClient = () => {
     async query(sql, params = []) {
       calls.push({ sql, params });
       const normalized = sql.trim().toLowerCase();
-      if (normalized.startsWith('insert into research.proof_challenges')) return { rows: [] };
+      if (normalized.includes('insert into research.proof_challenges')) return { rows: [] };
       if (normalized.startsWith('delete from research.proof_challenges')) {
         if (challengeConsumed) return { rows: [] };
         challengeConsumed = true;

@@ -81,7 +81,7 @@ test('aggregate handler fails closed when privacy threshold is not configured', 
 
   assert.equal(out.state.statusCode, 400);
   assert.equal(queryCalls, 0);
-  assert.deepEqual(out.state.body, { error: 'Invalid aggregate publication request' });
+  assert.deepEqual(out.state.body, { error: 'Invalid Research request' });
 });
 
 test('aggregate handler rejects caller-controlled policy and Identity fields before Research query', async () => {

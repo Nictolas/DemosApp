@@ -7,6 +7,7 @@ const {
 const MIN_TTL_SECONDS = 30;
 const MAX_TTL_SECONDS = 300;
 const DEFAULT_TTL_SECONDS = 120;
+const MAX_EXPIRED_CHALLENGE_PURGE_PER_ISSUE = 256;
 
 const normalizeTtlSeconds = (value = DEFAULT_TTL_SECONDS) => {
   if (!Number.isInteger(value) || value < MIN_TTL_SECONDS || value > MAX_TTL_SECONDS) {
@@ -55,11 +56,22 @@ const issueResearchProofChallenge = async (
   const expiresAt = new Date(Date.now() + ttl * 1000);
 
   await client.query(
-    `INSERT INTO research.proof_challenges (
+    `WITH stale_challenges AS (
+       SELECT ctid
+       FROM research.proof_challenges
+       WHERE expires_at <= NOW()
+       ORDER BY expires_at
+       LIMIT $4
+     ), purged_challenges AS (
+       DELETE FROM research.proof_challenges p
+       USING stale_challenges s
+       WHERE p.ctid = s.ctid
+     )
+     INSERT INTO research.proof_challenges (
        challenge_digest, purpose, expires_at
      )
      VALUES ($1, $2, $3)`,
-    [challengeDigest, purpose, expiresAt]
+    [challengeDigest, purpose, expiresAt, MAX_EXPIRED_CHALLENGE_PURGE_PER_ISSUE]
   );
 
   return {
@@ -98,6 +110,7 @@ module.exports = {
   MIN_TTL_SECONDS,
   MAX_TTL_SECONDS,
   DEFAULT_TTL_SECONDS,
+  MAX_EXPIRED_CHALLENGE_PURGE_PER_ISSUE,
   digestChallenge,
   issueResearchProofChallenge,
   consumeResearchProofChallenge
