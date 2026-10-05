@@ -22,6 +22,7 @@ test('aggregate reader reads the fresh projection and suppresses small cells', a
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /FROM research\.current_opinion_responses/i);
   assert.match(calls[0].sql, /COUNT\(DISTINCT participant_id\)/i);
+  assert.match(calls[0].sql, /answer_code\s+IN\s*\('f',\s*'c',\s*'i'\)/i);
   assert.deepEqual(calls[0].params, ['energia_nucleare']);
   assert.deepEqual(result, {
     methodology: {

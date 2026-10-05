@@ -33,7 +33,7 @@ test('non-live Research reader verifies proof before returning only the opinion 
         return { rows: [{ issued_at: '2026-10-02T00:00:00Z' }] };
       }
       assert.match(sql, /research\.current_opinion_responses/i);
-      assert.deepEqual(params, [participantPublicKey]);
+      assert.deepEqual(params, [participantPublicKey, 2049]);
       return { rows: [
         { question_id: 'energia_nucleare', answer_code: 'f' },
         { question_id: 'caccia', answer_code: 'c' }
