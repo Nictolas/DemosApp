@@ -30,6 +30,39 @@ test('Research issuer key ring supports bounded two-key epoch overlap and exact 
   assert.equal(ring.resolve({ tokenKeyId: keyId(9), epoch: '2026-Q4' }), null);
 });
 
+test('Research issuer key ids reject coercible objects and accept only binary views', () => {
+  assert.throws(() => createResearchIssuerPublicKeyRing({
+    keys: [{
+      keyId: { valueOf: () => keyId(1) },
+      publicKey: key('coercible'),
+      epochs: ['2026-Q4']
+    }]
+  }), /key id/i);
+
+  const typedId = new Uint8Array(32);
+  typedId.fill(7);
+  const typedKey = key('typed');
+  const ring = createResearchIssuerPublicKeyRing({
+    keys: [{ keyId: typedId, publicKey: typedKey, epochs: ['2026-Q4'] }]
+  });
+  assert.equal(ring.resolve({ tokenKeyId: typedId, epoch: '2026-Q4' }), typedKey);
+});
+
+test('Research issuer key resolution fails closed on absent or hostile input objects', () => {
+  const ring = createResearchIssuerPublicKeyRing({
+    keys: [{ keyId: keyId(8), publicKey: key('safe'), epochs: ['2026-Q4'] }]
+  });
+  assert.equal(ring.resolve(null), null);
+  assert.equal(ring.resolve(undefined), null);
+
+  const hostile = new Proxy({}, {
+    get() {
+      throw new Error('hostile getter');
+    }
+  });
+  assert.equal(ring.resolve(hostile), null);
+});
+
 test('Research issuer key ring rejects private/signing capability and excessive overlap', () => {
   assert.throws(() => createResearchIssuerPublicKeyRing({
     keys: [{ keyId: keyId(1), publicKey: { type: 'private', usages: ['sign'] }, epochs: ['2026-Q4'] }]
