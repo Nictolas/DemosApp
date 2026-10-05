@@ -31,6 +31,9 @@ const {
 const {
   classifyResearchFailure
 } = require('../services/researchFailureClassification');
+const {
+  createResearchFailureDiagnostics
+} = require('../services/researchFailureDiagnostics');
 
 const decodeBase64UrlExact = (value, length, label) => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) {
@@ -46,7 +49,8 @@ const decodeBase64UrlExact = (value, length, label) => {
 const createResearchPublicHandlers = ({
   getPool = getResearchPool,
   aggregateMinimumCellSize,
-  aggregateClock
+  aggregateClock,
+  failureDiagnostics = createResearchFailureDiagnostics()
 } = {}) => ({
   async issueChallenge(req, res) {
     try {
@@ -58,7 +62,7 @@ const createResearchPublicHandlers = ({
         purpose: result.purpose
       });
     } catch (error) {
-      classifyResearchFailure(error);
+      failureDiagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   },
@@ -72,7 +76,7 @@ const createResearchPublicHandlers = ({
       , getPool);
       res.status(200).json(buildResearchPoliticalVectorsPublicResponse(candidates));
     } catch (error) {
-      classifyResearchFailure(error);
+      failureDiagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   },
@@ -91,7 +95,7 @@ const createResearchPublicHandlers = ({
       , getPool);
       res.status(200).json(buildResearchOpinionVectorPublicResponse(result));
     } catch (error) {
-      classifyResearchFailure(error);
+      failureDiagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   },
@@ -114,7 +118,7 @@ const createResearchPublicHandlers = ({
       const response = buildResearchAggregatePublicResponse(result);
       res.status(200).json(response);
     } catch (error) {
-      classifyResearchFailure(error);
+      failureDiagnostics.record(classifyResearchFailure(error));
       sendResearchPublicError(res, 400);
     }
   }
