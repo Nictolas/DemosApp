@@ -1,4 +1,5 @@
 const {
+  assertMinimumCellSize,
   publishResearchAggregateRows
 } = require('./researchAggregatePublicationPolicy');
 const {
@@ -7,7 +8,8 @@ const {
 
 const readPublishedResearchAnswerAggregates = async (
   client,
-  { questionId, minimumCellSize, generatedAt = new Date() }
+  { questionId, minimumCellSize } = {},
+  { clock = () => new Date() } = {}
 ) => {
   if (!client || typeof client.query !== 'function') {
     throw new Error('Research aggregate reader requires PostgreSQL client');
@@ -15,13 +17,12 @@ const readPublishedResearchAnswerAggregates = async (
   if (typeof questionId !== 'string' || questionId.length === 0) {
     throw new Error('Research aggregate question id required');
   }
+  if (typeof clock !== 'function') {
+    throw new Error('Research aggregate reader clock required');
+  }
 
-  // Build metadata first so an invalid publication policy fails closed
-  // before any Research query is executed.
-  const methodology = buildResearchAggregateMethodology({
-    generatedAt,
-    minimumCellSize
-  });
+  // Validate publication policy before touching Research storage.
+  const threshold = assertMinimumCellSize(minimumCellSize);
 
   const result = await client.query(
     `SELECT answer_code, COUNT(DISTINCT participant_id)::bigint AS participant_count
@@ -32,9 +33,16 @@ const readPublishedResearchAnswerAggregates = async (
     [questionId]
   );
 
+  // Publication metadata is produced by the reader after the live query.
+  // It cannot be supplied by a request or precomputed materialized snapshot.
+  const methodology = buildResearchAggregateMethodology({
+    generatedAt: clock(),
+    minimumCellSize: threshold
+  });
+
   return Object.freeze({
     methodology,
-    rows: publishResearchAggregateRows(result.rows, { minimumCellSize })
+    rows: publishResearchAggregateRows(result.rows, { minimumCellSize: threshold })
   });
 };
 
