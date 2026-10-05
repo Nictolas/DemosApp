@@ -96,3 +96,37 @@ test('Research handler diagnostics wrapper isolates hostile injected record func
   assert.equal(response.state.statusCode, 400);
   assert.deepEqual(response.state.body, { error: 'Invalid Research request' });
 });
+
+test('Research handler construction survives throwing diagnostics getters', async () => {
+  const hostile = Object.defineProperty({}, 'record', {
+    get() { throw new Error('getter side effect'); }
+  });
+  assert.doesNotThrow(() => createResearchPublicHandlers({ failureDiagnostics: hostile }));
+});
+
+test('Research handler construction survives throwing diagnostics proxies', () => {
+  const hostile = new Proxy({}, {
+    get() { throw new Error('proxy side effect'); }
+  });
+  assert.doesNotThrow(() => createResearchPublicHandlers({ failureDiagnostics: hostile }));
+});
+
+test('Research diagnostics callable is captured once during normalization', async () => {
+  let getterReads = 0;
+  let calls = 0;
+  const candidate = Object.defineProperty({}, 'record', {
+    get() {
+      getterReads += 1;
+      return () => { calls += 1; };
+    }
+  });
+  const handlers = createResearchPublicHandlers({
+    getPool: () => { throw new Error('database unavailable'); },
+    failureDiagnostics: candidate
+  });
+  const response = responseRecorder();
+  await handlers.issueChallenge({ body: {} }, response.res);
+  assert.equal(getterReads, 1);
+  assert.equal(calls, 1);
+  assert.equal(response.state.statusCode, 400);
+});
