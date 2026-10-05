@@ -111,7 +111,7 @@ test('Research handler construction survives throwing diagnostics proxies', () =
   assert.doesNotThrow(() => createResearchPublicHandlers({ failureDiagnostics: hostile }));
 });
 
-test('Research diagnostics callable is captured once during normalization', async () => {
+test('Research diagnostics accessors are never invoked during normalization or error handling', async () => {
   let getterReads = 0;
   let calls = 0;
   const candidate = Object.defineProperty({}, 'record', {
@@ -126,7 +126,41 @@ test('Research diagnostics callable is captured once during normalization', asyn
   });
   const response = responseRecorder();
   await handlers.issueChallenge({ body: {} }, response.res);
-  assert.equal(getterReads, 1);
-  assert.equal(calls, 1);
+  assert.equal(getterReads, 0);
+  assert.equal(calls, 0);
   assert.equal(response.state.statusCode, 400);
+});
+
+test('Research diagnostics injection ignores prototype-chain record methods', () => {
+  let calls = 0;
+  const candidate = Object.create({ record() { calls += 1; } });
+  const diagnostics = normalizeFailureDiagnostics(candidate);
+  diagnostics.record({ kind: 'request' });
+  assert.equal(calls, 0);
+});
+
+test('Research diagnostics injection ignores accessor descriptors without invoking getters', () => {
+  let getterReads = 0;
+  const candidate = Object.defineProperty({}, 'record', {
+    get() {
+      getterReads += 1;
+      return () => {};
+    }
+  });
+  const diagnostics = normalizeFailureDiagnostics(candidate);
+  diagnostics.record({ kind: 'policy' });
+  assert.equal(getterReads, 0);
+});
+
+test('Research diagnostics injection accepts only own data-property callables', () => {
+  let calls = 0;
+  const candidate = {};
+  Object.defineProperty(candidate, 'record', {
+    value() { calls += 1; },
+    enumerable: false,
+    configurable: false,
+    writable: false
+  });
+  normalizeFailureDiagnostics(candidate).record({ kind: 'infrastructure' });
+  assert.equal(calls, 1);
 });
