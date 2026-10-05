@@ -188,3 +188,31 @@ test('Research diagnostics callable replacement after normalization cannot alter
   assert.equal(originalCalls, 1);
   assert.equal(replacementCalls, 0);
 });
+
+test('Research diagnostics invocation does not inspect callable metadata', () => {
+  let calls = 0;
+  const target = () => { calls += 1; };
+  const callable = new Proxy(target, {
+    get(_target, property) {
+      if (property === 'name' || property === 'prototype' || property === 'constructor') {
+        throw new Error('metadata access forbidden');
+      }
+      return Reflect.get(_target, property);
+    }
+  });
+  const candidate = {};
+  Object.defineProperty(candidate, 'record', { value: callable });
+  const diagnostics = normalizeFailureDiagnostics(candidate);
+  assert.doesNotThrow(() => diagnostics.record({ kind: 'request' }));
+  assert.equal(calls, 1);
+});
+
+test('Research diagnostics exotic callable apply failure remains contained', () => {
+  const callable = new Proxy(() => {}, {
+    apply() { throw new Error('exotic apply failure'); }
+  });
+  const candidate = {};
+  Object.defineProperty(candidate, 'record', { value: callable });
+  const diagnostics = normalizeFailureDiagnostics(candidate);
+  assert.doesNotThrow(() => diagnostics.record({ kind: 'policy' }));
+});
