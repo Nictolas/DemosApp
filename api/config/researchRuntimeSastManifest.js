@@ -22,5 +22,8 @@ module.exports = Object.freeze([
   'api/config/researchReadinessManifest.js',
   'api/config/researchReadinessDeployment.js',
   'api/services/researchPoliticalVectorReader.js',
-  'api/services/researchPoliticalVectorAdapter.js'
+  'api/services/researchPoliticalVectorAdapter.js',
+  'api/services/researchAggregateReader.js',
+  'api/services/researchAggregatePublicationPolicy.js',
+  'api/services/researchAggregateMethodology.js'
 ]);

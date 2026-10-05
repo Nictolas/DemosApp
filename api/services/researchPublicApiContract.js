@@ -1,24 +1,30 @@
 const RESEARCH_PUBLIC_ROUTE_PREFIX = '/v1';
 
 const RESEARCH_PUBLIC_ENDPOINTS = Object.freeze({
-  issueChallenge: {
+  issueChallenge: Object.freeze({
     method: 'POST',
     path: RESEARCH_PUBLIC_ROUTE_PREFIX + '/proof-challenges',
     requestKeys: Object.freeze([]),
     responseKeys: Object.freeze(['challenge', 'purpose'])
-  },
-  listPoliticalVectors: {
+  }),
+  listPoliticalVectors: Object.freeze({
     method: 'POST',
     path: RESEARCH_PUBLIC_ROUTE_PREFIX + '/political-vectors',
     requestKeys: Object.freeze(['scope']),
     responseKeys: Object.freeze(['candidates'])
-  },
-  readOpinionVector: {
+  }),
+  readOpinionVector: Object.freeze({
     method: 'POST',
     path: RESEARCH_PUBLIC_ROUTE_PREFIX + '/opinion-vector/read',
     requestKeys: Object.freeze(['participantPublicKey', 'challenge', 'signature']),
     responseKeys: Object.freeze(['opinions'])
-  }
+  }),
+  readAnswerAggregates: Object.freeze({
+    method: 'POST',
+    path: RESEARCH_PUBLIC_ROUTE_PREFIX + '/answer-aggregates/read',
+    requestKeys: Object.freeze(['questionId']),
+    responseKeys: Object.freeze(['methodology', 'rows'])
+  })
 });
 
 const FORBIDDEN_IDENTITY_KEYS = Object.freeze([
