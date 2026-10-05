@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('node:path');
@@ -15,6 +15,7 @@ test('Research runtime SAST manifest contains the current standalone runtime clo
     'api/config/researchProductionReadinessPolicy.js',
     'api/researchPublicApiMount.js',
     'api/config/researchPublicExposurePolicy.js',
+  'api/config/researchPublicRequestPolicy.js',
     'api/middleware/researchPublicBoundary.js',
     'api/routes/researchPublicRouter.js',
     'api/handlers/researchPublicHandlers.js',

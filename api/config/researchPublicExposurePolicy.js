@@ -1,3 +1,7 @@
+const {
+  RESEARCH_PUBLIC_MAX_BODY_BYTES
+} = require('./researchPublicRequestPolicy');
+
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([]);
 
 const parseAllowedOrigins = (value = '') => Object.freeze(
@@ -15,7 +19,7 @@ const createResearchPublicExposurePolicy = ({
   mountAllowed: shadowEnabled === true && publicApiEnabled === true,
   allowedOrigins: Object.freeze([...allowedOrigins]),
   allowCredentials: false,
-  maxBodyBytes: 64 * 1024,
+  maxBodyBytes: RESEARCH_PUBLIC_MAX_BODY_BYTES,
   cacheControl: 'no-store',
   errorBodyKeys: Object.freeze(['error'])
 });
