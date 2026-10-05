@@ -337,3 +337,125 @@ test('invalid input size fails before filesystem or high-water side effects', as
   assert.equal(ioCalls, 0);
   assert.equal(floorCalls, 0);
 });
+
+test('rename failure after monotonic advance fails closed and cleans the unpublished temp file', async () => {
+  const events = [];
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  let floor = 10;
+  const io = {
+    async mkdir() {},
+    async open(actual) {
+      assert.match(actual, /\.tmp-/);
+      return {
+        async writeFile() { events.push('temp:write'); },
+        async sync() { events.push('temp:sync'); },
+        async close() { events.push('temp:close'); }
+      };
+    },
+    async rename() {
+      events.push('rename');
+      throw new Error('atomic publish unavailable');
+    },
+    async unlink() { events.push('unlink'); }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: {
+      async readMinimumSequence() { return floor; },
+      async advanceTo(sequence) {
+        floor = sequence;
+        events.push('floor:advance');
+      }
+    },
+    io,
+    randomBytes: () => Buffer.alloc(12, 4)
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({ snapshotJson: snapshot(11), sequence: 11 }),
+    /atomic publish unavailable/
+  );
+  assert.equal(floor, 11);
+  assert.deepEqual(events.slice(-3), ['floor:advance', 'rename', 'unlink']);
+});
+
+test('directory fsync failure after rename is surfaced and never reported as successful persistence', async () => {
+  const events = [];
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  const directory = path.dirname(target);
+  let floor = 20;
+  const io = {
+    async mkdir() {},
+    async open(actual) {
+      if (actual === directory) {
+        return {
+          async sync() {
+            events.push('dir:sync');
+            throw new Error('directory fsync unavailable');
+          },
+          async close() { events.push('dir:close'); }
+        };
+      }
+      return {
+        async writeFile() {},
+        async sync() {},
+        async close() {}
+      };
+    },
+    async rename() { events.push('rename'); },
+    async unlink() { events.push('unlink'); }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: {
+      async readMinimumSequence() { return floor; },
+      async advanceTo(sequence) { floor = sequence; }
+    },
+    io,
+    randomBytes: () => Buffer.alloc(12, 5)
+  });
+
+  await assert.rejects(
+    () => persistence.persistAuthenticatedSnapshot({ snapshotJson: snapshot(21), sequence: 21 }),
+    /directory fsync unavailable/
+  );
+  assert.equal(floor, 21);
+  assert.equal(events.includes('rename'), true);
+  assert.equal(events.includes('dir:sync'), true);
+});
+
+test('recovery high-water mismatch rejects stale snapshot before cryptographic revalidation', async () => {
+  const target = path.resolve('virtual', 'issuer-keyset.json');
+  let revalidateCalls = 0;
+  const io = {
+    async open() {
+      return {
+        async stat() {
+          return { isFile: () => true, size: Buffer.byteLength(snapshot(30)), mode: 0o100600 };
+        },
+        async readFile() { return Buffer.from(snapshot(30)); },
+        async close() {}
+      };
+    },
+    async rename() { throw new Error('not used'); }
+  };
+  const persistence = createResearchIssuerKeySetSnapshotPersistence({
+    snapshotPath: target,
+    highWaterMarkStore: {
+      async readMinimumSequence() { return 31; },
+      async advanceTo() {}
+    },
+    io
+  });
+
+  await assert.rejects(
+    () => persistence.recoverAuthenticatedSnapshot({
+      revalidate: async () => {
+        revalidateCalls += 1;
+        return { ready: true, sequence: 30 };
+      }
+    }),
+    /does not match high-water mark/i
+  );
+  assert.equal(revalidateCalls, 0);
+});
