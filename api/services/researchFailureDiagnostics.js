@@ -9,8 +9,15 @@ const createResearchFailureDiagnostics = ({ enabled = false, sink = null } = {})
     if (!active) return false;
     const kind = classification?.kind;
     if (!ALLOWED_KINDS.has(kind)) return false;
-    sink(Object.freeze({ kind, count: 1 }));
-    return true;
+    try {
+      const result = sink(Object.freeze({ kind, count: 1 }));
+      if (result && typeof result.then === 'function') {
+        Promise.resolve(result).catch(() => {});
+      }
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   return Object.freeze({ enabled: active, record });
