@@ -33,6 +33,7 @@ const RESEARCH_TLS_QUERY_PARAMS = Object.freeze([
 ]);
 const RESEARCH_DATABASE_PROTOCOLS = new Set(['postgres:', 'postgresql:']);
 const RESEARCH_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+const RESEARCH_ALLOWED_QUERY_PARAMS = new Set(['pgbouncer']);
 
 const parseResearchDatabaseUrl = (value) => {
   if (typeof value !== 'string' || value.length === 0 || value !== value.trim()) {
@@ -54,6 +55,12 @@ const parseResearchDatabaseUrl = (value) => {
   }
   if (url.hash) {
     throw new Error('RESEARCH_DATABASE_URL fragments are forbidden');
+  }
+
+  for (const key of url.searchParams.keys()) {
+    if (!RESEARCH_TLS_QUERY_PARAMS.includes(key) && !RESEARCH_ALLOWED_QUERY_PARAMS.has(key)) {
+      throw new Error('RESEARCH_DATABASE_URL contains an unsupported query parameter');
+    }
   }
 
   return url;
