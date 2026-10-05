@@ -34,7 +34,10 @@ const {
 const {
   createResearchFailureDiagnostics
 } = require('../services/researchFailureDiagnostics');
-const { readCallableProperty } = require('../services/researchSafeInjection');
+const {
+  readCallableProperty,
+  invokeDetachedCallable
+} = require('../services/researchSafeInjection');
 
 const normalizeFailureDiagnostics = (candidate) => {
   const record = readCallableProperty(candidate, 'record');
@@ -43,9 +46,7 @@ const normalizeFailureDiagnostics = (candidate) => {
   }
   return Object.freeze({
     record(classification) {
-      try {
-        Reflect.apply(record, undefined, [classification]);
-      } catch {}
+      invokeDetachedCallable(record, classification);
     }
   });
 };

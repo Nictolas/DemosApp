@@ -9,4 +9,14 @@ const readCallableProperty = (candidate, property) => {
   }
 };
 
-module.exports = { readCallableProperty };
+const invokeDetachedCallable = (callable, argument) => {
+  if (typeof callable !== 'function') return false;
+  try {
+    Reflect.apply(callable, undefined, [argument]);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+module.exports = { readCallableProperty, invokeDetachedCallable };
