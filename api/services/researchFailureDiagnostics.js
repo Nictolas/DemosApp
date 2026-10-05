@@ -4,6 +4,7 @@ const ALLOWED_KINDS = new Set(Object.values(RESEARCH_FAILURE_KIND));
 
 const DEFAULT_EVENT_BUDGET = 100;
 const MAX_EVENT_BUDGET = 1000;
+const DIAGNOSTICS_ENABLE_TOKEN = Symbol('research-diagnostics-enable');
 
 const normalizeEventBudget = (value) => {
   if (value === undefined) return DEFAULT_EVENT_BUDGET;
@@ -11,9 +12,9 @@ const normalizeEventBudget = (value) => {
   return value;
 };
 
-const createResearchFailureDiagnostics = ({ enabled = false, sink = null, eventBudget } = {}) => {
+const createResearchFailureDiagnostics = ({ enableToken = null, sink = null, eventBudget } = {}) => {
   const budget = normalizeEventBudget(eventBudget);
-  const active = enabled === true && typeof sink === 'function' && budget > 0;
+  const active = enableToken === DIAGNOSTICS_ENABLE_TOKEN && typeof sink === 'function' && budget > 0;
   let emitted = 0;
 
   const record = (classification) => {
@@ -35,4 +36,7 @@ const createResearchFailureDiagnostics = ({ enabled = false, sink = null, eventB
   return Object.freeze({ enabled: active, record });
 };
 
-module.exports = { createResearchFailureDiagnostics };
+module.exports = {
+  createResearchFailureDiagnostics,
+  DIAGNOSTICS_ENABLE_TOKEN
+};

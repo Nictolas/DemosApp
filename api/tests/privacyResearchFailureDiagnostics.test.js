@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createResearchFailureDiagnostics } = require('../services/researchFailureDiagnostics');
+const {
+  createResearchFailureDiagnostics,
+  DIAGNOSTICS_ENABLE_TOKEN
+} = require('../services/researchFailureDiagnostics');
 
 test('Research failure diagnostics are disabled by default', () => {
   let calls = 0;
@@ -11,9 +14,25 @@ test('Research failure diagnostics are disabled by default', () => {
   assert.equal(calls, 0);
 });
 
+test('diagnostics require the exact local capability token to activate', () => {
+  const sink = () => {};
+  for (const enableToken of [true, false, 'true', 1, {}, Symbol('research-diagnostics-enable')]) {
+    assert.equal(createResearchFailureDiagnostics({ enableToken, sink }).enabled, false);
+  }
+  assert.equal(createResearchFailureDiagnostics({ enableToken: DIAGNOSTICS_ENABLE_TOKEN, sink }).enabled, true);
+});
+
+test('legacy enabled flags cannot activate diagnostics', () => {
+  let calls = 0;
+  const diagnostics = createResearchFailureDiagnostics({ enabled: true, sink: () => { calls += 1; } });
+  assert.equal(diagnostics.enabled, false);
+  assert.equal(diagnostics.record({ kind: 'request' }), false);
+  assert.equal(calls, 0);
+});
+
 test('enabled diagnostics emit only bounded category and unit count', () => {
   const events = [];
-  const diagnostics = createResearchFailureDiagnostics({ enabled: true, sink: (event) => events.push(event) });
+  const diagnostics = createResearchFailureDiagnostics({ enableToken: DIAGNOSTICS_ENABLE_TOKEN, sink: (event) => events.push(event) });
   const classification = { kind: 'policy', secret: 'E409_SECRET', payload: { userId: 'person-1' } };
   assert.equal(diagnostics.record(classification), true);
   assert.deepEqual(events, [{ kind: 'policy', count: 1 }]);
@@ -24,7 +43,7 @@ test('enabled diagnostics emit only bounded category and unit count', () => {
 
 test('diagnostics isolate synchronous sink failures from Research flow', () => {
   const diagnostics = createResearchFailureDiagnostics({
-    enabled: true,
+    enableToken: DIAGNOSTICS_ENABLE_TOKEN,
     sink: () => { throw new Error('diagnostic consumer failed'); }
   });
   assert.doesNotThrow(() => diagnostics.record({ kind: 'infrastructure' }));
@@ -34,7 +53,7 @@ test('diagnostics isolate synchronous sink failures from Research flow', () => {
 test('diagnostics never await asynchronous consumers or create backpressure', async () => {
   let release;
   const pending = new Promise((resolve) => { release = resolve; });
-  const diagnostics = createResearchFailureDiagnostics({ enabled: true, sink: () => pending });
+  const diagnostics = createResearchFailureDiagnostics({ enableToken: DIAGNOSTICS_ENABLE_TOKEN, sink: () => pending });
   assert.equal(diagnostics.record({ kind: 'policy' }), true);
   release();
   await pending;
@@ -42,7 +61,7 @@ test('diagnostics never await asynchronous consumers or create backpressure', as
 
 test('diagnostics swallow asynchronous consumer rejection', async () => {
   const diagnostics = createResearchFailureDiagnostics({
-    enabled: true,
+    enableToken: DIAGNOSTICS_ENABLE_TOKEN,
     sink: () => Promise.reject(new Error('async diagnostic failure'))
   });
   assert.equal(diagnostics.record({ kind: 'request' }), true);
@@ -52,7 +71,7 @@ test('diagnostics swallow asynchronous consumer rejection', async () => {
 test('diagnostics enforce a bounded event budget during failure storms', () => {
   const events = [];
   const diagnostics = createResearchFailureDiagnostics({
-    enabled: true,
+    enableToken: DIAGNOSTICS_ENABLE_TOKEN,
     eventBudget: 3,
     sink: (event) => events.push(event)
   });
@@ -64,7 +83,7 @@ test('diagnostics enforce a bounded event budget during failure storms', () => {
 test('invalid or excessive diagnostic budgets disable the sink fail-closed', () => {
   for (const eventBudget of [0, -1, 1.5, 1001, Number.MAX_SAFE_INTEGER, '10']) {
     let calls = 0;
-    const diagnostics = createResearchFailureDiagnostics({ enabled: true, eventBudget, sink: () => { calls += 1; } });
+    const diagnostics = createResearchFailureDiagnostics({ enableToken: DIAGNOSTICS_ENABLE_TOKEN, eventBudget, sink: () => { calls += 1; } });
     assert.equal(diagnostics.enabled, false);
     assert.equal(diagnostics.record({ kind: 'policy' }), false);
     assert.equal(calls, 0);
@@ -74,7 +93,7 @@ test('invalid or excessive diagnostic budgets disable the sink fail-closed', () 
 test('failed synchronous emissions still consume budget to prevent retry amplification', () => {
   let calls = 0;
   const diagnostics = createResearchFailureDiagnostics({
-    enabled: true,
+    enableToken: DIAGNOSTICS_ENABLE_TOKEN,
     eventBudget: 2,
     sink: () => { calls += 1; throw new Error('consumer failed'); }
   });
@@ -86,8 +105,8 @@ test('failed synchronous emissions still consume budget to prevent retry amplifi
 
 test('diagnostics reject unknown categories and invalid sinks fail closed', () => {
   const events = [];
-  const diagnostics = createResearchFailureDiagnostics({ enabled: true, sink: (event) => events.push(event) });
+  const diagnostics = createResearchFailureDiagnostics({ enableToken: DIAGNOSTICS_ENABLE_TOKEN, sink: (event) => events.push(event) });
   assert.equal(diagnostics.record({ kind: 'unexpected' }), false);
   assert.deepEqual(events, []);
-  assert.equal(createResearchFailureDiagnostics({ enabled: true }).enabled, false);
+  assert.equal(createResearchFailureDiagnostics({ enableToken: DIAGNOSTICS_ENABLE_TOKEN }).enabled, false);
 });
