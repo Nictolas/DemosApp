@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const OPEN_STATUSES = new Set(['open', 'acknowledged']);
+const SEVERITY_RANK = Object.freeze({ info: 0, low: 1, medium: 2, high: 3, critical: 4 });
 
 class IncidentManager {
   constructor() {
@@ -19,6 +20,9 @@ class IncidentManager {
         if (existing && OPEN_STATUSES.has(existing.status)) {
           existing.lastSeen = finding.lastSeen;
           existing.count = Math.max(existing.count, finding.count);
+          const currentRank = SEVERITY_RANK[existing.severity] ?? -1;
+          const incomingRank = SEVERITY_RANK[finding.severity] ?? -1;
+          if (incomingRank > currentRank) existing.severity = finding.severity;
           existing.updatedAt = now.toISOString();
           changed.push({ ...existing });
           continue;
