@@ -218,7 +218,11 @@ const createResearchSignedIssuerKeySetStore = ({
 
   const readiness = () => {
     if (!current) return Object.freeze({ ready: false, reason: 'missing' });
-    if (current.expiresAt <= now()) {
+    const observedNow = now();
+    if (!Number.isSafeInteger(observedNow)) {
+      return Object.freeze({ ready: false, reason: 'invalid-clock' });
+    }
+    if (current.expiresAt <= observedNow) {
       return Object.freeze({ ready: false, reason: 'expired' });
     }
     return Object.freeze({
@@ -232,7 +236,9 @@ const createResearchSignedIssuerKeySetStore = ({
     install,
     readiness,
     resolve({ tokenKeyId, epoch }) {
-      if (!current || current.expiresAt <= now()) return null;
+      if (!current) return null;
+      const observedNow = now();
+      if (!Number.isSafeInteger(observedNow) || current.expiresAt <= observedNow) return null;
       return current.ring.resolve({ tokenKeyId, epoch });
     }
   });

@@ -90,6 +90,40 @@ test('signed issuer key-set installs atomically and resolves only authenticated 
   }), null);
 });
 
+test('runtime clock corruption after install makes readiness and resolution fail closed', async () => {
+  const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
+  const validNow = Date.UTC(2026, 9, 3, 14, 0, 0);
+  let observedNow = validNow;
+  const bytes = makePublicMaterial(45);
+  const verificationKey = { type: 'public', usages: ['verify'], label: 'clock-safe' };
+  const store = createResearchSignedIssuerKeySetStore({
+    trustRootPublicKey: trustRoot,
+    loadVerificationKey: async () => verificationKey,
+    now: () => observedNow
+  });
+  const payload = makePayload({
+    sequence: 24,
+    issuedAt: validNow - 1_000,
+    expiresAt: validNow + 60_000,
+    entries: [{ bytes, epochs: ['2026-Q4'] }]
+  });
+  await store.install(signSnapshot(payload, privateKey));
+
+  observedNow = Number.NaN;
+  assert.deepEqual(store.readiness(), { ready: false, reason: 'invalid-clock' });
+  assert.equal(store.resolve({
+    tokenKeyId: Buffer.from(tokenKeyId(bytes), 'base64url'),
+    epoch: '2026-Q4'
+  }), null);
+
+  observedNow = Number.MAX_SAFE_INTEGER + 1;
+  assert.deepEqual(store.readiness(), { ready: false, reason: 'invalid-clock' });
+  assert.equal(store.resolve({
+    tokenKeyId: Buffer.from(tokenKeyId(bytes), 'base64url'),
+    epoch: '2026-Q4'
+  }), null);
+});
+
 test('tampering, rollback and invalid replacement fail closed without replacing the current valid snapshot', async () => {
   const { publicKey: trustRoot, privateKey } = crypto.generateKeyPairSync('ed25519');
   const now = Date.UTC(2026, 9, 3, 14, 0, 0);
