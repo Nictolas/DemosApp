@@ -110,10 +110,12 @@ const getResearchPool = () => {
 
 const sanitizeResearchDatabaseError = () => new Error(RESEARCH_DATABASE_ERROR_MESSAGE);
 
-const withResearchDatabaseBoundary = async (operation) => {
-  if (typeof operation !== 'function') throw sanitizeResearchDatabaseError();
+const withResearchDatabaseBoundary = async (operation, getPool = getResearchPool) => {
+  if (typeof operation !== 'function' || typeof getPool !== 'function') {
+    throw sanitizeResearchDatabaseError();
+  }
   try {
-    return await operation(getResearchPool());
+    return await operation(getPool());
   } catch {
     throw sanitizeResearchDatabaseError();
   }

@@ -1,5 +1,6 @@
 const {
-  getResearchPool
+  getResearchPool,
+  withResearchDatabaseBoundary
 } = require('../config/researchDatabase');
 const {
   issueResearchProofChallenge
@@ -48,7 +49,7 @@ const createResearchPublicHandlers = ({
     try {
       const body = req.body ?? {};
       assertResearchPublicPayload(body, RESEARCH_PUBLIC_ENDPOINTS.issueChallenge.requestKeys);
-      const result = await issueResearchProofChallenge(getPool());
+      const result = await withResearchDatabaseBoundary((pool) => issueResearchProofChallenge(pool), getPool);
       res.status(201).json({
         challenge: result.challenge,
         purpose: result.purpose
@@ -62,7 +63,9 @@ const createResearchPublicHandlers = ({
     try {
       const body = req.body ?? {};
       assertResearchPublicPayload(body, RESEARCH_PUBLIC_ENDPOINTS.listPoliticalVectors.requestKeys);
-      const candidates = await createResearchPoliticalVectorAdapter({ client: getPool() }).read(body.scope);
+      const candidates = await withResearchDatabaseBoundary((pool) =>
+        createResearchPoliticalVectorAdapter({ client: pool }).read(body.scope)
+      , getPool);
       res.status(200).json(buildResearchPoliticalVectorsPublicResponse(candidates));
     } catch {
       sendResearchPublicError(res, 400);
@@ -78,7 +81,9 @@ const createResearchPublicHandlers = ({
         challenge: body.challenge,
         signature: decodeBase64UrlExact(body.signature, 64, 'participant signature')
       };
-      const result = await createResearchOpinionVectorReader({ client: getPool() }).read(proof);
+      const result = await withResearchDatabaseBoundary((pool) =>
+        createResearchOpinionVectorReader({ client: pool }).read(proof)
+      , getPool);
       res.status(200).json(buildResearchOpinionVectorPublicResponse(result));
     } catch {
       sendResearchPublicError(res, 400);
@@ -89,13 +94,16 @@ const createResearchPublicHandlers = ({
     try {
       const body = req.body ?? {};
       assertResearchPublicPayload(body, RESEARCH_PUBLIC_ENDPOINTS.readAnswerAggregates.requestKeys);
-      const result = await readPublishedResearchAnswerAggregates(
-        getPool(),
-        {
-          questionId: body.questionId,
-          minimumCellSize: aggregateMinimumCellSize
-        },
-        { clock: aggregateClock }
+      const result = await withResearchDatabaseBoundary((pool) =>
+        readPublishedResearchAnswerAggregates(
+          pool,
+          {
+            questionId: body.questionId,
+            minimumCellSize: aggregateMinimumCellSize
+          },
+          { clock: aggregateClock }
+        ),
+        getPool
       );
       const response = buildResearchAggregatePublicResponse(result);
       res.status(200).json(response);
