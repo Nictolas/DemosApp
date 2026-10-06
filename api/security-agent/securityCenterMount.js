@@ -49,12 +49,12 @@ function buildSecurityCenterMountConfig(env = {}) {
   });
 }
 
-function createReadOnlySecurityCenterService({ now = () => new Date() } = {}) {
+function createReadOnlySecurityCenterService({ now = () => new Date(), runtime = null, runner = null, store = null } = {}) {
   if (typeof now !== 'function') throw new TypeError('security center clock required');
-  const store = new MemorySecurityStore({ retentionMs: 24 * 60 * 60 * 1000, maxIncidents: 1000 });
+  const resolvedStore = store || new MemorySecurityStore({ retentionMs: 24 * 60 * 60 * 1000, maxIncidents: 1000 });
   const approvalGate = new SecurityApprovalGate({ now, maxRecords: 100 });
   const boundaryAudit = new BoundaryAudit({ now, maxRecords: 100 });
-  const runner = Object.freeze({
+  const resolvedRunner = runner || Object.freeze({
     status() {
       return Object.freeze({
         version: SECURITY_CENTER_MOUNT_VERSION,
@@ -69,8 +69,9 @@ function createReadOnlySecurityCenterService({ now = () => new Date() } = {}) {
     }
   });
   return new SecurityCenterService({
-    runner,
-    store,
+    runner: resolvedRunner,
+    runtime,
+    store: resolvedStore,
     approvalGate,
     boundaryAudit,
     sourceName: 'security-staging',

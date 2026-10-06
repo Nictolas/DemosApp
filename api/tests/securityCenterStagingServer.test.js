@@ -20,7 +20,7 @@ const safeEnv = extra => ({
   SECURITY_RETENTION_JOB_ENABLED: 'false',
   SECURITY_AGENT_ACTION_RUNNER_ENABLED: 'false',
   SECURITY_AGENT_SHADOW_ENABLED: 'false',
-  AXIOM_ENABLED: 'false',
+  SECURITY_AGENT_AXIOM_ENABLED: 'false',
   ...extra
 });
 

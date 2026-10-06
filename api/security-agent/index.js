@@ -3,6 +3,7 @@ const { DetectionEngine } = require('./detectionEngine');
 const { IncidentManager } = require('./incidentManager');
 const { ShadowSecurityPipeline } = require('./shadowPipeline');
 const { ReadOnlySecuritySource, createAxiomReadOnlySecuritySource } = require('./readOnlySecuritySource');
+const { SECURITY_AXIOM_PROVIDER_VERSION, buildSecurityAxiomReadOnlyConfig, SecurityAxiomReadOnlyProvider, createSecurityAxiomReadOnlyProvider } = require('./securityAxiomReadOnlyProvider');
 const { MemorySecurityStore, sanitizeIncidentForStore, sanitizeSourceState } = require('./securityStore');
 const { PostgresSecurityStore } = require('./postgresSecurityStore');
 const { PURPOSES: SECURITY_DATABASE_PURPOSES, buildSecurityDbClientConfig, createPoolForPurpose, publicCredentialStatus, parseRetentionDays } = require('./securityDbCredentialGate');
@@ -34,12 +35,14 @@ const { createSecurityCenterRouter } = require('./securityCenterRouter');
 const { SECURITY_CENTER_MOUNT_VERSION, SECURITY_CENTER_DEFAULT_PREFIX, buildSecurityCenterMountConfig, createReadOnlySecurityCenterService, mountSecurityCenterRuntime } = require('./securityCenterMount');
 const { SECURITY_CENTER_STAGING_AUTH_VERSION, buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth } = require('./securityCenterStagingAuth');
 const { SECURITY_CENTER_STAGING_SERVER_VERSION, buildSecurityCenterStagingServerConfig, createSecurityCenterStagingApp, startSecurityCenterStagingServer } = require('./securityCenterStagingServer');
+const { SECURITY_STAGING_STACK_VERSION, startSecurityStagingStack } = require('./securityStagingStack');
 const { buildSecurityCenterOverview, pickIncident } = require('./securityCenterReadModel');
 const { normalizeSecurityEvent, sanitizeMeta } = require('./securityEvent');
 const { adaptLegacySecurityRecord, adaptLegacyViolation } = require('./legacyAdapters');
 
 module.exports = {
   SecurityCollector, DetectionEngine, IncidentManager, ShadowSecurityPipeline, ReadOnlySecuritySource, createAxiomReadOnlySecuritySource,
+  SECURITY_AXIOM_PROVIDER_VERSION, buildSecurityAxiomReadOnlyConfig, SecurityAxiomReadOnlyProvider, createSecurityAxiomReadOnlyProvider,
   MemorySecurityStore, PostgresSecurityStore, SECURITY_DATABASE_PURPOSES, buildSecurityDbClientConfig, createPoolForPurpose, publicCredentialStatus, parseRetentionDays,
   SECURITY_AGENT_RUNTIME_MODES, buildSecurityAgentRuntimeConfig, SecurityAgentRuntime, createSecurityAgentRuntime, SECURITY_STAGING_ISOLATION_VERSION, buildSecurityStagingIsolationConfig, assertSecurityStagingIsolation,
   SECURITY_ACTION_CATALOG_VERSION, SECURITY_ACTION_CATALOG, SECURITY_ACTION_CATALOG_ACTIONS, SECURITY_APPROVAL_ACTIONS, SECURITY_BOUNDARY_ACTIONS, validateSecurityActionCatalog, securityActionCatalogStatus,
@@ -63,6 +66,7 @@ module.exports = {
   SECURITY_CENTER_MOUNT_VERSION, SECURITY_CENTER_DEFAULT_PREFIX, buildSecurityCenterMountConfig, createReadOnlySecurityCenterService, mountSecurityCenterRuntime,
   SECURITY_CENTER_STAGING_AUTH_VERSION, buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth,
   SECURITY_CENTER_STAGING_SERVER_VERSION, buildSecurityCenterStagingServerConfig, createSecurityCenterStagingApp, startSecurityCenterStagingServer,
+  SECURITY_STAGING_STACK_VERSION, startSecurityStagingStack,
   SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
   normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation
 };

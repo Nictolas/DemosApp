@@ -1,16 +1,11 @@
 const { buildModelGatewayConfig } = require('./securityAiModelGateway');
 const { buildGroqSecurityProviderConfig } = require('./securityAiGroqProvider');
+const { buildSecurityAxiomReadOnlyConfig, NON_PROD_DATASET_MARKER, PROD_MARKER } = require('./securityAxiomReadOnlyProvider');
 
 const STAGING_ISOLATION_VERSION = 'v0.79';
-const NON_PROD_DATASET_MARKER = /(staging|stage|sandbox|preview|test)/i;
-const PROD_MARKER = /(^|[-_.])(prod|production)($|[-_.])/i;
 
 function safeLabel(value, max = 96) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_.:.-]/g, '_').slice(0, max);
-}
-
-function safeDataset(value) {
-  return String(value ?? '').trim().replace(/[^A-Za-z0-9_.:-]/g, '_').slice(0, 160);
 }
 
 function enabled(env, key) {
@@ -22,7 +17,7 @@ function buildSecurityStagingIsolationConfig(env = {}) {
   const environmentClass = safeLabel(env.SECURITY_AGENT_ENVIRONMENT_CLASS);
   const stagingId = safeLabel(env.SECURITY_AGENT_STAGING_ID, 120);
   const runtimeMode = safeLabel(env.SECURITY_AGENT_RUNTIME_MODE || 'memory', 32);
-  const dataset = safeDataset(env.AXIOM_REALTIME_DATASET);
+  const axiom = buildSecurityAxiomReadOnlyConfig(env);
   const aiBackend = safeLabel(env.SECURITY_AI_SHADOW_BACKEND || 'mock', 32);
   const blockers = [];
 
@@ -38,12 +33,9 @@ function buildSecurityStagingIsolationConfig(env = {}) {
       blockers.push('action_runner_forbidden');
     }
 
-    if (enabled(env, 'SECURITY_AGENT_SHADOW_ENABLED')) {
-      if (!enabled(env, 'AXIOM_ENABLED')) blockers.push('axiom_disabled');
-      if (!dataset) blockers.push('axiom_dataset_missing');
-      else if (!NON_PROD_DATASET_MARKER.test(dataset) || PROD_MARKER.test(dataset) || dataset.toLowerCase() === 'real-time') {
-        blockers.push('axiom_dataset_not_isolated');
-      }
+    if (enabled(env, 'SECURITY_AGENT_SHADOW_ENABLED') && axiom.ready !== true) {
+      blockers.push(...axiom.blockers.map(code => `axiom:${code}`));
+      if (!axiom.enabled) blockers.push('axiom:provider_disabled');
     }
 
     if (enabled(env, 'SECURITY_AI_SHADOW_INTEGRATION_ENABLED') && aiBackend === 'gateway') {
@@ -62,9 +54,17 @@ function buildSecurityStagingIsolationConfig(env = {}) {
     stagingId: stagingId || null,
     runtimeMode,
     axiom: Object.freeze({
-      enabled: enabled(env, 'AXIOM_ENABLED'),
-      dataset: dataset || null,
-      isolatedDataset: Boolean(dataset && NON_PROD_DATASET_MARKER.test(dataset) && !PROD_MARKER.test(dataset) && dataset.toLowerCase() !== 'real-time')
+      version: axiom.version,
+      enabled: axiom.enabled === true,
+      ready: axiom.ready === true,
+      queryOnly: axiom.queryOnly === true,
+      region: axiom.region,
+      dataset: axiom.dataset,
+      isolatedDataset: axiom.isolatedDataset === true,
+      tokenPresent: axiom.tokenPresent === true,
+      orgIdPresent: axiom.orgIdPresent === true,
+      writeAccess: false,
+      executable: false
     }),
     ai: Object.freeze({
       enabled: enabled(env, 'SECURITY_AI_SHADOW_INTEGRATION_ENABLED'),

@@ -53,7 +53,7 @@ function securityHeaders(_req, res, next) {
   return next();
 }
 
-function createSecurityCenterStagingApp({ env = process.env, now = () => new Date() } = {}) {
+function createSecurityCenterStagingApp({ env = process.env, now = () => new Date(), service = null } = {}) {
   const config = buildSecurityCenterStagingServerConfig(env);
   if (!config.enabled || !config.ready) {
     const error = new Error('SECURITY_CENTER_STAGING_SERVER_BLOCKED');
@@ -92,6 +92,7 @@ function createSecurityCenterStagingApp({ env = process.env, now = () => new Dat
     verifyToken: auth.verifyToken,
     requireAdmin: auth.requireAdmin,
     adminLimiter,
+    service,
     now
   });
 
@@ -100,7 +101,7 @@ function createSecurityCenterStagingApp({ env = process.env, now = () => new Dat
   return app;
 }
 
-function startSecurityCenterStagingServer({ env = process.env } = {}) {
+function startSecurityCenterStagingServer({ env = process.env, service = null } = {}) {
   const config = buildSecurityCenterStagingServerConfig(env);
   if (!config.enabled || !config.ready) {
     const error = new Error('SECURITY_CENTER_STAGING_SERVER_BLOCKED');
@@ -108,7 +109,7 @@ function startSecurityCenterStagingServer({ env = process.env } = {}) {
     error.blockers = config.blockers;
     throw error;
   }
-  const app = createSecurityCenterStagingApp({ env });
+  const app = createSecurityCenterStagingApp({ env, service });
   return app.listen(config.port, '0.0.0.0', () => {
     console.log(`Security Center staging server listening on port ${config.port}`);
   });

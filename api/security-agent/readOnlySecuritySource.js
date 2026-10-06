@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { ShadowSecurityPipeline } = require('./shadowPipeline');
+const { createSecurityAxiomReadOnlyProvider } = require('./securityAxiomReadOnlyProvider');
 
 function asDate(value, fallback = new Date()) {
   const date = value instanceof Date ? value : new Date(value || fallback);
@@ -210,7 +211,17 @@ function createAxiomReadOnlySecuritySource({
   env = process.env,
   ...options
 } = {}) {
-  const fetcher = fetchSecurityEvents || require('../utils/axiomQueryHelper').getSecurityEvents;
+  let fetcher = fetchSecurityEvents;
+  if (!fetcher) {
+    const provider = createSecurityAxiomReadOnlyProvider({ env });
+    fetcher = provider
+      ? value => provider.getSecurityEvents(value)
+      : async () => {
+          const error = new Error('SECURITY_AXIOM_PROVIDER_NOT_READY');
+          error.code = 'SECURITY_AXIOM_PROVIDER_NOT_READY';
+          throw error;
+        };
+  }
   const enabled = env.SECURITY_AGENT_SHADOW_ENABLED === 'true';
 
   return new ReadOnlySecuritySource({
@@ -218,7 +229,7 @@ function createAxiomReadOnlySecuritySource({
     pipeline,
     fetchEvents: fetcher,
     enabled,
-    environment: env.NODE_ENV || 'unknown'
+    environment: env.SECURITY_AGENT_ENVIRONMENT_CLASS || env.NODE_ENV || 'unknown'
   });
 }
 

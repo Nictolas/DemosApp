@@ -22,8 +22,12 @@ function stagingEnv(overrides = {}) {
     SECURITY_AGENT_STORE_ENABLED: 'false',
     SECURITY_RETENTION_JOB_ENABLED: 'false',
     SECURITY_AGENT_ACTION_RUNNER_ENABLED: 'false',
-    AXIOM_ENABLED: 'true',
-    AXIOM_REALTIME_DATASET: 'demos-security-staging',
+    SECURITY_AGENT_AXIOM_ENABLED: 'true',
+    SECURITY_AGENT_AXIOM_QUERY_ONLY: 'true',
+    SECURITY_AGENT_AXIOM_REGION: 'eu',
+    SECURITY_AGENT_AXIOM_DATASET: 'demos-security-staging',
+    SECURITY_AGENT_AXIOM_API_TOKEN: 'xaat-' + 'A'.repeat(40),
+    SECURITY_AGENT_AXIOM_ORG_ID: 'demos-staging-org',
     ...overrides
   };
 }
@@ -78,13 +82,13 @@ test('telemetry-only non-production staging profile is accepted', () => {
 });
 
 test('production/default Axiom dataset cannot be inherited by staging', () => {
-  const realTime = buildSecurityStagingIsolationConfig(stagingEnv({ AXIOM_REALTIME_DATASET: 'real-time' }));
+  const realTime = buildSecurityStagingIsolationConfig(stagingEnv({ SECURITY_AGENT_AXIOM_DATASET: 'real-time' }));
   assert.equal(realTime.ready, false);
-  assert.ok(realTime.blockers.includes('axiom_dataset_not_isolated'));
+  assert.ok(realTime.blockers.includes('axiom:dataset_not_isolated'));
 
-  const prod = buildSecurityStagingIsolationConfig(stagingEnv({ AXIOM_REALTIME_DATASET: 'demos-security-prod' }));
+  const prod = buildSecurityStagingIsolationConfig(stagingEnv({ SECURITY_AGENT_AXIOM_DATASET: 'demos-security-prod' }));
   assert.equal(prod.ready, false);
-  assert.ok(prod.blockers.includes('axiom_dataset_not_isolated'));
+  assert.ok(prod.blockers.includes('axiom:dataset_not_isolated'));
 });
 
 test('writer, retention and action runner capabilities are forbidden in isolated staging', () => {
@@ -137,9 +141,9 @@ test('Render-style NODE_ENV=production may use memory only behind a passing stag
 });
 
 test('runtime refuses an isolation-required configuration with production-like inputs', () => {
-  const config = buildSecurityAgentRuntimeConfig(stagingEnv({ AXIOM_REALTIME_DATASET: 'real-time' }));
+  const config = buildSecurityAgentRuntimeConfig(stagingEnv({ SECURITY_AGENT_AXIOM_DATASET: 'real-time' }));
   assert.equal(config.ready, false);
-  assert.ok(config.blockers.includes('staging:axiom_dataset_not_isolated'));
+  assert.ok(config.blockers.includes('staging:axiom:dataset_not_isolated'));
 });
 
 test('public runtime status never exposes provider credentials', () => {

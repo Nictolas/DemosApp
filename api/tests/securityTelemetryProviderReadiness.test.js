@@ -129,7 +129,7 @@ test('Axiom source readiness path remains query-only and disabled unless explici
   let calls = 0;
   let args = null;
   const source = createAxiomReadOnlySecuritySource({
-    env: { SECURITY_AGENT_SHADOW_ENABLED:'true', NODE_ENV:'staging' },
+    env: { SECURITY_AGENT_SHADOW_ENABLED:'true', SECURITY_AGENT_ENVIRONMENT_CLASS:'staging', NODE_ENV:'production' },
     fetchSecurityEvents: async value => { calls += 1; args = value; return []; }
   });
   const result = await source.poll({ now:new Date('2026-10-06T10:00:00Z') });

@@ -39,6 +39,8 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPostgresResultShapeSafety.test.js')], root, 'Postgres result shape safety']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityFoundationInvariantScan.test.js')], root, 'Foundation invariant scan']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityTelemetryProviderReadiness.test.js')], root, 'Telemetry/provider readiness']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAxiomReadOnlyProvider.test.js')], root, 'Dedicated Axiom read-only provider']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStagingStack.test.js')], root, 'Security staging combined stack']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStagingIsolation.test.js')], root, 'Non-production staging isolation']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityActionCatalog.test.js')], root, 'Security action catalog drift gate']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPolicyAuditEvidence.test.js')], root, 'Policy/audit evidence consistency']);
