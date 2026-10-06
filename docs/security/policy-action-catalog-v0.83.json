@@ -1,0 +1,30 @@
+﻿{
+  "version": "0.83",
+  "scope": "policy-action-catalog-completeness-and-drift-gate",
+  "status": "code-ready",
+  "singleSourceOfTruth": "api/security-agent/securityActionCatalog.js",
+  "consumers": [
+    "AI analyst recommendedActions allowlist",
+    "Policy Engine deterministic decisions",
+    "Approval Gate eligible actions",
+    "Execution Boundary eligible actions",
+    "Execution Boundary Validator action allowlist"
+  ],
+  "invariants": {
+    "actionCount": 7,
+    "observe": "allow-read-only-no-approval-no-boundary",
+    "otherActions": "escalate-human-approval-boundary-non-executable",
+    "unknownAction": "deny",
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false
+  },
+  "driftPrevention": [
+    "AI and policy action sets must exactly match catalog",
+    "approval and boundary action sets must exactly match",
+    "boundary validator imports boundary version instead of duplicating it",
+    "catalog validation runs in local pre-CI gate"
+  ],
+  "productionTouched": false,
+  "networkUsed": false
+}

@@ -1,6 +1,8 @@
+const { APPROVAL_ACTIONS } = require('./securityActionCatalog');
+
 const APPROVAL_GATE_VERSION = 'v0.29';
 const APPROVAL_STATES = Object.freeze(['pending', 'approved', 'rejected', 'expired']);
-const ALLOWED_ACTIONS = new Set(['investigate','escalate_human','propose_rate_limit','propose_session_revocation','propose_endpoint_isolation','propose_secret_rotation']);
+const ALLOWED_ACTIONS = new Set(APPROVAL_ACTIONS);
 
 function safeToken(value, max = 64) {
   return String(value ?? '').trim().replace(/[^a-zA-Z0-9:_-]/g, '_').slice(0, max);

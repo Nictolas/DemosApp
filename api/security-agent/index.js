@@ -8,6 +8,7 @@ const { PostgresSecurityStore } = require('./postgresSecurityStore');
 const { PURPOSES: SECURITY_DATABASE_PURPOSES, buildSecurityDbClientConfig, createPoolForPurpose, publicCredentialStatus, parseRetentionDays } = require('./securityDbCredentialGate');
 const { RUNTIME_MODES: SECURITY_AGENT_RUNTIME_MODES, buildSecurityAgentRuntimeConfig, SecurityAgentRuntime, createSecurityAgentRuntime } = require('./securityAgentRuntime');
 const { STAGING_ISOLATION_VERSION: SECURITY_STAGING_ISOLATION_VERSION, buildSecurityStagingIsolationConfig, assertSecurityStagingIsolation } = require('./securityStagingIsolation');
+const { ACTION_CATALOG_VERSION: SECURITY_ACTION_CATALOG_VERSION, ACTION_CATALOG: SECURITY_ACTION_CATALOG, RECOMMENDED_ACTIONS: SECURITY_ACTION_CATALOG_ACTIONS, APPROVAL_ACTIONS: SECURITY_APPROVAL_ACTIONS, BOUNDARY_ACTIONS: SECURITY_BOUNDARY_ACTIONS, validateActionCatalog: validateSecurityActionCatalog, actionCatalogStatus: securityActionCatalogStatus } = require('./securityActionCatalog');
 const { HEALTH_LEVELS: SECURITY_AGENT_HEALTH_LEVELS, buildSecurityAgentHealth } = require('./securityAgentHealth');
 const { ALERT_POLICY_VERSION: SECURITY_ALERT_POLICY_VERSION, PRIORITY_ORDER: SECURITY_ALERT_PRIORITY_ORDER, buildSecurityAlerts } = require('./securityAlertPolicy');
 const { ROUTING_POLICY_VERSION: SECURITY_ALERT_ROUTING_VERSION, ROUTES: SECURITY_ALERT_ROUTES, alertFingerprint, buildAlertRoutingPlan, acknowledgeAlert } = require('./securityAlertRouting');
@@ -35,7 +36,9 @@ const { adaptLegacySecurityRecord, adaptLegacyViolation } = require('./legacyAda
 module.exports = {
   SecurityCollector, DetectionEngine, IncidentManager, ShadowSecurityPipeline, ReadOnlySecuritySource, createAxiomReadOnlySecuritySource,
   MemorySecurityStore, PostgresSecurityStore, SECURITY_DATABASE_PURPOSES, buildSecurityDbClientConfig, createPoolForPurpose, publicCredentialStatus, parseRetentionDays,
-  SECURITY_AGENT_RUNTIME_MODES, buildSecurityAgentRuntimeConfig, SecurityAgentRuntime, createSecurityAgentRuntime, SECURITY_STAGING_ISOLATION_VERSION, buildSecurityStagingIsolationConfig, assertSecurityStagingIsolation, SECURITY_AGENT_HEALTH_LEVELS, buildSecurityAgentHealth,
+  SECURITY_AGENT_RUNTIME_MODES, buildSecurityAgentRuntimeConfig, SecurityAgentRuntime, createSecurityAgentRuntime, SECURITY_STAGING_ISOLATION_VERSION, buildSecurityStagingIsolationConfig, assertSecurityStagingIsolation,
+  SECURITY_ACTION_CATALOG_VERSION, SECURITY_ACTION_CATALOG, SECURITY_ACTION_CATALOG_ACTIONS, SECURITY_APPROVAL_ACTIONS, SECURITY_BOUNDARY_ACTIONS, validateSecurityActionCatalog, securityActionCatalogStatus,
+  SECURITY_AGENT_HEALTH_LEVELS, buildSecurityAgentHealth,
   SECURITY_ALERT_POLICY_VERSION, SECURITY_ALERT_PRIORITY_ORDER, buildSecurityAlerts, SECURITY_ALERT_ROUTING_VERSION, SECURITY_ALERT_ROUTES, alertFingerprint, buildAlertRoutingPlan,
   acknowledgeAlert, SECURITY_NOTIFICATION_CONTRACT_VERSION, SECURITY_NOTIFICATION_EXTERNAL_CHANNELS, SECURITY_NOTIFICATION_INTERNAL_CHANNELS, sanitizeNotificationTask,
   sanitizeNotificationAuditRecord, MemoryNotificationAudit, createNoopNotificationAdapter, buildDefaultNoopAdapters, NotificationDispatcher, SECURITY_NOTIFICATION_SIMULATION_VERSION,
