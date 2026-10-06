@@ -47,7 +47,8 @@ test('costruisce authorization request CIE firmata RS256 con PKCE', () => {
   const decoded = jwt.verify(request, publicKey, {
     algorithms: ['RS256'],
     audience: 'https://cie-op.example',
-    issuer: 'https://demos.example/rp'
+    issuer: 'https://demos.example/rp',
+    clockTimestamp: 1700000000
   });
 
   assert.equal(decoded.client_id, 'https://demos.example/rp');

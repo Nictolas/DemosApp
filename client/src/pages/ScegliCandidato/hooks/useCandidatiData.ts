@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Candidato, OpinioniDialogData } from "../types";
 import { getFieldName, getTitolo } from "../utils/candidatoUtils";
 import { useRoute } from "wouter";
+import { fetchPoliticalVectorsForLocalMatch, isLocalPoliticalMatchingEnabled, matchPoliticalVectorsLocally } from "@/lib/privacy/researchPoliticalMatchingClient";
 
 // Hook per controllare opinioni mancanti
 const useOpinioniCheck = (grado: string) => {
@@ -66,12 +67,37 @@ export const useCandidatiData = (user: any, categoria: string) => {
         const opinioniCheck = await checkOpinioni();
         
         if (opinioniCheck && !opinioniCheck.isComplete) {
-          console.log('⚠️ Opinion incomplete trovate:', opinioniCheck);
+          console.log('⚠️ Opinion incomplete trovate, mostrando alert');
           setOpinioniAlertData(opinioniCheck);
           setShowOpinioniAlert(true);
         }
         
         console.log('🔍 DEBUG Frontend - Fetching candidati per categoria:', categoria);
+
+        if (!isRappresentanteRoute && isLocalPoliticalMatchingEnabled()) {
+          const opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
+          const citizenOpinions = opinionsResponse?.data?.data?.userAnswers;
+          if (!opinionsResponse?.ok || !citizenOpinions || typeof citizenOpinions !== 'object') {
+            throw new Error("Opinioni locali non disponibili per il matching privacy-first");
+          }
+
+          const vectors = await fetchPoliticalVectorsForLocalMatch({ kind: 'candidate', grade: grado });
+          const localMatches = matchPoliticalVectorsLocally(citizenOpinions, vectors, 4);
+          setCandidati(localMatches.map(({ candidate, commonOpinions, comparedOpinions }) => ({
+            ...(candidate as any),
+            commonOpinions,
+            comparedOpinions
+          })) as Candidato[]);
+
+          const selezioniResponse = await apiRequest("GET", "/api/candidati/selezioni");
+          if (selezioniResponse?.ok && selezioniResponse?.data?.success && selezioniResponse.data.data) {
+            const selected = selezioniResponse.data.data.candidati?.[categoria]?.[0];
+            setCandidatoSelezionato(selected?.id || null);
+          } else {
+            setCandidatoSelezionato(null);
+          }
+          return;
+        }
         
         // Mappa la categoria al grado_candidatura corretto
         const gradoCandidatura = getTitolo(categoria);
@@ -80,7 +106,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
         console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
         
         const response = await apiRequest("GET", url);
-        console.log('🔍 DEBUG Frontend - Risposta API candidati:', response);
+        console.log('🔍 DEBUG Frontend - Risposta API candidati ricevuta, ok:', response?.ok);
         
         if (!response?.ok || !response?.data) {
           const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati dal server.";
@@ -92,18 +118,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
           throw new Error(result.error || "Errore nel caricamento dei dati dal server.");
         }
         
-        // Debug dettagliato per ogni candidato ricevuto
         const candidatiData = result.data || [];
-        if (Array.isArray(candidatiData)) {
-          console.log('🔍 DEBUG Frontend - Dettagli candidati ricevuti:');
-          candidatiData.forEach((candidato, index) => {
-            console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}:`, {
-              opinioniComuni: candidato.opinioniComuni,
-              ruolo: candidato.ruolo,
-              status: candidato.status
-            });
-          });
-        }
 
         // I dati sono direttamente nell'array data
         const candidati = candidatiData;
@@ -117,7 +132,6 @@ export const useCandidatiData = (user: any, categoria: string) => {
             const { candidati: candidatiSelezionati } = selezioniData.data;
             const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
             setCandidatoSelezionato(candidatoSelezionato?.id || null);
-            console.log('🔍 DEBUG Frontend - Candidato selezionato:', candidatoSelezionato);
           }
         } catch (error) {
           console.log('⚠️ Errore nel recuperare selezioni:', error);
@@ -139,7 +153,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
     };
     
     fetchData();
-  }, [user, categoria, toast]);
+  }, [user, categoria, toast, grado, isRappresentanteRoute]);
 
   return {
     candidati,

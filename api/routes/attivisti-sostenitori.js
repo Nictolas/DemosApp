@@ -1,14 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { decompressProvince } = require('../utils/provinceUtils');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+// Usa il pool canonico dell'applicazione, inclusa la configurazione TLS verificata.
+const pool = getPool();
 
 // GET /api/attivisti/sostenitori - Ottieni sostenitori attivisti di un utente
 router.get('/sostenitori', verifyToken, async (req, res) => {

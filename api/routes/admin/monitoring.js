@@ -503,20 +503,11 @@ router.get('/database', async (req, res) => {
 // GET /api/admin/monitoring/disk-breakdown - Top cartelle più pesanti su server app
 router.get('/disk-breakdown', async (req, res) => {
   try {
-    // Root di analisi limitato per sicurezza
+    // Root di analisi configurato esclusivamente lato server.
+    // Il client non può scegliere un path arbitrario.
     const defaultRoot = process.env.DISK_BREAKDOWN_ROOT || '/opt/render/project/src';
-    const requestedTarget = String(req.query.target || defaultRoot);
     const maxEntries = Math.min(Math.max(parseInt(String(req.query.maxEntries || '15'), 10), 5), 50);
-    const root = path.resolve(defaultRoot);
-    const target = path.resolve(requestedTarget);
-
-    if (!target.startsWith(root)) {
-      return res.status(400).json({
-        success: false,
-        error: `target non consentito: ${target}`,
-        message: `Usa un path sotto ${root}`
-      });
-    }
+    const target = path.resolve(defaultRoot);
 
     let stdout;
     try {

@@ -4,6 +4,11 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
+const {
+  OPINION_ID_PATTERN,
+  ensureOpinionResponseColumn
+} = require('../../services/opinionIdentifierPolicy');
+
 // GET /api/opinioni/profile - Ottieni solo le domande delle opinioni (per EditOpinioniDialog)
 router.get('/profile', verifyToken, async (req, res) => {
   try {
@@ -122,7 +127,7 @@ router.post('/salva', verifyToken, async (req, res) => {
     const opinioni = req.body.opinioni || req.body; // Accetta sia req.body.opinioni che req.body
     
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
-    console.log('👤 User ID:', userId);
+    console.log('👤 Utente autenticato verificato');
     
     if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
       console.error('❌ ERRORE: Dati mancanti o non validi');
@@ -305,7 +310,7 @@ router.post('/salva', verifyToken, async (req, res) => {
         }
       }
       
-      console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
+      console.log(`✅ Salvate ${savedCount} opinioni`);
       
     } catch (error) {
       console.error(`❌ Errore nel salvare opinioni:`, error.message);
@@ -326,7 +331,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('✅ Opinion salvate con successo per utente:', userId);
+    console.log('✅ Opinioni salvate con successo');
     
     res.json({
       success: true,
@@ -492,14 +497,23 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     
     // Determina se è un cambio ID (da UUID a ID personalizzato)
     let actualId = id;
-    const isChangingId = customId && customId.trim() && customId.trim() !== id;
+    const normalizedCustomId = typeof customId === 'string' ? customId.trim() : '';
+    const isChangingId = normalizedCustomId && normalizedCustomId !== id;
+
+    if (isChangingId && !OPINION_ID_PATTERN.test(normalizedCustomId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID opinione non valido',
+        message: 'Usa solo lettere minuscole, numeri e underscore; il primo carattere deve essere una lettera (massimo 63 caratteri).'
+      });
+    }
     
     if (isChangingId) {
       console.log('📝 L\'admin vuole cambiare l\'ID da', id, 'a', customId);
       
       // Verifica se il nuovo ID esiste già
       const checkNewIdQuery = `SELECT id FROM opinioni_domande WHERE id = $1`;
-      const checkNewId = await pool.query(checkNewIdQuery, [customId]);
+      const checkNewId = await pool.query(checkNewIdQuery, [normalizedCustomId]);
       
       if (checkNewId.rows.length > 0) {
         return res.status(400).json({
@@ -529,7 +543,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
         VALUES ($1, $2, $3, $4)
       `;
       await pool.query(insertNewQuery, [
-        customId.trim(),
+        normalizedCustomId,
         originalOpinion.text, // Mantieni il testo originale
         gradi_opinione, // Nuovi gradi selezionati
         approfondimento // Nuovo approfondimento
@@ -549,7 +563,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       console.log('✅ Vecchia opinione eliminata con ID:', id);
       
       // Usa il nuovo ID per il resto
-      actualId = customId.trim();
+      actualId = normalizedCustomId;
     }
     
     // Se abbiamo cambiato ID, non serve fare UPDATE (già fatto con INSERT)
@@ -597,22 +611,18 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       console.log('✅ Approfondimento salvato con successo per opinione:', actualId);
     }
     
-    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
+    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste.
+    // La costruzione dell'identificatore SQL è confinata in una policy testata.
     try {
-      const checkColumnQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
-        AND column_name = $1
-      `;
-      const columnCheck = await pool.query(checkColumnQuery, [actualId]);
-      
-      if (columnCheck.rows.length === 0) {
-        console.log(`📊 Aggiungo colonna ${actualId} a opinioni_risposte...`);
-        // Usa un identificatore quotato per il nome della colonna
-        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN "${actualId}" TEXT`;
-        await pool.query(addColumnQuery);
+      const columnResult = await ensureOpinionResponseColumn({
+        pool,
+        opinionId: actualId
+      });
+
+      if (columnResult.created) {
         console.log(`✅ Colonna ${actualId} aggiunta a opinioni_risposte`);
+      } else if (columnResult.reason === 'invalid_identifier') {
+        console.warn('⚠️ ID opinione non adatto alla creazione dinamica della colonna');
       }
     } catch (error) {
       console.error('❌ Errore nell\'aggiungere colonna opinioni_risposte:', error);

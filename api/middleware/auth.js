@@ -205,6 +205,35 @@ const requireAdmin = async (req, res, next) => {
   }
 };
 
+// Middleware per consentire funzioni istituzionali solo ad Admin o Istituzione.
+const requireAdminOrInstitution = async (req, res, next) => {
+  try {
+    if (!req.user || !req.userRole) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token di accesso richiesto',
+        message: 'Effettua il login per continuare'
+      });
+    }
+
+    if (!['AD', 'I'].includes(req.userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Richiesto ruolo amministratore o istituzione'
+      });
+    }
+
+    next();
+  } catch (error) {
+    if (!isProduction) console.error('❌ Errore nel middleware requireAdminOrInstitution:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+};
+
 // Middleware per verificare che l'utente stia modificando il proprio profilo
 const requireOwnProfile = async (req, res, next) => {
   try {
@@ -231,6 +260,7 @@ const requireOwnProfile = async (req, res, next) => {
 module.exports = {
   verifyToken,
   requireAdmin,
+  requireAdminOrInstitution,
   requireOwnProfile,
   pool
 };

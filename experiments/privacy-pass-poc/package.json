@@ -1,0 +1,18 @@
+{
+  "name": "demos-privacy-pass-poc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test *.test.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/privacypass-ts": "0.9.0"
+  },
+  "overrides": {
+    "@cloudflare/blindrsa-ts": "0.4.6"
+  }
+}

@@ -1439,22 +1439,16 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
       environment: {
         FIREBASE_PROJECT_ID: {
           presente: !!process.env.FIREBASE_PROJECT_ID,
-          valore: process.env.FIREBASE_PROJECT_ID ? process.env.FIREBASE_PROJECT_ID.substring(0, 20) + '...' : null,
-          lunghezza: process.env.FIREBASE_PROJECT_ID ? process.env.FIREBASE_PROJECT_ID.length : 0
+          configurato: !!process.env.FIREBASE_PROJECT_ID
         },
         FIREBASE_CLIENT_EMAIL: {
           presente: !!process.env.FIREBASE_CLIENT_EMAIL,
-          valore: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.substring(0, 30) + '...' : null,
-          valore_completo: process.env.FIREBASE_CLIENT_EMAIL || null, // Per debug - mostra l'email completa
-          lunghezza: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.length : 0,
+          configurato: !!process.env.FIREBASE_CLIENT_EMAIL,
           formato_corretto: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.includes('@') && process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk') : false
         },
         FIREBASE_PRIVATE_KEY: {
           presente: !!process.env.FIREBASE_PRIVATE_KEY,
-          valore: process.env.FIREBASE_PRIVATE_KEY ? 'Presente (nascosto)' : null,
-          lunghezza: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.length : 0,
-          inizia_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(0, 30) : null,
-          finisce_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(process.env.FIREBASE_PRIVATE_KEY.length - 30) : null,
+          configurato: !!process.env.FIREBASE_PRIVATE_KEY,
           contiene_begin: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('BEGIN PRIVATE KEY') : false,
           contiene_end: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('END PRIVATE KEY') : false,
           contiene_backslash_n: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('\\n') : false,
@@ -1480,8 +1474,6 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
       client_email_format: process.env.FIREBASE_CLIENT_EMAIL ? 
         process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk') && 
         process.env.FIREBASE_CLIENT_EMAIL.includes('@demos-finale.iam.gserviceaccount.com') : false,
-      client_email_expected: 'firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com',
-      client_email_actual: process.env.FIREBASE_CLIENT_EMAIL || null,
       client_email_matches: process.env.FIREBASE_CLIENT_EMAIL === 'firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com'
     };
     

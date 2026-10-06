@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { getPool } = require('../config/database');
 
 const pool = getPool();
+const { shadowRecordAccountActivity } = require('./identityActivityShadowWriter');
 
 function hashRefreshToken(token) {
   return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
@@ -14,6 +15,25 @@ function getTokenExpiry(token) {
     throw new Error('Refresh token senza scadenza valida');
   }
   return new Date(decoded.exp * 1000);
+}
+
+async function recordIssuedSession({ sessionId, userId, refreshToken, ipAddress=null, userAgent=null }) {
+  if (!sessionId || !userId || !refreshToken) throw new Error('Dati sessione incompleti');
+  const tokenHash = hashRefreshToken(refreshToken);
+  const expiresAt = getTokenExpiry(refreshToken);
+  await pool.query(
+    `INSERT INTO active_sessions (
+       id, user_id, session_token, ip_address, user_agent,
+       login_time, last_activity, is_active, expires_at, created_at
+     ) VALUES ($1,$2,$3,$4,$5,NOW(),NOW(),TRUE,$6,NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       session_token=EXCLUDED.session_token,
+       ip_address=COALESCE(EXCLUDED.ip_address,active_sessions.ip_address),
+       user_agent=COALESCE(EXCLUDED.user_agent,active_sessions.user_agent),
+       last_activity=NOW(), is_active=TRUE, expires_at=EXCLUDED.expires_at`,
+    [sessionId,String(userId),tokenHash,ipAddress,userAgent,expiresAt]
+  );
+  await shadowRecordAccountActivity({client:pool,accountId:String(userId)});
 }
 
 async function rotateRefreshSession({
@@ -93,6 +113,7 @@ async function rotateRefreshSession({
     );
 
     await client.query('COMMIT');
+    await shadowRecordAccountActivity({client:pool,accountId:String(userId)});
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -162,6 +183,7 @@ async function revokeRefreshSession({
 }
 
 module.exports = {
+  recordIssuedSession,
   rotateRefreshSession,
   revokeRefreshSession,
 };

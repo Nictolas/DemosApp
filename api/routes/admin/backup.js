@@ -6,6 +6,7 @@ const express = require('express');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const BackupService = require('../../services/backupService');
 const backupJob = require('../../jobs/backupJob');
+const { resolveBackupFilePath } = require('../../services/backupPathPolicy');
 
 const router = express.Router();
 
@@ -158,8 +159,17 @@ router.get('/verify/:fileName', async (req, res) => {
     }
     
     const config = BackupService.getBackupConfig();
-    const path = require('path');
-    const backupPath = path.join(config.backupDir, fileName);
+    const backupPath = resolveBackupFilePath({
+      backupDir: config.backupDir,
+      fileName
+    });
+
+    if (!backupPath) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome file backup non valido'
+      });
+    }
     
     const isValid = await BackupService.verifyBackupIntegrity(backupPath);
     

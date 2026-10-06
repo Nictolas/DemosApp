@@ -41,7 +41,8 @@ test('client assertion private_key_jwt contiene i claim richiesti', () => {
   const decoded = jwt.verify(assertion, publicKey, {
     algorithms: ['RS256'],
     audience: 'https://cie-op.example/token',
-    issuer: 'https://demos.example/rp'
+    issuer: 'https://demos.example/rp',
+    clockTimestamp: 1700000000
   });
 
   assert.equal(decoded.sub, 'https://demos.example/rp');

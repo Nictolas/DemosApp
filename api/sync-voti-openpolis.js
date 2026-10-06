@@ -6,7 +6,7 @@ const cheerio = require('cheerio');
 // Configurazione database Neon
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: true }
 });
 
 // Base URL Openpolis

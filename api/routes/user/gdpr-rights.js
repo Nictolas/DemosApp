@@ -78,7 +78,7 @@ router.get('/data-export', async (req, res) => {
       });
     }
 
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
+    console.log(`📤 Richiesta esportazione dati ricevuta, formato: ${format}`);
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -348,7 +348,7 @@ router.delete('/account', validateInput(['confirmation']), async (req, res) => {
       });
     }
 
-    console.log(`🗑️ Richiesta cancellazione account per utente: ${userId}`);
+    console.log('🗑️ Richiesta cancellazione account ricevuta');
 
     // Log dell'inizio cancellazione
     await AuditService.logAction({
@@ -427,7 +427,7 @@ router.delete('/account', validateInput(['confirmation']), async (req, res) => {
       if (process.env.AXIOM_ENABLED !== 'true') {
         await pool.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
       } else {
-        console.log(`ℹ️  Log audit per utente ${userId} conservati su Axiom per conformità GDPR`);
+        console.log('ℹ️ Log audit conservati su Axiom secondo la policy GDPR');
       }
 
       // 9. Cancella account utente (google_sub, apple_user_id sono in users, eliminati con la riga)
@@ -443,7 +443,7 @@ router.delete('/account', validateInput(['confirmation']), async (req, res) => {
         WHERE id = $1
       `, [requestId]);
 
-      console.log(`✅ Account ${userId} cancellato con successo`);
+      console.log('✅ Account cancellato con successo');
 
       res.json({
         success: true,
@@ -491,7 +491,7 @@ router.put('/limit-processing', validateInput(['limited', 'categories']), async 
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
-    console.log(`🔒 Richiesta limitazione trattamento per utente: ${userId}`);
+    console.log('🔒 Richiesta limitazione trattamento ricevuta');
 
     // Valida le categorie
     const validCategories = [
@@ -560,7 +560,7 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
-    console.log(`🚫 Richiesta opposizione trattamento per utente: ${userId}`);
+    console.log('🚫 Richiesta opposizione trattamento ricevuta');
 
     // Valida le categorie
     const validCategories = [

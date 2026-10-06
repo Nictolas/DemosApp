@@ -1,0 +1,180 @@
+name: Security gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: security-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned Gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION="8.24.3"
+          curl --fail --silent --show-error --location \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            --output /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan pull-request commits for committed secrets
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: gitleaks git --redact --no-banner --exit-code 1 --log-opts="${BASE_SHA}..HEAD" .
+
+      - name: Scan full committed history on main
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: gitleaks git --redact --no-banner --exit-code 1 .
+
+  sast:
+    name: Semgrep CE SAST
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Semgrep CE
+        run: python -m pip install --disable-pip-version-check semgrep==1.178.0
+
+      - name: Run local Semgrep Community rules
+        run: semgrep scan --config "p/expressjs" --error --metrics=off .
+
+  sast-incremental:
+    name: Semgrep CE incremental
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history for baseline diff
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Semgrep CE
+        run: python -m pip install --disable-pip-version-check semgrep==1.178.0
+
+      - name: Block findings introduced by this PR
+        shell: bash
+        run: |
+          BASE_SHA="$(git merge-base HEAD "origin/${{ github.event.pull_request.base.ref }}")"
+          echo "Semgrep incremental baseline: $BASE_SHA"
+          semgrep scan --config "p/expressjs" --error --metrics=off --baseline-commit "$BASE_SHA" .
+
+  sast-research-scope:
+    name: Semgrep CE Research scope
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Semgrep CE
+        run: python -m pip install --disable-pip-version-check semgrep==1.178.0
+
+      - name: Resolve explicit Research runtime manifest
+        shell: bash
+        run: |
+          node api/scripts/verify-research-sast-manifest.js > /tmp/research-sast-targets.txt
+          test -s /tmp/research-sast-targets.txt
+          sed 's/^/Research runtime SAST target: /' /tmp/research-sast-targets.txt
+
+      - name: Scan explicit Research runtime scope
+        shell: bash
+        run: |
+          mapfile -t TARGETS < /tmp/research-sast-targets.txt
+          semgrep scan --config "p/expressjs" --error --metrics=off "${TARGETS[@]}"
+
+  shadow-sql-validate:
+    name: PostgreSQL shadow DDL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: demos_shadow_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_shadow_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Execute shadow DDL inside rollback transaction
+        shell: bash
+        run: |
+          psql -h 127.0.0.1 -U postgres -d demos_shadow_ci <<'SQL'
+          \set ON_ERROR_STOP on
+          BEGIN;
+          \i supabase/schemas/privacy_first_shadow_ci_bootstrap.sql
+          \i supabase/schemas/privacy_first_shadow.sql
+          \i supabase/schemas/privacy_first_research_renewal_proof_shadow.sql
+          \i supabase/schemas/privacy_first_cutover_replay_rpc_shadow.sql
+          ROLLBACK;
+          SQL
+
+  deterministic-security:
+    name: Deterministic security tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run Demos security gate
+        run: npm run test:security-gate

@@ -1,16 +1,13 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 const router = express.Router();
 require('dotenv').config();
 
 // Importa il middleware di autenticazione corretto
 const { verifyToken } = require('../middleware/auth');
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Usa il pool canonico dell'applicazione, inclusa la configurazione TLS verificata.
+const pool = getPool();
 
 // GET /api/attivismo-tipologie - Lista tutte le tipologie disponibili
 router.get('/', async (req, res) => {

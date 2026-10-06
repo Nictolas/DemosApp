@@ -7,7 +7,6 @@ interface Consigliere {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   displayName: string;
   comune_elezione: string;
 }
@@ -30,6 +29,7 @@ export const ConsiglieriComunaliAutocomplete: React.FC<ConsiglieriComunaliAutoco
   excludedNames = []
 }) => {
   const { user } = useAuth();
+  const canUseInstitutionalDirectory = user?.ruolo === "AD" || user?.ruolo === "I";
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,13 +39,13 @@ export const ConsiglieriComunaliAutocomplete: React.FC<ConsiglieriComunaliAutoco
   const { data: consiglieriData, isLoading } = useQuery({
     queryKey: ['consiglieri-comunali', user?.id],
     queryFn: async () => {
-      if (!user?.id) return { consiglieri: [] };
+      if (!user?.id || !canUseInstitutionalDirectory) return { consiglieri: [] };
       
       const response = await apiRequest("GET", `/api/users/consiglieri-comunali`);
       if (!response.ok) throw new Error('Failed to fetch consiglieri comunali');
       return response.json();
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && canUseInstitutionalDirectory,
     staleTime: 300000, // Cache per 5 minuti
   });
 

@@ -12,6 +12,7 @@ const { generateTokenPair, generateOAuthPendingToken, verifyOAuthPendingToken } 
 const { authLimiter } = require('../../middleware/rateLimiting');
 const { encrypt: encryptEmail } = require('../../utils/emailCrypto');
 const { compressUserLocation } = require('../../utils/locationUtils');
+const { recordIssuedSession } = require('../../services/sessionService');
 
 const router = express.Router();
 const pool = getPool();
@@ -135,6 +136,8 @@ router.post('/oauth/google', authLimiter, async (req, res) => {
         userId: result.id,
         role: result.ruolo,
       });
+      const sid = require('../../utils/jwt').verifyRefreshToken(tokens.refreshToken).sid;
+      await recordIssuedSession({ sessionId:sid, userId:result.id, refreshToken:tokens.refreshToken, ipAddress:req.ip||null, userAgent:req.get('User-Agent')||null });
       return res.json({
         success: true,
         message: 'Accesso con Google effettuato',
@@ -195,6 +198,8 @@ router.post('/oauth/apple', authLimiter, async (req, res) => {
         userId: result.id,
         role: result.ruolo,
       });
+      const sid = require('../../utils/jwt').verifyRefreshToken(tokens.refreshToken).sid;
+      await recordIssuedSession({ sessionId:sid, userId:result.id, refreshToken:tokens.refreshToken, ipAddress:req.ip||null, userAgent:req.get('User-Agent')||null });
       return res.json({
         success: true,
         message: 'Accesso con Apple effettuato',
@@ -546,6 +551,8 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
       userId,
       role: ruolo,
     });
+    const sid = require('../../utils/jwt').verifyRefreshToken(tokens.refreshToken).sid;
+    await recordIssuedSession({ sessionId:sid, userId, refreshToken:tokens.refreshToken, ipAddress:req.ip||null, userAgent:req.get('User-Agent')||null });
 
     res.json({
       success: true,

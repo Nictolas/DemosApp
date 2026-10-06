@@ -11,7 +11,7 @@ const router = express.Router();
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
 });
 
 // Middleware per autenticazione admin
@@ -122,7 +122,7 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
           const { Pool } = require('pg');
           const pool = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
           });
           
           const manualStatsResult = await pool.query(
@@ -248,7 +248,7 @@ router.post('/axiom-stats-manual', requireAdmin, async (req, res) => {
     const { Pool } = require('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false
     });
     
     // Crea tabella se non esiste
@@ -581,13 +581,28 @@ router.get('/history', requireAdmin, async (req, res) => {
 router.get('/download/:exportId', requireAdmin, async (req, res) => {
   try {
     const { exportId } = req.params;
-    const exportDir = process.env.EXPORT_DIR || '/mnt/external-drive/archivio';
-    
-    // Cerca la directory dell'export
-    const year = new Date(exportId).getFullYear();
-    const month = String(new Date(exportId).getMonth() + 1).padStart(2, '0');
-    const monthName = new Date(exportId).toLocaleString('it-IT', { month: 'long' });
-    
+    const exportDir = path.resolve(process.env.EXPORT_DIR || '/mnt/external-drive/archivio');
+
+    // Il client può selezionare solo un export già registrato nell'indice server-side.
+    const indexPath = path.join(exportDir, 'index_generale.json');
+    const indexData = JSON.parse(await fs.readFile(indexPath, 'utf8'));
+    const exportEntry = Array.isArray(indexData.exports)
+      ? indexData.exports.find(item => item && item.exportDate === exportId)
+      : null;
+
+    if (!exportEntry) {
+      return res.status(404).json({ error: 'Export non trovato' });
+    }
+
+    const exportDate = new Date(exportEntry.exportDate);
+    if (Number.isNaN(exportDate.getTime())) {
+      return res.status(500).json({ error: 'Indice export non valido' });
+    }
+
+    // Il path deriva solo da metadati già registrati lato server.
+    const year = exportDate.getUTCFullYear();
+    const month = String(exportDate.getUTCMonth() + 1).padStart(2, '0');
+    const monthName = exportDate.toLocaleString('it-IT', { month: 'long', timeZone: 'UTC' });
     const exportPath = path.join(exportDir, year.toString(), `${month}-${monthName}`);
     
     try {
