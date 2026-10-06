@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildAiAnalystRequest } = require('../security-agent/securityAiAnalystContract');
 const { buildModelGatewayConfig, SecurityAiModelGateway } = require('../security-agent/securityAiModelGateway');
@@ -73,7 +73,12 @@ test('Groq adapter sends only sanitized shadow evidence and no tool definition',
   const sent = client.calls[0];
   assert.equal(sent.model, e.SECURITY_AI_MODEL);
   assert.equal(sent.temperature, 0);
-  assert.deepEqual(sent.response_format, { type:'json_object' });
+  assert.equal(sent.response_format.type, 'json_schema');
+  assert.equal(sent.response_format.json_schema.name, 'security_ai_analyst_output');
+  assert.equal(sent.response_format.json_schema.strict, true);
+  assert.equal(sent.response_format.json_schema.schema.additionalProperties, false);
+  assert.deepEqual(sent.response_format.json_schema.schema.properties.assessment.enum, ['benign','suspicious','likely_attack','uncertain']);
+  assert.ok(sent.response_format.json_schema.schema.properties.recommendedActions.items.enum.includes('escalate_human'));
   assert.equal(Object.prototype.hasOwnProperty.call(sent, 'tools'), false);
   const serialized = JSON.stringify(sent);
   assert.equal(serialized.includes('SECRET_RAW_LOG'), false);

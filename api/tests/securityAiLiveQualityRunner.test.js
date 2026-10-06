@@ -133,7 +133,7 @@ test('isolated live runner can evaluate the full quality suite through an inject
   assert.equal(client.calls.length, 6);
   assert.ok(client.calls.every(call => !Object.prototype.hasOwnProperty.call(call, 'tools')));
   assert.ok(client.calls.every(call => call.temperature === 0));
-  assert.ok(client.calls.every(call => call.reasoning_format === 'hidden'));
+  assert.ok(client.calls.every(call => call.include_reasoning === false));
 });
 
 test('quality rejection does not enable execution or mutate systems', async () => {

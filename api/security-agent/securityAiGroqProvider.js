@@ -1,8 +1,46 @@
 const Groq = require('groq-sdk');
+const { ASSESSMENTS, PRIORITIES, RECOMMENDED_ACTIONS } = require('./securityAiAnalystContract');
 
 const SECURITY_AI_GROQ_PROVIDER_VERSION = 'v0.78';
 const DEFAULT_MAX_TOKENS = 600;
 const MAX_PROMPT_BYTES = 32 * 1024;
+
+const AI_ANALYST_RESPONSE_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  properties: Object.freeze({
+    assessment: Object.freeze({ type: 'string', enum: ASSESSMENTS }),
+    confidence: Object.freeze({ type: 'integer' }),
+    prioritySuggestion: Object.freeze({ type: 'string', enum: PRIORITIES }),
+    summary: Object.freeze({ type: 'string' }),
+    hypotheses: Object.freeze({
+      type: 'array',
+      items: Object.freeze({
+        type: 'object',
+        additionalProperties: false,
+        properties: Object.freeze({
+          code: Object.freeze({ type: 'string' }),
+          confidence: Object.freeze({ type: 'integer' })
+        }),
+        required: Object.freeze(['code', 'confidence'])
+      })
+    }),
+    recommendedActions: Object.freeze({
+      type: 'array',
+      items: Object.freeze({ type: 'string', enum: RECOMMENDED_ACTIONS })
+    }),
+    requiresHumanReview: Object.freeze({ type: 'boolean' })
+  }),
+  required: Object.freeze([
+    'assessment',
+    'confidence',
+    'prioritySuggestion',
+    'summary',
+    'hypotheses',
+    'recommendedActions',
+    'requiresHumanReview'
+  ])
+});
 
 function safeId(value, max = 96) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_./:\-]/g, '_').slice(0, max);
@@ -89,7 +127,9 @@ class SecurityAiGroqProvider {
     const systemPolicy = Array.isArray(request.systemPolicy) ? request.systemPolicy.join('\n') : '';
     const system = [
       systemPolicy,
-      'Return strict JSON only with exactly these keys: assessment, confidence, prioritySuggestion, summary, hypotheses, recommendedActions, requiresHumanReview.',
+      'Return only the structured output requested by the response schema.',
+      'confidence and hypothesis confidence must be integers from 0 to 100; use at most 5 hypotheses and at most 5 recommendedActions.',
+      'Use only allowed assessment, prioritySuggestion, and recommendedActions enum values from the response schema.',
       'Do not include markdown, prose outside JSON, secrets, raw logs, personal identities, or tool calls.'
     ].filter(Boolean).join('\n');
 
@@ -101,8 +141,15 @@ class SecurityAiGroqProvider {
           { role: 'system', content: system },
           { role: 'user', content: inputJson }
         ],
-        response_format: { type: 'json_object' },
-        reasoning_format: 'hidden',
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'security_ai_analyst_output',
+            strict: true,
+            schema: AI_ANALYST_RESPONSE_SCHEMA
+          }
+        },
+        include_reasoning: false,
         temperature: 0,
         max_tokens: this.config.maxTokens
       });

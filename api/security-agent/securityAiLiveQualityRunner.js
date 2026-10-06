@@ -73,6 +73,7 @@ function publicRunResult(config, status, quality = null, extra = {}) {
     passRate: quality ? quality.passRate : 0,
     minPassRate: config.minPassRate,
     mandatoryFailed: quality ? quality.mandatoryFailed : Object.freeze([]),
+    caseResults: quality ? quality.results : Object.freeze([]),
     executable: false,
     toolCalls: Object.freeze([]),
     blockers: config.blockers,
