@@ -1,0 +1,34 @@
+{
+  "version": "0.86",
+  "scope": "security-center-runtime-mount",
+  "status": "code-ready-disabled-by-default",
+  "mountPrefix": "/api/security-center",
+  "runtimeStore": "memory-only",
+  "requires": [
+    "SECURITY_CENTER_RUNTIME_ENABLED=true",
+    "staging isolation v0.79 required and ready",
+    "verifyToken middleware",
+    "requireAdmin middleware",
+    "admin rate limiter"
+  ],
+  "mountedViews": [
+    "ai-policy",
+    "approvals",
+    "boundary-audit",
+    "plus existing Security Center GET-only routes"
+  ],
+  "failClosed": [
+    "production environment class",
+    "persistent runtime mode",
+    "database writer",
+    "retention writer",
+    "Action Runner",
+    "invalid mount prefix"
+  ],
+  "productionDefault": "disabled",
+  "productionTouched": false,
+  "writesAllowed": false,
+  "authorized": false,
+  "executable": false,
+  "actionRunnerAvailable": false
+}

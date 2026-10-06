@@ -449,6 +449,19 @@ app.use('/api/admin/axiom-data', adminLimiter, axiomDataRoutes);
 app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
 app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
 
+// Security Center AI/security read-only: OFF by default and mountable only behind the staging-isolation gate.
+if (process.env.SECURITY_CENTER_RUNTIME_ENABLED === 'true') {
+  const { verifyToken, requireAdmin } = require('./middleware/auth');
+  const { mountSecurityCenterRuntime } = require('./security-agent/securityCenterMount');
+  mountSecurityCenterRuntime({
+    app,
+    env: process.env,
+    verifyToken,
+    requireAdmin,
+    adminLimiter
+  });
+}
+
 // Route per migrazioni database / cleanup / test (non in produzione senza ALLOW_DEV_API_SURFACE)
 if (mountDevApiSurface) {
   app.use('/api/migrations', migrationsRoutes);

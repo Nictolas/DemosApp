@@ -31,6 +31,7 @@ const { ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult
 const { SecurityCenterService } = require('./securityCenterService');
 const { createSecurityCenterHandlers } = require('./securityCenterApi');
 const { createSecurityCenterRouter } = require('./securityCenterRouter');
+const { SECURITY_CENTER_MOUNT_VERSION, SECURITY_CENTER_DEFAULT_PREFIX, buildSecurityCenterMountConfig, createReadOnlySecurityCenterService, mountSecurityCenterRuntime } = require('./securityCenterMount');
 const { buildSecurityCenterOverview, pickIncident } = require('./securityCenterReadModel');
 const { normalizeSecurityEvent, sanitizeMeta } = require('./securityEvent');
 const { adaptLegacySecurityRecord, adaptLegacyViolation } = require('./legacyAdapters');
@@ -57,6 +58,7 @@ module.exports = {
   SECURITY_POLICY_ENGINE_VERSION, SECURITY_POLICY_DECISIONS, SECURITY_ACTION_POLICY, evaluateSecurityActionPolicy, evaluateSecurityAiPolicy, securityPolicyStatus,
   SECURITY_PHASE4_DEPLOYED_VALIDATION_VERSION, SECURITY_PHASE4_VALIDATION_ROUTES, buildPhase4DeployedValidationConfig, runPhase4DeployedValidation,
   runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult,
+  SECURITY_CENTER_MOUNT_VERSION, SECURITY_CENTER_DEFAULT_PREFIX, buildSecurityCenterMountConfig, createReadOnlySecurityCenterService, mountSecurityCenterRuntime,
   SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
   normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation
 };
