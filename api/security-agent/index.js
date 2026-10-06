@@ -33,6 +33,7 @@ const { createSecurityCenterHandlers } = require('./securityCenterApi');
 const { createSecurityCenterRouter } = require('./securityCenterRouter');
 const { SECURITY_CENTER_MOUNT_VERSION, SECURITY_CENTER_DEFAULT_PREFIX, buildSecurityCenterMountConfig, createReadOnlySecurityCenterService, mountSecurityCenterRuntime } = require('./securityCenterMount');
 const { SECURITY_CENTER_STAGING_AUTH_VERSION, buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth } = require('./securityCenterStagingAuth');
+const { SECURITY_CENTER_STAGING_SERVER_VERSION, buildSecurityCenterStagingServerConfig, createSecurityCenterStagingApp, startSecurityCenterStagingServer } = require('./securityCenterStagingServer');
 const { buildSecurityCenterOverview, pickIncident } = require('./securityCenterReadModel');
 const { normalizeSecurityEvent, sanitizeMeta } = require('./securityEvent');
 const { adaptLegacySecurityRecord, adaptLegacyViolation } = require('./legacyAdapters');
@@ -61,6 +62,7 @@ module.exports = {
   runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult,
   SECURITY_CENTER_MOUNT_VERSION, SECURITY_CENTER_DEFAULT_PREFIX, buildSecurityCenterMountConfig, createReadOnlySecurityCenterService, mountSecurityCenterRuntime,
   SECURITY_CENTER_STAGING_AUTH_VERSION, buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth,
+  SECURITY_CENTER_STAGING_SERVER_VERSION, buildSecurityCenterStagingServerConfig, createSecurityCenterStagingApp, startSecurityCenterStagingServer,
   SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
   normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation
 };

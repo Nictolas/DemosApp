@@ -47,6 +47,7 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPhase4DeployedValidation.test.js')], root, 'Phase 4 deployed validation harness']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityCenterRuntimeMount.test.js')], root, 'Security Center runtime mount gate']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityCenterStagingAuth.test.js')], root, 'Security Center staging auth gate']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityCenterStagingServer.test.js')], root, 'Security Center dedicated staging server gate']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
