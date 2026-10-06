@@ -1,6 +1,7 @@
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { startSecurityCenterStagingServer } = require('./securityCenterStagingServer');
 const { createReadOnlySecurityCenterService } = require('./securityCenterMount');
+const { buildSecurityStagingIsolationConfig } = require('./securityStagingIsolation');
 
 const SECURITY_STAGING_STACK_VERSION = 'v0.94';
 
@@ -8,6 +9,32 @@ function stackError(code) {
   const error = new Error(code);
   error.code = code;
   return error;
+}
+
+function publicBootDiagnostics(env = process.env) {
+  const isolation = buildSecurityStagingIsolationConfig(env);
+  return Object.freeze({
+    isolationRequired: isolation.required === true,
+    isolationReady: isolation.ready === true,
+    environmentClass: isolation.environmentClass,
+    runtimeMode: isolation.runtimeMode,
+    blockers: [...isolation.blockers],
+    axiom: Object.freeze({
+      enabled: isolation.axiom?.enabled === true,
+      ready: isolation.axiom?.ready === true,
+      queryOnly: isolation.axiom?.queryOnly === true,
+      region: isolation.axiom?.region || null,
+      dataset: isolation.axiom?.dataset || null,
+      isolatedDataset: isolation.axiom?.isolatedDataset === true,
+      tokenPresent: isolation.axiom?.tokenPresent === true,
+      orgIdPresent: isolation.axiom?.orgIdPresent === true,
+      writeAccess: false,
+      executable: false
+    }),
+    actionRunnerAvailable: false,
+    databaseWriterAllowed: false,
+    executable: false
+  });
 }
 
 async function startSecurityStagingStack({
@@ -21,6 +48,9 @@ async function startSecurityStagingStack({
   let server = null;
 
   try {
+    if (logger && typeof logger.log === 'function') {
+      logger.log(JSON.stringify({ component: 'demos-security-staging', event: 'boot_diagnostics', ...publicBootDiagnostics(env) }));
+    }
     if (env.SECURITY_AGENT_PROCESS_ENABLED === 'true') {
       worker = await workerStarter({ env, logger });
       if (!worker || worker.started !== true || !worker.runtime) {
@@ -91,6 +121,7 @@ if (require.main === module) {
 
 module.exports = {
   SECURITY_STAGING_STACK_VERSION,
+  publicBootDiagnostics,
   startSecurityStagingStack,
   main
 };
