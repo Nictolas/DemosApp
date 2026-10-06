@@ -25,6 +25,7 @@ const { AI_SHADOW_INTEGRATION_VERSION: SECURITY_AI_SHADOW_INTEGRATION_VERSION, A
 const { AI_ANALYSIS_ORCHESTRATOR_VERSION: SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SEVERITY_RANK: SECURITY_AI_ANALYSIS_SEVERITY_RANK, buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicCycleResult: publicAiAnalysisCycleResult } = require('./securityAiAnalysisOrchestrator');
 const { APPROVAL_GATE_VERSION: SECURITY_APPROVAL_GATE_VERSION, APPROVAL_STATES: SECURITY_APPROVAL_STATES, SecurityApprovalGate } = require('./securityApprovalGate');
 const { POLICY_ENGINE_VERSION: SECURITY_POLICY_ENGINE_VERSION, POLICY_DECISIONS: SECURITY_POLICY_DECISIONS, ACTION_POLICY: SECURITY_ACTION_POLICY, evaluateActionPolicy: evaluateSecurityActionPolicy, evaluateAiPolicy: evaluateSecurityAiPolicy, policyStatus: securityPolicyStatus } = require('./securityPolicyEngine');
+const { PHASE4_DEPLOYED_VALIDATION_VERSION: SECURITY_PHASE4_DEPLOYED_VALIDATION_VERSION, VALIDATION_ROUTES: SECURITY_PHASE4_VALIDATION_ROUTES, buildPhase4DeployedValidationConfig, runPhase4DeployedValidation } = require('./securityPhase4DeployedValidation');
 const { runSecurityAgentWorker } = require('./securityAgentWorker');
 const { ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult } = require('./shadowRunner');
 const { SecurityCenterService } = require('./securityCenterService');
@@ -54,6 +55,7 @@ module.exports = {
   SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SECURITY_AI_ANALYSIS_SEVERITY_RANK, buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicAiAnalysisCycleResult,
   SECURITY_APPROVAL_GATE_VERSION, SECURITY_APPROVAL_STATES, SecurityApprovalGate,
   SECURITY_POLICY_ENGINE_VERSION, SECURITY_POLICY_DECISIONS, SECURITY_ACTION_POLICY, evaluateSecurityActionPolicy, evaluateSecurityAiPolicy, securityPolicyStatus,
+  SECURITY_PHASE4_DEPLOYED_VALIDATION_VERSION, SECURITY_PHASE4_VALIDATION_ROUTES, buildPhase4DeployedValidationConfig, runPhase4DeployedValidation,
   runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult,
   SecurityCenterService, createSecurityCenterHandlers, createSecurityCenterRouter, buildSecurityCenterOverview, pickIncident,
   normalizeSecurityEvent, sanitizeMeta, adaptLegacySecurityRecord, adaptLegacyViolation

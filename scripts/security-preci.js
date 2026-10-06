@@ -44,6 +44,7 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPolicyAuditEvidence.test.js')], root, 'Policy/audit evidence consistency']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAiQualityEvaluation.test.js')], root, 'AI provider quality evaluation']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAiLiveQualityRunner.test.js')], root, 'Live AI quality runner gate']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPhase4DeployedValidation.test.js')], root, 'Phase 4 deployed validation harness']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
