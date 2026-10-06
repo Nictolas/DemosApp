@@ -1,6 +1,6 @@
 # Axiom -> Backblaze B2 historical log archive
 
-Status: implemented locally behind a fail-closed feature flag. No production deployment or B2 credentials are included in the repository.
+Status: implemented locally behind a fail-closed feature flag. Backblaze account created on 2026-10-06 in EU Central; private bucket, restricted application key and production activation are still pending. No production deployment or B2 credentials are included in the repository.
 
 ## Purpose
 
