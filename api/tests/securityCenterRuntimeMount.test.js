@@ -68,6 +68,15 @@ test('valid staging config mounts exactly one admin-limited router at the contra
   assert.equal(typeof calls[0][2], 'function');
 });
 
+test('mounted read-only service follows the live runner source name for telemetry state', () => {
+  const runner = {
+    sourceName: 'axiom-security',
+    status() { return { enabled: true, running: false, inFlight: false, lastRunStatus: 'ok', runCount: 1, failureCount: 0 }; }
+  };
+  const service = createReadOnlySecurityCenterService({ runner, now: () => new Date('2026-10-06T15:00:00Z') });
+  assert.equal(service.sourceName, 'axiom-security');
+});
+
 test('mounted read-only service exposes policy, approval and boundary views without execution capability', async () => {
   const service = createReadOnlySecurityCenterService({ now: () => new Date('2026-10-06T15:00:00Z') });
   const policy = await service.getAiPolicy({ limit: 5 });

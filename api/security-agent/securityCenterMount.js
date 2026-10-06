@@ -68,13 +68,16 @@ function createReadOnlySecurityCenterService({ now = () => new Date(), runtime =
       });
     }
   });
+  const resolvedSourceName = runner && typeof runner.sourceName === 'string' && runner.sourceName.trim()
+    ? runner.sourceName.trim().slice(0, 80)
+    : 'security-staging';
   return new SecurityCenterService({
     runner: resolvedRunner,
     runtime,
     store: resolvedStore,
     approvalGate,
     boundaryAudit,
-    sourceName: 'security-staging',
+    sourceName: resolvedSourceName,
     staleAfterMs: 10 * 60 * 1000
   });
 }
