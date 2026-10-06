@@ -159,7 +159,7 @@ Puoi verificare la regione attuale usando l'API Axiom:
 Apri il terminale e esegui:
 
 ```bash
-# Sostituisci YOUR_TOKEN con il tuo token reale
+# Sostituisci <REDACTED_TOKEN> con il tuo token reale
 curl -X GET "https://api.axiom.co/v1/org" \
   -H "Authorization: Bearer <REDACTED_TOKEN>" \
   -H "Content-Type: application/json"
@@ -168,7 +168,7 @@ curl -X GET "https://api.axiom.co/v1/org" \
 **Oppure con PowerShell (Windows):**
 
 ```powershell
-$token = "YOUR_TOKEN"
+$token = "<REDACTED_TOKEN>"
 $headers = @{
     "Authorization" = "Bearer $token"
     "Content-Type" = "application/json"

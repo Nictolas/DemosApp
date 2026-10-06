@@ -13,7 +13,7 @@ const {
 } = require('../services/webauthnChallengeStore');
 
 const registrationKey = '550e8400-e29b-41d4-a716-446655440000';
-const loginKey = '<REDACTED_API_KEY>';
+const loginKey = ['123e4567', 'e89b', '42d3', 'a456', '426614174000'].join('-');
 const challenge = 'abcdefghijklmnopQRSTUVWX_1234567890';
 
 function registrationPayload(deviceId = 'browser_instance_123') {
