@@ -1,0 +1,26 @@
+﻿{
+  "version": "0.78",
+  "scope": "telemetry-provider-readiness",
+  "telemetry": {
+    "provider": "axiom",
+    "mode": "read-only-query-source",
+    "codeStatus": "ready",
+    "enabledByDefault": false,
+    "externalPending": ["read-only credential scope verification", "deployed heartbeat and RT01/RT02 correlation"]
+  },
+  "aiProvider": {
+    "provider": "groq",
+    "mode": "shadow-json-only",
+    "adapterStatus": "code-ready",
+    "enabledByDefault": false,
+    "toolAccess": false,
+    "writeAccess": false,
+    "externalPending": ["external API credential", "provider policy approval", "allowlist and budget configuration", "real-provider quality evaluation"]
+  },
+  "execution": {
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false
+  },
+  "productionTouched": false
+}

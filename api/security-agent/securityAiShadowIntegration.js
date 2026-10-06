@@ -158,7 +158,7 @@ class SecurityAiShadowIntegration {
   }
 }
 
-function createSecurityAiShadowIntegration({ env = {}, mockRunner = null, modelGateway = null, approvalGate = null, maxRecent = 50, now = () => new Date() } = {}) {
+function createSecurityAiShadowIntegration({ env = {}, mockRunner = null, modelGateway = null, providerAdapter = null, approvalGate = null, maxRecent = 50, now = () => new Date() } = {}) {
   const config = buildAiShadowIntegrationConfig(env);
   if (!mockRunner && config.backend === 'mock') {
     const { SecurityAiAnalystMockRunner } = require('./securityAiAnalystMockRunner');
@@ -166,7 +166,13 @@ function createSecurityAiShadowIntegration({ env = {}, mockRunner = null, modelG
   }
   if (!modelGateway && config.backend === 'gateway') {
     const { buildModelGatewayConfig, SecurityAiModelGateway } = require('./securityAiModelGateway');
-    modelGateway = new SecurityAiModelGateway({ config: buildModelGatewayConfig(env), providerAdapter: null, now });
+    const gatewayConfig = buildModelGatewayConfig(env);
+    if (!providerAdapter && gatewayConfig.ready === true && gatewayConfig.provider === 'groq') {
+      const { buildGroqSecurityProviderConfig, createGroqSecurityAiProvider } = require('./securityAiGroqProvider');
+      const groqConfig = buildGroqSecurityProviderConfig(env);
+      if (groqConfig.ready === true) providerAdapter = createGroqSecurityAiProvider({ env, config: groqConfig });
+    }
+    modelGateway = new SecurityAiModelGateway({ config: gatewayConfig, providerAdapter, now });
   }
   if (!approvalGate) approvalGate = new SecurityApprovalGate({ now });
   return new SecurityAiShadowIntegration({ config, mockRunner, modelGateway, approvalGate, maxRecent, now });
