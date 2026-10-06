@@ -1,0 +1,49 @@
+{
+  "checkpoint": "CP-098",
+  "version": "v0.98",
+  "validatedAt": "2026-10-06T20:01:38.020Z",
+  "provider": "axiom",
+  "environment": {
+    "class": "staging",
+    "service": "demos-security-staging",
+    "serviceId": "srv-db2ho5jncjis73ep4ot0",
+    "region": "frankfurt",
+    "branch": "security/agent-foundation-v0",
+    "commit": "9703ed534fb3c05ed3ca2066e218fde8e040df21",
+    "deployId": "dep-db2l6o942hec738u4mrg",
+    "runtimeMode": "memory"
+  },
+  "axiom": {
+    "dataset": "demos-security-staging",
+    "region": "eu",
+    "queryOnly": true,
+    "isolatedDataset": true,
+    "tokenPresent": true,
+    "orgIdPresent": true,
+    "writeAccess": false
+  },
+  "health": {
+    "version": "v0.96",
+    "state": "ready",
+    "readOnly": true,
+    "databaseRequired": false,
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false,
+    "agent": {
+      "enabled": true,
+      "inFlight": false,
+      "lastRunStatus": "ok",
+      "runCount": 1,
+      "failureCount": 0
+    },
+    "telemetry": {
+      "status": "healthy",
+      "lastSuccessAt": "2026-10-06T20:01:38.020Z",
+      "consecutiveFailures": 0,
+      "polls": 1
+    }
+  },
+  "productionTouched": false,
+  "secretMaterialRecorded": false
+}
