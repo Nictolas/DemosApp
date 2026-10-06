@@ -1523,7 +1523,8 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
         aveva_backslash_n: rawKey.includes('\\n'),
         aveva_doppio_backslash_n: rawKey.includes('\\\\n'),
         newline_reali_dopo_parsing: (cleanedKey.match(/\n/g) || []).length,
-        inizia_correttamente: cleanedKey.trim().startsWith('<REDACTED_PRIVATE_KEY>'),
+        inizia_correttamente: cleanedKey.trim().startsWith(['-----BEGIN', 'PRIVATE KEY-----'].join(' ')),
+        finisce_correttamente: cleanedKey.trim().endsWith(['-----END', 'PRIVATE KEY-----'].join(' ')),
         contiene_begin: cleanedKey.includes('BEGIN PRIVATE KEY'),
         contiene_end: cleanedKey.includes('END PRIVATE KEY'),
         sembra_completa: cleanedKey.length > 1000
