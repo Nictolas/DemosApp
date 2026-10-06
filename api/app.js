@@ -451,7 +451,14 @@ app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
 
 // Security Center AI/security read-only: OFF by default and mountable only behind the staging-isolation gate.
 if (process.env.SECURITY_CENTER_RUNTIME_ENABLED === 'true') {
-  const { verifyToken, requireAdmin } = require('./middleware/auth');
+  let verifyToken;
+  let requireAdmin;
+  if (process.env.SECURITY_CENTER_STAGING_AUTH_ENABLED === 'true') {
+    const { createSecurityCenterStagingAuth } = require('./security-agent/securityCenterStagingAuth');
+    ({ verifyToken, requireAdmin } = createSecurityCenterStagingAuth(process.env));
+  } else {
+    ({ verifyToken, requireAdmin } = require('./middleware/auth'));
+  }
   const { mountSecurityCenterRuntime } = require('./security-agent/securityCenterMount');
   mountSecurityCenterRuntime({
     app,
