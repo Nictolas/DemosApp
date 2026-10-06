@@ -9,7 +9,7 @@ function safeId(value, max = 96) {
   return String(value ?? '')
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9_.:\-]/g, '_')
+    .replace(/[^a-z0-9_./:\-]/g, '_')
     .slice(0, max);
 }
 

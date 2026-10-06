@@ -5,7 +5,7 @@ const DEFAULT_MAX_TOKENS = 600;
 const MAX_PROMPT_BYTES = 32 * 1024;
 
 function safeId(value, max = 96) {
-  return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_.:\-]/g, '_').slice(0, max);
+  return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_./:\-]/g, '_').slice(0, max);
 }
 
 function boundedInt(value, fallback, min, max) {
