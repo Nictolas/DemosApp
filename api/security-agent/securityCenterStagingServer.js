@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 const { buildSecurityCenterMountConfig, mountSecurityCenterRuntime } = require('./securityCenterMount');
 const { buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth } = require('./securityCenterStagingAuth');
 
-const SECURITY_CENTER_STAGING_SERVER_VERSION = 'v0.88';
+const SECURITY_CENTER_STAGING_SERVER_VERSION = 'v0.96';
 const DEFAULT_PORT = 3001;
 
 function parsePort(value) {
@@ -53,6 +53,61 @@ function securityHeaders(_req, res, next) {
   return next();
 }
 
+function basePublicHealth() {
+  return {
+    version: SECURITY_CENTER_STAGING_SERVER_VERSION,
+    state: 'ready',
+    readOnly: true,
+    databaseRequired: false,
+    authorized: false,
+    executable: false,
+    actionRunnerAvailable: false
+  };
+}
+
+async function buildPublicStagingHealth({ service = null, now = () => new Date() } = {}) {
+  const base = basePublicHealth();
+  if (!service || typeof service.getHealth !== 'function') return base;
+
+  try {
+    const detail = await service.getHealth({ now: now() });
+    const agent = detail?.agent || {};
+    const telemetry = detail?.telemetry || {};
+    const lastRunStatus = String(agent.lastRunStatus || 'never').slice(0, 32);
+    const runCount = Math.max(0, Number(agent.runCount || 0));
+    const failureCount = Math.max(0, Number(agent.failureCount || 0));
+    const telemetryStatus = String(telemetry.status || 'unknown').slice(0, 32);
+    const state = runCount === 0
+      ? 'warming'
+      : (lastRunStatus === 'ok' && telemetryStatus === 'healthy' ? 'ready' : 'degraded');
+
+    return {
+      ...base,
+      state,
+      agent: {
+        enabled: agent.enabled === true,
+        inFlight: agent.inFlight === true,
+        lastRunStatus,
+        runCount,
+        failureCount
+      },
+      telemetry: {
+        status: telemetryStatus,
+        lastSuccessAt: telemetry.lastSuccessAt || null,
+        consecutiveFailures: Math.max(0, Number(telemetry.consecutiveFailures || 0)),
+        polls: Math.max(0, Number(telemetry.totals?.polls || 0))
+      }
+    };
+  } catch (_error) {
+    return {
+      ...base,
+      state: 'degraded',
+      agent: { enabled: true, inFlight: false, lastRunStatus: 'error', runCount: 0, failureCount: 1 },
+      telemetry: { status: 'error', lastSuccessAt: null, consecutiveFailures: 1, polls: 0 }
+    };
+  }
+}
+
 function createSecurityCenterStagingApp({ env = process.env, now = () => new Date(), service = null } = {}) {
   const config = buildSecurityCenterStagingServerConfig(env);
   if (!config.enabled || !config.ready) {
@@ -67,15 +122,10 @@ function createSecurityCenterStagingApp({ env = process.env, now = () => new Dat
   app.set('trust proxy', 1);
   app.use(securityHeaders);
 
-  app.get('/healthz', (_req, res) => res.json({
-    version: SECURITY_CENTER_STAGING_SERVER_VERSION,
-    state: 'ready',
-    readOnly: true,
-    databaseRequired: false,
-    authorized: false,
-    executable: false,
-    actionRunnerAvailable: false
-  }));
+  app.get('/healthz', async (_req, res) => {
+    const payload = await buildPublicStagingHealth({ service, now });
+    return res.json(payload);
+  });
 
   const auth = createSecurityCenterStagingAuth(env);
   const adminLimiter = rateLimit({
@@ -122,6 +172,7 @@ module.exports = {
   DEFAULT_PORT,
   parsePort,
   buildSecurityCenterStagingServerConfig,
+  buildPublicStagingHealth,
   createSecurityCenterStagingApp,
   startSecurityCenterStagingServer
 };

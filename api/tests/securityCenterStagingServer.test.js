@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const { buildSecurityCenterStagingServerConfig, createSecurityCenterStagingApp, parsePort } = require('../security-agent/securityCenterStagingServer');
+const { buildSecurityCenterStagingServerConfig, buildPublicStagingHealth, createSecurityCenterStagingApp, parsePort } = require('../security-agent/securityCenterStagingServer');
 
 const token = 't'.repeat(48);
 const safeEnv = extra => ({
@@ -65,6 +65,28 @@ test('safe config is memory-only, DB-free and non executable', () => {
   assert.equal(cfg.executable, false);
   assert.equal(cfg.actionRunnerAvailable, false);
   assert.equal(JSON.stringify(cfg).includes(token), false);
+});
+
+
+test('public staging health exposes sanitized live telemetry state without credentials or event data', async () => {
+  const service = {
+    async getHealth() {
+      return {
+        agent: { enabled: true, inFlight: false, lastRunStatus: 'ok', runCount: 1, failureCount: 0 },
+        telemetry: { status: 'healthy', lastSuccessAt: '2026-10-06T19:47:27.000Z', consecutiveFailures: 0, totals: { polls: 1, fetched: 0, accepted: 0, duplicates: 0 } }
+      };
+    }
+  };
+  const health = await buildPublicStagingHealth({ service, now: () => new Date('2026-10-06T19:48:00.000Z') });
+  assert.equal(health.state, 'ready');
+  assert.equal(health.agent.lastRunStatus, 'ok');
+  assert.equal(health.agent.runCount, 1);
+  assert.equal(health.telemetry.status, 'healthy');
+  assert.equal(health.telemetry.polls, 1);
+  assert.equal(health.executable, false);
+  assert.equal(health.actionRunnerAvailable, false);
+  assert.equal(JSON.stringify(health).includes(token), false);
+  assert.equal(JSON.stringify(health).includes('demos-security-staging'), false);
 });
 
 test('minimal staging server exposes only health and protected Security Center reads', async t => {
