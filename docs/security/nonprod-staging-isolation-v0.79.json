@@ -1,0 +1,23 @@
+{
+  "version": "0.79",
+  "scope": "non-production-security-agent-staging",
+  "status": "code-ready-not-deployed",
+  "invariants": {
+    "explicitEnvironmentClass": "staging",
+    "runtimeMode": "memory",
+    "databaseWriterAllowed": false,
+    "retentionWriterAllowed": false,
+    "actionRunnerAvailable": false,
+    "axiomDatasetMustBeNonProduction": true,
+    "aiGatewayRequiresExplicitPolicyAllowlistBudgetsAndCredential": true
+  },
+  "validatedBy": "api/tests/securityStagingIsolation.test.js",
+  "externalPending": [
+    "create dedicated non-production Axiom dataset",
+    "issue query-only Axiom credential scoped to the non-production dataset",
+    "provide an external Groq credential for provider-quality validation",
+    "explicitly approve creation of a separate cloud staging service before any Render mutation"
+  ],
+  "productionServicesTouched": false,
+  "productionWritesAllowed": false
+}

@@ -4,6 +4,7 @@ const { createAxiomReadOnlySecuritySource } = require('./readOnlySecuritySource'
 const { createShadowSecurityRunner } = require('./shadowRunner');
 const { createPoolForPurpose } = require('./securityDbCredentialGate');
 const { buildSecurityAgentHealth } = require('./securityAgentHealth');
+const { buildSecurityStagingIsolationConfig } = require('./securityStagingIsolation');
 
 const RUNTIME_MODES = new Set(['memory', 'postgres']);
 
@@ -31,14 +32,18 @@ function buildSecurityAgentRuntimeConfig(env = process.env) {
   const intervalMs = parseInterval(env.SECURITY_AGENT_RUNNER_INTERVAL_MS);
   const runImmediately = env.SECURITY_AGENT_RUN_IMMEDIATELY === 'true';
   const environment = String(env.NODE_ENV || 'unknown').slice(0, 32);
-  if (processEnabled && environment === 'production' && mode === 'memory') {
+  const stagingIsolation = buildSecurityStagingIsolationConfig(env);
+  if (processEnabled && environment === 'production' && mode === 'memory' && !(stagingIsolation.required && stagingIsolation.ready)) {
     throw runtimeError('SECURITY_RUNTIME_MEMORY_FORBIDDEN_IN_PRODUCTION');
   }
-  const ready = processEnabled && sourceEnabled && runnerEnabled;
+  const ready = processEnabled && sourceEnabled && runnerEnabled && stagingIsolation.ready;
   const blockers = [];
   if (!processEnabled) blockers.push('process_disabled');
   if (!sourceEnabled) blockers.push('source_disabled');
   if (!runnerEnabled) blockers.push('runner_disabled');
+  if (stagingIsolation.required && !stagingIsolation.ready) {
+    blockers.push(...stagingIsolation.blockers.map(code => `staging:${code}`));
+  }
 
   return Object.freeze({
     processEnabled,
@@ -49,7 +54,8 @@ function buildSecurityAgentRuntimeConfig(env = process.env) {
     mode,
     intervalMs,
     runImmediately,
-    environment
+    environment,
+    stagingIsolation
   });
 }
 
@@ -159,6 +165,17 @@ class SecurityAgentRuntime {
       mode: this.config.mode,
       environment: this.config.environment,
       blockers: [...this.config.blockers],
+      stagingIsolation: this.config.stagingIsolation ? Object.freeze({
+        version: this.config.stagingIsolation.version,
+        required: this.config.stagingIsolation.required === true,
+        ready: this.config.stagingIsolation.ready === true,
+        environmentClass: this.config.stagingIsolation.environmentClass,
+        stagingId: this.config.stagingIsolation.stagingId,
+        runtimeMode: this.config.stagingIsolation.runtimeMode,
+        actionRunnerAvailable: false,
+        databaseWriterAllowed: false,
+        blockers: [...this.config.stagingIsolation.blockers]
+      }) : null,
       intervalMs: this.config.intervalMs,
       runImmediately: this.config.runImmediately,
       startedAt: this.startedAt,
