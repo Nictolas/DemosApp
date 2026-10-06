@@ -42,6 +42,8 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAxiomReadOnlyProvider.test.js')], root, 'Dedicated Axiom read-only provider']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStagingStack.test.js')], root, 'Security staging combined stack']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStagingIsolation.test.js')], root, 'Non-production staging isolation']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPhase2DeployedHarness.test.js')], root, 'Phase 2 deployed validation harness']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPhase2RenderKv.test.js')], root, 'Phase 2 Render KV staging gate']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityActionCatalog.test.js')], root, 'Security action catalog drift gate']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPolicyAuditEvidence.test.js')], root, 'Policy/audit evidence consistency']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAiQualityEvaluation.test.js')], root, 'AI provider quality evaluation']);

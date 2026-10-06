@@ -7,8 +7,9 @@ const { DetectionEngine } = require('./detectionEngine');
 const { evaluateAiPolicy } = require('./securityPolicyEngine');
 const { buildExecutionBoundary } = require('./securityExecutionBoundary');
 const { buildSecurityStagingIsolationConfig } = require('./securityStagingIsolation');
+const { buildSecurityPhase2RenderKvConfig, createSecurityPhase2RenderKvClient } = require('./securityPhase2RenderKv');
 
-const SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION = 'v0.100';
+const SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION = 'v0.101';
 const SECURITY_PHASE2_DEPLOYED_HARNESS_PREFIX = '/__security-phase2-validation';
 const MIN_TOKEN_LENGTH = 32;
 const MAX_TOKEN_LENGTH = 128;
@@ -24,6 +25,7 @@ function buildSecurityPhase2DeployedHarnessConfig(env = {}) {
   const enabled = env.SECURITY_PHASE2_DEPLOYED_VALIDATION_ENABLED === 'true';
   const token = String(env.SECURITY_PHASE2_DEPLOYED_VALIDATION_TOKEN || '');
   const isolation = buildSecurityStagingIsolationConfig(env);
+  const renderKv = buildSecurityPhase2RenderKvConfig(env);
   const blockers = [];
 
   if (enabled) {
@@ -32,6 +34,7 @@ function buildSecurityPhase2DeployedHarnessConfig(env = {}) {
     if (isolation.environmentClass !== 'staging') blockers.push('environment_class_not_staging');
     if (isolation.runtimeMode !== 'memory') blockers.push('runtime_not_memory');
     if (token.length < MIN_TOKEN_LENGTH || token.length > MAX_TOKEN_LENGTH) blockers.push('validation_token_invalid');
+    if (renderKv.enabled === true && renderKv.ready !== true) blockers.push(...renderKv.blockers.map(code => `render_kv:${code}`));
   }
 
   return Object.freeze({
@@ -41,6 +44,13 @@ function buildSecurityPhase2DeployedHarnessConfig(env = {}) {
     prefix: SECURITY_PHASE2_DEPLOYED_HARNESS_PREFIX,
     readOnlyProduction: true,
     syntheticStateOnly: true,
+    renderKv: Object.freeze({
+      enabled: renderKv.enabled === true,
+      ready: renderKv.ready === true,
+      renderKvId: renderKv.renderKvId || null,
+      privateNetworkOnly: renderKv.privateNetworkOnly === true,
+      productionWriteAllowed: false
+    }),
     databaseWriterAllowed: false,
     actionRunnerAvailable: false,
     executable: false,
@@ -75,6 +85,7 @@ function createMemoryRevocationClient() {
   return {
     async get(key) { return data.get(key) ?? null; },
     async set(key, value) { data.set(key, value); return 'OK'; },
+    async del(key) { return data.delete(key) ? 1 : 0; },
     size() { return data.size; }
   };
 }
@@ -88,6 +99,7 @@ function publicHarnessStatus(config, state) {
     prefix: config.prefix,
     readOnlyProduction: true,
     syntheticStateOnly: true,
+    renderKv: config.renderKv,
     productionTouched: false,
     databaseWriterAllowed: false,
     actionRunnerAvailable: false,
@@ -120,6 +132,8 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
   let rt02BlockedCount = 0;
   let rt02DownstreamCount = 0;
   let rt05PassCount = 0;
+  let rt05Backend = config.renderKv.enabled ? 'render-key-value' : 'ephemeral-memory';
+  let rt05CleanupConfirmed = false;
   let rt06PassCount = 0;
   let sequence = 0;
 
@@ -155,25 +169,47 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
   });
 
   router.post('/rt05/probe', async (_req, res, next) => {
+    let client = null;
     try {
-      const client = createMemoryRevocationClient();
+      const usingRenderKv = config.renderKv.enabled === true;
+      client = usingRenderKv
+        ? createSecurityPhase2RenderKvClient({ env })
+        : createMemoryRevocationClient();
+      if (usingRenderKv) await client.connect();
+
       const service = createAccessRevocationService({ getClient: () => client });
-      await service.revokeAccessSession('phase2-target-session', 300);
-      const targetRevoked = await service.isAccessSessionRevoked({ sid: 'phase2-target-session' });
-      const otherRevoked = await service.isAccessSessionRevoked({ sid: 'phase2-other-session' });
-      const passed = targetRevoked === true && otherRevoked === false && client.size() === 1;
+      const nonce = crypto.randomUUID();
+      const targetSession = `phase2-target-${nonce}`;
+      const otherSession = `phase2-other-${nonce}`;
+      const targetKey = require('../config/cacheKeys').keys.revokedAccessSession(targetSession);
+      await service.revokeAccessSession(targetSession, 60);
+      const targetRevoked = await service.isAccessSessionRevoked({ sid: targetSession });
+      const otherRevoked = await service.isAccessSessionRevoked({ sid: otherSession });
+      await client.del(targetKey);
+      const cleanupConfirmed = !(await service.isAccessSessionRevoked({ sid: targetSession }));
+      const storedKeyCount = usingRenderKv ? null : client.size();
+      const passed = targetRevoked === true && otherRevoked === false && cleanupConfirmed === true
+        && (usingRenderKv || storedKeyCount === 0);
+      rt05Backend = usingRenderKv ? 'render-key-value' : 'ephemeral-memory';
+      rt05CleanupConfirmed = cleanupConfirmed;
       if (passed) rt05PassCount += 1;
       return res.status(passed ? 200 : 500).json({
         test: 'RT05',
         status: passed ? 'pass' : 'fail',
-        backend: 'ephemeral-memory',
+        backend: rt05Backend,
         targetRevoked,
         otherRevoked,
-        storedKeyCount: client.size(),
+        cleanupConfirmed,
+        storedKeyCount,
+        privateNetworkOnly: usingRenderKv ? true : null,
         productionWrite: false
       });
     } catch (error) {
       return next(error);
+    } finally {
+      if (client && typeof client.disconnect === 'function') {
+        try { client.disconnect(); } catch (_disconnectError) {}
+      }
     }
   });
 
@@ -229,7 +265,7 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
         downstreamReached: rt02DownstreamCount,
         finding: rt02Finding ? { ruleId: rt02Finding.ruleId, severity: rt02Finding.severity } : null
       },
-      RT05: { deployedSyntheticPassCount: rt05PassCount, backend: 'ephemeral-memory' },
+      RT05: { deployedSyntheticPassCount: rt05PassCount, backend: rt05Backend, cleanupConfirmed: rt05CleanupConfirmed },
       RT06: { deployedGuardrailPassCount: rt06PassCount, freezeAttempted: false }
     });
   });

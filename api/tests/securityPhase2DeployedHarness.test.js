@@ -99,7 +99,9 @@ test('Phase 2 deployed harness status is protected and never exposes secret mate
   assert.equal(status.body.databaseWriterAllowed, false);
   assert.equal(status.body.actionRunnerAvailable, false);
   assert.equal(status.body.executable, false);
+  assert.equal(status.body.renderKv.enabled, false);
   assert.equal(JSON.stringify(status.body).includes(token), false);
+  assert.equal(JSON.stringify(status.body).includes('redis://'), false);
 });
 
 test('RT01 deployed harness rate-limits one source while a different source remains unaffected and detection fires', async t => {
@@ -170,7 +172,8 @@ test('RT05 deployed harness validates target-only revocation using the real serv
   assert.equal(result.body.backend, 'ephemeral-memory');
   assert.equal(result.body.targetRevoked, true);
   assert.equal(result.body.otherRevoked, false);
-  assert.equal(result.body.storedKeyCount, 1);
+  assert.equal(result.body.cleanupConfirmed, true);
+  assert.equal(result.body.storedKeyCount, 0);
   assert.equal(result.body.productionWrite, false);
 });
 
