@@ -1,0 +1,32 @@
+{
+  "version": "0.82",
+  "scope": "live-provider-quality-runner-gate",
+  "status": "code-ready-disabled-by-default",
+  "liveEnableFlag": "SECURITY_AI_PROVIDER_QUALITY_LIVE_ENABLED=true",
+  "requiredBeforeTransport": [
+    "SECURITY_AGENT_STAGING_ISOLATION_REQUIRED=true",
+    "staging isolation v0.79 ready",
+    "shadow integration enabled with gateway backend",
+    "model gateway policy/allowlists/budgets ready",
+    "Groq provider credential/config ready",
+    "quality pass rate between 0.5 and 1"
+  ],
+  "qualityContract": "v0.81",
+  "defaultMinimumPassRate": 0.8,
+  "transportBehavior": {
+    "disabledByDefault": true,
+    "blockedConfigurationsCallProvider": false,
+    "providerErrorsAreGeneric": true,
+    "toolsAllowed": false,
+    "writesAllowed": false,
+    "actionRunnerAvailable": false,
+    "databaseWriterAllowed": false
+  },
+  "ciValidation": "injected fake Groq client only; no external network",
+  "realRunPending": [
+    "dedicated non-production Groq credential",
+    "explicit authorization to perform live provider calls",
+    "isolated non-production staging profile"
+  ],
+  "productionTouched": false
+}

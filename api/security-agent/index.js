@@ -18,6 +18,7 @@ const { AI_ANALYST_MOCK_RUNNER_VERSION: SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
 const { MODEL_GATEWAY_VERSION: SECURITY_AI_MODEL_GATEWAY_VERSION, DEFAULT_TIMEOUT_MS: SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS, buildModelGatewayConfig, SecurityAiModelGateway } = require('./securityAiModelGateway');
 const { SECURITY_AI_GROQ_PROVIDER_VERSION, buildGroqSecurityProviderConfig, SecurityAiGroqProvider, createGroqSecurityAiProvider } = require('./securityAiGroqProvider');
 const { AI_PROVIDER_QUALITY_VERSION: SECURITY_AI_PROVIDER_QUALITY_VERSION, QUALITY_CASES: SECURITY_AI_PROVIDER_QUALITY_CASES, evaluateAiProviderQuality } = require('./securityAiQualityEvaluation');
+const { AI_LIVE_QUALITY_RUNNER_VERSION: SECURITY_AI_LIVE_QUALITY_RUNNER_VERSION, buildAiLiveQualityRunnerConfig, runLiveAiProviderQuality } = require('./securityAiLiveQualityRunner');
 const { AI_SHADOW_INTEGRATION_VERSION: SECURITY_AI_SHADOW_INTEGRATION_VERSION, ALLOWED_BACKENDS: SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig, SecurityAiShadowIntegration, createSecurityAiShadowIntegration } = require('./securityAiShadowIntegration');
 const { AI_ANALYSIS_ORCHESTRATOR_VERSION: SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SEVERITY_RANK: SECURITY_AI_ANALYSIS_SEVERITY_RANK, buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicCycleResult: publicAiAnalysisCycleResult } = require('./securityAiAnalysisOrchestrator');
 const { APPROVAL_GATE_VERSION: SECURITY_APPROVAL_GATE_VERSION, APPROVAL_STATES: SECURITY_APPROVAL_STATES, SecurityApprovalGate } = require('./securityApprovalGate');
@@ -43,9 +44,9 @@ module.exports = {
   sanitizeAlertForAi, sanitizeHealthForAi, buildAiAnalystInput, validateAiAnalystOutput, buildAiAnalystRequest, SECURITY_AI_ANALYST_MOCK_RUNNER_VERSION,
   createDeterministicMockAiProvider, emptyAiAnalystMockStatus, SecurityAiAnalystMockRunner, SECURITY_AI_MODEL_GATEWAY_VERSION, SECURITY_AI_MODEL_GATEWAY_DEFAULT_TIMEOUT_MS,
   buildModelGatewayConfig, SecurityAiModelGateway, SECURITY_AI_GROQ_PROVIDER_VERSION, buildGroqSecurityProviderConfig, SecurityAiGroqProvider, createGroqSecurityAiProvider,
-  SECURITY_AI_PROVIDER_QUALITY_VERSION, SECURITY_AI_PROVIDER_QUALITY_CASES, evaluateAiProviderQuality, SECURITY_AI_SHADOW_INTEGRATION_VERSION, SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig,
-  SecurityAiShadowIntegration, createSecurityAiShadowIntegration, SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SECURITY_AI_ANALYSIS_SEVERITY_RANK,
-  buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicAiAnalysisCycleResult,
+  SECURITY_AI_PROVIDER_QUALITY_VERSION, SECURITY_AI_PROVIDER_QUALITY_CASES, evaluateAiProviderQuality, SECURITY_AI_LIVE_QUALITY_RUNNER_VERSION, buildAiLiveQualityRunnerConfig, runLiveAiProviderQuality,
+  SECURITY_AI_SHADOW_INTEGRATION_VERSION, SECURITY_AI_SHADOW_ALLOWED_BACKENDS, buildAiShadowIntegrationConfig, SecurityAiShadowIntegration, createSecurityAiShadowIntegration,
+  SECURITY_AI_ANALYSIS_ORCHESTRATOR_VERSION, SECURITY_AI_ANALYSIS_SEVERITY_RANK, buildAiAnalysisOrchestratorConfig, SecurityAiAnalysisOrchestrator, createSecurityAiAnalysisOrchestrator, publicAiAnalysisCycleResult,
   SECURITY_APPROVAL_GATE_VERSION, SECURITY_APPROVAL_STATES, SecurityApprovalGate,
   SECURITY_POLICY_ENGINE_VERSION, SECURITY_POLICY_DECISIONS, SECURITY_ACTION_POLICY, evaluateSecurityActionPolicy, evaluateSecurityAiPolicy, securityPolicyStatus,
   runSecurityAgentWorker, sanitizeIncidentForStore, sanitizeSourceState, ShadowSecurityRunner, createShadowSecurityRunner, publicAiAnalysisResult,
