@@ -10,6 +10,8 @@ on:
       - 'scripts/security-*.js'
       - 'client/**'
       - 'package*.json'
+      - 'api/package*.json'
+      - 'client/package*.json'
       - '.github/workflows/security-agent-validation.yml'
   workflow_dispatch:
 
@@ -61,3 +63,4 @@ jobs:
 
       - name: Security pre-CI gate
         run: npm run test:security-preci
+
