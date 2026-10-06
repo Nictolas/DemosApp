@@ -1,0 +1,26 @@
+﻿{
+  "version": "0.84",
+  "scope": "policy-approval-boundary-audit-consistency",
+  "status": "code-ready",
+  "fix": "P0/read-only observe escalation maps to escalate_human approval instead of attempting to approve observe",
+  "evidenceChain": [
+    "deterministic policy decision",
+    "expected human approval action",
+    "approval state and approvalId",
+    "execution boundary action/approval correlation",
+    "boundary validator result"
+  ],
+  "tamperDetection": [
+    "missing expected approval",
+    "unexpected approval action",
+    "boundary/approval mismatch",
+    "invalid boundary validation",
+    "unexpected executable/authorized/runner capability"
+  ],
+  "privacy": "evidence output excludes arbitrary analysis, raw logs, tokens, user identifiers and provider payloads",
+  "authorized": false,
+  "executable": false,
+  "actionRunnerAvailable": false,
+  "productionTouched": false,
+  "networkUsed": false
+}

@@ -41,6 +41,7 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityTelemetryProviderReadiness.test.js')], root, 'Telemetry/provider readiness']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityStagingIsolation.test.js')], root, 'Non-production staging isolation']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityActionCatalog.test.js')], root, 'Security action catalog drift gate']);
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityPolicyAuditEvidence.test.js')], root, 'Policy/audit evidence consistency']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAiQualityEvaluation.test.js')], root, 'AI provider quality evaluation']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityAiLiveQualityRunner.test.js')], root, 'Live AI quality runner gate']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));

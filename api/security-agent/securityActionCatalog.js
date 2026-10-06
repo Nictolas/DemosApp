@@ -1,4 +1,4 @@
-﻿const ACTION_CATALOG_VERSION = 'v0.83';
+const ACTION_CATALOG_VERSION = 'v0.83';
 const POLICY_DECISIONS = Object.freeze(['allow', 'deny', 'escalate']);
 
 const ACTION_CATALOG = Object.freeze({
@@ -14,6 +14,13 @@ const ACTION_CATALOG = Object.freeze({
 const RECOMMENDED_ACTIONS = Object.freeze(Object.keys(ACTION_CATALOG));
 const APPROVAL_ACTIONS = Object.freeze(RECOMMENDED_ACTIONS.filter(action => ACTION_CATALOG[action].approvalEligible));
 const BOUNDARY_ACTIONS = Object.freeze(RECOMMENDED_ACTIONS.filter(action => ACTION_CATALOG[action].boundaryEligible));
+
+function resolveApprovalAction(action, decision = 'escalate') {
+  if (decision !== 'escalate') return null;
+  if (APPROVAL_ACTIONS.includes(action)) return action;
+  if (action === 'observe') return 'escalate_human';
+  return null;
+}
 
 function validateActionCatalog() {
   const issues = [];
@@ -33,6 +40,7 @@ function validateActionCatalog() {
     }
   }
   if (new Set(RECOMMENDED_ACTIONS).size !== RECOMMENDED_ACTIONS.length) issues.push('DUPLICATE_ACTION');
+  if (resolveApprovalAction('observe', 'escalate') !== 'escalate_human' || !APPROVAL_ACTIONS.includes('escalate_human')) issues.push('HUMAN_ESCALATION_ROUTE_INVALID');
   return Object.freeze({
     version: ACTION_CATALOG_VERSION,
     ok: issues.length === 0,
@@ -69,6 +77,7 @@ module.exports = {
   RECOMMENDED_ACTIONS,
   APPROVAL_ACTIONS,
   BOUNDARY_ACTIONS,
+  resolveApprovalAction,
   validateActionCatalog,
   actionCatalogStatus
 };

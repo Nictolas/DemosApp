@@ -1,5 +1,6 @@
 const { evaluateAiPolicy, policyStatus } = require('./securityPolicyEngine');
 const { SecurityApprovalGate } = require('./securityApprovalGate');
+const { resolveApprovalAction } = require('./securityActionCatalog');
 
 const AI_SHADOW_INTEGRATION_VERSION = 'v0.24';
 const ALLOWED_BACKENDS = Object.freeze(['mock', 'gateway']);
@@ -114,7 +115,9 @@ class SecurityAiShadowIntegration {
     if (record.policy.decision === 'escalate' && this.approvalGate) {
       const rawPolicy = evaluateAiPolicy(raw);
       for (const item of rawPolicy.actions.filter(action => action.decision === 'escalate')) {
-        this.approvalGate.request({ action: item.action, reasonCode: item.reasonCode, priority: record.prioritySuggestion });
+        const approvalAction = resolveApprovalAction(item.action, item.decision);
+        if (!approvalAction) continue;
+        this.approvalGate.request({ action: approvalAction, reasonCode: item.reasonCode, priority: record.prioritySuggestion });
       }
     }
     this.lastErrorCode = null;
