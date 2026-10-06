@@ -1,0 +1,54 @@
+{
+  "version": "0.90",
+  "checkpoint": "CP-090",
+  "date": "2026-10-06",
+  "scope": "phase4-deployed-validation",
+  "environment": {
+    "provider": "render",
+    "service": "demos-security-staging",
+    "region": "frankfurt",
+    "plan": "free",
+    "branch": "security/agent-foundation-v0",
+    "commit": "c332c19d112588828f6d7b3dfc29ed164ae8a03b",
+    "deployId": "dep-db2htl0ae00c73ae0kdg",
+    "url": "https://demos-security-staging.onrender.com",
+    "node": "22.23.3",
+    "autoDeploy": false,
+    "databaseRequired": false,
+    "runtimeMode": "memory"
+  },
+  "health": {
+    "path": "/healthz",
+    "httpStatus": 200,
+    "state": "ready",
+    "readOnly": true,
+    "databaseRequired": false,
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false
+  },
+  "phase4Validation": {
+    "validatorVersion": "v0.85",
+    "status": "accepted",
+    "ready": true,
+    "checkedCount": 3,
+    "routes": [
+      {"route": "/ai-policy", "httpStatus": 200, "ok": true, "violationCount": 0},
+      {"route": "/approvals", "httpStatus": 200, "ok": true, "violationCount": 0},
+      {"route": "/boundary-audit", "httpStatus": 200, "ok": true, "violationCount": 0}
+    ],
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false,
+    "blockers": []
+  },
+  "safety": {
+    "productionTouched": false,
+    "productionDatabaseUsed": false,
+    "productionCredentialsUsed": false,
+    "actionRunnerEnabled": false,
+    "axiomEnabled": false,
+    "aiProviderEnabled": false,
+    "secretMaterialRecorded": false
+  }
+}
