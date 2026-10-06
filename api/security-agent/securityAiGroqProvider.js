@@ -1,4 +1,4 @@
-﻿const Groq = require('groq-sdk');
+const Groq = require('groq-sdk');
 
 const SECURITY_AI_GROQ_PROVIDER_VERSION = 'v0.78';
 const DEFAULT_MAX_TOKENS = 600;
@@ -102,6 +102,7 @@ class SecurityAiGroqProvider {
           { role: 'user', content: inputJson }
         ],
         response_format: { type: 'json_object' },
+        reasoning_format: 'hidden',
         temperature: 0,
         max_tokens: this.config.maxTokens
       });
