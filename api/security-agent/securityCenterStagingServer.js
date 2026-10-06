@@ -4,7 +4,7 @@ const { buildSecurityCenterMountConfig, mountSecurityCenterRuntime } = require('
 const { buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth } = require('./securityCenterStagingAuth');
 const { buildSecurityPhase2DeployedHarnessConfig, mountSecurityPhase2DeployedHarness } = require('./securityPhase2DeployedHarness');
 
-const SECURITY_CENTER_STAGING_SERVER_VERSION = 'v0.99';
+const SECURITY_CENTER_STAGING_SERVER_VERSION = 'v0.100';
 const DEFAULT_PORT = 3001;
 
 function parsePort(value) {

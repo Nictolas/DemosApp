@@ -111,7 +111,7 @@ test('RT01 deployed harness rate-limits one source while a different source rema
   for (let i = 0; i < 101; i += 1) {
     attacker = await request(server, path, {
       method: 'POST',
-      headers: authHeaders({ 'x-forwarded-for': '198.51.100.10' })
+      headers: authHeaders({ 'x-phase2-source': 'attacker-a' })
     });
   }
   assert.equal(attacker.status, 429);
@@ -119,7 +119,7 @@ test('RT01 deployed harness rate-limits one source while a different source rema
 
   const legitimate = await request(server, path, {
     method: 'POST',
-    headers: authHeaders({ 'x-forwarded-for': '198.51.100.20' })
+    headers: authHeaders({ 'x-phase2-source': 'legitimate-b' })
   });
   assert.equal(legitimate.status, 401);
   assert.equal(legitimate.headers['x-phase2-downstream'], 'reached');

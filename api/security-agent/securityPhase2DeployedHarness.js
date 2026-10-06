@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const express = require('express');
-const { authLimiter } = require('../middleware/rateLimiting');
+const { createAuthLimiter } = require('../middleware/rateLimiting');
 const { securityMiddleware } = require('../middleware/security');
 const { createAccessRevocationService } = require('../services/accessRevocationService');
 const { DetectionEngine } = require('./detectionEngine');
@@ -8,7 +8,7 @@ const { evaluateAiPolicy } = require('./securityPolicyEngine');
 const { buildExecutionBoundary } = require('./securityExecutionBoundary');
 const { buildSecurityStagingIsolationConfig } = require('./securityStagingIsolation');
 
-const SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION = 'v0.99';
+const SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION = 'v0.100';
 const SECURITY_PHASE2_DEPLOYED_HARNESS_PREFIX = '/__security-phase2-validation';
 const MIN_TOKEN_LENGTH = 32;
 const MAX_TOKEN_LENGTH = 128;
@@ -108,6 +108,13 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
   const router = express.Router();
   const auth = phase2Auth(env);
   const detection = new DetectionEngine();
+  const rt01Limiter = createAuthLimiter({
+    keyGenerator: req => {
+      const source = String(req.get('x-phase2-source') || 'default').trim().toLowerCase();
+      const safe = source.replace(/[^a-z0-9_.:-]/g, '_').slice(0, 64) || 'default';
+      return `phase2-validation:${safe}`;
+    }
+  });
   const rt01Events = [];
   const rt02Events = [];
   let rt02BlockedCount = 0;
@@ -125,7 +132,7 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
     rt01Events.push(syntheticEvent('auth', 'login.failed', ++sequence, now()));
     if (rt01Events.length > 250) rt01Events.splice(0, rt01Events.length - 250);
     next();
-  }, authLimiter, (_req, res) => {
+  }, rt01Limiter, (_req, res) => {
     res.setHeader('X-Phase2-Downstream', 'reached');
     return res.status(401).json({ success: false, error: 'Synthetic login rejection' });
   });
