@@ -2,8 +2,9 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { buildSecurityCenterMountConfig, mountSecurityCenterRuntime } = require('./securityCenterMount');
 const { buildSecurityCenterStagingAuthConfig, createSecurityCenterStagingAuth } = require('./securityCenterStagingAuth');
+const { buildSecurityPhase2DeployedHarnessConfig, mountSecurityPhase2DeployedHarness } = require('./securityPhase2DeployedHarness');
 
-const SECURITY_CENTER_STAGING_SERVER_VERSION = 'v0.96';
+const SECURITY_CENTER_STAGING_SERVER_VERSION = 'v0.99';
 const DEFAULT_PORT = 3001;
 
 function parsePort(value) {
@@ -18,6 +19,7 @@ function buildSecurityCenterStagingServerConfig(env = {}) {
   const port = parsePort(env.PORT);
   const mount = buildSecurityCenterMountConfig(env);
   const auth = buildSecurityCenterStagingAuthConfig(env);
+  const phase2 = buildSecurityPhase2DeployedHarnessConfig(env);
   const blockers = [];
 
   if (enabled) {
@@ -25,6 +27,7 @@ function buildSecurityCenterStagingServerConfig(env = {}) {
     if (!port) blockers.push('port_invalid');
     if (mount.enabled !== true || mount.ready !== true) blockers.push('security_center_mount_not_ready');
     if (auth.enabled !== true || auth.ready !== true) blockers.push('staging_auth_not_ready');
+    if (phase2.enabled === true && phase2.ready !== true) blockers.push('phase2_validation_not_ready');
   }
 
   return Object.freeze({
@@ -145,6 +148,8 @@ function createSecurityCenterStagingApp({ env = process.env, now = () => new Dat
     service,
     now
   });
+
+  mountSecurityPhase2DeployedHarness({ app, env, now });
 
   app.use((_req, res) => res.status(404).json({ success: false, error: 'Route non trovata' }));
   app.use((_error, _req, res, _next) => res.status(500).json({ success: false, error: 'Errore interno del server' }));
