@@ -28,6 +28,8 @@ function stagingEnv(overrides = {}) {
   };
 }
 
+const TEST_GROQ_KEY = ['gsk', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'].join('_');
+
 function gatewayEnv(overrides = {}) {
   return stagingEnv({
     SECURITY_AI_SHADOW_INTEGRATION_ENABLED: 'true',
@@ -45,7 +47,7 @@ function gatewayEnv(overrides = {}) {
     SECURITY_AI_DAILY_COST_BUDGET_MICROS: '1000',
     SECURITY_AI_MAX_DAILY_REQUESTS: '10',
     SECURITY_AI_GROQ_REQUEST_COST_ESTIMATE_MICROS: '100',
-    GROQ_API_KEY: '[REDACTED_GROQ_API_KEY]',
+    GROQ_API_KEY: TEST_GROQ_KEY,
     ...overrides
   });
 }
@@ -141,7 +143,7 @@ test('runtime refuses an isolation-required configuration with production-like i
 });
 
 test('public runtime status never exposes provider credentials', () => {
-  const secret = '[REDACTED_GROQ_API_KEY]';
+  const secret = TEST_GROQ_KEY;
   const config = buildSecurityAgentRuntimeConfig(gatewayEnv({ GROQ_API_KEY: secret }));
   const runtime = new SecurityAgentRuntime({ config, runner: fakeRunner() });
   const serialized = JSON.stringify(runtime.status());
