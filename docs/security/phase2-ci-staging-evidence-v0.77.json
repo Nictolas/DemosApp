@@ -1,0 +1,14 @@
+﻿{
+  "version": "0.77",
+  "scope": "ci-ephemeral-staging-evidence",
+  "tests": {
+    "RT01": {"status":"ci-synthetic-pass","evidence":["real express authLimiter on ephemeral HTTP server","DET-AUTH-FAILED-BURST"],"externalRemaining":["deployed staging telemetry correlation"]},
+    "RT02": {"status":"ci-synthetic-pass","evidence":["securityMiddleware blocks SQLi before downstream handler","DET-SUSPICIOUS-REQUEST critical"],"externalRemaining":["deployed staging request/log correlation"]},
+    "RT03": {"status":"ci-pass","evidence":["tracked-file secret scanner","synthetic secret self-test exits non-zero without echoing secret"],"externalRemaining":[]},
+    "RT04": {"status":"ci-pass","evidence":["run 37365157922 blocked on critical proxy-addr advisory","run 37440051753 blocked on client copy before any deploy"],"externalRemaining":[]},
+    "RT05": {"status":"ci-synthetic-pass","evidence":["target-only access-session revocation with isolated in-memory Redis contract"],"externalRemaining":["deployed staging Redis/session validation"]},
+    "RT06": {"status":"guardrail-pass","evidence":["critical admin detection","P0 human escalation","execution boundary authorized=false/executable=false/actionRunnerAvailable=false"],"externalRemaining":["controlled staging freeze requires future explicitly authorized Action Runner"]}
+  },
+  "productionTouched": false,
+  "actionRunnerEnabled": false
+}

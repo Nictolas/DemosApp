@@ -14,7 +14,8 @@
     "deploy": "npm run install-all && npm run build",
     "test:security-preci": "node scripts/security-preci.js",
     "test:security-phase-evidence": "node scripts/security-phase-evidence-gate.js",
-    "test:security-phase2-evidence": "node scripts/security-phase2-evidence-gate.js"
+    "test:security-phase2-evidence": "node scripts/security-phase2-evidence-gate.js",
+    "test:security-phase2-staging": "node scripts/security-secret-scan.js && node --test scripts/security-secret-scan-selftest.js && node --test api/tests/securityPhase2StagingHarness.test.js && node scripts/security-phase2-ci-evidence-gate.js"
   },
   "dependencies": {
     "@axiomhq/axiom-node": "^0.12.0",
