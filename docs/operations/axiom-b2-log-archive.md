@@ -100,7 +100,7 @@ The normal steady-state settings use:
 
 ## Backblaze setup requirements
 
-Create a **private** Backblaze B2 bucket in an EU region. Use the exact S3 endpoint and region shown in the bucket details, for example the documented endpoint pattern:
+Production bucket created on 2026-10-06: `demos-log-archive-eu` in EU Central, private, encryption enabled, Object Lock disabled. S3 endpoint: `https://s3.eu-central-003.backblazeb2.com`.  Use the exact S3 endpoint and region shown in the bucket details, for example the documented endpoint pattern:
 
 ```text
 https://s3.<region>.backblazeb2.com
