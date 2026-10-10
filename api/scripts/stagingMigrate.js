@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const fs = require('fs');
 const path = require('path');
@@ -38,6 +38,9 @@ const EXPECTED_TABLES = Object.freeze([
 function resolveMigration(relativePath) {
   return path.join(REPO_ROOT, ...relativePath.split('/'));
 }
+function readSql(relativePath) {
+  return readSql(relativePath).replace(/^\uFEFF/, '');
+}
 function assertMigrationFilesExist() {
   const files = [BASELINE, ...MIGRATIONS];
   const missing = files.filter((file) => !fs.existsSync(resolveMigration(file)));
@@ -74,14 +77,14 @@ async function applyBaseline(client, logger = console) {
     return;
   }
   logger.log(`[staging] applying baseline ${BASELINE}`);
-  await client.query(fs.readFileSync(resolveMigration(BASELINE), 'utf8'));
+  await client.query(readSql(BASELINE));
   await assertBaseSchema(client);
   logger.log('[staging] baseline OK');
 }
 async function applyMigrations(client, logger = console) {
   for (const relativePath of MIGRATIONS) {
     logger.log(`[staging] applying ${relativePath}`);
-    await client.query(fs.readFileSync(resolveMigration(relativePath), 'utf8'));
+    await client.query(readSql(relativePath));
     logger.log(`[staging] applied ${relativePath}`);
   }
 }
