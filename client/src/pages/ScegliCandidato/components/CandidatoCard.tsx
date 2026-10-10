@@ -12,6 +12,9 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   onSeleziona,
   onViewOpinioni
 }) => {
+  const compatibility = candidato.compatibilita_percentuale ?? candidato.compatibilitaPercentuale ?? 0;
+  const coverageKnown = candidato.copertura_posizioni ?? candidato.coperturaPosizioni ?? 0;
+  const coverageTotal = candidato.copertura_totale ?? candidato.coperturaTotale ?? 0;
 
   const handleSeleziona = () => {
     onSeleziona(candidato.id);
@@ -50,11 +53,14 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
           {candidato.ruolo}
         </Badge>
         
-        {/* Opinion Comuni */}
-        <div className="text-center">
+        {/* Compatibilità DEMOS + copertura delle posizioni note */}
+        <div className="text-center space-y-1">
           <Badge variant="secondary" className="text-xs">
-            {candidato.opinioniComuni || 0} opinioni comuni
+            {compatibility}% compatibilità
           </Badge>
+          <p className="text-xs text-gray-500">
+            {coverageKnown}/{coverageTotal} posizioni disponibili
+          </p>
         </div>
         
         {/* Pulsanti */}

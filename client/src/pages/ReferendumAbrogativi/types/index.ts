@@ -18,9 +18,25 @@ export interface Referendum extends ReferendumFormData {
   id: string;
   quorum: 'ok' | 'pending' | 'no' | 'proposta';
   data_creazione: string;
+  created_at?: string;
+  data_inizio?: string;
+  data_fine?: string;
+  userid?: string;
+  utente_id?: string;
   votiices?: number;
   firme?: number;
   firme_raccolte?: number;
+  jurisdiction_id?: string;
+  civic_process_type_id?: string;
+  civic_process_stage?: string | null;
+  civic_process_source_id?: string;
+  signature_threshold?: number | null;
+  demos_actions?: {
+    information?: boolean;
+    external_signature?: boolean;
+    demos_priority?: boolean;
+    position_on_question?: boolean;
+  };
   esito?: string;
   status?: string;
   sitoWeb?: string;
@@ -39,7 +55,6 @@ export interface ReferendumAbrogativiState {
 // Interfaccia per le props dei componenti
 export interface ReferendumTableProps {
   listaReferendum: Referendum[];
-  mieiVoti: string[];
   isLoading: boolean;
   isError: boolean;
   onView?: (referendum: Referendum) => void;

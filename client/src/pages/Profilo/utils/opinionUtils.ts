@@ -80,7 +80,7 @@ export const categorizeOpinions = (
     
     if (value === "Favorevole") {
       favorevoli.push(opinion);
-    } else if (value === "Indeciso") {
+    } else if ((value === "Indeciso" || value === "Non lo so")) {
       indecisi.push(opinion);
     } else if (value === "Contrario") {
       contrari.push(opinion);

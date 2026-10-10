@@ -2,7 +2,6 @@ export interface OpinionData {
   favorevole: number;
   contrario: number;
   indeciso: number;
-  astenuto: number;
 }
 
 export interface OpinionStats {

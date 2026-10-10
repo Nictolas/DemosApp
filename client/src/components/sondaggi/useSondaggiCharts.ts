@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-type OpinionData = { favorevole: number; contrario: number; indeciso: number; astenuto: number; };
+type OpinionData = { favorevole: number; contrario: number; indeciso: number; };
 type OpinionStats = Record<string, OpinionData>;
 interface Question { id: string; text: string; }
 
@@ -8,8 +8,7 @@ interface Question { id: string; text: string; }
 const COLORS = {
   favorevole: '#10B981', // Verde
   contrario: '#EF4444',  // Rosso
-  indeciso: '#FCD34D',   // Giallo
-  astenuto: '#6B7280'    // Grigio
+  indeciso: '#FCD34D'    // Giallo
 };
 
 const GENERE_COLORS = ['#3B82F6', '#EC4899', '#FCD34D']; // Blu, Rosa, Giallo
@@ -28,17 +27,15 @@ export function useSondaggiCharts(stats: OpinionStats | undefined, questions: Qu
     const favorevole = Math.max(0, Number(questionStats.favorevole) || 0);
     const contrario = Math.max(0, Number(questionStats.contrario) || 0);
     const indeciso = Math.max(0, Number(questionStats.indeciso) || 0);
-    const astenuto = Math.max(0, Number(questionStats.astenuto) || 0);
     
-    if (favorevole === 0 && contrario === 0 && indeciso === 0 && astenuto === 0) {
+    if (favorevole === 0 && contrario === 0 && indeciso === 0) {
       return [];
     }
     
     const data = [];
     if (favorevole > 0) data.push({ name: 'Favorevole', value: favorevole, color: COLORS.favorevole });
     if (contrario > 0) data.push({ name: 'Contrario', value: contrario, color: COLORS.contrario });
-    if (indeciso > 0) data.push({ name: 'Indeciso', value: indeciso, color: COLORS.indeciso });
-    if (astenuto > 0) data.push({ name: 'Astenuto', value: astenuto, color: COLORS.astenuto });
+    if (indeciso > 0) data.push({ name: 'Non lo so', value: indeciso, color: COLORS.indeciso });
     
     return data;
   }, [stats]);
@@ -60,14 +57,12 @@ export function useSondaggiCharts(stats: OpinionStats | undefined, questions: Qu
         Favorevole: Math.max(0, Number(questionStats.favorevole) || 0),
         Contrario: Math.max(0, Number(questionStats.contrario) || 0),
         Indeciso: Math.max(0, Number(questionStats.indeciso) || 0),
-        Astenuto: Math.max(0, Number(questionStats.astenuto) || 0),
       };
     }).filter(Boolean) as Array<{ 
       name: string; 
       Favorevole: number; 
       Contrario: number; 
       Indeciso: number; 
-      Astenuto: number; 
     }>;
     
     return barData;
@@ -89,7 +84,7 @@ export function useSondaggiCharts(stats: OpinionStats | undefined, questions: Qu
     if (!stats) return { totalVotes: 0, totalQuestions: questions.length };
     
     const totalVotes = Object.values(stats).reduce((total, stat) => 
-      total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
+      total + (stat.favorevole + stat.contrario + stat.indeciso), 0
     );
     
     return {

@@ -15,6 +15,7 @@ interface ProfileInfoProps {
   onEditClick: () => void;
   onModificaImmagine: () => void;
   canEdit?: boolean;
+  isOwnProfile?: boolean;
   avatarConfig?: any;
 }
 
@@ -24,6 +25,7 @@ export const ProfileInfo = ({
   onEditClick, 
   onModificaImmagine,
   canEdit = true,
+  isOwnProfile = true,
   avatarConfig
 }: ProfileInfoProps) => {
   const [, setLocation] = useLocation();
@@ -142,7 +144,7 @@ export const ProfileInfo = ({
             </span>
           </CardTitle>
           <CardDescription className="text-gray-600 text-base">
-            I tuoi dati personali e informazioni di contatto
+            {isOwnProfile ? "I tuoi dati personali e informazioni di contatto" : "Informazioni pubbliche del profilo politico"}
           </CardDescription>
         </CardHeader>
         <CardContent className="relative">
@@ -167,6 +169,7 @@ export const ProfileInfo = ({
               </div>
             </div>
           )}
+          {isOwnProfile && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
               {canShowFullName() && (
@@ -219,6 +222,7 @@ export const ProfileInfo = ({
               </div>
             </div>
           </div>
+          )}
           
           {(userInfo.professione || userInfo.istruzione || userInfo.telefono) && (
             <div className="mt-8 pt-8 border-t border-gray-200">

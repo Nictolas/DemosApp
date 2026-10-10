@@ -113,7 +113,7 @@ export default function Utenti() {
   const [isMobile, setIsMobile] = useState(false);
 
   // Calcola le statistiche direttamente dai dati degli utenti già caricati
-  const stats = useMemo(() => {
+  const stats = useMemo<StatisticheUtenti | null>(() => {
     if (!responseData?.utenti) return null;
     
     const utenti = responseData.utenti;
@@ -683,8 +683,6 @@ export default function Utenti() {
                         onEditOpinioni={handleEditOpinioni}
                         onDelete={handleDelete}
                         onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     ) : (
                       <UsersTable 
@@ -696,8 +694,6 @@ export default function Utenti() {
                         onEditOpinioni={handleEditOpinioni}
                         onDelete={handleDelete}
                         onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     )}
                     

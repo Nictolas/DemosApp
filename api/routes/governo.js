@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPool } = require('../config/database');
+const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -24,8 +25,7 @@ router.get('/voti', verifyToken, async (req, res) => {
 
     const classifiche = {};
     const mieiVoti = {};
-    let isBlocked = false;
-    let unlockDate = null;
+    const blocchi = {};
 
     // Per ogni ministero, ottieni classifiche e voti utente
     for (const ministero of ministeri) {
@@ -73,47 +73,42 @@ router.get('/voti', verifyToken, async (req, res) => {
         // Continua senza aggiungere voti per questo ministero
       }
 
-      // Controlla blocco settimanale per questo ministero (Admin può sempre votare)
+      // Cooldown per singolo ministero: non bloccare le altre preferenze.
       try {
-        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-        const userResult = await pool.query(userQuery, [userId]);
-        const userRole = userResult.rows[0]?.ruolo;
-
-        if (userRole !== 'Admin') {
-          const bloccoQuery = `
-            SELECT 
-              CASE 
-                WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-                ELSE false
-              END as is_blocked,
-              MAX(timestamp) + INTERVAL '7 days' as unlock_date
-            FROM ${tableName}
-            WHERE userid = $1
-          `;
-
-          const bloccoResult = await pool.query(bloccoQuery, [userId]);
-          if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
-            isBlocked = true;
-            unlockDate = bloccoResult.rows[0].unlock_date;
-          }
+        if (!req.user?.isAdmin) {
+          const lastChangeResult = await pool.query(
+            `SELECT MAX(timestamp) AS last_changed_at FROM ${tableName} WHERE userid = $1`,
+            [userId]
+          );
+          const cooldown = await getPreferenceCooldown(pool, {
+            userId,
+            scope: `governo:${ministero}`,
+            fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
+          });
+          blocchi[ministero] = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
+        } else {
+          blocchi[ministero] = { isBlocked: false, unlockDate: null };
         }
       } catch (error) {
-        console.error(`❌ DEBUG - Errore nel controllo blocco per ${ministero}:`, error.message);
-        // Continua senza bloccare
+        console.error(`Errore nel controllo cooldown per ${ministero}:`, error.message);
+        throw error;
       }
     }
 
     console.log('🔍 DEBUG - Risposta API governo/voti:');
     console.log('📊 Classifiche:', Object.keys(classifiche).length, 'ministeri');
     console.log('👤 Miei voti:', Object.keys(mieiVoti).length, 'voti utente');
-    console.log('🔒 Blocco:', { isBlocked, unlockDate });
+    const activeBlocks = Object.values(blocchi).filter((item) => item?.isBlocked);
+    const legacyUnlockDate = activeBlocks.map((item) => item.unlockDate).filter(Boolean).sort()[0] || null;
+    console.log('🔒 Cooldown per ministero:', blocchi);
 
     res.json({
       classifiche,
       mieiVoti,
+      blocchi,
       blocco: {
-        isBlocked,
-        unlockDate
+        isBlocked: activeBlocks.length > 0,
+        unlockDate: legacyUnlockDate
       }
     });
 
@@ -146,38 +141,37 @@ router.post('/vota', verifyToken, async (req, res) => {
       'cultura', 'sport'
     ];
 
-    // Controlla se l'utente è bloccato (Admin può sempre votare)
-    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-    const userResult = await pool.query(userQuery, [userId]);
-    const userRole = userResult.rows[0]?.ruolo;
+    const isAdmin = Boolean(req.user?.isAdmin);
+    const changes = [];
 
-    if (userRole !== 'Admin') {
-      let isBlocked = false;
-      for (const ministero of ministeri) {
-        const tableName = `voti_${ministero}`;
-        const bloccoQuery = `
-          SELECT 
-            CASE 
-              WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-              ELSE false
-            END as is_blocked
-          FROM ${tableName}
-          WHERE userid = $1
-        `;
+    for (const ministero of ministeri) {
+      if (!Object.prototype.hasOwnProperty.call(voti, ministero)) continue;
+      const requestedRaw = voti[ministero];
+      const requestedName = requestedRaw && String(requestedRaw).trim() ? String(requestedRaw).trim() : null;
+      const tableName = `voti_${ministero}`;
+      const existingResult = await pool.query(
+        `SELECT nome_display AS nome, timestamp
+         FROM ${tableName}
+         WHERE userid = $1
+         ORDER BY timestamp DESC
+         LIMIT 1`,
+        [userId]
+      );
+      const current = existingResult.rows[0] || null;
+      const currentName = current?.nome ? String(current.nome).trim() : null;
+      if (requestedName === currentName) continue;
 
-        const bloccoResult = await pool.query(bloccoQuery, [userId]);
-        if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
-          isBlocked = true;
-          break;
-        }
-      }
+      await assertPreferenceChangeAllowed(pool, {
+        userId,
+        scope: `governo:${ministero}`,
+        fallbackChangedAt: current?.timestamp || null,
+        isAdmin
+      });
+      changes.push({ ministero, requestedName });
+    }
 
-      if (isBlocked) {
-        return res.status(403).json({
-          success: false,
-          error: 'Non puoi modificare i voti più di una volta a settimana'
-        });
-      }
+    if (changes.length === 0) {
+      return res.json({ success: true, message: 'Preferenze già aggiornate' });
     }
 
     // Inizia transazione
@@ -185,30 +179,24 @@ router.post('/vota', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Elimina tutti i voti esistenti dell'utente da tutte le tabelle
-      for (const ministero of ministeri) {
+      for (const { ministero, requestedName } of changes) {
         const tableName = `voti_${ministero}`;
-        await client.query(
-          `DELETE FROM ${tableName} WHERE userid = $1`,
-          [userId]
-        );
-      }
+        await client.query(`DELETE FROM ${tableName} WHERE userid = $1`, [userId]);
 
-      // Inserisci i nuovi voti nelle tabelle appropriate
-      for (const [categoria, nome] of Object.entries(voti)) {
-        if (nome && nome.trim() && ministeri.includes(categoria)) {
-          const tableName = `voti_${categoria}`;
-          const nomeKey = nome.trim().toLowerCase();
-          const nomeDisplay = nome.trim().split(' ').map(w => 
-            w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-          ).join(' ');
-
+        if (requestedName) {
+          const nomeKey = requestedName.toLowerCase();
+          const nomeDisplay = requestedName
+            .split(' ')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
           await client.query(
-            `INSERT INTO ${tableName} (id, userid, nome_ministro, nome_display, timestamp) 
+            `INSERT INTO ${tableName} (id, userid, nome_ministro, nome_display, timestamp)
              VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
             [userId, nomeKey, nomeDisplay]
           );
         }
+
+        await recordPreferenceChange(client, { userId, scope: `governo:${ministero}` });
       }
 
       await client.query('COMMIT');
@@ -222,6 +210,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     }
 
   } catch (error) {
+    if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel salvare voti governo:', error);
     res.status(500).json({
       success: false,
@@ -304,7 +293,7 @@ router.get('/ideale', verifyToken, async (req, res) => {
 });
 
 // POST /api/governo - Aggiungi membro governo
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { nome, cognome, ruolo, partito, data_nominazione } = req.body;
     
@@ -375,31 +364,12 @@ router.get('/consenso', async (req, res) => {
           };
         }
 
-        // Controlla se l'utente è bloccato (stessa logica dei voti normali)
-        const bloccoQuery = `
-          SELECT timestamp
-          FROM consenso_governo 
-          WHERE userid = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-        
-        const bloccoResult = await pool.query(bloccoQuery, [userId]);
-        
-        if (bloccoResult.rows.length > 0) {
-          const lastVote = new Date(bloccoResult.rows[0].timestamp);
-          const now = new Date();
-          const diffInDays = Math.floor((now - lastVote) / (1000 * 60 * 60 * 24));
-          
-          if (diffInDays < 7) {
-            const unlockDate = new Date(lastVote);
-            unlockDate.setDate(unlockDate.getDate() + 7);
-            blocco = {
-              isBlocked: true,
-              unlockDate: unlockDate.toISOString()
-            };
-          }
-        }
+        const cooldown = await getPreferenceCooldown(pool, {
+          userId,
+          scope: 'governo:consenso',
+          fallbackChangedAt: consensoResult.rows[0]?.timestamp || null
+        });
+        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
       } catch (error) {
         console.log('🔍 DEBUG - Token non valido per consenso governo:', error.message);
       }
@@ -462,39 +432,32 @@ router.post('/consenso', verifyToken, async (req, res) => {
       });
     }
 
-    // Controlla se l'utente è bloccato
-    const bloccoQuery = `
-      SELECT timestamp
-      FROM consenso_governo 
-      WHERE userid = $1
-      ORDER BY timestamp DESC
-      LIMIT 1
-    `;
-    
-    const bloccoResult = await pool.query(bloccoQuery, [userId]);
-    
-    if (bloccoResult.rows.length > 0) {
-      const lastVote = new Date(bloccoResult.rows[0].timestamp);
-      const now = new Date();
-      const diffInDays = Math.floor((now - lastVote) / (1000 * 60 * 60 * 24));
-      
-      if (diffInDays < 7) {
-        const unlockDate = new Date(lastVote);
-        unlockDate.setDate(unlockDate.getDate() + 7);
-        return res.status(400).json({
-          success: false,
-          error: 'Hai già votato per il consenso questa settimana',
-          unlockDate: unlockDate.toISOString()
-        });
-      }
+    const currentResult = await pool.query(
+      `SELECT risposta, timestamp
+       FROM consenso_governo
+       WHERE userid = $1
+       ORDER BY timestamp DESC
+       LIMIT 1`,
+      [userId]
+    );
+    const current = currentResult.rows[0] || null;
+    if (current?.risposta === risposta) {
+      return res.json({ success: true, message: 'Consenso già aggiornato', data: current });
     }
 
+    await assertPreferenceChangeAllowed(pool, {
+      userId,
+      scope: 'governo:consenso',
+      fallbackChangedAt: current?.timestamp || null,
+      isAdmin: Boolean(req.user?.isAdmin)
+    });
+
     // Inizia transazione
-    await pool.query('BEGIN');
-    
+    const client = await pool.connect();
     try {
+      await client.query('BEGIN');
       // Elimina il voto precedente se esiste
-      await pool.query(
+      await client.query(
         'DELETE FROM consenso_governo WHERE userid = $1',
         [userId]
       );
@@ -502,15 +465,15 @@ router.post('/consenso', verifyToken, async (req, res) => {
       // Inserisce il nuovo voto
       const votoId = `consenso_gov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      await pool.query(
+      await client.query(
         `INSERT INTO consenso_governo (
           id, userid, risposta, timestamp, created_at, updated_at
         ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
         [votoId, userId, risposta]
       );
       
-      // Conferma la transazione
-      await pool.query('COMMIT');
+      await recordPreferenceChange(client, { userId, scope: 'governo:consenso' });
+      await client.query('COMMIT');
       
       res.json({
         success: true,
@@ -526,6 +489,7 @@ router.post('/consenso', verifyToken, async (req, res) => {
       throw error;
     }
   } catch (error) {
+    if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel salvataggio consenso governo:', error);
     res.status(500).json({
       success: false,
@@ -593,23 +557,10 @@ router.get('/attuale', async (req, res) => {
 });
 
 // PUT /api/governo/attuale/:ruolo - Aggiorna o crea un ministro attuale
-router.put('/attuale/:ruolo', verifyToken, async (req, res) => {
+router.put('/attuale/:ruolo', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { ruolo } = req.params;
     const { user_id } = req.body;
-    const userId = req.userId;
-
-    // Verifica che l'utente sia admin
-    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-    const userResult = await pool.query(userQuery, [userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-
-    if (userRole !== 'A' && userRole !== 'AD' && userRole !== 'Admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato. Solo gli amministratori possono modificare il governo attuale.'
-      });
-    }
 
     // Verifica se la tabella esiste, altrimenti restituisci errore
     const tableCheckQuery = `

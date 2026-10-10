@@ -12,6 +12,12 @@ interface ReferendumViewDialogProps {
 export const ReferendumViewDialog: React.FC<ReferendumViewDialogProps> = ({ referendum, onClose }) => {
   if (!referendum) return null;
 
+  const dataInizio = referendum.data_inizio;
+  const dataFine = referendum.data_fine;
+  const sitoWeb = (referendum as Referendum & { sitoWeb?: string; sito_web?: string; sitoweb?: string }).sitoWeb
+    || (referendum as Referendum & { sito_web?: string }).sito_web
+    || (referendum as Referendum & { sitoweb?: string }).sitoweb;
+
   return (
     <Dialog open={!!referendum} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-white">
@@ -23,7 +29,7 @@ export const ReferendumViewDialog: React.FC<ReferendumViewDialogProps> = ({ refe
             Dettagli del referendum abrogativo
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 bg-white">
           {referendum.descrizione && (
             <div>
@@ -33,40 +39,40 @@ export const ReferendumViewDialog: React.FC<ReferendumViewDialogProps> = ({ refe
               </p>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {referendum.dataInizio && (
+            {dataInizio && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">Data Inizio</h4>
                 <p className="text-gray-700">
-                  {new Date(referendum.dataInizio).toLocaleDateString('it-IT')}
+                  {new Date(dataInizio).toLocaleDateString('it-IT')}
                 </p>
               </div>
             )}
-            
-            {referendum.dataFine && (
+
+            {dataFine && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">Data Fine</h4>
                 <p className="text-gray-700">
-                  {new Date(referendum.dataFine).toLocaleDateString('it-IT')}
+                  {new Date(dataFine).toLocaleDateString('it-IT')}
                 </p>
               </div>
             )}
           </div>
-          
+
           <div>
             <h4 className="font-semibold text-gray-900 mb-1">Firme Raccolte</h4>
             <p className="text-gray-700 text-lg font-semibold">
               {referendum.firme || 0}
             </p>
           </div>
-          
-          {referendum.sitoWeb && (
+
+          {sitoWeb && (
             <div>
               <h4 className="font-semibold text-gray-900 mb-2">Sito Web</h4>
-              <a 
-                href={referendum.sitoWeb.startsWith('http') ? referendum.sitoWeb : `https://${referendum.sitoWeb}`} 
-                target="_blank" 
+              <a
+                href={sitoWeb.startsWith('http') ? sitoWeb : `https://${sitoWeb}`}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 underline"
               >
@@ -75,11 +81,11 @@ export const ReferendumViewDialog: React.FC<ReferendumViewDialogProps> = ({ refe
               </a>
             </div>
           )}
-          
+
           <div className="pt-4 border-t">
-            <a 
-              href={referendum.sitoWeb?.startsWith('http') ? referendum.sitoWeb : `https://${referendum.sitoWeb}`} 
-              target="_blank" 
+            <a
+              href={sitoWeb?.startsWith('http') ? sitoWeb : `https://${sitoWeb}`}
+              target="_blank"
               rel="noopener noreferrer"
             >
               <Button className="w-full sm:w-auto shadow-md hover:shadow-lg bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700" variant="default">
@@ -88,7 +94,7 @@ export const ReferendumViewDialog: React.FC<ReferendumViewDialogProps> = ({ refe
             </a>
           </div>
         </div>
-        
+
         <div className="flex justify-end mt-4 bg-white">
           <Button variant="outline" onClick={onClose}>Chiudi</Button>
         </div>

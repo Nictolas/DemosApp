@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
             Iniziative Popolari
           </CardTitle>
           <CardDescription className="text-lg">
-            In questa pagina puoi votare le iniziative popolari che hanno già raggiunto il quorum e sono in lista d'attesa per essere esaminate dal Parlamento. Puoi votare quelle che secondo te dovrebbero avere la priorità.
+            Qui puoi indicare quali iniziative ufficiali, dopo la conclusione della raccolta firme e il raggiungimento della soglia prevista, dovrebbero avere la priorità secondo gli utenti DEMOS.
           </CardDescription>
         </CardHeader>
       </Card>

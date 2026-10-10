@@ -976,7 +976,7 @@ const MonitoringDashboard: React.FC = () => {
                 <p><strong>Stato:</strong> {systemHealth?.checks?.services?.status ?? 'N/D'}</p>
                 <p><strong>Messaggio:</strong> {systemHealth?.checks?.services?.message ?? 'N/D'}</p>
                 {systemHealth?.checks?.services?.failedServices?.length > 0 && (
-                  <p><strong>Servizi non operativi:</strong> {systemHealth.checks.services.failedServices.join(', ')}</p>
+                  <p><strong>Servizi non operativi:</strong> {systemHealth?.checks?.services?.failedServices?.join(', ')}</p>
                 )}
               </CardContent>
             </Card>

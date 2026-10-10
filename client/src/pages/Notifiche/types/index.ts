@@ -10,7 +10,7 @@ export interface Notifica {
   data_lettura?: string;
   priorita?: string;
   // Nuove proprietà per comunicazioni
-  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'demos' | 'comunale' | 'segnalazione_problema' | 'avvistamento';
+  tipo_notifica?: 'notifica' | 'comunicazione' | 'voto_comune' | 'demos' | 'comunale' | 'segnalazione_problema' | 'avvistamento' | 'voto_parlamento' | 'cambio_opinione';
   autore?: {
     nome: string;
     cognome: string;
@@ -37,6 +37,8 @@ export interface Notifica {
   browser?: string;
   dispositivo?: string;
   uri_votazione?: string; // URI per aprire il dialog con i dettagli della votazione (solo per voto_parlamento)
+  opinion_id?: string | null;
+  opinion_text?: string | null;
 }
 
 export interface NotificheData {

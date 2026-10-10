@@ -7,7 +7,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { NotificaItemProps } from "../types";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
-import { 
+import {
   getNotificaBackground,
   getNotificaTitle,
   getNotificaMessage,
@@ -99,7 +99,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       queryClient.invalidateQueries({ queryKey: ['reazione-utente', user?.id, notifica.id] });
       queryClient.invalidateQueries({ queryKey: ['reazioni-batch'] });
       queryClient.invalidateQueries({ queryKey: ['reazioni-user-batch'] });
-      
+
       // Aggiorna lo stato locale
       if (data.action === 'added') {
         setUserReaction(data.data.tipo);
@@ -160,6 +160,13 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           textColor: 'text-pink-900',
           accentColor: 'text-pink-600'
         };
+      case 'cambio_opinione':
+        return {
+          emoji: '🔄',
+          bgColor: 'bg-purple-50 border-purple-200',
+          textColor: 'text-purple-900',
+          accentColor: 'text-purple-600'
+        };
       case 'comunale':
         return {
           emoji: '🏛️',
@@ -211,11 +218,11 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       politico: notifica.politico
     });
   }
-  
+
   // Forza il tipo per voto_parlamento se mancante (fallback)
-  const tipoNotifica = notifica.tipo_notifica || 
+  const tipoNotifica = notifica.tipo_notifica ||
     (notifica.tabella_origine === 'notifiche_voti_parlamento' ? 'voto_parlamento' : 'default');
-  
+
   const style = getNotificaStyle(tipoNotifica);
   const { toast } = useToast();
   const [dettagliVotazione, setDettagliVotazione] = useState<any>(null);
@@ -225,22 +232,22 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   // Funzione helper per formattare il titolo in modo compatto
   const formattaTitoloCompatto = (titolo: string): string => {
     if (!titolo) return titolo;
-    
+
     // Pattern per "Disegno di legge n. XXXX"
     const patternDDL = /disegno\s+di\s+legge\s+n\.?\s*(\d+)/i;
     const matchDDL = titolo.match(patternDDL);
-    
+
     if (matchDDL) {
       const numero = matchDDL[1];
       return `DDL ${numero}`;
     }
-    
+
     // Pattern per "DDL XXXX" (già formato)
     const patternDDLGià = /^DDL\s+(\d+)/i;
     if (titolo.match(patternDDLGià)) {
       return titolo.match(patternDDLGià)?.[0] || titolo;
     }
-    
+
     // Pattern per "Decreto-legge n. XXXX" o "DL n. XXXX"
     const patternDL = /(?:decreto\s*[-]?\s*legge|DL|D\.L\.)\s+n\.?\s*(\d+)/i;
     const matchDL = titolo.match(patternDL);
@@ -248,7 +255,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const numero = matchDL[1];
       return `DL ${numero}`;
     }
-    
+
     // Pattern per "Mozione n. XXXX"
     const patternMozione = /mozione\s+n\.?\s*(\d+)/i;
     const matchMozione = titolo.match(patternMozione);
@@ -256,7 +263,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const numero = matchMozione[1];
       return `Mozione ${numero}`;
     }
-    
+
     return titolo;
   };
 
@@ -270,7 +277,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       'del decreto', 'della legge', 'dell\'articolo', 'dell\'art.',
       'articolo', 'art.', 'comma', 'alinea', 'lettera'
     ];
-    
+
     // Controlla se nel testo prima della data c'è un riferimento normativo
     return riferimentiNormativi.some(rif => {
       // Cerca la parola seguita eventualmente da "n.", "numero", o direttamente dalla data
@@ -284,16 +291,16 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     const scadenze: Array<{ data: string; testo: string; passata: boolean }> = [];
     const oggi = new Date();
     oggi.setHours(0, 0, 0, 0);
-    
+
     const patternDate = /(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})/gi;
     const patternDateSlash = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g;
     const patternDateISO = /(\d{4})-(\d{1,2})-(\d{1,2})/g;
-    
+
     const mesi: { [key: string]: number } = {
       'gennaio': 1, 'febbraio': 2, 'marzo': 3, 'aprile': 4, 'maggio': 5, 'giugno': 6,
       'luglio': 7, 'agosto': 8, 'settembre': 9, 'ottobre': 10, 'novembre': 11, 'dicembre': 12
     };
-    
+
     let match;
     while ((match = patternDate.exec(testo)) !== null) {
       const giorno = parseInt(match[1]);
@@ -301,18 +308,18 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
       const anno = parseInt(match[3]);
       const data = new Date(anno, mese - 1, giorno);
       data.setHours(0, 0, 0, 0);
-      
+
       const inizioMatch = Math.max(0, match.index - 100);
       const testoPrimaData = testo.substring(inizioMatch, match.index);
-      
+
       // Se è un riferimento a una legge/decreto, salta questa data
       if (isRiferimentoLegge(testoPrimaData)) {
         continue;
       }
-      
+
       const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
       const contesto = testo.substring(inizioMatch, fineMatch);
-      
+
       if (data < oggi) {
         scadenze.push({
           data: match[0],
@@ -321,25 +328,25 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         });
       }
     }
-    
+
     while ((match = patternDateSlash.exec(testo)) !== null) {
       const giorno = parseInt(match[1]);
       const mese = parseInt(match[2]);
       const anno = parseInt(match[3]);
       const data = new Date(anno, mese - 1, giorno);
       data.setHours(0, 0, 0, 0);
-      
+
       const inizioMatch = Math.max(0, match.index - 100);
       const testoPrimaData = testo.substring(inizioMatch, match.index);
-      
+
       // Se è un riferimento a una legge/decreto, salta questa data
       if (isRiferimentoLegge(testoPrimaData)) {
         continue;
       }
-      
+
       const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
       const contesto = testo.substring(inizioMatch, fineMatch);
-      
+
       if (data < oggi) {
         scadenze.push({
           data: match[0],
@@ -348,25 +355,25 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         });
       }
     }
-    
+
     while ((match = patternDateISO.exec(testo)) !== null) {
       const anno = parseInt(match[1]);
       const mese = parseInt(match[2]);
       const giorno = parseInt(match[3]);
       const data = new Date(anno, mese - 1, giorno);
       data.setHours(0, 0, 0, 0);
-      
+
       const inizioMatch = Math.max(0, match.index - 100);
       const testoPrimaData = testo.substring(inizioMatch, match.index);
-      
+
       // Se è un riferimento a una legge/decreto, salta questa data
       if (isRiferimentoLegge(testoPrimaData)) {
         continue;
       }
-      
+
       const fineMatch = Math.min(testo.length, match.index + match[0].length + 50);
       const contesto = testo.substring(inizioMatch, fineMatch);
-      
+
       if (data < oggi) {
         scadenze.push({
           data: match[0],
@@ -375,7 +382,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         });
       }
     }
-    
+
     return scadenze;
   };
 
@@ -384,15 +391,15 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     if (tipoNotifica === 'voto_parlamento' && notifica.uri_votazione) {
       setDialogOpen(true);
       setLoadingDettagli(true);
-      
+
       try {
         const encodedUri = encodeURIComponent(notifica.uri_votazione);
         const response = await apiRequest("GET", `/api/voti-politici/dettagli/${encodedUri}`);
-        
+
         if (!response.ok) {
           throw new Error("Errore nel recupero dei dettagli");
         }
-        
+
         const result = await response.json();
         setDettagliVotazione(result.data);
       } catch (error) {
@@ -440,19 +447,19 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
 
   const handleRegenerateAnalysis = async () => {
     if (!notifica.uri_votazione) return;
-    
+
     setLoadingDettagli(true);
     try {
       const encodedUri = encodeURIComponent(notifica.uri_votazione);
       const response = await apiRequest("GET", `/api/voti-politici/dettagli/${encodedUri}?force=true`);
-      
+
       if (!response.ok) {
         throw new Error("Errore nella rigenerazione");
       }
-      
+
       const result = await response.json();
       setDettagliVotazione(result.data);
-      
+
       toast({
         title: "Analisi rigenerata",
         description: "L'analisi della legge è stata rigenerata con successo",
@@ -479,9 +486,9 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             {/* Mostra avatar del politico per voti comuni e parlamentari, altrimenti emoji */}
-            {(tipoNotifica === 'voto_comune' || tipoNotifica === 'voto_parlamento') && notifica.politico_avatar_config ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-300">
-                <CustomAvatar 
+            {(tipoNotifica === 'voto_comune' || tipoNotifica === 'voto_parlamento' || tipoNotifica === 'cambio_opinione') && notifica.politico_avatar_config ? (
+              <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 ${tipoNotifica === 'cambio_opinione' ? 'border-purple-300' : 'border-blue-300'}`}>
+                <CustomAvatar
                   config={(() => {
                     try {
                       if (typeof notifica.politico_avatar_config === 'string') {
@@ -492,8 +499,8 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                       console.error('Errore parsing avatar_config:', e);
                       return null;
                     }
-                  })()} 
-                  size={40} 
+                  })()}
+                  size={40}
                 />
               </div>
             ) : (
@@ -520,7 +527,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               );
             })()}
           </div>
-          
+
           {getNotificaMessage(notifica.messaggio) && (() => {
             const msg = getNotificaMessage(notifica.messaggio);
             const messaggioContieneHtml = /<[a-z][\s\S]*>/i.test(msg);
@@ -547,23 +554,23 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           )}
 
           {/* Informazioni aggiuntive per tutti i tipi di notifiche (escluso Demos, Avvistamento e Voto Comune che non hanno informazioni aggiuntive) */}
-          {(notifica.tipo_notifica === 'comunicazione' || 
+          {(notifica.tipo_notifica === 'comunicazione' ||
             notifica.tipo_notifica === 'comunale') && (
             <div className={`mb-3 p-3 rounded-lg ${style.bgColor} border ${style.textColor} opacity-80`}>
               {/* Mostra autore solo se presente */}
               {notifica.autore && (
                 <div className={`text-sm ${style.textColor} mb-2`}>
-                  <strong>Autore:</strong> {notifica.autore.nome} {notifica.autore.cognome} 
+                  <strong>Autore:</strong> {notifica.autore.nome} {notifica.autore.cognome}
                   <span className={`ml-2 text-xs px-2 py-1 rounded ${style.bgColor} border`}>
                     {notifica.autore.ruolo}
                   </span>
                 </div>
               )}
-              
+
               {/* Mostra voto per comunicazioni (non per voto_comune) */}
               {notifica.voto && notifica.tipo_notifica === 'comunicazione' && (
                 <div className={`text-sm ${style.textColor}`}>
-                  <strong>Voto:</strong> 
+                  <strong>Voto:</strong>
                   <span className={`ml-2 px-2 py-1 rounded text-xs ${
                     notifica.voto === 'Favorevole' ? 'bg-green-100 text-green-800' :
                     notifica.voto === 'Contrario' ? 'bg-red-100 text-red-800' :
@@ -573,24 +580,23 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   </span>
                 </div>
               )}
-              
+
               {/* Mostra data se presente (non per Demos e Avvistamento, l'orario è mostrato in basso) */}
-              {notifica.data && notifica.tipo_notifica !== 'demos' && notifica.tipo_notifica !== 'avvistamento' && (
+              {notifica.data && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Data:</strong> {new Date(notifica.data).toLocaleDateString('it-IT')}
                 </div>
               )}
-              
+
               {/* Mostra comune se presente (non per notifiche Demos e Avvistamento) */}
-              {notifica.comune_residenza && notifica.tipo_notifica !== 'demos' && notifica.tipo_notifica !== 'avvistamento' && (
+              {notifica.comune_residenza && (
                 <div className={`text-sm ${style.textColor} mt-1`}>
                   <strong>Comune:</strong> {notifica.comune_residenza}
                 </div>
               )}
-              
+
               {/* Mostra likes/dislikes solo per notifiche che non sono voto_comune (voto_comune mostra i pulsanti di voto) */}
-              {notifica.tipo_notifica !== 'voto_comune' && 
-               ((notifica.likes !== undefined && notifica.likes > 0) || 
+              {((notifica.likes !== undefined && notifica.likes > 0) ||
                 (notifica.dislikes !== undefined && notifica.dislikes > 0)) && (
                 <div className={`text-sm ${style.textColor} mt-1 flex items-center gap-4`}>
                   {notifica.likes !== undefined && (
@@ -693,7 +699,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               )}
             </div>
           )}
-          
+
           {/* Pulsanti like/dislike per voto_comune e voto_parlamento (sopra l'orario) */}
           {(notifica.tipo_notifica === 'voto_comune' || notifica.tipo_notifica === 'voto_parlamento') && user?.id && (
             <div className="mb-3 flex items-center gap-2">
@@ -752,7 +758,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </div>
           )}
         </div>
-        
+
         {/* Pulsante di cancellazione per segnalazioni (solo per admin) */}
         {notifica.tipo_notifica === 'segnalazione_problema' && (user?.ruolo === "AD" || user?.ruolo === "AD") && deleteSegnalazioneMutation && (
           <div className="ml-4">
@@ -791,7 +797,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </AlertDialog>
           </div>
         )}
-        
+
       </div>
     </div>
 
@@ -846,7 +852,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                       )}
                     </Button>
                   </div>
-                  
+
                   {/* Spiegazione Generale */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -875,11 +881,11 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                               const linee = testo.split('\n');
                               const risultato: JSX.Element[] = [];
                               let sezioneCorrente = '';
-                              
-                              linee.forEach((line, i) => {
+
+                              linee.forEach((line: string, i: number) => {
                                 const lineaTrim = line.trim();
                                 if (!lineaTrim) return;
-                                
+
                                 // Rileva sezioni (COSA È, COSA FA, MISURE PREVISTE)
                                 if (lineaTrim.match(/^(COSA È|COSA FA|MISURE PREVISTE):?$/i)) {
                                   sezioneCorrente = lineaTrim.toUpperCase();
@@ -890,43 +896,43 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                   );
                                   return;
                                 }
-                                
+
                                 // Rileva scadenze passate
                                 const scadenze = rilevaScadenzePassate(lineaTrim);
                                 const haScadenzePassate = scadenze.some(s => s.passata);
-                                
+
                                 // Formattazione per misure previste (formato compatto con →)
                                 if (sezioneCorrente === 'MISURE PREVISTE' && lineaTrim.startsWith('•')) {
                                   let lineaFormattata = lineaTrim;
-                                  
+
                                   // Evidenzia scadenze passate
                                   if (haScadenzePassate) {
                                     scadenze.forEach((scadenza) => {
                                       if (scadenza.passata) {
                                         const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                                        lineaFormattata = lineaFormattata.replace(regex, (match) => {
+                                        lineaFormattata = lineaFormattata.replace(regex, (match: string) => {
                                           return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
                                         });
                                       }
                                     });
                                   }
-                                  
+
                                   // Formatta → come freccia visiva
                                   lineaFormattata = lineaFormattata.replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>');
-                                  
+
                                   risultato.push(
                                     <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: lineaFormattata }} />
                                   );
                                   return;
                                 }
-                                
+
                                 // Formattazione normale per altre sezioni
                                 if (haScadenzePassate) {
                                   let lineaEvidenziata = lineaTrim;
                                   scadenze.forEach((scadenza) => {
                                     if (scadenza.passata) {
                                       const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                                      lineaEvidenziata = lineaEvidenziata.replace(regex, (match) => {
+                                      lineaEvidenziata = lineaEvidenziata.replace(regex, (match: string) => {
                                         return `<span class="bg-red-200 text-red-900 font-semibold px-1 rounded">${match} ⚠️ (scadenza passata)</span>`;
                                       });
                                     }
@@ -944,7 +950,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                   );
                                 }
                               });
-                              
+
                               return risultato;
                             })()}
                           </div>
@@ -983,10 +989,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                       <div className="bg-green-50 border-2 border-green-300 rounded-lg p-5 min-h-[200px]">
                         {dettagliVotazione.analisi_legge?.effetti_positivi ? (
                           <div className="text-sm text-green-900 leading-relaxed">
-                            {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line, i) => {
+                            {dettagliVotazione.analisi_legge.effetti_positivi.split('\n').map((line: string, i: number) => {
                               const lineaTrim = line.trim();
                               if (!lineaTrim) return null;
-                              
+
                               // Supporta formato ✓ o - o • o numeri
                               if (lineaTrim.match(/^[✓•-]\s/) || lineaTrim.match(/^\d+[\.)]\s/)) {
                                 const testo = lineaTrim.replace(/^[✓•-]\s/, '').replace(/^\d+[\.)]\s/, '');
@@ -1035,10 +1041,10 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                       <div className="bg-red-50 border-2 border-red-300 rounded-lg p-5 min-h-[200px]">
                         {dettagliVotazione.analisi_legge?.effetti_negativi ? (
                           <div className="text-sm text-red-900 leading-relaxed">
-                            {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line, i) => {
+                            {dettagliVotazione.analisi_legge.effetti_negativi.split('\n').map((line: string, i: number) => {
                               const lineaTrim = line.trim();
                               if (!lineaTrim) return null;
-                              
+
                               // Supporta formato ✗ o - o • o numeri
                               if (lineaTrim.match(/^[✗•-]\s/) || lineaTrim.match(/^\d+[\.)]\s/)) {
                                 const testo = lineaTrim.replace(/^[✗•-]\s/, '').replace(/^\d+[\.)]\s/, '');

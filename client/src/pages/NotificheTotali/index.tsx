@@ -190,7 +190,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleDelete(notifica.id, tipo)}
+                  onClick={() => handleDelete(notifica.id, notifica.delete_key || tipo)}
                   disabled={deleteMutation.isPending}
                 >
                   <Trash2 className="h-4 w-4" />

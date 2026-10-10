@@ -2,8 +2,7 @@
 export const COLORS = {
   favorevole: '#10B981', // Verde
   contrario: '#EF4444',  // Rosso
-  indeciso: '#FCD34D',   // Giallo (corretto)
-  astenuto: '#6B7280'    // Grigio
+  indeciso: '#FCD34D'   // Giallo
 };
 
 // Colori per il grafico del genere

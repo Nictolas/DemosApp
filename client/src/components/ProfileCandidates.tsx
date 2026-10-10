@@ -6,9 +6,10 @@ import { UserInfo } from "@/types/profile";
 interface ProfileCandidatesProps {
   userInfo: UserInfo | null;
   candidatiDetails?: Record<string, any>;
+  canEditSelections?: boolean;
 }
 
-export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandidatesProps) {
+export function ProfileCandidates({ userInfo, candidatiDetails, canEditSelections = true }: ProfileCandidatesProps) {
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
   const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
 
@@ -105,12 +106,14 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-lg font-medium">Candidati Selezionati</h3>
-        <Link
-          href="/candidati"
-          className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-        >
-          Scegli Candidati
-        </Link>
+        {canEditSelections && (
+          <Link
+            href="/candidati"
+            className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            Scegli Candidati
+          </Link>
+        )}
       </div>
       
       {/* Candidato Europeo */}

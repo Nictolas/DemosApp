@@ -19,6 +19,21 @@ interface User {
   role?: string;
   ruolo?: string;
   status?: string;
+  comune_residenza?: string | null;
+  regione?: string | null;
+  grado_elezione?: string | null;
+  account_type?: 'PERSON' | 'INSTITUTION' | 'ORGANIZATION' | null;
+  is_admin?: boolean;
+  is_activist?: boolean;
+  is_candidate?: boolean;
+  is_politician?: boolean;
+  capabilities?: {
+    accountType?: 'PERSON' | 'INSTITUTION' | 'ORGANIZATION';
+    isAdmin?: boolean;
+    isActivist?: boolean;
+    isCandidate?: boolean;
+    isPolitician?: boolean;
+  } | null;
 }
 
 type AuthContextType = {

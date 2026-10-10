@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -9,6 +10,8 @@ const pool = new Pool({
 });
 
 // ===== ENDPOINTS PER GESTIONE UTENTI AGGIUNTIVI =====
+
+router.use(verifyToken, requireAdmin);
 
 // GET /api/gestione-utenti-aggiuntivi/ruoli - Lista ruoli disponibili
 router.get('/ruoli', async (req, res) => {
@@ -30,41 +33,13 @@ router.get('/ruoli', async (req, res) => {
   }
 });
 
-// PUT /api/gestione-utenti-aggiuntivi/ruolo - Aggiorna ruolo utente
+// PUT legacy ritirata: users.ruolo è solo una proiezione di compatibilità.
 router.put('/ruolo', async (req, res) => {
-  try {
-    const { user_id, nuovo_ruolo } = req.body;
-    
-    if (!user_id || !nuovo_ruolo) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID utente e nuovo ruolo sono obbligatori'
-      });
-    }
-    
-    const result = await pool.query(
-      'UPDATE users SET ruolo = $1 WHERE id = $2 RETURNING *',
-      [nuovo_ruolo, user_id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento ruolo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
+  return res.status(410).json({
+    success: false,
+    error: 'LEGACY_ROLE_MUTATION_RETIRED',
+    message: 'Usa i flussi canonici di account type, capability, candidature e mandati.'
+  });
 });
 
 module.exports = router;

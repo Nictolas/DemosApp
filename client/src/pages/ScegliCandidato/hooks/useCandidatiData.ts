@@ -69,6 +69,8 @@ export const useCandidatiData = (user: any, categoria: string) => {
           console.log('⚠️ Opinion incomplete trovate:', opinioniCheck);
           setOpinioniAlertData(opinioniCheck);
           setShowOpinioniAlert(true);
+          setCandidati([]);
+          return;
         }
         
         console.log('🔍 DEBUG Frontend - Fetching candidati per categoria:', categoria);
@@ -98,7 +100,8 @@ export const useCandidatiData = (user: any, categoria: string) => {
           console.log('🔍 DEBUG Frontend - Dettagli candidati ricevuti:');
           candidatiData.forEach((candidato, index) => {
             console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}:`, {
-              opinioniComuni: candidato.opinioniComuni,
+              compatibilita: candidato.compatibilita_percentuale,
+              matchingScore: candidato.matching_score,
               ruolo: candidato.ruolo,
               status: candidato.status
             });

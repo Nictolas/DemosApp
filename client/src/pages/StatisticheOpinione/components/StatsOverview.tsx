@@ -42,7 +42,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, totaleUtent
 
       <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-yellow-800">Indecisi</CardTitle>
+          <CardTitle className="text-sm font-medium text-yellow-800">Non lo so</CardTitle>
           <TrendingUp className="h-4 w-4 text-yellow-600" />
         </CardHeader>
         <CardContent>

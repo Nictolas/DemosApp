@@ -66,15 +66,14 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    if (!token || !token.trim()) {
+    if (!isValidFcmToken(token)) {
       return res.status(400).json({
         success: false,
-        error: 'Token FCM richiesto'
+        error: 'Token FCM non valido'
       });
     }
     
     console.log(`📱 Salvataggio token FCM per utente: ${userId}`);
-    console.log(`   Token: ${token.substring(0, 30)}...`);
     
     // Verifica se la richiesta viene da un dispositivo mobile
     // TOKEN SOLO PER MOBILE: Ignora i token da desktop/browser

@@ -58,7 +58,7 @@ function base64urlToBuffer(input: string | number[] | Uint8Array | ArrayBuffer):
   // Se è Uint8Array o array di numeri (es. serializzato dal server)
   if (Array.isArray(input) || input instanceof Uint8Array) {
     const arr = Array.isArray(input) ? new Uint8Array(input) : input;
-    return arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength);
+    return Uint8Array.from(arr).buffer;
   }
   const base64url = String(input);
   // Normalizza padding e caratteri URL-safe

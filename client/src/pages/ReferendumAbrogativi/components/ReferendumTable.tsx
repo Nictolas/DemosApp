@@ -20,7 +20,6 @@ function resolveFirmaUrl(referendum: {
 
 export const ReferendumTable: React.FC<ReferendumTableProps> = ({ 
   listaReferendum, 
-  mieiVoti, 
   isLoading, 
   isError, 
   onView 
@@ -54,19 +53,13 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
       {listaReferendum.map((referendum) => {
         // Determina lo sfondo in base a firme_raccolte
         const getBackgroundClass = () => {
-          if (referendum.quorum === 'proposta') {
-            return 'border-blue-200 bg-blue-50';
-          }
-          
           const firmeRaccolte = referendum.firme_raccolte || referendum.firme || 0;
-          
-          // Verde opaco se firme_raccolte > 50000
-          if (firmeRaccolte > 50000) {
-            return 'border-gray-200 bg-green-50';
-          }
-          // Giallo opaco se firme_raccolte <= 49999
-          if (firmeRaccolte <= 49999) {
-            return 'border-gray-200 bg-yellow-50';
+          const sogliaFirme = referendum.signature_threshold;
+
+          if (typeof sogliaFirme === 'number' && sogliaFirme > 0) {
+            return firmeRaccolte >= sogliaFirme
+              ? 'border-gray-200 bg-green-50'
+              : 'border-gray-200 bg-yellow-50';
           }
           // Default
           return 'border-gray-200 bg-white';
@@ -90,11 +83,6 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                     )}
                     {referendum.nome}
                   </h3>
-                  {referendum.quorum === 'proposta' && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      Proposta
-                    </span>
-                  )}
                   {(() => {
                     const firmaUrl = resolveFirmaUrl(referendum);
                     return firmaUrl ? (

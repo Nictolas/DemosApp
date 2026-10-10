@@ -148,7 +148,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           }
           
           // Le altre sezioni sono per grado
-          sezioni.slice(1).forEach(sezione => {
+          sezioni.slice(1).forEach((sezione: string) => {
             if (sezione.trim()) {
               const lines = sezione.trim().split('\n');
               const titolo = lines[0].trim();

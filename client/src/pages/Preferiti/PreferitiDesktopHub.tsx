@@ -4,7 +4,6 @@ import {
   Award,
   Building2,
   Calendar,
-  CheckSquare,
   Crown,
   FileText,
   Globe2,
@@ -216,15 +215,6 @@ const VOTA_SHORTCUTS: Shortcut[] = [
     icon: Users,
     accent: "#2563eb",
     accentSoft: "#eff6ff",
-  },
-  {
-    id: "vota-referendum",
-    path: "/vota-referendum-abrogativo",
-    label: "Vota Referendum",
-    description: "Quale referendum ha la priorità",
-    icon: CheckSquare,
-    accent: "#dc2626",
-    accentSoft: "#fef2f2",
   },
 ];
 

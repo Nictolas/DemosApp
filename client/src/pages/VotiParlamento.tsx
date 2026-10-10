@@ -18,6 +18,7 @@ interface VotazioneParlamento {
   votazione_id: number;
   titolo_votazione: string;
   descrizione_votazione: string | null;
+  descrizione?: string | null;
   camera: string;
   data_votazione: string | null;
   spiegazione: string | null;
@@ -48,6 +49,12 @@ interface VotazioneParlamento {
   source?: string;
 }
 
+interface VotazioniParlamentoResponse {
+  camera: VotazioneParlamento[];
+  senato: VotazioneParlamento[];
+  combined: { camera: VotazioneParlamento[]; senato: VotazioneParlamento[] };
+}
+
 interface AnalisiLegge {
   spiegazione_generale?: string | null;
   effetti_positivi?: string | null;
@@ -60,6 +67,8 @@ interface AnalisiLegge {
 }
 
 interface DettagliVotazione extends VotazioneParlamento {
+  titolo?: string | null;
+  tipo_votazione?: string | null;
   voti_nominali?: {
     favorevoli: string[];
     contrari: string[];
@@ -259,7 +268,7 @@ export default function VotiParlamento() {
   const [loadingDettagli, setLoadingDettagli] = useState(false);
 
   // Query per recuperare le ultime votazioni
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery<VotazioniParlamentoResponse>({
     queryKey: ["/api/voti-politici/ultime", limit],
     queryFn: async () => {
       // Forza refresh per ottenere dati aggiornati da SPARQL
@@ -278,7 +287,7 @@ export default function VotiParlamento() {
     },
     retry: 2,
     staleTime: 0, // Sempre considera i dati come "stale" per forzare refresh
-    cacheTime: 0, // Non cache i dati
+    gcTime: 0, // Non cache i dati
   });
 
   const votazioniCamera: VotazioneParlamento[] = data?.camera || [];

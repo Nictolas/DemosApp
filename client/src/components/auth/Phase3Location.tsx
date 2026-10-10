@@ -186,11 +186,7 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         {(() => {
                           if (!watchRegioneResidenza) return null;
 
-                          let regioniFonte:
-                            | typeof ITALY_DATA.Italia.regioni
-                            | typeof ITALY_DATA["San Marino"].regioni
-                            | typeof ITALY_DATA["Svizzera"].regioni
-                            | undefined;
+                          let regioniFonte: typeof ITALY_DATA.Italia.regioni | undefined;
 
                           if (watchPaeseResidenza === "Italia") {
                             regioniFonte = ITALY_DATA.Italia.regioni;
@@ -229,11 +225,7 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                   let comuniDisponibili: string[] = [];
 
                   if (watchRegioneResidenza && watchProvinciaResidenza) {
-                    let regioniFonte:
-                      | typeof ITALY_DATA.Italia.regioni
-                      | typeof ITALY_DATA["San Marino"].regioni
-                      | typeof ITALY_DATA["Svizzera"].regioni
-                      | undefined;
+                    let regioniFonte: typeof ITALY_DATA.Italia.regioni | undefined;
 
                     if (watchPaeseResidenza === "Italia") {
                       regioniFonte = ITALY_DATA.Italia.regioni;

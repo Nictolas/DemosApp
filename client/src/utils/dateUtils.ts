@@ -241,7 +241,7 @@ export function isMinisteroSentinelDate(date: string | Date | number | null | un
 export function getDisplayableDate(date: string | Date | number | null | undefined): string | Date | null {
   if (date == null || date === '') return null;
   if (isMinisteroSentinelDate(date)) return null;
-  return date;
+  return typeof date === 'number' ? new Date(date) : date;
 }
 
 /**

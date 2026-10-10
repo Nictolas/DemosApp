@@ -19,7 +19,7 @@ const responseColors = {
 };
 
 // Funzione per normalizzare le risposte (usa direttamente i valori compressi)
-const normalizeAnswer = (answer: string | undefined) => {
+const normalizeAnswer = (answer: string | null | undefined) => {
   if (!answer || answer === null || answer === undefined) return null;
   // Usa direttamente i valori compressi
   if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
@@ -99,7 +99,7 @@ export function ViewOpinioniDialog({
           'regione': 'R',
           'comune': 'CO'
         };
-        const grado = gradoMapping[categoria] || 'E';
+        const grado = categoria ? gradoMapping[categoria] : 'E';
         
         console.log(`🔍 DEBUG ViewOpinioniDialog - Categoria: ${categoria}, Grado: ${grado}`);
         console.log(`🔍 DEBUG ViewOpinioniDialog - utenteId: ${utenteId}`);
@@ -132,7 +132,7 @@ export function ViewOpinioniDialog({
           console.log('🔍 DEBUG fetchQuestions - Opinioni raw ricevute:', result.data.opinioni);
           result.data.opinioni.forEach((opinion: any) => {
             console.log(`🔍 DEBUG fetchQuestions - Opinion ${opinion.id}: userAnswer = "${opinion.userAnswer}"`);
-            // Mantieni null come null, non convertire in 'Astenuto'
+            // NULL indica semplicemente che questa Opinione non è mai stata espressa.
             opinioniMap[opinion.id] = opinion.userAnswer;
           });
           console.log('🔍 DEBUG fetchQuestions - OpinionMap creata:', opinioniMap);
@@ -177,7 +177,7 @@ export function ViewOpinioniDialog({
           'regione': 'R',
           'comune': 'CO'
         };
-        const grado = gradoMapping[categoria] || 'E';
+        const grado = categoria ? gradoMapping[categoria] : 'E';
         
         console.log(`🔍 DEBUG fetchMyOpinions - Categoria: ${categoria}, Grado: ${grado}`);
         
@@ -196,7 +196,7 @@ export function ViewOpinioniDialog({
           // Converte le opinioni nel formato atteso
           const opinioniMap: Record<string, string> = {};
           result.data.opinioni.forEach((opinion: any) => {
-            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+            if (opinion.userAnswer) {
               opinioniMap[opinion.id] = opinion.userAnswer;
             }
           });
@@ -287,7 +287,7 @@ export function ViewOpinioniDialog({
   }
 
   // Funzione per determinare se due opinioni sono compatibili (stessa logica del backend)
-  function isOpinioneComune(val1: string | undefined, val2: string | undefined) {
+  function isOpinioneComune(val1: string | null | undefined, val2: string | null | undefined) {
     // Normalizza le risposte come fa il backend
     const normalizedVal1 = normalizeAnswer(val1);
     const normalizedVal2 = normalizeAnswer(val2);
@@ -366,7 +366,7 @@ export function ViewOpinioniDialog({
                 <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
                   <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
                     <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    Indeciso
+                    Non lo so
                   </h3>
                   <div className="space-y-2">
                     {indecisi.length > 0 ? (
@@ -385,7 +385,7 @@ export function ViewOpinioniDialog({
                       ))
                     ) : (
                       <div className="text-yellow-600 text-sm italic">
-                        Nessuna opinione indecisa
+                        Nessuna risposta “Non lo so”
                       </div>
                     )}
                   </div>
@@ -492,7 +492,7 @@ export function ViewOpinioniDialog({
           {/* Prima riga: filtri opinioni — mobile: 3 tab; desktop: solo Opinioni */}
           <div className="flex sm:hidden justify-center gap-2 w-full mb-2">
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Indeciso</button>
+            <button className={`flex-1 px-4 py-2 rounded ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Non lo so</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'contrario' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('contrario')}>Contrario</button>
           </div>
           <div className="hidden sm:flex justify-center gap-2 w-full mb-2">
@@ -526,7 +526,6 @@ export function ViewOpinioniDialog({
       )}
       
       {/* Modal programma */}
-      {console.log('🚨🚨🚨 ViewOpinioniDialog: Passando utenteId a ViewProgrammaDialog:', utenteId)}
       <ViewProgrammaDialog
         utenteId={utenteId}
         open={showProgrammaModal}

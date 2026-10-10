@@ -67,7 +67,7 @@ const LoggingDashboard: React.FC = () => {
   const loadStats = async (days = 7) => {
     try {
       setLoading(true);
-      const response = await apiRequest(`/admin/logging/stats?days=${days}`);
+      const response = await apiRequest("GET", `/admin/logging/stats?days=${days}`);
       if (response.success) {
         setStats(response.data);
       }
@@ -82,7 +82,7 @@ const LoggingDashboard: React.FC = () => {
   const loadRecentLogs = async (hours = 24, limit = 50) => {
     try {
       setLoading(true);
-      const response = await apiRequest(`/admin/logging/recent?hours=${hours}&limit=${limit}`);
+      const response = await apiRequest("GET", `/admin/logging/recent?hours=${hours}&limit=${limit}`);
       if (response.success) {
         setRecentLogs(response.data);
       }
@@ -103,7 +103,7 @@ const LoggingDashboard: React.FC = () => {
         if (value) params.append(key, value);
       });
       
-      const response = await apiRequest(`/admin/logging/search?${params.toString()}`);
+      const response = await apiRequest("GET", `/admin/logging/search?${params.toString()}`);
       if (response.success) {
         setSearchResults(response.data);
       }
@@ -149,7 +149,7 @@ const LoggingDashboard: React.FC = () => {
   const cleanupLogs = async (retentionDays = 30) => {
     try {
       setLoading(true);
-      const response = await apiRequest('/admin/logging/cleanup', 'POST', { retentionDays });
+      const response = await apiRequest('POST', '/admin/logging/cleanup', { retentionDays });
       if (response.success) {
         alert(`Puliti ${response.deletedCount} log vecchi`);
         loadStats();

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const { auditLog } = require('../../services/auditService');
+const AuditService = require('../../services/auditService');
 const db = require('../../config/db');
 
 /**
@@ -95,7 +95,7 @@ router.get('/', verifyToken, async (req, res) => {
     };
 
     // Log dell'audit
-    await auditLog({
+    await AuditService.logAction({
       userId: userId,
       action: 'DATA_EXPORT',
       resource: 'user_data',
@@ -121,7 +121,7 @@ router.get('/', verifyToken, async (req, res) => {
     console.error('Errore durante l\'export dei dati:', error);
     
     // Log dell'errore
-    await auditLog({
+    await AuditService.logAction({
       userId: req.user?.id,
       action: 'DATA_EXPORT_ERROR',
       resource: 'user_data',

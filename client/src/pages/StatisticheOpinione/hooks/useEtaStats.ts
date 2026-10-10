@@ -31,6 +31,6 @@ export const useEtaStats = (opinionId: string) => {
     },
     enabled: !!opinionId,
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
   });
 };

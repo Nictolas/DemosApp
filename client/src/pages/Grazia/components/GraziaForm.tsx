@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, Plus, X, Info, CheckCircle2 } from "lucide-react";
-import { Classifica } from "../types";
+import { Classifica, GraziaVotingState } from "../types";
 
 interface GraziaFormProps {
   nomeInput: string;
@@ -12,7 +12,7 @@ interface GraziaFormProps {
   classifica: Classifica[];
   isBlocked: boolean;
   isPending: boolean;
-  onUpdateField: (field: string, value: string) => void;
+  onUpdateField: (field: keyof GraziaVotingState, value: string | string[] | boolean) => void;
   onSubmit: (e: React.FormEvent) => void;
   onRemoveLocal: (nome: string) => void;
   hasReachedLimit: boolean;

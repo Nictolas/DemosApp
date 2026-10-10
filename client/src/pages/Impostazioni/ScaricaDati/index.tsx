@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { getAuthToken } from "@/lib/auth-token";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Download, FileText, Database, User, Mail, Calendar, Shield } from "lucide-react";
@@ -70,7 +71,7 @@ export default function ScaricaDati() {
       const response = await fetch(`/api/user/download-data?type=${dataType}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${user.token}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json',
         },
       });

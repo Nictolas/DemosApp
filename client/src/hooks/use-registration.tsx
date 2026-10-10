@@ -1,18 +1,18 @@
 import { createContext, ReactNode, useContext, useState } from "react";
-import { InsertUser } from "@shared/schema";
+type RegistrationDraft = Record<string, unknown>;
 
 type RegistrationContextType = {
-  formData: Partial<InsertUser> | null;
-  setFormData: (data: Partial<InsertUser>) => void;
+  formData: RegistrationDraft | null;
+  setFormData: (data: RegistrationDraft) => void;
   clearFormData: () => void;
 };
 
 const RegistrationContext = createContext<RegistrationContextType | null>(null);
 
 export function RegistrationProvider({ children }: { children: ReactNode }) {
-  const [formData, setFormDataState] = useState<Partial<InsertUser> | null>(null);
+  const [formData, setFormDataState] = useState<RegistrationDraft | null>(null);
 
-  const setFormData = (data: Partial<InsertUser>) => {
+  const setFormData = (data: RegistrationDraft) => {
     setFormDataState(data);
   };
 

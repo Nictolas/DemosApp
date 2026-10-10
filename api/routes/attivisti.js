@@ -1,14 +1,22 @@
 const express = require('express');
-const { Pool } = require('pg');
 const { compressRegione, decompressRegione } = require('../utils/locationUtils');
+const { getPool } = require('../config/database');
+const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const router = express.Router();
 require('dotenv').config();
 
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+const pool = getPool();
+const MODERN_ACTIVIST_FILTER = 'COALESCE(u.is_activist, FALSE) = TRUE';
+const LEGACY_ACTIVIST_FILTER = "(u.ruolo = 'A' OR u.ruolo = 'AD')";
+
+function queryActivists(sqlTemplate, values = []) {
+  return queryWithAccountModelFallback(
+    pool,
+    sqlTemplate.replace('__ACCOUNT_FILTER__', MODERN_ACTIVIST_FILTER),
+    sqlTemplate.replace('__ACCOUNT_FILTER__', LEGACY_ACTIVIST_FILTER),
+    values
+  );
+}
 
 // GET /api/attivisti - Lista tutti gli utenti con ruolo "Attivista"
 router.get('/', async (req, res) => {
@@ -23,11 +31,8 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Costruisci la query con filtri dinamici
-    // Mostra Attivisti e Admin (semplificato per includere tutti gli Admin)
-    let whereConditions = [
-      "(u.ruolo = 'A' OR u.ruolo = 'AD')"
-    ];
+    // Filtri comuni; l'appartenenza Attivista deriva dalla capability canonica.
+    let whereConditions = ['1=1'];
     let queryParams = [];
     let paramIndex = 1;
 
@@ -91,7 +96,7 @@ router.get('/', async (req, res) => {
     });
 
     // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio voti e ordinati
-    const result = await pool.query(`
+    const result = await queryActivists(`
       SELECT
         u.id,
         u.nome,
@@ -125,7 +130,7 @@ router.get('/', async (req, res) => {
         FROM users s
         WHERE s.attivisti = u.id
       ) us ON TRUE
-      WHERE ${whereClause}
+      WHERE __ACCOUNT_FILTER__ AND ${whereClause}
       ORDER BY supporters_count DESC, u.created_at DESC
     `, queryParams);
     
@@ -164,7 +169,7 @@ router.get('/tipologia/:tipo', async (req, res) => {
     });
     
     // Query per ottenere attivisti con una tipologia specifica
-    const result = await pool.query(`
+    const result = await queryActivists(`
       SELECT
         id,
         nome,
@@ -191,8 +196,8 @@ router.get('/tipologia/:tipo', async (req, res) => {
         twitch_url,
         youtube_url,
         tipologie_attivismo
-      FROM users
-      WHERE ruolo = 'A'
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo @> $1
       ORDER BY created_at DESC
     `, [JSON.stringify([{ tipo }])]);
@@ -225,12 +230,12 @@ router.get('/statistiche', async (req, res) => {
     console.log('📊 GET /api/attivisti/statistiche - Statistiche tipologie attivismo');
     
     // Query per contare attivisti per tipologia
-    const result = await pool.query(`
+    const result = await queryActivists(`
       SELECT 
-        jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo,
+        jsonb_array_elements(u.tipologie_attivismo)->>'tipo' as tipo,
         COUNT(*) as count
-      FROM users 
-      WHERE ruolo = 'A'
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo IS NOT NULL
       AND jsonb_array_length(tipologie_attivismo) > 0
       GROUP BY tipo
@@ -240,10 +245,10 @@ router.get('/statistiche', async (req, res) => {
     const statistiche = result.rows;
     
     // Query per contare attivisti totali
-    const totalResult = await pool.query(`
+    const totalResult = await queryActivists(`
       SELECT COUNT(*) as total
-      FROM users 
-      WHERE ruolo = 'A'
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
     `);
     
     const totalAttivisti = parseInt(totalResult.rows[0].total);
@@ -276,10 +281,10 @@ router.get('/filtri', async (req, res) => {
     console.log('🔍 GET /api/attivisti/filtri - Filtri disponibili richiesti');
     
     // Ottieni regioni uniche (già compresse nel DB come "LO", "TO", etc.)
-    const regioniResult = await pool.query(`
+    const regioniResult = await queryActivists(`
       SELECT DISTINCT regione_residenza
-      FROM users 
-      WHERE (ruolo = 'A' OR ruolo = 'AD')
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
       AND regione_residenza IS NOT NULL 
       AND regione_residenza != ''
       ORDER BY regione_residenza
@@ -292,10 +297,10 @@ router.get('/filtri', async (req, res) => {
       .sort();
     
     // Ottieni tipologie uniche
-    const tipologieResult = await pool.query(`
-      SELECT DISTINCT jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo
-      FROM users 
-      WHERE (ruolo = 'A' OR ruolo = 'AD')
+    const tipologieResult = await queryActivists(`
+      SELECT DISTINCT jsonb_array_elements(u.tipologie_attivismo)->>'tipo' as tipo
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo IS NOT NULL
       AND jsonb_array_length(tipologie_attivismo) > 0
       ORDER BY tipo

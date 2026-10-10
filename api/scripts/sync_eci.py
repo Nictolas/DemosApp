@@ -184,7 +184,9 @@ def sync():
                 html_detail = page.content()
                 page.close()
                 title, count, end_date, obiettivi = _scrape_detail(html_detail, item["eid"])
-                status = "SUCCESS" if count >= 1000000 else "ONGOING"
+                # La lista sorgente e gia filtrata dall'UE su STATUS=ONGOING.
+                # Non derivare stati DEMOS dal numero di firme: il quorum non crea una seconda classifica/status interno.
+                status = "ONGOING"
                 slug = f"eci-{item['eid']}"
                 url = item["url"]
                 to_insert.append((item["eid"], title, count, slug, status, end_date, obiettivi, url))

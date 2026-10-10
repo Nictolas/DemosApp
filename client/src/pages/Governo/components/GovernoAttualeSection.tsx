@@ -10,6 +10,16 @@ import { ministriAttuali } from "../constants/ministri-attuali";
 import { useGovernoData } from "../hooks/useGovernoData";
 import { useGovernoActions } from "../hooks/useGovernoActions";
 
+interface MinistroAttualeRecord {
+  id: string;
+  ruolo_ministro: string;
+  user_id: string | null;
+  nome_utente: string | null;
+  cognome_utente: string | null;
+  email_utente: string | null;
+  avatar_config?: unknown;
+}
+
 export const GovernoAttualeSection: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -26,7 +36,7 @@ export const GovernoAttualeSection: React.FC = () => {
   const isAdminAD = user?.ruolo === "AD";
 
   // Query per ottenere i ministri attuali
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError } = useQuery<MinistroAttualeRecord[]>({
     queryKey: ["governo-attuale"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/governo/attuale");
@@ -72,7 +82,7 @@ export const GovernoAttualeSection: React.FC = () => {
 
   // Crea una mappa per accesso rapido ai ministri per ruolo
   const ministriMap = new Map(
-    (data || []).map((m: any) => [m.ruolo_ministro, m])
+    (data || []).map((m) => [m.ruolo_ministro, m] as const)
   );
 
   if (isLoading) {

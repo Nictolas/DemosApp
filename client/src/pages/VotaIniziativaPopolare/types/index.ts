@@ -25,4 +25,10 @@ export interface IniziativePopolariData {
     isBlocked: boolean;
     unlockDate?: string;
   };
+  civic_process_policy?: {
+    enabled: boolean;
+    reason?: string;
+    eligibility?: string;
+    signature_source_records?: number;
+  };
 }

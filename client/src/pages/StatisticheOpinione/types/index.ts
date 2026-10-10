@@ -2,7 +2,6 @@ export interface OpinionStats {
   favorevole: string;
   contrario: string;
   indeciso: string;
-  astenuto: string;
 }
 
 export interface OpinionData {
@@ -12,11 +11,11 @@ export interface OpinionData {
 }
 
 export interface EtaDataItem {
-  fascia_eta: string;
+  fascia_eta?: string;
+  genere?: string;
   favorevole: string;
   indeciso: string;
   contrario: string;
-  astenuto: string;
 }
 
 export interface PieDataItem {
@@ -29,5 +28,4 @@ export interface BarDataItem {
   Favorevole: number;
   Indeciso: number;
   Contrario: number;
-  Astenuto: number;
 }

@@ -1,6 +1,8 @@
 const express = require('express');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { Pool } = require('pg');
 const router = express.Router();
+router.use(verifyToken, requireAdmin);
 
 // Configurazione database
 const pool = new Pool({

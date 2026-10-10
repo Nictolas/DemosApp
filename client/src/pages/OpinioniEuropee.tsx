@@ -13,14 +13,25 @@ import { vibrateShort } from '@/utils/vibration';
 import { PoliticalOpinionsConsentModal } from '@/components/PoliticalOpinionsConsentModal';
 import { OpinionStatsBar } from '@/components/OpinionStatsBar';
 
+interface OpinionQuestion {
+  id: string;
+  text: string;
+  userAnswer?: string | null;
+}
+
+interface OpinionQuestionsPayload {
+  success: boolean;
+  data: OpinionQuestion[];
+}
+
 const options = [
   { value: 'f', color: 'bg-green-500 text-white', label: 'Favorevole' },
-  { value: 'i', color: 'bg-yellow-500 text-white', label: 'Indeciso' },
+  { value: 'i', color: 'bg-yellow-500 text-white', label: 'Non lo so' },
   { value: 'c', color: 'bg-red-500 text-white', label: 'Contrario' }
 ];
 
 // Funzione per normalizzare le risposte (usa direttamente i valori compressi)
-const normalizeAnswer = (answer: string | undefined) => {
+const normalizeAnswer = (answer: string | null | undefined) => {
   if (!answer || answer === null || answer === undefined) return null;
   // Usa direttamente i valori compressi
   if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
@@ -43,7 +54,7 @@ export default function OpinioniEuropee() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', 'Europeo'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=E");
+      const response = await apiRequest<OpinionQuestionsPayload>("GET", "/api/opinioni-list?grado=E");
       if (response.ok && response.data) {
         return response.data;
       }
@@ -54,7 +65,7 @@ export default function OpinioniEuropee() {
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
+  const questions: OpinionQuestion[] = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   
   // Debug
   useEffect(() => {
@@ -149,12 +160,12 @@ export default function OpinioniEuropee() {
         opinionValue: opinions[question.id]
       });
       
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
+      if (opinions[question.id]) {
         // Usa l'ID dell'opinione direttamente dal database
         opinionsToSave[question.id] = opinions[question.id];
         console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
       } else {
-        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
+        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: non selezionata)`);
       }
     });
     

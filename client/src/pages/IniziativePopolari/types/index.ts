@@ -12,11 +12,25 @@ export interface IniziativaPopolare {
   votiices?: number;
   firme?: number;
   firme_raccolte?: number;
+  jurisdiction_id?: string;
+  civic_process_type_id?: string;
+  civic_process_stage?: string | null;
+  civic_process_source_id?: string;
+  signature_threshold?: number | null;
+  demos_actions?: {
+    information?: boolean;
+    external_signature?: boolean;
+    demos_priority?: boolean;
+    position_on_question?: boolean;
+  };
   esito?: string;
   status?: string;
   quorum_raggiunto?: boolean;
   emoji?: string;
   id_ministero?: string | number;
+  userid?: string;
+  utente_id?: string;
+  user_id?: string;
 }
 
 export interface IniziativaFormData {

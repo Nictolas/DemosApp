@@ -136,7 +136,7 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Grado Elezione</label>
                   <EditableDropdown
-                    value={userChanges[user.id]?.grado_elezione !== undefined ? userChanges[user.id].grado_elezione : user.grado_elezione}
+                    value={(userChanges[user.id]?.grado_elezione !== undefined ? userChanges[user.id].grado_elezione : user.grado_elezione) ?? null}
                     onChange={(value) => onFieldChange?.(user.id, 'grado_elezione', value)}
                     options={['E', 'N', 'C', 'S', 'R', 'CO']}
                     placeholder="Seleziona grado elezione..."
@@ -149,7 +149,7 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Grado Candidatura</label>
                   <EditableDropdown
-                    value={userChanges[user.id]?.grado_candidatura !== undefined ? userChanges[user.id].grado_candidatura : user.grado_candidatura}
+                    value={(userChanges[user.id]?.grado_candidatura !== undefined ? userChanges[user.id].grado_candidatura : user.grado_candidatura) ?? null}
                     onChange={(value) => onFieldChange?.(user.id, 'grado_candidatura', value)}
                     options={['E', 'N', 'C', 'S', 'R', 'CO']}
                     placeholder="Seleziona grado candidatura..."

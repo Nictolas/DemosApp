@@ -21,7 +21,7 @@ export default function VotaIniziativaPopolare() {
   // Hook per la logica di voto
   const {
     selectedVoti,
-    saveVotiMutation,
+    preferenceMutationPending,
     toggleSelezione,
     toggleSelezioneClassifica,
     classificaOttimistica,
@@ -76,6 +76,15 @@ export default function VotaIniziativaPopolare() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
+              ) : data?.civic_process_policy?.enabled === false ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
+                  <h2 className="font-semibold text-lg">Priorità temporaneamente non disponibile</h2>
+                  <p className="mt-2 text-sm leading-relaxed">
+                    {data?.civic_process_policy?.reason === 'CIVIC_PROCESS_MIGRATION_REQUIRED'
+                      ? 'L’archivio istituzionale unificato di DEMOS non è ancora attivo in questo ambiente.'
+                      : 'DEMOS abilita questa funzione alle iniziative ufficiali la cui raccolta firme è conclusa e ha raggiunto il quorum o la soglia prevista.'}
+                  </p>
+                </div>
               ) : (
                 <>
                   <IniziativeStatsChart listaIniziative={data?.iniziative || []} />
@@ -94,7 +103,7 @@ export default function VotaIniziativaPopolare() {
             </div>
 
             {/* Colonna destra: Classifica */}
-            {!isLoadingData && (
+            {!isLoadingData && data?.civic_process_policy?.enabled !== false && (
               <div className="lg:sticky lg:top-4">
                 <IniziativeRanking
                   classifica={classificaOttimistica || data?.classifica || []}
@@ -103,7 +112,7 @@ export default function VotaIniziativaPopolare() {
                   onToggleSelezioneClassifica={toggleSelezioneClassifica}
                   onViewIniziativa={handleViewIniziativa}
                   isBlocked={data?.blocco?.isBlocked || false}
-                  isPending={saveVotiMutation.isPending}
+                  isPending={preferenceMutationPending}
                   hasReachedLimit={hasReachedLimit}
                 />
               </div>

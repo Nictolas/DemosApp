@@ -61,14 +61,42 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     }
   });
 
+  const deleteVotoMutation = useMutation({
+    mutationFn: async () => apiRequest("DELETE", "/api/iniziative-popolari/vota"),
+    onSuccess: () => {
+      toast({
+        title: "Preferenza rimossa",
+        description: "La tua preferenza per le iniziative popolari è stata rimossa."
+      });
+      queryClient.invalidateQueries({ queryKey: ['iniziativePopolariData'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile rimuovere la preferenza.",
+        variant: "destructive"
+      });
+      queryClient.invalidateQueries({ queryKey: ['iniziativePopolariData'] });
+    }
+  });
+
   // Logica locale per gestire i voti
   const toggleSelezione = (id: string) => {
-    if (saveVotiMutation.isPending || data?.blocco?.isBlocked) return;
+    if (saveVotiMutation.isPending || deleteVotoMutation.isPending || data?.blocco?.isBlocked) return;
     
     // Accedi allo stato corrente per decidere l'azione
     setSelectedVoti(prev => {
-      // Se l'iniziativa è già selezionata, rimuovila (non salva, solo rimuove localmente)
+      // Se l'iniziativa è già selezionata e persistita, la rimozione deve essere salvata sul server.
       if (prev.includes(id)) {
+        const isPersisted = (data?.mieiVoti || []).includes(id);
+        if (isPersisted) {
+          const iniziativa = data?.iniziative.find(i => i.id === id);
+          const confirmed = window.confirm(
+            `Vuoi rimuovere la preferenza per: ${iniziativa?.nome || 'questa iniziativa'}?\n\nDopo la modifica potrai cambiare nuovamente la preferenza solo dopo 24 ore.`
+          );
+          if (!confirmed) return prev;
+          setTimeout(() => deleteVotoMutation.mutate(), 0);
+        }
         return prev.filter(n => n !== id);
       }
       
@@ -90,9 +118,9 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
         // Messaggio diverso se ha già votato (deve includere info sulla settimana)
         let messaggioConfirm;
         if (haGiaVotato) {
-          messaggioConfirm = `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+          messaggioConfirm = `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?\n\nDopo aver salvato, potrai modificare le preferenze solo dopo 24 ore.`;
         } else {
-          messaggioConfirm = `Vuoi votare per: ${newIniziativaName}?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+          messaggioConfirm = `Vuoi votare per: ${newIniziativaName}?\n\nDopo aver salvato, potrai modificare le preferenze solo dopo 24 ore.`;
         }
         
         // Mostra alert di conferma sincrono
@@ -119,7 +147,7 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
         const newIniziativaName = newIniziativa?.nome || 'questa iniziativa';
         
         // Mostra alert di conferma per il primo voto
-        const messaggioConfirm = `Vuoi votare per: ${newIniziativaName}?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        const messaggioConfirm = `Vuoi votare per: ${newIniziativaName}?\n\nDopo aver salvato, potrai modificare le preferenze solo dopo 24 ore.`;
         const confirmed = window.confirm(messaggioConfirm);
         
         if (confirmed) {
@@ -309,6 +337,7 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   return {
     selectedVoti,
     saveVotiMutation,
+    preferenceMutationPending: saveVotiMutation.isPending || deleteVotoMutation.isPending,
     toggleSelezione,
     toggleSelezioneClassifica,
     // Classifica ottimistica aggiornata

@@ -1,11 +1,23 @@
 const express = require('express');
 const { compressRegione, decompressRegione } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
+const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const router = express.Router();
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+const MODERN_ORGANIZATION_FILTER = "u.account_type = 'ORGANIZATION'";
+const LEGACY_ORGANIZATION_FILTER = "u.ruolo = 'O'";
+
+function queryOrganizations(sqlTemplate, values = []) {
+  return queryWithAccountModelFallback(
+    pool,
+    sqlTemplate.replace('__ACCOUNT_FILTER__', MODERN_ORGANIZATION_FILTER),
+    sqlTemplate.replace('__ACCOUNT_FILTER__', LEGACY_ORGANIZATION_FILTER),
+    values
+  );
+}
 
 // GET /api/organizzazioni - Lista tutti gli utenti con ruolo "Organizzazione"
 router.get('/', async (req, res) => {
@@ -20,11 +32,8 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Costruisci la query con filtri dinamici
-    // Mostra Organizzazioni (ruolo O)
-    let whereConditions = [
-      "u.ruolo = 'O'"
-    ];
+    // Filtri comuni; il tipo Organizzazione deriva dall'account type canonico.
+    let whereConditions = ['1=1'];
     let queryParams = [];
     let paramIndex = 1;
 
@@ -78,7 +87,7 @@ router.get('/', async (req, res) => {
     });
 
     // Query per ottenere tutti gli utenti con ruolo "Organizzazione" con conteggio voti e ordinati
-    const result = await pool.query(`
+    const result = await queryOrganizations(`
       SELECT
         u.id,
         u.nome,
@@ -112,7 +121,7 @@ router.get('/', async (req, res) => {
         FROM users s
         WHERE s.organizzazioni = u.id
       ) us ON TRUE
-      WHERE ${whereClause}
+      WHERE __ACCOUNT_FILTER__ AND ${whereClause}
       ORDER BY supporters_count DESC, u.created_at DESC
     `, queryParams);
     
@@ -143,10 +152,10 @@ router.get('/filtri', async (req, res) => {
     console.log('🔍 GET /api/organizzazioni/filtri - Filtri disponibili richiesti');
     
     // Ottieni regioni uniche e decompresse per il frontend
-    const regioniResult = await pool.query(`
+    const regioniResult = await queryOrganizations(`
       SELECT DISTINCT regione_residenza
-      FROM users 
-      WHERE ruolo = 'O' 
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
       AND regione_residenza IS NOT NULL 
       AND regione_residenza != ''
       ORDER BY regione_residenza
@@ -159,10 +168,10 @@ router.get('/filtri', async (req, res) => {
       .sort();
     
     // Ottieni tipologie uniche
-    const tipologieResult = await pool.query(`
-      SELECT DISTINCT jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo
-      FROM users 
-      WHERE ruolo = 'O'
+    const tipologieResult = await queryOrganizations(`
+      SELECT DISTINCT jsonb_array_elements(u.tipologie_attivismo)->>'tipo' as tipo
+      FROM users u
+      WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo IS NOT NULL
       AND jsonb_array_length(tipologie_attivismo) > 0
       ORDER BY tipo

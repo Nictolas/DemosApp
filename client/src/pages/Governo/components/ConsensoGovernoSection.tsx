@@ -50,7 +50,7 @@ export const ConsensoGovernoSection: React.FC<ConsensoGovernoSectionProps> = ({
     if (data.blocco.isBlocked) {
       toast({
         title: "Voto bloccato",
-        description: "Hai già votato per il consenso del governo questa settimana. Potrai votare di nuovo tra 7 giorni.",
+        description: "Puoi modificare il consenso del governo al massimo una volta ogni 24 ore.",
         variant: "destructive"
       });
       return;
@@ -211,7 +211,7 @@ export const ConsensoGovernoSection: React.FC<ConsensoGovernoSectionProps> = ({
         {data.blocco.isBlocked && (
           <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 font-medium">
-              Hai già votato per il consenso del governo questa settimana
+              Hai modificato il consenso del governo nelle ultime 24 ore
             </p>
             <p className="text-sm text-yellow-600">
               Potrai votare di nuovo dal: {data.blocco.unlockDate ? new Date(data.blocco.unlockDate).toLocaleDateString('it-IT') : 'N/A'}

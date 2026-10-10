@@ -7,7 +7,13 @@ export interface Candidato {
   status: string;
   avatarConfig?: string;
   grado_candidatura?: string;
-  opinioniComuni?: number;
+  matching_score?: number;
+  compatibilita_percentuale?: number;
+  compatibilitaPercentuale?: number;
+  copertura_posizioni?: number;
+  coperturaPosizioni?: number;
+  copertura_totale?: number;
+  coperturaTotale?: number;
 }
 
 export interface OpinioniDialogData {

@@ -6,9 +6,10 @@ import { OpinionQuestion } from '../types';
 interface ProfileOpinionsProps {
   userOpinions: Record<string, string>;
   opinionQuestions: OpinionQuestion[];
+  isOwnProfile?: boolean;
 }
 
-export const ProfileOpinions = ({ userOpinions, opinionQuestions }: ProfileOpinionsProps) => {
+export const ProfileOpinions = ({ userOpinions, opinionQuestions, isOwnProfile = true }: ProfileOpinionsProps) => {
   if (!userOpinions || Object.keys(userOpinions).length === 0) {
     return null;
   }
@@ -27,10 +28,10 @@ export const ProfileOpinions = ({ userOpinions, opinionQuestions }: ProfileOpini
             <div className="p-2 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100">
               <MessageSquare className="h-6 w-6 text-orange-600" />
             </div>
-            Le Tue Opinioni Politiche
+            {isOwnProfile ? "Le Tue Opinioni Politiche" : "Opinioni Politiche"}
           </CardTitle>
           <CardDescription className="text-lg text-gray-600 mt-2">
-            Visualizzazione delle tue posizioni sui temi principali
+            {isOwnProfile ? "Visualizzazione delle tue posizioni sui temi principali" : "Posizioni pubbliche del profilo sui temi principali"}
           </CardDescription>
         </CardHeader>
         
@@ -65,14 +66,14 @@ export const ProfileOpinions = ({ userOpinions, opinionQuestions }: ProfileOpini
               </div>
             </div>
 
-            {/* Indecisi */}
+            {/* Non lo so */}
             <div className="group">
               <div className="bg-gradient-to-br from-yellow-50 via-amber-50/50 to-yellow-100/30 border border-yellow-200/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                 <h3 className="font-bold text-yellow-800 mb-4 flex items-center gap-3 text-lg">
                   <div className="p-2 rounded-full bg-gradient-to-br from-yellow-100 to-amber-100">
                     <HelpCircle className="h-5 w-5 text-yellow-600" />
                   </div>
-                  Indeciso
+                  Non lo so
                 </h3>
                 <div className="space-y-3">
                   {categorized.indecisi.length > 0 ? (
@@ -87,7 +88,7 @@ export const ProfileOpinions = ({ userOpinions, opinionQuestions }: ProfileOpini
                     ))
                   ) : (
                     <div className="text-yellow-600 text-sm italic bg-yellow-50/50 rounded-xl p-4 text-center">
-                      Nessuna opinione indecisa
+                      Nessuna risposta “Non lo so”
                     </div>
                   )}
                 </div>

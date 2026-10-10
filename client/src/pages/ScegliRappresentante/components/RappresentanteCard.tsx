@@ -15,6 +15,9 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
 }) => {
   const buttonContent = getButtonContent(isSelected, isSelezionando);
   const avatarConfig = getAvatarContent(rappresentante.avatar_config);
+  const compatibility = rappresentante.compatibilita_percentuale ?? rappresentante.compatibilitaPercentuale ?? 0;
+  const coverageKnown = rappresentante.copertura_posizioni ?? rappresentante.coperturaPosizioni ?? 0;
+  const coverageTotal = rappresentante.copertura_totale ?? rappresentante.coperturaTotale ?? 0;
 
   const handleViewOpinioni = () => {
     const data = {
@@ -89,14 +92,17 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
           >
             {rappresentante.nome} {rappresentante.cognome}
           </p>
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
             <Badge 
               variant="secondary" 
               className="text-xs"
               style={{ backgroundColor: colorMap.bg, color: colorMap.text }}
             >
-              {rappresentante.opinioni_comuni} opinioni comuni
+              {compatibility}% compatibilità
             </Badge>
+            <span className="text-xs text-gray-500">
+              {coverageKnown}/{coverageTotal} posizioni disponibili
+            </span>
           </div>
         </div>
         

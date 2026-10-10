@@ -93,16 +93,10 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         
         let url = '';
         if (isTestRoute) {
-          // Per le Europee: solo candidati votabili nella circoscrizione dell'elettore
-          if (categoria === 'europeo') {
-            url = '/api/candidati/europei';
-            console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI EUROPEI (circoscrizione):', url);
-          } else {
-            const gradoCandidatura = getTitoloCandidati(categoria);
-            url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
-            console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI:', url);
-            console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
-          }
+          const gradoCandidatura = getTitoloCandidati(categoria);
+          url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
+          console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI:', url);
+          console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
         } else {
           // Use the existing API endpoint for regular rappresentanti routes
           const grado = getTitolo(categoria);
@@ -147,7 +141,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           
           // Per le route test, recuperiamo le selezioni esistenti dall'API
           try {
-            const selezioniResponse = await apiRequest("GET", `/api/elezioni/candidati`);
+            const selezioniResponse = await apiRequest("GET", `/api/candidati/selezioni`);
             if (selezioniResponse?.ok && selezioniResponse?.data) {
               const selezioniResult = selezioniResponse.data;
               if (selezioniResult && selezioniResult.success) {

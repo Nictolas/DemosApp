@@ -31,7 +31,7 @@ export function GenereChart({ genereData }: GenereChartProps) {
   }
 
   // Prepara i dati per i grafici a torta
-  const getColorForGenere = (genere) => {
+  const getColorForGenere = (genere?: string) => {
     switch (genere?.toLowerCase()) {
       case 'uomo': return '#3b82f6'; // Azzurro
       case 'donna': return '#ec4899'; // Rosa

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { getAuthToken } from "@/lib/auth-token";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Trash2, AlertTriangle, Shield, User, FileText, Database } from "lucide-react";
@@ -50,7 +51,7 @@ const deletionSteps: DeletionStep[] = [
 ];
 
 export default function CancellaAccount() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
@@ -79,7 +80,7 @@ export default function CancellaAccount() {
       const response = await fetch('/api/user/delete-account', {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${user.token}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -94,7 +95,7 @@ export default function CancellaAccount() {
       }
 
       // Logout e redirect
-      await logout();
+      await logoutMutation.mutateAsync();
       setLocation('/');
       
     } catch (err) {

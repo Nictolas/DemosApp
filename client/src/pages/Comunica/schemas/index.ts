@@ -2,13 +2,14 @@ import { z } from "zod";
 
 export const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
+  data_votazione: z.string().min(1, "La data della votazione è obbligatoria"),
   voto_dato: z.enum(["Favorevole", "Contrario", "Astenuto"], {
     required_error: "Seleziona il tuo voto",
   }),
-  commento: z.string().max(20, "Il commento non può superare i 20 caratteri").optional(),
-  vincitore: z.enum(["Favorevole", "Contrario", "Astenuto"], {
-    required_error: "Seleziona il vincitore",
-  }),
+  commento: z
+    .string()
+    .max(20, "Il commento non può superare i 20 caratteri")
+    .optional(),
 });
 
 export const eventoSchema = z.object({

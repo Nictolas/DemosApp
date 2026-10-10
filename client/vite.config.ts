@@ -4,40 +4,42 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react({
-    // Disabilita Fast Refresh in produzione per evitare eval()
-    fastRefresh: process.env.NODE_ENV === 'development'
-  })],
+  plugins: [react()],
   base: '/', // Base path per il deploy
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'esbuild', // Usa esbuild invece di terser per evitare eval()
+    minify: 'oxc', // Minificatore nativo Vite 8/Rolldown, senza dipendenza esbuild
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-alert-dialog', '@radix-ui/react-avatar', '@radix-ui/react-switch'],
+        manualChunks(id) {
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('\\node_modules\\react\\') ||
+            id.includes('/node_modules/react-dom/') ||
+            id.includes('\\node_modules\\react-dom\\')
+          ) {
+            return 'vendor';
+          }
+          if (
+            id.includes('@radix-ui/react-alert-dialog') ||
+            id.includes('@radix-ui/react-avatar') ||
+            id.includes('@radix-ui/react-switch')
+          ) {
+            return 'ui';
+          }
         },
-        // Evita l'uso di eval() nel codice generato
+        // Mantieni output ESM senza opzioni Rollup rimosse da Rolldown.
         format: 'es',
-        generatedCode: {
-          constBindings: true,
-        },
       },
     },
-    // Assicura che il codice non usi eval()
     target: 'esnext',
-    esbuild: {
-      // Disabilita funzionalità che potrebbero usare eval()
-      legalComments: 'none',
-    },
   },
   server: {
     port: 3000,

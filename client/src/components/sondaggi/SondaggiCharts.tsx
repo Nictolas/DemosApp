@@ -15,7 +15,6 @@ interface SondaggiChartsProps {
     Favorevole: number;
     Contrario: number;
     Indeciso: number;
-    Astenuto: number;
   }>;
   preparePieData: (questionKey: string) => Array<{
     name: string;
@@ -26,7 +25,6 @@ interface SondaggiChartsProps {
     favorevole: string;
     contrario: string;
     indeciso: string;
-    astenuto: string;
   };
 }
 

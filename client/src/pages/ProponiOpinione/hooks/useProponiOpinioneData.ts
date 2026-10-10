@@ -22,7 +22,7 @@ export const useProponiOpinioneData = (user: any) => {
       console.log('📊 Dati ricevuti:', body);
       
       if (body?.success && Array.isArray(body.data)) {
-        const opinioniMapped = body.data.map((op: any) => ({
+        const opinioniMapped: OpinioneProposta[] = body.data.map((op: any) => ({
           id: op.id,
           testo: op.testo,
           voti: op.voti || 0,
@@ -30,7 +30,8 @@ export const useProponiOpinioneData = (user: any) => {
           titolo: op.titolo,
           descrizione: op.descrizione,
           categoria: op.categoria,
-          data_creazione: op.data_creazione
+          data_creazione: op.data_creazione,
+          votanti: Array.isArray(op.votanti) ? op.votanti : []
         }));
         
         // Ordina le opinioni per numero di voti decrescente (più votate in alto)

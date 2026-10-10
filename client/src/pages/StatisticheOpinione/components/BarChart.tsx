@@ -22,9 +22,8 @@ export const BarChartComponent: React.FC<BarChartProps> = ({ etaBarData }) => {
               <YAxis />
               <Tooltip />
               <Bar dataKey="Favorevole" fill="#10B981" />
-              <Bar dataKey="Indeciso" fill="#FCD34D" />
+              <Bar dataKey="Indeciso" name="Non lo so" fill="#FCD34D" />
               <Bar dataKey="Contrario" fill="#EF4444" />
-              <Bar dataKey="Astenuto" fill="#6B7280" />
             </RechartsBarChart>
           </ResponsiveContainer>
         ) : (

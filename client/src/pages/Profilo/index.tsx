@@ -188,6 +188,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                     onEditClick={() => setIsEditing(true)}
                     onModificaImmagine={handleModificaImmagine}
                     canEdit={isViewingOwnProfile}
+                    isOwnProfile={isViewingOwnProfile}
                     avatarConfig={avatarConfig}
                   />
                 </div>
@@ -202,6 +203,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                         <ProfileRepresentatives 
                           userInfo={userInfo} 
                           rappresentantiDetails={rappresentantiDetails}
+                          canEditSelections={isViewingOwnProfile}
                         />
                       </div>
                     </div>
@@ -215,6 +217,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                         <ProfileCandidates 
                           userInfo={userInfo} 
                           candidatiDetails={candidatiDetails}
+                          canEditSelections={isViewingOwnProfile}
                         />
                       </div>
                     </div>
@@ -223,7 +226,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
                 {/* Colonna 3: Il Tuo Governo Ideale */}
                 <div className="min-w-0">
-                  <ProfileGovernoIdeale governoIdeale={governoIdeale} />
+                  <ProfileGovernoIdeale governoIdeale={governoIdeale} isOwnProfile={isViewingOwnProfile} />
                 </div>
               </div>
             )}
@@ -232,6 +235,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
             <ProfileOpinions
               userOpinions={userOpinions}
               opinionQuestions={opinionQuestions}
+              isOwnProfile={isViewingOwnProfile}
             />
           </>
         )}

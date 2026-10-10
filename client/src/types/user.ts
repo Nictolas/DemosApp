@@ -5,7 +5,8 @@ export type UserRole =
   | "Candidato Politico" 
   | "Istituzione" 
   | "Cittadino" 
-  | "Rappresentante";
+  | "Rappresentante"
+  | "AD" | "P" | "C" | "CP" | "A" | "E" | "I" | "O";
 
 // Definizione condivisa del tipo UserInfo
 export type UserInfo = {

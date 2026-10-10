@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart as BarChartIcon } from "lucide-react";
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href: string | null;
   type: 'regione' | 'provincia' | 'comune';

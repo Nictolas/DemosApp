@@ -38,7 +38,7 @@ export function ProfileOpinions({ userOpinions, opinionQuestions }: ProfileOpini
 
       if (value === "Favorevole") {
         favorevoli.push({ id: key, label });
-      } else if (value === "Indeciso") {
+      } else if (value === "Indeciso" || value === "Non lo so") {
         indecisi.push({ id: key, label });
       } else if (value === "Contrario") {
         contrari.push({ id: key, label });
@@ -85,12 +85,12 @@ export function ProfileOpinions({ userOpinions, opinionQuestions }: ProfileOpini
             </div>
           </div>
 
-          {/* Colonna Indecisi */}
+          {/* Colonna Non lo so */}
           <div className="space-y-3">
             <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4 h-full">
               <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                Indeciso
+                Non lo so
               </h3>
               <div className="space-y-2">
                 {indecisi.length > 0 ? (
@@ -101,7 +101,7 @@ export function ProfileOpinions({ userOpinions, opinionQuestions }: ProfileOpini
                   ))
                 ) : (
                   <div className="text-yellow-600 text-sm italic">
-                    Nessuna opinione indecisa
+                    Nessuna risposta “Non lo so”
                   </div>
                 )}
               </div>

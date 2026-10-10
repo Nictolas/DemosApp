@@ -4,6 +4,13 @@ import { getAuthToken } from "@/lib/auth-token";
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 12000;
 
+export type ApiRequestResponse<T = any> = T & {
+  ok: boolean;
+  status: number;
+  json: () => Promise<T>;
+  data: T;
+};
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -11,7 +18,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+const apiRequestFunction = async <T = any>(method: string, url: string, body?: any, customHeaders?: Record<string, string>): Promise<ApiRequestResponse<T>> => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -110,13 +117,16 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
-    // Restituisci un oggetto Response-like per compatibilità
+    // Mantieni sia il contratto Response-like sia la compatibilità con i caller legacy
+    // che leggono direttamente campi JSON come response.success/response.user.
+    const topLevelData = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
     return {
+      ...topLevelData,
       ok: true,
       status: response.status,
-      json: async () => data,
-      data
-    } as any;
+      json: async () => data as T,
+      data: data as T
+    } as ApiRequestResponse<T>;
   } catch (error: any) {
     if (error?.name === 'AbortError') {
       throw new Error(`Timeout richiesta API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${url}`);
@@ -131,27 +141,29 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
 };
 
 // Wrapper per compatibilità con codice che usa apiRequest.get(), apiRequest.post(), ecc.
+const apiGet = <T = any>(url: string, options?: { params?: Record<string, any> }) => {
+  let finalUrl = url;
+  if (options?.params) {
+    const params = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) params.append(key, String(value));
+    });
+    const queryString = params.toString();
+    if (queryString) finalUrl = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+  }
+  return apiRequestFunction<T>('GET', finalUrl);
+};
+const apiPost = <T = any>(url: string, body?: any) => apiRequestFunction<T>('POST', url, body);
+const apiPut = <T = any>(url: string, body?: any) => apiRequestFunction<T>('PUT', url, body);
+const apiDelete = <T = any>(url: string) => apiRequestFunction<T>('DELETE', url);
+const apiPatch = <T = any>(url: string, body?: any) => apiRequestFunction<T>('PATCH', url, body);
+
 export const apiRequest = Object.assign(apiRequestFunction, {
-  get: (url: string, options?: { params?: Record<string, any> }) => {
-    let finalUrl = url;
-    if (options?.params) {
-      const params = new URLSearchParams();
-      Object.entries(options.params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          params.append(key, String(value));
-        }
-      });
-      const queryString = params.toString();
-      if (queryString) {
-        finalUrl = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
-      }
-    }
-    return apiRequestFunction('GET', finalUrl);
-  },
-  post: (url: string, body?: any) => apiRequestFunction('POST', url, body),
-  put: (url: string, body?: any) => apiRequestFunction('PUT', url, body),
-  delete: (url: string) => apiRequestFunction('DELETE', url),
-  patch: (url: string, body?: any) => apiRequestFunction('PATCH', url, body),
+  get: apiGet,
+  post: apiPost,
+  put: apiPut,
+  delete: apiDelete,
+  patch: apiPatch,
 });
 
 type UnauthorizedBehavior = "returnNull" | "throw";

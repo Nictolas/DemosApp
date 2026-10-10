@@ -1,51 +1,90 @@
+'use strict';
+
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { verifyToken } = require('../middleware/auth');
+const {
+  authorizeMunicipalInstitutionSender,
+  normalizeMunicipalNoticePayload,
+  isMunicipalCommunicationSchemaError,
+} = require('../services/municipalInstitutionCommunicationService');
 
-// Usa il pool centralizzato
 const pool = getPool();
 
-// POST /api/informa-cittadini - crea un nuovo avviso
-router.post('/', async (req, res) => {
-  try {
-    const { id_utente, tipologia, dove, dal_giorno, al_giorno, zona } = req.body;
+function authorizationStatus(reason) {
+  if (reason === 'CANONICAL_TERRITORY_REQUIRED') return 503;
+  return 403;
+}
 
-    if (!id_utente || !tipologia || !dove || !dal_giorno || !al_giorno) {
-      return res.status(400).json({
+// POST /api/informa-cittadini
+// The authenticated actor is always the author. The target municipality is derived
+// only from one OFFICIAL canonical municipal authority; free-form "dove" is descriptive.
+router.post('/', verifyToken, async (req, res) => {
+  let payload;
+  try {
+    payload = normalizeMunicipalNoticePayload(req.body);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      error: 'Dati avviso non validi',
+      code: error.code || 'INFORMA_CITTADINI_PAYLOAD_INVALID',
+    });
+  }
+
+  try {
+    const authority = await authorizeMunicipalInstitutionSender(pool, { user: req.user });
+    if (!authority.authorized) {
+      return res.status(authorizationStatus(authority.reason)).json({
         success: false,
-        error: 'id_utente, tipologia, dove, dal_giorno e al_giorno sono obbligatori'
+        error: 'Competenza territoriale non autorizzata',
+        code: authority.reason,
       });
     }
 
-    const titolo = `${tipologia} - ${dove}`;
-    const testo = `Tipologia: ${tipologia}\nDove: ${dove}\nDal: ${dal_giorno}\nAl: ${al_giorno}`;
-
-    // Inserisci in notifiche_comunali invece di informa_cittadini
     const result = await pool.query(
-      `INSERT INTO notifiche_comunali (
-        id, id_utente, titolo, testo, comune_residenza, data
-      ) VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, CURRENT_DATE
-      ) RETURNING *`,
-      [id_utente, titolo, testo, dove]
+      `INSERT INTO institutional_territorial_notices (
+         author_user_id, tipologia, dove, dal_giorno, al_giorno,
+         jurisdiction_id, territory_type, territory_code, territory_label,
+         authority_source, authority_verification_level, metadata
+       ) VALUES (
+         $1, $2, $3, $4::date, $5::date,
+         $6, $7, $8, $9, $10, $11, $12::jsonb
+       )
+       RETURNING id, author_user_id, tipologia, dove, dal_giorno, al_giorno,
+                 jurisdiction_id, territory_type, territory_code, territory_label, created_at`,
+      [
+        req.user.id,
+        payload.tipologia,
+        payload.dove,
+        payload.dalGiorno,
+        payload.alGiorno,
+        authority.jurisdictionId,
+        authority.territoryType,
+        authority.territoryCode,
+        authority.territoryLabel,
+        authority.authoritySource,
+        authority.verificationLevel,
+        JSON.stringify({ authorityDerivedServerSide: true }),
+      ],
     );
 
     return res.status(201).json({
       success: true,
       data: result.rows[0],
-      message: 'Comunicazione \"Informa Cittadini\" creata con successo',
-      titolo,
-      testo
+      message: 'Comunicazione ai cittadini creata con successo',
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione di Informa Cittadini:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    if (isMunicipalCommunicationSchemaError(error)) {
+      return res.status(503).json({
+        success: false,
+        error: 'Schema territoriale comunicazioni non disponibile',
+        code: 'INFORMA_CITTADINI_SCHEMA_REQUIRED',
+      });
+    }
+    console.error('Errore nella creazione di Informa Cittadini:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
 module.exports = router;
-
-

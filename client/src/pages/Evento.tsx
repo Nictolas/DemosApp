@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
-import { Redirect, useRouter } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
 import { apiRequest } from "@/lib/queryClient";
 import DatePicker from "@/components/DatePicker";
@@ -50,7 +50,17 @@ type EventoFormData = z.infer<typeof eventoSchema>;
 export default function Evento() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const router = useRouter();
+  const [, setLocation] = useLocation();
+  const isAdmin = Boolean(user?.is_admin ?? user?.capabilities?.isAdmin ?? (user?.ruolo === "AD"));
+  const accountType = user?.account_type ?? user?.capabilities?.accountType ?? null;
+  const canRequestEvent = Boolean(
+    isAdmin ||
+    accountType === 'INSTITUTION' ||
+    accountType === 'ORGANIZATION' ||
+    user?.is_activist || user?.capabilities?.isActivist ||
+    user?.is_candidate || user?.capabilities?.isCandidate ||
+    user?.is_politician || user?.capabilities?.isPolitician
+  );
 
   const eventoForm = useForm<EventoFormData>({
     resolver: zodResolver(eventoSchema),
@@ -71,27 +81,6 @@ export default function Evento() {
       orario_fine_giorno2: "",
     },
   });
-
-  // Redirect if not logged in
-  if (!user && !isLoading) {
-    return <Redirect to="/auth" />;
-  }
-
-  // Show loading while user is being fetched
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Caricamento...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Watch per la selezione a sequenza
   const watchPaeseEvento = eventoForm.watch("paese_evento");
@@ -133,7 +122,6 @@ export default function Evento() {
         paese_evento: compressPaeseEvento(data.paese_evento),
         regione_evento: compressRegioneEvento(data.regione_evento),
         provincia_evento: compressProvinciaEvento(data.provincia_evento),
-        organizzatore: user?.nome && user?.cognome ? `${user.nome} ${user.cognome}` : user?.email || "Utente"
       };
       
       console.log('📤 Invio dati evento (compressi):', compressedData);
@@ -150,14 +138,17 @@ export default function Evento() {
     },
     onSuccess: (data) => {
       console.log('✅ onSuccess chiamato con dati:', data);
+      const pendingReview = Boolean(data?.approval?.pending_staff_review);
       toast({
-        title: "Evento Salvato",
-        description: "Il tuo evento è stato salvato con successo.",
+        title: pendingReview ? "Richiesta evento inviata" : "Evento salvato",
+        description: pendingReview
+          ? "Lo Staff deve approvare l'evento prima che compaia nei feed pubblici."
+          : "L'evento è stato pubblicato con successo.",
       });
       eventoForm.reset();
       // Redirect alla pagina eventi
       console.log('🔄 Tentativo redirect a /eventi');
-      router.push("/eventi");
+      setLocation("/eventi");
     },
     onError: (error: any) => {
       toast({
@@ -172,6 +163,30 @@ export default function Evento() {
     submitEvento.mutate(data);
   };
 
+  // Keep all hooks above conditional returns to preserve React hook ordering.
+  if (!user && !isLoading) {
+    return <Redirect to="/auth" />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Caricamento...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canRequestEvent) {
+    return <Redirect to="/strumenti" />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 page-with-navbar" style={{ paddingBottom: '120px' }}>
       <div className="container mx-auto px-4 py-8 space-y-6">
@@ -179,7 +194,7 @@ export default function Evento() {
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Nuovo Evento</CardTitle>
             <CardDescription className="text-center">
-              Programma un nuovo evento per comunicare con i tuoi elettori
+              Invia un nuovo evento; per i profili non Admin la pubblicazione richiede approvazione Staff
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -226,7 +241,7 @@ export default function Evento() {
                           <SelectItem value="Dibattito">Dibattito</SelectItem>
                           <SelectItem value="Presentazione">Presentazione</SelectItem>
                           <SelectItem value="Riunione">Riunione</SelectItem>
-                          {user?.ruolo === "AD" ? (
+                          {isAdmin ? (
                             <SelectItem value="Elezioni">Elezioni</SelectItem>
                           ) : null}
                         </SelectContent>

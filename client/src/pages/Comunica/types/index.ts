@@ -1,16 +1,8 @@
-export interface ExistingComunicazione {
-  titolo: string;
-  vincitore: string;
-  zona: string;
-}
-
 export interface ComunicazioneData {
   titolo: string;
   voto_dato: "Favorevole" | "Contrario" | "Astenuto";
+  data_votazione: string;
   commento?: string;
-  vincitore: "Favorevole" | "Contrario" | "Astenuto";
-  zona: string;
-  isDuplicate?: boolean;
 }
 
 export interface EventoData {
@@ -19,14 +11,15 @@ export interface EventoData {
 }
 
 export interface UltimaComunicazione {
+  success: boolean;
   comunicazione: {
     titolo: string;
     voto_dato: string;
-    vincitore: string;
     commento?: string;
-    zona: string;
+    livello?: string;
+    data_votazione?: string;
     data_creazione: string;
-  };
+  } | null;
 }
 
 export interface NavigationButton {

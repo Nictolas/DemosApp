@@ -41,7 +41,7 @@ export default function LandingPage() {
                       DEMOS
                     </span>
                   </h1>
-                  <p className="text-lg md:text-xl text-gray-700 mb-4 leading-relaxed">
+                  <p className="text-lg md:text-xl text-gray-700 mb-4 leading-relaxed md:leading-7">
                     Demos è un sistema operativo per la democrazia: una piattaforma che collega cittadini,
                     elettori e rappresentanti politici in un unico spazio digitale partecipativo.
                   </p>

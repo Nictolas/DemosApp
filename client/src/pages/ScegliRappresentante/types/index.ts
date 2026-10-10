@@ -5,7 +5,13 @@ export interface Rappresentante {
   email: string;
   ruolo: string;
   grado_elezione?: string;
-  opinioni_comuni: number;
+  matching_score?: number;
+  compatibilita_percentuale?: number;
+  compatibilitaPercentuale?: number;
+  copertura_posizioni?: number;
+  coperturaPosizioni?: number;
+  copertura_totale?: number;
+  coperturaTotale?: number;
   avatar_config?: string;
   energia_nucleare?: string;
   sperimentazione_animale?: string;

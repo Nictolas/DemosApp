@@ -40,7 +40,7 @@ export default function Candidati() {
 
   return (
     <PageTransition>
-      <style jsx global>{`
+      <style>{`
         body, html {
           overflow: hidden !important;
           touch-action: none !important;

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Calendar, Clock, MapPin, Trash2, Edit } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin, Trash2, Edit, CheckCircle2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
@@ -68,20 +68,23 @@ const formatTime = (timeString: string | null) => {
 
 export default function Eventi() {
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
   
-  // Check if user is admin
-  const isAdmin = user?.ruolo === "AD";
+  // Canonical capability first; legacy role remains a compatibility fallback while old sessions expire.
+  const isAdmin = Boolean(user?.is_admin ?? user?.capabilities?.isAdmin ?? (user?.ruolo === "AD"));
   
-  // State for admin tabs
-  const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
+  // State for Admin views: personalized feed, global registry, moderation queue.
+  const [activeTab, setActiveTab] = useState<'personal' | 'global' | 'pending'>('personal');
 
   // Fetch eventi data from API
   const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
     queryKey: ["/api/eventi", isAdmin ? activeTab : 'personal'],
     queryFn: async () => {
-      const url = isAdmin && activeTab === 'global' 
-        ? "/api/eventi?view=global" 
-        : "/api/eventi?view=personal";
+      const url = isAdmin && activeTab === 'global'
+        ? "/api/eventi?view=global"
+        : isAdmin && activeTab === 'pending'
+          ? "/api/eventi/admin/pending"
+          : "/api/eventi?view=personal";
       const response = await apiRequest("GET", url);
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento degli eventi";
@@ -124,21 +127,86 @@ export default function Eventi() {
     }
   };
 
+  const moderateEvent = useMutation({
+    mutationFn: async ({ eventId, action, reason }: { eventId: string; action: 'approve' | 'reject'; reason?: string }) => {
+      const response = await apiRequest("POST", `/api/eventi/${eventId}/${action}`, action === 'reject' ? { reason: reason || null } : {});
+      if (!response?.ok || !response?.data?.success) {
+        throw new Error(response?.data?.message || response?.data?.error || "Errore nella moderazione dell'evento");
+      }
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: variables.action === 'approve' ? "Evento approvato" : "Evento rifiutato",
+        description: variables.action === 'approve'
+          ? "L'evento è ora pubblicabile nel feed pertinente."
+          : "La richiesta evento è stata rifiutata.",
+      });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({ title: "Moderazione non riuscita", description: error?.message || "Errore nella moderazione", variant: "destructive" });
+    },
+  });
+
+  const requestReject = (evento: any) => {
+    const reason = window.prompt("Motivo del rifiuto (opzionale):") ?? undefined;
+    moderateEvent.mutate({ eventId: String(evento.id), action: 'reject', reason });
+  };
+
   // Function to edit event
   const editEvent = (evento: any) => {
     setEditingEvent(evento);
     setIsEditModalOpen(true);
   };
 
-  // Function to check if user can edit/delete event
-  const canEditEvent = (evento: any) => {
-    // Admin can edit/delete all events
-    if (isAdmin) {
-      return true;
+  const electionHasEnded = (evento: any) => {
+    const value = evento?.giorno_fine || evento?.giorno_inizio;
+    if (!value) return false;
+    const eventDay = String(value).slice(0, 10);
+    const today = new Date();
+    const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return eventDay <= localToday;
+  };
+
+  const closeElectionLifecycle = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await apiRequest("POST", `/api/eventi/${eventId}/close-election`, {});
+      if (!response?.ok || !response?.data?.success) {
+        throw new Error(response?.data?.message || response?.data?.error || "Errore nella chiusura dell'elezione");
+      }
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data?.alreadyClosed ? "Elezione già chiusa" : "Elezione chiusa",
+        description: data?.alreadyClosed
+          ? "Il lifecycle politico dell'elezione era già stato chiuso."
+          : `${data?.candidaciesEnded ?? 0} candidature concluse: ${data?.elected ?? 0} elette, ${data?.notElected ?? 0} non elette.`,
+      });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Chiusura non riuscita",
+        description: error?.message || "Errore nella chiusura dell'elezione",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const requestElectionClose = (evento: any) => {
+    if (!confirm(`Chiudere definitivamente il lifecycle di “${evento.nome_evento}”? Le candidature termineranno e le selezioni candidato verranno azzerate.`)) {
+      return;
     }
-    
-    // Non-admin users can only edit/delete events they created
-    return evento.organizzatore === user?.email || 
+    closeElectionLifecycle.mutate(String(evento.id));
+  };
+
+  // Ownership is canonical when creator_user_id exists; organizer text is legacy fallback only.
+  const canEditEvent = (evento: any) => {
+    if (isAdmin) return true;
+    if (evento?.creator_user_id) return String(evento.creator_user_id) === String(user?.id || '');
+    return evento.organizzatore === user?.email ||
            (user?.nome && user?.cognome && evento.organizzatore === `${user.nome} ${user.cognome}`);
   };
 
@@ -205,7 +273,6 @@ export default function Eventi() {
         paese_evento: compressPaeseEvento(data.paese_evento),
         regione_evento: compressRegioneEvento(data.regione_evento),
         provincia_evento: compressProvinciaEvento(data.provincia_evento),
-        organizzatore: user?.nome && user?.cognome ? `${user.nome} ${user.cognome}` : user?.email || "Utente"
       };
       
       console.log('📤 Invio dati evento aggiornati (compressi):', compressedData);
@@ -221,9 +288,12 @@ export default function Eventi() {
     },
     onSuccess: (data) => {
       console.log('✅ onSuccess chiamato con dati:', data);
+      const pendingReview = Boolean(data?.approval?.pending_staff_review);
       toast({
-        title: "Evento aggiornato",
-        description: "Il tuo evento è stato aggiornato con successo.",
+        title: pendingReview ? "Modifica inviata allo Staff" : "Evento aggiornato",
+        description: pendingReview
+          ? "La modifica sostanziale sarà pubblicata dopo l'approvazione dello Staff."
+          : "Il tuo evento è stato aggiornato con successo.",
       });
       setIsEditModalOpen(false);
       setEditingEvent(null);
@@ -268,7 +338,7 @@ export default function Eventi() {
           <p className="text-lg text-gray-600">
             {isAdmin 
               ? "Gestisci e visualizza tutti gli eventi della piattaforma"
-              : "Calendario degli eventi organizzati dai tuoi rappresentanti e candidati"
+              : "Eventi dei soggetti che segui, del tuo territorio e delle elezioni che ti riguardano"
             }
           </p>
           {!isAdmin && (
@@ -302,6 +372,16 @@ export default function Eventi() {
               >
                 Globale
               </button>
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                  activeTab === 'pending'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Da approvare
+              </button>
             </div>
           </div>
         )}
@@ -334,6 +414,35 @@ export default function Eventi() {
                                 {evento.nome_evento}
                               </h3>
                               <div className="flex items-center gap-2">
+                                {isAdmin && activeTab !== 'personal' && evento.approval_status && (
+                                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                    evento.approval_status === 'APPROVED'
+                                      ? 'bg-green-100 text-green-800'
+                                      : evento.approval_status === 'REJECTED'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {evento.approval_status}
+                                  </span>
+                                )}
+                                {isAdmin && activeTab === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => moderateEvent.mutate({ eventId: String(evento.id), action: 'approve' })}
+                                      disabled={moderateEvent.isPending}
+                                      className="rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                      Approva
+                                    </button>
+                                    <button
+                                      onClick={() => requestReject(evento)}
+                                      disabled={moderateEvent.isPending}
+                                      className="rounded-md bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                      Rifiuta
+                                    </button>
+                                  </>
+                                )}
                                 {evento.tipologia_evento === 'Elezioni' && (
                                   <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
                                     {evento.tipo_elezione
@@ -343,6 +452,24 @@ export default function Eventi() {
                                         }`
                                       : 'Elezioni'}
                                   </span>
+                                )}
+                                {isAdmin && activeTab === 'global' && evento.tipologia_evento === 'Elezioni' && (
+                                  evento.election_lifecycle_closed_at ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+                                      <CheckCircle2 className="h-3.5 w-3.5" />
+                                      Lifecycle chiuso
+                                    </span>
+                                  ) : electionHasEnded(evento) ? (
+                                    <button
+                                      onClick={() => requestElectionClose(evento)}
+                                      disabled={closeElectionLifecycle.isPending}
+                                      className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                                      title="Concludi candidature e sostegni candidato"
+                                    >
+                                      {closeElectionLifecycle.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                      Chiudi elezione
+                                    </button>
+                                  ) : null
                                 )}
                                 {canEditEvent(evento) && (
                                   <>

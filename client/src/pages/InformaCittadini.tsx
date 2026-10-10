@@ -125,8 +125,6 @@ export default function InformaCittadini() {
         dove: data.dove,
         dal_giorno: data.dalGiorno,
         al_giorno: data.alGiorno,
-        zona: "Generale",
-        id_utente: user.id,
       };
 
       const response = await apiRequest("POST", "/api/informa-cittadini", payload);
@@ -206,7 +204,7 @@ export default function InformaCittadini() {
 
   // Verifica che l'utente abbia accesso (Istituzione o Admin)
   const userRole = user?.ruolo;
-  const hasAccess = userRole === "I" || userRole === "AD";
+  const hasAccess = user?.account_type === "INSTITUTION" || user?.is_admin === true || userRole === "I" || userRole === "AD";
 
   if (!hasAccess) {
     return (

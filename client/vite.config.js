@@ -6,15 +6,22 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),
+      '@': path.resolve(import.meta.dirname, 'src'),
     },
   },
   build: {
     rollupOptions: {
       external: [],
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
+        manualChunks(id) {
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('\\node_modules\\react\\') ||
+            id.includes('/node_modules/react-dom/') ||
+            id.includes('\\node_modules\\react-dom\\')
+          ) {
+            return 'react-vendor';
+          }
         },
       },
     },

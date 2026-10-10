@@ -78,23 +78,17 @@ import SondaggiRegione from "./pages/SondaggiRegione";
 import SondaggiProvincia from "./pages/SondaggiProvincia";
 import SondaggiComune from "./pages/SondaggiComune";
 import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
-import VotaReferendumAbrogativo from "./pages/VotaReferendumAbrogativo";
-import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
 import Sostenitori from "./pages/Sostenitori";
 import VotiPolitici from "./pages/VotiPolitici";
 import VotiParlamento from "./pages/VotiParlamento";
 import VotiParlamentoEuropeo from "./pages/VotiParlamentoEuropeo";
-import ECI from "./pages/ECI";
 import Comunica from "./pages/Comunica";
 import Evento from "./pages/Evento";
 import Programma from "./pages/Programma";
 import InformaCittadini from "./pages/InformaCittadini";
 import Riscontro from "./pages/Riscontro";
 import OpinioniEuropee from "./pages/OpinioniEuropee";
-import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
-import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
-import ProponiICE from "./pages/ProponiICE";
 import Riconoscimento from "./pages/Riconoscimento";
 import Riconoscimenti from "./pages/Riconoscimenti";
 import RiduzioneCompute from "./pages/RiduzioneCompute";
@@ -116,7 +110,6 @@ import ValidationDashboard from "./pages/ValidationDashboard";
 import LoggingDashboard from "./pages/LoggingDashboard";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import AuditDashboard from "./pages/AuditDashboard";
-import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
 import OpsCenter from "./pages/Admin/OpsCenter";
 import Parametri from "./pages/Admin/Parametri";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
@@ -922,11 +915,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route ECI - Lista ICE e numero firme */}
+              {/* Alias legacy: ECI e ICE indicano la stessa raccolta ufficiale UE */}
               <Route path="/eci">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/eci" component={ECI} />
-                </PageTransition>
+                <Redirect to="/ice" />
               </Route>
 
               {/* Route referendum abrogativi */}
@@ -1021,18 +1012,14 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route vota referendum abrogativo */}
+              {/* La priorità tra referendum è dismessa: il vecchio URL converge sulla raccolta ufficiale. */}
               <Route path="/vota-referendum-abrogativo">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/vota-referendum-abrogativo" component={VotaReferendumAbrogativo} />
-                </PageTransition>
+                <Redirect to="/referendum-abrogativi" />
               </Route>
 
-              {/* Route vota ICE */}
+              {/* Il voto interno ICE è dismesso: usa la raccolta ufficiale */}
               <Route path="/vota-ice">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/vota-ice" component={VotaICE} />
-                </PageTransition>
+                <Redirect to="/ice" />
               </Route>
 
               {/* Route comunica (ex /votazione) */}
@@ -1084,25 +1071,18 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route proponi referendum abrogativi */}
+              {/* Le fonti italiane sono ufficiali e sincronizzate: nessuna proposta manuale in DEMOS. */}
               <Route path="/proponi-referendum-abrogativi">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/proponi-referendum-abrogativi" component={ProponiReferendumAbrogativi} />
-                </PageTransition>
+                <Redirect to="/referendum-abrogativi" />
               </Route>
 
-              {/* Route proponi iniziativa popolare */}
               <Route path="/proponi-iniziativa-popolare">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/proponi-iniziativa-popolare" component={ProponiIniziativaPopolare} />
-                </PageTransition>
+                <Redirect to="/iniziative-popolari" />
               </Route>
 
-              {/* Route proponi ICE */}
+              {/* Le ICE vengono create sul portale UE, non dentro DEMOS */}
               <Route path="/proponi-ice">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/proponi-ice" component={ProponiICE} />
-                </PageTransition>
+                <Redirect to="/ice" />
               </Route>
             </Switch>
             

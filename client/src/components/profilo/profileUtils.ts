@@ -68,7 +68,7 @@ export const categorizeAllOpinions = (
     const label = getOpinionTopic(key, q?.text || '');
     
     if (value === "Favorevole") favorevoli.push({ id: key, label });
-    else if (value === "Indeciso") indecisi.push({ id: key, label });
+    else if ((value === "Indeciso" || value === "Non lo so")) indecisi.push({ id: key, label });
     else if (value === "Contrario") contrari.push({ id: key, label });
   });
 

@@ -17,7 +17,7 @@ export const useSondaggiUtils = () => {
     if (!stats) return 0;
     
     return Object.values(stats).reduce((total: number, stat: any) => 
-      total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
+      total + (stat.favorevole + stat.contrario + stat.indeciso), 0
     );
   };
 

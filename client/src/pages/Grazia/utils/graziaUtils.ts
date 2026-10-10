@@ -1,4 +1,4 @@
-import { GraziaData, GraziaVotingState } from '../types';
+import { Classifica, GraziaData, GraziaVotingState } from '../types';
 
 export const formatUnlockDate = (unlockDate?: string): string | null => {
   if (!unlockDate) return null;

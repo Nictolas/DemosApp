@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { loadCanonicalMunicipalityTargets } = require('../services/municipalInstitutionCommunicationService');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -28,7 +29,7 @@ router.get('/', verifyToken, async (req, res) => {
     const isAdmin = req.user.role === 'AD';
     const userComuneResidenza = userInfo ? userInfo.comune_residenza : null;
     
-    let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult;
+    let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult, opinionChangesResult;
     
     // Recupera da notifiche_voti_parlamento (solo per i rappresentanti scelti dall'utente)
     try {
@@ -214,88 +215,86 @@ router.get('/', verifyToken, async (req, res) => {
       demosResult = { rows: [] };
     }
     
-    // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
+    // Cambi di Opinione di Politici/Candidati sostenuti correntemente dall'utente.
     try {
-      // Prima verifica quali colonne esistono
-      const columnCheck = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_comunali'
-      `);
-      const existingColumns = columnCheck.rows.map(r => r.column_name);
-      // Costruisci la query in base alle colonne disponibili
-      let selectParts = ['id', 'id_utente'];
-      
-      if (existingColumns.includes('titolo')) {
-        selectParts.push('COALESCE(titolo, \'Notifica Comunale\') as titolo');
-      } else if (existingColumns.includes('tipologia') && existingColumns.includes('dove')) {
-        selectParts.push(`COALESCE(tipologia || ' - ' || dove, 'Notifica Comunale') as titolo`);
-      } else if (existingColumns.includes('tipologia')) {
-        selectParts.push(`COALESCE(tipologia, 'Notifica Comunale') as titolo`);
-      } else if (existingColumns.includes('dove')) {
-        selectParts.push(`COALESCE(dove, 'Notifica Comunale') as titolo`);
-      } else {
-        selectParts.push(`'Notifica Comunale' as titolo`);
-      }
-      
-      if (existingColumns.includes('testo')) {
-        selectParts.push('COALESCE(testo, \'Notifica comunale\') as testo');
-      } else {
-        let testoParts = [];
-        if (existingColumns.includes('tipologia')) testoParts.push(`COALESCE('Tipologia: ' || tipologia, '')`);
-        if (existingColumns.includes('dove')) testoParts.push(`COALESCE('Dove: ' || dove, '')`);
-        if (existingColumns.includes('dal_giorno')) testoParts.push(`COALESCE('Dal: ' || dal_giorno::text, '')`);
-        if (existingColumns.includes('al_giorno')) testoParts.push(`COALESCE('Al: ' || al_giorno::text, '')`);
-        
-        if (testoParts.length > 0) {
-          selectParts.push(`(${testoParts.join(' || E\'\\n\' || ')}) as testo`);
-        } else {
-          selectParts.push(`'Notifica comunale' as testo`);
-        }
-      }
-      
-      if (existingColumns.includes('data')) {
-        selectParts.push('COALESCE(data, CURRENT_DATE) as data');
-      } else if (existingColumns.includes('dal_giorno')) {
-        selectParts.push('COALESCE(dal_giorno, CURRENT_DATE) as data');
-      } else {
-        selectParts.push('CURRENT_DATE as data');
-      }
-      
-      if (existingColumns.includes('comune_residenza')) {
-        selectParts.push('comune_residenza');
-      } else if (existingColumns.includes('dove')) {
-        selectParts.push('dove as comune_residenza');
-      } else if (existingColumns.includes('zona')) {
-        selectParts.push('zona as comune_residenza');
-      } else {
-        selectParts.push('NULL::TEXT as comune_residenza');
-      }
-      
-      // notifiche_comunali non ha likes/dislikes, quindi non li includiamo
-      selectParts.push(`'notifiche_comunali' as tabella_origine`);
-      
-      const orderBy = existingColumns.includes('data') 
-        ? 'COALESCE(data, CURRENT_DATE) DESC'
-        : existingColumns.includes('dal_giorno')
-        ? 'COALESCE(dal_giorno, CURRENT_DATE) DESC'
-        : 'CURRENT_DATE DESC';
-      
-      const query = `
-        SELECT ${selectParts.join(', ')}
-        FROM notifiche_comunali
-        ORDER BY ${orderBy}
-        LIMIT 50
-      `;
-      
-      comunaliResult = await pool.query(query);
+      opinionChangesResult = await pool.query(
+        `SELECT
+           pon.id,
+           pon.subject_user_id AS id_utente,
+           ('Cambio di posizione: ' || pon.opinion_text) AS titolo,
+           (CASE pon.previous_value
+              WHEN 'f' THEN 'Favorevole'
+              WHEN 'c' THEN 'Contrario'
+              WHEN 'i' THEN 'Non lo so'
+            END || ' → ' ||
+            CASE pon.new_value
+              WHEN 'f' THEN 'Favorevole'
+              WHEN 'c' THEN 'Contrario'
+              WHEN 'i' THEN 'Non lo so'
+            END) AS testo,
+           pon.created_at AS data,
+           pon.created_at AS data_creazione,
+           'political_opinion_notifications' AS tabella_origine,
+           subject.nome AS politico_nome,
+           subject.cognome AS politico_cognome,
+           subject.avatar_config AS politico_avatar_config,
+           subject.genere AS politico_genere,
+           pon.opinion_id,
+           pon.opinion_text
+         FROM political_opinion_notifications pon
+         JOIN users subject ON subject.id = pon.subject_user_id
+         WHERE pon.recipient_user_id = $1
+         ORDER BY pon.created_at DESC
+         LIMIT 50`,
+        [user_id]
+      );
     } catch (err) {
-      console.error('❌ Errore query notifiche_comunali:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      if (err?.code !== '42P01') {
+        console.error('❌ Errore query political_opinion_notifications:', err);
+      }
+      opinionChangesResult = { rows: [] };
+    }
+
+    // Canonical institutional municipal notices: only exact canonical municipality targets.
+    // Legacy notifiche_comunali is intentionally not exposed because its target was free text.
+    try {
+      const municipalTargets = await loadCanonicalMunicipalityTargets(pool, { userId: user_id });
+      if (!municipalTargets.available || municipalTargets.targets.length === 0) {
+        comunaliResult = { rows: [] };
+      } else {
+        comunaliResult = await pool.query(
+          `SELECT
+             n.id,
+             n.author_user_id AS id_utente,
+             n.tipologia || ' - ' || n.dove AS titolo,
+             ('Tipologia: ' || n.tipologia || E'\\n' ||
+              'Dove: ' || n.dove || E'\\n' ||
+              'Dal: ' || n.dal_giorno::text || E'\\n' ||
+              'Al: ' || n.al_giorno::text) AS testo,
+             n.dal_giorno AS data,
+             n.created_at AS data_creazione,
+             COALESCE(n.territory_label, n.territory_code) AS comune_residenza,
+             'institutional_territorial_notices' AS tabella_origine
+           FROM institutional_territorial_notices n
+           WHERE n.territory_type = 'MUNICIPALITY'
+             AND EXISTS (
+               SELECT 1
+               FROM jsonb_to_recordset($1::jsonb) AS target(jurisdiction_id text, territory_code text)
+               WHERE target.jurisdiction_id = n.jurisdiction_id
+                 AND target.territory_code = n.territory_code
+             )
+           ORDER BY n.created_at DESC
+           LIMIT 50`,
+          [JSON.stringify(municipalTargets.targets.map((target) => ({
+            jurisdiction_id: target.jurisdictionId,
+            territory_code: target.territoryCode,
+          })))]
+        );
+      }
+    } catch (err) {
+      if (!['42P01', '42703'].includes(err?.code)) {
+        console.error('Errore query institutional_territorial_notices:', err);
+      }
       comunaliResult = { rows: [] };
     }
     
@@ -390,11 +389,13 @@ router.get('/', verifyToken, async (req, res) => {
     const comunaliRows = comunaliResult?.rows || [];
     const avvistamentiRows = avvistamentiResult?.rows || [];
     const votiParlamentoRows = votiParlamentoResult?.rows || [];
+    const opinionChangesRows = opinionChangesResult?.rows || [];
     
     const allNotificheRaw = [
       ...votiComuniRows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
       ...votiParlamentoRows.map(n => ({ ...n, tipo_notifica: 'voto_parlamento' })),
       ...demosRows.map(n => ({ ...n, tipo_notifica: 'demos' })),
+      ...opinionChangesRows.map(n => ({ ...n, tipo_notifica: 'cambio_opinione' })),
       ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' })),
       ...avvistamentiRows.map(n => ({ ...n, tipo_notifica: 'avvistamento' }))
     ];
@@ -525,7 +526,9 @@ router.get('/', verifyToken, async (req, res) => {
         likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         tabella_origine: c.tabella_origine,
-        uri_votazione: c.uri_votazione || null // URI per aprire il dialog con i dettagli della votazione
+        uri_votazione: c.uri_votazione || null, // URI per aprire il dialog con i dettagli della votazione
+        opinion_id: c.opinion_id || null,
+        opinion_text: c.opinion_text || null
       };
     });
     
@@ -626,7 +629,7 @@ router.get('/', verifyToken, async (req, res) => {
 // Endpoint rimossi: non serve più marcare le notifiche come lette
 
 // POST /api/notifiche - Crea nuova notifica
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { user_id, titolo, messaggio, tipo } = req.body;
     
@@ -841,12 +844,11 @@ router.get('/ultima', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/notifiche/ultima - Richiesta ultima notifica');
     
-    const userId = req.userId;
+    const userId = req.user.id;
     
-    // Usa la stessa logica dell'endpoint principale ma restituisce solo la prima
-    // Recupera informazioni utente
+    // Usa gli stessi soggetti scelti dal feed principale; nessun fallback territoriale legacy.
     const userResult = await pool.query(
-      'SELECT is_admin, comune_residenza, rappresentante_camera, rappresentante_senato FROM users WHERE id = $1',
+      'SELECT rappresentante_camera, rappresentante_senato, rappresentante_comune FROM users WHERE id = $1',
       [userId]
     );
     
@@ -857,52 +859,37 @@ router.get('/ultima', verifyToken, async (req, res) => {
       });
     }
     
-    const isAdmin = userResult.rows[0].is_admin === true;
-    const userComuneResidenza = userResult.rows[0].comune_residenza;
     const rappresentanteCamera = userResult.rows[0].rappresentante_camera;
     const rappresentanteSenato = userResult.rows[0].rappresentante_senato;
+    const rappresentanteComune = userResult.rows[0].rappresentante_comune;
     
     let comunicazioni = [];
     
-    // Recupera da notifiche_voti_comuni (filtra per comune se non admin)
-    try {
-      let queryVotiComuni = `
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          COALESCE(data, CURRENT_DATE) as data,
-          COALESCE(data_creazione, CURRENT_TIMESTAMP) as data_creazione,
-          voto,
-          comune_residenza,
-          politico,
-          COALESCE(likes, 0) as likes,
-          COALESCE(dislikes, 0) as dislikes,
-          'notifiche_voti_comuni' as tabella_origine
-        FROM notifiche_voti_comuni
-      `;
-      
-      let votiComuniResult;
-      if (!isAdmin && userComuneResidenza) {
-        queryVotiComuni += ` WHERE comune_residenza = $1`;
-        votiComuniResult = await pool.query(queryVotiComuni + ` ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC LIMIT 1`, [userComuneResidenza]);
-      } else {
-        votiComuniResult = await pool.query(queryVotiComuni + ` ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC LIMIT 1`);
+    // Ultimo voto comunale: soltanto del rappresentante comunale scelto dall'utente.
+    if (rappresentanteComune) {
+      try {
+        const votiComuniResult = await pool.query(`
+          SELECT id, id_utente, titolo, testo,
+                 COALESCE(data_creazione, CURRENT_TIMESTAMP) AS data_creazione,
+                 'notifiche_voti_comuni' AS tabella_origine
+          FROM notifiche_voti_comuni
+          WHERE id_utente = $1::uuid
+          ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC
+          LIMIT 1
+        `, [rappresentanteComune]);
+        if (votiComuniResult.rows.length > 0) {
+          comunicazioni.push({
+            id: votiComuniResult.rows[0].id,
+            titolo: votiComuniResult.rows[0].titolo,
+            messaggio: votiComuniResult.rows[0].testo,
+            data_creazione: votiComuniResult.rows[0].data_creazione,
+            tipo_notifica: 'voto_comune',
+            tabella_origine: 'notifiche_voti_comuni'
+          });
+        }
+      } catch (err) {
+        console.error('Errore ultima notifica voto comunale:', err);
       }
-      
-      if (votiComuniResult.rows.length > 0) {
-        comunicazioni.push({
-          id: votiComuniResult.rows[0].id,
-          titolo: votiComuniResult.rows[0].titolo,
-          messaggio: votiComuniResult.rows[0].testo,
-          data_creazione: votiComuniResult.rows[0].data_creazione,
-          tipo_notifica: 'voto_comune',
-          tabella_origine: 'notifiche_voti_comuni'
-        });
-      }
-    } catch (err) {
-      console.error('❌ Errore query notifiche_voti_comuni:', err);
     }
     
     // Recupera da notifiche_demos
@@ -917,10 +904,9 @@ router.get('/ultima', verifyToken, async (req, res) => {
           data_creazione,
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
-        WHERE id_utente = $1
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
-      `, [userId]);
+      `);
       
       if (demosResult.rows.length > 0) {
         comunicazioni.push({
@@ -978,6 +964,84 @@ router.get('/ultima', verifyToken, async (req, res) => {
       }
     }
     
+    // Ultimo cambio di Opinione destinato specificamente all'utente.
+    try {
+      const opinionChangeResult = await pool.query(
+        `SELECT
+           pon.id,
+           pon.created_at,
+           pon.opinion_text,
+           pon.previous_value,
+           pon.new_value,
+           subject.nome,
+           subject.cognome
+         FROM political_opinion_notifications pon
+         JOIN users subject ON subject.id = pon.subject_user_id
+         WHERE pon.recipient_user_id = $1
+         ORDER BY pon.created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+      if (opinionChangeResult.rows.length > 0) {
+        const row = opinionChangeResult.rows[0];
+        const label = (value) => value === 'f' ? 'Favorevole' : value === 'c' ? 'Contrario' : 'Non lo so';
+        comunicazioni.push({
+          id: row.id,
+          titolo: `${row.nome || 'Politico'} ${row.cognome || ''} ha cambiato posizione`,
+          messaggio: `${row.opinion_text}: ${label(row.previous_value)} → ${label(row.new_value)}`,
+          data_creazione: row.created_at,
+          tipo_notifica: 'cambio_opinione',
+          tabella_origine: 'political_opinion_notifications'
+        });
+      }
+    } catch (err) {
+      if (err?.code !== '42P01') {
+        console.error('❌ Errore ultima political_opinion_notification:', err);
+      }
+    }
+
+    // Ultimo avviso istituzionale comunale: solo per il Comune canonico dell'utente.
+    try {
+      const municipalTargets = await loadCanonicalMunicipalityTargets(pool, { userId });
+      if (municipalTargets.available && municipalTargets.targets.length > 0) {
+        const municipalResult = await pool.query(
+          `SELECT n.id,
+                  n.tipologia || ' - ' || n.dove AS titolo,
+                  ('Tipologia: ' || n.tipologia || E'\n' || 'Dove: ' || n.dove) AS testo,
+                  n.created_at AS data_creazione
+             FROM institutional_territorial_notices n
+            WHERE n.territory_type = 'MUNICIPALITY'
+              AND EXISTS (
+                SELECT 1
+                  FROM jsonb_to_recordset($1::jsonb) AS target(jurisdiction_id text, territory_code text)
+                 WHERE target.jurisdiction_id = n.jurisdiction_id
+                   AND target.territory_code = n.territory_code
+              )
+            ORDER BY n.created_at DESC
+            LIMIT 1`,
+          [JSON.stringify(municipalTargets.targets.map((target) => ({
+            jurisdiction_id: target.jurisdictionId,
+            territory_code: target.territoryCode,
+          })))]
+        );
+        if (municipalResult.rows.length > 0) {
+          const row = municipalResult.rows[0];
+          comunicazioni.push({
+            id: row.id,
+            titolo: row.titolo,
+            messaggio: row.testo,
+            data_creazione: row.data_creazione,
+            tipo_notifica: 'comunale',
+            tabella_origine: 'institutional_territorial_notices'
+          });
+        }
+      }
+    } catch (err) {
+      if (!['42P01', '42703'].includes(err?.code)) {
+        console.error('Errore ultima institutional_territorial_notice:', err);
+      }
+    }
+
     // Ordina per data_creazione (più recenti prima) e prendi la prima
     comunicazioni.sort((a, b) => {
       const dateA = a.data_creazione ? new Date(a.data_creazione) : new Date(0);
@@ -1005,8 +1069,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
     console.error('❌ Errore nel recupero ultima notifica:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });

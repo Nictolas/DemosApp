@@ -18,7 +18,7 @@ interface PreferitiButtonProps {
     bg: string;
     icon: string;
   };
-  onNavigate: (path: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onNavigate: (path: string, event: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => void;
 }
 
 const PreferitiButton: React.FC<PreferitiButtonProps> = ({
@@ -197,8 +197,7 @@ export default function Preferiti() {
     path.startsWith("/governo") ||
     path.startsWith("/grazia") ||
     path.startsWith("/amnistia") ||
-    path.startsWith("/vota-iniziativa") ||
-    path.startsWith("/vota-referendum");
+    path.startsWith("/vota-iniziativa");
 
   const navigateWithOpinioniGate = async (
     path: string,
@@ -240,7 +239,7 @@ export default function Preferiti() {
     setLocation(path);
   };
 
-  const handleNavigate = async (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleNavigate = async (path: string, event: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => {
     event.preventDefault();
     await navigateWithOpinioniGate(path);
   };

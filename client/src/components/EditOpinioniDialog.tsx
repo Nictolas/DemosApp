@@ -24,7 +24,7 @@ const options = [
     value: "i", 
     color: "bg-yellow-200 border-yellow-500 hover:bg-yellow-300",
     selectedColor: "bg-yellow-400 border-yellow-600 text-black",
-    label: "Indeciso"
+    label: "Non lo so"
   },
   { 
     value: "c", 
@@ -35,7 +35,7 @@ const options = [
 ];
 
 // Funzione per normalizzare le risposte (usa direttamente i valori compressi)
-const normalizeAnswer = (answer: string | undefined) => {
+const normalizeAnswer = (answer: string | null | undefined) => {
   if (!answer || answer === null || answer === undefined) return null;
   // Usa direttamente i valori compressi
   if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
@@ -56,7 +56,7 @@ export function EditOpinioniDialog({
   onOpinioniUpdated 
 }: EditOpinioniDialogProps) {
   const { toast } = useToast();
-  const [opinions, setOpinions] = useState<Record<string, string>>({});
+  const [opinions, setOpinions] = useState<Record<string, string | null>>({});
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
@@ -172,7 +172,7 @@ export function EditOpinioniDialog({
             let answer = opinion.userAnswer;
             if (answer === 'Favorevole' || answer === 'Sì') answer = 'f';
             else if (answer === 'Contrario' || answer === 'No') answer = 'c';
-            else if (answer === 'Indeciso') answer = 'i';
+            else if (answer === 'Indeciso' || answer === 'Non lo so') answer = 'i';
             // Se è già 'f', 'c', 'i' o null, mantienilo così
             
             opinioniMap[questionId] = answer;
@@ -249,14 +249,7 @@ export function EditOpinioniDialog({
     // Vibrazione quando si cambia opinione
     vibrateShort();
     setOpinions(prev => {
-      // Se la preferenza è già selezionata, la imposto a null (per eliminare il campo su Firestore)
-      if (prev[questionId] === value) {
-        return {
-          ...prev,
-          [questionId]: null
-        };
-      }
-      // Altrimenti la imposto normalmente
+      // Dopo la prima risposta non si torna a NULL: si può solo passare tra f/c/i.
       return {
         ...prev,
         [questionId]: value
@@ -276,7 +269,7 @@ export function EditOpinioniDialog({
       setIsSubmitting(true);
       
       // Converti le opinioni - usa direttamente gli ID reali (non serve più mapping)
-      const opinioniPerDatabase: Record<string, string> = {};
+      const opinioniPerDatabase: Record<string, string | null> = {};
       const fontiPerDatabase: Record<string, string> = {};
       
       // Converti le opinioni - gli ID sono già quelli reali dalla tabella opinioni_domande
@@ -285,7 +278,7 @@ export function EditOpinioniDialog({
         let dbAnswer = answer;
         if (answer === 'Favorevole') dbAnswer = 'f';
         else if (answer === 'Contrario') dbAnswer = 'c';
-        else if (answer === 'Indeciso') dbAnswer = 'i';
+        else if (answer === 'Indeciso' || answer === 'Non lo so') dbAnswer = 'i';
         // Se è già 'f', 'c', 'i' o null, mantienilo così
         
         opinioniPerDatabase[questionId] = dbAnswer;

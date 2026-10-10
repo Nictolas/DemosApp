@@ -6,9 +6,10 @@ import { UserInfo } from "@/types/profile";
 interface ProfileRepresentativesProps {
   userInfo: UserInfo | null;
   rappresentantiDetails?: Record<string, any>;
+  canEditSelections?: boolean;
 }
 
-export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: ProfileRepresentativesProps) {
+export function ProfileRepresentatives({ userInfo, rappresentantiDetails, canEditSelections = true }: ProfileRepresentativesProps) {
   const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
   const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
 
@@ -104,12 +105,14 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-lg font-medium">Rappresentanti Selezionati</h3>
-        <Link
-          href="/rappresentanti"
-          className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-        >
-          Scegli Rappresentanti
-        </Link>
+        {canEditSelections && (
+          <Link
+            href="/rappresentanti"
+            className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            Scegli Rappresentanti
+          </Link>
+        )}
       </div>
       
       {/* Rappresentante Europeo */}

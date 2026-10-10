@@ -1,6 +1,8 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
 const { pool, verifyToken, requireAdmin } = require('../middleware/auth');
+const { mirrorApprovedPoliticalRecognition } = require('../services/politicalLifecycleService');
+const { invalidateAuthUserCache } = require('../services/redisCache');
 
 const router = express.Router();
 
@@ -254,17 +256,29 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
       });
     }
 
+    // Se il nuovo modello capability è presente, alimenta anche candidature/mandati.
+    // In assenza della migrazione il servizio fa rollback al savepoint e mantiene il flusso legacy.
+    const capabilitySync = await mirrorApprovedPoliticalRecognition(client, r);
+
+    const finalRoleResult = await client.query(
+      'SELECT ruolo FROM users WHERE id = $1',
+      [r.user_id]
+    );
+    const finalLegacyRole = finalRoleResult.rows[0]?.ruolo || updateResult.rows[0].ruolo;
+
     // Cancella la richiesta dalla tabella riconoscimenti
     await client.query('DELETE FROM riconoscimenti WHERE id = $1', [id]);
 
     await client.query('COMMIT');
+    await invalidateAuthUserCache(r.user_id);
 
     return res.json({
       success: true,
       message: 'Richiesta approvata e ruolo aggiornato',
       data: {
         user_id: updateResult.rows[0].id,
-        nuovo_ruolo: updateResult.rows[0].ruolo
+        nuovo_ruolo: finalLegacyRole,
+        capability_model_sync: capabilitySync.usedCapabilityModel
       }
     });
   } catch (error) {

@@ -12,7 +12,7 @@ import { BarChartComponent } from "./components/BarChart";
 import { LoadingState, AuthLoadingState, ErrorState, UnauthorizedState } from "./components/LoadingStates";
 import { OpinionSelector } from "./components/OpinionSelector";
 import { GenereChart } from "./components/GenereChart";
-import { PieDataItem, BarDataItem } from "./types";
+import { PieDataItem, BarDataItem, OpinionStats } from "./types";
 
 export default function StatisticheOpinione() {
   const opinionId = useOpinionId();
@@ -36,7 +36,7 @@ export default function StatisticheOpinione() {
     );
   }
 
-  const stats = data?.stats || {};
+  const stats: OpinionStats = data?.stats ?? { favorevole: '0', contrario: '0', indeciso: '0' };
   const questionText = data?.questionText || 'Opinione';
   const totaleUtenti = data?.totaleUtenti || 0;
 
@@ -46,7 +46,7 @@ export default function StatisticheOpinione() {
   const pieData: PieDataItem[] = [
     { name: 'Favorevole', value: parseInt(stats.favorevole) || 0 },
     { name: 'Contrario', value: parseInt(stats.contrario) || 0 },
-    { name: 'Indeciso', value: parseInt(stats.indeciso) || 0 },
+    { name: 'Non lo so', value: parseInt(stats.indeciso) || 0 },
   ];
 
   // Prepara dati per età (bar chart orizzontale)
@@ -54,11 +54,10 @@ export default function StatisticheOpinione() {
   const etaBarData: BarDataItem[] = etaData?.map(item => {
     console.log('🔍 DEBUG - Processing eta item:', item);
     return {
-      name: item.fascia_eta,
+      name: item.fascia_eta || 'N/A',
       Favorevole: parseInt(item.favorevole) || 0,
       Indeciso: parseInt(item.indeciso) || 0,
       Contrario: parseInt(item.contrario) || 0,
-      Astenuto: parseInt(item.astenuto) || 0,
     };
   }) || [];
   console.log('🔍 DEBUG - etaBarData processed:', etaBarData);
@@ -87,8 +86,7 @@ export default function StatisticheOpinione() {
             <BarChartComponent etaBarData={etaBarData} />
 
             {/* Grafico genere */}
-            {console.log('🔍 DEBUG - genereData raw:', genereData)}
-            <GenereChart genereData={genereData} />
+            <GenereChart genereData={genereData ?? []} />
           </div>
         )}
       </div>

@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
 // GET /api/notifiche-totali - Lista tutte le notifiche (solo admin)
-router.get('/', verifyToken, async (req, res) => {
+router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 GET /api/notifiche-totali - Inizio richiesta');
     
@@ -23,36 +23,6 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
     
-    // Verifica se l'utente è admin
-    let userResult;
-    try {
-      userResult = await pool.query(
-        'SELECT is_admin, ruolo FROM users WHERE id = $1',
-        [userId]
-      );
-      console.log('🔍 Risultato query utente:', userResult.rows.length > 0 ? 'Trovato' : 'Non trovato');
-    } catch (userError) {
-      console.error('❌ Errore query utente:', userError);
-      throw userError;
-    }
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
-    
-    const isAdmin = userResult.rows[0].is_admin === true || userResult.rows[0].ruolo === 'AD';
-    console.log('🔍 Is Admin:', isAdmin);
-    
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato. Solo gli amministratori possono accedere a questa risorsa.'
-      });
-    }
-
     // Verifica che le tabelle esistano prima di eseguire le query
     let tableCheck;
     try {
@@ -60,7 +30,7 @@ router.get('/', verifyToken, async (req, res) => {
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('notifiche_voti_comuni', 'notifiche_demos', 'notifiche_comunali', 'notifiche_avvistamenti')
+        AND table_name IN ('notifiche_voti_comuni', 'notifiche_demos', 'notifiche_comunali', 'institutional_territorial_notices', 'notifiche_avvistamenti')
       `);
       console.log('📋 Query tabelle eseguita con successo');
     } catch (tableError) {
@@ -196,6 +166,41 @@ router.get('/', verifyToken, async (req, res) => {
       queries.push(Promise.resolve({ rows: [] }));
     }
     
+    if (existingTables.includes('institutional_territorial_notices')) {
+      queries.push(
+        pool.query(`
+          SELECT
+            n.id,
+            n.author_user_id AS id_utente,
+            u.nome AS utente_nome,
+            u.cognome AS utente_cognome,
+            n.tipologia || ' - ' || n.dove AS titolo,
+            ('Tipologia: ' || n.tipologia || E'\\n' ||
+             'Dove: ' || n.dove || E'\\n' ||
+             'Dal: ' || n.dal_giorno::text || E'\\n' ||
+             'Al: ' || n.al_giorno::text) AS testo,
+            n.dal_giorno AS data,
+            n.created_at AS data_creazione,
+            COALESCE(n.territory_label, n.territory_code) AS comune_residenza,
+            'institutional_territorial_notices' AS tabella_origine,
+            'istituzionali' AS delete_key,
+            NULL::INTEGER AS likes,
+            NULL::INTEGER AS dislikes
+          FROM institutional_territorial_notices n
+          LEFT JOIN users u ON n.author_user_id = u.id
+          ORDER BY n.created_at DESC
+          LIMIT 100
+        `).catch(err => {
+          if (!['42P01', '42703'].includes(err?.code)) {
+            console.error('Errore query institutional_territorial_notices:', err);
+          }
+          return { rows: [] };
+        })
+      );
+    } else {
+      queries.push(Promise.resolve({ rows: [] }));
+    }
+
     if (existingTables.includes('notifiche_avvistamenti')) {
       queries.push(
         pool.query(`
@@ -235,23 +240,27 @@ router.get('/', verifyToken, async (req, res) => {
     }
     
     console.log('🔍 Esecuzione query per recuperare notifiche...');
-    let votiComuni, demos, comunali, avvistamenti;
+    let votiComuni, demos, comunaliLegacy, istituzionali, avvistamenti;
     
     try {
-      [votiComuni, demos, comunali, avvistamenti] = await Promise.all(queries);
+      [votiComuni, demos, comunaliLegacy, istituzionali, avvistamenti] = await Promise.all(queries);
       console.log('✅ Query eseguite con successo');
-      console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuni.rows.length}, demos=${demos.rows.length}, comunali=${comunali.rows.length}, avvistamenti=${avvistamenti?.rows?.length || 0}`);
+      console.log(`📊 Notifiche recuperate: voti_comuni=${votiComuni.rows.length}, demos=${demos.rows.length}, comunali_legacy=${comunaliLegacy.rows.length}, istituzionali=${istituzionali.rows.length}, avvistamenti=${avvistamenti?.rows?.length || 0}`);
     } catch (queryError) {
       console.error('❌ Errore durante esecuzione query:', queryError);
       console.error('❌ Stack trace:', queryError.stack);
       throw queryError;
     }
 
-    // Combina tutte le notifiche
+    // Combina legacy comunali e nuovi avvisi territoriali soltanto nella vista Admin.
+    const comunaliRows = [
+      ...(comunaliLegacy?.rows || []),
+      ...(istituzionali?.rows || []),
+    ];
     const allNotifiche = [
       ...(votiComuni?.rows || []),
       ...(demos?.rows || []),
-      ...(comunali?.rows || []),
+      ...comunaliRows,
       ...(avvistamenti?.rows || [])
     ].sort((a, b) => {
       const dateA = a.data ? new Date(a.data) : (a.data_creazione ? new Date(a.data_creazione) : new Date(0));
@@ -266,13 +275,13 @@ router.get('/', verifyToken, async (req, res) => {
       notifiche: {
         voti_comuni: votiComuni?.rows || [],
         demos: demos?.rows || [],
-        comunali: comunali?.rows || [],
+        comunali: comunaliRows,
         avvistamenti: avvistamenti?.rows || []
       },
       stats: {
         voti_comuni: votiComuni?.rows?.length || 0,
         demos: demos?.rows?.length || 0,
-        comunali: comunali?.rows?.length || 0,
+        comunali: comunaliRows.length,
         avvistamenti: avvistamenti?.rows?.length || 0,
         totali: allNotifiche.length
       }
@@ -310,7 +319,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/notifiche-totali/:tabella/:id - Cancella una notifica (solo admin)
-router.delete('/:tabella/:id', verifyToken, async (req, res) => {
+router.delete('/:tabella/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?.userId;
     const { tabella, id } = req.params;
@@ -322,33 +331,12 @@ router.delete('/:tabella/:id', verifyToken, async (req, res) => {
       });
     }
     
-    // Verifica se l'utente è admin
-    const userResult = await pool.query(
-      'SELECT is_admin, ruolo FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
-    
-    const isAdmin = userResult.rows[0].is_admin === true || userResult.rows[0].ruolo === 'AD';
-    
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato. Solo gli amministratori possono cancellare le notifiche.'
-      });
-    }
-    
     // Mappa i nomi delle tabelle
     const tableMap = {
       'voti_comuni': 'notifiche_voti_comuni',
       'demos': 'notifiche_demos',
       'comunali': 'notifiche_comunali',
+      'istituzionali': 'institutional_territorial_notices',
       'avvistamenti': 'notifiche_avvistamenti'
     };
     

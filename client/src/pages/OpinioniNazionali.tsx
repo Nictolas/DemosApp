@@ -31,12 +31,12 @@ interface UserOpinionsData {
 
 const options = [
   { value: "f", color: "bg-green-600 text-white", label: "Favorevole" },
-  { value: "i", color: "bg-yellow-500 text-white", label: "Indeciso" },
+  { value: "i", color: "bg-yellow-500 text-white", label: "Non lo so" },
   { value: "c", color: "bg-red-600 text-white", label: "Contrario" }
 ];
 
 // Funzione per normalizzare le risposte (usa direttamente i valori compressi)
-const normalizeAnswer = (answer: string | undefined) => {
+const normalizeAnswer = (answer: string | null | undefined) => {
   if (!answer || answer === null || answer === undefined) return null;
   // Usa direttamente i valori compressi
   if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
@@ -57,7 +57,7 @@ export default function OpinioniNazionali() {
   const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
 
   // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{ success: boolean; data: Question[]; grado?: string; total?: number; userAnswers?: Record<string, string> }>({
     queryKey: ['opinioniQuestions', 'Nazionale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
@@ -149,7 +149,7 @@ export default function OpinioniNazionali() {
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
+      if (opinions[question.id]) {
         // Usa l'ID dell'opinione direttamente dal database
         opinionsToSave[question.id] = opinions[question.id];
       }
@@ -194,7 +194,7 @@ export default function OpinioniNazionali() {
       questions.forEach(question => {
         // Usa l'opinione corrente se disponibile, altrimenti quella in attesa
         const currentOpinion = opinions[question.id] || pendingOpinionsToSave[question.id];
-        if (currentOpinion && currentOpinion !== 'Astenuto') {
+        if (currentOpinion) {
           allOpinionsToSave[question.id] = currentOpinion;
         }
       });

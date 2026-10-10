@@ -4,14 +4,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 
 export interface OpinionStatsData {
-  stats: { favorevole: number; contrario: number; indeciso: number; astenuto?: number };
+  stats: { favorevole: number; contrario: number; indeciso: number };
   questionText?: string;
   totaleUtenti?: number;
 }
 
 interface OpinionStatsBarProps {
   opinionId: string;
-  /** Mostra la barra solo quando l'utente ha votato (selezionato Favorevole/Indeciso/Contrario) */
+  /** Mostra la barra solo quando l'utente ha risposto (Favorevole/Non lo so/Contrario). */
   show: boolean;
   className?: string;
 }
@@ -71,7 +71,7 @@ export function OpinionStatsBar({ opinionId, show, className = "" }: OpinionStat
           <div
             className="transition-all duration-300"
             style={{ width: `${pInd}%`, backgroundColor: COLORS.indeciso }}
-            title={`Indeciso ${pInd.toFixed(0)}%`}
+            title={`Non lo so ${pInd.toFixed(0)}%`}
           />
         )}
         {pCon > 0 && (
@@ -84,7 +84,7 @@ export function OpinionStatsBar({ opinionId, show, className = "" }: OpinionStat
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
         <span style={{ color: COLORS.favorevole }}>Favorevole {pFav.toFixed(0)}%</span>
-        <span style={{ color: COLORS.indeciso }}>Indeciso {pInd.toFixed(0)}%</span>
+        <span style={{ color: COLORS.indeciso }}>Non lo so {pInd.toFixed(0)}%</span>
         <span style={{ color: COLORS.contrario }}>Contrario {pCon.toFixed(0)}%</span>
       </div>
     </div>

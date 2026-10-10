@@ -1,12 +1,11 @@
-/* Import del layout robusto */
+﻿/* Import del layout robusto */
 @import './robust-layout.css';
 
 /* Import del fix specifico per Android */
 @import './css/android-navbar-fix.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import './css/tailwind-v3-compat.css';
 
 /* Definizione custom delle classi border-border e text-foreground */
 @layer utilities {
@@ -225,7 +224,7 @@ body {
   overflow: hidden !important;
 }
 
-/* Dentro la shell mobile: niente doppia contabilità viewport/navbar */
+/* Dentro la shell mobile: niente doppia contabilitÃ  viewport/navbar */
 .demos-mobile-layout .app-main .min-h-screen,
 .demos-mobile-layout .app-main .h-screen {
   min-height: 0 !important;
@@ -329,7 +328,7 @@ body {
   }
 }
 
-/* ===== PREFERITI DESKTOP HUB — premium dashboard ===== */
+/* ===== PREFERITI DESKTOP HUB â€” premium dashboard ===== */
 .demos-desktop-layout .preferiti-page--desktop {
   height: 100% !important;
   min-height: 0 !important;
@@ -337,7 +336,7 @@ body {
   background: #f7f9fc !important;
 }
 
-/* Capo di Stato — layout desktop a tutta altezza viewport (meno topbar) */
+/* Capo di Stato â€” layout desktop a tutta altezza viewport (meno topbar) */
 .demos-desktop-layout .app-header {
   display: none;
   height: 0;
@@ -688,21 +687,21 @@ div.demos-dash-brand {
   gap: 0.65rem;
 }
 
-/* Preferiti: 2×2 — Politici|Candidati / Attivisti|Organizzazioni */
+/* Preferiti: 2Ã—2 â€” Politici|Candidati / Attivisti|Organizzazioni */
 .demos-dash-section__grid--preferiti {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
 }
 
-/* Opinioni: 2×2 + Proponi a tutta larghezza sotto */
+/* Opinioni: 2Ã—2 + Proponi a tutta larghezza sotto */
 .demos-dash-section__grid--opinioni {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
 }
 
-/* Vota: 3×2 — Capo|Governo / Grazia|Amnistia / Iniziativa|Referendum */
+/* Vota: 3Ã—2 â€” Capo|Governo / Grazia|Amnistia / Iniziativa|Referendum */
 .demos-dash-section__grid--vota {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -829,7 +828,7 @@ div.demos-dash-brand {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ===== INIZIATIVE POPOLARI — griglia desktop ===== */
+/* ===== INIZIATIVE POPOLARI â€” griglia desktop ===== */
 .iniziative-popolari-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -860,7 +859,7 @@ div.demos-dash-brand {
   height: 100%;
 }
 
-/* ===== ECI — griglia desktop a tutta pagina ===== */
+/* ===== ECI â€” griglia desktop a tutta pagina ===== */
 .eci-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -936,7 +935,11 @@ div.demos-dash-brand {
   /* Se vuoi puoi aggiungere border-border a singoli elementi, non a * */
 
   body {
-    @apply font-sans antialiased bg-gray-50 text-foreground;
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: rgb(249 250 251);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -1292,7 +1295,7 @@ div.demos-dash-brand {
 /* Gestione migliorata per le transizioni su mobile */
 @media (max-width: 768px) {
   .page-transition {
-    /* Transizioni più veloci su mobile per evitare blocchi */
+    /* Transizioni piÃ¹ veloci su mobile per evitare blocchi */
     transition-duration: 0.3s;
   }
   
@@ -1341,7 +1344,7 @@ div.demos-dash-brand {
     line-height: 1.4;
   }
   
-  /* NON nascondere più il contenuto principale in orizzontale */
+  /* NON nascondere piÃ¹ il contenuto principale in orizzontale */
   /* #root {
     opacity: 0.1;
     pointer-events: none;
@@ -1384,7 +1387,7 @@ div.demos-dash-brand {
       line-height: 1.4;
     }
     
-    /* NON nascondere più il contenuto principale in orizzontale */
+    /* NON nascondere piÃ¹ il contenuto principale in orizzontale */
     /* #root {
       opacity: 0.1 !important;
       pointer-events: none !important;
@@ -1620,7 +1623,7 @@ div.demos-dash-brand {
     height: 5rem !important;
   }
   
-  /* Regola per i pulsanti degli occhiali più grandi */
+  /* Regola per i pulsanti degli occhiali piÃ¹ grandi */
   .glasses-style-selector button {
     width: 5rem !important;
     height: 5rem !important;
@@ -1903,7 +1906,7 @@ html.demos-mobile-preview-active body {
   overflow: auto;
 }
 
-/* Dimensioni fisse — impostate da MobilePreviewShell (390×844) */
+/* Dimensioni fisse â€” impostate da MobilePreviewShell (390Ã—844) */
 .demos-mobile-preview-device {
   position: relative;
   flex-shrink: 0;
@@ -1969,7 +1972,7 @@ html.demos-mobile-preview-active body {
   text-align: center;
 }
 
-/* Modalità desktop normale — stesso albero DOM dell'anteprima (no remount) */
+/* ModalitÃ  desktop normale â€” stesso albero DOM dell'anteprima (no remount) */
 .demos-app-shell {
   width: 100%;
   height: 100%;

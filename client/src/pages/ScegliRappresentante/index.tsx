@@ -4,7 +4,6 @@ import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect, useParams, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
-import { useFCM } from "@/hooks/useFCM";
 import { useRappresentantiData } from "./hooks/useRappresentantiData";
 import { useRappresentantiActions } from "./hooks/useRappresentantiActions";
 import { Header } from "./components/Header";
@@ -18,7 +17,6 @@ export default function ScegliRappresentante() {
   const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   const authReady = useAuthReady();
-  const { token: fcmToken } = useFCM();
   const [, setLocation] = useLocation();
 
   const { 
@@ -37,7 +35,7 @@ export default function ScegliRappresentante() {
     selezionaRappresentante,
     openOpinioniDialog,
     closeOpinioniDialog
-  } = useRappresentantiActions(user, categoria || '', fcmToken);
+  } = useRappresentantiActions(user, categoria || '');
 
   const handleSelezionaRappresentante = (rappresentanteId: string) => {
     selezionaRappresentante(rappresentanteId, setRappresentanteSelezionato);
@@ -85,7 +83,7 @@ export default function ScegliRappresentante() {
               nome={opinioniDialogData.nome}
               cognome={opinioniDialogData.cognome}
               avatarConfig={opinioniDialogData.avatarConfig}
-              categoria={categoria || ''}
+              categoria={(categoria || undefined) as 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | undefined}
             />
           )}
           
@@ -117,7 +115,6 @@ export default function ScegliRappresentante() {
           onOpenChange={setShowOpinioniAlert}
           data={opinioniAlertData}
           onGoToOpinions={handleGoToOpinions}
-          onContinueAnyway={handleContinueAnyway}
         />
       )}
       

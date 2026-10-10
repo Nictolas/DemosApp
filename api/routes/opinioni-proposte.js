@@ -1,5 +1,5 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPool } = require('../config/database');
 
 const router = express.Router();
@@ -7,103 +7,43 @@ const router = express.Router();
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
-// Funzione per creare la tabella voti se non esiste
-async function ensureVotiTableExists() {
-  try {
-    // Verifica che DATABASE_URL sia disponibile
-    if (!process.env.DATABASE_URL) {
-      console.warn('⚠️ DATABASE_URL non disponibile, salto la creazione della tabella voti');
-      return;
-    }
-
-    const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS voti_opinioni_proposte (
-        id SERIAL PRIMARY KEY,
-        utente_id UUID NOT NULL,
-        opinione_id VARCHAR(255) NOT NULL,
-        data_voto TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(utente_id, opinione_id)
-      );
-    `;
-    
-    await pool.query(createTableQuery);
-    
-    // Crea indici per performance
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_voti_opinioni_utente_id 
-      ON voti_opinioni_proposte(utente_id);
-    `);
-    
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_voti_opinioni_opinione_id 
-      ON voti_opinioni_proposte(opinione_id);
-    `);
-    
-    console.log('✅ Tabella voti_opinioni_proposte verificata/creata');
-  } catch (error) {
-    console.error('❌ Errore nella creazione tabella voti:', error);
-    // Non bloccare l'avvio del server se c'è un errore nella creazione della tabella
+// Lo schema dei voti sulle proposte è gestito esclusivamente tramite migrazione DB.
+// La route può soltanto verificarne la presenza e fallisce chiusa se manca.
+async function assertVotiTableExists() {
+  const result = await pool.query(
+    `SELECT to_regclass('public.voti_opinioni_proposte') AS relation_name`
+  );
+  if (!result.rows[0]?.relation_name) {
+    const error = new Error('Migrazione voti_opinioni_proposte non applicata');
+    error.code = 'VOTI_OPINIONI_PROPOSTE_SCHEMA_MISSING';
+    throw error;
   }
 }
 
-// Inizializza la tabella all'avvio (ritardata per assicurarsi che il pool sia pronto)
-setTimeout(() => {
-  ensureVotiTableExists().catch(err => {
-    console.error('❌ Errore nell\'inizializzazione tabella voti:', err);
-  });
-}, 1000); // Attendi 1 secondo per assicurarsi che il pool sia inizializzato
-
-// GET /api/opinioni-proposte/test-voto - Test endpoint per verificare inserimento voto
-router.get('/test-voto', async (req, res) => {
+// GET /api/opinioni-proposte/test-voto - Diagnostica Admin read-only dello schema voti.
+router.get('/test-voto', verifyToken, requireAdmin, async (_req, res) => {
   try {
-    console.log('🧪 TEST - Test inserimento voto');
-    
-    // Test inserimento voto di prova
-    const testUserId = 'test-user-id';
-    const testOpinioneId = 'allevamenti_intensivi';
-    
-    console.log('🔍 Test parametri:', { testUserId, testOpinioneId });
-    
-    // Prima assicurati che la tabella esista
-    await ensureVotiTableExists();
-    
-    // Prova inserimento
-    const insertQuery = `
-      INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
-      VALUES ($1, $2)
-      ON CONFLICT (utente_id, opinione_id) DO NOTHING
-    `;
-    
-    const result = await pool.query(insertQuery, [testUserId, testOpinioneId]);
-    console.log('📊 Risultato test inserimento:', result);
-    
-    // Verifica che il voto sia stato inserito
-    const checkQuery = `
-      SELECT * FROM voti_opinioni_proposte 
-      WHERE utente_id = $1 AND opinione_id = $2
-    `;
-    const checkResult = await pool.query(checkQuery, [testUserId, testOpinioneId]);
-    console.log('🔍 Voto inserito:', checkResult.rows);
-    
-    res.json({
+    await assertVotiTableExists();
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS voti_count FROM voti_opinioni_proposte`
+    );
+    return res.json({
       success: true,
-      test_inserted: result.rowCount > 0,
-      vote_exists: checkResult.rows.length > 0,
-      vote_data: checkResult.rows[0] || null
+      schema_ready: true,
+      voti_count: result.rows[0]?.voti_count || 0
     });
-    
   } catch (error) {
-    console.error('❌ Errore nel test voto:', error);
-    res.status(500).json({
+    const status = error.code === 'VOTI_OPINIONI_PROPOSTE_SCHEMA_MISSING' ? 503 : 500;
+    return res.status(status).json({
       success: false,
-      error: error.message,
-      stack: error.stack
+      schema_ready: false,
+      error: status === 503 ? 'MIGRAZIONE_RICHIESTA' : 'Errore diagnostica schema voti'
     });
   }
 });
 
 // GET /api/opinioni-proposte/debug - Debug endpoint per verificare database
-router.get('/debug', async (req, res) => {
+router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 Debug endpoint opinioni-proposte chiamato');
     
@@ -363,23 +303,6 @@ router.post('/', verifyToken, async (req, res) => {
     
     const { testo, titolo, descrizione, categoria } = req.body;
     
-    // Limite 1 proposta per utente: verifica colonna users.opinione_proposta_id
-    try {
-      const r = await pool.query(
-        'SELECT opinione_proposta_id FROM users WHERE id = $1',
-        [userId]
-      );
-      if (r.rows[0] && r.rows[0].opinione_proposta_id) {
-        return res.status(403).json({
-          success: false,
-          error: 'Hai già proposto un\'opinione. Puoi proporne solo una.'
-        });
-      }
-    } catch (e) {
-      if (e.code !== '42703') throw e;
-      // colonna non esiste ancora: continua (retrocompatibilità)
-    }
-    
     if (!testo || !testo.trim()) {
       return res.status(400).json({
         success: false,
@@ -448,6 +371,26 @@ router.post('/', verifyToken, async (req, res) => {
       
       try {
         await client.query('BEGIN');
+
+        // Regola canonica: massimo una proposta PENDENTE per utente.
+        // Il lock sulla riga utente rende il controllo atomico anche con richieste concorrenti
+        // che propongono testi diversi (il lock sul testo, da solo, non basta).
+        const proposerState = await client.query(
+          'SELECT opinione_proposta_id FROM users WHERE id = $1 FOR UPDATE',
+          [userId]
+        );
+        if (proposerState.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(401).json({ success: false, error: 'Utente non trovato' });
+        }
+        if (proposerState.rows[0].opinione_proposta_id) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            success: false,
+            error: 'PROPOSTA_PENDENTE_ESISTENTE',
+            message: 'Hai già una proposta di Opinione pendente. Potrai proporne un’altra quando sarà chiusa.'
+          });
+        }
         
         // Genera ID univoco
         const id = require('crypto').randomUUID();
@@ -533,6 +476,13 @@ router.post('/', verifyToken, async (req, res) => {
           });
         }
         
+        // Il marker della proposta pendente fa parte della stessa transazione dell'inserimento:
+        // non può quindi esistere una proposta creata senza bloccare atomicamente la seconda.
+        await client.query(
+          'UPDATE users SET opinione_proposta_id = $1 WHERE id = $2',
+          [id, userId]
+        );
+
         await client.query('COMMIT');
         console.log('✅ Transazione committata con successo');
         
@@ -540,16 +490,6 @@ router.post('/', verifyToken, async (req, res) => {
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
         lockHeld = false; // Marca il lock come rilasciato
         console.log('🔓 Lock rilasciato dopo commit');
-        
-        // Registra in users che l'utente ha proposto questa opinione (max 1 per utente)
-        try {
-          await pool.query(
-            'UPDATE users SET opinione_proposta_id = $1 WHERE id = $2',
-            [id, userId]
-          );
-        } catch (e) {
-          if (e.code !== '42703') console.error('❌ Errore aggiornamento users.opinione_proposta_id:', e);
-        }
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
         const checkDuplicateQueryFinal = `
@@ -567,7 +507,7 @@ router.post('/', verifyToken, async (req, res) => {
         if (userId) {
           try {
             // Assicurati che la tabella esista
-            await ensureVotiTableExists();
+            await assertVotiTableExists();
             
             const insertVoteQuery = `
               INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
@@ -670,7 +610,7 @@ router.post('/:id/vota', verifyToken, async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    await ensureVotiTableExists();
+    await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
       checkResult = await pool.query(
@@ -727,7 +667,7 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    await ensureVotiTableExists();
+    await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
       checkResult = await pool.query(
@@ -744,7 +684,7 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     console.log('✅ Opinione trovata, procedo con la rimozione del voto...');
     
     // Assicurati che la tabella esista
-    await ensureVotiTableExists();
+    await assertVotiTableExists();
     
     // Normalizza l'ID per assicurarsi che sia una stringa
     const opinioneIdNormalizzato = String(id).trim();
@@ -819,35 +759,12 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/opinioni-proposte/:id - Cancella un'opinione proposta (solo admin)
-router.delete('/:id', verifyToken, async (req, res) => {
+router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.userId;
     
     console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
     console.log('🔍 ID opinione:', id);
-    console.log('🔍 User ID:', userId);
-    
-    // Verifica che l'utente sia admin
-    const userQuery = await pool.query(
-      'SELECT ruolo FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userQuery.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
-    
-    const userRole = userQuery.rows[0].ruolo;
-    if (userRole !== 'AD') {
-      return res.status(403).json({
-        success: false,
-        error: 'Solo gli amministratori possono cancellare opinioni'
-      });
-    }
     
     // Verifica esistenza e cancella da opinioni_proposte o opinioni_domande
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);

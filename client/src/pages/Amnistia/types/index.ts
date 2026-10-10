@@ -39,7 +39,7 @@ export interface AmnistiaFormProps {
   mieiVoti: string[];
   suggestions: Classifica[];
   isPending: boolean;
-  onUpdateField: (field: string, value: string | boolean) => void;
+  onUpdateField: (field: keyof AmnistiaVotingState, value: string | boolean) => void;
   onSubmit: (e: React.FormEvent) => void;
   onRemoveVote: (legge: string) => void;
   onSelectSuggestion: (legge: string) => void;

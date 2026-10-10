@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ITALY_DATA } from "@/data/italyData";
+import type { BreadcrumbItem } from "./SondaggiHeader";
 
-type OpinionData = { favorevole: number; contrario: number; indeciso: number; astenuto: number; };
+type OpinionData = { favorevole: number; contrario: number; indeciso: number; };
 type OpinionStats = Record<string, OpinionData>;
 interface Question { id: string; text: string; }
 interface SondaggiData {
@@ -109,7 +110,7 @@ export function useSondaggiData(filterPath?: string) {
     if (!data?.filter) return null;
     
     const filter = data.filter;
-    const breadcrumbItems = [];
+    const breadcrumbItems: BreadcrumbItem[] = [];
     
     if (filter.regione) {
       breadcrumbItems.push({

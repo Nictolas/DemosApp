@@ -6,7 +6,7 @@ import { getFieldName } from "../utils/rappresentanteUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 
-export const useRappresentantiActions = (user: any, categoria: string, fcmToken: string | null) => {
+export const useRappresentantiActions = (user: any, categoria: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selezionando, setSelezionando] = useState(false);
@@ -62,20 +62,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         await queryClient.refetchQueries({ queryKey: ['rappresentantiData'] });
       }
 
-      // Gestione FCM (solo per rappresentanti, non per test)
-      if (fcmToken && !isTestRoute) {
-        const topic = `sostenitori_politico_${rappresentanteId}`;
-        await apiRequest(
-            "POST",
-            "/api/notifications/subscribe-topic",
-            { token: fcmToken, topic }
-        );
-        toast({
-            title: "Notifiche attivate",
-            description: `Riceverai notifiche push per questo rappresentante.`,
-            variant: "success"
-        });
-      }
+      // I push ai sostenitori sono risolti server-side dalle selezioni correnti.
 
       toast({
         title: "Successo",

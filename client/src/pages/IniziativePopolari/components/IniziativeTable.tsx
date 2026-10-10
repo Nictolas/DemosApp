@@ -59,14 +59,12 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
           }
           
           const firmeRaccolte = iniziativa.firme_raccolte || iniziativa.firme || 0;
-          
-          // Verde opaco se firme_raccolte > 50000
-          if (firmeRaccolte > 50000) {
-            return 'border-gray-200 bg-green-50';
-          }
-          // Giallo opaco se firme_raccolte <= 49999
-          if (firmeRaccolte <= 49999) {
-            return 'border-gray-200 bg-yellow-50';
+          const sogliaFirme = iniziativa.signature_threshold;
+
+          if (typeof sogliaFirme === 'number' && sogliaFirme > 0) {
+            return firmeRaccolte >= sogliaFirme
+              ? 'border-gray-200 bg-green-50'
+              : 'border-gray-200 bg-yellow-50';
           }
           // Default
           return 'border-gray-200 bg-white';
@@ -127,14 +125,16 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
               const firmeRaccolte = iniziativa.nome === "BASTA QUORUM PER I REFERENDUM! CHI VOTA DECIDE." 
                 ? 71066 
                 : (iniziativa.firme_raccolte || iniziativa.firme || 0);
-              const totaleMinimo = 50000;
-              const percentuale = Math.min((firmeRaccolte / totaleMinimo) * 100, 100);
-              const haSuperatoQuorum = firmeRaccolte >= totaleMinimo;
+              const totaleMinimo = iniziativa.signature_threshold;
+              const percentuale = typeof totaleMinimo === 'number' && totaleMinimo > 0
+                ? Math.min((firmeRaccolte / totaleMinimo) * 100, 100)
+                : 0;
+              const haSuperatoQuorum = typeof totaleMinimo === 'number' && firmeRaccolte >= totaleMinimo;
               
               return (
                 <div className="mt-4 w-full">
                   <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                    <span>Progresso verso il quorum (50.000 firme)</span>
+                    <span>{typeof totaleMinimo === 'number' ? `Progresso verso la soglia (${totaleMinimo.toLocaleString('it-IT')} firme)` : 'Progresso firme'}</span>
                     <span className="font-semibold">{percentuale.toFixed(1)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">

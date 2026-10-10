@@ -3,9 +3,6 @@ import { createRoot } from "react-dom/client";
 import { Capacitor } from "@capacitor/core";
 import App from "./App";
 import "./index.css";
-import GestisciGrazia from "./pages/GestisciGrazia";
-import Limiti from "./pages/Limiti";
-import GestisciGoverno from "./pages/GestisciGoverno";
 
 // Inizializza Capacitor se disponibile (app native)
 if (typeof window !== 'undefined') {

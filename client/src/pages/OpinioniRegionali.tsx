@@ -22,12 +22,12 @@ interface Question {
 
 const options = [
   { value: "f", color: "bg-green-600 text-white", label: "Favorevole" },
-  { value: "i", color: "bg-yellow-500 text-white", label: "Indeciso" },
+  { value: "i", color: "bg-yellow-500 text-white", label: "Non lo so" },
   { value: "c", color: "bg-red-600 text-white", label: "Contrario" }
 ];
 
 // Funzione per normalizzare le risposte (usa direttamente i valori compressi)
-const normalizeAnswer = (answer: string | undefined) => {
+const normalizeAnswer = (answer: string | null | undefined) => {
   if (!answer || answer === null || answer === undefined) return null;
   // Usa direttamente i valori compressi
   if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
@@ -158,12 +158,12 @@ export default function OpinioniRegionali() {
         opinionValue: opinions[question.id]
       });
       
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
+      if (opinions[question.id]) {
         // Usa l'ID dell'opinione direttamente dal database
         opinionsToSave[question.id] = opinions[question.id];
         console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
       } else {
-        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
+        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: non selezionata)`);
       }
     });
     

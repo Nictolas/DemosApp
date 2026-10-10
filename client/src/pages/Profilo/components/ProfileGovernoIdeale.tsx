@@ -4,9 +4,10 @@ import { Link } from "wouter";
 
 interface ProfileGovernoIdealeProps {
   governoIdeale: Record<string, string>;
+  isOwnProfile?: boolean;
 }
 
-export const ProfileGovernoIdeale = ({ governoIdeale }: ProfileGovernoIdealeProps) => {
+export const ProfileGovernoIdeale = ({ governoIdeale, isOwnProfile = true }: ProfileGovernoIdealeProps) => {
   const entries = Object.entries(governoIdeale || {});
 
   // Funzione per ottenere l'icona appropriata per ogni categoria
@@ -78,17 +79,19 @@ export const ProfileGovernoIdeale = ({ governoIdeale }: ProfileGovernoIdealeProp
               <div className="p-2 rounded-xl bg-gradient-to-br from-purple-100 to-violet-100 shrink-0">
                 <Crown className="h-5 w-5 lg:h-6 lg:w-6 text-purple-600" />
               </div>
-              Il Tuo Governo Ideale
+              {isOwnProfile ? "Il Tuo Governo Ideale" : "Governo Ideale"}
             </CardTitle>
-            <Link
-              href="/governo"
-              className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline pt-1"
-            >
-              Scegli Ministri
-            </Link>
+            {isOwnProfile && (
+              <Link
+                href="/governo"
+                className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline pt-1"
+              >
+                Scegli Ministri
+              </Link>
+            )}
           </div>
           <CardDescription className="text-base text-gray-600 mt-2">
-            I ministri che hai selezionato per il tuo governo ideale
+            {isOwnProfile ? "I ministri che hai selezionato per il tuo governo ideale" : "Le scelte pubbliche del profilo per il governo ideale"}
           </CardDescription>
         </CardHeader>
         

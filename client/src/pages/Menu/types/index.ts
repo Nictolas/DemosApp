@@ -1,7 +1,8 @@
 export interface User {
-  role?: "AD" | "P" | "C" | "CP" | "A" | "E" | "I" | "O";
-  ruolo?: "AD" | "P" | "C" | "CP" | "A" | "E" | "I" | "O";
-  [key: string]: any;
+  id?: string;
+  email?: string;
+  role?: string;
+  ruolo?: string;
 }
 
 export interface MenuButtonProps {

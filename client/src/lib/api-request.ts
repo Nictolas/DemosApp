@@ -48,13 +48,11 @@ class ApiRequest {
     // Aggiungi token di autenticazione se presente
     // Il token viene salvato come 'auth_token' nel localStorage
     const token = getAuthToken();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+    const headers = new Headers(options.headers);
+    if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
     if (token) {
-      headers.Authorization = `Bearer ${token}`;
+      headers.set('Authorization', `Bearer ${token}`);
       console.log('🔍 DEBUG api-request - Token trovato e aggiunto all\'header');
     } else {
       console.log('⚠️ DEBUG api-request - Nessun token trovato nel localStorage');

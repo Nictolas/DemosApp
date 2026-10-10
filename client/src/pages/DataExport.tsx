@@ -60,6 +60,7 @@ interface TableInfo {
   sizeMB: number;
   sizeKB: number;
   sizeBytes: number;
+  exportableRecords?: number;
 }
 
 interface DatabaseAnalysis {
@@ -93,6 +94,45 @@ interface DatabaseAnalysis {
       color: string;
     };
     system: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      totalSizeKB: number;
+      percentage: number;
+      color: string;
+    };
+    ministries?: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      totalSizeKB: number;
+      percentage: number;
+      color: string;
+    };
+    votes?: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      totalSizeKB: number;
+      percentage: number;
+      color: string;
+    };
+    tools?: {
       name: string;
       tables: Array<{
         name: string;
@@ -1041,7 +1081,7 @@ export default function DataExport() {
                         </p>
                         <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                           {getTableDescription(table.name)}
-                          <Info className="h-3 w-3 text-gray-400" title={getTableDescription(table.name)} />
+                          <Info className="h-3 w-3 text-gray-400" />
                         </p>
                       </div>
                     </div>
@@ -1052,9 +1092,9 @@ export default function DataExport() {
                       <Badge variant="outline">
                         {table.retentionDays} giorni
                       </Badge>
-                      {table.exportableRecords > 0 && (
+                      {(table.exportableRecords ?? 0) > 0 && (
                         <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                          {table.exportableRecords.toLocaleString()} esportabili
+                          {(table.exportableRecords ?? 0).toLocaleString()} esportabili
                         </Badge>
                       )}
                     </div>
@@ -1423,7 +1463,7 @@ export default function DataExport() {
                     )}
 
                     {/* Ministeri */}
-                    {databaseAnalysis.categories.ministries?.tables.length > 0 && (
+                    {databaseAnalysis.categories.ministries && databaseAnalysis.categories.ministries.tables.length > 0 && (
                       <div className="space-y-3">
                         <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-red-600"></span>
@@ -1457,7 +1497,7 @@ export default function DataExport() {
                     )}
 
                     {/* Voti */}
-                    {databaseAnalysis.categories.votes?.tables.length > 0 && (
+                    {databaseAnalysis.categories.votes && databaseAnalysis.categories.votes.tables.length > 0 && (
                       <div className="space-y-3">
                         <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-purple-600"></span>
@@ -1491,7 +1531,7 @@ export default function DataExport() {
                     )}
 
                     {/* Strumenti */}
-                    {databaseAnalysis.categories.tools?.tables.length > 0 && (
+                    {databaseAnalysis.categories.tools && databaseAnalysis.categories.tools.tables.length > 0 && (
                       <div className="space-y-3">
                         <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-green-600"></span>

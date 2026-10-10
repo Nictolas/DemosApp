@@ -46,10 +46,6 @@ export default function ScegliCandidato() {
     setLocation('/opinioni');
   };
 
-  const handleContinueAnyway = () => {
-    setShowOpinioniAlert(false);
-  };
-
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
   }
@@ -84,8 +80,8 @@ export default function ScegliCandidato() {
                   console.log('🔍 DEBUG - Passando candidato a CandidatoCard:', {
                     id: candidato.id,
                     nome: candidato.nome,
-                    opinioniComuni: candidato.opinioniComuni,
-                    tipo: typeof candidato.opinioniComuni,
+                    compatibilita: candidato.compatibilita_percentuale,
+                    matchingScore: candidato.matching_score,
                     tutteLeChiavi: Object.keys(candidato)
                   });
                   return (
@@ -111,7 +107,6 @@ export default function ScegliCandidato() {
         onOpenChange={setShowOpinioniAlert}
         data={opinioniAlertData}
         onGoToOpinions={handleGoToOpinions}
-        onContinueAnyway={handleContinueAnyway}
       />
       
       {/* Dialog per visualizzare opinioni candidato */}

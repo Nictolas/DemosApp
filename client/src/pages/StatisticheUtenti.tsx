@@ -31,12 +31,12 @@ export default function StatisticheUtenti() {
   // Usa i dati degli utenti già caricati
   const {
     responseData,
-    isLoading: isLoadingUsers,
+    isLoadingUsers,
     isError: isErrorUsers
   } = useUsers(user);
 
   // Calcola le statistiche dai dati degli utenti
-  const stats = useMemo(() => {
+  const stats = useMemo<StatisticheUtenti | null>(() => {
     if (!responseData?.utenti) return null;
     
     const utenti = responseData.utenti;

@@ -31,7 +31,7 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
       return false;
     }
     // Altrimenti usa la logica esistente
-    return !item.requiresAdvancedAccess || hasAdvancedAccess || hasLimitedAccess;
+    return !('requiresAdvancedAccess' in item) || !item.requiresAdvancedAccess || hasAdvancedAccess || hasLimitedAccess;
   });
 
   // Debug logging rimosso per evitare re-render

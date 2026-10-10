@@ -196,7 +196,7 @@ Object.entries(PROVINCE_DB_TO_FRONTEND).forEach(([code, name]) => {
  * @param {string} paeseCompresso - Valore dal database ("it", "st")
  * @returns {string} - Valore per frontend ("Italia", "Straniero")
  */
-export function decompressPaeseEvento(paeseCompresso: string | null): string {
+export function decompressPaeseEvento(paeseCompresso: string | null | undefined): string {
   if (!paeseCompresso) return '';
   
   const mapping: Record<string, string> = {
@@ -212,7 +212,7 @@ export function decompressPaeseEvento(paeseCompresso: string | null): string {
  * @param {string} regioneCompressa - Valore dal database ("LO", "TO", "SI")
  * @returns {string} - Valore per frontend ("Lombardia", "Toscana", "Sicilia")
  */
-export function decompressRegioneEvento(regioneCompressa: string | null): string {
+export function decompressRegioneEvento(regioneCompressa: string | null | undefined): string {
   if (!regioneCompressa) return '';
   
   return REGIONI_DB_TO_FRONTEND[regioneCompressa] || regioneCompressa;
@@ -223,7 +223,7 @@ export function decompressRegioneEvento(regioneCompressa: string | null): string
  * @param {string} provinciaCompressa - Valore dal database ("MI", "RM", "NA")
  * @returns {string} - Valore per frontend ("Milano", "Roma", "Napoli")
  */
-export function decompressProvinciaEvento(provinciaCompressa: string | null): string {
+export function decompressProvinciaEvento(provinciaCompressa: string | null | undefined): string {
   if (!provinciaCompressa) return '';
   
   return PROVINCE_DB_TO_FRONTEND[provinciaCompressa] || provinciaCompressa;
@@ -274,7 +274,7 @@ export function formatEventoElezioniLocation(evento: {
  * @param {string} paeseFrontend - Valore dal frontend ("Italia", "Straniero")
  * @returns {string} - Valore per database ("it", "st")
  */
-export function compressPaeseEvento(paeseFrontend: string | null): string {
+export function compressPaeseEvento(paeseFrontend: string | null | undefined): string {
   if (!paeseFrontend) return '';
   
   const mapping: Record<string, string> = {
@@ -290,7 +290,7 @@ export function compressPaeseEvento(paeseFrontend: string | null): string {
  * @param {string} regioneFrontend - Valore dal frontend ("Lombardia", "Toscana", "Sicilia")
  * @returns {string} - Valore per database ("LO", "TO", "SI")
  */
-export function compressRegioneEvento(regioneFrontend: string | null): string {
+export function compressRegioneEvento(regioneFrontend: string | null | undefined): string {
   if (!regioneFrontend) return '';
   
   return REGIONI_FRONTEND_TO_DB[regioneFrontend] || regioneFrontend;
@@ -301,7 +301,7 @@ export function compressRegioneEvento(regioneFrontend: string | null): string {
  * @param {string} provinciaFrontend - Valore dal frontend ("Milano", "Roma", "Napoli")
  * @returns {string} - Valore per database ("MI", "RM", "NA")
  */
-export function compressProvinciaEvento(provinciaFrontend: string | null): string {
+export function compressProvinciaEvento(provinciaFrontend: string | null | undefined): string {
   if (!provinciaFrontend) return '';
   
   return PROVINCE_FRONTEND_TO_DB[provinciaFrontend] || provinciaFrontend;

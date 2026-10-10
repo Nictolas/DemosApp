@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { getAuthToken } from "@/lib/auth-token";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Shield, Database, Mail, Bell, Lock } from "lucide-react";
@@ -65,7 +66,7 @@ export default function GestionePrivacy() {
     try {
       const response = await fetch('/api/user/privacy-settings', {
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -95,7 +96,7 @@ export default function GestionePrivacy() {
       const response = await fetch('/api/user/privacy-settings', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -135,7 +136,7 @@ export default function GestionePrivacy() {
       const response = await fetch('/api/user/privacy-settings', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(settingsToSave),

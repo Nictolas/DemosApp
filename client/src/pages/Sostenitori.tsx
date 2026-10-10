@@ -67,6 +67,7 @@ export default function Sostenitori() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [showSupportersList, setShowSupportersList] = useState(false);
   const [activeTab, setActiveTab] = useState("politico");
+  const userRole = user?.ruolo;
 
   // Query per sostenitori Rappresentanti (Politico)
   const { data: rappresentantiData, isLoading: isLoadingRappresentanti, isError: isErrorRappresentanti } = useQuery<RappresentantiData>({
@@ -85,7 +86,7 @@ export default function Sostenitori() {
       }
       return data;
     },
-    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
+    enabled: !!user && (userRole === "AD" || userRole === "P" || userRole === "CP" || userRole === "A" || userRole === "O"),
   });
 
   // Query per sostenitori Candidati (Candidato)
@@ -105,7 +106,7 @@ export default function Sostenitori() {
       }
       return data;
     },
-    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
+    enabled: !!user && (userRole === "AD" || userRole === "C" || userRole === "CP" || userRole === "A" || userRole === "O"),
   });
 
   // Query per sostenitori Attivisti
@@ -125,7 +126,7 @@ export default function Sostenitori() {
       }
       return data;
     },
-    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O"),
+    enabled: !!user && (userRole === "AD" || userRole === "A" || userRole === "O"),
   });
 
   // Query per sostenitori Organizzazioni (visibile solo ad AD e O)
@@ -144,7 +145,7 @@ export default function Sostenitori() {
       }
       return data;
     },
-    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "O"),
+    enabled: !!user && (userRole === "AD" || userRole === "O"),
   });
 
   // Query per conteggi Totali
@@ -152,7 +153,7 @@ export default function Sostenitori() {
     queryKey: ['totaleData', user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
-      const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
+      const response = await apiRequest("GET", `/api/sostenitori/totale-privato?sostenuto_id=${user.id}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData?.error || "Errore nel caricamento dei dati totali");
@@ -160,7 +161,7 @@ export default function Sostenitori() {
       const data = await response.json();
       return (data.data || data) as TotaleCounts;
     },
-    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
+    enabled: !!user && (userRole === "AD" || userRole === "CP" || userRole === "A" || userRole === "O"),
   });
 
   // Dati correnti basati sulla tab attiva
@@ -198,7 +199,7 @@ export default function Sostenitori() {
   const provinceChartData = useMemo(() => {
     if (!stats || !stats.provinceDistribution) return [];
     return Object.entries(stats.provinceDistribution)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value: Number(value) }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 10); // Top 10 province
   }, [stats]);
@@ -246,15 +247,15 @@ export default function Sostenitori() {
   const getTabCount = () => {
     let tabCount = 0;
     // Tab Politico
-    if (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    if (userRole === "AD" || userRole === "P" || userRole === "CP" || userRole === "A" || userRole === "O") tabCount++;
     // Tab Candidato
-    if (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    if (userRole === "AD" || userRole === "C" || userRole === "CP" || userRole === "A" || userRole === "O") tabCount++;
     // Tab Totale
-    if (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    if (userRole === "AD" || userRole === "CP" || userRole === "A" || userRole === "O") tabCount++;
     // Tab Attivista
-    if (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    if (userRole === "AD" || userRole === "A" || userRole === "O") tabCount++;
     // Tab Organizzazione
-    if (user.ruolo === "AD" || user.ruolo === "O") tabCount++;
+    if (userRole === "AD" || userRole === "O") tabCount++;
     return tabCount;
   };
 
@@ -271,10 +272,10 @@ export default function Sostenitori() {
 
   // Determina quale tab mostrare se c'è solo una tab disponibile
   const getSingleTabValue = () => {
-    if (user.ruolo === "P") return "politico";
-    if (user.ruolo === "C") return "candidato";
-    if (user.ruolo === "A") return "attivista";
-    if (user.ruolo === "O") return "organizzazione";
+    if (userRole === "P") return "politico";
+    if (userRole === "C") return "candidato";
+    if (userRole === "A") return "attivista";
+    if (userRole === "O") return "organizzazione";
     return activeTab; // Fallback alla tab attiva
   };
 
@@ -292,9 +293,9 @@ export default function Sostenitori() {
   }, [tabCount, user]);
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!user) return <Redirect to="/auth" />;
+  if (!user || !userRole) return <Redirect to="/auth" />;
 
-  const isAuthorized = ["AD", "A", "P", "C", "CP", "O"].includes(user.ruolo);
+  const isAuthorized = ["AD", "A", "P", "C", "CP", "O"].includes(userRole);
   if (!isAuthorized) {
     return (
         <div className="min-h-screen p-4 flex items-center justify-center">
@@ -316,59 +317,59 @@ export default function Sostenitori() {
             <Tabs value={showTabsList ? activeTab : getSingleTabValue()} onValueChange={setActiveTab} className="w-full">
               {showTabsList && (
                 <TabsList className={`grid w-full ${getTabsGridClass()}`}>
-                  {(user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+                  {(userRole === "AD" || userRole === "P" || userRole === "CP" || userRole === "A" || userRole === "O") && (
                     <TabsTrigger value="politico">Politico</TabsTrigger>
                   )}
-                  {(user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+                  {(userRole === "AD" || userRole === "C" || userRole === "CP" || userRole === "A" || userRole === "O") && (
                     <TabsTrigger value="candidato">Candidato</TabsTrigger>
                   )}
-                  {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
+                  {(userRole === "AD" || userRole === "A" || userRole === "O") && (
                     <TabsTrigger value="attivista">Attivista</TabsTrigger>
                   )}
-                  {(user.ruolo === "AD" || user.ruolo === "O") && (
+                  {(userRole === "AD" || userRole === "O") && (
                     <TabsTrigger value="organizzazione">Organizzazione</TabsTrigger>
                   )}
-                  {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+                  {(userRole === "AD" || userRole === "CP" || userRole === "A" || userRole === "O") && (
                     <TabsTrigger value="totale">Totale</TabsTrigger>
                   )}
                 </TabsList>
               )}
-              {(user.ruolo === "AD" || user.ruolo === "O") && (
+              {(userRole === "AD" || userRole === "O") && (
                 <TabsContent value="organizzazione" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={userRole} />}
                 </TabsContent>
               )}
-              {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
+              {(userRole === "AD" || userRole === "A" || userRole === "O") && (
                 <TabsContent value="attivista" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={userRole} />}
                 </TabsContent>
               )}
 
-              {(user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+              {(userRole === "AD" || userRole === "P" || userRole === "CP" || userRole === "A" || userRole === "O") && (
                 <TabsContent value="politico" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={userRole} />}
                 </TabsContent>
               )}
 
-              {(user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+              {(userRole === "AD" || userRole === "C" || userRole === "CP" || userRole === "A" || userRole === "O") && (
                 <TabsContent value="candidato" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={userRole} />}
                 </TabsContent>
               )}
 
-              {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
+              {(userRole === "AD" || userRole === "CP" || userRole === "A" || userRole === "O") && (
                 <TabsContent value="totale" className="space-y-8">
                   {isLoadingTotale && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isErrorTotale && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
@@ -405,7 +406,7 @@ const SostenitoriContent = ({
   stats: SupporterStats;
   supporters: Supporter[];
   showSupportersList: boolean;
-  setShowSupportersList: (value: boolean) => void;
+  setShowSupportersList: React.Dispatch<React.SetStateAction<boolean>>;
   genderChartData: any[];
   ageChartData: any[];
   provinceChartData: any[];

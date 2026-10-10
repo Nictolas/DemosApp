@@ -9,7 +9,7 @@ export const BlockedWarning: React.FC<BlockedWarningProps> = ({ unlockDate }) =>
 
   return (
     <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
-      <b>Hai già modificato i voti questa settimana.</b><br />
+      <b>Hai già modificato questa preferenza nelle ultime 24 ore.</b><br />
       Potrai modificarli di nuovo dal: {unlockDateFormatted || "-"}
     </div>
   );
