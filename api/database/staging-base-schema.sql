@@ -95,3 +95,24 @@ CREATE TABLE IF NOT EXISTS voti_iniziative_popolari (
 );
 
 COMMIT;
+
+
+CREATE TABLE IF NOT EXISTS parlamento_analisi_legge (
+  id SERIAL PRIMARY KEY,
+  uri_votazione TEXT NOT NULL UNIQUE,
+  numero_legge TEXT,
+  tipo_atto TEXT,
+  spiegazione_generale TEXT,
+  effetti_positivi TEXT,
+  effetti_negativi TEXT,
+  provider_ai VARCHAR(50),
+  modello_ai VARCHAR(100),
+  data_generazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  data_aggiornamento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_parlamento_analisi_uri ON parlamento_analisi_legge(uri_votazione);
+CREATE INDEX IF NOT EXISTS idx_parlamento_analisi_numero_legge ON parlamento_analisi_legge(numero_legge);
+CREATE INDEX IF NOT EXISTS idx_parlamento_analisi_tipo_atto ON parlamento_analisi_legge(tipo_atto);
+CREATE INDEX IF NOT EXISTS idx_parlamento_analisi_data_generazione ON parlamento_analisi_legge(data_generazione DESC);
