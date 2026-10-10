@@ -46,3 +46,14 @@ test('apply explicitly enables the guarded staging runner', async () => {
   assert.deepEqual(calls[0].argv, ['--apply']);
   assert.equal(calls[0].env.ALLOW_DEMOS_STAGING_MIGRATIONS, 'true');
 });
+
+test('baseline explicitly enables only the guarded staging baseline', async () => {
+  const calls = [];
+  await runStagingBootGate({
+    env: { NODE_ENV: 'staging', DEMOS_STAGING_MIGRATION_MODE: 'baseline', DATABASE_URL: 'postgres://u:p@h/demos_civic_staging_db' },
+    runner: async (input) => { calls.push(input); return { mode: 'baseline-ok' }; },
+  });
+  assert.deepEqual(calls[0].argv, ['--baseline']);
+  assert.equal(calls[0].env.ALLOW_DEMOS_STAGING_BASELINE, 'true');
+  assert.notEqual(calls[0].env.ALLOW_DEMOS_STAGING_MIGRATIONS, 'true');
+});
