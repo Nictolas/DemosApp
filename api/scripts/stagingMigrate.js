@@ -6,6 +6,7 @@ const { Client } = require('pg');
 const { buildDatabaseSsl } = require('../utils/databaseTlsPolicy');
 
 const EXPECTED_DATABASE = 'demos_civic_staging_db';
+const E2E_USER_ID = '00000000-0000-4000-8000-000000000001';
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const BASELINE = 'api/database/staging-base-schema.sql';
 
@@ -87,6 +88,26 @@ async function applyMigrations(client, logger = console) {
     logger.log(`[staging] applied ${relativePath}`);
   }
 }
+async function seedE2EUser(client, logger = console) {
+  const params = [
+    E2E_USER_ID, 'DEMOS E2E Test', 'DEMOS', 'E2E', 'E', 'a', 'PERSON', false, false,
+    'Italia', 'Toscana', 'Pisa', 'Pisa',
+  ];
+  await client.query(`
+    INSERT INTO users (
+      id, name, nome, cognome, ruolo, status, account_type, is_admin, is_activist,
+      paese_residenza, regione_residenza, provincia_residenza, comune_residenza
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name, nome = EXCLUDED.nome, cognome = EXCLUDED.cognome,
+      status = 'a', account_type = 'PERSON', is_admin = FALSE, is_activist = FALSE,
+      paese_residenza = EXCLUDED.paese_residenza, regione_residenza = EXCLUDED.regione_residenza,
+      provincia_residenza = EXCLUDED.provincia_residenza, comune_residenza = EXCLUDED.comune_residenza
+  `, params);
+  logger.log(`[staging] E2E synthetic user ready: ${E2E_USER_ID}`);
+  return E2E_USER_ID;
+}
+
 async function verifyExpectedSchema(client) {
   const result = await client.query(`SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND relkind IN ('r','p') AND relname = ANY($1::text[])`, [EXPECTED_TABLES]);
   const found = new Set(result.rows.map((row) => row.relname));
@@ -100,10 +121,11 @@ async function verifyExpectedSchema(client) {
 }
 async function run({ env = process.env, argv = process.argv.slice(2), logger = console } = {}) {
   assertMigrationFilesExist();
-  const mode = argv.includes('--baseline') ? 'baseline' : argv.includes('--apply') ? 'apply' : argv.includes('--preflight') ? 'preflight' : 'plan';
+  const mode = argv.includes('--baseline') ? 'baseline' : argv.includes('--apply') ? 'apply' : argv.includes('--seed-e2e') ? 'seed-e2e' : argv.includes('--preflight') ? 'preflight' : 'plan';
   if (mode === 'plan') { logger.log(`[staging] target database: ${EXPECTED_DATABASE}`); logger.log(`baseline: ${BASELINE}`); MIGRATIONS.forEach((file,index)=>logger.log(`${index+1}. ${file}`)); return {mode,migrationCount:MIGRATIONS.length}; }
   if (mode === 'baseline' && env.ALLOW_DEMOS_STAGING_BASELINE !== 'true') throw new Error('ALLOW_DEMOS_STAGING_BASELINE=true is required for --baseline');
   if (mode === 'apply' && env.ALLOW_DEMOS_STAGING_MIGRATIONS !== 'true') throw new Error('ALLOW_DEMOS_STAGING_MIGRATIONS=true is required for --apply');
+  if (mode === 'seed-e2e' && env.ALLOW_DEMOS_STAGING_E2E_SEED !== 'true') throw new Error('ALLOW_DEMOS_STAGING_E2E_SEED=true is required for --seed-e2e');
   const connectionString = env.STAGING_DATABASE_URL;
   const { databaseName } = assertStagingUrl(connectionString);
   const client = createClient(connectionString);
@@ -115,8 +137,9 @@ async function run({ env = process.env, argv = process.argv.slice(2), logger = c
     await assertBaseSchema(client);
     logger.log(`[staging] preflight OK: ${databaseName}`);
     if (mode === 'apply') { await applyMigrations(client, logger); await verifyExpectedSchema(client); logger.log(`[staging] migration + schema verification OK: ${databaseName}`); }
-    return { mode, databaseName, migrationCount: MIGRATIONS.length };
+    if (mode === 'seed-e2e') { await verifyExpectedSchema(client); await seedE2EUser(client, logger); }
+    return { mode, databaseName, migrationCount: MIGRATIONS.length, ...(mode === 'seed-e2e' ? { e2eUserId: E2E_USER_ID } : {}) };
   } finally { await client.end(); }
 }
 if (require.main === module) run().catch((error)=>{ console.error(`[staging] FAILED: ${error.message}`); process.exitCode=1; });
-module.exports = { EXPECTED_DATABASE, BASELINE, MIGRATIONS, REQUIRED_BASE_TABLES, EXPECTED_TABLES, assertMigrationFilesExist, assertStagingUrl, run };
+module.exports = { EXPECTED_DATABASE, E2E_USER_ID, BASELINE, MIGRATIONS, REQUIRED_BASE_TABLES, EXPECTED_TABLES, assertMigrationFilesExist, assertStagingUrl, seedE2EUser, run };

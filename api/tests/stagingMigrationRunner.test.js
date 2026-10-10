@@ -4,9 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   EXPECTED_DATABASE,
+  E2E_USER_ID,
   MIGRATIONS,
   assertMigrationFilesExist,
   assertStagingUrl,
+  seedE2EUser,
   run,
 } = require('../scripts/stagingMigrate');
 
@@ -50,5 +52,20 @@ test('apply mode is double-gated before any connection attempt', async () => {
   await assert.rejects(
     run({ env: { STAGING_DATABASE_URL: 'postgresql://u:p@example.invalid/demos_civic_staging_db' }, argv: ['--apply'], logger: { log() {} } }),
     /ALLOW_DEMOS_STAGING_MIGRATIONS=true/,
+  );
+});
+
+test('e2e seed is fixed, synthetic, idempotent SQL and double-gated', async () => {
+  const calls = [];
+  await seedE2EUser({ query: async (sql, params) => { calls.push({ sql, params }); return { rows: [] }; } }, { log() {} });
+  assert.equal(E2E_USER_ID, '00000000-0000-4000-8000-000000000001');
+  assert.match(calls[0].sql, /INSERT INTO users/i);
+  assert.match(calls[0].sql, /ON CONFLICT \(id\) DO UPDATE/i);
+  assert.equal(calls[0].params[0], E2E_USER_ID);
+  assert.ok(calls[0].params.every((value) => !String(value).includes('@')));
+
+  await assert.rejects(
+    run({ env: { STAGING_DATABASE_URL: 'postgresql://u:p@example.invalid/demos_civic_staging_db' }, argv: ['--seed-e2e'], logger: { log() {} } }),
+    /ALLOW_DEMOS_STAGING_E2E_SEED=true/,
   );
 });
