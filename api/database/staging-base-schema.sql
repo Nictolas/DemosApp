@@ -80,4 +80,14 @@ CREATE TABLE IF NOT EXISTS programmi (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS voti_iniziative_popolari (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  userid UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  iniziativa_id TEXT NOT NULL,
+  timestamp TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (userid, iniziativa_id)
+);
+
 COMMIT;

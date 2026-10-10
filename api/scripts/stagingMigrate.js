@@ -73,8 +73,7 @@ async function applyBaseline(client, logger = console) {
     throw new Error(`Refusing partial staging baseline; found: ${[...found].sort().join(', ')}`);
   }
   if (found.size === REQUIRED_BASE_TABLES.length) {
-    logger.log('[staging] baseline already present');
-    return;
+    logger.log('[staging] baseline core already present; reconciling idempotent compatibility tables');
   }
   logger.log(`[staging] applying baseline ${BASELINE}`);
   await client.query(readSql(BASELINE));
