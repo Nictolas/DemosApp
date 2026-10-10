@@ -70,7 +70,7 @@
       "uuid": "11.1.1"
     },
     "picomatch": "2.3.2",
-    "retry-request": "7.0.3",
+    "retry-request": "7.0.2",
     "teeny-request": {
       "uuid": "11.1.1"
     },
