@@ -1,1 +1,38 @@
-\n'use strict';\n\nconst test = require('node:test');\nconst assert = require('node:assert/strict');\nconst service = require('../services/accessRevocationService');\n\nfunction withEnv(values, fn) {\n  const previous = {};\n  for (const [key, value] of Object.entries(values)) {\n    previous[key] = process.env[key];\n    if (value == null) delete process.env[key]; else process.env[key] = value;\n  }\n  return Promise.resolve().then(fn).finally(() => {\n    for (const [key, value] of Object.entries(previous)) {\n      if (value == null) delete process.env[key]; else process.env[key] = value;\n    }\n  });\n}\n\ntest('staging can explicitly use the in-memory revocation store for isolated E2E', async () => {\n  await withEnv({ NODE_ENV: 'staging', DEMOS_STAGING_IN_MEMORY_REVOCATION: 'true' }, async () => {\n    const sessionId = 'staging-e2e-revocation-test';\n    assert.equal(service.stagingMemoryFallbackEnabled(), true);\n    assert.equal(await service.isAccessSessionRevoked({ jti: sessionId }), false);\n    await service.revokeAccessSession(sessionId, 60);\n    assert.equal(await service.isAccessSessionRevoked({ jti: sessionId }), true);\n  });\n});\n\ntest('production remains fail-closed even if the staging flag is accidentally present', async () => {\n  await withEnv({ NODE_ENV: 'production', DEMOS_STAGING_IN_MEMORY_REVOCATION: 'true' }, async () => {\n    assert.equal(service.stagingMemoryFallbackEnabled(), false);\n    await assert.rejects(\n      () => service.isAccessSessionRevoked({ jti: 'production-must-not-fallback' }),\n      (error) => error && error.code === 'ACCESS_REVOCATION_STORE_UNAVAILABLE',\n    );\n  });\n});\n
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const service = require('../services/accessRevocationService');
+
+function withEnv(values, fn) {
+  const previous = {};
+  for (const [key, value] of Object.entries(values)) {
+    previous[key] = process.env[key];
+    if (value == null) delete process.env[key]; else process.env[key] = value;
+  }
+  return Promise.resolve().then(fn).finally(() => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value == null) delete process.env[key]; else process.env[key] = value;
+    }
+  });
+}
+
+test('staging can explicitly use the in-memory revocation store for isolated E2E', async () => {
+  await withEnv({ NODE_ENV: 'staging', DEMOS_STAGING_IN_MEMORY_REVOCATION: 'true' }, async () => {
+    const sessionId = 'staging-e2e-revocation-test';
+    assert.equal(service.stagingMemoryFallbackEnabled(), true);
+    assert.equal(await service.isAccessSessionRevoked({ jti: sessionId }), false);
+    await service.revokeAccessSession(sessionId, 60);
+    assert.equal(await service.isAccessSessionRevoked({ jti: sessionId }), true);
+  });
+});
+
+test('production remains fail-closed even if the staging flag is accidentally present', async () => {
+  await withEnv({ NODE_ENV: 'production', DEMOS_STAGING_IN_MEMORY_REVOCATION: 'true' }, async () => {
+    assert.equal(service.stagingMemoryFallbackEnabled(), false);
+    await assert.rejects(
+      () => service.isAccessSessionRevoked({ jti: 'production-must-not-fallback' }),
+      (error) => error && error.code === 'ACCESS_REVOCATION_STORE_UNAVAILABLE',
+    );
+  });
+});
