@@ -7,6 +7,8 @@ const { buildDatabaseSsl } = require('../utils/databaseTlsPolicy');
 
 const EXPECTED_DATABASE = 'demos_civic_staging_db';
 const E2E_USER_ID = '00000000-0000-4000-8000-000000000001';
+const E2E_ACTIVIST_USER_ID = '00000000-0000-4000-8000-000000000002';
+const E2E_ADMIN_USER_ID = '00000000-0000-4000-8000-000000000003';
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const BASELINE = 'api/database/staging-base-schema.sql';
 
@@ -104,7 +106,17 @@ async function seedE2EUser(client, logger = console) {
       paese_residenza = EXCLUDED.paese_residenza, regione_residenza = EXCLUDED.regione_residenza,
       provincia_residenza = EXCLUDED.provincia_residenza, comune_residenza = EXCLUDED.comune_residenza
   `, params);
-  logger.log(`[staging] E2E synthetic user ready: ${E2E_USER_ID}`);
+  await client.query(`
+    INSERT INTO users (id,name,nome,cognome,ruolo,status,account_type,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
+    VALUES ($1,$2,$3,$4,'E','a','PERSON',FALSE,TRUE,'Italia','Toscana','Pisa','Pisa')
+    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',account_type='PERSON',is_admin=FALSE,is_activist=TRUE
+  `, [E2E_ACTIVIST_USER_ID,'DEMOS E2E Activist','DEMOS','E2E Activist']);
+  await client.query(`
+    INSERT INTO users (id,name,nome,cognome,ruolo,status,account_type,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
+    VALUES ($1,$2,$3,$4,'AD','a','PERSON',TRUE,FALSE,'Italia','Toscana','Pisa','Pisa')
+    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',account_type='PERSON',is_admin=TRUE,is_activist=FALSE
+  `, [E2E_ADMIN_USER_ID,'DEMOS E2E Admin','DEMOS','E2E Admin']);
+  logger.log(`[staging] E2E synthetic users ready: ${E2E_USER_ID}, ${E2E_ACTIVIST_USER_ID}, ${E2E_ADMIN_USER_ID}`);
   return E2E_USER_ID;
 }
 
@@ -142,4 +154,4 @@ async function run({ env = process.env, argv = process.argv.slice(2), logger = c
   } finally { await client.end(); }
 }
 if (require.main === module) run().catch((error)=>{ console.error(`[staging] FAILED: ${error.message}`); process.exitCode=1; });
-module.exports = { EXPECTED_DATABASE, E2E_USER_ID, BASELINE, MIGRATIONS, REQUIRED_BASE_TABLES, EXPECTED_TABLES, assertMigrationFilesExist, assertStagingUrl, seedE2EUser, run };
+module.exports = { EXPECTED_DATABASE, E2E_USER_ID, E2E_ACTIVIST_USER_ID, E2E_ADMIN_USER_ID, BASELINE, MIGRATIONS, REQUIRED_BASE_TABLES, EXPECTED_TABLES, assertMigrationFilesExist, assertStagingUrl, seedE2EUser, run };

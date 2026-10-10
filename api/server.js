@@ -35,9 +35,17 @@ try {
     console.log(`🔗 URL: http://localhost:${PORT}`);
     console.log(`📊 Moduli caricati: health, email, database, compatibility, services, auth, users, opinioni, governo, governo-ministro, rappresentanti, notifiche`);
 
-    if (process.env.DEMOS_STAGING_AUTH_E2E === 'true') {
-      const { runStagingAuthenticatedSelfTest } = require('./scripts/stagingAuthenticatedSelfTest');
-      runStagingAuthenticatedSelfTest({ port: PORT }).catch((error) => {
+    if (process.env.DEMOS_STAGING_AUTH_E2E === 'true' || process.env.DEMOS_STAGING_MUTATION_E2E === 'true') {
+      (async () => {
+        if (process.env.DEMOS_STAGING_AUTH_E2E === 'true') {
+          const { runStagingAuthenticatedSelfTest } = require('./scripts/stagingAuthenticatedSelfTest');
+          await runStagingAuthenticatedSelfTest({ port: PORT });
+        }
+        if (process.env.DEMOS_STAGING_MUTATION_E2E === 'true') {
+          const { runStagingMutationSelfTest } = require('./scripts/stagingMutationSelfTest');
+          await runStagingMutationSelfTest({ port: PORT });
+        }
+      })().catch((error) => {
         console.error(`[staging-e2e] FAILED: ${error.message}`);
         server.close(() => process.exit(1));
       });
