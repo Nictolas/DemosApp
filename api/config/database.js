@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+const { buildDatabaseSsl } = require('../utils/databaseTlsPolicy');
 
 const rawDatabaseUrl = process.env.DATABASE_URL;
 
@@ -19,22 +20,11 @@ const normalizeDatabaseUrl = (value) => {
   return url.toString();
 };
 
-const isLocalDatabaseUrl = (value) => {
-  if (!value) return false;
-
-  const hostname = new URL(value).hostname;
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
-};
-
 const databaseConnectionString = normalizeDatabaseUrl(rawDatabaseUrl);
-const useDatabaseTls = Boolean(rawDatabaseUrl) && !isLocalDatabaseUrl(rawDatabaseUrl);
 const supabaseCaPath = path.join(__dirname, '..', 'certs', 'prod-ca-2021.crt');
-const databaseSsl = useDatabaseTls
-  ? {
-      rejectUnauthorized: true,
-      ca: fs.readFileSync(supabaseCaPath, 'utf8')
-    }
-  : false;
+const databaseSsl = buildDatabaseSsl(rawDatabaseUrl, {
+  supabaseCa: fs.readFileSync(supabaseCaPath, 'utf8')
+});
 
 const poolMax = Math.max(1, parseInt(process.env.DATABASE_POOL_MAX || '100', 10));
 // Supabase: preferire URI Supavisor (pooler, porta 6543) con ?pgbouncer=true; min basso in produzione.
@@ -47,8 +37,8 @@ const poolMin = Math.max(
 // Configurazione ottimizzata per gestire molti utenti connessi
 const poolConfig = {
   connectionString: databaseConnectionString,
-  // In produzione la CA ufficiale Supabase verifica sia la catena del certificato
-  // sia l'identità del server; nessun fallback a rejectUnauthorized:false.
+  // TLS provider-aware: Supabase usa la CA ufficiale; endpoint pubblici usano
+  // la trust chain di sistema; Render interno usa TLS self-signed sulla rete privata.
   ssl: databaseSsl,
   // Override con DATABASE_POOL_MAX / DATABASE_POOL_MIN (su Supabase: non superare il limite connessioni del piano)
   max: poolMax,

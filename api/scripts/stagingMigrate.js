@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
+const { buildDatabaseSsl } = require('../utils/databaseTlsPolicy');
 
 const EXPECTED_DATABASE = 'demos_civic_staging_db';
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -72,7 +73,7 @@ function assertStagingUrl(connectionString) {
 function createClient(connectionString) {
   return new Client({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: buildDatabaseSsl(connectionString),
     application_name: 'demos-functional-staging-migrations',
   });
 }
