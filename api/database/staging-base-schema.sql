@@ -1,4 +1,4 @@
-﻿-- DEMOS staging-only baseline for an empty PostgreSQL database.
+-- DEMOS staging-only baseline for an empty PostgreSQL database.
 -- Mirrors only the pre-existing legacy structures required by the functional migration bundle.
 -- Contains no production data and is never selected by the normal production migration path.
 BEGIN;
@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS users (
   candidato_regionale TEXT,
   candidato_comune TEXT
 );
+
+-- Legacy compatibility selectors still read by eventFeedService until their dedicated relational migration.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS attivisti TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS organizzazioni TEXT;
 
 CREATE TABLE IF NOT EXISTS eventi (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
