@@ -39,7 +39,7 @@ function resolveMigration(relativePath) {
   return path.join(REPO_ROOT, ...relativePath.split('/'));
 }
 function readSql(relativePath) {
-  return readSql(relativePath).replace(/^\uFEFF/, '');
+  return fs.readFileSync(resolveMigration(relativePath), 'utf8').replace(/^\uFEFF/, '');
 }
 function assertMigrationFilesExist() {
   const files = [BASELINE, ...MIGRATIONS];
