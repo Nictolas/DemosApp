@@ -42,7 +42,8 @@ test('account types are constrained to person institution organization', () => {
 
 
 test('PostgreSQL function blocks keep valid dollar-quote delimiters', () => {
-  assert.equal((sql.match(/AS \$\$/g) || []).length, 3);
-  assert.equal((sql.match(/\$\$;/g) || []).length, 4);
+  const openings = (sql.match(/(?:DO|AS) \$\$/g) || []).length;
+  const closings = (sql.match(/\$\$;/g) || []).length;
+  assert.equal(closings, openings);
   assert.doesNotMatch(sql, /AS \$\n/);
 });

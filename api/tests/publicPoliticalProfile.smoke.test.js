@@ -69,7 +69,11 @@ test('other-profile client uses the target projection instead of the viewer Admi
   assert.match(hook, /response\.data\.public\?\.candidati/);
   assert.match(hook, /response\.data\.public\?\.governoIdeale/);
 
-  const ownOnly = sliceBetween(hook, 'if (isOwnProfile) {', '    }\n    } catch (profileError)');
+  const ownOnly = sliceBetween(
+    hook,
+    'if (isOwnProfile) {\r\n        const [governoResponse',
+    '    } catch (profileError)'
+  );
   assert.match(ownOnly, /\/api\/governo\/ideale/);
   assert.match(ownOnly, /\/api\/rappresentanti/);
   assert.match(ownOnly, /\/api\/candidati\/selezioni/);
