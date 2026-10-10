@@ -34,6 +34,14 @@ try {
     console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 URL: http://localhost:${PORT}`);
     console.log(`📊 Moduli caricati: health, email, database, compatibility, services, auth, users, opinioni, governo, governo-ministro, rappresentanti, notifiche`);
+
+    if (process.env.DEMOS_STAGING_AUTH_E2E === 'true') {
+      const { runStagingAuthenticatedSelfTest } = require('./scripts/stagingAuthenticatedSelfTest');
+      runStagingAuthenticatedSelfTest({ port: PORT }).catch((error) => {
+        console.error(`[staging-e2e] FAILED: ${error.message}`);
+        server.close(() => process.exit(1));
+      });
+    }
   });
 } catch (error) {
   console.error('❌ Errore critico nell\'avvio del server:', error);
