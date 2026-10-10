@@ -2,6 +2,28 @@ const redisCache = require('./redisCache');
 const { keys } = require('../config/cacheKeys');
 
 const MAX_ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60;
+const stagingMemoryRevocations = new Map();
+
+function stagingMemoryFallbackEnabled() {
+  return process.env.NODE_ENV === 'staging' && process.env.DEMOS_STAGING_IN_MEMORY_REVOCATION === 'true';
+}
+
+const stagingMemoryClient = {
+  async get(key) {
+    const item = stagingMemoryRevocations.get(key);
+    if (!item) return null;
+    if (item.expiresAt <= Date.now()) {
+      stagingMemoryRevocations.delete(key);
+      return null;
+    }
+    return item.value;
+  },
+  async set(key, value, options = {}) {
+    const ttlSeconds = Math.max(1, Number(options.ex) || MAX_ACCESS_TOKEN_TTL_SECONDS);
+    stagingMemoryRevocations.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+    return 'OK';
+  },
+};
 
 function getAccessSessionId(decoded) {
   if (!decoded || typeof decoded !== 'object') return null;
@@ -24,8 +46,9 @@ function unavailableError(cause) {
 
 function getRedisClientOrThrow() {
   const client = redisCache.getClient();
-  if (!client) throw unavailableError();
-  return client;
+  if (client) return client;
+  if (stagingMemoryFallbackEnabled()) return stagingMemoryClient;
+  throw unavailableError();
 }
 
 async function isAccessSessionRevoked(decoded) {
@@ -69,6 +92,7 @@ module.exports = {
   MAX_ACCESS_TOKEN_TTL_SECONDS,
   getAccessSessionId,
   getRemainingAccessTtlSeconds,
+  stagingMemoryFallbackEnabled,
   isAccessSessionRevoked,
   revokeAccessSession,
   revokeDecodedAccessToken,
