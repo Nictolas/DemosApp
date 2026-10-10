@@ -343,7 +343,7 @@ AFTER UPDATE OF account_type, is_admin, is_activist ON users
 FOR EACH ROW EXECUTE FUNCTION trg_refresh_users_legacy_role_from_user();
 
 -- Normalize the legacy projection after backfill.
-DO 
+DO $$
 DECLARE
   r RECORD;
 BEGIN
@@ -351,6 +351,6 @@ BEGIN
     PERFORM refresh_users_legacy_role(r.id);
   END LOOP;
 END;
-;
+$$;
 
 COMMIT;
