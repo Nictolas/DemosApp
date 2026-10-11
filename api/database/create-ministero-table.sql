@@ -36,9 +36,8 @@ CREATE INDEX IF NOT EXISTS idx_iniziative_ministero_quorum_raggiunto ON iniziati
 
 -- Commenti per documentazione
 COMMENT ON TABLE iniziative_ministero IS 'Iniziative e referendum sincronizzati dal Ministero della Giustizia';
-COMMENT ON COLUMN iniziative_ministero.id_ministero IS 'ID univoco dall\'API del Ministero';
+COMMENT ON COLUMN iniziative_ministero.id_ministero IS 'ID univoco dall''API del Ministero';
 COMMENT ON COLUMN iniziative_ministero.tipo IS 'Tipo: iniziativa, referendum, etc.';
 COMMENT ON COLUMN iniziative_ministero.stato IS 'Stato: in_corso, conclusa, etc.';
-COMMENT ON COLUMN iniziative_ministero.esito IS 'Esito dell\'iniziativa/referendum (compatibilità con tabelle legacy: In Attesa, Conclusa, etc.)';
+COMMENT ON COLUMN iniziative_ministero.esito IS 'Esito dell''iniziativa/referendum (compatibilità con tabelle legacy: In Attesa, Conclusa, etc.)';
 COMMENT ON COLUMN iniziative_ministero.quorum_raggiunto IS 'Indica se il quorum è stato raggiunto';
-
