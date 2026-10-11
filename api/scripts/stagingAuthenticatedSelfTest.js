@@ -1,6 +1,6 @@
 'use strict';
 
-const { E2E_USER_ID } = require('./stagingMigrate');
+const { E2E_USER_ID, E2E_ACTIVIST_USER_ID } = require('./stagingMigrate');
 
 const CASES = Object.freeze([
   { path: '/api/auth/me', authenticated: true, expected: 200 },
@@ -50,7 +50,24 @@ async function runStagingAuthenticatedSelfTest({
     electionLifecycle = await runStagingElectionLifecycleSelfTest({ env, logger });
   }
 
-  return { mode: 'authenticated-e2e', passed, total: CASES.length, electionLifecycle };
+  let supporterSync = null;
+  if (env.DEMOS_STAGING_SUPPORTER_SYNC_E2E === 'true') {
+    const publicCounts = await fetchImpl(`${baseUrl}/api/sostenitori/totale?sostenuto_id=${encodeURIComponent(E2E_ACTIVIST_USER_ID)}`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(8000),
+    });
+    const publicBody = await publicCounts.json();
+    if (publicCounts.status !== 200 || publicBody?.data?.politico !== null || publicBody?.data?.candidato !== null
+      || publicBody?.data?.restricted?.politico !== true || publicBody?.data?.restricted?.candidato !== true) {
+      throw new Error('Public supporter totals exposed Politico/Candidato counts');
+    }
+    logger.log('[staging-supporter-sync-e2e] public totals hide Politico/Candidato counts PASS');
+
+    const { runStagingSupporterSyncSelfTest } = require('./stagingSupporterSyncSelfTest');
+    supporterSync = await runStagingSupporterSyncSelfTest({ env, logger });
+  }
+
+  return { mode: 'authenticated-e2e', passed, total: CASES.length, electionLifecycle, supporterSync };
 }
 
 module.exports = { CASES, runStagingAuthenticatedSelfTest };
