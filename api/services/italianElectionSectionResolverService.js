@@ -97,6 +97,10 @@ function normalizeSectionNumber(value) {
   return Number.isSafeInteger(number) && number > 0 ? String(number) : null;
 }
 
+function baseUnitLabel(value) {
+  return String(value || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+
 function municipalityRequiresSectionResolution(municipalityCode) {
   const code = normalizeMunicipalityCode(municipalityCode);
   return Boolean(code && buildItalianElectionSectionIndex().municipalities.has(code));
@@ -159,12 +163,13 @@ async function persistItalianElectionSectionResolution(db, {
        FROM unita_elettorale
        WHERE evento_id = $1
          AND metadata->>'officeId' = ANY($2::text[])
-         AND label = ANY($3::text[])`,
+         AND regexp_replace(label, '\\s*\\([^)]*\\)\\s*$', '') = ANY($3::text[])`,
       [electionEventId, ['it.camera', 'it.senato'], labels],
     );
     const idsByKey = new Map();
     for (const row of lookup.rows || []) {
-      const key = `${row.office_id}|${String(row.unit_type || '').toUpperCase()}|${row.label}`;
+      const canonicalLabel = baseUnitLabel(row.label);
+      const key = `${row.office_id}|${String(row.unit_type || '').toUpperCase()}|${canonicalLabel}`;
       if (idsByKey.has(key)) {
         const error = new Error(`Duplicate electoral unit for ${key}`);
         error.code = 'ELECTION_SECTION_UNIT_AMBIGUOUS';
