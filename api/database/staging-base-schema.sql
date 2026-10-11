@@ -39,6 +39,14 @@ CREATE TABLE IF NOT EXISTS users (
   candidato_comune TEXT
 );
 
+-- Legacy Opinioni response store required by /api/opinioni/salva.
+-- Individual opinion columns are dynamic; staging E2E may add/drop its own isolated column.
+CREATE TABLE IF NOT EXISTS opinioni_risposte (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  fonti_opinioni JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 -- Legacy compatibility selectors still read by eventFeedService until their dedicated relational migration.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS attivisti TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organizzazioni TEXT;
