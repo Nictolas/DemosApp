@@ -2,10 +2,9 @@
 
 const { getPool } = require('../config/database');
 const { E2E_USER_ID } = require('./stagingMigrate');
+const { listPriorityEligiblePopularInitiatives } = require('../services/civicProcessReadService');
 
-const SCOPE = 'capo-stato:consenso';
-const FIRST_CHOICE = 'No';
-const SECOND_CHOICE = 'Non so';
+const SCOPE = 'iniziative-popolari:preferenza';
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 async function expectJson(response, expectedStatus, label) {
@@ -18,28 +17,28 @@ async function expectJson(response, expectedStatus, label) {
 }
 
 async function readState(db) {
-  const consent = await db.query(
-    `SELECT risposta, timestamp
-     FROM consenso_capo_stato
-     WHERE userid = $1
-     ORDER BY timestamp DESC
-     LIMIT 1`,
+  const vote = await db.query(
+    `SELECT iniziativa_id, timestamp, created_at
+       FROM voti_iniziative_popolari
+      WHERE userid::text = $1
+      ORDER BY timestamp DESC NULLS LAST, created_at DESC NULLS LAST
+      LIMIT 1`,
     [E2E_USER_ID],
   );
   const cooldown = await db.query(
     `SELECT last_changed_at
-     FROM preference_change_cooldowns
-     WHERE user_id = $1 AND scope = $2`,
+       FROM preference_change_cooldowns
+      WHERE user_id = $1 AND scope = $2`,
     [E2E_USER_ID, SCOPE],
   );
   return {
-    consent: consent.rows[0] || null,
+    vote: vote.rows[0] || null,
     cooldown: cooldown.rows[0] || null,
   };
 }
 
 async function cleanup(db) {
-  await db.query('DELETE FROM consenso_capo_stato WHERE userid = $1', [E2E_USER_ID]);
+  await db.query('DELETE FROM voti_iniziative_popolari WHERE userid::text = $1', [E2E_USER_ID]);
   await db.query(
     'DELETE FROM preference_change_cooldowns WHERE user_id = $1 AND scope = $2',
     [E2E_USER_ID, SCOPE],
@@ -71,17 +70,26 @@ async function runStagingPreferenceCooldownSelfTest({
 
   try {
     await cleanup(pool);
+    const eligible = await listPriorityEligiblePopularInitiatives(pool);
+    if (eligible.length < 2) {
+      throw new Error(`staging requires at least two eligible canonical initiatives for F12-25 E2E, found ${eligible.length}`);
+    }
+    const firstChoice = String(eligible[0].id);
+    const secondChoice = String(eligible[1].id);
 
-    let response = await fetchImpl(`${baseUrl}/api/capo-stato/consenso`, {
+    let response = await fetchImpl(`${baseUrl}/api/iniziative-popolari/vota`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ risposta: FIRST_CHOICE }),
+      body: JSON.stringify({ voti: [firstChoice] }),
       signal: AbortSignal.timeout(8000),
     });
-    await expectJson(response, 200, 'first preference change');
+    let body = await expectJson(response, 200, 'first preference change');
+    if (body?.unchanged !== false || String(body?.iniziativaId || '') !== firstChoice) {
+      throw new Error(`unexpected first preference response: ${JSON.stringify(body)}`);
+    }
 
     let state = await readState(pool);
-    if (state.consent?.risposta !== FIRST_CHOICE || !state.consent?.timestamp || !state.cooldown?.last_changed_at) {
+    if (String(state.vote?.iniziativa_id || '') !== firstChoice || !state.vote?.timestamp || !state.cooldown?.last_changed_at) {
       throw new Error('first preference change was not persisted with cooldown timestamp');
     }
     const firstCooldownMs = new Date(state.cooldown.last_changed_at).getTime();
@@ -89,26 +97,29 @@ async function runStagingPreferenceCooldownSelfTest({
     logger.log('[staging-preference-e2e] first choice immediate + cooldown recorded PASS');
     passed += 1;
 
-    response = await fetchImpl(`${baseUrl}/api/capo-stato/consenso`, {
+    response = await fetchImpl(`${baseUrl}/api/iniziative-popolari/vota`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ risposta: FIRST_CHOICE }),
+      body: JSON.stringify({ voti: [firstChoice] }),
       signal: AbortSignal.timeout(8000),
     });
-    await expectJson(response, 200, 'same preference no-op');
+    body = await expectJson(response, 200, 'same preference no-op');
+    if (body?.unchanged !== true) {
+      throw new Error(`same preference was not treated as no-op: ${JSON.stringify(body)}`);
+    }
 
     state = await readState(pool);
     const noOpCooldownMs = new Date(state.cooldown?.last_changed_at).getTime();
-    if (state.consent?.risposta !== FIRST_CHOICE || noOpCooldownMs !== firstCooldownMs) {
+    if (String(state.vote?.iniziativa_id || '') !== firstChoice || noOpCooldownMs !== firstCooldownMs) {
       throw new Error('same-value no-op unexpectedly changed state or cooldown');
     }
     logger.log('[staging-preference-e2e] same choice is a no-op and does not extend cooldown PASS');
     passed += 1;
 
-    response = await fetchImpl(`${baseUrl}/api/capo-stato/consenso`, {
+    response = await fetchImpl(`${baseUrl}/api/iniziative-popolari/vota`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ risposta: SECOND_CHOICE }),
+      body: JSON.stringify({ voti: [secondChoice] }),
       signal: AbortSignal.timeout(8000),
     });
     const blockedBody = await expectJson(response, 409, 'second preference inside cooldown');
@@ -120,7 +131,7 @@ async function runStagingPreferenceCooldownSelfTest({
       throw new Error('cooldown unlockDate is not 24 hours after the recorded change');
     }
     state = await readState(pool);
-    if (state.consent?.risposta !== FIRST_CHOICE) {
+    if (String(state.vote?.iniziativa_id || '') !== firstChoice) {
       throw new Error('blocked preference change altered current state');
     }
     logger.log('[staging-preference-e2e] second change inside 24h blocked with stable 409 PASS');
@@ -128,27 +139,30 @@ async function runStagingPreferenceCooldownSelfTest({
 
     const agedAt = new Date(Date.now() - COOLDOWN_MS - 5000).toISOString();
     await pool.query(
-      'UPDATE consenso_capo_stato SET timestamp = $2 WHERE userid = $1',
+      'UPDATE voti_iniziative_popolari SET timestamp = $2, created_at = $2 WHERE userid::text = $1',
       [E2E_USER_ID, agedAt],
     );
     await pool.query(
       `UPDATE preference_change_cooldowns
-       SET last_changed_at = $3
-       WHERE user_id = $1 AND scope = $2`,
+          SET last_changed_at = $3
+        WHERE user_id = $1 AND scope = $2`,
       [E2E_USER_ID, SCOPE, agedAt],
     );
 
-    response = await fetchImpl(`${baseUrl}/api/capo-stato/consenso`, {
+    response = await fetchImpl(`${baseUrl}/api/iniziative-popolari/vota`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ risposta: SECOND_CHOICE }),
+      body: JSON.stringify({ voti: [secondChoice] }),
       signal: AbortSignal.timeout(8000),
     });
-    await expectJson(response, 200, 'preference after 24h boundary');
+    body = await expectJson(response, 200, 'preference after 24h boundary');
+    if (body?.unchanged !== false || String(body?.iniziativaId || '') !== secondChoice) {
+      throw new Error(`unexpected post-cooldown response: ${JSON.stringify(body)}`);
+    }
 
     state = await readState(pool);
     const secondCooldownMs = new Date(state.cooldown?.last_changed_at).getTime();
-    if (state.consent?.risposta !== SECOND_CHOICE || !Number.isFinite(secondCooldownMs) || secondCooldownMs <= firstCooldownMs) {
+    if (String(state.vote?.iniziativa_id || '') !== secondChoice || !Number.isFinite(secondCooldownMs) || secondCooldownMs <= firstCooldownMs) {
       throw new Error('preference did not become editable after 24h');
     }
     logger.log('[staging-preference-e2e] preference editable again after 24h PASS');
@@ -156,7 +170,7 @@ async function runStagingPreferenceCooldownSelfTest({
 
     await cleanup(pool);
     state = await readState(pool);
-    if (state.consent || state.cooldown) {
+    if (state.vote || state.cooldown) {
       throw new Error('final synthetic preference cleanup verification failed');
     }
     logger.log('[staging-preference-e2e] final cleanup verification PASS');
@@ -177,8 +191,6 @@ async function runStagingPreferenceCooldownSelfTest({
 
 module.exports = {
   SCOPE,
-  FIRST_CHOICE,
-  SECOND_CHOICE,
   cleanup,
   readState,
   runStagingPreferenceCooldownSelfTest,

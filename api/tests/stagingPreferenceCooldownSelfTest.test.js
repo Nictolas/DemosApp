@@ -6,8 +6,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   SCOPE,
-  FIRST_CHOICE,
-  SECOND_CHOICE,
   runStagingPreferenceCooldownSelfTest,
 } = require('../scripts/stagingPreferenceCooldownSelfTest');
 
@@ -46,8 +44,6 @@ test('staging server wires the dedicated fail-closed preference cooldown E2E fla
   assert.match(server, /server\.close\(\(\) => process\.exit\(1\)\)/);
 });
 
-test('preference cooldown staging fixture targets one isolated durable scope', () => {
-  assert.equal(SCOPE, 'capo-stato:consenso');
-  assert.equal(FIRST_CHOICE, 'No');
-  assert.equal(SECOND_CHOICE, 'Non so');
+test('preference cooldown staging fixture targets an existing isolated staging surface', () => {
+  assert.equal(SCOPE, 'iniziative-popolari:preferenza');
 });
