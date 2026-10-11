@@ -35,7 +35,11 @@ try {
     console.log(`🔗 URL: http://localhost:${PORT}`);
     console.log(`📊 Moduli caricati: health, email, database, compatibility, services, auth, users, opinioni, governo, governo-ministro, rappresentanti, notifiche`);
 
-    if (process.env.DEMOS_STAGING_AUTH_E2E === 'true' || process.env.DEMOS_STAGING_MUTATION_E2E === 'true') {
+    if (
+      process.env.DEMOS_STAGING_AUTH_E2E === 'true' ||
+      process.env.DEMOS_STAGING_MUTATION_E2E === 'true' ||
+      process.env.DEMOS_STAGING_OPINION_NOTIFICATION_E2E === 'true'
+    ) {
       (async () => {
         if (process.env.DEMOS_STAGING_AUTH_E2E === 'true') {
           const { runStagingAuthenticatedSelfTest } = require('./scripts/stagingAuthenticatedSelfTest');
@@ -44,6 +48,10 @@ try {
         if (process.env.DEMOS_STAGING_MUTATION_E2E === 'true') {
           const { runStagingMutationSelfTest } = require('./scripts/stagingMutationSelfTest');
           await runStagingMutationSelfTest({ port: PORT });
+        }
+        if (process.env.DEMOS_STAGING_OPINION_NOTIFICATION_E2E === 'true') {
+          const { runStagingPoliticalOpinionNotificationSelfTest } = require('./scripts/stagingPoliticalOpinionNotificationSelfTest');
+          await runStagingPoliticalOpinionNotificationSelfTest({ port: PORT });
         }
       })().catch((error) => {
         console.error(`[staging-e2e] FAILED: ${error.message}`);
