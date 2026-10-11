@@ -43,7 +43,14 @@ async function runStagingAuthenticatedSelfTest({
   }
 
   logger.log(`[staging-e2e] PASS ${passed}/${CASES.length}`);
-  return { mode: 'authenticated-e2e', passed, total: CASES.length };
+
+  let electionLifecycle = null;
+  if (env.DEMOS_STAGING_ELECTION_LIFECYCLE_E2E === 'true') {
+    const { runStagingElectionLifecycleSelfTest } = require('./stagingElectionLifecycleSelfTest');
+    electionLifecycle = await runStagingElectionLifecycleSelfTest({ env, logger });
+  }
+
+  return { mode: 'authenticated-e2e', passed, total: CASES.length, electionLifecycle };
 }
 
 module.exports = { CASES, runStagingAuthenticatedSelfTest };

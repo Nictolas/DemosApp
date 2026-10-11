@@ -2,6 +2,7 @@ const { endCandidacy } = require('./politicalLifecycleService');
 const {
   getLegacySelectionField,
   getLegacySelectionFieldsForElectionType,
+  resolvePoliticalOffice,
 } = require('./politicalJurisdictionRegistryService');
 
 const SCHEMA_ERROR_CODES = new Set(['42P01', '42703', '42883']);
@@ -28,7 +29,49 @@ function selectionFieldsForCandidacy(candidacy, electionType) {
   return getLegacySelectionFieldsForElectionType('candidate', electionType);
 }
 
+function canonicalSelectionTargetForCandidacy(candidacy) {
+  const jurisdiction = parseJurisdiction(candidacy?.jurisdiction);
+  const level = String(jurisdiction.level || '').trim();
+  const office = resolvePoliticalOffice(level);
+  return {
+    candidacyId: candidacy?.id ? String(candidacy.id) : null,
+    selectedUserId: candidacy?.user_id ? String(candidacy.user_id) : null,
+    officeId: office?.id || null,
+  };
+}
+
 async function clearCandidateSelections(client, event, candidacies) {
+  let cleared = 0;
+
+  // Canonical store: remove current candidate choices tied to the candidacy being closed.
+  // Legacy-backfilled canonical rows may not have selected_candidacy_id; in that case
+  // scope the fallback to the same selected user and political office.
+  for (const candidacy of candidacies) {
+    const target = canonicalSelectionTargetForCandidacy(candidacy);
+    if (!target.candidacyId) continue;
+    const values = [target.candidacyId];
+    let predicate = 'selected_candidacy_id::text = $1::text';
+    if (target.selectedUserId && target.officeId) {
+      values.push(target.selectedUserId, target.officeId);
+      predicate += ` OR (
+        selected_candidacy_id IS NULL
+        AND selected_user_id::text = $2::text
+        AND political_office_id = $3
+      )`;
+    }
+    try {
+      const canonicalResult = await client.query(
+        `DELETE FROM political_selections
+         WHERE selection_kind = 'candidate'
+           AND (${predicate})`,
+        values,
+      );
+      cleared += canonicalResult.rowCount || 0;
+    } catch (error) {
+      if (!SCHEMA_ERROR_CODES.has(error?.code)) throw error;
+    }
+  }
+
   const idsByField = new Map();
   for (const candidacy of candidacies) {
     for (const field of selectionFieldsForCandidacy(candidacy, event.tipo_elezione)) {
@@ -51,7 +94,6 @@ async function clearCandidateSelections(client, event, candidacies) {
     representativeColumns = new Set(columnsResult.rows.map((row) => row.column_name));
   }
 
-  let cleared = 0;
   for (const [field, ids] of idsByField.entries()) {
     const values = [...ids];
     if (!values.length) continue;
@@ -188,6 +230,7 @@ async function closeElectionLifecycle(client, { eventId, closedByUserId, closedA
 module.exports = {
   ElectionLifecycleError,
   selectionFieldsForCandidacy,
+  canonicalSelectionTargetForCandidacy,
   clearCandidateSelections,
   closeElectionLifecycle,
 };

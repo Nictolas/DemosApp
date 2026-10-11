@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   ElectionLifecycleError,
   selectionFieldsForCandidacy,
+  canonicalSelectionTargetForCandidacy,
   closeElectionLifecycle,
 } = require('../services/electionLifecycleService');
 
@@ -13,6 +14,13 @@ test('candidate support field is derived from candidacy level before event fallb
   assert.deepEqual(selectionFieldsForCandidacy({ jurisdiction: { level: 'S' } }, 'politiche_nazionali'), ['candidato_senato']);
   assert.deepEqual(selectionFieldsForCandidacy({ jurisdiction: { level: 'R' } }, 'regionali'), ['candidato_regionale']);
   assert.deepEqual(selectionFieldsForCandidacy({ jurisdiction: { level: 'CO' } }, 'comunali'), ['candidato_comune']);
+});
+
+test('canonical candidate selection target is scoped to candidacy, user and office', () => {
+  assert.deepEqual(
+    canonicalSelectionTargetForCandidacy({ id: 'cand-r', user_id: 'u-r', jurisdiction: { level: 'R' } }),
+    { candidacyId: 'cand-r', selectedUserId: 'u-r', officeId: 'it.regional' },
+  );
 });
 
 test('national event fallback clears both Camera and Senato only when candidacy level is unavailable', () => {
@@ -53,6 +61,9 @@ function makeLifecycleClient({ ended = true, alreadyClosed = false } = {}) {
       if (s.includes("to_regclass('public.political_programs')")) {
         return { rows: [{ programs: null, snapshots: null }] };
       }
+      if (s.startsWith('DELETE FROM political_selections')) {
+        return { rows: [], rowCount: 1 };
+      }
       if (s.includes("to_regclass('public.user_representatives')")) {
         return { rows: [{ table_name: null }] };
       }
@@ -67,7 +78,7 @@ function makeLifecycleClient({ ended = true, alreadyClosed = false } = {}) {
   return client;
 }
 
-test('closure marks mandate-linked candidate ELECTED, others NOT_ELECTED and clears current candidate support', async () => {
+test('closure marks mandate-linked candidate ELECTED, others NOT_ELECTED and clears canonical plus legacy support', async () => {
   const client = makeLifecycleClient();
   const result = await closeElectionLifecycle(client, {
     eventId: 'event-1',
@@ -79,10 +90,15 @@ test('closure marks mandate-linked candidate ELECTED, others NOT_ELECTED and cle
   assert.equal(result.candidaciesEnded, 2);
   assert.equal(result.elected, 1);
   assert.equal(result.notElected, 1);
-  assert.equal(result.supporterSelectionsCleared, 4);
+  assert.equal(result.supporterSelectionsCleared, 6);
 
   const endedCalls = client.calls.filter((call) => call.s.startsWith('UPDATE political_candidacies'));
   assert.deepEqual(endedCalls.map((call) => call.values[1]), ['ELECTED', 'NOT_ELECTED']);
+  const canonicalDeleteCalls = client.calls.filter((call) => call.s.startsWith('DELETE FROM political_selections'));
+  assert.equal(canonicalDeleteCalls.length, 2);
+  assert.ok(canonicalDeleteCalls.every((call) => call.s.includes("selection_kind = 'candidate'")));
+  assert.ok(canonicalDeleteCalls.every((call) => call.s.includes('selected_candidacy_id::text = $1::text')));
+  assert.ok(canonicalDeleteCalls.every((call) => call.values[2] === 'it.regional'));
   assert.ok(client.calls.some((call) => call.s.includes('UPDATE users SET candidato_regionale = NULL')));
   assert.ok(client.calls.some((call) => call.s.includes('UPDATE eventi SET election_lifecycle_closed_at')));
 });
