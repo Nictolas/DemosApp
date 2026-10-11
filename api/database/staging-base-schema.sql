@@ -68,6 +68,16 @@ CREATE TABLE IF NOT EXISTS opinioni_risposte (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Minimal legacy opinion catalog required by supporter-notification text resolution.
+-- The E2E uses a synthetic column and falls back to the opinion id when no catalog row exists.
+CREATE TABLE IF NOT EXISTS opinioni_domande (
+  id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  approfondimento TEXT,
+  gradi_opinione TEXT[] DEFAULT ARRAY[]::TEXT[]
+);
+
 -- Legacy compatibility selectors still read by eventFeedService until their dedicated relational migration.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS attivisti TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS organizzazioni TEXT;

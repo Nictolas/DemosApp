@@ -25,6 +25,16 @@ test('staging baseline includes the legacy opinion response store used by the op
   assert.match(baseline, /fonti_opinioni JSONB/);
 });
 
+test('staging baseline includes the minimal opinion catalog used by notification text resolution', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const baseline = fs.readFileSync(path.resolve(__dirname, '..', 'database', 'staging-base-schema.sql'), 'utf8');
+  assert.match(baseline, /CREATE TABLE IF NOT EXISTS opinioni_domande/);
+  assert.match(baseline, /id TEXT PRIMARY KEY/);
+  assert.match(baseline, /text TEXT NOT NULL/);
+  assert.match(baseline, /gradi_opinione TEXT\[\]/);
+});
+
 test('staging baseline retains legacy consent compatibility columns during the normalization window', () => {
   const fs = require('node:fs');
   const path = require('node:path');
