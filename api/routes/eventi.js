@@ -124,7 +124,7 @@ router.post('/', verifyToken, async (req, res) => {
            creator_user_id, approval_status, approval_requested_at, approved_at, approved_by_user_id
          ) VALUES (
            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-           $16,$17,NOW(),CASE WHEN $18 THEN NOW() ELSE NULL END,CASE WHEN $18 THEN $16 ELSE NULL END
+           $16::uuid,$17,NOW(),CASE WHEN $18 THEN NOW() ELSE NULL END,CASE WHEN $18 THEN $16::uuid ELSE NULL END
          ) RETURNING *`,
         [...values, req.userId, approval.status, approval.approvedNow]
       );
