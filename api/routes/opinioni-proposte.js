@@ -399,20 +399,16 @@ router.post('/', verifyToken, async (req, res) => {
         const gradiOpinione = ['da approvare'];
         const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
-        // Verifica duplicati: prima in opinioni_proposte, poi in opinioni_domande
-        let checkDuplicateQuery = `
-          SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1
-        `;
-        try {
-          var duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
-        } catch (e) {
-          if (e.code === '42P01' && e.message && e.message.includes('opinioni_proposte')) {
-            checkDuplicateQuery = `
-              SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione) FOR UPDATE SKIP LOCKED LIMIT 1
-            `;
-            duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
-          } else throw e;
-        }
+        // Sceglie la sorgente proposta senza provocare un errore 42P01 dentro la transazione:
+        // in PostgreSQL una query fallita abortisce l'intera transazione e rende inutilizzabile il fallback.
+        const proposalSourceResult = await client.query(
+          `SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals`
+        );
+        const hasSeparateProposals = proposalSourceResult.rows[0]?.has_separate_proposals === true;
+        const checkDuplicateQuery = hasSeparateProposals
+          ? `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1`
+          : `SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione) FOR UPDATE SKIP LOCKED LIMIT 1`;
+        const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         console.log('🔍 Lock key utilizzato:', lockKey);
         console.log('🔍 Risultato controllo duplicati:', {
@@ -448,20 +444,19 @@ router.post('/', verifyToken, async (req, res) => {
 
         let insertResult;
         try {
-          insertResult = await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento]);
+          insertResult = hasSeparateProposals
+            ? await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento])
+            : await client.query(insertQueryDomande, [id, testoNormalizzato, gradiOpinione, approfondimento]);
         } catch (error) {
-          if (error.code === '42P01' && error.message && error.message.includes('opinioni_proposte')) {
-            insertResult = await client.query(insertQueryDomande, [id, testoNormalizzato, gradiOpinione, approfondimento]);
-          } else if (error.code === '23505') {
+          if (error.code === '23505') {
             await client.query('ROLLBACK');
             return res.status(409).json({
               success: false,
               error: 'Un\'opinione con questo testo è già stata proposta'
             });
-          } else {
-            console.error('❌ Errore durante INSERT:', error);
-            throw error;
           }
+          console.error('❌ Errore durante INSERT:', error);
+          throw error;
         }
         
         console.log('✅ Insert eseguito. Righe inserite:', insertResult.rowCount);
@@ -492,11 +487,9 @@ router.post('/', verifyToken, async (req, res) => {
         console.log('🔓 Lock rilasciato dopo commit');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
-        const checkDuplicateQueryFinal = `
-          SELECT id FROM opinioni_domande 
-          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) 
-          AND 'da approvare' = ANY(gradi_opinione)
-        `;
+        const checkDuplicateQueryFinal = hasSeparateProposals
+          ? `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))`
+          : `SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione)`;
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
         if (finalCheck.rows.length > 1) {
           console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
