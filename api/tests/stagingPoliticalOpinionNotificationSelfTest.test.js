@@ -40,7 +40,7 @@ test('opinion notification staging E2E refuses to run outside staging', async ()
   );
 });
 
-test('pickOpinionColumn returns only a shared safe opinion column', async () => {
+test('pickOpinionColumn returns a safe writable opinion column from the real response table', async () => {
   const calls = [];
   const pool = {
     async query(sql) {
@@ -50,8 +50,10 @@ test('pickOpinionColumn returns only a shared safe opinion column', async () => 
   };
   assert.equal(await pickOpinionColumn(pool), 'energia_nucleare');
   assert.equal(calls.length, 1);
-  assert.match(calls[0], /opinioni_domande/);
+  assert.doesNotMatch(calls[0], /opinioni_domande/);
   assert.match(calls[0], /information_schema\.columns/);
+  assert.match(calls[0], /c\.data_type IN/);
+  assert.match(calls[0], /fonti_opinioni/);
 });
 
 test('pickOpinionColumn rejects an unsafe identifier even if returned by the database', async () => {

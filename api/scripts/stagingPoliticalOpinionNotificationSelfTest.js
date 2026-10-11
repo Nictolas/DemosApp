@@ -18,17 +18,17 @@ async function expectJson(response, expectedStatus, label) {
 
 async function pickOpinionColumn(db) {
   const result = await db.query(`
-    SELECT od.id::text AS id
-    FROM opinioni_domande od
-    JOIN information_schema.columns c
-      ON c.table_schema = 'public'
-     AND c.table_name = 'opinioni_risposte'
-     AND c.column_name = od.id::text
-    ORDER BY od.id::text
+    SELECT c.column_name AS id
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+      AND c.table_name = 'opinioni_risposte'
+      AND c.column_name NOT IN ('user_id', 'fonti_opinioni')
+      AND c.data_type IN ('character varying', 'text')
+    ORDER BY c.ordinal_position
     LIMIT 1
   `);
   const id = result.rows[0]?.id;
-  if (!id) throw new Error('No opinion column shared by opinioni_domande and opinioni_risposte');
+  if (!id) throw new Error('No writable opinion column found in opinioni_risposte');
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id)) throw new Error(`Unsafe opinion column selected: ${id}`);
   return id;
 }
