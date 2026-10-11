@@ -8,6 +8,7 @@ const path = require('node:path');
 const {
   TEST_SOURCE,
   TEST_OFFICE,
+  TEST_OPINION_COLUMN,
   pickOpinionColumn,
   runStagingPoliticalOpinionNotificationSelfTest,
 } = require('../scripts/stagingPoliticalOpinionNotificationSelfTest');
@@ -48,7 +49,7 @@ test('pickOpinionColumn returns a safe writable opinion column from the real res
       return { rows: [{ id: 'energia_nucleare' }] };
     },
   };
-  assert.equal(await pickOpinionColumn(pool), 'energia_nucleare');
+  assert.deepEqual(await pickOpinionColumn(pool), { id: 'energia_nucleare', temporary: false });
   assert.equal(calls.length, 1);
   assert.doesNotMatch(calls[0], /opinioni_domande/);
   assert.match(calls[0], /information_schema\.columns/);
@@ -57,6 +58,21 @@ test('pickOpinionColumn returns a safe writable opinion column from the real res
   assert.match(calls[0], /updated_at/);
 });
 
+
+test('pickOpinionColumn creates an isolated temporary opinion column when staging has none', async () => {
+  const calls = [];
+  const pool = {
+    async query(sql) {
+      calls.push(sql);
+      if (calls.length === 1) return { rows: [] };
+      return { rows: [] };
+    },
+  };
+  assert.deepEqual(await pickOpinionColumn(pool), { id: TEST_OPINION_COLUMN, temporary: true });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1], /ALTER TABLE opinioni_risposte ADD COLUMN IF NOT EXISTS/);
+  assert.match(calls[1], new RegExp(TEST_OPINION_COLUMN));
+});
 test('pickOpinionColumn rejects an unsafe identifier even if returned by the database', async () => {
   const pool = { async query() { return { rows: [{ id: 'bad-column;drop' }] }; } };
   await assert.rejects(pickOpinionColumn(pool), /Unsafe opinion column/);
@@ -72,4 +88,5 @@ test('staging server wires the dedicated fail-closed opinion notification E2E fl
 test('E2E fixture identifiers are isolated from normal political office/source identifiers', () => {
   assert.equal(TEST_SOURCE, 'STAGING_E2E_OPINION');
   assert.equal(TEST_OFFICE, 'e2e.opinion-notification');
+  assert.equal(TEST_OPINION_COLUMN, 'e2e_opinion_notification_test');
 });

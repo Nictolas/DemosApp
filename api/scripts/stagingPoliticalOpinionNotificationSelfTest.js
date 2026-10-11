@@ -6,6 +6,7 @@ const { E2E_USER_ID, E2E_ACTIVIST_USER_ID } = require('./stagingMigrate');
 
 const TEST_SOURCE = 'STAGING_E2E_OPINION';
 const TEST_OFFICE = 'e2e.opinion-notification';
+const TEST_OPINION_COLUMN = 'e2e_opinion_notification_test';
 
 async function expectJson(response, expectedStatus, label) {
   let body = null;
@@ -26,10 +27,14 @@ async function pickOpinionColumn(db) {
     ORDER BY c.ordinal_position
     LIMIT 1
   `);
-  const id = result.rows[0]?.id;
-  if (!id) throw new Error('No writable opinion column found in opinioni_risposte');
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id)) throw new Error(`Unsafe opinion column selected: ${id}`);
-  return id;
+  const existingId = result.rows[0]?.id;
+  if (existingId) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(existingId)) throw new Error(`Unsafe opinion column selected: ${existingId}`);
+    return { id: existingId, temporary: existingId === TEST_OPINION_COLUMN };
+  }
+
+  await db.query(`ALTER TABLE opinioni_risposte ADD COLUMN IF NOT EXISTS "${TEST_OPINION_COLUMN}" TEXT`);
+  return { id: TEST_OPINION_COLUMN, temporary: true };
 }
 
 async function runStagingPoliticalOpinionNotificationSelfTest({
@@ -58,6 +63,7 @@ async function runStagingPoliticalOpinionNotificationSelfTest({
   };
 
   let opinionId = null;
+  let temporaryOpinionColumn = false;
   let previousConsent = null;
   let consentExisted = false;
   let consentSnapshotTaken = false;
@@ -66,7 +72,9 @@ async function runStagingPoliticalOpinionNotificationSelfTest({
   let passed = 0;
 
   try {
-    opinionId = await pickOpinionColumn(pool);
+    const selectedOpinion = await pickOpinionColumn(pool);
+    opinionId = selectedOpinion.id;
+    temporaryOpinionColumn = selectedOpinion.temporary;
 
     const consentSnapshot = await pool.query(
       `SELECT political_opinions_consent
@@ -218,6 +226,9 @@ async function runStagingPoliticalOpinionNotificationSelfTest({
         [E2E_USER_ID, TEST_OFFICE, TEST_SOURCE],
       );
       await pool.query(`DELETE FROM political_candidacies WHERE user_id = $1 AND source = $2`, [E2E_ACTIVIST_USER_ID, TEST_SOURCE]);
+      if (temporaryOpinionColumn) {
+        await pool.query(`ALTER TABLE opinioni_risposte DROP COLUMN IF EXISTS "${TEST_OPINION_COLUMN}"`);
+      }
       if (consentSnapshotTaken) {
         if (consentExisted) {
           await pool.query(
@@ -242,6 +253,7 @@ async function runStagingPoliticalOpinionNotificationSelfTest({
 module.exports = {
   TEST_SOURCE,
   TEST_OFFICE,
+  TEST_OPINION_COLUMN,
   pickOpinionColumn,
   runStagingPoliticalOpinionNotificationSelfTest,
 };
