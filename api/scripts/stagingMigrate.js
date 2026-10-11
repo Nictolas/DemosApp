@@ -14,6 +14,7 @@ const BASELINE = 'api/database/staging-base-schema.sql';
 
 const MIGRATIONS = Object.freeze([
   'api/database/create-account-capabilities-model.sql',
+  'api/database/create-user-profile-consents.sql',
   '20261009_political_selections.sql',
   '20261009_political_territory_memberships.sql',
   'api/database/create-candidacy-program-model.sql',
@@ -35,7 +36,7 @@ const EXPECTED_TABLES = Object.freeze([
   'political_programs','mandate_program_snapshots','political_opinion_notifications',
   'preference_change_cooldowns','comunicazioni','civic_processes',
   'civic_process_source_records','civic_process_reconciliation_candidates',
-  'institutional_territorial_notices','voti_opinioni_proposte',
+  'institutional_territorial_notices','voti_opinioni_proposte','user_profile','user_consents',
 ]);
 
 function resolveMigration(relativePath) {
@@ -132,9 +133,9 @@ async function verifyExpectedSchema(client) {
   const found = new Set(result.rows.map((row) => row.relname));
   const missing = EXPECTED_TABLES.filter((table) => !found.has(table));
   if (missing.length) throw new Error(`Post-migration schema incomplete: ${missing.join(', ')}`);
-  const columns = await client.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND ((table_name='users' AND column_name IN ('account_type','is_admin','is_activist')) OR (table_name='eventi' AND column_name IN ('creator_user_id','approval_status','election_lifecycle_closed_at')) OR (table_name='comunicazioni' AND column_name IN ('institutional_vote_key','institutional_level','vote_date')) OR (table_name='civic_processes' AND column_name IN ('realized','realized_law_reference','realized_verified_at')))`);
+  const columns = await client.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND ((table_name='users' AND column_name IN ('account_type','is_admin','is_activist')) OR (table_name='eventi' AND column_name IN ('creator_user_id','approval_status','election_lifecycle_closed_at')) OR (table_name='comunicazioni' AND column_name IN ('institutional_vote_key','institutional_level','vote_date')) OR (table_name='civic_processes' AND column_name IN ('realized','realized_law_reference','realized_verified_at')) OR (table_name='user_profile' AND column_name IN ('user_id','paese_residenza','avatar_config')) OR (table_name='user_consents' AND column_name IN ('user_id','privacy_policy_consent','terms_of_service_consent','political_opinions_consent')))`);
   const keys = new Set(columns.rows.map((row) => `${row.table_name}.${row.column_name}`));
-  const required = ['users.account_type','users.is_admin','users.is_activist','eventi.creator_user_id','eventi.approval_status','eventi.election_lifecycle_closed_at','comunicazioni.institutional_vote_key','comunicazioni.institutional_level','comunicazioni.vote_date','civic_processes.realized','civic_processes.realized_law_reference','civic_processes.realized_verified_at'];
+  const required = ['users.account_type','users.is_admin','users.is_activist','eventi.creator_user_id','eventi.approval_status','eventi.election_lifecycle_closed_at','comunicazioni.institutional_vote_key','comunicazioni.institutional_level','comunicazioni.vote_date','civic_processes.realized','civic_processes.realized_law_reference','civic_processes.realized_verified_at','user_profile.user_id','user_profile.paese_residenza','user_profile.avatar_config','user_consents.user_id','user_consents.privacy_policy_consent','user_consents.terms_of_service_consent','user_consents.political_opinions_consent'];
   const missingColumns = required.filter((column) => !keys.has(column));
   if (missingColumns.length) throw new Error(`Post-migration columns incomplete: ${missingColumns.join(', ')}`);
 }
