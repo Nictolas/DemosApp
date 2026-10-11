@@ -39,7 +39,8 @@ try {
       process.env.DEMOS_STAGING_AUTH_E2E === 'true' ||
       process.env.DEMOS_STAGING_MUTATION_E2E === 'true' ||
       process.env.DEMOS_STAGING_OPINION_NOTIFICATION_E2E === 'true' ||
-      process.env.DEMOS_STAGING_OPINION_PROPOSAL_E2E === 'true'
+      process.env.DEMOS_STAGING_OPINION_PROPOSAL_E2E === 'true' ||
+      process.env.DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E === 'true'
     ) {
       (async () => {
         if (process.env.DEMOS_STAGING_AUTH_E2E === 'true') {
@@ -57,6 +58,10 @@ try {
         if (process.env.DEMOS_STAGING_OPINION_PROPOSAL_E2E === 'true') {
           const { runStagingOpinionProposalSelfTest } = require('./scripts/stagingOpinionProposalSelfTest');
           await runStagingOpinionProposalSelfTest({ port: PORT });
+        }
+        if (process.env.DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E === 'true') {
+          const { runStagingPreferenceCooldownSelfTest } = require('./scripts/stagingPreferenceCooldownSelfTest');
+          await runStagingPreferenceCooldownSelfTest({ port: PORT });
         }
       })().catch((error) => {
         console.error(`[staging-e2e] FAILED: ${error.message}`);
