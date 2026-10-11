@@ -59,7 +59,14 @@ function assertStagingUrl(connectionString) {
   return { databaseName };
 }
 function createClient(connectionString) {
-  return new Client({ connectionString, ssl: buildDatabaseSsl(connectionString), application_name: 'demos-functional-staging-migrations' });
+  return new Client({
+    connectionString,
+    ssl: buildDatabaseSsl(connectionString),
+    application_name: 'demos-functional-staging-migrations',
+    connectionTimeoutMillis: 15000,
+    query_timeout: 15000,
+    statement_timeout: 15000,
+  });
 }
 async function getBaseTables(client) {
   const result = await client.query(`SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND relkind IN ('r','p') AND relname = ANY($1::text[])`, [REQUIRED_BASE_TABLES]);
@@ -154,4 +161,4 @@ async function run({ env = process.env, argv = process.argv.slice(2), logger = c
   } finally { await client.end(); }
 }
 if (require.main === module) run().catch((error)=>{ console.error(`[staging] FAILED: ${error.message}`); process.exitCode=1; });
-module.exports = { EXPECTED_DATABASE, E2E_USER_ID, E2E_ACTIVIST_USER_ID, E2E_ADMIN_USER_ID, BASELINE, MIGRATIONS, REQUIRED_BASE_TABLES, EXPECTED_TABLES, assertMigrationFilesExist, assertStagingUrl, seedE2EUser, run };
+module.exports = { EXPECTED_DATABASE, E2E_USER_ID, E2E_ACTIVIST_USER_ID, E2E_ADMIN_USER_ID, BASELINE, MIGRATIONS, REQUIRED_BASE_TABLES, EXPECTED_TABLES, assertMigrationFilesExist, assertStagingUrl, createClient, seedE2EUser, run };

@@ -67,15 +67,24 @@ async function runStagingMutationSelfTest({
 
     response = await fetchImpl(`${baseUrl}/api/eventi/${eventId}`, { method: 'DELETE', headers: auth(adminToken), signal: AbortSignal.timeout(8000) });
     await expectStatus(response, 200, 'event cleanup');
+    response = await fetchImpl(`${baseUrl}/api/eventi/${eventId}`, { signal: AbortSignal.timeout(8000) });
+    await expectStatus(response, 404, 'event cleanup verification');
     eventId = null;
-    logger.log('[staging-mutation-e2e] cleanup PASS'); passed += 1;
+    logger.log('[staging-mutation-e2e] cleanup verified PASS'); passed += 1;
 
     logger.log(`[staging-mutation-e2e] PASS ${passed}/6`);
     return { mode: 'mutation-e2e', passed, total: 6 };
   } finally {
     if (eventId) {
-      try { await fetchImpl(`${baseUrl}/api/eventi/${eventId}`, { method: 'DELETE', headers: auth(adminToken), signal: AbortSignal.timeout(8000) }); }
-      catch (error) { logger.error(`[staging-mutation-e2e] cleanup warning: ${error.message}`); }
+      try {
+        const cleanupResponse = await fetchImpl(`${baseUrl}/api/eventi/${eventId}`, { method: 'DELETE', headers: auth(adminToken), signal: AbortSignal.timeout(8000) });
+        if (![200, 404].includes(cleanupResponse.status)) throw new Error(`cleanup returned HTTP ${cleanupResponse.status}`);
+        const verification = await fetchImpl(`${baseUrl}/api/eventi/${eventId}`, { signal: AbortSignal.timeout(8000) });
+        await expectStatus(verification, 404, 'fallback cleanup verification');
+      } catch (error) {
+        logger.error(`[staging-mutation-e2e] cleanup FAILED for event ${eventId}: ${error.message}`);
+        throw error;
+      }
     }
   }
 }
