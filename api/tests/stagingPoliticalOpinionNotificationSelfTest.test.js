@@ -52,8 +52,9 @@ test('pickOpinionColumn returns a safe writable opinion column from the real res
   assert.equal(calls.length, 1);
   assert.doesNotMatch(calls[0], /opinioni_domande/);
   assert.match(calls[0], /information_schema\.columns/);
-  assert.match(calls[0], /c\.data_type IN/);
   assert.match(calls[0], /fonti_opinioni/);
+  assert.match(calls[0], /created_at/);
+  assert.match(calls[0], /updated_at/);
 });
 
 test('pickOpinionColumn rejects an unsafe identifier even if returned by the database', async () => {

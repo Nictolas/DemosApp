@@ -22,8 +22,7 @@ async function pickOpinionColumn(db) {
     FROM information_schema.columns c
     WHERE c.table_schema = 'public'
       AND c.table_name = 'opinioni_risposte'
-      AND c.column_name NOT IN ('user_id', 'fonti_opinioni')
-      AND c.data_type IN ('character varying', 'text')
+      AND c.column_name NOT IN ('id', 'user_id', 'created_at', 'updated_at', 'fonti_opinioni')
     ORDER BY c.ordinal_position
     LIMIT 1
   `);
