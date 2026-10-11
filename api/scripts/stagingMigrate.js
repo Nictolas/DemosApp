@@ -27,6 +27,7 @@ const MIGRATIONS = Object.freeze([
   'api/database/create-ministero-table.sql',
   '20261009_civic_processes.sql',
   '20261010_municipal_institutional_communications.sql',
+  'api/add-users-opinione-proposta-id.sql',
   'api/database/create-voti-opinioni-proposte-table.sql',
 ]);
 
@@ -134,9 +135,9 @@ async function verifyExpectedSchema(client) {
   const found = new Set(result.rows.map((row) => row.relname));
   const missing = EXPECTED_TABLES.filter((table) => !found.has(table));
   if (missing.length) throw new Error(`Post-migration schema incomplete: ${missing.join(', ')}`);
-  const columns = await client.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND ((table_name='users' AND column_name IN ('account_type','is_admin','is_activist')) OR (table_name='eventi' AND column_name IN ('creator_user_id','approval_status','election_lifecycle_closed_at')) OR (table_name='comunicazioni' AND column_name IN ('institutional_vote_key','institutional_level','vote_date')) OR (table_name='civic_processes' AND column_name IN ('realized','realized_law_reference','realized_verified_at')) OR (table_name='user_profile' AND column_name IN ('user_id','paese_residenza','avatar_config')) OR (table_name='user_consents' AND column_name IN ('user_id','privacy_policy_consent','terms_of_service_consent','political_opinions_consent')))`);
+  const columns = await client.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND ((table_name='users' AND column_name IN ('account_type','is_admin','is_activist','opinione_proposta_id')) OR (table_name='eventi' AND column_name IN ('creator_user_id','approval_status','election_lifecycle_closed_at')) OR (table_name='comunicazioni' AND column_name IN ('institutional_vote_key','institutional_level','vote_date')) OR (table_name='civic_processes' AND column_name IN ('realized','realized_law_reference','realized_verified_at')) OR (table_name='user_profile' AND column_name IN ('user_id','paese_residenza','avatar_config')) OR (table_name='user_consents' AND column_name IN ('user_id','privacy_policy_consent','terms_of_service_consent','political_opinions_consent')))`);
   const keys = new Set(columns.rows.map((row) => `${row.table_name}.${row.column_name}`));
-  const required = ['users.account_type','users.is_admin','users.is_activist','eventi.creator_user_id','eventi.approval_status','eventi.election_lifecycle_closed_at','comunicazioni.institutional_vote_key','comunicazioni.institutional_level','comunicazioni.vote_date','civic_processes.realized','civic_processes.realized_law_reference','civic_processes.realized_verified_at','user_profile.user_id','user_profile.paese_residenza','user_profile.avatar_config','user_consents.user_id','user_consents.privacy_policy_consent','user_consents.terms_of_service_consent','user_consents.political_opinions_consent'];
+  const required = ['users.account_type','users.is_admin','users.is_activist','users.opinione_proposta_id','eventi.creator_user_id','eventi.approval_status','eventi.election_lifecycle_closed_at','comunicazioni.institutional_vote_key','comunicazioni.institutional_level','comunicazioni.vote_date','civic_processes.realized','civic_processes.realized_law_reference','civic_processes.realized_verified_at','user_profile.user_id','user_profile.paese_residenza','user_profile.avatar_config','user_consents.user_id','user_consents.privacy_policy_consent','user_consents.terms_of_service_consent','user_consents.political_opinions_consent'];
   const missingColumns = required.filter((column) => !keys.has(column));
   if (missingColumns.length) throw new Error(`Post-migration columns incomplete: ${missingColumns.join(', ')}`);
 }
