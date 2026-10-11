@@ -1,17 +1,19 @@
 /**
  * OAuth login: Google e Apple
- * Riceve id_token dal client, verifica con il provider, crea/collega utente e restituisce JWT Demos.
+ * Riceve id_token dal client. I nuovi account vengono creati solo dopo verifica CIE riuscita.
  */
 const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
 const jwksClient = require('jwks-rsa');
 const jwt = require('jsonwebtoken');
-const { randomUUID } = require('crypto');
 const { getPool } = require('../../config/database');
 const { generateTokenPair, generateOAuthPendingToken, verifyOAuthPendingToken } = require('../../utils/jwt');
 const { authLimiter } = require('../../middleware/rateLimiting');
-const { encrypt: encryptEmail } = require('../../utils/emailCrypto');
-const { compressUserLocation } = require('../../utils/locationUtils');
+const { createAuthorizationRequest } = require('../../services/cieOidcAuthorizationService');
+const { saveCieRegistrationTransaction } = require('../../services/cieOidcTransactionStore');
+const { consumeRegistrationTicket } = require('../../services/registrationTicketStore');
+const { getIdentityVerificationStatus } = require('../../services/identityVerificationStore');
+const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 
 const router = express.Router();
 const pool = getPool();
@@ -76,7 +78,7 @@ async function verifyAppleIdToken(identityToken) {
 /**
  * Trova utente per il provider (solo SELECT). Non crea la riga in users.
  * Restituisce { found: true, id, ruolo } oppure { found: false, profile }.
- * Se non trovato, la riga in users viene creata solo al completamento del wizard (complete-registration).
+ * Se non trovato, non viene creata alcuna riga users: la creazione avviene solo dopo CIE.
  */
 async function findUserByProvider(provider, providerUserId, profile) {
   // Nuovo schema: user_auth_providers
@@ -234,34 +236,33 @@ router.post('/oauth/apple', authLimiter, async (req, res) => {
 
 /**
  * POST /api/auth/oauth/complete-registration
- * Completa la registrazione OAuth: crea la riga in users e restituisce i token definitivi.
- * Richiede Authorization: Bearer <token_pending> (emesso da /oauth/google o /oauth/apple per isNew: true).
- * Body: residenza e consensi (paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
- *       privacy_policy_consent, terms_of_service_consent, political_opinions_consent).
+ * Prepara la registrazione ma NON crea l'account.
+ * La richiesta usa il token oauth_pending, salva per 5 minuti i soli dati necessari
+ * alla finalizzazione e avvia il flusso CIE. L'account nasce soltanto nella callback
+ * CIE dopo verifica crittografica e controllo di unicita della persona.
  */
 router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token richiesto',
-      });
+      return res.status(401).json({ success: false, error: 'Token richiesto' });
     }
 
     let payload;
     try {
       payload = verifyOAuthPendingToken(authHeader.substring(7));
-    } catch (e) {
+    } catch (_error) {
       return res.status(401).json({
         success: false,
         error: 'Token non valido o scaduto. Riprova ad accedere con Google/Apple.',
       });
     }
 
-    const provider = payload.provider;
-    const provider_sub = payload.provider_sub;
-    const col = provider === 'google' ? 'google_sub' : 'apple_user_id';
+    const provider = String(payload.provider || '').toLowerCase();
+    const providerSub = String(payload.provider_sub || '').trim();
+    if (!['google', 'apple'].includes(provider) || !providerSub) {
+      return res.status(400).json({ success: false, error: 'Provider OAuth non valido' });
+    }
 
     const {
       paese_residenza,
@@ -273,291 +274,97 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
       political_opinions_consent,
     } = req.body || {};
 
-    const nome = payload.given_name || payload.name || 'Utente';
-    const cognome = payload.family_name || '';
-    const emailPlain = payload.email || `oauth-${provider}-${String(provider_sub).replace(/[^a-zA-Z0-9._-]/g, '_')}@demos.oauth`;
-    const email = encryptEmail(emailPlain) ?? emailPlain;
-
-    const compressed = compressUserLocation({
-      paese_residenza: paese_residenza || null,
-      regione_residenza: regione_residenza || null,
-      provincia_residenza: provincia_residenza || null,
-      comune_residenza: comune_residenza || null,
-    });
-
-    const ipAddress = req.ip || req.connection?.remoteAddress || null;
-    const userAgent = req.get('User-Agent') || null;
-    const consentTs = (privacy_policy_consent === true || terms_of_service_consent === true);
-
-    // Se esiste già un utente con questo google_sub/apple_user_id (es. creato dal vecchio flusso o doppio invio),
-    // aggiorniamo residenza/consensi e restituiamo i token senza fare INSERT (evita "duplicate key").
-    const existingByProvider = await pool.query(
-      `SELECT u.id, u.ruolo
-       FROM user_auth_providers uap
-       INNER JOIN users u ON u.id = uap.user_id
-       WHERE uap.provider = $1 AND uap.provider_user_id = $2
-       LIMIT 1`,
-      [provider, provider_sub]
-    );
-
-    const existingByLegacy = existingByProvider.rows.length > 0
-      ? { rows: [] }
-      : await pool.query(
-        `SELECT id, ruolo FROM users WHERE ${col} = $1`,
-        [provider_sub]
-      );
-
-    const existing = existingByProvider.rows.length > 0 ? existingByProvider : existingByLegacy;
-
-    let userId;
-
-    if (existing.rows.length > 0) {
-      userId = existing.rows[0].id;
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        await client.query(
-          `UPDATE users SET
-            paese_residenza = $1, regione_residenza = $2, provincia_residenza = $3, comune_residenza = $4,
-            privacy_policy_consent = $5, terms_of_service_consent = $6
-            ${consentTs ? ', consent_timestamp = NOW()' : ''},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7`,
-          [
-            compressed.paese_residenza ?? null,
-            compressed.regione_residenza ?? null,
-            compressed.provincia_residenza ?? null,
-            compressed.comune_residenza ?? null,
-            privacy_policy_consent === true,
-            terms_of_service_consent === true,
-            userId,
-          ]
-        );
-
-        await client.query(
-          `INSERT INTO user_profile (
-            user_id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza
-          ) VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (user_id) DO UPDATE SET
-            paese_residenza = EXCLUDED.paese_residenza,
-            regione_residenza = EXCLUDED.regione_residenza,
-            provincia_residenza = EXCLUDED.provincia_residenza,
-            comune_residenza = EXCLUDED.comune_residenza,
-            updated_at = NOW()`,
-          [
-            userId,
-            compressed.paese_residenza ?? null,
-            compressed.regione_residenza ?? null,
-            compressed.provincia_residenza ?? null,
-            compressed.comune_residenza ?? null,
-          ]
-        );
-
-        await client.query(
-          `INSERT INTO user_consents (
-            user_id, privacy_policy_consent, terms_of_service_consent, consent_timestamp,
-            political_opinions_consent, political_opinions_consent_timestamp,
-            political_opinions_consent_ip_address, political_opinions_consent_user_agent
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (user_id) DO UPDATE SET
-            privacy_policy_consent = EXCLUDED.privacy_policy_consent,
-            terms_of_service_consent = EXCLUDED.terms_of_service_consent,
-            consent_timestamp = EXCLUDED.consent_timestamp,
-            political_opinions_consent = EXCLUDED.political_opinions_consent,
-            political_opinions_consent_timestamp = EXCLUDED.political_opinions_consent_timestamp,
-            political_opinions_consent_ip_address = EXCLUDED.political_opinions_consent_ip_address,
-            political_opinions_consent_user_agent = EXCLUDED.political_opinions_consent_user_agent,
-            updated_at = NOW()`,
-          [
-            userId,
-            privacy_policy_consent === true,
-            terms_of_service_consent === true,
-            consentTs ? new Date().toISOString() : null,
-            political_opinions_consent === true,
-            political_opinions_consent === true ? new Date().toISOString() : null,
-            political_opinions_consent === true ? ipAddress : null,
-            political_opinions_consent === true ? userAgent : null,
-          ]
-        );
-
-        await client.query(
-          `INSERT INTO user_auth_providers (
-            user_id, provider, provider_user_id, provider_metadata
-          ) VALUES ($1, $2, $3, $4)
-          ON CONFLICT (provider, provider_user_id) DO UPDATE SET
-            user_id = EXCLUDED.user_id,
-            provider_metadata = EXCLUDED.provider_metadata,
-            updated_at = NOW()`,
-          [
-            userId,
-            provider,
-            provider_sub,
-            JSON.stringify({
-              email: payload.email || null,
-              given_name: payload.given_name || null,
-              family_name: payload.family_name || null,
-              name: payload.name || null
-            })
-          ]
-        );
-        if (political_opinions_consent === true) {
-          await client.query(
-            `UPDATE users SET
-              political_opinions_consent = true,
-              political_opinions_consent_timestamp = NOW(),
-              political_opinions_consent_ip_address = $1,
-              political_opinions_consent_user_agent = $2,
-              updated_at = NOW()
-            WHERE id = $3`,
-            [ipAddress, userAgent, userId]
-          );
-        }
-        await client.query('COMMIT');
-        console.log('OAuth: complete-registration su utente esistente (aggiornato)', provider, userId);
-      } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-      } finally {
-        client.release();
-      }
-    } else {
-      userId = randomUUID();
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-
-        await client.query(
-          `INSERT INTO users (
-            id, ruolo, status, nome, cognome, email, ${col},
-            paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-            privacy_policy_consent, terms_of_service_consent
-            ${consentTs ? ', consent_timestamp' : ''},
-            created_at, updated_at
-          ) VALUES (
-            $1, $2, 'a', $3, $4, $5, $6,
-            $7, $8, $9, $10,
-            $11, $12
-            ${consentTs ? ', NOW()' : ''},
-            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-          )`,
-          [
-            userId, 'E', nome, cognome || 'OAuth', email, provider_sub,
-            compressed.paese_residenza ?? null,
-            compressed.regione_residenza ?? null,
-            compressed.provincia_residenza ?? null,
-            compressed.comune_residenza ?? null,
-            privacy_policy_consent === true,
-            terms_of_service_consent === true,
-          ]
-        );
-
-        await client.query(
-          `INSERT INTO user_profile (
-            user_id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza
-          ) VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (user_id) DO UPDATE SET
-            paese_residenza = EXCLUDED.paese_residenza,
-            regione_residenza = EXCLUDED.regione_residenza,
-            provincia_residenza = EXCLUDED.provincia_residenza,
-            comune_residenza = EXCLUDED.comune_residenza,
-            updated_at = NOW()`,
-          [
-            userId,
-            compressed.paese_residenza ?? null,
-            compressed.regione_residenza ?? null,
-            compressed.provincia_residenza ?? null,
-            compressed.comune_residenza ?? null,
-          ]
-        );
-
-        await client.query(
-          `INSERT INTO user_consents (
-            user_id, privacy_policy_consent, terms_of_service_consent, consent_timestamp,
-            political_opinions_consent, political_opinions_consent_timestamp,
-            political_opinions_consent_ip_address, political_opinions_consent_user_agent
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (user_id) DO UPDATE SET
-            privacy_policy_consent = EXCLUDED.privacy_policy_consent,
-            terms_of_service_consent = EXCLUDED.terms_of_service_consent,
-            consent_timestamp = EXCLUDED.consent_timestamp,
-            political_opinions_consent = EXCLUDED.political_opinions_consent,
-            political_opinions_consent_timestamp = EXCLUDED.political_opinions_consent_timestamp,
-            political_opinions_consent_ip_address = EXCLUDED.political_opinions_consent_ip_address,
-            political_opinions_consent_user_agent = EXCLUDED.political_opinions_consent_user_agent,
-            updated_at = NOW()`,
-          [
-            userId,
-            privacy_policy_consent === true,
-            terms_of_service_consent === true,
-            consentTs ? new Date().toISOString() : null,
-            political_opinions_consent === true,
-            political_opinions_consent === true ? new Date().toISOString() : null,
-            political_opinions_consent === true ? ipAddress : null,
-            political_opinions_consent === true ? userAgent : null,
-          ]
-        );
-
-        await client.query(
-          `INSERT INTO user_auth_providers (
-            user_id, provider, provider_user_id, provider_metadata
-          ) VALUES ($1, $2, $3, $4)
-          ON CONFLICT (provider, provider_user_id) DO UPDATE SET
-            user_id = EXCLUDED.user_id,
-            provider_metadata = EXCLUDED.provider_metadata,
-            updated_at = NOW()`,
-          [
-            userId,
-            provider,
-            provider_sub,
-            JSON.stringify({
-              email: payload.email || null,
-              given_name: payload.given_name || null,
-              family_name: payload.family_name || null,
-              name: payload.name || null
-            })
-          ]
-        );
-
-        if (political_opinions_consent === true) {
-          await client.query(
-            `UPDATE users SET
-              political_opinions_consent = true,
-              political_opinions_consent_timestamp = NOW(),
-              political_opinions_consent_ip_address = $1,
-              political_opinions_consent_user_agent = $2,
-              updated_at = NOW()
-            WHERE id = $3`,
-            [ipAddress, userAgent, userId]
-          );
-        }
-
-        await client.query('COMMIT');
-        console.log('OAuth: registrazione completata', provider, userId);
-      } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-      } finally {
-        client.release();
-      }
+    if (privacy_policy_consent !== true || terms_of_service_consent !== true) {
+      return res.status(400).json({
+        success: false,
+        error: 'Privacy Policy e Termini devono essere accettati prima della verifica CIE',
+      });
     }
 
-    const ruolo = existing.rows.length > 0 ? existing.rows[0].ruolo : 'E';
-    const tokens = generateTokenPair({
-      userId,
-      role: ruolo,
-    });
+    const registration = {
+      provider,
+      providerSub,
+      email: payload.email || null,
+      givenName: payload.given_name || null,
+      familyName: payload.family_name || null,
+      name: payload.name || null,
+      location: {
+        paese_residenza: paese_residenza || null,
+        regione_residenza: regione_residenza || null,
+        provincia_residenza: provincia_residenza || null,
+        comune_residenza: comune_residenza || null,
+      },
+      privacyPolicyConsent: true,
+      termsOfServiceConsent: true,
+      politicalOpinionsConsent: political_opinions_consent === true,
+      ipAddress: req.ip || req.connection?.remoteAddress || null,
+      userAgent: req.get('User-Agent') || null,
+    };
 
-    res.json({
+    const { authorizationUrl, transaction } = createAuthorizationRequest();
+    const registrationKey = `${provider}:${providerSub}`;
+    await saveCieRegistrationTransaction(registrationKey, registration, transaction);
+
+    return res.json({
       success: true,
-      message: 'Registrazione completata',
-      user: { id: userId, ruolo },
+      requiresCie: true,
+      authorizationUrl,
+      message: 'Verifica la tua identita con CIE per completare la registrazione',
+    });
+  } catch (error) {
+    console.error('OAuth prepare-registration CIE error:', error?.message || error);
+    const publicError = getPublicIdentityError(error, {
+      status: 503,
+      error: 'Verifica CIE non disponibile: la registrazione non puo essere completata',
+    });
+    return res.status(publicError.status).json({
+      success: false,
+      ...(publicError.code ? { code: publicError.code } : {}),
+      error: publicError.error,
+    });
+  }
+});
+
+/**
+ * POST /api/auth/oauth/registration/exchange
+ * Scambia il ticket one-time ricevuto nel fragment dopo la callback CIE con i JWT DEMOS.
+ * Il ticket non contiene dati CIE e viene consumato una sola volta.
+ */
+router.post('/oauth/registration/exchange', authLimiter, async (req, res) => {
+  try {
+    const ticket = typeof req.body?.ticket === 'string' ? req.body.ticket.trim() : '';
+    if (!ticket) {
+      return res.status(400).json({ success: false, error: 'Ticket registrazione richiesto' });
+    }
+
+    const { userId } = await consumeRegistrationTicket(ticket);
+    const identity = await getIdentityVerificationStatus(userId);
+    if (!identity.verified) {
+      return res.status(401).json({ success: false, error: 'Identita non verificata' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, ruolo, status, webauthn_credential_id FROM users WHERE id = $1 LIMIT 1',
+      [userId]
+    );
+    if (result.rows.length === 0 || result.rows[0].status !== 'a') {
+      return res.status(401).json({ success: false, error: 'Account non attivo' });
+    }
+
+    const user = result.rows[0];
+    const tokens = generateTokenPair({ userId: user.id, role: user.ruolo });
+    return res.json({
+      success: true,
+      message: 'Registrazione completata con CIE',
+      user: { id: user.id, ruolo: user.ruolo },
+      hasPasskey: Boolean(user.webauthn_credential_id),
       ...tokens,
     });
-  } catch (err) {
-    console.error('OAuth complete-registration error:', err?.message || err);
-    res.status(500).json({
+  } catch (error) {
+    console.error('OAuth registration ticket exchange error:', error?.message || error);
+    return res.status(401).json({
       success: false,
-      error: err.message || 'Completamento registrazione non riuscito',
+      error: 'Ticket registrazione non valido, scaduto o gia utilizzato',
     });
   }
 });

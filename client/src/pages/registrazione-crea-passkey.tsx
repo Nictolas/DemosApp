@@ -18,16 +18,81 @@ export default function RegistrazioneCreaPasskey() {
   );
   const [oauthCompleteError, setOauthCompleteError] = useState<string | null>(null);
 
-  // Utenti arrivati da Google/Apple: completano la registrazione chiamando complete-registration (crea utente nel DB solo ora).
+  // Nuovi utenti Google/Apple: i dati restano in stato temporaneo finche CIE non riesce.
+  // Dopo la callback CIE il backend restituisce nel fragment solo un ticket one-time,
+  // che viene scambiato qui con i JWT definitivi.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.localStorage.getItem(OAUTH_FLOW_KEY) !== "1") return;
 
     let cancelled = false;
+
+    const clearRegistrationDraft = () => {
+      window.localStorage.removeItem(OAUTH_FLOW_KEY);
+      window.localStorage.removeItem("registrazione_passkey_flow");
+      Object.keys(window.localStorage).forEach((key) => {
+        if (key.startsWith("registrazione_")) window.localStorage.removeItem(key);
+      });
+    };
+
+    const fail = (message: string) => {
+      if (!cancelled) {
+        setIsOauthCompleting(true);
+        setOauthCompleteError(message);
+      }
+    };
+
     (async () => {
+      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const cieOutcome = fragment.get("cie");
+      const registrationTicket = fragment.get("ticket");
+
+      if (cieOutcome) {
+        // Rimuove subito il ticket dalla barra indirizzi e dalla history visibile.
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        setIsOauthCompleting(true);
+
+        if (cieOutcome !== "success" || !registrationTicket) {
+          const message =
+            cieOutcome === "already-linked"
+              ? "Questa identita CIE e gia associata a un altro account DEMOS."
+              : cieOutcome === "account-already-verified"
+                ? "L'account risulta gia associato a un'altra identita verificata."
+                : "La verifica CIE non e stata completata. Riprova dalla registrazione.";
+          fail(message);
+          return;
+        }
+
+        const exchange = await fetch(getApiUrl("/auth/oauth/registration/exchange"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticket: registrationTicket }),
+        });
+        const exchangeData = await exchange.json().catch(() => ({}));
+        if (!exchange.ok || !exchangeData.success) {
+          fail(exchangeData?.error || "Sessione di registrazione scaduta. Accedi di nuovo.");
+          return;
+        }
+
+        if (exchangeData.accessToken) window.localStorage.setItem("auth_token", exchangeData.accessToken);
+        if (exchangeData.refreshToken) window.localStorage.setItem("refresh_token", exchangeData.refreshToken);
+        if (exchangeData.user?.id) {
+          window.localStorage.setItem("webauthn_user_id", String(exchangeData.user.id));
+        }
+        if (exchangeData.hasPasskey === true) {
+          window.localStorage.setItem("demos_has_passkey", "true");
+        }
+
+        clearRegistrationDraft();
+        window.location.href = "/preferiti";
+        return;
+      }
+
+      if (window.localStorage.getItem(OAUTH_FLOW_KEY) !== "1") return;
+      setIsOauthCompleting(true);
+
       const token = window.localStorage.getItem("auth_token");
       if (!token) {
-        if (!cancelled) setOauthCompleteError("Sessione scaduta. Accedi di nuovo con Google/Apple.");
+        fail("Sessione scaduta. Accedi di nuovo con Google/Apple.");
         return;
       }
 
@@ -45,15 +110,14 @@ export default function RegistrazioneCreaPasskey() {
           comune_residenza = parsed?.comune_residenza ?? null;
         }
       } catch {
-        // ignora
+        // Il backend ricevera valori null se la bozza locale non e leggibile.
       }
 
       const privacy_policy_consent = window.localStorage.getItem("registrazione_privacy_consent") === "true";
       const terms_of_service_consent = window.localStorage.getItem("registrazione_terms_consent") === "true";
       const political_opinions_consent = window.localStorage.getItem("registrazione_political_opinions_consent") === "true";
 
-      const url = getApiUrl("/auth/oauth/complete-registration");
-      const res = await fetch(url, {
+      const res = await fetch(getApiUrl("/auth/oauth/complete-registration"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -72,23 +136,21 @@ export default function RegistrazioneCreaPasskey() {
 
       const data = await res.json().catch(() => ({}));
       if (cancelled) return;
-
       if (!res.ok || !data.success) {
-        setOauthCompleteError(data?.error || "Completamento registrazione non riuscito. Riprova.");
+        fail(data?.error || "Impossibile avviare la verifica CIE. Riprova.");
+        return;
+      }
+      if (data.requiresCie !== true || typeof data.authorizationUrl !== "string") {
+        fail("Il server non ha richiesto la verifica CIE prevista. Registrazione interrotta.");
         return;
       }
 
-      if (data.accessToken) window.localStorage.setItem("auth_token", data.accessToken);
-      if (data.refreshToken) window.localStorage.setItem("refresh_token", data.refreshToken);
-      if (data.user?.id) window.localStorage.setItem("webauthn_user_id", String(data.user.id));
+      // Nessun account DEMOS esiste ancora a questo punto.
+      window.location.assign(data.authorizationUrl);
+    })().catch((error: unknown) => {
+      fail((error as Error)?.message || "Errore durante la verifica CIE.");
+    });
 
-      window.localStorage.removeItem(OAUTH_FLOW_KEY);
-      window.localStorage.removeItem("registrazione_passkey_flow");
-      Object.keys(window.localStorage).forEach((key) => {
-        if (key.startsWith("registrazione_")) window.localStorage.removeItem(key);
-      });
-      window.location.href = "/preferiti";
-    })();
     return () => {
       cancelled = true;
     };
@@ -219,20 +281,57 @@ export default function RegistrazioneCreaPasskey() {
   const handleCreaPasskey = () => {
     setStatus("loading");
     setErrorMessage("");
-    registerWithPasskey()
+
+    let paese_residenza: string | null = null;
+    let regione_residenza: string | null = null;
+    let provincia_residenza: string | null = null;
+    let comune_residenza: string | null = null;
+    try {
+      const rawProfile = window.localStorage.getItem("profilo_locale");
+      if (rawProfile) {
+        const parsed = JSON.parse(rawProfile);
+        paese_residenza = parsed?.paese_residenza ?? null;
+        regione_residenza = parsed?.regione_residenza ?? null;
+        provincia_residenza = parsed?.provincia_residenza ?? null;
+        comune_residenza = parsed?.comune_residenza ?? null;
+      }
+    } catch {
+      // Fallback ai singoli campi di registrazione sotto.
+    }
+
+    paese_residenza ??= window.localStorage.getItem("registrazione_paese_residenza");
+    regione_residenza ??= window.localStorage.getItem("registrazione_regione_residenza");
+    provincia_residenza ??= window.localStorage.getItem("registrazione_provincia_residenza");
+    comune_residenza ??= window.localStorage.getItem("registrazione_comune_residenza");
+
+    const registrationDraft = {
+      paese_residenza,
+      regione_residenza,
+      provincia_residenza,
+      comune_residenza,
+      privacy_policy_consent: window.localStorage.getItem("registrazione_privacy_consent") === "true",
+      terms_of_service_consent: window.localStorage.getItem("registrazione_terms_consent") === "true",
+      political_opinions_consent: window.localStorage.getItem("registrazione_political_opinions_consent") === "true",
+    };
+
+    registerWithPasskey(registrationDraft)
       .then(async (result) => {
         if (result.success) {
           setStatus("success");
+          if (result.requiresCie === true && result.authorizationUrl) {
+            // La passkey è verificata ma l'account DEMOS non esiste ancora.
+            window.location.assign(result.authorizationUrl);
+            return;
+          }
+
+          // Compatibilità temporanea con un eventuale backend precedente.
           if (typeof window !== "undefined") {
-            // Dopo la creazione dell'account con passkey, sincronizza i dati di residenza e i consensi sul database
             await syncResidenzaToServer();
             await syncRegistrationConsentsToServer();
-
             window.localStorage.removeItem("registrazione_passkey_flow");
             Object.keys(window.localStorage).forEach((key) => {
               if (key.startsWith("registrazione_")) window.localStorage.removeItem(key);
             });
-            // Forza un reload completo come nel login, così il contesto auth viene ricalcolato
             setTimeout(() => {
               window.location.href = "/preferiti";
             }, 200);
@@ -242,7 +341,6 @@ export default function RegistrazioneCreaPasskey() {
         } else {
           setStatus("error");
           setErrorMessage(result.message || "Creazione passkey non riuscita.");
-          // Se l'utente rifiuta la passkey (o fallisce), cancelliamo i dati di registrazione così può ripartire da zero
           if (typeof window !== "undefined") {
             window.localStorage.removeItem("registrazione_passkey_flow");
             window.localStorage.removeItem("profilo_locale");

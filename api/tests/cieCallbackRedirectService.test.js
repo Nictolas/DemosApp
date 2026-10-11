@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 
 const {
   getTrustedFrontendBaseUrl,
-  buildCieCallbackRedirect
+  buildCieCallbackRedirect,
+  buildRegistrationCieCallbackRedirect
 } = require('../services/cieCallbackRedirectService');
 
 test.beforeEach(() => {
@@ -50,5 +51,23 @@ test('rifiuta frontend non HTTPS', () => {
   assert.throws(
     () => getTrustedFrontendBaseUrl(),
     /HTTPS/
+  );
+});
+
+
+test('redirect registrazione mette il ticket one-time solo nel fragment', () => {
+  const ticket = 'x'.repeat(43);
+  const redirect = buildRegistrationCieCallbackRedirect('success', ticket);
+  const url = new URL(redirect);
+
+  assert.equal(url.pathname, '/registrazione-crea-passkey');
+  assert.equal(url.search, '');
+  assert.equal(url.hash, `#cie=success&ticket=${ticket}`);
+});
+
+test('redirect registrazione success rifiuta ticket mancante', () => {
+  assert.throws(
+    () => buildRegistrationCieCallbackRedirect('success'),
+    /Ticket registrazione mancante/
   );
 });

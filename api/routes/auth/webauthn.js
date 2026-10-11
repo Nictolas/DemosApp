@@ -45,9 +45,9 @@ const {
 const {
   webAuthnUserHandleMatches,
 } = require('../../services/webauthnUserHandleService');
-const {
-  ensureWebAuthnCredentialAvailable,
-} = require('../../services/webauthnCredentialRegistrationService');
+const { createAuthorizationRequest } = require('../../services/cieOidcAuthorizationService');
+const { saveCieRegistrationTransaction } = require('../../services/cieOidcTransactionStore');
+const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 const {
   webauthnStatusLimiter,
   webauthnChallengeLimiter,
@@ -225,17 +225,25 @@ router.post('/webauthn/register/options', webauthnChallengeLimiter, async (req, 
 
 /**
  * POST /api/auth/webauthn/register/verify
- * Verifica la risposta di registrazione e crea l'utente
+ * Verifica la passkey, ma NON crea ancora l'account personale.
+ * La credenziale verificata viene tenuta solo nella transazione CIE short-lived;
+ * l'account viene creato dopo una callback CIE valida.
  */
 router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res) => {
   try {
-    const { userId, attestation } = req.body || {};
+    const { userId, attestation, registration } = req.body || {};
 
-    if (!userId || !attestation) {
+    if (!userId || !attestation || !registration) {
       return res.status(400).json({
         success: false,
         error: 'Parametri mancanti',
-        message: 'userId e attestation sono richiesti',
+        message: 'userId, attestation e dati registrazione sono richiesti',
+      });
+    }
+    if (registration.privacy_policy_consent !== true || registration.terms_of_service_consent !== true) {
+      return res.status(400).json({
+        success: false,
+        error: 'Privacy Policy e Termini devono essere accettati prima della verifica CIE',
       });
     }
 
@@ -248,9 +256,6 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
       });
     }
 
-    // L'identificatore browser usato al salvataggio è quello già legato alla
-    // challenge server-side; un valore eventualmente aggiunto alla verify request
-    // dal client non può sostituirlo.
     const regDeviceId = normalizeWebAuthnClientInstanceId(pending.deviceId);
     if (regDeviceId) {
       const existing = await pool.query(
@@ -260,9 +265,9 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
       if (existing.rows.length > 0) {
         return res.status(409).json({
           success: false,
-          error: 'Questo browser ha già un account',
+          error: 'Questo browser ha gia un account',
           code: 'DEVICE_ALREADY_REGISTERED',
-          message: 'In questo browser risulta già creato un account con passkey. Accedi con la passkey esistente.',
+          message: 'In questo browser risulta gia creato un account con passkey. Accedi con la passkey esistente.',
         });
       }
     }
@@ -277,14 +282,14 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
         requireUserVerification: WEBAUTHN_REQUIRE_USER_VERIFICATION,
       });
     } catch (verifyErr) {
-      console.error('❌ verifyRegistrationResponse fallita:', verifyErr?.message || verifyErr);
+      console.error('WebAuthn registration verification failed:', verifyErr?.message || verifyErr);
       return res.status(400).json({
         success: false,
         ...getPublicWebAuthnError('REGISTRATION_VERIFICATION_FAILED'),
       });
     }
 
-    if (!verification.verified || !verification.registrationInfo) {
+    if (!verification.verified || !verification.registrationInfo?.credential) {
       return res.status(400).json({
         success: false,
         error: 'Registrazione WebAuthn non valida',
@@ -292,120 +297,68 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
     }
 
     const { credential } = verification.registrationInfo;
-    if (!credential) {
-      return res.status(400).json({
-        success: false,
-        error: 'Dati credenziale WebAuthn mancanti',
-      });
-    }
-    const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
+    const credentialIdBase64 = normalizeWebAuthnCredentialId(String(credential.id));
+    const publicKeyBase64 = Buffer.from(credential.publicKey).toString('base64url');
 
-    // Salva esclusivamente l'ID prodotto dalla verifica server-side.
-    // Non fidarsi di attestation.rawId inviato dal client per la persistenza.
-    const credentialIdBase64 = normalizeWebAuthnCredentialId(String(credentialID));
-    const publicKeyBase64 = Buffer.from(credentialPublicKey).toString(
-      'base64url',
-    );
-
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      const credentialAvailable = await ensureWebAuthnCredentialAvailable(
-        client,
-        credentialIdBase64,
-      );
-      if (!credentialAvailable) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({
-          success: false,
-          error: 'Passkey già associata a un account',
-          code: 'PASSKEY_CREDENTIAL_ALREADY_REGISTERED',
-          message: 'Questa passkey risulta già associata a un account. Accedi con la passkey esistente.',
-        });
-      }
-
-      const insertQuery = `
-        INSERT INTO users (
-          id,
-          ruolo,
-          webauthn_user_handle,
-          webauthn_credential_id,
-          webauthn_public_key,
-          webauthn_sign_count,
-          webauthn_device_id,
-          status,
-          created_at,
-          updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7,
-          'a',
-          CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
-        )
-        RETURNING id, ruolo
-      `;
-
-      const result = await client.query(insertQuery, [
+    const registrationContext = {
+      authMethod: 'passkey',
+      passkey: {
         registrationKey,
-        pending.ruolo,
-        pending.userHandle,
-        credentialIdBase64,
-        publicKeyBase64,
-        counter,
-        regDeviceId,
-      ]);
+        userHandle: pending.userHandle,
+        credentialId: credentialIdBase64,
+        publicKey: publicKeyBase64,
+        counter: credential.counter,
+        deviceId: regDeviceId,
+      },
+      location: {
+        paese_residenza: registration.paese_residenza || null,
+        regione_residenza: registration.regione_residenza || null,
+        provincia_residenza: registration.provincia_residenza || null,
+        comune_residenza: registration.comune_residenza || null,
+      },
+      privacyPolicyConsent: true,
+      termsOfServiceConsent: true,
+      politicalOpinionsConsent: registration.political_opinions_consent === true,
+      ipAddress: registration.political_opinions_consent === true
+        ? (req.ip || req.connection?.remoteAddress || null)
+        : null,
+      userAgent: registration.political_opinions_consent === true
+        ? (req.get('User-Agent') || null)
+        : null,
+    };
 
-      await client.query('COMMIT');
+    try {
+      const { authorizationUrl, transaction } = createAuthorizationRequest();
+      await saveCieRegistrationTransaction(
+        `passkey:${registrationKey}`,
+        registrationContext,
+        transaction,
+      );
 
-      const user = result.rows[0];
-
-      const tokenPayload = {
-        userId: user.id,
-        role: user.ruolo,
-      };
-
-      const tokens = generateTokenPair(tokenPayload);
-
-      res.json({
+      return res.json({
         success: true,
-        message: 'Registrazione con passkey completata',
-        user: {
-          id: user.id,
-          ruolo: user.ruolo,
-        },
-        ...tokens,
+        requiresCie: true,
+        authorizationUrl,
+        message: 'Verifica la tua identita con CIE per completare la registrazione',
       });
-    } catch (dbError) {
-      await client.query('ROLLBACK');
-      console.error('❌ Errore DB in /webauthn/register/verify:', dbError);
-
-      if (
-        dbError?.code === '23505' &&
-        dbError?.constraint === 'idx_users_webauthn_device_id'
-      ) {
-        return res.status(409).json({
-          success: false,
-          error: 'Questo browser ha già un account',
-          code: 'DEVICE_ALREADY_REGISTERED',
-          message: 'In questo browser risulta già creato un account con passkey. Accedi con la passkey esistente.',
-        });
-      }
-
-      res.status(500).json({
+    } catch (error) {
+      const publicError = getPublicIdentityError(error, {
+        status: 503,
+        error: 'Verifica CIE non disponibile: la registrazione non puo essere completata',
+      });
+      return res.status(publicError.status).json({
         success: false,
-        error: 'Errore nel salvataggio dell\'utente WebAuthn',
+        ...(publicError.code ? { code: publicError.code } : {}),
+        error: publicError.error,
       });
-    } finally {
-      client.release();
     }
   } catch (error) {
-    console.error('❌ Errore in /webauthn/register/verify:', error);
+    console.error('Errore in /webauthn/register/verify:', error);
     if (invalidRegistrationSession(res, error)) return;
     if (invalidClientInstanceId(res, error)) return;
     if (invalidCredentialId(res, error)) return;
     if (challengeStoreUnavailable(res, error)) return;
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       ...getPublicWebAuthnError('REGISTRATION_FAILED'),
     });

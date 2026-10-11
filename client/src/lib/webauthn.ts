@@ -4,6 +4,18 @@ type WebAuthnRegisterResult = {
   success: boolean;
   message?: string;
   code?: string;
+  requiresCie?: boolean;
+  authorizationUrl?: string;
+};
+
+type PasskeyRegistrationDraft = {
+  paese_residenza?: string | null;
+  regione_residenza?: string | null;
+  provincia_residenza?: string | null;
+  comune_residenza?: string | null;
+  privacy_policy_consent: boolean;
+  terms_of_service_consent: boolean;
+  political_opinions_consent: boolean;
 };
 
 type WebAuthnLoginResult = {
@@ -124,7 +136,7 @@ function prepareRequestOptionsFromServer(optionsFromServer: any): PublicKeyCrede
   return publicKey;
 }
 
-export async function registerWithPasskey(): Promise<WebAuthnRegisterResult> {
+export async function registerWithPasskey(registration: PasskeyRegistrationDraft): Promise<WebAuthnRegisterResult> {
   if (!isWebAuthnSupported()) {
     return { success: false, message: 'Passkey/WebAuthn non supportato su questo dispositivo o browser.' };
   }
@@ -179,7 +191,7 @@ export async function registerWithPasskey(): Promise<WebAuthnRegisterResult> {
     const verifyRes = await fetch(getApiUrl(API_CONFIG.WEBAUTHN.REGISTER_VERIFY), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, attestation }),
+      body: JSON.stringify({ userId, attestation, registration }),
     });
 
     const verifyJson = await verifyRes.json();
@@ -191,7 +203,16 @@ export async function registerWithPasskey(): Promise<WebAuthnRegisterResult> {
       };
     }
 
-    // Salva token e userId per i login futuri
+    if (verifyJson.requiresCie === true && typeof verifyJson.authorizationUrl === 'string') {
+      return {
+        success: true,
+        message: verifyJson.message || 'Verifica CIE richiesta per completare la registrazione.',
+        requiresCie: true,
+        authorizationUrl: verifyJson.authorizationUrl,
+      };
+    }
+
+    // Compatibilita: un eventuale backend precedente puo ancora restituire token.
     const token = verifyJson.accessToken || verifyJson.token;
     if (token) {
       localStorage.setItem('auth_token', token);
