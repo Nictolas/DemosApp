@@ -99,8 +99,11 @@ async function runStagingElectoralPerimeterSelfTest({
       [FIXTURE_EVENT_ID, 'DEMOS E2E F12-13 Politiche 2022', '2022-09-25'],
     );
 
+    const transactionDb = {
+      query: (...args) => client.query(...args),
+    };
     const imported = await ingestItalianElectionUnitSnapshot({
-      db: client,
+      db: transactionDb,
       eventId: FIXTURE_EVENT_ID,
       sourceId: SOURCE_ID,
       verifySources: false,
@@ -157,7 +160,7 @@ async function runStagingElectoralPerimeterSelfTest({
     passed += 1;
     logger.log('[staging-electoral-e2e] constitutional unit counts 147/49/74/26 PASS');
 
-    const sectionResolution = await persistItalianElectionSectionResolution(client, {
+    const sectionResolution = await persistItalianElectionSectionResolution(transactionDb, {
       userId: E2E_USER_ID,
       electionEventId: FIXTURE_EVENT_ID,
       sourceId: SOURCE_ID,
