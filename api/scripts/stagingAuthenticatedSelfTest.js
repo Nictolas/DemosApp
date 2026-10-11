@@ -67,7 +67,19 @@ async function runStagingAuthenticatedSelfTest({
     supporterSync = await runStagingSupporterSyncSelfTest({ env, logger });
   }
 
-  return { mode: 'authenticated-e2e', passed, total: CASES.length, electionLifecycle, supporterSync };
+  let civicSources = null;
+  if (env.DEMOS_STAGING_CIVIC_SOURCES_E2E === 'true') {
+    const { runStagingCivicSourcesSelfTest } = require('./stagingCivicSourcesSelfTest');
+    civicSources = await runStagingCivicSourcesSelfTest({
+      env,
+      port,
+      fetchImpl,
+      tokenFactory: makeToken,
+      logger,
+    });
+  }
+
+  return { mode: 'authenticated-e2e', passed, total: CASES.length, electionLifecycle, supporterSync, civicSources };
 }
 
 module.exports = { CASES, runStagingAuthenticatedSelfTest };

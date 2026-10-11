@@ -24,6 +24,7 @@ const MIGRATIONS = Object.freeze([
   '20261009_preference_cooldowns.sql',
   'api/database/create-comunicazioni-table.sql',
   '20261009_institutional_vote_communications.sql',
+  'api/database/create-ministero-table.sql',
   '20261009_civic_processes.sql',
   '20261010_municipal_institutional_communications.sql',
   'api/database/create-voti-opinioni-proposte-table.sql',
@@ -34,7 +35,7 @@ const EXPECTED_TABLES = Object.freeze([
   'political_candidacies','political_mandates','political_selections',
   'user_political_territories','user_electoral_unit_memberships',
   'political_programs','mandate_program_snapshots','political_opinion_notifications',
-  'preference_change_cooldowns','comunicazioni','civic_processes',
+  'preference_change_cooldowns','comunicazioni','iniziative_ministero','civic_processes',
   'civic_process_source_records','civic_process_reconciliation_candidates',
   'institutional_territorial_notices','voti_opinioni_proposte','user_profile','user_consents',
 ]);
