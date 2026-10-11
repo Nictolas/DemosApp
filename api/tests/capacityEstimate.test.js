@@ -76,6 +76,6 @@ test('capacity plan documents multiple demand scenarios and refuses an unmeasure
     assert.match(plan, new RegExp(scenario));
   }
   assert.match(plan, /non viene dichiarato un numero di utenti simultanei supportati/i);
-  assert.match(plan, /F12-07/);
+  assert.match(plan, /F12-31/);
   assert.match(plan, /misura.*quota osservata.*riferimento esterno.*assunzione/is);
 });

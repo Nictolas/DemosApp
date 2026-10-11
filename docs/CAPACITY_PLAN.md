@@ -13,7 +13,7 @@ Non esiste un solo numero corretto di “utenti massimi”. DEMOS ha almeno quat
 3. **concorrenza/RPS di picco**, che incide su CPU, memoria e connessioni database;
 4. **caricamenti frontend**, che incidono sulla CDN/trasferimento statico.
 
-Questo documento stima **domanda e sensibilità**. Non sostituisce F12-07 (load/stress test), quindi non dichiara un RPS massimo o un numero di utenti simultanei non misurato.
+Questo documento stima **domanda e sensibilità**. Non sostituisce F12-31 (load/stress test), quindi non dichiara un RPS massimo o un numero di utenti simultanei non misurato.
 
 ## 2. Baseline misurate o osservate
 
@@ -107,7 +107,7 @@ Tutti gli scenari assumono DAU pari al 20% degli utenti registrati soltanto per 
 - API ~18 GB/mese.
 - Supera ampiamente la quota Render di 5 GB osservata se tutto il traffico API è conteggiato nello stesso pool.
 - Con queste assunzioni il **traffico**, non lo storage, richiede già un piano/provider con margine maggiore.
-- La capacità CPU/RPS non è ancora dimostrata: prima di chiamarlo “supportato” serve F12-07.
+- La capacità CPU/RPS non è ancora dimostrata: prima di chiamarlo “supportato” serve F12-31.
 
 ### Beta regionale — 10,000 registrati / 2,000 DAU
 
@@ -185,11 +185,11 @@ Questo **non** significa “Render supporta 38 utenti”: significa soltanto che
 - costo di endpoint pesanti, ranking/statistiche e sincronizzazioni in concorrenza;
 - comportamento durante picchi da notifiche/eventi mediatici.
 
-Perciò **non viene dichiarato un numero di utenti simultanei supportati** prima di F12-07.
+Perciò **non viene dichiarato un numero di utenti simultanei supportati** prima di F12-31.
 
 ## 9. Gate proposto per trasformare una stima in capacità qualificata
 
-F12-07 dovrà eseguire almeno tre profili di carico su ambiente isolato/staging:
+F12-31 dovrà eseguire almeno tre profili di carico su ambiente isolato/staging:
 
 1. **read-heavy:** profilo, Eventi, Opinioni/Preferiti e feed;
 2. **mixed:** letture + salvataggio Opinioni/preferenze + selezioni;
@@ -214,7 +214,7 @@ Solo dopo questi test si può scrivere una frase del tipo “questa configurazio
 3. **10,000+ registrati:** storage, banda e compute devono essere dimensionati con dati reali; un riferimento DB da 1 GB ha margine insufficiente nello scenario medio/pesante.
 4. **100,000 registrati:** richiede architettura/piani scalabili; l'attuale singola istanza Free non è un target di capacità plausibile.
 5. **Prima di acquistare/definire piani:** verificare i limiti account-specific effettivi di database e frontend; i valori 1 GB/100 GB in questo documento sono solo sensibilità.
-6. **Prima del go-live:** completare F12-07 e trasformare almeno un profilo di carico in capacità misurata.
+6. **Prima del go-live:** completare F12-31 e trasformare almeno un profilo di carico in capacità misurata.
 
 ## 11. Aggiornamento del modello
 

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DEMOS Navbar Matrix</title>
+  <style>
+    body{margin:0;padding:24px;font:14px/1.5 ui-monospace,monospace;background:#f8fafc;color:#0f172a}
+    h1{font:700 22px/1.2 system-ui,sans-serif;margin:0 0 16px}
+    #summary{padding:14px 16px;border-radius:10px;background:#e2e8f0;white-space:pre-wrap}
+    #summary[data-pass="true"]{background:#d1fae5;color:#065f46}
+    #summary[data-pass="false"]{background:#fee2e2;color:#991b1b}
+    .device-frame{position:absolute;left:-12000px;top:0;border:0;visibility:visible}
+  </style>
+</head>
+<body>
+  <h1>DEMOS — matrice responsive Navbar</h1>
+  <div id="summary">MATRIX IN ESECUZIONE…</div>
+  <div id="frames"></div>
+  <script>
+    const cases = [
+      {name:'small-web-320x568', w:320, h:568, android:false},
+      {name:'compact-android-360x640', w:360, h:640, android:true},
+      {name:'android-360x800', w:360, h:800, android:true},
+      {name:'iphone-web-390x844', w:390, h:844, android:false},
+      {name:'large-web-430x932', w:430, h:932, android:false},
+      {name:'landscape-android-667x375', w:667, h:375, android:true},
+      {name:'tablet-boundary-768x1024', w:768, h:1024, android:false},
+      {name:'desktop-1024x768', w:1024, h:768, android:false},
+      {name:'desktop-wide-1440x900', w:1440, h:900, android:false},
+    ];
+
+    const framesHost = document.getElementById('frames');
+    const summary = document.getElementById('summary');
+    const results = [];
+
+    const runCase = (entry) => new Promise((resolve) => {
+      const frame = document.createElement('iframe');
+      frame.className = 'device-frame';
+      frame.width = String(entry.w);
+      frame.height = String(entry.h);
+      frame.style.width = `${entry.w}px`;
+      frame.style.height = `${entry.h}px`;
+      frame.src = `/test-navbar-responsive.html?android=${entry.android ? '1' : '0'}&case=${encodeURIComponent(entry.name)}`;
+      framesHost.appendChild(frame);
+      const started = performance.now();
+      const inspect = () => {
+        try {
+          const doc = frame.contentDocument;
+          const result = doc?.body?.dataset?.auditResult;
+          const text = doc?.getElementById('audit')?.textContent || '';
+          if (result === 'PASS' || result === 'FAIL') {
+            resolve({ ...entry, pass: result === 'PASS', text });
+            return;
+          }
+        } catch {}
+        if (performance.now() - started > 10000) {
+          resolve({ ...entry, pass:false, text:'AUDIT TIMEOUT' });
+          return;
+        }
+        setTimeout(inspect, 80);
+      };
+      frame.addEventListener('load', inspect, { once:true });
+      setTimeout(inspect, 250);
+    });
+
+    (async () => {
+      for (const entry of cases) {
+        results.push(await runCase(entry));
+      }
+      const failed = results.filter((r) => !r.pass);
+      summary.dataset.pass = String(failed.length === 0);
+      summary.textContent = `${failed.length ? 'MATRIX FAIL' : 'MATRIX PASS'} | ${results.length - failed.length}/${results.length} PASS\n` + results.map((r) => `${r.pass ? 'PASS' : 'FAIL'} | ${r.name} | ${r.text}`).join('\n');
+      document.body.dataset.auditResult = failed.length ? 'FAIL' : 'PASS';
+      document.title = `${failed.length ? 'MATRIX FAIL' : 'MATRIX PASS'} — ${results.length - failed.length}/${results.length}`;
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>DEMOS Navbar Responsive Audit</title>
+  <link rel="stylesheet" href="/src/index.css" />
+  <style>
+    .audit-panel{position:fixed;top:8px;left:8px;z-index:20000;max-width:min(92vw,560px);padding:8px 10px;border-radius:8px;background:rgba(15,23,42,.94);color:#fff;font:12px/1.35 ui-monospace,monospace;pointer-events:none}
+    .audit-panel[data-pass="true"]{background:rgba(6,95,70,.94)}
+    .audit-panel[data-pass="false"]{background:rgba(153,27,27,.94)}
+    .audit-page{min-height:140vh;padding:5rem 1rem 2rem;background:linear-gradient(#fff,#eef2ff)}
+    .audit-card{max-width:720px;margin:0 auto 1rem;padding:1rem;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+    .audit-nav-inner{display:flex;width:100%;max-width:32rem;align-items:flex-end;justify-content:space-between;gap:.125rem}
+    .audit-nav-link{display:flex;min-width:0;flex:1 1 0%;max-width:3.5rem;flex-direction:column;align-items:center;justify-content:center;color:#4b5563;text-decoration:none;transition:all .2s}
+    .audit-nav-link svg{width:1.5rem;height:1.5rem;margin-bottom:.125rem;flex:none}
+    .audit-nav-link span{display:none}
+    .audit-avatar{display:inline-flex;width:3rem;height:3rem;align-items:center;justify-content:center;border-radius:9999px;background:#e2e8f0;font-weight:700}
+    html.demos-desktop-layout .audit-mobile-surface{display:none!important}
+    html.demos-mobile-layout .audit-desktop-surface{display:none!important}
+  </style>
+</head>
+<body>
+  <div id="audit" class="audit-panel">AUDIT IN ESECUZIONE…</div>
+  <div class="robust-app-layout">
+    <div class="robust-app-layout__content">
+      <header class="app-header" aria-hidden="true"></header>
+
+      <div class="demos-desktop-topbar audit-desktop-surface" data-audit-desktop>
+        <header class="demos-dash-nav">
+          <div class="demos-dash-nav__left">
+            <button type="button" class="demos-dash-brand" aria-label="Torna a Preferiti">
+              <img src="/icona.png" alt="" class="demos-dash-brand__logo" />
+              <span class="demos-dash-brand__text">DEMOS</span>
+            </button>
+          </div>
+          <div class="demos-dash-nav__right" data-audit-desktop-controls>
+            <button type="button" class="demos-dash-nav__text-btn">Sono un candidato / politico</button>
+            <button type="button" class="demos-dash-nav__icon-btn" aria-label="Segnala problema">!</button>
+            <button type="button" class="demos-dash-nav__icon-btn" aria-label="Notifiche">N</button>
+            <button type="button" class="demos-dash-nav__icon-btn" aria-label="Strumenti">S</button>
+            <button type="button" class="demos-dash-avatar-btn" aria-label="Menu utente"><span class="audit-avatar">NM</span></button>
+          </div>
+        </header>
+      </div>
+
+      <main class="app-main">
+        <div class="app-main__inner">
+          <section class="audit-page page-with-navbar">
+            <div class="audit-card"><strong>DEMOS responsive navigation audit</strong><p>Questa pagina usa i CSS di produzione e la struttura canonica di RobustAppLayout/Navbar/DesktopAppHeader.</p></div>
+            <div class="audit-card">Contenuto alto per verificare che lo scroll resti confinato sopra la navbar mobile e che non esista overflow orizzontale.</div>
+            <div class="audit-card" style="margin-top:70vh">Fine contenuto di prova.</div>
+          </section>
+        </div>
+      </main>
+
+      <nav class="app-navbar navbar-visible audit-mobile-surface" aria-label="Navigazione principale" data-audit-mobile>
+        <nav class="app-bottom-nav bg-white flex justify-center items-end select-none px-1 pt-1">
+          <div class="audit-nav-inner">
+            <a class="audit-nav-link" href="#preferiti" aria-label="Preferiti"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg><span>Preferiti</span></a>
+            <a class="audit-nav-link" href="#eventi" aria-label="Eventi"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="13" rx="2" fill="currentColor"/></svg><span>Eventi</span></a>
+            <a class="audit-nav-link" href="#firma" aria-label="Firma"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14v2H5zm2-3 8-8 2 2-8 8H7z" fill="currentColor"/></svg><span>Firma</span></a>
+            <a class="audit-nav-link" href="#notifiche" aria-label="Notifiche"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="11" r="7" fill="currentColor"/></svg><span>Notifiche</span></a>
+            <a class="audit-nav-link" href="#strumenti" aria-label="Strumenti"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" fill="currentColor"/></svg><span>Strumenti</span></a>
+            <a class="audit-nav-link" href="#avvistamenti" aria-label="Avvistamenti"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/></svg><span>Avvistamenti</span></a>
+            <a class="audit-nav-link" href="#impostazioni" aria-label="Impostazioni"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="currentColor"/></svg><span>Impostazioni</span></a>
+          </div>
+        </nav>
+      </nav>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const forcedAndroid = params.get('android') === '1';
+      if (forcedAndroid) document.body.classList.add('android-device');
+
+      const mobile = innerWidth < 768;
+      document.documentElement.classList.toggle('demos-mobile-layout', mobile);
+      document.documentElement.classList.toggle('demos-desktop-layout', !mobile);
+
+      const audit = document.getElementById('audit');
+      const failures = [];
+      const tolerance = 1.5;
+      const visible = (el) => !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+      const insideViewport = (r) => r.left >= -tolerance && r.top >= -tolerance && r.right <= innerWidth + tolerance && r.bottom <= innerHeight + tolerance;
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1) failures.push(`horizontal-overflow:${document.documentElement.scrollWidth}>${document.documentElement.clientWidth}`);
+
+        const mobileSurface = document.querySelector('[data-audit-mobile]');
+        const desktopSurface = document.querySelector('[data-audit-desktop]');
+        if (mobile) {
+          if (!visible(mobileSurface)) failures.push('mobile-navbar-hidden');
+          if (visible(desktopSurface)) failures.push('desktop-header-visible-on-mobile');
+          if (visible(mobileSurface)) {
+            const navRect = mobileSurface.getBoundingClientRect();
+            if (!insideViewport(navRect)) failures.push(`mobile-navbar-outside:${JSON.stringify({left:Math.round(navRect.left),top:Math.round(navRect.top),right:Math.round(navRect.right),bottom:Math.round(navRect.bottom),h:Math.round(navRect.height)})}`);
+            const mainRect = document.querySelector('.app-main').getBoundingClientRect();
+            if (mainRect.bottom > navRect.top + 2) failures.push(`main-overlaps-navbar:${Math.round(mainRect.bottom)}>${Math.round(navRect.top)}`);
+            const links = [...document.querySelectorAll('.audit-nav-link')].filter(visible);
+            if (links.length !== 7) failures.push(`nav-items:${links.length}`);
+            const rects = links.map((el) => el.getBoundingClientRect());
+            rects.forEach((r, i) => {
+              if (r.width < 30) failures.push(`nav-item-${i+1}-too-narrow:${Math.round(r.width)}`);
+              if (r.top < navRect.top - tolerance || r.bottom > navRect.bottom + tolerance) failures.push(`nav-item-${i+1}-clipped`);
+              if (i && r.left < rects[i-1].right - tolerance) failures.push(`nav-item-${i+1}-overlap`);
+            });
+          }
+        } else {
+          if (!visible(desktopSurface)) failures.push('desktop-header-hidden');
+          if (visible(mobileSurface)) failures.push('mobile-navbar-visible-on-desktop');
+          if (visible(desktopSurface)) {
+            const headerRect = desktopSurface.getBoundingClientRect();
+            const controlsRect = document.querySelector('[data-audit-desktop-controls]').getBoundingClientRect();
+            if (headerRect.left < -tolerance || headerRect.right > innerWidth + tolerance) failures.push('desktop-header-horizontal-overflow');
+            if (controlsRect.left < headerRect.left - tolerance || controlsRect.right > headerRect.right + tolerance) failures.push('desktop-controls-overflow');
+          }
+        }
+
+        const mode = mobile ? (forcedAndroid ? 'mobile-android' : 'mobile-web') : 'desktop';
+        const status = failures.length ? 'AUDIT FAIL' : 'AUDIT PASS';
+        audit.dataset.pass = String(!failures.length);
+        audit.textContent = `${status} | ${mode} | ${innerWidth}x${innerHeight}${failures.length ? ' | ' + failures.join(' ; ') : ''}`;
+        document.title = `${status} — ${mode} — ${innerWidth}x${innerHeight}`;
+        document.body.dataset.auditResult = failures.length ? 'FAIL' : 'PASS';
+      }));
+    })();
+  </script>
+</body>
+</html>
