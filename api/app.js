@@ -595,4 +595,12 @@ if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC === 'true') {
   setImmediate(() => runOpenpolisVotazioniFinaliSync().catch(() => {}));
 }
 
+
+// Axiom -> Backblaze B2 historical archive (fail-closed, disabled by default).
+// No query or upload occurs unless AXIOM_ARCHIVE_ENABLED is exactly "true".
+if (process.env.AXIOM_ARCHIVE_ENABLED === 'true') {
+  const axiomArchiveJob = require('./jobs/axiomArchiveJob');
+  axiomArchiveJob.start();
+}
+
 module.exports = app;
