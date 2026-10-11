@@ -18,6 +18,35 @@ async function requestJson(fetchImpl, url, options = {}) {
   return { response, body };
 }
 
+async function diagnoseIdentifierConflict(pool, error) {
+  const identifiers = Array.isArray(error?.officialIdentifiers) ? error.officialIdentifiers : [];
+  const source = await pool.query(
+    `SELECT csr.id AS source_record_id, csr.civic_process_id, cp.canonical_title,
+            cp.official_reference, csr.source_title
+       FROM civic_process_source_records csr
+       JOIN civic_processes cp ON cp.id = csr.civic_process_id
+      WHERE csr.source_id = $1 AND csr.external_id = $2
+      LIMIT 1`,
+    [error.sourceId, error.externalId]
+  );
+
+  const ownership = [];
+  for (const identifier of identifiers) {
+    const result = await pool.query(
+      `SELECT cpi.namespace, cpi.value, cpi.civic_process_id,
+              cp.canonical_title, cp.official_reference
+         FROM civic_process_identifiers cpi
+         JOIN civic_processes cp ON cp.id = cpi.civic_process_id
+        WHERE cpi.namespace = $1 AND cpi.value = $2
+        LIMIT 1`,
+      [identifier.namespace, identifier.value]
+    );
+    ownership.push({ identifier, owner: result.rows[0] || null });
+  }
+
+  return { existingSource: source.rows[0] || null, identifierOwnership: ownership };
+}
+
 async function runStagingCivicSourcesSelfTest({
   env = process.env,
   port = process.env.PORT || 3001,
@@ -55,6 +84,12 @@ async function runStagingCivicSourcesSelfTest({
     }
     if (stats.errors?.length) {
       logger.warn(`[staging-civic-sources-e2e] ${source} partial errors: ${JSON.stringify(stats.errors)}`);
+      for (const error of stats.errors) {
+        if (error.code === 'CIVIC_IDENTIFIER_CONFLICT' && error.sourceId && error.externalId) {
+          const diagnostic = await diagnoseIdentifierConflict(pool, error);
+          logger.warn(`[staging-civic-sources-e2e] identifier conflict diagnostic: ${JSON.stringify(diagnostic)}`);
+        }
+      }
     }
     logger.log(`[staging-civic-sources-e2e] ${source} official ingest PASS ${stats.ingested}/${stats.fetched}`);
   }
@@ -148,4 +183,4 @@ async function runStagingCivicSourcesSelfTest({
   };
 }
 
-module.exports = { runStagingCivicSourcesSelfTest };
+module.exports = { diagnoseIdentifierConflict, runStagingCivicSourcesSelfTest };
