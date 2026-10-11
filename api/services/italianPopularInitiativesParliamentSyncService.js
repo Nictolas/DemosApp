@@ -4,6 +4,7 @@ const { loadMinisteroPopularInitiatives } = require('./civicSources/italyMiniste
 const { fetchCameraPopularInitiatives } = require('./civicSources/italyCameraPopularInitiativesAdapter');
 const { fetchSenatoPopularInitiatives } = require('./civicSources/italySenatoPopularInitiativesAdapter');
 const { ingestCivicSourceRecord } = require('./civicProcessPersistenceService');
+const { reconcileStrongIdentifierBridge } = require('./civicStrongIdentifierReconciliationService');
 
 async function ingestRecordInTransaction(pool, record) {
   const client = await pool.connect();
@@ -20,12 +21,30 @@ async function ingestRecordInTransaction(pool, record) {
   }
 }
 
+async function ingestRecordWithStrongReconciliation(pool, record) {
+  try {
+    return await ingestRecordInTransaction(pool, record);
+  } catch (error) {
+    const code = error.code || error.message || 'INGEST_FAILED';
+    if (code !== 'CIVIC_IDENTIFIER_CONFLICT') throw error;
+
+    const reconciliation = await reconcileStrongIdentifierBridge(pool, record);
+    if (!reconciliation?.merged) throw error;
+
+    console.warn(
+      `[civic-source-sync] strong identifier bridge merged ${reconciliation.mergedProcessIds.join(',')} ` +
+      `into ${reconciliation.targetProcessId} (${reconciliation.officialReference})`
+    );
+    return ingestRecordInTransaction(pool, record);
+  }
+}
+
 async function ingestRecords(pool, records) {
   const results = [];
   const errors = [];
   for (const record of records) {
     try {
-      results.push(await ingestRecordInTransaction(pool, record));
+      results.push(await ingestRecordWithStrongReconciliation(pool, record));
     } catch (error) {
       errors.push({
         sourceId: record.sourceId,
@@ -87,14 +106,13 @@ async function syncItalianPopularInitiativesSources({
   };
 }
 
-// Alias transitorio: il vecchio nome resta disponibile ai test/strumenti locali,
-// ma la funzione canonica include ormai tutte e tre le fonti italiane.
 async function syncItalianPopularInitiativesParliament(options = {}) {
   return syncItalianPopularInitiativesSources(options);
 }
 
 module.exports = {
   ingestRecordInTransaction,
+  ingestRecordWithStrongReconciliation,
   ingestRecords,
   runSourcePlan,
   syncItalianPopularInitiativesSources,
