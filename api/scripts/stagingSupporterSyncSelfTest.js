@@ -1,8 +1,24 @@
 'use strict';
 
 const { getPool } = require('../config/database');
-const { setPoliticalSelection, loadSupporterUserIds } = require('../services/politicalSelectionService');
+const { loadSupporterUserIds } = require('../services/politicalSelectionService');
 const { E2E_USER_ID, E2E_ACTIVIST_USER_ID, E2E_ADMIN_USER_ID } = require('./stagingMigrate');
+
+async function writeCanonicalRepresentative(client, selectedUserId, step) {
+  await client.query(
+    `INSERT INTO political_selections (
+       user_id, selection_kind, jurisdiction_id, political_office_id,
+       selected_user_id, source, context, updated_at
+     ) VALUES ($1, 'representative', 'it', 'it.regional', $2, 'STAGING_E2E_SUPPORTER_SYNC', $3::jsonb, NOW())
+     ON CONFLICT (user_id, selection_kind, political_office_id)
+     DO UPDATE SET selected_user_id = EXCLUDED.selected_user_id,
+                   jurisdiction_id = EXCLUDED.jurisdiction_id,
+                   source = EXCLUDED.source,
+                   context = EXCLUDED.context,
+                   updated_at = NOW()`,
+    [E2E_USER_ID, selectedUserId, JSON.stringify({ purpose: 'supporter_sync_e2e', step })],
+  );
+}
 
 async function runStagingSupporterSyncSelfTest({ env = process.env, pool = getPool(), logger = console } = {}) {
   if (env.DEMOS_STAGING_SUPPORTER_SYNC_E2E !== 'true') {
@@ -25,36 +41,22 @@ async function runStagingSupporterSyncSelfTest({ env = process.env, pool = getPo
     );
     if (users.rows.length !== 3) throw new Error('synthetic staging users are not fully seeded');
 
-    await setPoliticalSelection(client, {
-      userId: E2E_USER_ID,
-      kind: 'representative',
-      officeValue: 'R',
-      selectedUserId: E2E_ACTIVIST_USER_ID,
-      source: 'STAGING_E2E_SUPPORTER_SYNC',
-      context: { purpose: 'supporter_sync_e2e', step: 'A' },
-    });
+    await writeCanonicalRepresentative(client, E2E_ACTIVIST_USER_ID, 'A');
 
     let a = await loadSupporterUserIds(client, { selectedUserId: E2E_ACTIVIST_USER_ID, kind: 'representative', officeId: 'it.regional' });
     let b = await loadSupporterUserIds(client, { selectedUserId: E2E_ADMIN_USER_ID, kind: 'representative', officeId: 'it.regional' });
-    if (!a.userIds.includes(E2E_USER_ID) || b.userIds.includes(E2E_USER_ID)) {
-      throw new Error('initial representative selection did not target only subject A');
+    if (a.source !== 'CANONICAL' || !a.strict || !a.userIds.includes(E2E_USER_ID) || b.userIds.includes(E2E_USER_ID)) {
+      throw new Error('initial canonical representative selection did not target only subject A');
     }
     logger.log('[staging-supporter-sync-e2e] selection A -> only A has supporter PASS');
     passed += 1;
 
-    await setPoliticalSelection(client, {
-      userId: E2E_USER_ID,
-      kind: 'representative',
-      officeValue: 'R',
-      selectedUserId: E2E_ADMIN_USER_ID,
-      source: 'STAGING_E2E_SUPPORTER_SYNC',
-      context: { purpose: 'supporter_sync_e2e', step: 'B' },
-    });
+    await writeCanonicalRepresentative(client, E2E_ADMIN_USER_ID, 'B');
 
     a = await loadSupporterUserIds(client, { selectedUserId: E2E_ACTIVIST_USER_ID, kind: 'representative', officeId: 'it.regional' });
     b = await loadSupporterUserIds(client, { selectedUserId: E2E_ADMIN_USER_ID, kind: 'representative', officeId: 'it.regional' });
-    if (a.userIds.includes(E2E_USER_ID) || !b.userIds.includes(E2E_USER_ID)) {
-      throw new Error('switched representative selection left a stale supporter target');
+    if (a.userIds.includes(E2E_USER_ID) || b.source !== 'CANONICAL' || !b.strict || !b.userIds.includes(E2E_USER_ID)) {
+      throw new Error('switched canonical selection left a stale supporter target');
     }
     logger.log('[staging-supporter-sync-e2e] switch A -> B removes stale A and targets B PASS');
     passed += 1;
