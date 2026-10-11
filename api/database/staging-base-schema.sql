@@ -48,6 +48,18 @@ CREATE TABLE IF NOT EXISTS users (
   political_opinions_consent_user_agent TEXT
 );
 
+-- CREATE TABLE IF NOT EXISTS does not add columns when users already exists.
+-- Reconcile the legacy consent compatibility surface idempotently for long-lived staging databases.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_policy_consent BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_of_service_consent BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_ip_address TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_user_agent TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS political_opinions_consent BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS political_opinions_consent_timestamp TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS political_opinions_consent_ip_address TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS political_opinions_consent_user_agent TEXT;
+
 -- Legacy Opinioni response store required by /api/opinioni/salva.
 -- Individual opinion columns are dynamic; staging E2E may add/drop its own isolated column.
 CREATE TABLE IF NOT EXISTS opinioni_risposte (

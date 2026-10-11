@@ -40,3 +40,25 @@ test('staging baseline retains legacy consent compatibility columns during the n
     assert.ok(baseline.includes(column), `missing staging compatibility column: ${column}`);
   }
 });
+
+test('staging baseline reconciles legacy consent columns when users already exists', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const baseline = fs.readFileSync(path.resolve(__dirname, '..', 'database', 'staging-base-schema.sql'), 'utf8');
+  for (const column of [
+    'privacy_policy_consent BOOLEAN DEFAULT FALSE',
+    'terms_of_service_consent BOOLEAN DEFAULT FALSE',
+    'consent_timestamp TIMESTAMPTZ',
+    'consent_ip_address TEXT',
+    'consent_user_agent TEXT',
+    'political_opinions_consent BOOLEAN DEFAULT FALSE',
+    'political_opinions_consent_timestamp TIMESTAMPTZ',
+    'political_opinions_consent_ip_address TEXT',
+    'political_opinions_consent_user_agent TEXT',
+  ]) {
+    assert.ok(
+      baseline.includes(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${column};`),
+      `missing idempotent staging reconciliation for: ${column}`,
+    );
+  }
+});
