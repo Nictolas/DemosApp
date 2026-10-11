@@ -36,7 +36,16 @@ CREATE TABLE IF NOT EXISTS users (
   candidato_camera TEXT,
   candidato_senato TEXT,
   candidato_regionale TEXT,
-  candidato_comune TEXT
+  candidato_comune TEXT,
+  privacy_policy_consent BOOLEAN DEFAULT FALSE,
+  terms_of_service_consent BOOLEAN DEFAULT FALSE,
+  consent_timestamp TIMESTAMPTZ,
+  consent_ip_address TEXT,
+  consent_user_agent TEXT,
+  political_opinions_consent BOOLEAN DEFAULT FALSE,
+  political_opinions_consent_timestamp TIMESTAMPTZ,
+  political_opinions_consent_ip_address TEXT,
+  political_opinions_consent_user_agent TEXT
 );
 
 -- Legacy Opinioni response store required by /api/opinioni/salva.
