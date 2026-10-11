@@ -31,6 +31,10 @@ async function ingestRecords(pool, records) {
         sourceId: record.sourceId,
         externalId: record.externalId,
         code: error.code || error.message || 'INGEST_FAILED',
+        title: record.title || null,
+        officialReference: record.officialReference || null,
+        officialIdentifiers: Array.isArray(record.officialIdentifiers) ? record.officialIdentifiers : [],
+        metadata: record.metadata && typeof record.metadata === 'object' ? record.metadata : {},
       });
     }
   }
