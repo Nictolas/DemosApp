@@ -83,7 +83,23 @@ export default function InformazioniLegali() {
             </Button>
           </Link>
 
-          {/* Policy Registrazione */}
+          {/* Privacy Policy */}
+          <Link href="/privacy-policy">
+            <Button
+              variant="outline"
+              className="w-full justify-start h-20 rounded-xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900">Privacy Policy</div>
+                <div className="text-xs text-gray-600">Informativa sul trattamento dei dati</div>
+              </div>
+            </Button>
+          </Link>
+
+          {/* Termini di servizio */}
           <Link href="/terms-of-service">
             <Button 
               variant="outline" 
@@ -93,8 +109,8 @@ export default function InformazioniLegali() {
                 <FileText className="h-5 w-5 text-white" />
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Policy Registrazione</div>
-                <div className="text-xs text-gray-600">Termini e condizioni</div>
+                <div className="font-semibold text-gray-900">Termini di servizio</div>
+                <div className="text-xs text-gray-600">Condizioni di utilizzo della piattaforma</div>
               </div>
             </Button>
           </Link>
