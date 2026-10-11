@@ -101,7 +101,7 @@ export const UserAutocomplete: React.FC<UserAutocompleteProps> = ({
         onChange={handleInputChange}
         onFocus={handleFocus}
         placeholder={placeholder}
-        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus:ring-2 focus:ring-blue-500 ${className}`}
       />
       
       {isOpen && (
@@ -118,7 +118,7 @@ export const UserAutocomplete: React.FC<UserAutocompleteProps> = ({
               <button
                 key={user.id}
                 type="button"
-                className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 onClick={() => handleUserSelect(user)}
               >
                 <div className="font-medium text-gray-900">{user.displayName}</div>

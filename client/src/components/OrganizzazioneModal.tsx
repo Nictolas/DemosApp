@@ -107,11 +107,11 @@ const OrganizzazioneModal: React.FC<OrganizzazioneModalProps> = ({ organizzazion
         onClick={onClose}
       />
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
+        <div role="dialog" aria-modal="true" aria-labelledby="organizzazione-modal-title" className="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Dettagli Organizzazione</h3>
-              <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors">
+              <h3 id="organizzazione-modal-title" className="text-lg font-semibold text-white">Dettagli Organizzazione</h3>
+              <button type="button" onClick={onClose} aria-label="Chiudi dettagli organizzazione" className="h-11 w-11 inline-flex items-center justify-center rounded-full text-white hover:text-gray-200 hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
                 <X className="h-6 w-6" />
               </button>
             </div>

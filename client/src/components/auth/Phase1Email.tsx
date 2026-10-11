@@ -112,6 +112,8 @@ export function Phase1Email({ onNext, defaultValues }: Phase1EmailProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                    aria-pressed={showPassword}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -146,6 +148,8 @@ export function Phase1Email({ onNext, defaultValues }: Phase1EmailProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? "Nascondi conferma password" : "Mostra conferma password"}
+                    aria-pressed={showConfirmPassword}
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />

@@ -15,10 +15,12 @@ export function ApprofondimentoButton({ opinionId, opinionText, className = "" }
   return (
     <>
       <Button
+        type="button"
         variant="outline"
         size="sm"
-        className={`h-8 w-8 rounded-full p-0 hover:bg-blue-50 hover:border-blue-300 ${className}`}
+        className={`h-11 w-11 rounded-full p-0 hover:bg-blue-50 hover:border-blue-300 ${className}`}
         onClick={() => setShowDialog(true)}
+        aria-label={`Apri approfondimento: ${opinionText}`}
         title={`Approfondimento: ${opinionText}`}
       >
         <Info className="h-4 w-4 text-blue-600" />

@@ -73,29 +73,28 @@ export default function Accessibilita() {
               <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
                 <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  Aspetti Conformi
+                  Supporto gi? verificato nel codice
                 </h3>
                 <ul className="text-sm text-gray-700 space-y-1 list-disc pl-6">
-                  <li>Struttura semantica HTML corretta</li>
-                  <li>Contrasto colori sufficiente per la leggibilità</li>
-                  <li>Navigazione da tastiera funzionante</li>
-                  <li>Testi alternativi per le immagini</li>
-                  <li>Formulari con etichette associate</li>
-                  <li>Focus visibile per elementi interattivi</li>
+                  <li>Lingua del documento dichiarata e landmark principali presenti nei layout principali</li>
+                  <li>Immagini principali con testo alternativo o marcate decorative quando il nome ? fornito dal controllo</li>
+                  <li>Componenti UI condivisi con focus visibile e semantica nativa/Radix</li>
+                  <li>Regole CSS per ridurre le animazioni con prefers-reduced-motion</li>
+                  <li>Zoom del browser consentito e controlli critici corretti per l'uso da tastiera</li>
                 </ul>
               </div>
 
               <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500">
                 <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-orange-600" />
-                  Aspetti in Miglioramento
+                  Verifiche ancora necessarie
                 </h3>
                 <ul className="text-sm text-gray-700 space-y-1 list-disc pl-6">
-                  <li>Miglioramento della navigazione con screen reader</li>
-                  <li>Ottimizzazione dei form per utenti con disabilità motorie</li>
-                  <li>Miglioramento dei messaggi di errore e validazione</li>
-                  <li>Implementazione di skip links per navigazione rapida</li>
-                  <li>Miglioramento della struttura delle pagine complesse</li>
+                  <li>Test manuali completi con screen reader su web, Android e iOS</li>
+                  <li>Verifica sistematica del contrasto colori delle schermate e degli stati interattivi</li>
+                  <li>Verifica dei target touch e della navigazione da tastiera nelle superfici legacy residue</li>
+                  <li>Verifica di focus trap, focus iniziale e ritorno del focus nei dialoghi personalizzati</li>
+                  <li>Verifica dei messaggi dinamici con tecnologie assistive e annunci aria-live</li>
                 </ul>
               </div>
             </div>
@@ -103,28 +102,19 @@ export default function Accessibilita() {
 
           {/* Contenuti Non Conformi */}
           <section>
-            <h2 className="text-2xl font-semibold mb-3">4. Contenuti Non Conformi</h2>
+            <h2 className="text-2xl font-semibold mb-3">4. Aspetti da completare</h2>
             <p className="text-gray-700 mb-3">
-              Alcune parti del sito potrebbero non essere ancora completamente accessibili. Stiamo lavorando 
-              attivamente per risolvere questi problemi:
+              L'audit tecnico del codice ha individuato aree che richiedono ancora verifica o miglioramento prima di dichiarare la piena conformit? WCAG 2.1 AA:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>
-                <strong>Alcune pagine complesse:</strong> Potrebbero richiedere miglioramenti nella struttura 
-                per una migliore navigazione con screen reader
-              </li>
-              <li>
-                <strong>Alcuni form interattivi:</strong> Potrebbero beneficiare di miglioramenti nella 
-                gestione degli errori e nella validazione
-              </li>
-              <li>
-                <strong>Contenuti multimediali:</strong> Alcuni video o contenuti interattivi potrebbero 
-                non avere ancora sottotitoli o trascrizioni complete
-              </li>
+              <li><strong>Dialoghi personalizzati:</strong> completare la verifica del comportamento del focus con tastiera e screen reader.</li>
+              <li><strong>Controlli legacy:</strong> proseguire la sostituzione dei pattern non semantici e verificare i nomi accessibili dei pulsanti solo-icona.</li>
+              <li><strong>Form complessi:</strong> verificare sistematicamente etichette, descrizioni degli errori e ordine del focus.</li>
+              <li><strong>Contrasto e zoom testo:</strong> completare i test visuali a 200% e la misurazione del contrasto per tutti gli stati.</li>
+              <li><strong>Dispositivi reali:</strong> eseguire prove con VoiceOver e TalkBack prima del go-live.</li>
             </ul>
             <p className="text-gray-700">
-              <strong>Piano di Miglioramento:</strong> Stiamo implementando miglioramenti incrementali 
-              con l'obiettivo di raggiungere la piena conformità WCAG 2.1 Livello AA entro il 2025.
+              <strong>Piano di miglioramento:</strong> le correzioni vengono applicate per priorit? e la piena conformit? sar? dichiarata soltanto dopo il completamento dei test manuali previsti.
             </p>
           </section>
 
@@ -132,17 +122,16 @@ export default function Accessibilita() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">5. Preparazione della Dichiarazione</h2>
             <p className="text-gray-700 mb-3">
-              Questa dichiarazione è stata preparata il <strong>{new Date().toLocaleDateString('it-IT')}</strong> 
-              e sarà aggiornata regolarmente per riflettere i miglioramenti apportati.
+              Questa dichiarazione ? aggiornata sulla base dello stato tecnico corrente dell'applicazione.
             </p>
             <p className="text-gray-700">
-              La valutazione dell'accessibilità è stata effettuata mediante:
+              La valutazione corrente comprende:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Test automatici con strumenti di validazione accessibilità</li>
-              <li>Revisione manuale del codice e dell'interfaccia</li>
-              <li>Test con screen reader e tecnologie assistive</li>
-              <li>Feedback degli utenti</li>
+              <li>Revisione statica del codice e delle componenti interattive principali</li>
+              <li>Controlli anti-regressione automatizzati sulle criticit? gi? individuate</li>
+              <li>Build di produzione e verifica di regressioni tecniche</li>
+              <li>Test manuali con screen reader e dispositivi reali ancora da completare</li>
             </ul>
           </section>
 

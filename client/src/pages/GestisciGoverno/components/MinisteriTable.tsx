@@ -105,6 +105,7 @@ export function MinisteriTable({
                         size="icon" 
                         variant="ghost" 
                         onClick={() => onStartEdit(m)}
+                        aria-label={`Modifica ministero ${m.nome}`}
                       >
                         <Pencil className="h-4 w-4 text-yellow-600" />
                       </Button>
@@ -113,6 +114,7 @@ export function MinisteriTable({
                         variant="ghost" 
                         onClick={() => onDelete(m.id)} 
                         disabled={isDeleting}
+                        aria-label={`Elimina ministero ${m.nome}`}
                       >
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>

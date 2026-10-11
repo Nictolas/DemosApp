@@ -80,8 +80,10 @@ const ActivismTypeSelector: React.FC<ActivismTypeSelectorProps> = ({
                 <span className="text-sm font-medium">{tipologia.nome}</span>
                 {!disabled && (
                   <button
+                    type="button"
                     onClick={() => removeType(tipologia.tipo)}
-                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                    aria-label={`Rimuovi ${tipologia.nome}`}
+                    className="ml-1 inline-flex h-6 w-6 items-center justify-center hover:bg-gray-300 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <X className="h-3 w-3" />
                   </button>

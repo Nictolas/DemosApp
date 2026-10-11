@@ -78,14 +78,14 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
-            <p className="font-medium text-primary cursor-pointer hover:underline text-sm" onClick={(e) => {
+            <button type="button" className="font-medium text-primary cursor-pointer hover:underline text-sm bg-transparent p-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" onClick={(e) => {
                 e.stopPropagation(); // Previeni l'apertura del modal di cambio
                 if (rappresentanteUid && rappresentanteData) {
                   onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
                 }
             }}>
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
-            </p>
+            </button>
           ) : (
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           )}
