@@ -759,14 +759,17 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
     console.log('🔍 ID opinione:', id);
     
-    // Verifica esistenza e cancella da opinioni_proposte o opinioni_domande
-    let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
-    if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-        [id]
-      );
-    }
+    // Sceglie la sorgente proposta in modo schema-aware: opinioni_proposte è opzionale.
+    const proposalSourceResult = await pool.query(
+      `SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals`
+    );
+    const hasSeparateProposals = proposalSourceResult.rows[0]?.has_separate_proposals === true;
+    const checkResult = hasSeparateProposals
+      ? await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id])
+      : await pool.query(
+          `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
+          [id]
+        );
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -784,10 +787,9 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     } catch (e) {
       if (e.code !== '42703') console.error('Errore reset opinione_proposta_id:', e);
     }
-    let deleteResult = await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
-    if (deleteResult.rowCount === 0) {
-      deleteResult = await pool.query('DELETE FROM opinioni_domande WHERE id = $1', [id]);
-    }
+    const deleteResult = hasSeparateProposals
+      ? await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id])
+      : await pool.query('DELETE FROM opinioni_domande WHERE id = $1', [id]);
     
     console.log('✅ Opinione cancellata con successo:', id);
     
