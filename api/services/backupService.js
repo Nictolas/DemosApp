@@ -31,7 +31,7 @@ class BackupService {
       maxBackups: parseInt(process.env.MAX_BACKUPS || '10', 10), // 10 backup massimi
       
       // Crittografia
-      encryptionKey: process.env.BACKUP_ENCRYPTION_KEY || this.generateEncryptionKey(),
+      encryptionKey: process.env.BACKUP_ENCRYPTION_KEY || null,
       
       // Compressione
       compressionEnabled: process.env.BACKUP_COMPRESSION === 'true',
@@ -50,9 +50,31 @@ class BackupService {
   }
 
   /**
+   * Il vecchio backup JSON applicativo non rappresenta piu lo schema completo di DEMOS
+   * e non deve essere usato come disaster recovery. Il recovery operativo e affidato
+   * a PostgreSQL/provider (pg_dump/pg_restore per i test isolati, PITR Neon in produzione).
+   */
+  static getLegacyBackupStatus() {
+    return {
+      enabled: false,
+      code: 'LEGACY_APP_BACKUP_RETIRED',
+      reason: 'Il backup JSON applicativo legacy e incompleto ed e stato ritirato dalle operazioni di backup/restore.'
+    };
+  }
+
+  static assertLegacyBackupAvailable() {
+    const status = this.getLegacyBackupStatus();
+    const error = new Error(status.reason);
+    error.code = status.code;
+    error.statusCode = 410;
+    throw error;
+  }
+
+  /**
    * Crea backup completo del database
    */
   static async createFullBackup() {
+    this.assertLegacyBackupAvailable();
     try {
       console.log('🔄 Avvio backup completo del database...');
       
@@ -127,6 +149,7 @@ class BackupService {
    * Crea backup incrementale
    */
   static async createIncrementalBackup() {
+    this.assertLegacyBackupAvailable();
     try {
       console.log('🔄 Avvio backup incrementale del database...');
       
@@ -374,6 +397,7 @@ class BackupService {
    * Ripristina database da backup
    */
   static async restoreFromBackup(backupFileName) {
+    this.assertLegacyBackupAvailable();
     try {
       console.log(`🔄 Avvio ripristino da backup: ${backupFileName}`);
       

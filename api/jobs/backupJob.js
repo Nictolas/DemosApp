@@ -18,6 +18,7 @@ class BackupJob {
    * Avvia il job di backup
    */
   start() {
+    BackupService.assertLegacyBackupAvailable();
     if (this.isRunning) {
       console.log('⚠️ Job di backup già in esecuzione');
       return;

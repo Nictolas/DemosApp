@@ -550,7 +550,9 @@ if (process.env.ENABLE_VIOLATION_MONITORING === 'true') {
 
 // Avvia job di backup automatico (solo se abilitato)
 if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
-  backupJob.start();
+  console.warn(
+    'Legacy application JSON backup is retired and will not start. Use PostgreSQL/provider recovery (Neon PITR in production).'
+  );
 }
 
 // Avvia job di sincronizzazione Ministero (solo se esplicitamente abilitato)

@@ -6,7 +6,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const route = fs.readFileSync(path.join(ROOT, 'api', 'routes', 'users', 'public-profile.js'), 'utf8');
 const usersIndex = fs.readFileSync(path.join(ROOT, 'api', 'routes', 'users', 'index.js'), 'utf8');
-const hook = fs.readFileSync(path.join(ROOT, 'client', 'src', 'pages', 'Profilo', 'hooks', 'useProfileData.ts'), 'utf8');
+const hook = fs.readFileSync(path.join(ROOT, 'client', 'src', 'pages', 'Profilo', 'hooks', 'useProfileData.ts'), 'utf8').replace(/\r\n/g, '\n');
 const profileInfo = fs.readFileSync(path.join(ROOT, 'client', 'src', 'pages', 'Profilo', 'components', 'ProfileInfo.tsx'), 'utf8');
 const profilePage = fs.readFileSync(path.join(ROOT, 'client', 'src', 'pages', 'Profilo', 'index.tsx'), 'utf8');
 const representatives = fs.readFileSync(path.join(ROOT, 'client', 'src', 'components', 'ProfileRepresentatives.tsx'), 'utf8');
@@ -71,7 +71,7 @@ test('other-profile client uses the target projection instead of the viewer Admi
 
   const ownOnly = sliceBetween(
     hook,
-    'if (isOwnProfile) {\r\n        const [governoResponse',
+    'if (isOwnProfile) {\n        const [governoResponse',
     '    } catch (profileError)'
   );
   assert.match(ownOnly, /\/api\/governo\/ideale/);

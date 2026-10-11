@@ -632,6 +632,23 @@ class CentralizedLogger {
     }
 
     await this.error(`Errore: ${error.message}`, errorMeta);
+
+    // Gli errori non gestiti dal middleware globale devono generare un alert operativo reale.
+    // Il dettaglio completo resta nei log; la notifica Admin contiene solo metadati minimali.
+    if (meta.globalError === true || meta.operationalCritical === true) {
+      try {
+        const OperationalAlertService = require('./operationalAlertService');
+        await OperationalAlertService.sendCriticalAlert({
+          type: 'UNHANDLED_API_ERROR',
+          component: 'api',
+          severity: 'CRITICAL',
+          endpoint: errorMeta.url || meta.endpoint || '',
+          code: error.code || error.name || ''
+        });
+      } catch (alertError) {
+        console.error('Operational alert failed:', alertError.message);
+      }
+    }
   }
 
   // Logging per eventi di sicurezza
