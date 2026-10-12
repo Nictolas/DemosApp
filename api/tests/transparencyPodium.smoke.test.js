@@ -10,6 +10,7 @@ const client = fs.readFileSync(path.join(ROOT, 'client', 'src', 'pages', 'PodioT
 const { getPodiumLevels } = require('../services/politicalJurisdictionRegistryService');
 
 test('Transparency Podium is one authenticated API for all five institutional levels', () => {
+  assert.match(route, /const express = require\('express'\);/);
   assert.match(route, /router\.get\('\/', verifyToken,/);
   assert.match(route, /getPodiumLevels/);
   assert.deepEqual(getPodiumLevels(), ['EUROPEO', 'CAMERA', 'SENATO', 'REGIONE', 'COMUNE']);
