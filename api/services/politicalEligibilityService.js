@@ -55,7 +55,7 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
   const candidatesResult = await pool.query(
     `
     SELECT
-      u.id, u.nome, u.cognome, u.ruolo, u.status, u.avatar_config,
+      u.id, u.nome, u.cognome, u.ruolo, u.status, to_jsonb(u)->'avatar_config' AS avatar_config,
       pc.id AS candidacy_id,
       pc.election_event_id,
       pc.electoral_unit_id,
@@ -130,7 +130,7 @@ async function listEligibleCandidatesLegacy(pool, grade) {
   const legacyGrade = office?.aliases?.[0] || grade;
   const result = await pool.query(
     `
-    SELECT id, nome, cognome, ruolo, status, avatar_config, grado_candidatura
+    SELECT id, nome, cognome, ruolo, status, to_jsonb(users)->'avatar_config' AS avatar_config, grado_candidatura
     FROM users
     WHERE ruolo IN ('C', 'CP')
       AND grado_candidatura = $1
@@ -158,7 +158,7 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
   const result = await pool.query(
     `
     SELECT
-      u.id, u.nome, u.cognome, u.ruolo, u.status, u.avatar_config,
+      u.id, u.nome, u.cognome, u.ruolo, u.status, to_jsonb(u)->'avatar_config' AS avatar_config,
       pm.id AS mandate_id,
       pm.office_code AS grado_elezione,
       pm.jurisdiction
@@ -192,7 +192,7 @@ async function listEligibleRepresentativesLegacy(pool, grade) {
   const result = await pool.query(
     `
     SELECT
-      u.id, u.nome, u.cognome, u.ruolo, u.status, u.avatar_config,
+      u.id, u.nome, u.cognome, u.ruolo, u.status, to_jsonb(u)->'avatar_config' AS avatar_config,
       u.grado_elezione, u.regione_elezione, u.provincia_elezione, u.comune_elezione
     FROM users u
     WHERE (u.ruolo = 'P' OR u.ruolo = 'CP')

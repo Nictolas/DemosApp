@@ -153,3 +153,14 @@ test('missing capability schema falls back to legacy candidate/representative qu
   assert.equal(representatives.source, 'LEGACY');
   assert.deepEqual(representatives.subjects.map((row) => row.id), ['legacy-p']);
 });
+
+
+test('eligibility queries do not require legacy users.avatar_config column', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'politicalEligibilityService.js'), 'utf8');
+  assert.doesNotMatch(source, /\bu\.avatar_config\b/);
+  assert.doesNotMatch(source, /SELECT id, nome, cognome, ruolo, status, avatar_config,/);
+  assert.match(source, /to_jsonb\(u\)->'avatar_config' AS avatar_config/);
+  assert.match(source, /to_jsonb\(users\)->'avatar_config' AS avatar_config/);
+});
