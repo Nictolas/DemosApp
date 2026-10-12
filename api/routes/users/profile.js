@@ -776,8 +776,22 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Verifica che l'utente esista
-    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    // Le opinioni politiche restano soggette al consenso esplicito del soggetto
+    // anche quando l'aggiornamento è eseguito da un Admin. Finché la DPIA non
+    // approva una base giuridica diversa per dati politici da fonti pubbliche,
+    // questa superficie deve fallire chiusa senza consenso attivo.
+    const userCheckResult = await pool.query(`
+      SELECT
+        u.id,
+        COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS political_opinions_consent
+      FROM users u
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE u.id = $1
+    `, [userId]);
     if (!userCheckResult.rows[0]) {
       return res.status(404).json({
         success: false,
@@ -786,6 +800,15 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
+    if (userCheckResult.rows[0].political_opinions_consent !== true) {
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        message: 'Le opinioni politiche del soggetto non possono essere create o modificate senza consenso esplicito attivo.',
+        consent_required: true
+      });
+    }
+
     // Verifica che gli ID delle opinioni esistano in opinioni_domande
     // e ottieni la lista delle colonne valide in opinioni_risposte
     const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');

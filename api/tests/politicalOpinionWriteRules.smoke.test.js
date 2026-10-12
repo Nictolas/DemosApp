@@ -45,13 +45,13 @@ async function serveRouter(routeRelativePath, pool, fn) {
   }
 }
 
-function makeUserAnswersPool() {
+function makeUserAnswersPool({ granted = true } = {}) {
   const writes = [];
   const query = async (sql, params = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
     if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) return { rows: [], rowCount: 0 };
     if (s.includes('political_opinions_consent') && s.includes('AS granted')) {
-      return { rows: [{ granted: true }] };
+      return { rows: [{ granted }] };
     }
     if (s.includes('information_schema.columns') && s.includes('opinioni_risposte')) {
       return { rows: [{ column_name: 'q1' }] };
@@ -73,6 +73,21 @@ function makeUserAnswersPool() {
     }
   };
 }
+
+test('salvataggio utente senza consenso politico attivo è fail-closed e non scrive', async () => {
+  const pool = makeUserAnswersPool({ granted: false });
+  await serveRouter(['routes', 'opinioni', 'user-answers.js'], pool, async (base) => {
+    const res = await fetch(`${base}/api/salva`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ opinioni: { q1: 'Favorevole' } })
+    });
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.consent_required, true);
+    assert.equal(pool.writes.length, 0);
+  });
+});
 
 test('salvataggio utente rifiuta NULL/Astenuto e non scrive nel database', async () => {
   for (const invalidValue of [null, 'Astenuto', '']) {
@@ -103,13 +118,15 @@ test('salvataggio utente accetta Non lo so e lo salva come i', async () => {
   });
 });
 
-function makeAdminPool() {
+function makeAdminPool({ granted = true } = {}) {
   const writes = [];
   return {
     writes,
     async query(sql, params = []) {
       const s = String(sql).replace(/\s+/g, ' ').trim();
-      if (s === 'SELECT id FROM users WHERE id = $1') return { rows: [{ id: params[0] }] };
+      if (s.includes('FROM users u') && s.includes('political_opinions_consent')) {
+        return { rows: [{ id: params[0], political_opinions_consent: granted }] };
+      }
       if (s === 'SELECT id FROM opinioni_domande') return { rows: [{ id: 'q1' }] };
       if (s.includes('information_schema.columns') && s.includes("table_name = 'opinioni_risposte'")) {
         return { rows: [{ column_name: 'q1' }] };
@@ -122,6 +139,21 @@ function makeAdminPool() {
     }
   };
 }
+
+test('modifica admin senza consenso politico del soggetto è fail-closed e non scrive', async () => {
+  const pool = makeAdminPool({ granted: false });
+  await serveRouter(['routes', 'users', 'profile.js'], pool, async (base) => {
+    const res = await fetch(`${base}/api/target/opinioni`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ opinioni: { q1: 'Favorevole' } })
+    });
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.consent_required, true);
+    assert.equal(pool.writes.length, 0);
+  });
+});
 
 test('modifica admin rifiuta la cancellazione di una risposta verso NULL', async () => {
   const pool = makeAdminPool();
