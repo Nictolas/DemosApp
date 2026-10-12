@@ -1,5 +1,6 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
@@ -83,7 +84,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/amnistia/vota - Vota per amnistia
-router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => {
+router.post('/vota', verifyToken, requirePoliticalConsent, validateInput(['legge']), async (req, res) => {
   try {
     const { legge } = req.body;
     // Usa req.userId con fallback a req.user.id per sicurezza

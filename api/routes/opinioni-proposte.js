@@ -1,5 +1,6 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { getPool } = require('../config/database');
 
 const router = express.Router();
@@ -294,7 +295,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/opinioni-proposte - Crea una nuova opinione proposta (max 1 per utente, richiede auth)
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, requirePoliticalConsent, async (req, res) => {
   try {
     const userId = req.userId;
     console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
@@ -594,7 +595,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni-proposte/:id/vota - Vota un'opinione proposta
-router.post('/:id/vota', verifyToken, async (req, res) => {
+router.post('/:id/vota', verifyToken, requirePoliticalConsent, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId; // User ID dall'autenticazione JWT

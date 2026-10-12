@@ -68,6 +68,14 @@ async function serveConsentRoute({ query, sequence, ledgerEvents }, fn) {
       async recordEvent(_client, event) {
         sequence.push(`LEDGER:${event.eventType}`);
         ledgerEvents.push(event);
+      },
+      async deleteByAnyColumn(dbClient, table, _columns, userId) {
+        if (table !== 'opinioni_risposte') return 0;
+        const result = await dbClient.query('DELETE FROM opinioni_risposte WHERE user_id = $1', [userId]);
+        return result.rowCount || 0;
+      },
+      async tableHasColumn() {
+        return false;
       }
     }
   };
@@ -150,6 +158,9 @@ test('revocation deletes political opinions and records revocation before commit
       sequence.push('UPSERT_CONSENT_REVOKED');
       return { rows: [], rowCount: 1 };
     }
+    if (s.includes('FROM information_schema.columns response_cols')) {
+      return { rows: [], rowCount: 0 };
+    }
     if (s.startsWith('SELECT EXISTS') && s.includes("table_name = 'opinioni_risposte'")) {
       sequence.push('CHECK_OPINIONS_TABLE');
       return { rows: [{ exists: true }], rowCount: 1 };
@@ -170,7 +181,8 @@ test('revocation deletes political opinions and records revocation before commit
 
   assert.equal(ledgerEvents.length, 1);
   assert.equal(ledgerEvents[0].eventType, EVENT_TYPES.POLITICAL_CONSENT_REVOKED);
-  assert.equal(ledgerEvents[0].details.opinions_deleted_count, 2);
+  assert.equal(ledgerEvents[0].details.political_records_deleted_count, 2);
+  assert.deepEqual(ledgerEvents[0].details.deleted_by_table, { opinioni_risposte: 2 });
   assert.ok(sequence.indexOf('DELETE_OPINIONS') < sequence.indexOf('LEDGER:political_consent_revoked'));
   assert.ok(sequence.indexOf('LEDGER:political_consent_revoked') < sequence.indexOf('COMMIT'));
 });
@@ -191,6 +203,9 @@ test('opinion deletion failure rolls back revocation and never records a durable
     if (s.startsWith('INSERT INTO user_consents')) {
       sequence.push('UPSERT_CONSENT_REVOKED');
       return { rows: [], rowCount: 1 };
+    }
+    if (s.includes('FROM information_schema.columns response_cols')) {
+      return { rows: [], rowCount: 0 };
     }
     if (s.startsWith('SELECT EXISTS') && s.includes("table_name = 'opinioni_risposte'")) {
       sequence.push('CHECK_OPINIONS_TABLE');

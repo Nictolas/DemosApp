@@ -1,5 +1,6 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
@@ -182,7 +183,7 @@ router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // POST /api/grazia/vota - Salva voti grazia
-router.post('/vota', verifyToken, async (req, res) => {
+router.post('/vota', verifyToken, requirePoliticalConsent, async (req, res) => {
   console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
 
   try {

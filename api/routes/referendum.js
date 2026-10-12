@@ -1,5 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
@@ -258,7 +259,7 @@ router.post('/abrogativi/:id/:action', verifyToken, async (req, res) => {
 });
 
 // POST /api/referendum-abrogativi/vota - Salva preferenze referendum abrogativo
-router.post('/abrogativi/vota', verifyToken, async (req, res) => {
+router.post('/abrogativi/vota', verifyToken, requirePoliticalConsent, async (req, res) => {
   try {
     const { voti } = req.body;
     const userId = req.userId;

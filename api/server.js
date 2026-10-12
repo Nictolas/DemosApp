@@ -41,6 +41,7 @@ try {
       process.env.DEMOS_STAGING_OPINION_NOTIFICATION_E2E === 'true' ||
       process.env.DEMOS_STAGING_OPINION_PROPOSAL_E2E === 'true' ||
       process.env.DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E === 'true' ||
+      process.env.DEMOS_STAGING_POLITICAL_CONSENT_E2E === 'true' ||
       process.env.DEMOS_STAGING_TRANSPARENCY_PODIUM_E2E === 'true' ||
       process.env.DEMOS_STAGING_LOAD_E2E === 'true' ||
       process.env.DEMOS_STAGING_ELECTORAL_PERIMETER_E2E === 'true'
@@ -65,6 +66,10 @@ try {
         if (process.env.DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E === 'true') {
           const { runStagingPreferenceCooldownSelfTest } = require('./scripts/stagingPreferenceCooldownSelfTest');
           await runStagingPreferenceCooldownSelfTest({ port: PORT });
+        }
+        if (process.env.DEMOS_STAGING_POLITICAL_CONSENT_E2E === 'true') {
+          const { runStagingPoliticalConsentSelfTest } = require('./scripts/stagingPoliticalConsentSelfTest');
+          await runStagingPoliticalConsentSelfTest({ port: PORT });
         }
         if (process.env.DEMOS_STAGING_TRANSPARENCY_PODIUM_E2E === 'true') {
           const { runStagingTransparencyPodiumSelfTest } = require('./scripts/stagingTransparencyPodiumSelfTest');

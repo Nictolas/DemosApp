@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 const jwt = require('jsonwebtoken');
 const { mapToLegacyFormat, buildQueryForTipo, mapIniziativePopolariToLegacyFormat } = require('../utils/iniziativeMinisteroMapper');
@@ -1086,7 +1087,7 @@ router.delete('/:id', verifyToken, async (req, res, next) => {
 });
 
 // POST /api/iniziative-popolari/vota - preferenza su iniziativa canonica con raccolta conclusa e soglia raggiunta
-router.post('/vota', verifyToken, async (req, res) => {
+router.post('/vota', verifyToken, requirePoliticalConsent, async (req, res) => {
   let client = null;
   let transactionStarted = false;
 

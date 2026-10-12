@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 const jwt = require('jsonwebtoken');
@@ -126,7 +127,7 @@ router.post('/test-vota', (_req, res) => {
 });
 
 // POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
-router.post('/vota', verifyToken, async (req, res) => {
+router.post('/vota', verifyToken, requirePoliticalConsent, async (req, res) => {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   console.log('🚨🚨🚨 POST /api/capo-stato/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
   console.log('🚨🚨🚨 Request ID:', requestId);
@@ -426,7 +427,7 @@ router.get('/consenso', async (req, res) => {
 });
 
 // POST /api/capo-stato/consenso - Salva il voto di consenso
-router.post('/consenso', verifyToken, async (req, res) => {
+router.post('/consenso', verifyToken, requirePoliticalConsent, async (req, res) => {
   try {
     console.log('🔍 DEBUG /api/capo-stato/consenso - Richiesta ricevuta');
     console.log('🔍 DEBUG - Headers:', req.headers);

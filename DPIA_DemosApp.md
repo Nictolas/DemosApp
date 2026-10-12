@@ -719,19 +719,21 @@ I campi relativi alle opinioni politiche sono **configurabili** (la piattaforma 
 
 | Categoria / Campo DB | Descrizione | Obbligatorio | Finalità | Base Giuridica | Conservazione |
 |----------------------|-------------|--------------|----------|----------------|---------------|
-| Campi `opinione_*` (temi definiti dalla piattaforma) | Per ogni tema: Favorevole / Contrario / Astenuto. Elenco temi aggiornabile senza modifica della DPIA. | No | Aggregazione statistica, confronto con rappresentanti | **Art. 9(2)(a) Consenso esplicito** | Fino a cancellazione account |
+| Campi `opinione_*` (temi definiti dalla piattaforma) | Per ogni tema: Favorevole / Contrario / Astenuto. Elenco temi aggiornabile senza modifica della DPIA. | No | Aggregazione statistica, confronto con rappresentanti | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
 
 #### A.6 ⚠️ DATI SENSIBILI - Voti Espressi (Art. 9 GDPR)
 
 | Campo DB | Descrizione | Obbligatorio | Finalità | Base Giuridica | Conservazione |
 |----------|-------------|--------------|----------|----------------|---------------|
-| `voto_capo_stato` | ID candidato votato | No | Votazione Capo di Stato | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
-| `voto_referendum_*` | Voto su referendum | No | Partecipazione referendum | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
-| `voto_iniziativa_*` | Voto su iniziativa popolare | No | Partecipazione iniziative | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
-| `voto_ice_*` | Voto su ICE/ECI | No | Partecipazione ICE | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
-| `voto_amnistia` | Voto su amnistia | No | Partecipazione votazione | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
-| `voto_grazia` | Voto su grazia | No | Partecipazione votazione | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
-| `voto_ministri` | Voti su ministri | No | Partecipazione votazione | **Art. 9(2)(a) Consenso esplicito** | 5 anni (anonimizzato) |
+| `voto_capo_stato` | ID candidato votato | No | Votazione Capo di Stato | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+| `voto_referendum_*` | Voto su referendum | No | Partecipazione referendum | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+| `voto_iniziativa_*` | Voto su iniziativa popolare | No | Partecipazione iniziative | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+| `voto_ice_*` | Voto su ICE/ECI | No | Partecipazione ICE | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+| `voto_amnistia` | Voto su amnistia | No | Partecipazione votazione | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+| `voto_grazia` | Voto su grazia | No | Partecipazione votazione | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+| `voto_ministri` | Voti su ministri | No | Partecipazione votazione | **Art. 9(2)(a) Consenso esplicito** | Fino a revoca del consenso; retention finale da validare |
+
+**Aggiornamento tecnico 12/10/2026 — perimetro consenso:** le scritture con cui un cittadino genera opinioni, voti, preferenze o altre scelte politiche sono protette da un controllo centralizzato del consenso Art. 9. In assenza di consenso attivo la scrittura fallisce chiusa. La revoca aggiorna il consenso e cancella atomicamente i record politici generati dall'utente che dipendono da tale consenso, comprese eventuali copie legacy, mantenendo disponibili le operazioni necessarie a rimuovere dati già esistenti. I voti/atti istituzionali importati su politici o candidati da fonti ufficiali sono esclusi da questo cleanup e restano un perimetro distinto, la cui base giuridica e informativa devono essere validate separatamente prima di considerarne chiusa la qualificazione legale.
 
 #### A.7 Dati di Profilo Pubblico (Opzionali)
 
@@ -816,28 +818,31 @@ I campi sotto si riferiscono ai log inviati ad Axiom e/o a sistemi di audit. La 
 
 **Link (produzione):** https://www.demos.community/privacy-policy
 
-L’informativa privacy (Privacy Policy) include una sezione dedicata (**6.1 Accesso del personale autorizzato (amministratori) a opinioni e voti**) che spiega in modo trasparente perché gli amministratori possono vedere (e, per le categorie P/C/CP, modificare) le opinioni e i voti degli utenti, con distinzione tra politici/candidati (P, C, CP) ed elettori/altri (E), nel rispetto del principio di minimizzazione e delle basi giuridiche applicabili.
+L’informativa privacy (Privacy Policy) include una sezione dedicata (**6.1 Accesso del personale autorizzato (amministratori) a opinioni e voti**) che distingue i dati politici generati direttamente dagli utenti dai dati provenienti da fonti esterne o istituzionali. Per le opinioni politiche particolari la modifica amministrativa resta fail-closed senza consenso esplicito finché non sia validata e documentata un’eventuale diversa base giuridica; gli atti/voti istituzionali ufficiali seguono un perimetro separato da qualificare legalmente e informativamente.
 
 ### Allegato D - Modulo Consenso Art. 9
 
-*[Esempio di consenso raccolto per opinioni politiche]*
+*[Esempio di consenso raccolto per opinioni, voti e altre scelte politiche personali]*
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     CONSENSO OPINIONI POLITICHE                     │
+│                CONSENSO DATI E SCELTE POLITICHE                    │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  Ai sensi dell'Art. 9 del GDPR, acconsento espressamente al        │
-│  trattamento delle mie opinioni politiche da parte di DemosApp     │
-│  per le finalità di aggregazione statistica e partecipazione       │
-│  democratica.                                                       │
+│  trattamento delle mie opinioni politiche e dei voti, preferenze   │
+│  o altre scelte personali che possono rivelarle, per le finalità   │
+│  partecipative, statistiche e di confronto dichiarate da DemosApp. │
 │                                                                     │
 │  Comprendo che:                                                     │
 │  • Posso revocare il consenso in qualsiasi momento                 │
-│  • I miei dati saranno trattati con misure di sicurezza adeguate   │
+│  • Senza consenso non posso usare le funzioni che registrano       │
+│    tali dati politici personali                                    │
+│  • Alla revoca, i dati basati solo su questo consenso sono         │
+│    cancellati o disassociati, salvo diversa base giuridica         │
 │  • Ho diritto di accesso, rettifica e cancellazione                │
 │                                                                     │
-│  ☐ Acconsento al trattamento delle mie opinioni politiche          │
+│  ☐ Acconsento al trattamento dei miei dati e scelte politiche      │
 │                                                                     │
 │  Data: ________________    IP: ________________                     │
 │                                                                     │

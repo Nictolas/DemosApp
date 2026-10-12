@@ -79,29 +79,29 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">4. Base Giuridica del Trattamento</h2>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Consenso esplicito (Art. 6.1.a GDPR):</strong> Per dati di voto e altre finalità</li>
+              <li><strong>Consenso (Art. 6.1.a GDPR):</strong> Per i trattamenti facoltativi basati sul consenso; quando voti, preferenze o altre scelte rivelano opinioni politiche si applica inoltre il consenso esplicito previsto dall'Art. 9.2.a GDPR</li>
               <li><strong>Esecuzione contratto (Art. 6.1.b GDPR):</strong> Per fornire i servizi richiesti</li>
               <li><strong>Interesse legittimo (Art. 6.1.f GDPR):</strong> Per migliorare la piattaforma</li>
               <li><strong>Obbligo legale (Art. 6.1.c GDPR):</strong> Per adempimenti normativi</li>
             </ul>
             
-            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)</h3>
+            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni e Scelte Politiche (GDPR Art. 9)</h3>
             <p className="text-gray-700 mb-3">
-              Le <strong>opinioni politiche</strong> sono considerate "dati particolari" secondo il GDPR Art. 9 
-              e richiedono un <strong>consenso esplicito separato</strong>.
+              Le <strong>opinioni politiche</strong> e i voti, preferenze o altre scelte che possono rivelarle rientrano nel perimetro dei dati particolari previsto dal GDPR Art. 9
+              e, per le funzionalità basate su tale presupposto, richiedono un <strong>consenso esplicito separato</strong>.
             </p>
             <p className="text-gray-700 mb-3">
               <strong>Base giuridica specifica:</strong> Consenso esplicito dell'interessato (GDPR Art. 9.2.a)
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Il consenso alle opinioni politiche è <strong>opzionale</strong> e può essere rifiutato</li>
-              <li>Se rifiuti il consenso, non potrai esprimere opinioni politiche ma potrai utilizzare tutte le altre funzionalità della piattaforma</li>
+              <li>Il consenso al trattamento delle opinioni e scelte politiche è <strong>opzionale</strong> e può essere rifiutato</li>
+              <li>Se rifiuti il consenso, non potrai usare le funzionalità che richiedono di registrare opinioni, voti o preferenze politiche personali; restano disponibili le funzionalità che non richiedono tali dati</li>
               <li>Il consenso può essere <strong>revocato in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni politiche già espresse verranno <strong>eliminate completamente</strong> dal sistema (GDPR Art. 17 - Diritto alla cancellazione)</li>
+              <li>In caso di revoca, i dati politici generati da te e trattati esclusivamente sulla base di questo consenso vengono <strong>eliminati o disassociati</strong>; eventuali dati per i quali esista una diversa base giuridica seguono il relativo regime (GDPR Art. 17)</li>
               <li>Il consenso viene registrato con data, ora, indirizzo IP e user agent per finalità di audit e conformità</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              <strong>Finalità del trattamento:</strong> Le opinioni politiche vengono utilizzate esclusivamente per:
+              <strong>Finalità del trattamento:</strong> Le opinioni e scelte politiche vengono utilizzate esclusivamente per:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
               <li>Permettere l'espressione della tua opinione su temi politici</li>
@@ -154,17 +154,15 @@ export default function PrivacyPolicy() {
               </div>
 
               <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                <h4 className="font-semibold text-gray-800 mb-2">🗳️ Voti e Opinioni Politiche</h4>
+                <h4 className="font-semibold text-gray-800 mb-2">🗳️ Voti, Preferenze e Opinioni Politiche</h4>
                 <p className="text-gray-700 mb-2">
-                  <strong>Periodo:</strong> 5 anni (1.825 giorni) dalla data di espressione
+                  <strong>Periodo:</strong> Per i dati trattati sulla base del consenso politico esplicito, fino alla revoca del consenso o finché necessari alle finalità dichiarate; un'eventuale conservazione ulteriore richiede una distinta base giuridica o un obbligo di legge applicabile
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>Dati inclusi:</strong> Voti per capo di stato, referendum, iniziative popolari, 
-                  ICE, opinioni politiche su temi specifici
+                  <strong>Dati inclusi:</strong> Opinioni politiche e voti, preferenze o altre scelte personali che possono rivelarle, incluse le superfici partecipative della piattaforma
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>Motivo:</strong> Conservazione per finalità di democrazia partecipativa e 
-                  trasparenza politica (Art. 2220 Codice Civile)
+                  <strong>Motivo:</strong> Funzionamento delle funzionalità partecipative richieste dall'utente sulla base del consenso esplicito; alla revoca, in assenza di altra base giuridica, i dati dipendenti da tale consenso vengono eliminati o disassociati
                 </p>
               </div>
 
@@ -319,12 +317,9 @@ export default function PrivacyPolicy() {
             </p>
             <p className="text-gray-700 mb-2 font-medium">Per politici, candidati e candidati-politici (ruoli P, C, CP):</p>
             <ul className="list-disc pl-6 mb-3 text-gray-700">
-              <li>Gli account di queste categorie possono essere creati dagli amministratori per far funzionare la piattaforma; 
-                  le opinioni e i voti associati hanno spesso una <strong>fonte esterna</strong> (documenti, dati ufficiali).</li>
-              <li>Gli amministratori possono <strong>vedere e modificare</strong> opinioni e voti per questi ruoli per rendere 
-                  più efficace il <strong>matching</strong> (confronto con cittadini ed elettori) e per gestire correttamente i profili.</li>
-              <li>Quando il politico o candidato contatta la piattaforma, l’account può essere attribuito a lui (es. cambio email, 
-                  password temporanea); da quel momento il titolare del dato è l’interessato.</li>
+              <li>I profili di queste categorie possono includere dati provenienti da <strong>fonti esterne o istituzionali</strong> solo quando il relativo trattamento dispone di una base giuridica applicabile e sono rispettati gli obblighi di trasparenza previsti dal GDPR.</li>
+              <li>Le opinioni politiche particolari non vengono create o modificate dall'amministrazione in assenza del consenso esplicito del soggetto finché non sia stata validata e documentata un'eventuale diversa base giuridica. I dati relativi ad atti o votazioni istituzionali ufficiali seguono un perimetro distinto.</li>
+              <li>Quando il politico o candidato reclama e verifica il proprio profilo, può gestire direttamente le informazioni e l'esercizio dei propri diritti secondo le regole applicabili all'account.</li>
             </ul>
             <p className="text-gray-700 mb-2 font-medium">Per elettori e altre categorie di utenti (es. ruolo E):</p>
             <ul className="list-disc pl-6 mb-3 text-gray-700">

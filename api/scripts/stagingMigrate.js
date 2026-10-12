@@ -118,6 +118,26 @@ async function seedE2EUser(client, logger = console) {
       provincia_residenza = EXCLUDED.provincia_residenza, comune_residenza = EXCLUDED.comune_residenza
   `, params);
   await client.query(`
+    UPDATE users
+       SET political_opinions_consent = TRUE,
+           political_opinions_consent_timestamp = NOW(),
+           updated_at = NOW()
+     WHERE id = $1
+  `, [E2E_USER_ID]);
+  await client.query(`
+    INSERT INTO user_consents (
+      user_id, privacy_policy_consent, terms_of_service_consent, consent_timestamp,
+      political_opinions_consent, political_opinions_consent_timestamp, updated_at
+    ) VALUES ($1, TRUE, TRUE, NOW(), TRUE, NOW(), NOW())
+    ON CONFLICT (user_id) DO UPDATE SET
+      privacy_policy_consent = TRUE,
+      terms_of_service_consent = TRUE,
+      consent_timestamp = COALESCE(user_consents.consent_timestamp, NOW()),
+      political_opinions_consent = TRUE,
+      political_opinions_consent_timestamp = NOW(),
+      updated_at = NOW()
+  `, [E2E_USER_ID]);
+  await client.query(`
     INSERT INTO users (id,name,nome,cognome,ruolo,status,account_type,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
     VALUES ($1,$2,$3,$4,'E','a','PERSON',FALSE,TRUE,'Italia','Toscana','Pisa','Pisa')
     ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',account_type='PERSON',is_admin=FALSE,is_activist=TRUE

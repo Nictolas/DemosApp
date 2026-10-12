@@ -4,6 +4,7 @@ const { verifyToken } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
 const AuditService = require('../../services/auditService');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
+const { cleanupConsentScopedPoliticalData } = require('../../services/politicalConsentService');
 
 /**
  * GET /api/user/political-opinions-consent
@@ -217,8 +218,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     
     const client = await pool.connect();
     let result;
-    let deletedOpinionsCount = 0;
-    let opinionTableExists = false;
+    let cleanupResult = { totalDeleted: 0, deletedByTable: {} };
     try {
       await client.query('BEGIN');
       result = await client.query(updateQuery, [userId]);
@@ -237,20 +237,10 @@ router.put('/revoke', verifyToken, async (req, res) => {
           [userId]
         );
 
-        // La revoca e la cancellazione delle opinioni devono essere atomiche:
-        // se la cancellazione fallisce, rollback anche del cambio di consenso.
-        const tableExists = await client.query(
-          `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'opinioni_risposte')`
-        );
-        opinionTableExists = tableExists.rows[0]?.exists === true;
-
-        if (opinionTableExists) {
-          const deleteResult = await client.query(
-            `DELETE FROM opinioni_risposte WHERE user_id = $1`,
-            [userId]
-          );
-          deletedOpinionsCount = deleteResult.rowCount || 0;
-        }
+        // La revoca e la cancellazione di tutti i dati politici generati dall'utente
+        // che dipendono da questo consenso devono essere atomiche. I voti
+        // istituzionali importati da fonti pubbliche non fanno parte di questo cleanup.
+        cleanupResult = await cleanupConsentScopedPoliticalData(client, userId);
       }
       if (result.rows.length > 0) {
         await PrivacyErasureLedgerService.recordEvent(client, {
@@ -258,7 +248,10 @@ router.put('/revoke', verifyToken, async (req, res) => {
           eventType: PrivacyErasureLedgerService.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
           details: {
             source: 'political_opinions_consent',
-            opinions_deleted_count: deletedOpinionsCount
+            political_records_deleted_count: cleanupResult.totalDeleted,
+            deleted_by_table: cleanupResult.deletedByTable,
+            legacy_opinion_columns_cleared_count: cleanupResult.legacyOpinionColumnsCleared,
+            proposal_links_cleared_count: cleanupResult.proposalLinksCleared
           }
         });
       }
@@ -277,12 +270,10 @@ router.put('/revoke', verifyToken, async (req, res) => {
       });
     }
 
-    if (!opinionTableExists) {
-      console.log('ℹ️ Tabella opinioni_risposte non esiste, nessuna opinione da eliminare');
-    } else if (deletedOpinionsCount > 0) {
-      console.log(`✅ ${deletedOpinionsCount} opinioni politiche eliminate durante la revoca`);
+    if (cleanupResult.totalDeleted > 0) {
+      console.log(`✅ ${cleanupResult.totalDeleted} record politici generati dall'utente eliminati durante la revoca`);
     } else {
-      console.log('ℹ️ Nessuna opinione politica da eliminare durante la revoca');
+      console.log('ℹ️ Nessun dato politico generato dall\'utente da eliminare durante la revoca');
     }
     
     // Log dell'azione
@@ -293,8 +284,11 @@ router.put('/revoke', verifyToken, async (req, res) => {
       details: {
         consent_type: 'political_opinions',
         gdpr_article: '9.2.a',
-        opinion_cleanup_completed: true,
-        opinions_deleted_count: deletedOpinionsCount
+        political_cleanup_completed: true,
+        political_records_deleted_count: cleanupResult.totalDeleted,
+        deleted_by_table: cleanupResult.deletedByTable,
+        legacy_opinion_columns_cleared_count: cleanupResult.legacyOpinionColumnsCleared,
+        proposal_links_cleared_count: cleanupResult.proposalLinksCleared
       },
       ipAddress,
       userAgent,
@@ -305,7 +299,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Consenso alle opinioni politiche revocato con successo. Le tue opinioni sono state eliminate.',
+      message: 'Consenso politico revocato con successo. I dati politici generati da te e dipendenti da questo consenso sono stati eliminati.',
       consent: {
         granted: false,
         timestamp: null
