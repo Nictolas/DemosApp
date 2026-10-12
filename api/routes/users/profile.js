@@ -1,4 +1,5 @@
 const express = require('express');
+const { requireVerifiedCivicIdentity } = require('../../middleware/civicIdentity');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
@@ -445,7 +446,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
 });
 
 // PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
-router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
     console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
     
@@ -575,7 +576,7 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
 
 
 // PUT /api/users/:userId/political-selection - Canonical jurisdiction-aware political selection
-router.put('/:userId/political-selection', verifyToken, async (req, res) => {
+router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   let client = null;
   try {
     const { userId } = req.params;

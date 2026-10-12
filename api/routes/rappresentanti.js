@@ -1,4 +1,5 @@
 const express = require('express');
+const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
@@ -42,7 +43,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // Fonte canonica: mandati attivi. Camera, Senato ed Europeo sono globalmente selezionabili;
     // Regione e Comune sono filtrati sulla giurisdizione dell'utente.
     const eligibility = await listEligibleRepresentatives(pool, userId, grado_elezione);
-    const result = { rows: eligibility.subjects };    console.log('🔍 DEBUG - Fonte eleggibilità rappresentanti:', eligibility.source, 'strict:', eligibility.strict);
+    const result = { rows: eligibility.subjects };
+    console.log('🔍 DEBUG - Fonte eleggibilità rappresentanti:', eligibility.source, 'strict:', eligibility.strict);
     console.log('🔍 DEBUG - Parametri query:', [grado_elezione]);
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
 
@@ -288,7 +290,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/rappresentanti - Assegna rappresentante
-router.post('/', verifyToken, validateInput(['rappresentante_id', 'categoria_id']), async (req, res) => {
+router.post('/', verifyToken, requireVerifiedCivicIdentity, validateInput(['rappresentante_id', 'categoria_id']), async (req, res) => {
   try {
     const { rappresentante_id, categoria_id } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato

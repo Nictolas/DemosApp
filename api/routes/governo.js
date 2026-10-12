@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 const jwt = require('jsonwebtoken');
@@ -123,7 +124,7 @@ router.get('/voti', verifyToken, async (req, res) => {
 });
 
 // POST /api/governo/vota - Salva voti per tutti i ministeri
-router.post('/vota', verifyToken, requirePoliticalConsent, async (req, res) => {
+router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   try {
     const { voti } = req.body;
     const userId = req.userId;
@@ -418,7 +419,7 @@ router.get('/consenso', async (req, res) => {
 });
 
 // POST /api/governo/consenso - Salva il voto di consenso del governo
-router.post('/consenso', verifyToken, requirePoliticalConsent, async (req, res) => {
+router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   try {
     console.log('🔍 DEBUG /api/governo/consenso POST - Richiesta ricevuta');
     

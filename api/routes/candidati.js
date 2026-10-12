@@ -1,4 +1,5 @@
 const express = require('express');
+const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
 const { buildPoliticalMatches, getUserOpinionCompletion } = require('../services/politicalMatchingService');
@@ -267,7 +268,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
 });
 
 // PUT /api/candidati/seleziona-candidato - Seleziona candidato per categoria
-router.put('/seleziona-candidato', verifyToken, async (req, res) => {
+router.put('/seleziona-candidato', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
     console.log('🎯 PUT /api/candidati/seleziona-candidato - Selezione candidato');
     

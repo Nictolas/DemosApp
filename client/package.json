@@ -8,14 +8,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:add": "cap add",
-    "cap:sync": "cap sync",
-    "cap:open": "cap open",
-    "cap:copy": "cap copy",
-    "cap:run": "cap run",
-    "android:sync": "npm run build && cap sync android",
-    "android:open": "cap open android",
-    "android:run": "npm run build && cap run android"
+    "cap:add": "node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor add",
+    "cap:sync": "node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor sync",
+    "cap:open": "node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor open",
+    "cap:copy": "node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor copy",
+    "cap:run": "node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor run",
+    "android:sync": "npm run build && node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor sync android",
+    "android:open": "node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor open android",
+    "android:run": "npm run build && node -r ./scripts/capacitor-tar7-compat.cjs ./node_modules/@capacitor/cli/bin/capacitor run android"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",

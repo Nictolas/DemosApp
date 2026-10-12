@@ -41,12 +41,12 @@ function normalizePasskeyRegistration(registration) {
   };
 }
 
-async function completePasskeyRegistrationAfterCie(
-  { registration, fiscalNumber },
+async function completePasskeyRegistration(
+  { registration, fiscalNumber = null, requireVerifiedIdentity = false },
   pool = getPool()
 ) {
   const normalized = normalizePasskeyRegistration(registration);
-  if (typeof fiscalNumber !== 'string' || !fiscalNumber.trim()) {
+  if (requireVerifiedIdentity && (typeof fiscalNumber !== 'string' || !fiscalNumber.trim())) {
     throw new Error('Claim fiscal_number CIE mancante');
   }
 
@@ -157,11 +157,12 @@ async function completePasskeyRegistrationAfterCie(
         [normalized.ipAddress, normalized.userAgent, p.registrationKey]
       );
     }
-
-    await registerVerifiedIdentity(
-      { userId: p.registrationKey, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
-      client
-    );
+    if (typeof fiscalNumber === 'string' && fiscalNumber.trim()) {
+      await registerVerifiedIdentity(
+        { userId: p.registrationKey, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
+        client
+      );
+    }
 
     await client.query('COMMIT');
     return { userId: p.registrationKey, role: 'E', created: true, hasPasskey: true };
@@ -173,7 +174,22 @@ async function completePasskeyRegistrationAfterCie(
   }
 }
 
+async function completePasskeyRegistrationWithoutCie({ registration }, pool = getPool()) {
+  return completePasskeyRegistration({ registration }, pool);
+}
+
+async function completePasskeyRegistrationAfterCie(
+  { registration, fiscalNumber },
+  pool = getPool()
+) {
+  return completePasskeyRegistration(
+    { registration, fiscalNumber, requireVerifiedIdentity: true },
+    pool
+  );
+}
+
 module.exports = {
   normalizePasskeyRegistration,
+  completePasskeyRegistrationWithoutCie,
   completePasskeyRegistrationAfterCie,
 };

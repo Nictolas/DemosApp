@@ -48,6 +48,8 @@ const {
 const { createAuthorizationRequest } = require('../../services/cieOidcAuthorizationService');
 const { saveCieRegistrationTransaction } = require('../../services/cieOidcTransactionStore');
 const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
+const { completePasskeyRegistrationWithoutCie } = require('../../services/passkeyRegistrationService');
+const { isCieRequiredForRegistration } = require('../../services/identityRegistrationPolicy');
 const {
   webauthnStatusLimiter,
   webauthnChallengeLimiter,
@@ -225,9 +227,9 @@ router.post('/webauthn/register/options', webauthnChallengeLimiter, async (req, 
 
 /**
  * POST /api/auth/webauthn/register/verify
- * Verifica la passkey, ma NON crea ancora l'account personale.
- * La credenziale verificata viene tenuta solo nella transazione CIE short-lived;
- * l'account viene creato dopo una callback CIE valida.
+ * Verifica la passkey e completa la registrazione secondo la policy identità corrente.
+ * In modalità progressiva crea l'account senza CIE; in modalità cie_required
+ * mantiene la credenziale nella transazione CIE short-lived fino alla callback valida.
  */
 router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res) => {
   try {
@@ -243,7 +245,7 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
     if (registration.privacy_policy_consent !== true || registration.terms_of_service_consent !== true) {
       return res.status(400).json({
         success: false,
-        error: 'Privacy Policy e Termini devono essere accettati prima della verifica CIE',
+        error: 'Privacy Policy e Termini devono essere accettati prima della registrazione',
       });
     }
 
@@ -328,6 +330,22 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
     };
 
     try {
+      if (!isCieRequiredForRegistration()) {
+        const completed = await completePasskeyRegistrationWithoutCie({
+          registration: registrationContext,
+        });
+        const tokens = generateTokenPair({ userId: completed.userId, role: completed.role });
+        return res.json({
+          success: true,
+          requiresCie: false,
+          identityVerified: false,
+          message: 'Registrazione completata. La CIE sarà richiesta per le azioni civiche sensibili.',
+          user: { id: completed.userId, ruolo: completed.role },
+          hasPasskey: true,
+          ...tokens,
+        });
+      }
+
       const { authorizationUrl, transaction } = createAuthorizationRequest();
       await saveCieRegistrationTransaction(
         `passkey:${registrationKey}`,
@@ -344,7 +362,7 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
     } catch (error) {
       const publicError = getPublicIdentityError(error, {
         status: 503,
-        error: 'Verifica CIE non disponibile: la registrazione non puo essere completata',
+        error: 'Registrazione temporaneamente non disponibile',
       });
       return res.status(publicError.status).json({
         success: false,

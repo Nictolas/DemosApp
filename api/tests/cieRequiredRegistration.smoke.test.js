@@ -2,45 +2,42 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  REGISTRATION_IDENTITY_MODES,
+  getRegistrationIdentityMode,
+  isCieRequiredForRegistration,
+} = require('../services/identityRegistrationPolicy');
 
 const root = path.resolve(__dirname, '..', '..');
 const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 
-function between(source, start, end) {
-  const startIndex = source.indexOf(start);
-  assert.notEqual(startIndex, -1, `start marker missing: ${start}`);
-  const endIndex = source.indexOf(end, startIndex + start.length);
-  assert.notEqual(endIndex, -1, `end marker missing: ${end}`);
-  return source.slice(startIndex, endIndex);
-}
+test('registration identity policy defaults to progressive and can restore CIE pre-account', () => {
+  assert.equal(getRegistrationIdentityMode({}), REGISTRATION_IDENTITY_MODES.PROGRESSIVE);
+  assert.equal(isCieRequiredForRegistration({}), false);
+  assert.equal(getRegistrationIdentityMode({ DEMOS_REGISTRATION_IDENTITY_MODE: 'cie_required' }), REGISTRATION_IDENTITY_MODES.CIE_REQUIRED);
+  assert.equal(isCieRequiredForRegistration({ DEMOS_REGISTRATION_IDENTITY_MODE: 'cie_required' }), true);
+  assert.throws(() => getRegistrationIdentityMode({ DEMOS_REGISTRATION_IDENTITY_MODE: 'invalid' }), /non valido/);
+});
 
-test('OAuth: complete-registration avvia CIE senza creare users', () => {
+test('OAuth registration supports progressive account creation and preserves CIE-required path', () => {
   const source = read('api/routes/auth/oauth.js');
-  const block = between(
-    source,
-    "router.post('/oauth/complete-registration'",
-    "router.post('/oauth/registration/exchange'"
-  );
-  assert.match(block, /saveCieRegistrationTransaction/);
-  assert.match(block, /requiresCie:\s*true/);
-  assert.doesNotMatch(block, /INSERT INTO users/i);
-  assert.doesNotMatch(block, /generateTokenPair/);
+  assert.match(source, /completeOAuthRegistrationWithoutCie/);
+  assert.match(source, /isCieRequiredForRegistration/);
+  assert.match(source, /requiresCie:\s*false/);
+  assert.match(source, /saveCieRegistrationTransaction/);
+  assert.match(source, /requiresCie:\s*true/);
 });
 
-test('Passkey: register/verify avvia CIE senza creare users o JWT', () => {
+test('Passkey registration supports progressive account creation and preserves CIE-required path', () => {
   const source = read('api/routes/auth/webauthn.js');
-  const block = between(
-    source,
-    "router.post('/webauthn/register/verify'",
-    "router.post('/webauthn/login/options'"
-  );
-  assert.match(block, /saveCieRegistrationTransaction/);
-  assert.match(block, /requiresCie:\s*true/);
-  assert.doesNotMatch(block, /INSERT INTO users/i);
-  assert.doesNotMatch(block, /generateTokenPair/);
+  assert.match(source, /completePasskeyRegistrationWithoutCie/);
+  assert.match(source, /isCieRequiredForRegistration/);
+  assert.match(source, /requiresCie:\s*false/);
+  assert.match(source, /saveCieRegistrationTransaction/);
+  assert.match(source, /requiresCie:\s*true/);
 });
 
-test('la callback CIE finalizza sia OAuth sia Passkey solo dopo UserInfo verificata', () => {
+test('CIE callback still finalizes verified registrations only after validated UserInfo', () => {
   const source = read('api/routes/auth/identity.js');
   const userInfoIndex = source.indexOf('fetchAndValidateCieUserInfo');
   const oauthIndex = source.indexOf('completeOAuthRegistrationAfterCie', userInfoIndex);
@@ -48,9 +45,4 @@ test('la callback CIE finalizza sia OAuth sia Passkey solo dopo UserInfo verific
   assert.ok(userInfoIndex > -1);
   assert.ok(oauthIndex > userInfoIndex);
   assert.ok(passkeyIndex > userInfoIndex);
-});
-
-test('gli account personali vengono inseriti solo nei finalizer post-CIE', () => {
-  assert.match(read('api/services/oauthRegistrationService.js'), /INSERT INTO users/i);
-  assert.match(read('api/services/passkeyRegistrationService.js'), /INSERT INTO users/i);
 });

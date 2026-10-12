@@ -6,6 +6,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
+const civicIdentityPath = require.resolve(path.join(ROOT, 'middleware', 'civicIdentity.js'));
 
 function makePool({ complete, canonicalBlocked = false }) {
   const ids = ['q1', 'q2'];
@@ -49,6 +50,11 @@ function makePool({ complete, canonicalBlocked = false }) {
 
 async function withProfile(pool, fn) {
   const original = require.cache[authPath];
+  const originalCivicIdentity = require.cache[civicIdentityPath];
+  require.cache[civicIdentityPath] = {
+    id: civicIdentityPath, filename: civicIdentityPath, loaded: true,
+    exports: { requireVerifiedCivicIdentity: (_req, _res, next) => next() }
+  };
   require.cache[authPath] = {
     id: authPath, filename: authPath, loaded: true,
     exports: {
@@ -68,6 +74,8 @@ async function withProfile(pool, fn) {
     await new Promise((resolve) => server.close(resolve));
     delete require.cache[routePath];
     if (original) require.cache[authPath] = original; else delete require.cache[authPath];
+    if (originalCivicIdentity) require.cache[civicIdentityPath] = originalCivicIdentity;
+    else delete require.cache[civicIdentityPath];
   }
 }
 

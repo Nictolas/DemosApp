@@ -6,9 +6,17 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
+const civicIdentityPath = require.resolve(path.join(ROOT, 'middleware', 'civicIdentity.js'));
 
 async function serveRouter(routeRelativePath, pool, fn) {
   const originalAuth = require.cache[authPath];
+  const originalCivicIdentity = require.cache[civicIdentityPath];
+  require.cache[civicIdentityPath] = {
+    id: civicIdentityPath,
+    filename: civicIdentityPath,
+    loaded: true,
+    exports: { requireVerifiedCivicIdentity: (_req, _res, next) => next() }
+  };
   require.cache[authPath] = {
     id: authPath,
     filename: authPath,
@@ -42,6 +50,8 @@ async function serveRouter(routeRelativePath, pool, fn) {
     delete require.cache[routePath];
     if (originalAuth) require.cache[authPath] = originalAuth;
     else delete require.cache[authPath];
+    if (originalCivicIdentity) require.cache[civicIdentityPath] = originalCivicIdentity;
+    else delete require.cache[civicIdentityPath];
   }
 }
 

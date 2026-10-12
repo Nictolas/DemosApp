@@ -110,22 +110,23 @@ test('lettura consenso usa user_consents con fallback users e fallisce chiusa', 
 
 test('tutte le scritture cittadino che esprimono preferenze politiche richiedono il guard condiviso', () => {
   const expectations = [
-    ['routes/amnistia.js', "router.post('/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/capo-stato.js', "router.post('/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/capo-stato.js', "router.post('/consenso', verifyToken, requirePoliticalConsent"],
-    ['routes/grazia.js', "router.post('/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/iniziative-popolari.js', "router.post('/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/referendum.js', "router.post('/abrogativi/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/opinioni-proposte.js', "router.post('/', verifyToken, requirePoliticalConsent"],
-    ['routes/opinioni-proposte.js', "router.post('/:id/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/governo.js', "router.post('/vota', verifyToken, requirePoliticalConsent"],
-    ['routes/governo.js', "router.post('/consenso', verifyToken, requirePoliticalConsent"]
+    ['routes/amnistia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/capo-stato.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/capo-stato.js', "router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/grazia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/iniziative-popolari.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/referendum.js', "router.post('/abrogativi/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/opinioni-proposte.js', "router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/opinioni-proposte.js', "router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/governo.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/governo.js', "router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"]
   ];
 
   for (const [relative, expected] of expectations) {
     const source = fs.readFileSync(path.join(ROOT, ...relative.split('/')), 'utf8');
     assert.equal(source.includes(expected), true, `${relative}: ${expected}`);
-    assert.equal(source.includes("require('../middleware/politicalConsent')"), true, `${relative}: import guard`);
+    assert.equal(source.includes("require('../middleware/politicalConsent')"), true, `${relative}: import consent guard`);
+    assert.equal(source.includes("require('../middleware/civicIdentity')"), true, `${relative}: import civic identity guard`);
   }
 });
 

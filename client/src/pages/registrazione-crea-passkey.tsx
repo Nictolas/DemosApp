@@ -18,9 +18,9 @@ export default function RegistrazioneCreaPasskey() {
   );
   const [oauthCompleteError, setOauthCompleteError] = useState<string | null>(null);
 
-  // Nuovi utenti Google/Apple: i dati restano in stato temporaneo finche CIE non riesce.
-  // Dopo la callback CIE il backend restituisce nel fragment solo un ticket one-time,
-  // che viene scambiato qui con i JWT definitivi.
+  // Nuovi utenti Google/Apple: la registrazione puo concludersi direttamente in
+  // modalita progressiva oppure, se il server richiede CIE pre-account, proseguire
+  // con la callback CIE e lo scambio del ticket one-time.
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -137,16 +137,26 @@ export default function RegistrazioneCreaPasskey() {
       const data = await res.json().catch(() => ({}));
       if (cancelled) return;
       if (!res.ok || !data.success) {
-        fail(data?.error || "Impossibile avviare la verifica CIE. Riprova.");
-        return;
-      }
-      if (data.requiresCie !== true || typeof data.authorizationUrl !== "string") {
-        fail("Il server non ha richiesto la verifica CIE prevista. Registrazione interrotta.");
+        fail(data?.error || "Impossibile completare la registrazione. Riprova.");
         return;
       }
 
-      // Nessun account DEMOS esiste ancora a questo punto.
-      window.location.assign(data.authorizationUrl);
+      if (data.requiresCie === true && typeof data.authorizationUrl === "string") {
+        window.location.assign(data.authorizationUrl);
+        return;
+      }
+
+      if (!data.accessToken || !data.user?.id) {
+        fail("Il server non ha restituito una sessione valida. Registrazione interrotta.");
+        return;
+      }
+
+      window.localStorage.setItem("auth_token", data.accessToken);
+      if (data.refreshToken) window.localStorage.setItem("refresh_token", data.refreshToken);
+      window.localStorage.setItem("webauthn_user_id", String(data.user.id));
+      if (data.hasPasskey === true) window.localStorage.setItem("demos_has_passkey", "true");
+      clearRegistrationDraft();
+      window.location.href = "/preferiti";
     })().catch((error: unknown) => {
       fail((error as Error)?.message || "Errore durante la verifica CIE.");
     });

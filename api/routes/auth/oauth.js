@@ -1,6 +1,7 @@
 /**
  * OAuth login: Google e Apple
- * Riceve id_token dal client. I nuovi account vengono creati solo dopo verifica CIE riuscita.
+ * Riceve id_token dal client. La registrazione può completarsi senza CIE in modalità progressiva;
+ * la CIE resta il livello di identità richiesto dalle azioni civiche sensibili.
  */
 const express = require('express');
 const { OAuth2Client } = require('google-auth-library');
@@ -14,6 +15,8 @@ const { saveCieRegistrationTransaction } = require('../../services/cieOidcTransa
 const { consumeRegistrationTicket } = require('../../services/registrationTicketStore');
 const { getIdentityVerificationStatus } = require('../../services/identityVerificationStore');
 const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
+const { completeOAuthRegistrationWithoutCie } = require('../../services/oauthRegistrationService');
+const { isCieRequiredForRegistration } = require('../../services/identityRegistrationPolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -78,7 +81,8 @@ async function verifyAppleIdToken(identityToken) {
 /**
  * Trova utente per il provider (solo SELECT). Non crea la riga in users.
  * Restituisce { found: true, id, ruolo } oppure { found: false, profile }.
- * Se non trovato, non viene creata alcuna riga users: la creazione avviene solo dopo CIE.
+ * Se non trovato, non viene creata alcuna riga users fino al completamento del wizard;
+ * la policy centrale decide se finalizzare subito o richiedere prima la CIE.
  */
 async function findUserByProvider(provider, providerUserId, profile) {
   // Nuovo schema: user_auth_providers
@@ -236,10 +240,9 @@ router.post('/oauth/apple', authLimiter, async (req, res) => {
 
 /**
  * POST /api/auth/oauth/complete-registration
- * Prepara la registrazione ma NON crea l'account.
- * La richiesta usa il token oauth_pending, salva per 5 minuti i soli dati necessari
- * alla finalizzazione e avvia il flusso CIE. L'account nasce soltanto nella callback
- * CIE dopo verifica crittografica e controllo di unicita della persona.
+ * Completa la registrazione secondo la policy identità corrente.
+ * In modalità progressiva crea l'account senza CIE; in modalità cie_required
+ * conserva il comportamento pre-account e avvia il flusso CIE.
  */
 router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
   try {
@@ -277,7 +280,7 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
     if (privacy_policy_consent !== true || terms_of_service_consent !== true) {
       return res.status(400).json({
         success: false,
-        error: 'Privacy Policy e Termini devono essere accettati prima della verifica CIE',
+        error: 'Privacy Policy e Termini devono essere accettati prima della registrazione',
       });
     }
 
@@ -301,6 +304,20 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
       userAgent: req.get('User-Agent') || null,
     };
 
+    if (!isCieRequiredForRegistration()) {
+      const completed = await completeOAuthRegistrationWithoutCie({ registration });
+      const tokens = generateTokenPair({ userId: completed.userId, role: completed.role });
+      return res.json({
+        success: true,
+        requiresCie: false,
+        identityVerified: false,
+        message: 'Registrazione completata. La CIE sarà richiesta per le azioni civiche sensibili.',
+        user: { id: completed.userId, ruolo: completed.role },
+        hasPasskey: false,
+        ...tokens,
+      });
+    }
+
     const { authorizationUrl, transaction } = createAuthorizationRequest();
     const registrationKey = `${provider}:${providerSub}`;
     await saveCieRegistrationTransaction(registrationKey, registration, transaction);
@@ -312,10 +329,10 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
       message: 'Verifica la tua identita con CIE per completare la registrazione',
     });
   } catch (error) {
-    console.error('OAuth prepare-registration CIE error:', error?.message || error);
+    console.error('OAuth complete-registration error:', error?.message || error);
     const publicError = getPublicIdentityError(error, {
       status: 503,
-      error: 'Verifica CIE non disponibile: la registrazione non puo essere completata',
+      error: 'Registrazione temporaneamente non disponibile',
     });
     return res.status(publicError.status).json({
       success: false,

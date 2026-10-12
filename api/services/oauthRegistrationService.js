@@ -141,12 +141,12 @@ async function upsertRegistrationData(client, userId, registration, compressedLo
   }
 }
 
-async function completeOAuthRegistrationAfterCie(
-  { registration, fiscalNumber },
+async function completeOAuthRegistration(
+  { registration, fiscalNumber = null, requireVerifiedIdentity = false },
   pool = getPool()
 ) {
   const normalized = normalizeRegistration(registration);
-  if (typeof fiscalNumber !== 'string' || !fiscalNumber.trim()) {
+  if (requireVerifiedIdentity && (typeof fiscalNumber !== 'string' || !fiscalNumber.trim())) {
     throw new Error('Claim fiscal_number CIE mancante');
   }
 
@@ -220,12 +220,12 @@ async function completeOAuthRegistrationAfterCie(
     }
 
     await upsertRegistrationData(client, userId, normalized, compressedLocation);
-
-    // Critical invariant: the account transaction commits only if CIE uniqueness succeeds.
-    await registerVerifiedIdentity(
-      { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
-      client
-    );
+    if (typeof fiscalNumber === 'string' && fiscalNumber.trim()) {
+      await registerVerifiedIdentity(
+        { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
+        client
+      );
+    }
 
     await client.query('COMMIT');
     return { userId, role, created: !existing };
@@ -237,7 +237,22 @@ async function completeOAuthRegistrationAfterCie(
   }
 }
 
+async function completeOAuthRegistrationWithoutCie({ registration }, pool = getPool()) {
+  return completeOAuthRegistration({ registration }, pool);
+}
+
+async function completeOAuthRegistrationAfterCie(
+  { registration, fiscalNumber },
+  pool = getPool()
+) {
+  return completeOAuthRegistration(
+    { registration, fiscalNumber, requireVerifiedIdentity: true },
+    pool
+  );
+}
+
 module.exports = {
   normalizeRegistration,
+  completeOAuthRegistrationWithoutCie,
   completeOAuthRegistrationAfterCie,
 };
