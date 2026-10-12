@@ -1,6 +1,6 @@
 # DEMOS — Piano di capacità e scenari di utilizzo
 
-**Versione:** 2026-10-11  
+**Versione:** 2026-10-12
 **Task:** F12-05  
 **Modello riproducibile:** `api/scripts/capacityEstimate.js`
 
@@ -223,7 +223,11 @@ DEMOS_LOAD_TOKEN=<token-test> node api/scripts/loadTestF1231.js --profile=read-h
 
 Contro staging remoto il runner è **fail-closed**: richiede `NODE_ENV=staging`, `DEMOS_LOAD_ALLOW_REMOTE=true` e un host che contenga `staging` oppure coincida con `DEMOS_LOAD_ALLOWED_HOST`. Il profilo `mixed` richiede inoltre `DEMOS_LOAD_ALLOW_MUTATIONS=true` e `DEMOS_LOAD_USER_ID`, così una prova non può scrivere accidentalmente su un account ordinario. Sopra 50 richieste concorrenti serve un secondo opt-in esplicito.
 
-Il runner misura RPS completati, p50/p95/p99, error rate, stato HTTP, byte ricevuti e breakdown per endpoint. CPU/memoria Render, connessioni DB e query lente vanno raccolte in parallelo dal provider durante l'esecuzione staging: finché manca quella prova reale, F12-31 resta **aperto** e non viene dichiarata alcuna capacità massima.
+Il runner misura RPS completati, p50/p95/p99, error rate, stato HTTP, byte ricevuti e breakdown per endpoint.
+
+Dal 12/10/2026 è disponibile anche `api/scripts/stagingLoadSelfTest.js`, collegato al flag `DEMOS_STAGING_LOAD_E2E=true`. Questo gate gira **dentro il servizio staging**, genera internamente il token dell'utente sintetico e chiama soltanto `127.0.0.1`, quindi non richiede di esportare JWT o altri segreti. È read-only, rifiuta gli override per target remoto o mutazioni, limita la concorrenza a 20 e la durata a 60 secondi. Il gate passa solo con zero richieste fallite e metriche valide.
+
+Il self-test in-process qualifica API + accessi DB dell'istanza, ma non misura il percorso Internet/CDN. CPU/memoria Render, connessioni DB e query lente vanno comunque raccolte in parallelo dal provider durante l'esecuzione staging: finché manca quella prova reale, F12-31 resta **aperto** e non viene dichiarata alcuna capacità massima.
 
 ## 10. Decisioni operative risultanti da F12-05
 
