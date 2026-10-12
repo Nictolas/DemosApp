@@ -97,7 +97,7 @@ async function runStagingLoadSelfTest({
       throw new Error(`F12-31 staging ${plan.id} load produced invalid metrics`);
     }
     results.push(result);
-    logger.log(`[staging-load-e2e] ${plan.id} PASS requests=${result.completedRequests} rps=${result.rps.toFixed(2)} p95=${result.latencyMs.p95.toFixed(1)}ms`);
+    logger.log(`[staging-load-e2e] ${plan.id} PASS requests=${result.completedRequests} failed=${result.failedRequests} rps=${result.rps.toFixed(2)} p50=${result.latencyMs.p50.toFixed(1)}ms p95=${result.latencyMs.p95.toFixed(1)}ms p99=${result.latencyMs.p99.toFixed(1)}ms max=${result.latencyMs.max.toFixed(1)}ms bytes=${result.bytesReceived}`);
   }
 
   logger.log('[staging-load-e2e] PASS 3/3 profiles');
