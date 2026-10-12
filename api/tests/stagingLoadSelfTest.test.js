@@ -57,10 +57,12 @@ test('staging server wires the dedicated F12-31 load flag', () => {
   assert.match(server, /runStagingLoadSelfTest/);
 });
 
-test('staging F12-31 self-test produces metrics through loopback and accepts zero failures only', async () => {
+test('staging F12-31 self-test qualifies read-heavy, burst and mixed through loopback', async () => {
   const responses = [];
-  const fetchImpl = async (url) => {
+  const methods = [];
+  const fetchImpl = async (url, options = {}) => {
     responses.push(String(url));
+    methods.push(options.method || 'GET');
     return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
   };
   const result = await runStagingLoadSelfTest({
@@ -75,13 +77,18 @@ test('staging F12-31 self-test produces metrics through loopback and accepts zer
     fetchImpl,
     logger: { log() {}, error() {} },
   });
-  assert.equal(result.mode, 'staging-read-heavy-load');
-  assert.equal(result.completedRequests, 8);
-  assert.equal(result.failedRequests, 0);
-  assert.equal(result.localTarget, true);
-  assert.equal(result.mutations, false);
+  assert.equal(result.mode, 'staging-load-matrix');
+  assert.equal(result.profiles.length, 3);
+  assert.deepEqual(result.profiles.map((profile) => profile.profile), ['read-heavy', 'burst', 'mixed']);
+  assert.equal(result.totalRequests, 24);
+  assert.equal(result.totalFailedRequests, 0);
+  assert.ok(result.profiles.every((profile) => profile.localTarget === true));
+  assert.equal(result.profiles[0].mutations, false);
+  assert.equal(result.profiles[1].mutations, false);
+  assert.equal(result.profiles[2].mutations, true);
   assert.ok(responses.every((url) => url.startsWith('http://127.0.0.1:3999/')));
-  assert.deepEqual(new Set(responses.map((url) => new URL(url).pathname)), new Set([
-    '/api/auth/me', '/api/eventi', '/api/opinioni', '/api/opinioni/profile',
-  ]));
+  const paths = new Set(responses.map((url) => new URL(url).pathname));
+  for (const path of ['/api/auth/me', '/api/eventi', '/api/opinioni', '/api/opinioni/profile']) assert.ok(paths.has(path));
+  assert.ok(paths.has('/api/users/00000000-0000-4000-8000-000000000001/political-selection'));
+  assert.ok(methods.includes('PUT'));
 });

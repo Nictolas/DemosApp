@@ -59,34 +59,54 @@ async function runStagingLoadSelfTest({
   const token = makeToken({ userId: E2E_USER_ID });
   const baseUrl = `http://127.0.0.1:${port}`;
 
-  logger.log(`[staging-load-e2e] starting read-heavy load: concurrency=${concurrency} durationMs=${durationMs}${requestCount ? ` requests=${requestCount}` : ''}`);
-  const result = await runLoadProfile({
-    baseUrl,
-    token,
-    userId: E2E_USER_ID,
-    profile: 'read-heavy',
-    durationMs,
-    requestCount,
-    concurrency,
-    fetchImpl,
-    env: {
-      ...env,
-      DEMOS_LOAD_ALLOW_REMOTE: 'false',
-      DEMOS_LOAD_ALLOW_MUTATIONS: 'false',
-      DEMOS_LOAD_ALLOW_HIGH_CONCURRENCY: 'false',
-    },
-    logger,
-  });
+  const commonEnv = {
+    ...env,
+    DEMOS_LOAD_ALLOW_REMOTE: 'false',
+    DEMOS_LOAD_ALLOW_HIGH_CONCURRENCY: 'false',
+  };
+  const profilePlans = [
+    { id: 'read-heavy', concurrency, burstMultiplier: 1, allowMutations: false },
+    { id: 'burst', concurrency: Math.min(concurrency, 4), burstMultiplier: 5, allowMutations: false },
+    { id: 'mixed', concurrency: Math.min(concurrency, 4), burstMultiplier: 1, allowMutations: true },
+  ];
+  const results = [];
 
-  if (result.failedRequests !== 0 || result.errorRate !== 0) {
-    throw new Error(`F12-31 staging read-heavy load failed: ${result.failedRequests}/${result.completedRequests} requests failed`);
-  }
-  if (!Number.isFinite(result.latencyMs?.p95) || result.completedRequests <= 0) {
-    throw new Error('F12-31 staging load produced invalid metrics');
+  for (const plan of profilePlans) {
+    logger.log(`[staging-load-e2e] starting ${plan.id} load: concurrency=${plan.concurrency}${plan.id === 'burst' ? ` x${plan.burstMultiplier}` : ''} durationMs=${durationMs}${requestCount ? ` requests=${requestCount}` : ''}`);
+    const result = await runLoadProfile({
+      baseUrl,
+      token,
+      userId: E2E_USER_ID,
+      profile: plan.id,
+      durationMs,
+      requestCount,
+      concurrency: plan.concurrency,
+      burstMultiplier: plan.burstMultiplier,
+      fetchImpl,
+      env: {
+        ...commonEnv,
+        DEMOS_LOAD_ALLOW_MUTATIONS: plan.allowMutations ? 'true' : 'false',
+      },
+      logger,
+    });
+
+    if (result.failedRequests !== 0 || result.errorRate !== 0) {
+      throw new Error(`F12-31 staging ${plan.id} load failed: ${result.failedRequests}/${result.completedRequests} requests failed`);
+    }
+    if (!Number.isFinite(result.latencyMs?.p95) || result.completedRequests <= 0) {
+      throw new Error(`F12-31 staging ${plan.id} load produced invalid metrics`);
+    }
+    results.push(result);
+    logger.log(`[staging-load-e2e] ${plan.id} PASS requests=${result.completedRequests} rps=${result.rps.toFixed(2)} p95=${result.latencyMs.p95.toFixed(1)}ms`);
   }
 
-  logger.log(`[staging-load-e2e] PASS requests=${result.completedRequests} rps=${result.rps.toFixed(2)} p95=${result.latencyMs.p95.toFixed(1)}ms`);
-  return { mode: 'staging-read-heavy-load', ...result };
+  logger.log('[staging-load-e2e] PASS 3/3 profiles');
+  return {
+    mode: 'staging-load-matrix',
+    profiles: results,
+    totalRequests: results.reduce((sum, result) => sum + result.completedRequests, 0),
+    totalFailedRequests: results.reduce((sum, result) => sum + result.failedRequests, 0),
+  };
 }
 
 module.exports = {
