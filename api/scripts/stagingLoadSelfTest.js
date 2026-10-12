@@ -100,6 +100,7 @@ async function runStagingLoadSelfTest({
     logger.log(`[staging-load-e2e] ${plan.id} PASS requests=${result.completedRequests} failed=${result.failedRequests} rps=${result.rps.toFixed(2)} p50=${result.latencyMs.p50.toFixed(1)}ms p95=${result.latencyMs.p95.toFixed(1)}ms p99=${result.latencyMs.p99.toFixed(1)}ms max=${result.latencyMs.max.toFixed(1)}ms bytes=${result.bytesReceived}`);
   }
 
+  logger.log(`[staging-load-e2e] SUMMARY ${JSON.stringify(results.map((result) => ({ profile: result.profile, requests: result.completedRequests, failed: result.failedRequests, rps: Number(result.rps.toFixed(2)), p50Ms: Number(result.latencyMs.p50.toFixed(1)), p95Ms: Number(result.latencyMs.p95.toFixed(1)), p99Ms: Number(result.latencyMs.p99.toFixed(1)), maxMs: Number(result.latencyMs.max.toFixed(1)), bytes: result.bytesReceived })))}`);
   logger.log('[staging-load-e2e] PASS 3/3 profiles');
   return {
     mode: 'staging-load-matrix',
