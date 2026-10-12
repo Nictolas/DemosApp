@@ -225,9 +225,21 @@ Contro staging remoto il runner è **fail-closed**: richiede `NODE_ENV=staging`,
 
 Il runner misura RPS completati, p50/p95/p99, error rate, stato HTTP, byte ricevuti e breakdown per endpoint.
 
-Dal 12/10/2026 è disponibile anche `api/scripts/stagingLoadSelfTest.js`, collegato al flag `DEMOS_STAGING_LOAD_E2E=true`. Questo gate gira **dentro il servizio staging**, genera internamente il token dell'utente sintetico e chiama soltanto `127.0.0.1`, quindi non richiede di esportare JWT o altri segreti. È read-only, rifiuta gli override per target remoto o mutazioni, limita la concorrenza a 20 e la durata a 60 secondi. Il gate passa solo con zero richieste fallite e metriche valide.
+Dal 12/10/2026 è disponibile anche `api/scripts/stagingLoadSelfTest.js`, collegato al flag `DEMOS_STAGING_LOAD_E2E=true`. Questo gate gira **dentro il servizio staging**, genera internamente il token dell'utente sintetico e chiama soltanto `127.0.0.1`, quindi non richiede di esportare JWT o altri segreti. `read-heavy` e `burst` sono read-only; `mixed` abilita esclusivamente una scrittura idempotente `political-selection` sullo user E2E sintetico fisso. Override remoti/mutazioni esterne restano rifiutati. Il gate limita la concorrenza e passa solo con zero richieste fallite e metriche valide.
 
-Il self-test in-process qualifica API + accessi DB dell'istanza, ma non misura il percorso Internet/CDN. CPU/memoria Render, connessioni DB e query lente vanno comunque raccolte in parallelo dal provider durante l'esecuzione staging: finché manca quella prova reale, F12-31 resta **aperto** e non viene dichiarata alcuna capacità massima.
+### F12-31 — misura staging reale del 12/10/2026
+
+Esecuzione finale riproducibile con **60 richieste per profilo**:
+
+| Profilo | Concorrenza | Richieste | Errori | RPS | p50 | p95 | p99 | Max | Byte risposta |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| read-heavy | 4 | 60 | 0 | 12.29 | 294.2 ms | 700.1 ms | 917.1 ms | 917.1 ms | 19,470 |
+| burst | 20 effettivi (4×5) | 60 | 0 | 13.05 | 1,391.6 ms | 2,894.8 ms | 3,296.7 ms | 3,296.7 ms | 19,470 |
+| mixed | 4 | 60 | 0 | 14.95 | 199.3 ms | 705.1 ms | 904.2 ms | 904.2 ms | 17,292 |
+
+Una precedente esecuzione continua da 10 secondi ha confermato lo stesso andamento: read-heavy ~12.45 RPS / p95 ~799 ms, burst ~14.05 RPS / p95 ~2.39 s, mixed ~15.72 RPS / p95 ~605 ms, sempre con zero errori. Durante quella matrice Render ha campionato **CPU backend ~0.117/0.15 (~78%)**, memoria backend ~103 MB/512 MiB, **CPU PostgreSQL 0.1/0.1 (100%)**, memoria DB ~86 MB/256 MiB e 4 connessioni attive.
+
+Quindi F12-31 è **qualificato**: la configurazione Free regge il profilo read/mixed testato a concorrenza 4 senza errori, mentre il burst a 20 concorrenti è uno **stress point di saturazione**, non una capacità operativa dichiarabile. Il self-test è loopback, quindi i byte del runner misurano il payload API ma non il percorso Internet/CDN né una banda esterna Render confrontabile con traffico utente reale.
 
 ## 10. Decisioni operative risultanti da F12-05
 
