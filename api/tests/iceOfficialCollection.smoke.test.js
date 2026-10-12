@@ -9,6 +9,7 @@ const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const iceRoute = read('api/routes/ice.js');
 const eciRoute = read('api/routes/eci.js');
 const syncScript = read('api/scripts/sync_eci.py');
+const syncWorkflow = read('.github/workflows/eci_sync.yml');
 const icePage = read('client/src/pages/ICE/index.tsx');
 const iceTable = read('client/src/pages/ICE/components/ICETable.tsx');
 const iceHook = read('client/src/pages/ICE/hooks/useICEData.ts');
@@ -24,11 +25,33 @@ test('canonical ICE collection reads the official ECI cache in neutral order', (
   assert.doesNotMatch(iceRoute, /mieiVoti/);
 });
 
-test('official sync is already scoped to EU initiatives currently in signature collection', () => {
-  assert.match(syncScript, /"STATUS\[0\]": "ONGOING"/);
-  assert.match(syncScript, /STATUS%5B0%5D=ONGOING/);
-  assert.match(syncScript, /status = "ONGOING"/);
-  assert.doesNotMatch(syncScript, /SUCCESS.*1000000|1000000.*SUCCESS/);
+test('official sync consumes the EU register API and only ONGOING initiatives', () => {
+  assert.match(syncScript, /REGISTER_API = "https:\/\/register\.eci\.ec\.europa\.eu\/core\/api\/register"/);
+  assert.match(syncScript, /STATUS = "ONGOING"/);
+  assert.match(syncScript, /\/search\/\{STATUS\}\/\{LANGUAGE\}/);
+  assert.match(syncScript, /\/details\/\{year\}\/\{number\}/);
+  assert.match(syncScript, /item\.get\("status"\) != STATUS/);
+  assert.match(syncScript, /detail\.get\("status"\) != STATUS/);
+  assert.doesNotMatch(syncScript, /BeautifulSoup|playwright|chromium|SUCCESS.*1000000|1000000.*SUCCESS/i);
+});
+
+test('official sync is fail-closed, atomic and supports a source-only dry run', () => {
+  assert.match(syncScript, /--dry-run/);
+  assert.match(syncScript, /if not records:/);
+  assert.match(syncScript, /Rifiutata sostituzione cache ECI con dataset vuoto/);
+  assert.match(syncScript, /with conn:/);
+  assert.match(syncScript, /DELETE FROM eci/);
+  assert.match(syncScript, /SELECT COUNT\(\*\) FROM eci WHERE status = %s/);
+  assert.match(syncScript, /raise SystemExit\(main\(\)\)/);
+});
+
+test('daily ECI workflow has only the dependencies used by the API sync and is bounded', () => {
+  assert.match(syncWorkflow, /cron: '0 0 \* \* \*'/);
+  assert.match(syncWorkflow, /permissions:\s*\n\s*contents: read/);
+  assert.match(syncWorkflow, /group: eci-official-sync/);
+  assert.match(syncWorkflow, /timeout-minutes: 10/);
+  assert.match(syncWorkflow, /pip install --disable-pip-version-check requests psycopg2-binary/);
+  assert.doesNotMatch(syncWorkflow, /playwright|beautifulsoup|chromium|Neon/i);
 });
 
 test('internal ICE creation, editing, approval and voting are fail-closed', () => {
