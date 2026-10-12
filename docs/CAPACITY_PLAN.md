@@ -207,6 +207,24 @@ Per ogni profilo registrare:
 
 Solo dopo questi test si può scrivere una frase del tipo “questa configurazione supporta X RPS / Y utenti concorrenti con p95 < Z”. Fino ad allora ogni cifra di concorrenza è una previsione, non un risultato.
 
+### Harness F12-31 disponibile localmente
+
+Il runner `api/scripts/loadTestF1231.js` prepara i tre profili senza dipendenze esterne:
+
+- `read-heavy`: `/api/auth/me`, `/api/eventi`, `/api/opinioni`, `/api/opinioni/profile`;
+- `mixed`: le stesse letture più una scrittura idempotente sul percorso canonico `political-selection` del solo utente di carico;
+- `burst`: stesso mix read-only con concorrenza moltiplicata.
+
+Esempio locale, con numero richieste limitato:
+
+```bash
+DEMOS_LOAD_TOKEN=<token-test> node api/scripts/loadTestF1231.js --profile=read-heavy --requests=100 --concurrency=4
+```
+
+Contro staging remoto il runner è **fail-closed**: richiede `NODE_ENV=staging`, `DEMOS_LOAD_ALLOW_REMOTE=true` e un host che contenga `staging` oppure coincida con `DEMOS_LOAD_ALLOWED_HOST`. Il profilo `mixed` richiede inoltre `DEMOS_LOAD_ALLOW_MUTATIONS=true` e `DEMOS_LOAD_USER_ID`, così una prova non può scrivere accidentalmente su un account ordinario. Sopra 50 richieste concorrenti serve un secondo opt-in esplicito.
+
+Il runner misura RPS completati, p50/p95/p99, error rate, stato HTTP, byte ricevuti e breakdown per endpoint. CPU/memoria Render, connessioni DB e query lente vanno raccolte in parallelo dal provider durante l'esecuzione staging: finché manca quella prova reale, F12-31 resta **aperto** e non viene dichiarata alcuna capacità massima.
+
 ## 10. Decisioni operative risultanti da F12-05
 
 1. **Closed beta:** tecnicamente compatibile con gli ordini di grandezza di storage/traffico osservati, ma la configurazione backend Free non va considerata automaticamente production-ready.

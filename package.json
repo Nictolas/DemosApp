@@ -11,6 +11,7 @@
     "install-client": "cd client && npm install",
     "install-server": "npm install",
     "install-all": "npm run install-server && npm run install-client",
+    "load:f12-31": "node api/scripts/loadTestF1231.js",
     "deploy": "npm run install-all && npm run build"
   },
   "dependencies": {
