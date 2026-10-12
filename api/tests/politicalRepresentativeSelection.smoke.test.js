@@ -36,7 +36,7 @@ function makePool({ complete, canonicalBlocked = false }) {
       if (s.startsWith('INSERT INTO political_selections') || s.startsWith('DELETE FROM political_selections')) {
         const err = new Error('political selections schema missing'); err.code = '42P01'; throw err;
       }
-      if (s.startsWith('UPDATE users SET rappresentante_europeo')) return { rows: [{ id: 'u1' }], rowCount: 1 };
+      if (/^UPDATE users SET rappresentante_(europeo|camera|senato|regionale|comune)/.test(s)) return { rows: [{ id: 'u1' }], rowCount: 1 };
       if (s.startsWith('INSERT INTO user_representatives')) return { rows: [], rowCount: 1 };
       if (s.startsWith('SELECT * FROM users WHERE id = $1')) return { rows: [{ id: params[0] }], rowCount: 1 };
       throw new Error(`Unexpected client.query: ${s}`);
@@ -70,10 +70,10 @@ async function withProfile(pool, fn) {
   }
 }
 
-async function selectRepresentative(base) {
+async function selectRepresentative(base, campo = 'rappresentante_europeo', source = 'matching') {
   return fetch(`${base}/api/users/u1/seleziona-rappresentante`, {
     method: 'PUT', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ campo: 'rappresentante_europeo', rappresentanteId: 'p1' })
+    body: JSON.stringify({ campo, rappresentanteId: 'p1', source })
   });
 }
 
@@ -94,6 +94,25 @@ test('selezione rappresentante: utente completo può procedere', async () => {
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.success, true);
+  });
+});
+
+test('Podio: scelta diretta funziona su tutte e cinque le classifiche senza richiedere il matching completo', async () => {
+  const fields = [
+    'rappresentante_europeo',
+    'rappresentante_camera',
+    'rappresentante_senato',
+    'rappresentante_regionale',
+    'rappresentante_comune'
+  ];
+
+  await withProfile(makePool({ complete: false }), async (base) => {
+    for (const campo of fields) {
+      const res = await selectRepresentative(base, campo, 'podio');
+      assert.equal(res.status, 200, campo);
+      const body = await res.json();
+      assert.equal(body.success, true, campo);
+    }
   });
 });
 
