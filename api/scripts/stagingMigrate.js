@@ -15,6 +15,7 @@ const BASELINE = 'api/database/staging-base-schema.sql';
 const MIGRATIONS = Object.freeze([
   'api/database/create-account-capabilities-model.sql',
   'api/database/create-user-profile-consents.sql',
+  'api/database/create-identity-verifications-table.sql',
   '20261009_political_selections.sql',
   '20261009_political_territory_memberships.sql',
   'api/database/create-candidacy-program-model.sql',
@@ -40,6 +41,7 @@ const EXPECTED_TABLES = Object.freeze([
   'preference_change_cooldowns','comunicazioni','iniziative_ministero','civic_processes',
   'civic_process_source_records','civic_process_reconciliation_candidates',
   'institutional_territorial_notices','voti_opinioni_proposte','user_profile','user_consents',
+  'identity_verifications',
 ]);
 
 function resolveMigration(relativePath) {
