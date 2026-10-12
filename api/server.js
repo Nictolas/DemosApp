@@ -41,6 +41,7 @@ try {
       process.env.DEMOS_STAGING_OPINION_NOTIFICATION_E2E === 'true' ||
       process.env.DEMOS_STAGING_OPINION_PROPOSAL_E2E === 'true' ||
       process.env.DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E === 'true' ||
+      process.env.DEMOS_STAGING_TRANSPARENCY_PODIUM_E2E === 'true' ||
       process.env.DEMOS_STAGING_ELECTORAL_PERIMETER_E2E === 'true'
     ) {
       (async () => {
@@ -63,6 +64,10 @@ try {
         if (process.env.DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E === 'true') {
           const { runStagingPreferenceCooldownSelfTest } = require('./scripts/stagingPreferenceCooldownSelfTest');
           await runStagingPreferenceCooldownSelfTest({ port: PORT });
+        }
+        if (process.env.DEMOS_STAGING_TRANSPARENCY_PODIUM_E2E === 'true') {
+          const { runStagingTransparencyPodiumSelfTest } = require('./scripts/stagingTransparencyPodiumSelfTest');
+          await runStagingTransparencyPodiumSelfTest({ port: PORT });
         }
         if (process.env.DEMOS_STAGING_ELECTORAL_PERIMETER_E2E === 'true') {
           const { runStagingElectoralPerimeterSelfTest } = require('./scripts/stagingElectoralPerimeterSelfTest');
