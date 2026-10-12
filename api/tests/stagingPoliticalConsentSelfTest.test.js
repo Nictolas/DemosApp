@@ -16,7 +16,7 @@ test('political-consent staging E2E is disabled by default without touching HTTP
     fetchImpl: () => { throw new Error('fetch must not run'); },
     pool: { query: () => { throw new Error('db must not run'); } },
   });
-  assert.deepEqual(result, { mode: 'disabled', passed: 0, total: 4 });
+  assert.deepEqual(result, { mode: 'disabled', passed: 0, total: 5 });
 });
 
 test('political-consent staging E2E refuses activation outside staging', async () => {
@@ -51,6 +51,14 @@ test('synthetic consent setter updates both legacy and normalized consent stores
   assert.match(calls[1].sql, /UPDATE user_consents SET political_opinions_consent = \$2/);
   assert.deepEqual(calls[0].params, [CONSENT_E2E_USER_ID, true]);
   assert.deepEqual(calls[1].params, [CONSENT_E2E_USER_ID, true]);
+});
+
+test('staging progressive identity E2E verifies CIE before political consent', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '..', 'scripts', 'stagingPoliticalConsentSelfTest.js'), 'utf8');
+  assert.match(source, /registerVerifiedIdentity/);
+  assert.match(source, /CIVIC_IDENTITY_CIE_REQUIRED/);
+  assert.match(source, /POLITICAL_CONSENT_REQUIRED/);
+  assert.ok(source.indexOf('CIVIC_IDENTITY_CIE_REQUIRED') < source.indexOf('POLITICAL_CONSENT_REQUIRED'));
 });
 
 test('staging server wires the dedicated fail-closed political-consent E2E flag', () => {

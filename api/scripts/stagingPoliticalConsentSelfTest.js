@@ -2,8 +2,10 @@
 
 const { getPool } = require('../config/database');
 const PrivacyErasureLedgerService = require('../services/privacyErasureLedgerService');
+const { registerVerifiedIdentity } = require('../services/identityVerificationStore');
 
 const CONSENT_E2E_USER_ID = '00000000-0000-4000-8000-000000000009';
+const CONSENT_E2E_FISCAL_NUMBER = 'TINIT-DMSE2ECIE0000001';
 
 async function expectJson(response, expectedStatus, label) {
   let body = null;
@@ -17,6 +19,7 @@ async function expectJson(response, expectedStatus, label) {
 async function cleanup(pool) {
   await PrivacyErasureLedgerService.ensureTable(pool);
   await pool.query('DELETE FROM privacy_erasure_ledger WHERE subject_user_id = $1', [CONSENT_E2E_USER_ID]);
+  await pool.query('DELETE FROM identity_verifications WHERE user_id = $1', [CONSENT_E2E_USER_ID]);
   await pool.query('DELETE FROM users WHERE id = $1', [CONSENT_E2E_USER_ID]);
 }
 
@@ -35,6 +38,13 @@ async function createSyntheticUser(pool) {
      ) VALUES ($1, TRUE, TRUE, NOW(), FALSE)`,
     [CONSENT_E2E_USER_ID]
   );
+}
+
+async function verifySyntheticCie(pool) {
+  return registerVerifiedIdentity({
+    userId: CONSENT_E2E_USER_ID,
+    fiscalNumber: CONSENT_E2E_FISCAL_NUMBER,
+  }, pool);
 }
 
 async function setPoliticalConsent(pool, granted) {
@@ -95,7 +105,7 @@ async function runStagingPoliticalConsentSelfTest({
   logger = console,
 } = {}) {
   if (env.DEMOS_STAGING_POLITICAL_CONSENT_E2E !== 'true') {
-    return { mode: 'disabled', passed: 0, total: 4 };
+    return { mode: 'disabled', passed: 0, total: 5 };
   }
   if (env.NODE_ENV !== 'staging') {
     throw new Error('DEMOS_STAGING_POLITICAL_CONSENT_E2E is allowed only with NODE_ENV=staging');
@@ -119,11 +129,25 @@ async function runStagingPoliticalConsentSelfTest({
       body: JSON.stringify({}),
       signal: AbortSignal.timeout(8000),
     });
-    let body = await expectJson(response, 403, 'political write without consent');
+    let body = await expectJson(response, 403, 'civic write without verified identity');
+    if (body?.code !== 'CIVIC_IDENTITY_CIE_REQUIRED' || body?.identity_verification_required !== true) {
+      throw new Error(`unexpected civic identity denial: ${JSON.stringify(body)}`);
+    }
+    logger.log('[staging-political-consent-e2e] non-CIE account blocked from civic write -> stable 403 PASS');
+    passed += 1;
+
+    await verifySyntheticCie(pool);
+    response = await fetchImpl(`${baseUrl}/api/amnistia/vota`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(8000),
+    });
+    body = await expectJson(response, 403, 'political write without consent after CIE');
     if (body?.code !== 'POLITICAL_CONSENT_REQUIRED' || body?.consent_required !== true) {
       throw new Error(`unexpected political consent denial: ${JSON.stringify(body)}`);
     }
-    logger.log('[staging-political-consent-e2e] political write without consent -> stable 403 PASS');
+    logger.log('[staging-political-consent-e2e] verified CIE reaches political-consent guard -> stable 403 PASS');
     passed += 1;
 
     await setPoliticalConsent(pool, true);
@@ -171,8 +195,8 @@ async function runStagingPoliticalConsentSelfTest({
     logger.log('[staging-political-consent-e2e] atomic cleanup + dual-store revoke + durable ledger PASS');
     passed += 1;
 
-    logger.log(`[staging-political-consent-e2e] PASS ${passed}/4`);
-    return { mode: 'political-consent-e2e', passed, total: 4 };
+    logger.log(`[staging-political-consent-e2e] PASS ${passed}/5`);
+    return { mode: 'political-consent-e2e', passed, total: 5 };
   } finally {
     try {
       await cleanup(pool);
