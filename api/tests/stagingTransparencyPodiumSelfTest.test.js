@@ -60,6 +60,10 @@ test('Transparency Podium E2E uses only synthetic records and verifies cleanup',
   assert.match(script, /E2E_F12_30/);
   assert.match(script, /e2e-f12-30-/);
   assert.match(script, /source:\s*'podio'/);
+  assert.match(script, /selection_kind = 'representative'/);
+  assert.match(script, /political_office_id = \$2/);
+  assert.doesNotMatch(script, /\bkind = 'representative'\b/);
+  assert.doesNotMatch(script, /\boffice_id = \$2\b/);
   assert.match(script, /final synthetic Podium cleanup failed/);
   assert.match(script, /DELETE FROM political_selections/);
   assert.match(script, /DELETE FROM comunicazioni/);

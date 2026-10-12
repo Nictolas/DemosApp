@@ -121,7 +121,7 @@ async function runStagingTransparencyPodiumSelfTest({
       const canonical = await pool.query(`
         SELECT selected_user_id, source
           FROM political_selections
-         WHERE user_id = $1 AND kind = 'representative' AND office_id = $2
+         WHERE user_id = $1 AND selection_kind = 'representative' AND political_office_id = $2
       `, [E2E_USER_ID, item.office]);
       if (String(canonical.rows[0]?.selected_user_id || '') !== PODIUM_SUBJECT_ID || canonical.rows[0]?.source !== 'podio') {
         throw new Error(`canonical Podium selection missing for ${item.level}`);
