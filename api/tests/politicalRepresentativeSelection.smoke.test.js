@@ -36,6 +36,7 @@ function makePool({ complete, canonicalBlocked = false }) {
       if (s.startsWith('INSERT INTO political_selections') || s.startsWith('DELETE FROM political_selections')) {
         const err = new Error('political selections schema missing'); err.code = '42P01'; throw err;
       }
+      if (s.includes("to_regclass('public.user_representatives')")) return { rows: [{ available: false }], rowCount: 1 };
       if (/^UPDATE users SET rappresentante_(europeo|camera|senato|regionale|comune)/.test(s)) return { rows: [{ id: 'u1' }], rowCount: 1 };
       if (s.startsWith('INSERT INTO user_representatives')) return { rows: [], rowCount: 1 };
       if (s.startsWith('SELECT * FROM users WHERE id = $1')) return { rows: [{ id: params[0] }], rowCount: 1 };

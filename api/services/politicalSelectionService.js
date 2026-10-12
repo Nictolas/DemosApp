@@ -114,7 +114,10 @@ async function writeLegacySelectionProjection(db, {
     [selectedUserId || null, userId],
   );
 
-  try {
+  const legacyRelation = await db.query(
+    `SELECT to_regclass('public.user_representatives') IS NOT NULL AS available`
+  );
+  if (legacyRelation.rows[0]?.available) {
     await db.query(
       `INSERT INTO user_representatives (user_id, ${field})
        VALUES ($1, $2)
@@ -123,8 +126,6 @@ async function writeLegacySelectionProjection(db, {
          updated_at = NOW()`,
       [userId, selectedUserId || null],
     );
-  } catch (error) {
-    if (!isPoliticalSelectionSchemaError(error)) throw error;
   }
 
   return { available: true, written: result.rowCount > 0, field };
