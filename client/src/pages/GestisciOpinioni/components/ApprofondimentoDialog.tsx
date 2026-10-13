@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { Opinione } from "../types";
 import { useAuth } from "@/hooks/use-auth";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 
 interface ApprofondimentoDialogProps {
   opinione?: Opinione;
@@ -506,7 +507,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                         <div className="bg-gray-50 p-4 rounded-lg border">
                           <div
                             className="prose max-w-none text-gray-900"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(approfondimento) }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(approfondimento)) }}
                           />
                         </div>
                       </div>

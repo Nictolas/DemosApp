@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { PageContainer } from "@/components/PageContainer";
 import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, User, Info, Eye, TrendingUp, TrendingDown, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -1275,7 +1276,7 @@ export default function VotiParlamento() {
                                 
                                 // Formattazione per misure previste (formato compatto con →)
                                 if (sezioneCorrente === 'MISURE PREVISTE' && lineaTrim.startsWith('•')) {
-                                  let lineaFormattata = lineaTrim;
+                                  let lineaFormattata = sanitizeRichHtml(lineaTrim);
                                   
                                   // Evidenzia scadenze passate
                                   if (haScadenzePassate) {
@@ -1293,14 +1294,14 @@ export default function VotiParlamento() {
                                   lineaFormattata = lineaFormattata.replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>');
                                   
                                   risultato.push(
-                                    <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: lineaFormattata }} />
+                                    <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(lineaFormattata) }} />
                                   );
                                   return;
                                 }
                                 
                                 // Formattazione normale per altre sezioni
                                 if (haScadenzePassate) {
-                                  let lineaEvidenziata = lineaTrim;
+                                  let lineaEvidenziata = sanitizeRichHtml(lineaTrim);
                                   scadenze.forEach((scadenza) => {
                                     if (scadenza.passata) {
                                       const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -1310,7 +1311,7 @@ export default function VotiParlamento() {
                                     }
                                   });
                                   risultato.push(
-                                    <p key={i} className="mb-1.5" dangerouslySetInnerHTML={{ __html: lineaEvidenziata }} />
+                                    <p key={i} className="mb-1.5" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(lineaEvidenziata) }} />
                                   );
                                 } else if (lineaTrim.startsWith('•')) {
                                   risultato.push(

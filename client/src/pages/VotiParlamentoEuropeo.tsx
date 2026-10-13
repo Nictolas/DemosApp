@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { PageContainer } from "@/components/PageContainer";
 import { Loader2, ArrowLeft, Vote, AlertCircle, RefreshCw, Calendar, Building2, Sparkles, Users, CheckCircle2, XCircle, MinusCircle, Info, Eye, TrendingUp, TrendingDown, BookOpen, Globe, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -602,9 +603,11 @@ export default function VotiParlamentoEuropeo() {
                               <div
                                 className="prose prose-sm max-w-none"
                                 dangerouslySetInnerHTML={{
-                                  __html: evidenziaScadenzePassate(dettagliData.analisi_legge.spiegazione_generale)
-                                    .replace(/\n/g, '<br />')
-                                    .replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>')
+                                  __html: sanitizeRichHtml(
+                                    evidenziaScadenzePassate(dettagliData.analisi_legge.spiegazione_generale)
+                                      .replace(/\n/g, '<br />')
+                                      .replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>')
+                                  )
                                 }}
                               />
                             </div>

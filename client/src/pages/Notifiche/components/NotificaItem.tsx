@@ -5,6 +5,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { NotificaItemProps } from "../types";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { 
@@ -508,7 +509,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 return (
                   <h3
                     className={`font-semibold ${style.textColor}`}
-                    dangerouslySetInnerHTML={{ __html: titoloString }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(titoloString) }}
                   />
                 );
               }
@@ -528,7 +529,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               return (
                 <p
                   className={`${style.textColor} opacity-90 mb-3`}
-                  dangerouslySetInnerHTML={{ __html: msg }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(msg) }}
                 />
               );
             }
@@ -897,7 +898,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                 
                                 // Formattazione per misure previste (formato compatto con →)
                                 if (sezioneCorrente === 'MISURE PREVISTE' && lineaTrim.startsWith('•')) {
-                                  let lineaFormattata = lineaTrim;
+                                  let lineaFormattata = sanitizeRichHtml(lineaTrim);
                                   
                                   // Evidenzia scadenze passate
                                   if (haScadenzePassate) {
@@ -915,14 +916,14 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                   lineaFormattata = lineaFormattata.replace(/→/g, '<span class="text-blue-600 font-semibold">→</span>');
                                   
                                   risultato.push(
-                                    <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: lineaFormattata }} />
+                                    <div key={i} className="mb-1.5 ml-4" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(lineaFormattata) }} />
                                   );
                                   return;
                                 }
                                 
                                 // Formattazione normale per altre sezioni
                                 if (haScadenzePassate) {
-                                  let lineaEvidenziata = lineaTrim;
+                                  let lineaEvidenziata = sanitizeRichHtml(lineaTrim);
                                   scadenze.forEach((scadenza) => {
                                     if (scadenza.passata) {
                                       const regex = new RegExp(`(${scadenza.data.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -932,7 +933,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                                     }
                                   });
                                   risultato.push(
-                                    <p key={i} className="mb-1.5" dangerouslySetInnerHTML={{ __html: lineaEvidenziata }} />
+                                    <p key={i} className="mb-1.5" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(lineaEvidenziata) }} />
                                   );
                                 } else if (lineaTrim.startsWith('•')) {
                                   risultato.push(
