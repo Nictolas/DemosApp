@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatNotificationDate } from '@/utils/dateUtils';
+import { sanitizeRichHtml } from '@/lib/sanitize-html';
 
 export const formatDate = (dateString: string): string => {
   try {
@@ -25,10 +26,10 @@ export const getNotificaBackground = (status: string): string => {
 };
 
 export const getNotificaTitle = (titolo?: string): string => {
-  return titolo || 'Notifica';
+  return sanitizeRichHtml(titolo || 'Notifica');
 };
 
 export const getNotificaMessage = (messaggio?: string): string => {
-  return messaggio || '';
+  return sanitizeRichHtml(messaggio || '');
 };
 
