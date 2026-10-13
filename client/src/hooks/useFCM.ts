@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { getMessaging, getToken as getFCMToken, onMessage, Messaging } from 'firebase/messaging';
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 
 /**
  * Hook per ottenere e gestire il token FCM per notifiche push web
  * Usa Firebase Cloud Messaging per web
  */
 export function useFCM() {
+  const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  };
+
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -26,15 +36,6 @@ export function useFCM() {
     // Inizializza Firebase Messaging con le credenziali essenziali
     // NOTA: Per FCM web NON serve Firestore o altri servizi Firebase
     // Serve solo: projectId, messagingSenderId, e VAPID key (per l'autenticazione)
-    const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
-      measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
-    };
     
     // Log per debug
     console.log('🔧 Configurazione Firebase FCM:', {
@@ -48,7 +49,7 @@ export function useFCM() {
     // Servono: projectId, messagingSenderId, e vapidKey (quest'ultima viene usata dopo)
     if (firebaseConfig.projectId && firebaseConfig.messagingSenderId) {
       try {
-        const app: FirebaseApp = initializeApp(firebaseConfig);
+        const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
         if ('serviceWorker' in navigator && 'Notification' in window) {
           const messagingInstance = getMessaging(app);
           setMessaging(messagingInstance);
@@ -113,18 +114,24 @@ export function useFCM() {
       // Se Firebase Messaging è disponibile, usa quello
       if (messaging) {
         try {
-          // Registra Service Worker se necessario
-          if ('serviceWorker' in navigator) {
-            try {
-              const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-                scope: '/'
-              });
-              console.log('✅ Service Worker registrato per FCM');
-            } catch (swError) {
-              console.warn('⚠️ Errore registrazione Service Worker:', swError);
-              // Prova comunque a ottenere il token
-            }
+          if (!('serviceWorker' in navigator)) {
+            throw new Error('Service Worker non supportato dal browser');
           }
+
+          const swParams = new URLSearchParams({
+            apiKey: String(firebaseConfig.apiKey || ''),
+            authDomain: String(firebaseConfig.authDomain || ''),
+            projectId: String(firebaseConfig.projectId || ''),
+            storageBucket: String(firebaseConfig.storageBucket || ''),
+            messagingSenderId: String(firebaseConfig.messagingSenderId || ''),
+            appId: String(firebaseConfig.appId || ''),
+          });
+          const registration = await navigator.serviceWorker.register(
+            `/firebase-messaging-sw.js?${swParams.toString()}`,
+            { scope: '/' }
+          );
+          await navigator.serviceWorker.ready;
+          console.log('✅ Service Worker FCM configurato e registrato');
 
           const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
           
@@ -151,7 +158,7 @@ export function useFCM() {
           
           // Non hardcodare mai una VAPID "attesa" nel codice: usa solo la variabile d'ambiente.
           
-          const currentToken = await getFCMToken(messaging, { vapidKey });
+          const currentToken = await getFCMToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
           
           if (currentToken) {
             setToken(currentToken);
@@ -162,20 +169,12 @@ export function useFCM() {
         } catch (fcmError: any) {
           console.error('❌ Errore nel recupero token FCM:', fcmError);
           
-          // Se Firebase non è disponibile, genera un device ID come fallback
-          // (ma questo non funzionerà per le notifiche push reali)
-          const deviceId = localStorage.getItem('device_id') || 
-            `web_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-          localStorage.setItem('device_id', deviceId);
-          setToken(deviceId);
-          setError(new Error('Firebase FCM non disponibile. Usato device ID (notifiche push non funzioneranno)'));
+          // Fail closed: un device ID locale non è un token FCM e non deve mai essere sincronizzato.
+          setToken(null);
+          setError(new Error('Firebase FCM non disponibile. Token push non creato.'));
         }
       } else {
-        // Fallback: genera un device ID (non funzionerà per notifiche push reali)
-        const deviceId = localStorage.getItem('device_id') || 
-          `web_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        localStorage.setItem('device_id', deviceId);
-        setToken(deviceId);
+        setToken(null);
         setError(new Error('Firebase Messaging non configurato. Notifiche push non disponibili.'));
       }
     } catch (err) {
@@ -205,7 +204,7 @@ export function useFCM() {
         
         // Usa il tag dal payload se disponibile, altrimenti usa un default
         // Il tag deve essere UNICO per questa notifica per evitare duplicati
-        const notificationTag = payload.data?.notificationTag || payload.notification?.tag || `demos-notification-${Date.now()}`;
+        const notificationTag = payload.data?.notificationTag || `demos-notification-${Date.now()}`;
         
         console.log('🔔 Mostro notifica in foreground con tag:', notificationTag);
         
