@@ -4,7 +4,8 @@ const AuditService = require('./auditService');
 
 const pool = getPool();
 
-const USER_LINK_COLUMNS = ['user_id', 'userid', 'utente_id', 'id_utente', 'id_utente'];
+const USER_LINK_COLUMNS = ['user_id', 'userid', 'utente_id', 'id_utente'];
+const TECHNICAL_SECRET_KEY = /(password|secret|token|credential)/i;
 
 const ACTIVITY_TABLES = [
   'voti_elezioni',
@@ -54,7 +55,6 @@ const COMMUNICATION_TABLES = [
 const DEVICE_TABLES = ['user_devices'];
 
 const EXTRA_LINK_COLUMNS = Object.freeze({
-  political_selections: ['selected_user_id'],
   political_opinion_notifications: ['recipient_user_id', 'subject_user_id'],
   comunicazioni: ['id_utente'],
   programmi: ['utente_id'],
@@ -62,6 +62,20 @@ const EXTRA_LINK_COLUMNS = Object.freeze({
 
 function quoteIdentifier(identifier) {
   return `"${String(identifier).replace(/"/g, '""')}"`;
+}
+
+function redactTechnicalSecrets(value) {
+  if (Array.isArray(value)) return value.map(redactTechnicalSecrets);
+  if (!value || typeof value !== 'object' || value instanceof Date) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => {
+      if (TECHNICAL_SECRET_KEY.test(key)) {
+        return [key, child == null || child === '' ? child : '[REDACTED_TECHNICAL_CREDENTIAL]'];
+      }
+      return [key, redactTechnicalSecrets(child)];
+    })
+  );
 }
 
 async function getColumns(tableName) {
@@ -91,7 +105,7 @@ async function selectRowsForUser(tableName, userId, extraColumns = []) {
     `SELECT * FROM ${quoteIdentifier(tableName)} WHERE ${conditions}`,
     [String(userId)]
   );
-  return result.rows;
+  return redactTechnicalSecrets(result.rows);
 }
 
 async function selectSingleUserRow(tableName, userId) {
@@ -179,8 +193,8 @@ async function getActivity(userId) {
   return {
     votes_and_political_activity: votesAndPolitical,
     communications_and_notifications: communications,
-    devices: devices,
-    audit_logs: auditLogs || [],
+    devices,
+    audit_logs: redactTechnicalSecrets(auditLogs || []),
   };
 }
 
@@ -191,6 +205,7 @@ async function buildExport(userId, type) {
       data_type: type,
       format_version: '2.0',
       gdpr_article: 'Art. 20 - Diritto alla portabilita dei dati',
+      technical_credentials: 'Token, password e segreti tecnici sono esclusi o oscurati dall\'export.',
     },
   };
 
@@ -210,4 +225,5 @@ async function buildExport(userId, type) {
 module.exports = {
   buildExport,
   selectRowsForUser,
+  redactTechnicalSecrets,
 };
