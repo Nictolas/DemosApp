@@ -102,6 +102,7 @@ import MetricheEndpoint from "./pages/MetricheEndpoint";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
+import ChildSafetyStandards from "./pages/ChildSafetyStandards";
 import Accessibilita from "./pages/Accessibilita";
 import RegistroTrattamenti from "./pages/RegistroTrattamenti";
 import SecurityMeasures from "./pages/SecurityMeasures";
@@ -315,6 +316,12 @@ export default function App() {
                 <Route path="/cookie-policy">
                   <PageTransition location={location} type="fade-up">
                     <CookiePolicy />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/standard-sicurezza-minori">
+                  <PageTransition location={location} type="fade-up">
+                    <ChildSafetyStandards />
                   </PageTransition>
                 </Route>
 
