@@ -1,6 +1,8 @@
 const express = require('express');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { Pool } = require('pg');
 const router = express.Router();
+router.use(verifyToken, requireAdmin);
 
 // Endpoint temporaneo per aggiungere le colonne political_opinions_consent
 // RIMUOVERE DOPO L'ESECUZIONE per sicurezza

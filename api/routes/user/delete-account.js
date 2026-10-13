@@ -1,9 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const { auditLog } = require('../../services/auditService');
+const AuditService = require('../../services/auditService');
 const { getPool } = require('../../config/database');
 const bcrypt = require('bcryptjs');
+const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
+
+/**
+ * @route GET /api/user/delete-account/requirements
+ * @desc Indica se l'account corrente richiede la password per la cancellazione.
+ * @access Private
+ */
+router.get('/requirements', verifyToken, async (req, res) => {
+  try {
+    const pool = getPool();
+    const result = await pool.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utente non trovato'
+      });
+    }
+
+    const passwordHash = result.rows[0].password_hash;
+    const requiresPassword = passwordHash != null && String(passwordHash).trim() !== '';
+
+    return res.json({
+      success: true,
+      requiresPassword
+    });
+  } catch (error) {
+    console.error('Errore nel recupero requisiti cancellazione account:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Errore interno del server'
+    });
+  }
+});
 
 /**
  * @route DELETE /api/user/delete-account
@@ -61,7 +98,7 @@ router.delete('/', verifyToken, async (req, res) => {
     }
 
     // Log dell'inizio della cancellazione
-    await auditLog({
+    await AuditService.logAction({
       userId: userId,
       action: 'ACCOUNT_DELETION_STARTED',
       resource: 'user_account',
@@ -71,43 +108,33 @@ router.delete('/', verifyToken, async (req, res) => {
       }
     });
 
-    // Cancella i dati in ordine per rispettare le foreign key constraints
-    
-    // 1. Cancella le opinioni
-    await client.query('DELETE FROM opinioni_risposte WHERE user_id = $1', [userId]);
-    
-    // 2. Cancella i voti
-    await client.query('DELETE FROM voti_capo_stato WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM voti_ice WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM voti_referendum_abrogativi WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM voti_amnistia WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM voti_grazia WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM voti_iniziative_popolari WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM voti_ministri WHERE user_id = $1', [userId]);
-    
-    // 3. Cancella le candidature
-    await client.query('DELETE FROM candidature_elezioni WHERE user_id = $1', [userId]);
-    
-    // 4. Cancella le notifiche
-    await client.query('DELETE FROM notifiche WHERE user_id = $1', [userId]);
-    
-    // 5. Cancella i log di audit
-    // NOTA: Con Axiom abilitato, i log vengono conservati su Axiom per conformità GDPR
-    // Axiom non supporta DELETE diretto di record, quindi i log vengono mantenuti
-    // Questo è conforme al GDPR che richiede conservazione dei log per sicurezza
+    await PrivacyErasureLedgerService.recordEvent(client, {
+      userId,
+      eventType: PrivacyErasureLedgerService.EVENT_TYPES.ACCOUNT_DELETED,
+      details: { source: 'canonical_account_deletion' }
+    });
+
+    // Unico percorso canonico di cancellazione: copre varianti storiche
+    // user_id/userid/utente_id, tutte le superfici di voto note, contenuti/social
+    // e la verifica CIE pseudonima. Questo evita cancellazioni parziali dipendenti
+    // dallo schema specifico del deployment.
+    // Mantiene il comportamento storico per il fallback audit locale. La retention
+    // provider/Axiom resta disciplinata separatamente da RP-10.
     if (process.env.AXIOM_ENABLED !== 'true') {
-      await client.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
-    } else {
-      console.log(`ℹ️  Log audit per utente ${userId} conservati su Axiom per conformità GDPR`);
+      await PrivacyErasureLedgerService.deleteByAnyColumn(
+        client,
+        'audit_logs',
+        ['user_id', 'userid', 'userId'],
+        userId
+      );
     }
 
-    // 6. Cancella l'utente stesso (google_sub, apple_user_id sono colonne in users, eliminate con la riga)
-    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
 
     await client.query('COMMIT');
 
     // Log della cancellazione completata
-    await auditLog({
+    await AuditService.logAction({
       userId: null, // L'utente non esiste più
       action: 'ACCOUNT_DELETION_COMPLETED',
       resource: 'user_account',
@@ -127,7 +154,7 @@ router.delete('/', verifyToken, async (req, res) => {
     console.error('Errore durante la cancellazione dell\'account:', error);
     
     // Log dell'errore
-    await auditLog({
+    await AuditService.logAction({
       userId: req.user?.id,
       action: 'ACCOUNT_DELETION_ERROR',
       resource: 'user_account',

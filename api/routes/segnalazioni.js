@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 require('dotenv').config();
 
 const router = express.Router();
@@ -65,8 +66,10 @@ router.post('/', verifyToken, async (req, res) => {
       })
     ]);
 
-    // 2. Trova gli amministratori secondo il ruolo usato dal middleware requireAdmin
-    const adminQuery = await pool.query(
+    // 2. Trova gli amministratori dalla capability canonica; fallback solo prima della migrazione additiva.
+    const adminQuery = await queryWithAccountModelFallback(
+      pool,
+      'SELECT id, nome, cognome FROM users WHERE is_admin = TRUE',
       "SELECT id, nome, cognome FROM users WHERE ruolo = 'AD'"
     );
 

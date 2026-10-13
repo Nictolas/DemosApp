@@ -4,6 +4,7 @@ const crypto = require('crypto');
 
 const {
   saveCieOidcTransaction,
+  saveCieRegistrationTransaction,
   consumeCieOidcTransaction
 } = require('../services/cieOidcTransactionStore');
 
@@ -285,4 +286,29 @@ test('rifiuta consumo se Redis non supporta ne GETDEL ne EVAL', async () => {
     consumeCieOidcTransaction(tx.state, redis),
     /GETDEL o EVAL richiesto/
   );
+});
+
+
+test('salva registrazione CIE pre-account senza userId e senza fiscal_number', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: 'f'.repeat(64),
+    nonce: 'e'.repeat(64),
+    codeVerifier: 'registration-verifier',
+    expiresAt: Date.now() + 60000
+  };
+  const registration = {
+    provider: 'google',
+    providerSub: 'google-sub-new',
+    privacyPolicyConsent: true,
+    termsOfServiceConsent: true
+  };
+
+  await saveCieRegistrationTransaction('google:google-sub-new', registration, tx, redis);
+  const result = await consumeCieOidcTransaction(tx.state, redis);
+
+  assert.equal(result.flow, 'registration');
+  assert.deepEqual(result.registration, registration);
+  assert.equal(Object.hasOwn(result, 'userId'), false);
+  assert.equal(JSON.stringify(result).includes('fiscal_number'), false);
 });

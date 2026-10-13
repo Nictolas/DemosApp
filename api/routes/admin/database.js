@@ -4,8 +4,8 @@ const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const router = express.Router();
 
 // POST /api/admin/database/add-opinioni-columns - Aggiungi colonne mancanti alla tabella opinioni
-// TEMPORANEAMENTE SENZA AUTENTICAZIONE PER AGGIUNGERE LE COLONNE
-router.post('/add-opinioni-columns', async (req, res) => {
+// Mutazione di schema: accesso esclusivamente Admin autenticato.
+router.post('/add-opinioni-columns', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔧 POST /api/admin/database/add-opinioni-columns - Aggiunta colonne opinioni');
     

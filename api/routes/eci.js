@@ -2,78 +2,59 @@ const express = require('express');
 const { pool } = require('../middleware/auth');
 
 const router = express.Router();
-var SUCCESSI_MIN_FIRME = 1000000;
 
 /**
- * Legge dalla tabella ECI su PostgreSQL. I dati sono popolati dallo script scripts/sync_eci.py
- * (GitHub Actions ogni 2 ore) che chiama l'API EU con User-Agent valido.
+ * Sorgente canonica: tabella eci popolata dallo sync del portale UE.
+ * Lo script sync_eci.py scarica esclusivamente STATUS=ONGOING.
+ * Nessun ranking DEMOS: ordine neutro per scadenza e titolo.
  */
-async function fetchFromEciTable() {
-  const client = pool;
-  const result = await client.query(
-    'SELECT id, title, signature_count, slug, end_date, obiettivi, url FROM eci ORDER BY signature_count DESC NULLS LAST'
+async function fetchOfficialOngoing() {
+  const result = await pool.query(
+    `SELECT id, title, signature_count, slug, end_date, obiettivi, url, status
+     FROM eci
+     ORDER BY end_date ASC NULLS LAST, title ASC, id ASC`
   );
+
   return result.rows.map((row) => ({
-    id: row.id,
+    id: String(row.id),
     title: row.title || 'Senza titolo',
-    signature_count: parseInt(row.signature_count, 10) || 0,
-    slug: row.slug,
-    end_date: row.end_date ? (row.end_date.toISOString ? row.end_date.toISOString().slice(0, 10) : String(row.end_date).slice(0, 10)) : null,
+    firme: Number(row.signature_count) || 0,
+    signature_count: Number(row.signature_count) || 0,
+    slug: row.slug || null,
+    end_date: row.end_date
+      ? (row.end_date.toISOString
+          ? row.end_date.toISOString().slice(0, 10)
+          : String(row.end_date).slice(0, 10))
+      : null,
     obiettivi: row.obiettivi || null,
     url: row.url || null,
+    status: row.status || 'ONGOING',
   }));
 }
 
-// GET /api/eci - Lista ECI solo da database (sync via GitHub Actions)
-router.get('/', async (req, res) => {
+// Alias API legacy di /api/ice: conserva il contratto di lettura senza reintrodurre ranking.
+router.get('/', async (_req, res) => {
   try {
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      Pragma: 'no-cache',
+      Expires: '0',
     });
 
-    var list = [];
-    try {
-      list = await fetchFromEciTable();
-    } catch (dbErr) {
-      console.error('ECI: errore lettura tabella eci:', dbErr.message);
-      return res.status(503).json({
-        success: false,
-        error: 'Dati ECI non disponibili. Verifica che lo sync ECI (GitHub Actions) sia stato eseguito.',
-        details: dbErr.message,
-      });
-    }
-
-    var ongoing = [];
-    var successi = [];
-    for (var i = 0; i < list.length; i++) {
-      var it = list[i];
-      var count = it.signature_count != null ? parseInt(it.signature_count, 10) : 0;
-      var row = { id: it.id, title: it.title, firme: count, signature_count: count, slug: it.slug, end_date: it.end_date, obiettivi: it.obiettivi, url: it.url };
-      if (count >= SUCCESSI_MIN_FIRME) {
-        successi.push(row);
-      } else {
-        ongoing.push(row);
-      }
-    }
-
-    res.json({
+    const initiatives = await fetchOfficialOngoing();
+    return res.json({
       success: true,
       source: 'eci_table',
-      ongoing: ongoing,
-      successi: successi,
-      initiatives: list.map(function (item) {
-        var c = item.signature_count != null ? parseInt(item.signature_count, 10) : 0;
-        return { id: item.id, title: item.title, firme: c, signature_count: c, slug: item.slug, end_date: item.end_date, obiettivi: item.obiettivi, url: item.url };
-      }),
+      ordering: 'neutral',
+      initiatives,
+      ongoing: initiatives,
+      successi: [],
     });
   } catch (error) {
     console.error('Errore GET /api/eci:', error);
-    res.status(500).json({
+    return res.status(503).json({
       success: false,
-      error: 'Errore nel caricamento delle ECI',
-      details: error.message,
+      error: 'Dati ECI ufficiali non disponibili',
     });
   }
 });

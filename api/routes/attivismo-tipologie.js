@@ -194,7 +194,7 @@ router.put('/:userId', verifyToken, async (req, res) => {
     // L'utente può modificare le proprie tipologie o essere admin
     const requestingUserId = req.user?.id;
     const isOwnProfile = requestingUserId === userId;
-    const isAdmin = req.user?.ruolo === 'AD';
+    const isAdmin = Boolean(req.user?.isAdmin);
     
     if (!isOwnProfile && !isAdmin) {
       return res.status(403).json({

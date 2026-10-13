@@ -39,7 +39,7 @@
     "express": "^4.22.3",
     "express-async-errors": "^3.1.1",
     "express-rate-limit": "^7.1.5",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.5.0",
     "google-auth-library": "^9.14.0",
     "groq-sdk": "^0.5.0",
     "jsonwebtoken": "^9.0.2",
@@ -74,13 +74,15 @@
       "uuid": "11.1.1"
     },
     "picomatch": "2.3.2",
-    "retry-request": "7.0.3",
+    "retry-request": "7.0.2",
     "teeny-request": {
       "uuid": "11.1.1"
     },
     "undici": "7.29.1",
     "websocket-driver": "0.7.5",
-    "ws": "8.21.0"
+    "ws": "8.21.0",
+    "proxy-addr": "2.0.8",
+    "@fastify/busboy": "3.2.3"
   },
   "engines": {
     "node": ">=22.0.0"

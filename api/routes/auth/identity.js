@@ -20,7 +20,13 @@ const {
 const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenService');
 const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
 const { fetchAndValidateCieUserInfo } = require('../../services/cieOidcUserInfoService');
-const { buildCieCallbackRedirect } = require('../../services/cieCallbackRedirectService');
+const {
+  buildCieCallbackRedirect,
+  buildRegistrationCieCallbackRedirect
+} = require('../../services/cieCallbackRedirectService');
+const { completeOAuthRegistrationAfterCie } = require('../../services/oauthRegistrationService');
+const { completePasskeyRegistrationAfterCie } = require('../../services/passkeyRegistrationService');
+const { createRegistrationTicket } = require('../../services/registrationTicketStore');
 const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 const { IDENTITY_ERROR_CODES } = require('../../constants/identityVerification');
 
@@ -122,9 +128,16 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 });
 
 // Callback OIDC CIE reale.
-// Esegue state/one-time transaction + token exchange private_key_jwt
-// valida ID Token e UserInfo CIE firmata+cifrata, registra l'identita verificata
-// e torna al frontend con il solo esito success/error.
+// Esegue state/one-time transaction + token exchange private_key_jwt,
+// valida ID Token e UserInfo. Per una nuova registrazione crea l'account
+// solo DOPO la verifica CIE e restituisce al frontend un ticket one-time.
+function redirectForCieTransaction(transaction, outcome, ticket = null) {
+  if (transaction?.flow === 'registration') {
+    return buildRegistrationCieCallbackRedirect(outcome, ticket);
+  }
+  return buildCieCallbackRedirect(outcome);
+}
+
 router.get('/cie/callback', async (req, res) => {
   if (process.env.CIE_OIDC_ENABLED !== 'true') {
     const publicError = getPublicIdentityError(
@@ -148,15 +161,15 @@ router.get('/cie/callback', async (req, res) => {
     }
   }
 
+  let transaction = null;
   try {
-    const transaction = await consumeCieOidcTransaction(state);
+    transaction = await consumeCieOidcTransaction(state);
 
     if (providerError) {
-      return res.redirect(303, buildCieCallbackRedirect('error'));
+      return res.redirect(303, redirectForCieTransaction(transaction, 'error'));
     }
-
     if (typeof code !== 'string' || !code) {
-      return res.redirect(303, buildCieCallbackRedirect('error'));
+      return res.redirect(303, redirectForCieTransaction(transaction, 'error'));
     }
 
     const tokens = await exchangeAuthorizationCode({
@@ -175,12 +188,29 @@ router.get('/cie/callback', async (req, res) => {
       expectedSub: idTokenClaims.sub
     });
 
+    if (transaction.flow === 'registration') {
+      const completeRegistration = transaction.registration?.authMethod === 'passkey'
+        ? completePasskeyRegistrationAfterCie
+        : completeOAuthRegistrationAfterCie;
+      const completed = await completeRegistration({
+        registration: transaction.registration,
+        fiscalNumber: userInfo.fiscalNumber
+      });
+      const registrationTicket = await createRegistrationTicket({ userId: completed.userId });
+
+      // Only an opaque, one-time ticket is placed in the URL fragment.
+      // Never include fiscal_number, person_key, CIE sub or account identifiers.
+      return res.redirect(
+        303,
+        buildRegistrationCieCallbackRedirect('success', registrationTicket)
+      );
+    }
+
     await completeCieVerificationFromVerifiedClaims({
       userId: transaction.userId,
       claims: { fiscal_number: userInfo.fiscalNumber }
     });
 
-    // Non includere mai identity, fiscal_number, person_key, state o sub nell'URL.
     return res.redirect(303, buildCieCallbackRedirect('success'));
   } catch (error) {
     console.error('Errore callback CIE:', error?.message || error);
@@ -190,7 +220,7 @@ router.get('/cie/callback', async (req, res) => {
         : error?.code === IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED
           ? 'account-already-verified'
           : 'error';
-      return res.redirect(303, buildCieCallbackRedirect(outcome));
+      return res.redirect(303, redirectForCieTransaction(transaction, outcome));
     } catch (redirectError) {
       console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
       return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });

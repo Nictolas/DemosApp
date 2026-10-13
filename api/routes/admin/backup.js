@@ -13,6 +13,19 @@ const router = express.Router();
 router.use(verifyToken);
 router.use(requireAdmin);
 
+function legacyBackupActionUnavailable(req, res, next) {
+  try {
+    BackupService.assertLegacyBackupAvailable();
+    return next();
+  } catch (error) {
+    return res.status(error.statusCode || 410).json({
+      success: false,
+      error: error.code || 'LEGACY_APP_BACKUP_RETIRED',
+      message: error.message
+    });
+  }
+}
+
 /**
  * GET /api/admin/backup/stats
  * Ottiene statistiche sui backup
@@ -68,7 +81,7 @@ router.get('/list', async (req, res) => {
  * POST /api/admin/backup/create/full
  * Crea backup completo
  */
-router.post('/create/full', async (req, res) => {
+router.post('/create/full', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const result = await BackupService.createFullBackup();
     
@@ -91,7 +104,7 @@ router.post('/create/full', async (req, res) => {
  * POST /api/admin/backup/create/incremental
  * Crea backup incrementale
  */
-router.post('/create/incremental', async (req, res) => {
+router.post('/create/incremental', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const result = await BackupService.createIncrementalBackup();
     
@@ -114,7 +127,7 @@ router.post('/create/incremental', async (req, res) => {
  * POST /api/admin/backup/restore/:fileName
  * Ripristina database da backup
  */
-router.post('/restore/:fileName', async (req, res) => {
+router.post('/restore/:fileName', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const { fileName } = req.params;
     
@@ -185,7 +198,7 @@ router.get('/verify/:fileName', async (req, res) => {
  * POST /api/admin/backup/cleanup
  * Pulisce backup vecchi
  */
-router.post('/cleanup', async (req, res) => {
+router.post('/cleanup', legacyBackupActionUnavailable, async (req, res) => {
   try {
     await BackupService.cleanupOldBackups();
     
@@ -207,7 +220,7 @@ router.post('/cleanup', async (req, res) => {
  * POST /api/admin/backup/job/start
  * Avvia il job di backup automatico
  */
-router.post('/job/start', async (req, res) => {
+router.post('/job/start', legacyBackupActionUnavailable, async (req, res) => {
   try {
     backupJob.start();
     
@@ -282,7 +295,7 @@ router.get('/job/status', async (req, res) => {
  * POST /api/admin/backup/job/immediate
  * Esegue backup immediato
  */
-router.post('/job/immediate', async (req, res) => {
+router.post('/job/immediate', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const { type = 'full' } = req.body;
     
@@ -314,7 +327,7 @@ router.post('/job/immediate', async (req, res) => {
  * POST /api/admin/backup/test/integrity
  * Esegue test di integrità sui backup
  */
-router.post('/test/integrity', async (req, res) => {
+router.post('/test/integrity', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const result = await backupJob.performIntegrityTest();
     

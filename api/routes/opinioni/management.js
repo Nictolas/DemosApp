@@ -1,6 +1,7 @@
 const express = require('express');
-const { verifyToken } = require('../../middleware/auth');
+const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
+const { normalizeOpinionScope, getOpinionScopeLabel } = require('../../services/politicalJurisdictionRegistryService');
 
 const router = express.Router();
 
@@ -121,7 +122,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/proposte - Ottieni tutte le opinioni (per gestione)
-router.get('/proposte', verifyToken, async (req, res) => {
+router.get('/proposte', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
     
@@ -142,14 +143,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
     
     // Mappa le lettere ai nomi completi per il frontend
     const mappedData = result.rows.map(row => {
-      const gradoMapping = {
-        'E': 'Europeo',
-        'N': 'Nazionale', 
-        'R': 'Regionale',
-        'CO': 'Comunale'
-      };
-      
-      const mappedGradi = row.gradi_opinione?.map(grado => gradoMapping[grado] || grado) || [];
+      const mappedGradi = row.gradi_opinione?.map(grado => getOpinionScopeLabel(grado) || grado) || [];
       
       return {
         ...row,
@@ -181,7 +175,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni - Crea una nuova opinione
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id, text, gradi_opinione } = req.body;
     
@@ -208,24 +202,44 @@ router.post('/', verifyToken, async (req, res) => {
     `;
     
     // Mappa i nomi completi alle lettere per il database
-    const gradoMapping = {
-      'Europeo': 'E',
-      'Nazionale': 'N', 
-      'Regionale': 'R',
-      'Comunale': 'CO'
-    };
-    
-    const mappedGradi = gradi_opinione.map(grado => gradoMapping[grado] || grado);
+    const mappedGradi = gradi_opinione.map(grado => normalizeOpinionScope(grado) || grado);
     
     // Verifica se l'opinione esiste già (per distinguere tra nuovo inserimento e aggiornamento)
     const checkExisting = await pool.query(
-      'SELECT id FROM opinioni_domande WHERE id = $1',
+      'SELECT id, gradi_opinione FROM opinioni_domande WHERE id = $1',
       [id]
     );
     const isNewOpinion = checkExisting.rows.length === 0;
+    const wasPending = Array.isArray(checkExisting.rows[0]?.gradi_opinione)
+      && checkExisting.rows[0].gradi_opinione.includes('da approvare');
+
+    // Compatibilità con lo schema additivo in cui le proposte pendenti vivono in
+    // opinioni_proposte invece che in opinioni_domande con grado "da approvare".
+    let existedInProposalTable = false;
+    try {
+      const proposalResult = await pool.query(
+        'SELECT id FROM opinioni_proposte WHERE id = $1',
+        [id]
+      );
+      existedInProposalTable = proposalResult.rows.length > 0;
+    } catch (proposalLookupError) {
+      if (proposalLookupError.code !== '42P01') throw proposalLookupError;
+    }
     
     const approfondimento = `## Proposta ${gradi_opinione.join(', ')}\n\n${text}`;
     const result = await pool.query(insertQuery, [id, text, mappedGradi, approfondimento]);
+
+    const closesPendingProposal = !mappedGradi.includes('da approvare')
+      && (wasPending || existedInProposalTable);
+    if (closesPendingProposal) {
+      if (existedInProposalTable) {
+        await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
+      }
+      await pool.query(
+        'UPDATE users SET opinione_proposta_id = NULL WHERE opinione_proposta_id = $1',
+        [id]
+      );
+    }
     
     // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
     await ensureOpinioniRisposteColumn(id);
@@ -254,7 +268,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // PUT /api/opinioni/:id - Aggiorna un'opinione esistente
-router.put('/:id', verifyToken, async (req, res) => {
+router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { text, gradi_opinione } = req.body;
@@ -273,14 +287,14 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
     
     // Mappa i nomi completi alle lettere per il database
-    const gradoMapping = {
-      'Europeo': 'E',
-      'Nazionale': 'N', 
-      'Regionale': 'R',
-      'Comunale': 'CO'
-    };
-    
-    const mappedGradi = gradi_opinione.map(grado => gradoMapping[grado] || grado);
+    const mappedGradi = gradi_opinione.map(grado => normalizeOpinionScope(grado) || grado);
+
+    const previous = await pool.query(
+      'SELECT gradi_opinione FROM opinioni_domande WHERE id = $1',
+      [id]
+    );
+    const wasPending = Array.isArray(previous.rows[0]?.gradi_opinione)
+      && previous.rows[0].gradi_opinione.includes('da approvare');
     
     const updateQuery = `
       UPDATE opinioni_domande
@@ -299,6 +313,13 @@ router.put('/:id', verifyToken, async (req, res) => {
       });
     }
     
+    if (wasPending && !mappedGradi.includes('da approvare')) {
+      await pool.query(
+        'UPDATE users SET opinione_proposta_id = NULL WHERE opinione_proposta_id = $1',
+        [id]
+      );
+    }
+
     // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
     await ensureOpinioniRisposteColumn(id);
     
@@ -321,7 +342,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/opinioni/:id - Elimina un'opinione
-router.delete('/:id', verifyToken, async (req, res) => {
+router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     

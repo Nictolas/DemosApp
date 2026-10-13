@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -28,7 +28,7 @@ router.get('/', verifyToken, async (req, res) => {
     const isAdmin = req.user.role === 'AD';
     const userComuneResidenza = userInfo ? userInfo.comune_residenza : null;
     
-    let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult;
+    let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult, opinionChangesResult;
     
     // Recupera da notifiche_voti_parlamento (solo per i rappresentanti scelti dall'utente)
     try {
@@ -214,6 +214,46 @@ router.get('/', verifyToken, async (req, res) => {
       demosResult = { rows: [] };
     }
     
+    // Cambi di Opinione di Politici/Candidati sostenuti correntemente dall'utente.
+    try {
+      opinionChangesResult = await pool.query(
+        `SELECT
+           pon.id,
+           pon.subject_user_id AS id_utente,
+           ('Cambio di posizione: ' || pon.opinion_text) AS titolo,
+           (CASE pon.previous_value
+              WHEN 'f' THEN 'Favorevole'
+              WHEN 'c' THEN 'Contrario'
+              WHEN 'i' THEN 'Non lo so'
+            END || ' → ' ||
+            CASE pon.new_value
+              WHEN 'f' THEN 'Favorevole'
+              WHEN 'c' THEN 'Contrario'
+              WHEN 'i' THEN 'Non lo so'
+            END) AS testo,
+           pon.created_at AS data,
+           pon.created_at AS data_creazione,
+           'political_opinion_notifications' AS tabella_origine,
+           subject.nome AS politico_nome,
+           subject.cognome AS politico_cognome,
+           subject.avatar_config AS politico_avatar_config,
+           subject.genere AS politico_genere,
+           pon.opinion_id,
+           pon.opinion_text
+         FROM political_opinion_notifications pon
+         JOIN users subject ON subject.id = pon.subject_user_id
+         WHERE pon.recipient_user_id = $1
+         ORDER BY pon.created_at DESC
+         LIMIT 50`,
+        [user_id]
+      );
+    } catch (err) {
+      if (err?.code !== '42P01') {
+        console.error('❌ Errore query political_opinion_notifications:', err);
+      }
+      opinionChangesResult = { rows: [] };
+    }
+
     // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
     try {
       // Prima verifica quali colonne esistono
@@ -390,11 +430,13 @@ router.get('/', verifyToken, async (req, res) => {
     const comunaliRows = comunaliResult?.rows || [];
     const avvistamentiRows = avvistamentiResult?.rows || [];
     const votiParlamentoRows = votiParlamentoResult?.rows || [];
+    const opinionChangesRows = opinionChangesResult?.rows || [];
     
     const allNotificheRaw = [
       ...votiComuniRows.map(n => ({ ...n, tipo_notifica: 'voto_comune' })),
       ...votiParlamentoRows.map(n => ({ ...n, tipo_notifica: 'voto_parlamento' })),
       ...demosRows.map(n => ({ ...n, tipo_notifica: 'demos' })),
+      ...opinionChangesRows.map(n => ({ ...n, tipo_notifica: 'cambio_opinione' })),
       ...comunaliRows.map(n => ({ ...n, tipo_notifica: 'comunale' })),
       ...avvistamentiRows.map(n => ({ ...n, tipo_notifica: 'avvistamento' }))
     ];
@@ -525,7 +567,9 @@ router.get('/', verifyToken, async (req, res) => {
         likes: c.likes !== undefined ? c.likes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         dislikes: c.dislikes !== undefined ? c.dislikes : (c.tipo_notifica === 'comunale' || c.tipo_notifica === 'avvistamento' ? undefined : 0),
         tabella_origine: c.tabella_origine,
-        uri_votazione: c.uri_votazione || null // URI per aprire il dialog con i dettagli della votazione
+        uri_votazione: c.uri_votazione || null, // URI per aprire il dialog con i dettagli della votazione
+        opinion_id: c.opinion_id || null,
+        opinion_text: c.opinion_text || null
       };
     });
     
@@ -626,7 +670,7 @@ router.get('/', verifyToken, async (req, res) => {
 // Endpoint rimossi: non serve più marcare le notifiche come lette
 
 // POST /api/notifiche - Crea nuova notifica
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { user_id, titolo, messaggio, tipo } = req.body;
     
@@ -841,12 +885,11 @@ router.get('/ultima', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/notifiche/ultima - Richiesta ultima notifica');
     
-    const userId = req.userId;
+    const userId = req.user.id;
     
-    // Usa la stessa logica dell'endpoint principale ma restituisce solo la prima
-    // Recupera informazioni utente
+    // Usa gli stessi soggetti scelti dal feed principale; nessun fallback territoriale legacy.
     const userResult = await pool.query(
-      'SELECT is_admin, comune_residenza, rappresentante_camera, rappresentante_senato FROM users WHERE id = $1',
+      'SELECT rappresentante_camera, rappresentante_senato, rappresentante_comune FROM users WHERE id = $1',
       [userId]
     );
     
@@ -857,52 +900,37 @@ router.get('/ultima', verifyToken, async (req, res) => {
       });
     }
     
-    const isAdmin = userResult.rows[0].is_admin === true;
-    const userComuneResidenza = userResult.rows[0].comune_residenza;
     const rappresentanteCamera = userResult.rows[0].rappresentante_camera;
     const rappresentanteSenato = userResult.rows[0].rappresentante_senato;
+    const rappresentanteComune = userResult.rows[0].rappresentante_comune;
     
     let comunicazioni = [];
     
-    // Recupera da notifiche_voti_comuni (filtra per comune se non admin)
-    try {
-      let queryVotiComuni = `
-        SELECT 
-          id,
-          id_utente,
-          titolo,
-          testo,
-          COALESCE(data, CURRENT_DATE) as data,
-          COALESCE(data_creazione, CURRENT_TIMESTAMP) as data_creazione,
-          voto,
-          comune_residenza,
-          politico,
-          COALESCE(likes, 0) as likes,
-          COALESCE(dislikes, 0) as dislikes,
-          'notifiche_voti_comuni' as tabella_origine
-        FROM notifiche_voti_comuni
-      `;
-      
-      let votiComuniResult;
-      if (!isAdmin && userComuneResidenza) {
-        queryVotiComuni += ` WHERE comune_residenza = $1`;
-        votiComuniResult = await pool.query(queryVotiComuni + ` ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC LIMIT 1`, [userComuneResidenza]);
-      } else {
-        votiComuniResult = await pool.query(queryVotiComuni + ` ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC LIMIT 1`);
+    // Ultimo voto comunale: soltanto del rappresentante comunale scelto dall'utente.
+    if (rappresentanteComune) {
+      try {
+        const votiComuniResult = await pool.query(`
+          SELECT id, id_utente, titolo, testo,
+                 COALESCE(data_creazione, CURRENT_TIMESTAMP) AS data_creazione,
+                 'notifiche_voti_comuni' AS tabella_origine
+          FROM notifiche_voti_comuni
+          WHERE id_utente = $1::uuid
+          ORDER BY COALESCE(data_creazione, CURRENT_TIMESTAMP) DESC
+          LIMIT 1
+        `, [rappresentanteComune]);
+        if (votiComuniResult.rows.length > 0) {
+          comunicazioni.push({
+            id: votiComuniResult.rows[0].id,
+            titolo: votiComuniResult.rows[0].titolo,
+            messaggio: votiComuniResult.rows[0].testo,
+            data_creazione: votiComuniResult.rows[0].data_creazione,
+            tipo_notifica: 'voto_comune',
+            tabella_origine: 'notifiche_voti_comuni'
+          });
+        }
+      } catch (err) {
+        console.error('Errore ultima notifica voto comunale:', err);
       }
-      
-      if (votiComuniResult.rows.length > 0) {
-        comunicazioni.push({
-          id: votiComuniResult.rows[0].id,
-          titolo: votiComuniResult.rows[0].titolo,
-          messaggio: votiComuniResult.rows[0].testo,
-          data_creazione: votiComuniResult.rows[0].data_creazione,
-          tipo_notifica: 'voto_comune',
-          tabella_origine: 'notifiche_voti_comuni'
-        });
-      }
-    } catch (err) {
-      console.error('❌ Errore query notifiche_voti_comuni:', err);
     }
     
     // Recupera da notifiche_demos
@@ -917,10 +945,9 @@ router.get('/ultima', verifyToken, async (req, res) => {
           data_creazione,
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
-        WHERE id_utente = $1
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
-      `, [userId]);
+      `);
       
       if (demosResult.rows.length > 0) {
         comunicazioni.push({
@@ -978,6 +1005,42 @@ router.get('/ultima', verifyToken, async (req, res) => {
       }
     }
     
+    // Ultimo cambio di Opinione destinato specificamente all'utente.
+    try {
+      const opinionChangeResult = await pool.query(
+        `SELECT
+           pon.id,
+           pon.created_at,
+           pon.opinion_text,
+           pon.previous_value,
+           pon.new_value,
+           subject.nome,
+           subject.cognome
+         FROM political_opinion_notifications pon
+         JOIN users subject ON subject.id = pon.subject_user_id
+         WHERE pon.recipient_user_id = $1
+         ORDER BY pon.created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+      if (opinionChangeResult.rows.length > 0) {
+        const row = opinionChangeResult.rows[0];
+        const label = (value) => value === 'f' ? 'Favorevole' : value === 'c' ? 'Contrario' : 'Non lo so';
+        comunicazioni.push({
+          id: row.id,
+          titolo: `${row.nome || 'Politico'} ${row.cognome || ''} ha cambiato posizione`,
+          messaggio: `${row.opinion_text}: ${label(row.previous_value)} → ${label(row.new_value)}`,
+          data_creazione: row.created_at,
+          tipo_notifica: 'cambio_opinione',
+          tabella_origine: 'political_opinion_notifications'
+        });
+      }
+    } catch (err) {
+      if (err?.code !== '42P01') {
+        console.error('❌ Errore ultima political_opinion_notification:', err);
+      }
+    }
+
     // Ordina per data_creazione (più recenti prima) e prendi la prima
     comunicazioni.sort((a, b) => {
       const dateA = a.data_creazione ? new Date(a.data_creazione) : new Date(0);
@@ -1005,8 +1068,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
     console.error('❌ Errore nel recupero ultima notifica:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const { auditLog } = require('../../services/auditService');
+const AuditService = require('../../services/auditService');
 const db = require('../../config/db');
 
 /**
@@ -115,7 +115,7 @@ router.put('/', verifyToken, async (req, res) => {
     const updatedUser = result.rows[0];
     
     // Log dell'audit
-    await auditLog({
+    await AuditService.logAction({
       userId: userId,
       action: 'PRIVACY_SETTINGS_UPDATED',
       resource: 'user_privacy',
@@ -140,7 +140,7 @@ router.put('/', verifyToken, async (req, res) => {
     console.error('Errore durante l\'aggiornamento delle impostazioni privacy:', error);
     
     // Log dell'errore
-    await auditLog({
+    await AuditService.logAction({
       userId: req.user?.id,
       action: 'PRIVACY_SETTINGS_UPDATE_ERROR',
       resource: 'user_privacy',

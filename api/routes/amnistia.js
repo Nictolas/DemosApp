@@ -1,8 +1,11 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
+const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
 const router = express.Router();
 
@@ -64,9 +67,13 @@ router.get('/', verifyToken, async (req, res) => {
       amnistie: amnistieResult.rows,
       classifica: classificaResult,
       mieiVoti: mieiVoti,
-      blocco: { isBlocked: false, unlockDate: null }
+      blocco: await getPreferenceCooldown(pool, {
+        userId,
+        scope: 'amnistia:preferenza'
+      }).then((cooldown) => ({ isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate }))
     });
   } catch (error) {
+    if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel recuperare leggi amnistia:', error);
     console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
@@ -78,7 +85,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/amnistia/vota - Vota per amnistia
-router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => {
+router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, validateInput(['legge']), async (req, res) => {
   try {
     const { legge } = req.body;
     // Usa req.userId con fallback a req.user.id per sicurezza
@@ -113,28 +120,43 @@ router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => 
     
     const amnistiaId = amnistiaResult.rows[0].id;
     
-    // Verifica se l'utente ha già votato (limite 1 voto)
     const existingVote = await pool.query(
-      'SELECT id FROM voti_amnistia WHERE userid = $1',
+      'SELECT id, legge FROM voti_amnistia WHERE userid = $1 LIMIT 1',
       [userId]
     );
-    
-    // Se ha già votato, elimina il voto precedente prima di inserire il nuovo
-    if (existingVote.rows.length > 0) {
-      await pool.query(
-        'DELETE FROM voti_amnistia WHERE userid = $1',
-        [userId]
-      );
+    const current = existingVote.rows[0] || null;
+    if (current?.legge === legge) {
+      return res.json({ success: true, message: 'Preferenza Amnistia già aggiornata' });
     }
-    
-    // Inserisci il voto usando l'ID di amnistia
-    await pool.query(
-      'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3)',
-      [userId, amnistiaId, legge]
-    );
-    
+
+    await assertPreferenceChangeAllowed(pool, {
+      userId,
+      scope: 'amnistia:preferenza',
+      isAdmin: Boolean(req.user?.isAdmin)
+    });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      if (current) {
+        await client.query('DELETE FROM voti_amnistia WHERE userid = $1', [userId]);
+      }
+      await client.query(
+        'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3)',
+        [userId, amnistiaId, legge]
+      );
+      await recordPreferenceChange(client, { userId, scope: 'amnistia:preferenza' });
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
     res.json({ success: true, message: 'Voto amnistia salvato' });
   } catch (error) {
+    if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel salvare voto amnistia:', error);
     res.status(500).json({
       success: false,
@@ -164,22 +186,44 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
     }
     
     const amnistiaId = amnistiaResult.rows[0].id;
-    
-    // Rimuovi il voto usando l'ID di amnistia
-    const result = await pool.query(
-      'DELETE FROM voti_amnistia WHERE userid = $1 AND amnistia_id = $2',
+
+    const existing = await pool.query(
+      'SELECT id FROM voti_amnistia WHERE userid = $1 AND amnistia_id = $2 LIMIT 1',
       [userId, amnistiaId]
     );
-    
-    if (result.rowCount === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Voto non trovato'
-      });
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Voto non trovato' });
     }
-    
+
+    await assertPreferenceChangeAllowed(pool, {
+      userId,
+      scope: 'amnistia:preferenza',
+      isAdmin: Boolean(req.user?.isAdmin)
+    });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        'DELETE FROM voti_amnistia WHERE userid = $1 AND amnistia_id = $2',
+        [userId, amnistiaId]
+      );
+      if (result.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Voto non trovato' });
+      }
+      await recordPreferenceChange(client, { userId, scope: 'amnistia:preferenza' });
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
     res.json({ success: true, message: 'Voto amnistia rimosso' });
   } catch (error) {
+    if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel rimuovere voto amnistia:', error);
     res.status(500).json({
       success: false,
@@ -229,7 +273,7 @@ router.post('/', verifyToken, validateInput(['legge', 'articolo', 'descrizione']
 });
 
 // POST /api/amnistia/migrate - Migra dati da voti_amnistia
-router.post('/migrate', async (req, res) => {
+router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 Avviando migrazione dati amnistia...');
     
@@ -304,7 +348,7 @@ router.post('/migrate', async (req, res) => {
 });
 
 // POST /api/amnistia/migrate-ids - Migra voti_amnistia per usare ID di amnistia
-router.post('/migrate-ids', async (req, res) => {
+router.post('/migrate-ids', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 Migrando voti_amnistia per usare ID di amnistia...');
     
@@ -391,7 +435,7 @@ router.post('/migrate-ids', async (req, res) => {
 });
 
 // GET /api/amnistia/test - Test endpoint per debug
-router.get('/test', (req, res) => {
+router.get('/test', verifyToken, requireAdmin, (req, res) => {
   console.log('🔍 Test endpoint amnistia chiamato');
   res.json({
     success: true,
@@ -401,7 +445,7 @@ router.get('/test', (req, res) => {
 });
 
 // GET /api/amnistia/debug - Debug endpoint per verificare database
-router.get('/debug', async (req, res) => {
+router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 Debug endpoint amnistia chiamato');
     
@@ -467,7 +511,7 @@ router.get('/debug', async (req, res) => {
 });
 
 // POST /api/amnistia/fix-primary-key - Aggiungi primary key a voti_amnistia
-router.post('/fix-primary-key', async (req, res) => {
+router.post('/fix-primary-key', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔧 Aggiungendo primary key a voti_amnistia...');
     

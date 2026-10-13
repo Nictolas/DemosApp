@@ -1,7 +1,8 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { generaAnalisiLegge, recuperaAnalisiDaCache } = require('../services/leggeAnalysisService');
 const { getPool } = require('../config/database');
+const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { loadFromDb: loadOpenpolisUltimiDdl, fetchUltimiDdlApprovati, saveToDb: saveOpenpolisDdlToDb } = require('../services/openpolisCosaSuccedeService');
 const { loadFromDb: loadOpenpolisVotazioniFinali, fetchVotazioniFinaliDecisive, saveToDb: saveOpenpolisVotazioniFinaliToDb } = require('../services/openpolisVotazioniFinaliService');
 const axios = require('axios');
@@ -428,11 +429,22 @@ async function creaNotificheParlamentoDaVotiNominali(nomePolitico, camera, titol
     
     // Trova il politico nella tabella users per ottenere il suo ID
     // Prova prima con nome completo, poi con nome + cognome
-    let politicoResult = await pool.query(
-      `SELECT id FROM users 
-       WHERE CONCAT(nome, ' ', cognome) = $1 
-         AND ruolo = 'P' 
-         AND grado_elezione = $2`,
+    let politicoResult = await queryWithAccountModelFallback(
+      pool,
+      `SELECT u.id FROM users u
+        WHERE CONCAT(u.nome, ' ', u.cognome) = $1
+          AND EXISTS (
+            SELECT 1 FROM political_mandates pm
+             WHERE pm.user_id = u.id
+               AND pm.status = 'ACTIVE'
+               AND pm.starts_at <= NOW()
+               AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
+               AND pm.office_code = $2
+          )`,
+      `SELECT id FROM users
+        WHERE CONCAT(nome, ' ', cognome) = $1
+          AND ruolo = 'P'
+          AND grado_elezione = $2`,
       [nomePolitico, camera === 'Senato' ? 'S' : 'C']
     );
     
@@ -442,11 +454,22 @@ async function creaNotificheParlamentoDaVotiNominali(nomePolitico, camera, titol
       if (partiNome.length >= 2) {
         const nome = partiNome[0];
         const cognome = partiNome.slice(1).join(' ');
-        politicoResult = await pool.query(
-          `SELECT id FROM users 
-           WHERE nome = $1 AND cognome = $2 
-             AND ruolo = 'P' 
-             AND grado_elezione = $3`,
+        politicoResult = await queryWithAccountModelFallback(
+          pool,
+          `SELECT u.id FROM users u
+            WHERE u.nome = $1 AND u.cognome = $2
+              AND EXISTS (
+                SELECT 1 FROM political_mandates pm
+                 WHERE pm.user_id = u.id
+                   AND pm.status = 'ACTIVE'
+                   AND pm.starts_at <= NOW()
+                   AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
+                   AND pm.office_code = $3
+              )`,
+          `SELECT id FROM users
+            WHERE nome = $1 AND cognome = $2
+              AND ruolo = 'P'
+              AND grado_elezione = $3`,
           [nome, cognome, camera === 'Senato' ? 'S' : 'C']
         );
       }
@@ -888,7 +911,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-politici/sync - Sincronizza manualmente i dati da SPARQL
-router.post('/sync', verifyToken, async (req, res) => {
+router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 POST /api/voti-politici/sync - Sincronizzazione manuale');
     
@@ -985,7 +1008,7 @@ router.post('/sync', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-politici/sync-openpolis-ultimi-ddl - Sincronizza manualmente ultimi DDL approvati da Openpolis "Cosa succede"
-router.post('/sync-openpolis-ultimi-ddl', verifyToken, async (req, res) => {
+router.post('/sync-openpolis-ultimi-ddl', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 POST /api/voti-politici/sync-openpolis-ultimi-ddl - Sync manuale Openpolis ultimi DDL');
     const { runOpenpolisCosaSuccedeSync } = require('../jobs/openpolisCosaSuccedeJob');
@@ -1050,7 +1073,7 @@ router.get('/votazioni-finali-decisive', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-politici/sync-votazioni-finali-decisive - Sincronizza manualmente votazioni finali decisive da Openpolis
-router.post('/sync-votazioni-finali-decisive', verifyToken, async (req, res) => {
+router.post('/sync-votazioni-finali-decisive', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 POST /api/voti-politici/sync-votazioni-finali-decisive - Sync manuale votazioni finali decisive');
     const { runOpenpolisVotazioniFinaliSync } = require('../jobs/openpolisVotazioniFinaliJob');
@@ -1575,7 +1598,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
 });
 
 // GET /api/voti-politici/debug - Endpoint di debug per verificare lo stato
-router.get('/debug', verifyToken, async (req, res) => {
+router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 GET /api/voti-politici/debug - Debug info');
     

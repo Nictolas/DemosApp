@@ -1,205 +1,79 @@
 const express = require('express');
+const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
+const { buildPoliticalMatches } = require('../services/politicalMatchingService');
+const { listEligibleRepresentatives } = require('../services/politicalEligibilityService');
+const {
+  resolvePoliticalOffice,
+  getLegacySelectionDescriptors,
+} = require('../services/politicalJurisdictionRegistryService');
+const { loadPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
 
 const router = express.Router();
+const REPRESENTATIVE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('representative'));
 
-const hasAnsweredOpinions = (opinions) =>
-  Object.values(opinions || {}).some(value => value !== null && value !== undefined);
+async function loadRepresentativeSelectionProjection(userId) {
+  const state = await loadPoliticalSelections(pool, { userId, kind: 'representative', adapterId: 'it' });
+  const byOffice = selectionsByOffice(state);
+  const projection = Object.fromEntries(REPRESENTATIVE_SELECTION_DESCRIPTORS.map((descriptor) => [
+    descriptor.field,
+    byOffice.get(descriptor.officeId)?.selectedUserId || null,
+  ]));
+  return { state, projection };
+}
 
 // GET /api/rappresentanti/disponibili - Ottieni rappresentanti disponibili per grado e categoria
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
     const { grado_elezione } = req.query;
     const userId = req.userId;
-    
+
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado_elezione, userId });
-    
-    
+
+
     if (!grado_elezione) {
       return res.status(400).json({
         success: false,
         error: 'Parametro grado_elezione richiesto'
       });
     }
-    
-    const query = `
-      SELECT 
-        u.id,
-        u.nome,
-        u.cognome,
-        u.ruolo,
-        u.status,
-        u.avatar_config,
-        u.grado_elezione,
-        u.regione_elezione,
-        u.provincia_elezione,
-        u.comune_elezione
-      FROM users u
-      WHERE (u.ruolo = 'P' OR u.ruolo = 'CP')
-        AND u.grado_elezione = $1
-      ORDER BY u.cognome, u.nome
-    `;
-    
-    const result = await pool.query(query, [grado_elezione]);
-    
-    console.log('🔍 DEBUG - Query rappresentanti:', query);
+
+    // Fonte canonica: mandati attivi. Camera, Senato ed Europeo sono globalmente selezionabili;
+    // Regione e Comune sono filtrati sulla giurisdizione dell'utente.
+    const eligibility = await listEligibleRepresentatives(pool, userId, grado_elezione);
+    const result = { rows: eligibility.subjects };
+    console.log('🔍 DEBUG - Fonte eleggibilità rappresentanti:', eligibility.source, 'strict:', eligibility.strict);
     console.log('🔍 DEBUG - Parametri query:', [grado_elezione]);
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
-    
-    // Mappa il grado_elezione del frontend al grado del database
-    const gradoMapping = {
-      'E': 'E',
-      'C': 'N', 
-      'S': 'N',
-      'R': 'R',
-      'CO': 'CO'
-    };
-    const gradoDatabase = gradoMapping[grado_elezione] || grado_elezione;
-    
-    console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}`);
-    
-    // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
-    let userOpinions = null;
-    if (userId) {
-      // Prima ottieni le opinioni del grado specifico
-      const gradoOpinioniQuery = `
-        SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
-      `;
-      const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
-      const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
-      
-      console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}, Opinion trovate: ${opinioniDelGrado.length}`);
-      console.log(`🔍 DEBUG - Opinion IDs per grado ${gradoDatabase}:`, opinioniDelGrado);
-      
-      if (opinioniDelGrado.length > 0) {
-        // Costruisci la query dinamica per le colonne del grado specifico
-        const colonneQuery = opinioniDelGrado.join(', ');
-        const userAnswersQuery = `
-          SELECT user_id, ${colonneQuery} FROM opinioni_risposte WHERE user_id = $1
-        `;
-        
-        const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
-        userOpinions = {};
-        
-        console.log(`🔍 DEBUG - User answers query result:`, userAnswersResult.rows.length, 'righe');
-        
-        if (userAnswersResult.rows.length > 0) {
-          const userRow = userAnswersResult.rows[0];
-          console.log(`🔍 DEBUG - User row keys:`, Object.keys(userRow));
-          // Mappa solo le opinioni del grado specifico
-          opinioniDelGrado.forEach(opinionId => {
-            userOpinions[opinionId] = userRow[opinionId];
-          });
-          console.log(`🔍 DEBUG - User opinions mappate:`, userOpinions);
-        } else {
-          console.log(`🔍 DEBUG - Nessuna risposta utente trovata per userId: ${userId}`);
-        }
-      }
-    }
-    
-    // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
-    let candidati = result.rows;
-    
-    // Calcola opinioni comuni per ogni candidato (COPIA ESATTA dai candidati)
-    candidati = await Promise.all(candidati.map(async (candidato) => {
-      try {
-        if (!userOpinions) {
-          return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
-        }
 
-        // Carica le opinioni del rappresentante SOLO per il grado specifico
-        const gradoOpinioniQuery = `
-          SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
-        `;
-        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
-        const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
-        
-        if (opinioniDelGrado.length === 0) {
-          return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
-        }
-        
-        const colonneQuery = opinioniDelGrado.join(', ');
-        const candidatoAnswersQuery = `
-          SELECT user_id, ${colonneQuery} FROM opinioni_risposte WHERE user_id = $1
-        `;
-        const candidatoAnswersResult = await pool.query(candidatoAnswersQuery, [candidato.id]);
-        
-        if (candidatoAnswersResult.rows.length === 0) {
-          return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
-        }
-        
-        const candidatoData = {};
-        
-        if (candidatoAnswersResult.rows.length > 0) {
-          const candidatoRow = candidatoAnswersResult.rows[0];
-          // Mappa SOLO le opinioni del grado specifico
-          opinioniDelGrado.forEach(opinionId => {
-            candidatoData[opinionId] = candidatoRow[opinionId];
-          });
-        }
-        
-        // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
-        let opinioniComuni = 0;
-        
-        console.log(`🔍 DEBUG - User opinions keys:`, Object.keys(userOpinions || {}));
-        console.log(`🔍 DEBUG - Candidato data keys:`, Object.keys(candidatoData));
-        
-        if (userOpinions && Object.keys(userOpinions).length > 0) {
-          // Confronta solo le opinioni del grado specifico
-          Object.keys(userOpinions).forEach(opinionId => {
-            const candidatoValue = candidatoData[opinionId];
-            const userValue = userOpinions[opinionId];
-            
-            console.log(`🔍 DEBUG - Confronto opinione ${opinionId}: candidato=${candidatoValue}, user=${userValue}`);
-            
-            // Conta come opinione comune SOLO se:
-            // 1. Entrambi hanno risposto (non null)
-            // 2. Le risposte sono identiche
-            if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
-              opinioniComuni++;
-              console.log(`✅ OPINIONE COMUNE (${grado_elezione}): ${opinionId} = "${candidatoValue}"`);
-            }
-          });
-        }
-        
-        console.log(`🔍 DEBUG - Candidato ${candidato.id} ha ${opinioniComuni} opinioni comuni`);
-        
-        return { ...candidato, opinioni_comuni: opinioniComuni, opinioniComuni };
-      } catch (error) {
-        console.error('❌ Errore nel calcolo opinioni comuni per candidato:', candidato.id, error);
-        return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
-      }
-    }));
-    
-    // Senza almeno una risposta dell'utente non esiste un match: non mostrare una directory alfabetica.
-    if (!hasAnsweredOpinions(userOpinions)) {
-      candidati = [];
-    }
-    
-    // Ordina per opinioni comuni (decrescente) e poi per cognome
-    candidati.sort((a, b) => {
-      if (b.opinioniComuni !== a.opinioniComuni) {
-        return b.opinioniComuni - a.opinioniComuni;
-      }
-      return a.cognome.localeCompare(b.cognome);
+    const office = resolvePoliticalOffice(grado_elezione);
+    const gradoDatabase = office?.opinionGrade || grado_elezione;
+
+    console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}`);
+
+    // Matching DEMOS: gate utente 100%, matrice +3/+1/0/-1, percentuale e copertura.
+    const matching = await buildPoliticalMatches({
+      pool,
+      userId,
+      subjects: result.rows,
+      grade: gradoDatabase
     });
-    
-    // Limita ai primi 4 candidati più compatibili
-    candidati = candidati.slice(0, 4);
-    
-    // Debug temporaneo per vedere se opinioniComuni è presente
-    console.log('🔍 DEBUG - Rappresentanti finali:');
-    candidati.forEach((candidato, index) => {
-      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: opinioniComuni=${candidato.opinioniComuni}`);
-    });
-    
-    
+
+    let candidati = matching.matches.slice(0, 4);
+
+    console.log('🔍 DEBUG - Rappresentanti finali matching:', candidati.map((candidato) => ({
+      id: candidato.id,
+      score: candidato.matching_score,
+      compatibilita: candidato.compatibilita_percentuale,
+      copertura: `${candidato.copertura_posizioni}/${candidato.copertura_totale}`
+    })));
+
     // Assicurati che ogni candidato abbia un avatar_config valido
     candidati = candidati.map(candidato => {
       let avatarConfig = candidato.avatar_config;
-      
+
       // Fix per avatar_config doppio-encoded (rimuove virgolette extra)
       if (avatarConfig && typeof avatarConfig === 'string' && avatarConfig.startsWith('"') && avatarConfig.endsWith('"')) {
         try {
@@ -209,13 +83,13 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           avatarConfig = null;
         }
       }
-      
+
       // Se non c'è avatar_config o è vuoto, genera uno di default
       if (!avatarConfig || avatarConfig === '{}' || avatarConfig === 'null') {
         // Genera un avatar_config di default basato sul nome per varietà
         const defaultConfig = {
           skinColor: "#FDBCB4",
-          hairColor: "#8B4513", 
+          hairColor: "#8B4513",
           hairStyle: "short",
           mustacheStyle: "none",
           mustacheColor: "#2C1810",
@@ -227,7 +101,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           glassesStyle: "none",
           glassesColor: "#2C3E50"
         };
-      
+
         // Varia i colori in base al nome per diversità
         const nameHash = candidato.nome ? candidato.nome.charCodeAt(0) : 0;
         const colors = [
@@ -237,11 +111,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           { suit: "#5D6D7E", tie: "#9B59B6" }, // Grigio + viola
           { suit: "#1A237E", tie: "#FF5722" }  // Blu navy + arancione
         ];
-        
+
         const colorIndex = nameHash % colors.length;
         defaultConfig.suitColor = colors[colorIndex].suit;
         defaultConfig.tieColor = colors[colorIndex].tie;
-        
+
         avatarConfig = JSON.stringify(defaultConfig);
       } else if (avatarConfig) {
         // Se c'è già un avatar_config, assicurati che abbia tutti i campi necessari
@@ -282,28 +156,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           avatarConfig = JSON.stringify(defaultConfig);
         }
       }
-      
+
       return {
         ...candidato,
         avatar_config: avatarConfig // avatarConfig è già una stringa JSON
       };
     });
-    
-    // Ottieni i dati dell'utente corrente per il rappresentante selezionato
-    const userQuery = `
-      SELECT 
-        rappresentante_europeo,
-        rappresentante_camera,
-        rappresentante_senato,
-        rappresentante_regionale,
-        rappresentante_comune
-      FROM users
-      WHERE id = $1
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId]);
-    const utente = userResult.rows[0] || {};
-    
+
+    const selectionState = await loadRepresentativeSelectionProjection(userId);
+    const utente = selectionState.projection;
+
     // Mappa i nomi delle colonne per mantenere compatibilità con il frontend
     const utenteMapped = {
       rappresentante_europeo: utente.rappresentante_europeo,
@@ -312,15 +174,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       rappresentante_regione: utente.rappresentante_regionale, // Mappa il nome corretto
       rappresentante_comune: utente.rappresentante_comune
     };
-    
+
     res.json({
       success: true,
       data: {
         candidati: candidati,
-        utente: utenteMapped
+        utente: utenteMapped,
+        matching: {
+          userComplete: matching.isComplete,
+          totalOpinions: matching.totalOpinions,
+          answeredOpinions: matching.answeredOpinions,
+          missingOpinions: matching.missingOpinions
+        },
+        eligibility: { source: eligibility.source, strict: eligibility.strict, reason: eligibility.reason }
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Errore nel recuperare rappresentanti disponibili:', error);
     console.error('❌ Stack trace:', error.stack);
@@ -343,22 +212,10 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/rappresentanti - Richiesta rappresentanti');
     const userId = req.userId;
-    
-    // Ottieni i rappresentanti selezionati dall'utente
-    const userQuery = `
-      SELECT 
-        rappresentante_europeo,
-        rappresentante_camera,
-        rappresentante_senato,
-        rappresentante_regionale,
-        rappresentante_comune
-      FROM users
-      WHERE id = $1
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId]);
-    const user = userResult.rows[0] || {};
-    
+
+    const selectionState = await loadRepresentativeSelectionProjection(userId);
+    const user = selectionState.projection;
+
     console.log('🔍 DEBUG Backend - User data:', {
       userId,
       rappresentante_europeo: user.rappresentante_europeo,
@@ -367,41 +224,35 @@ router.get('/', verifyToken, async (req, res) => {
       rappresentante_regionale: user.rappresentante_regionale,
       rappresentante_comune: user.rappresentante_comune
     });
-    
+
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
     const idMap = {};
-    
+
     // Lista dei campi rappresentante
-    const campiRappresentante = [
-      { campo: 'rappresentante_europeo', categoria: 'europeo' },
-      { campo: 'rappresentante_camera', categoria: 'camera' },
-      { campo: 'rappresentante_senato', categoria: 'senato' },
-      { campo: 'rappresentante_regionale', categoria: 'regione' },
-      { campo: 'rappresentante_comune', categoria: 'comune' }
-    ];
-    
+    const campiRappresentante = REPRESENTATIVE_SELECTION_DESCRIPTORS.map(({ field, category }) => ({ campo: field, categoria: category }));
+
     for (const { campo, categoria } of campiRappresentante) {
       const rappresentanteId = user[campo];
-      
+
       if (rappresentanteId) {
         console.log(`🔍 DEBUG Backend - Trovato rappresentante per ${categoria}: ${rappresentanteId}`);
         // Ottieni i dettagli del rappresentante
         const rappresentanteQuery = `
-          SELECT 
+          SELECT
             id,
             nome,
             cognome,
-            
+
             ruolo,
             status,
             avatar_config
           FROM users
           WHERE id = $1
         `;
-        
+
         const rappresentanteResult = await pool.query(rappresentanteQuery, [rappresentanteId]);
-        
+
         if (rappresentanteResult.rows.length > 0) {
           const rappresentante = rappresentanteResult.rows[0];
           rappresentantiSelezionati[categoria] = [rappresentante];
@@ -414,10 +265,10 @@ router.get('/', verifyToken, async (req, res) => {
         console.log(`🔍 DEBUG Backend - Nessun rappresentante per ${categoria}`);
       }
     }
-    
+
     console.log('🔍 DEBUG Backend - Rappresentanti selezionati finali:', rappresentantiSelezionati);
     console.log('🔍 DEBUG Backend - idMap finale:', idMap);
-    
+
     const responseData = {
       success: true,
       data: {
@@ -425,9 +276,9 @@ router.get('/', verifyToken, async (req, res) => {
         idMap
       }
     };
-    
+
     console.log('🔍 DEBUG Backend - Response data:', JSON.stringify(responseData, null, 2));
-    
+
     res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recuperare rappresentanti:', error);
@@ -439,19 +290,19 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/rappresentanti - Assegna rappresentante
-router.post('/', verifyToken, validateInput(['rappresentante_id', 'categoria_id']), async (req, res) => {
+router.post('/', verifyToken, requireVerifiedCivicIdentity, validateInput(['rappresentante_id', 'categoria_id']), async (req, res) => {
   try {
     const { rappresentante_id, categoria_id } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
-    
+
     const query = `
       INSERT INTO rappresentanti (utente_id, rappresentante_id, categoria_id, created_at)
       VALUES ($1, $2, $3, NOW())
       RETURNING *
     `;
-    
+
     const result = await pool.query(query, [userId, rappresentante_id, categoria_id]);
-    
+
     res.json({
       success: true,
       rappresentante: result.rows[0]
@@ -469,23 +320,23 @@ router.post('/', verifyToken, validateInput(['rappresentante_id', 'categoria_id'
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({
         success: false,
         error: 'ID rappresentante richiesto'
       });
     }
-    
+
     const result = await pool.query('DELETE FROM rappresentanti WHERE id = $1 RETURNING *', [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Rappresentante non trovato'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Rappresentante rimosso'

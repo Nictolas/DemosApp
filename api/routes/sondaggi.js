@@ -3,6 +3,7 @@ const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
 const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
 const { decompressGender } = require('../utils/genderUtils');
+const { MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize, cellThresholdMet } = require('../utils/politicalAggregatePrivacy');
 
 const router = express.Router();
 
@@ -63,13 +64,12 @@ router.get('/', async (req, res) => {
           COUNT(*) as totale_voti,
           COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
           COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND u.account_type = 'PERSON'
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
       `;
       
@@ -87,12 +87,15 @@ router.get('/', async (req, res) => {
           });
         }
         
-        stats[questionId] = {
+        const aggregate = {
           favorevole: parseInt(row.favorevole) || 0,
           contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0,
-          astenuto: parseInt(row.astenuto) || 0
+          indeciso: parseInt(row.indeciso) || 0
         };
+        if (!cellThresholdMet(aggregate)) {
+          continue;
+        }
+        stats[questionId] = aggregate;
         
         questions.push({
           id: questionId,
@@ -388,13 +391,12 @@ router.get('/:regione', async (req, res) => {
           COUNT(*) as totale_voti,
           COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
           COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND u.account_type = 'PERSON'
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
         AND u.regione_residenza = $1
       `;
@@ -403,12 +405,15 @@ router.get('/:regione', async (req, res) => {
         const statsResult = await pool.query(statsQuery, [regionCode]);
         const row = statsResult.rows[0];
         
-        stats[questionId] = {
+        const aggregate = {
           favorevole: parseInt(row.favorevole) || 0,
           contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0,
-          astenuto: parseInt(row.astenuto) || 0
+          indeciso: parseInt(row.indeciso) || 0
         };
+        if (!cellThresholdMet(aggregate)) {
+          continue;
+        }
+        stats[questionId] = aggregate;
         
         questions.push({
           id: questionId,
@@ -504,13 +509,12 @@ router.get('/:regione/:provincia', async (req, res) => {
           COUNT(*) as totale_utenti,
           COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
           COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND u.account_type = 'PERSON'
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
@@ -520,12 +524,15 @@ router.get('/:regione/:provincia', async (req, res) => {
         const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode]);
         const row = statsResult.rows[0];
         
-        stats[questionId] = {
+        const aggregate = {
           favorevole: parseInt(row.favorevole) || 0,
           contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0,
-          astenuto: parseInt(row.astenuto) || 0
+          indeciso: parseInt(row.indeciso) || 0
         };
+        if (!cellThresholdMet(aggregate)) {
+          continue;
+        }
+        stats[questionId] = aggregate;
         
         questions.push({
           id: questionId,
@@ -623,13 +630,12 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
           COUNT(*) as totale_utenti,
           COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
           COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN orr."${columnName}" IS NULL THEN 1 END) as astenuto
+          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
         FROM opinioni_risposte orr
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND u.account_type = 'PERSON'
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
@@ -640,12 +646,15 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
         const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode, comuneName]);
         const row = statsResult.rows[0];
         
-        stats[questionId] = {
+        const aggregate = {
           favorevole: parseInt(row.favorevole) || 0,
           contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0,
-          astenuto: parseInt(row.astenuto) || 0
+          indeciso: parseInt(row.indeciso) || 0
         };
+        if (!cellThresholdMet(aggregate)) {
+          continue;
+        }
+        stats[questionId] = aggregate;
         
         questions.push({
           id: questionId,

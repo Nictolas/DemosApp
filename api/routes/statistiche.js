@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { remember, isEnabled } = require('../services/redisCache');
+const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { keys, ttl } = require('../config/cacheKeys');
 require('dotenv').config();
 
@@ -14,13 +15,19 @@ const pool = getPool();
 router.get('/utenti', async (req, res) => {
   try {
     const body = await remember(keys.statisticheUtenti, ttl.statistiche, async () => {
-      const result = await pool.query(`
-      SELECT 
-        COUNT(*) as totale_utenti,
-        COUNT(CASE WHEN status = 'A' OR status = 'a' THEN 1 END) as utenti_verificati,
-        COUNT(CASE WHEN ruolo = 'AD' THEN 1 END) as admin
-      FROM users
-    `);
+      const result = await queryWithAccountModelFallback(
+        pool,
+        `SELECT
+           COUNT(*) as totale_utenti,
+           COUNT(CASE WHEN status = 'A' OR status = 'a' THEN 1 END) as utenti_verificati,
+           COUNT(CASE WHEN is_admin = TRUE THEN 1 END) as admin
+         FROM users`,
+        `SELECT
+           COUNT(*) as totale_utenti,
+           COUNT(CASE WHEN status = 'A' OR status = 'a' THEN 1 END) as utenti_verificati,
+           COUNT(CASE WHEN ruolo = 'AD' THEN 1 END) as admin
+         FROM users`
+      );
       return {
         success: true,
         data: result.rows[0]

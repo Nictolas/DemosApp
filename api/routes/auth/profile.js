@@ -4,6 +4,7 @@ const { decompressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation } = require('../../utils/locationUtils');
 const { verifyAccessToken, verifyOAuthPendingToken } = require('../../utils/jwt');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
+const { getAccountSubject } = require('../../services/accountCapabilitiesService');
 
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
@@ -122,6 +123,7 @@ router.get('/me', async (req, res) => {
     }
 
     const user = result.rows[0];
+    const accountSubject = await getAccountSubject(pool, user.id);
     const emailDecrypted = decryptEmail(user.email);
     if (user.email != null) user.email = emailDecrypted;
     console.log('✅ Profilo utente recuperato:', emailDecrypted ? '(email presente)' : '(nessuna email)');
@@ -149,7 +151,13 @@ router.get('/me', async (req, res) => {
         regione_residenza: user.regione_residenza,
         provincia_residenza: user.provincia_residenza,
         comune_residenza: user.comune_residenza,
-        ruolo: user.ruolo,
+        ruolo: accountSubject?.legacyRole || user.ruolo,
+        account_type: accountSubject?.capabilities?.accountType || null,
+        is_admin: accountSubject?.capabilities?.isAdmin ?? (user.ruolo === 'AD'),
+        is_activist: accountSubject?.capabilities?.isActivist ?? (user.ruolo === 'A'),
+        is_candidate: accountSubject?.capabilities?.isCandidate ?? ['C', 'CP'].includes(user.ruolo),
+        is_politician: accountSubject?.capabilities?.isPolitician ?? ['P', 'CP'].includes(user.ruolo),
+        capabilities: accountSubject?.capabilities || null,
         grado_elezione: user.grado_elezione,
         paese_elezione: user.paese_elezione,
         regione_elezione: user.regione_elezione,

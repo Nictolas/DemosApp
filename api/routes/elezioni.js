@@ -1,361 +1,149 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
-const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
+const { listElectionEvents, listRelevantElectionEvents } = require('../services/electionEventService');
+const { listEligibleCandidates } = require('../services/politicalEligibilityService');
+const { buildPoliticalMatches } = require('../services/politicalMatchingService');
+const {
+  resolvePoliticalOffice,
+  getOpinionGradeForOffice,
+  getLegacySelectionDescriptors,
+} = require('../services/politicalJurisdictionRegistryService');
 
 const router = express.Router();
+const CANDIDATE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('candidate'));
 
-// GET /api/elezioni/prossime - Ottieni le prossime elezioni
+// GET /api/elezioni/prossime - Elezioni future dal modello canonico eventi.
 router.get('/prossime', async (req, res) => {
   try {
-    const query = `
-      SELECT * FROM elezioni 
-      WHERE createdat > NOW() 
-      ORDER BY createdat ASC 
-      LIMIT 5
-    `;
-    
-    const result = await pool.query(query);
-    res.json({
-      success: true,
-      elezioni: result.rows
-    });
+    const elezioni = await listElectionEvents(pool, { upcomingOnly: true, limit: 5 });
+    return res.json({ success: true, elezioni });
   } catch (error) {
-    console.error('❌ Errore nel recuperare elezioni:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare elezioni'
-    });
+    console.error('❌ Errore nel recuperare elezioni future:', error);
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare elezioni' });
   }
 });
 
-// GET /api/elezioni - Ottieni tutte le elezioni (per gestione)
+// GET /api/elezioni - Lista elezioni canoniche. created_at è solo metadato, non la data elettorale.
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const query = `
-      SELECT * FROM elezioni 
-      ORDER BY createdat DESC
-    `;
-    
-    const result = await pool.query(query);
-    
-    res.json({
-      success: true,
-      elezioni: result.rows
-    });
+    const elezioni = await listElectionEvents(pool);
+    return res.json({ success: true, elezioni });
   } catch (error) {
     console.error('❌ Errore nel recuperare elezioni:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare elezioni'
-    });
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare elezioni' });
   }
 });
 
-// GET /api/elezioni-utente - Ottieni elezioni per utente (endpoint principale)
+// GET /api/elezioni/utente - Elezioni future pertinenti al territorio/circoscrizione dell'utente.
 router.get('/utente', verifyToken, async (req, res) => {
   try {
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
-    
-    const query = `
-      SELECT e.*, 
-             CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END as ha_votato
-      FROM elezioni e
-      LEFT JOIN voti_elezioni v ON e.id = v.elezione_id AND v.user_id = $1
-      WHERE e.createdat > NOW()
-      ORDER BY e.createdat ASC
-    `;
-    
-    const result = await pool.query(query, [userId]);
-    
-    res.json({
-      success: true,
-      elezioni: result.rows
-    });
+    const elezioni = await listRelevantElectionEvents(pool, req.userId);
+    return res.json({ success: true, elezioni });
   } catch (error) {
     console.error('❌ Errore nel recuperare elezioni utente:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare elezioni utente'
-    });
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare elezioni utente' });
   }
 });
 
-// GET /api/elezioni-utente/disponibili - Ottieni candidati disponibili per grado e categoria
-router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
+// GET compatibilità candidati elettorali. Il motore autorevole è politicalEligibilityService.
+router.get(['/disponibili', '/elezioni-utente/disponibili'], verifyToken, async (req, res) => {
   try {
     const { grado, categoria } = req.query;
-    const userId = req.userId;
-    
-    console.log('🔍 DEBUG /api/elezioni-utente/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
-    
-    // Query per ottenere utenti con ruolo "Candidato" o "Candidato Politico" dalla tabella users
-    // Filtra per grado_candidatura in base al parametro grado ricevuto
-    let gradoFilter = '';
-    let queryParams = [];
-    
-    if (grado) {
-      // Mappa i gradi dal frontend ai valori del database (compressi)
-      const gradoMapping = {
-        'Europeo': 'E',
-        'Nazionale': 'N',
-        'Camera': 'C',
-        'Senato': 'S', 
-        'Regionale': 'R',
-        'Comunale': 'CO'
-      };
-      
-      const mappedGrado = gradoMapping[grado] || grado;
-      gradoFilter = `AND grado_candidatura = $1`;
-      queryParams.push(mappedGrado);
+    const raw = String(grado || '').trim();
+    const category = String(categoria || '').trim();
+    let office = resolvePoliticalOffice(raw);
+    if (!office && ['nazionale', 'nazionali', 'n', 'national'].includes(raw.toLowerCase())) {
+      office = resolvePoliticalOffice(category);
     }
-    
-    const query = `
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        status,
-        avatar_config,
-        grado_candidatura,
-        regione_candidatura,
-        provincia_candidatura,
-        comune_candidatura,
-        grado_elezione,
-        regione_elezione,
-        provincia_elezione,
-        comune_elezione,
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento
-      FROM users
-      WHERE (ruolo = 'C' OR ruolo = 'CP')
-        ${gradoFilter}
-      ORDER BY cognome, nome
-    `;
-    
-    const result = await pool.query(query, queryParams);
-    
-    console.log('🔍 DEBUG /api/elezioni-utente/disponibili - Utenti trovati:', result.rows.length);
-    
-    // Processa i candidati per il frontend
-    let candidati = result.rows.map(candidato => {
-      let avatarConfig = candidato.avatar_config;
-      
-      // Se avatar_config è null o vuoto, crea una configurazione di default
-      if (!avatarConfig) {
-        const defaultConfig = {
-          style: 'adventurer',
-          seed: `${candidato.nome}-${candidato.cognome}`,
-          backgroundColor: ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'],
-          backgroundType: 'gradientLinear',
-          backgroundRotation: 0,
-          scale: 100,
-          translateX: 0,
-          translateY: 0,
-          rotate: 0,
-          flip: false,
-          accessoriesProbability: 100,
-          clothingProbability: 100,
-          clothingColor: ['262e33', '65c9ff', '5199e4', '25557c', '000000', '3c4f5c', 'ae5d29', 'ca9077', 'd63384', 'f06292'],
-          eyesProbability: 100,
-          eyebrowsProbability: 100,
-          facialHairProbability: 100,
-          glassesProbability: 100,
-          hairProbability: 100,
-          hairColor: ['auburn', 'black', 'blonde', 'blondeGolden', 'brown', 'brownDark', 'gray', 'red', 'silverGray'],
-          mouthProbability: 100,
-          mustacheProbability: 100,
-          skinProbability: 100,
-          skinColor: ['edb98a', 'f8d25c', 'fd9841', 'f8d25c', 'd08b5b', 'ae5d29', '614335', 'fd9841'],
-          topProbability: 100,
-          topType: ['NoHair', 'Eyepatch', 'Hat', 'Hijab', 'Turban', 'WinterHat1', 'WinterHat2', 'WinterHat3', 'WinterHat4', 'LongHairBigHair', 'LongHairBob', 'LongHairBun', 'LongHairCurly', 'LongHairCurvy', 'LongHairDreads', 'LongHairFrida', 'LongHairFro', 'LongHairFroBand', 'LongHairNotTooLong', 'LongHairShavedSides', 'LongHairMiaWallace', 'LongHairStraight', 'LongHairStraight2', 'LongHairStraightStrand', 'ShortHairDreads01', 'ShortHairDreads02', 'ShortHairFrizzle', 'ShortHairShaggyMullet', 'ShortHairShortCurly', 'ShortHairShortFlat', 'ShortHairShortRound', 'ShortHairShortWaved', 'ShortHairSides', 'ShortHairTheCaesar', 'ShortHairTheCaesarSidePart']
-        };
-        avatarConfig = JSON.stringify(defaultConfig);
-      }
-      
-      return {
-        ...candidato,
-        avatar_config: avatarConfig // avatarConfig è già una stringa JSON
-      };
+    const candidateGrade = office?.aliases?.[0] || null;
+    if (!candidateGrade) {
+      return res.status(400).json({
+        success: false,
+        error: 'GRADO_ELEZIONE_NON_VALIDO',
+        message: 'Per il livello nazionale specifica Camera o Senato.'
+      });
+    }
+
+    const eligibility = await listEligibleCandidates(pool, req.userId, candidateGrade);
+    const opinionGrade = getOpinionGradeForOffice(candidateGrade) || candidateGrade;
+    const matching = await buildPoliticalMatches({
+      pool,
+      userId: req.userId,
+      subjects: eligibility.subjects,
+      grade: opinionGrade
     });
-    
-    // Ottieni i dati dell'utente corrente per il candidato selezionato
-    const userQuery = `
-      SELECT 
-        candidato_europeo,
-        candidato_camera,
-        candidato_senato,
-        candidato_regionale,
-        candidato_comune
-      FROM users
-      WHERE id = $1
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId]);
-    const utente = userResult.rows[0] || {};
-    
-    // Mappa i nomi delle colonne per mantenere compatibilità con il frontend
-    const utenteMapped = {
-      candidato_europeo: utente.candidato_europeo,
-      candidato_camera: utente.candidato_camera,
-      candidato_senato: utente.candidato_senato,
-      candidato_regione: utente.candidato_regionale, // Mappa il nome corretto
-      candidato_comune: utente.candidato_comune
-    };
-    
-    res.json({
+
+    const selectionsResult = await pool.query(
+      `SELECT candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune
+       FROM users WHERE id = $1`,
+      [req.userId]
+    );
+    const selected = selectionsResult.rows[0] || {};
+    return res.json({
       success: true,
       data: {
-        candidati: candidati,
-        utente: utenteMapped
+        candidati: matching.matches.slice(0, 4),
+        utente: {
+          candidato_europeo: selected.candidato_europeo || null,
+          candidato_camera: selected.candidato_camera || null,
+          candidato_senato: selected.candidato_senato || null,
+          candidato_regione: selected.candidato_regionale || null,
+          candidato_comune: selected.candidato_comune || null
+        },
+        matching: {
+          userComplete: matching.isComplete,
+          totalOpinions: matching.totalOpinions,
+          answeredOpinions: matching.answeredOpinions,
+          missingOpinions: matching.missingOpinions
+        },
+        eligibility: { source: eligibility.source, strict: eligibility.strict, reason: eligibility.reason }
       }
     });
-    
   } catch (error) {
-    console.error('❌ Errore nel recuperare candidati disponibili:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare candidati disponibili'
-    });
+    console.error('❌ Errore nel recuperare candidati elettorali:', error);
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare candidati disponibili' });
   }
 });
 
-// GET /api/elezioni-utente/candidati - Ottieni candidati dell'utente (endpoint principale)
+// GET compatibilità selezioni candidati correnti.
 router.get('/candidati', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/elezioni-utente - Richiesta candidati');
-    const userId = req.userId;
-    console.log('🔍 DEBUG - userId:', userId);
-    
-    // Ottieni i candidati selezionati dall'utente
-    const userQuery = `
-      SELECT 
-        candidato_europeo,
-        candidato_camera,
-        candidato_senato,
-        candidato_regionale,
-        candidato_comune
-      FROM users
-      WHERE id = $1
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId]);
-    const user = userResult.rows[0] || {};
-    
-    console.log('🔍 DEBUG Frontend - Utente candidati selezionati:', user);
-    
-    // Ottieni i dettagli dei candidati selezionati
-    const candidatiSelezionati = {};
+    const selectionResult = await pool.query(
+      `SELECT candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune
+       FROM users WHERE id = $1`,
+      [req.userId]
+    );
+    const selected = selectionResult.rows[0] || {};
+    const fields = CANDIDATE_SELECTION_DESCRIPTORS.map(({ field, category }) => [field, category]);
+    const candidati = {};
     const idMap = {};
-    
-    // Lista dei campi candidato
-    const campiCandidato = [
-      { campo: 'candidato_europeo', categoria: 'europeo', grado: 'E' },
-      { campo: 'candidato_camera', categoria: 'camera', grado: 'C' },
-      { campo: 'candidato_senato', categoria: 'senato', grado: 'S' },
-      { campo: 'candidato_regionale', categoria: 'regione', grado: 'R' },
-      { campo: 'candidato_comune', categoria: 'comune', grado: 'CO' }
-    ];
-    
-    for (const { campo, categoria, grado } of campiCandidato) {
-      const candidatoId = user[campo];
-      
-      if (candidatoId) {
-        // Cerca il candidato selezionato tra tutti i candidati disponibili per quella categoria
-        const candidatoQuery = `
-          SELECT 
-            id,
-            nome,
-            cognome,
-            email,
-            ruolo,
-            status,
-            avatar_config
-          FROM users
-          WHERE id::text = $1
-          AND ruolo IN ('C', 'CP')
-          AND grado_candidatura = $2
-        `;
-        
-        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria} (grado: ${grado})`);
-        const candidatoResult = await pool.query(candidatoQuery, [candidatoId, grado]);
-        console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
-        const candidato = candidatoResult.rows[0];
-        
-        if (candidato) {
-          candidatiSelezionati[categoria] = [candidato];
-          idMap[categoria] = candidatoId;
-          console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
-        } else {
-          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e grado: ${grado}`);
-        }
+    for (const [field, category] of fields) {
+      const id = selected[field];
+      if (!id) continue;
+      const candidateResult = await pool.query(
+        `SELECT id, nome, cognome, ruolo, status, avatar_config FROM users WHERE id::text = $1 LIMIT 1`,
+        [String(id)]
+      );
+      if (candidateResult.rows[0]) {
+        candidati[category] = [candidateResult.rows[0]];
+        idMap[category] = String(id);
       }
     }
-    
-    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
-    console.log('🔍 DEBUG Frontend - ID Map finale:', idMap);
-    
-    res.json({
-      success: true,
-      data: {
-        candidati: candidatiSelezionati,
-        idMap: idMap
-      }
-    });
-    
+    return res.json({ success: true, data: { candidati, idMap } });
   } catch (error) {
-    console.error('❌ Errore nel recuperare candidati utente:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare candidati utente'
-    });
+    console.error('❌ Errore nel recuperare candidati selezionati:', error);
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare candidati utente' });
   }
 });
 
-
-// POST /api/elezioni - Crea nuova elezione
-router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'tipo', 'candidati']), async (req, res) => {
-  try {
-    const { titolo, descrizione, tipo, candidati } = req.body;
-    
-    const query = `
-      INSERT INTO elezioni (titolo, descrizione, tipo, candidati, createdat)
-      VALUES ($1, $2, $3, $4, NOW())
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [titolo, descrizione, tipo, JSON.stringify(candidati)]);
-    
-    res.json({
-      success: true,
-      elezione: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nella creazione elezione:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella creazione elezione'
-    });
-  }
+// POST /api/elezioni - Scrittura legacy disattivata: createdat non è una data elettorale.
+router.post('/', verifyToken, async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    error: 'LEGACY_ELECTION_WRITE_DISABLED',
+    message: 'La vecchia scrittura elezioni è disattivata. Le elezioni canoniche sono eventi elettorali con date reali e unità elettorali.'
+  });
 });
-
 
 module.exports = router;

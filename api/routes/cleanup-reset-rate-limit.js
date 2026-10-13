@@ -1,7 +1,9 @@
 const express = require('express');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { Pool } = require('pg');
 
 const router = express.Router();
+router.use(verifyToken, requireAdmin);
 
 // Endpoint temporaneo per resettare il rate limiting
 router.post('/reset-rate-limit', async (req, res) => {

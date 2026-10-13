@@ -22,7 +22,7 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
       });
     }
 
-    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+    if (String(req.userId) !== String(sostenuto_id) && !req.user?.isAdmin) {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato'
@@ -130,7 +130,7 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      supporters: req.userRole === 'AD' ? supporters : [],
+      supporters: req.user?.isAdmin ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,

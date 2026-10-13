@@ -3,6 +3,7 @@ const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
+const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
 
 const router = express.Router();
 
@@ -116,18 +117,29 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
     
     console.log('🔍 GET /api/users/consiglieri-comunali - Comune residenza:', comuneResidenza);
     
-    // Cerca consiglieri comunali con ruolo P, grado_elezione CO e comune_elezione = comune_residenza
-    const searchQuery = `
-      SELECT id, nome, cognome, email, comune_elezione
-      FROM users 
-      WHERE (ruolo = 'P' OR ruolo = 'Politico')
-        AND grado_elezione = 'CO'
-        AND comune_elezione = $1
-        AND status IN ('v', 'a')
-      ORDER BY cognome, nome
-    `;
-    
-    const result = await pool.query(searchQuery, [comuneResidenza]);
+    // Il mandato comunale attivo è autorevole; il ruolo legacy è solo fallback pre-migrazione.
+    const result = await queryWithAccountModelFallback(
+      pool,
+      `SELECT DISTINCT u.id, u.nome, u.cognome, u.email,
+              COALESCE(pm.jurisdiction->>'municipality', u.comune_elezione) AS comune_elezione
+         FROM users u
+         JOIN political_mandates pm ON pm.user_id = u.id
+          AND pm.status = 'ACTIVE'
+          AND pm.starts_at <= NOW()
+          AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
+          AND pm.office_code = 'CO'
+        WHERE LOWER(TRIM(COALESCE(pm.jurisdiction->>'municipality', u.comune_elezione, ''))) = LOWER(TRIM($1))
+          AND u.status IN ('v', 'a')
+        ORDER BY u.cognome, u.nome`,
+      `SELECT id, nome, cognome, email, comune_elezione
+         FROM users
+        WHERE (ruolo = 'P' OR ruolo = 'Politico')
+          AND grado_elezione = 'CO'
+          AND comune_elezione = $1
+          AND status IN ('v', 'a')
+        ORDER BY cognome, nome`,
+      [comuneResidenza]
+    );
     
     const consiglieri = result.rows.map(user => ({
       id: user.id,
@@ -450,13 +462,21 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     const { userId } = req.params;
     const updateData = req.body;
+
+    if (Object.prototype.hasOwnProperty.call(updateData || {}, 'ruolo')) {
+      return res.status(410).json({
+        success: false,
+        error: 'LEGACY_ROLE_MUTATION_RETIRED',
+        message: 'Il ruolo legacy è una proiezione: usa account type, capability, candidature o mandati.'
+      });
+    }
     
     console.log('🔍 DEBUG - userId:', userId);
     console.log('🔍 DEBUG - updateData:', updateData);
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza', 'ruolo',
+      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
@@ -484,11 +504,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
           filteredData[key] = normalizeGrado(updateData[key]);
           console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
         } 
-        // Applica compressione per il ruolo
-        else if (key === 'ruolo') {
-          filteredData[key] = ruoloCompressionMapping[updateData[key]] || updateData[key];
-          console.log(`🔧 Ruolo compresso:`, updateData[key], '→', filteredData[key]);
-        } else {
+        else {
           filteredData[key] = updateData[key];
         }
       }

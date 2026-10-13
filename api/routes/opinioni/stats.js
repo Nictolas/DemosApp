@@ -1,8 +1,13 @@
 const express = require('express');
-const { verifyToken } = require('../../middleware/auth');
+const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
 const { compressRegione, decompressRegione } = require('../../utils/locationUtils');
 const { decompressGender } = require('../../utils/genderUtils');
+const {
+  MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize,
+  cellThresholdMet,
+  suppressSmallCells
+} = require('../../utils/politicalAggregatePrivacy');
 
 const router = express.Router();
 
@@ -26,7 +31,7 @@ router.get('/candidati', async (req, res) => {
 });
 
 // GET /api/opinioni/debug - Debug completo opinioni
-router.get('/debug', verifyToken, async (req, res) => {
+router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 DEBUG - Richiesta debug opinioni');
     
@@ -172,13 +177,12 @@ router.get('/stats/:opinionId', async (req, res) => {
         COUNT(*) as totale_utenti,
         COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
         COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso
       FROM opinioni_risposte orr
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+      AND u.account_type = 'PERSON'
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
     `;
     
@@ -201,17 +205,20 @@ router.get('/stats/:opinionId', async (req, res) => {
     const favorevole = parseInt(stats.favorevole) || 0;
     const contrario = parseInt(stats.contrario) || 0;
     const indeciso = parseInt(stats.indeciso) || 0;
-    const astenuto = parseInt(stats.astenuto) || 0;
     
+    if (!cellThresholdMet({ favorevole, contrario, indeciso })) {
+      return res.json({
+        success: true,
+        data: { suppressed: true, minimumCellSize, questionText }
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        stats: {
-          favorevole,
-          contrario,
-          indeciso,
-          astenuto
-        },
+        suppressed: false,
+        minimumCellSize,
+        stats: { favorevole, contrario, indeciso },
         questionText,
         totaleUtenti
       }
@@ -330,7 +337,7 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr.${columnName} IS NOT NULL
-        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND u.account_type = 'PERSON'
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.data_nascita IS NOT NULL
       )
@@ -338,8 +345,7 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
         fascia_eta,
         COUNT(CASE WHEN opinione_valore = 'f' THEN 1 END) as favorevole,
         COUNT(CASE WHEN opinione_valore = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN opinione_valore = 'i' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN opinione_valore IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN opinione_valore = 'i' THEN 1 END) as indeciso
       FROM eta_groups
       GROUP BY fascia_eta
       ORDER BY 
@@ -358,7 +364,8 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
     
     res.json({
       success: true,
-      data: etaResult.rows
+      minimumCellSize,
+      data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche età opinione:', error);
@@ -455,13 +462,12 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
         u.genere,
         COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
         COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso
       FROM opinioni_risposte orr
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+      AND u.account_type = 'PERSON'
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
       AND u.genere IS NOT NULL
       GROUP BY u.genere
@@ -478,7 +484,8 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
     
     res.json({
       success: true,
-      data: decompressedData
+      minimumCellSize,
+      data: suppressSmallCells(decompressedData)
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche genere opinione:', error);
@@ -588,13 +595,12 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
         COUNT(*) as totale_utenti,
         COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
         COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso
       FROM opinioni_risposte orr
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+      AND u.account_type = 'PERSON'
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
       AND u.regione_residenza = $1
     `;
@@ -616,17 +622,20 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
     const favorevole = parseInt(stats.favorevole) || 0;
     const contrario = parseInt(stats.contrario) || 0;
     const indeciso = parseInt(stats.indeciso) || 0;
-    const astenuto = parseInt(stats.astenuto) || 0;
     
+    if (!cellThresholdMet({ favorevole, contrario, indeciso })) {
+      return res.json({
+        success: true,
+        data: { suppressed: true, minimumCellSize, questionText, regione: regionName }
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        stats: {
-          favorevole,
-          contrario,
-          indeciso,
-          astenuto
-        },
+        suppressed: false,
+        minimumCellSize,
+        stats: { favorevole, contrario, indeciso },
         questionText,
         totaleUtenti,
         regione: regionName
@@ -726,7 +735,7 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr.${columnName} IS NOT NULL
-        AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+        AND u.account_type = 'PERSON'
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.data_nascita IS NOT NULL
         AND u.regione_residenza = $1
@@ -735,8 +744,7 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
         fascia_eta,
         COUNT(CASE WHEN opinione_valore = 'f' THEN 1 END) as favorevole,
         COUNT(CASE WHEN opinione_valore = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN opinione_valore = 'i' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN opinione_valore IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN opinione_valore = 'i' THEN 1 END) as indeciso
       FROM eta_groups
       GROUP BY fascia_eta
       ORDER BY 
@@ -755,7 +763,8 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
     
     res.json({
       success: true,
-      data: etaResult.rows
+      minimumCellSize,
+      data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche età opinione regionale:', error);
@@ -839,13 +848,12 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
         u.genere,
         COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
         COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso
       FROM opinioni_risposte orr
       JOIN users u ON u.id = orr.user_id
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE orr.${columnName} IS NOT NULL
-      AND u.ruolo IN ('E', 'A', 'Elettore', 'Attivista')
+      AND u.account_type = 'PERSON'
       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
       AND u.genere IS NOT NULL
       AND u.regione_residenza = $1
@@ -857,7 +865,8 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
     
     res.json({
       success: true,
-      data: genereResult.rows
+      minimumCellSize,
+      data: suppressSmallCells(genereResult.rows)
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche genere opinione regionale:', error);

@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { getPool } = require('../config/database');
+const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
 
 const router = express.Router();
 
@@ -53,30 +54,22 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
     const mieiVoti = mieiVotiResult.rows.map(row => row.nome);
 
-    // Controlla se l'utente è bloccato (Admin può sempre votare)
-    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-    const userResult = await pool.query(userQuery, [userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-
-    // Verifica se l'utente è admin (A, AD, Admin)
-    const isAdmin = userRole === 'Admin' || userRole === 'AD' || userRole === 'A';
+    // Il privilegio Admin deriva dalle capability risolte da verifyToken.
+    const isAdmin = Boolean(req.user?.isAdmin);
 
     let blocco = { is_blocked: false, unlock_date: null };
-    
-    if (!isAdmin) {
-      const bloccoQuery = `
-        SELECT 
-          CASE 
-            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-            ELSE false
-          END as is_blocked,
-          MAX(timestamp) + INTERVAL '7 days' as unlock_date
-        FROM ${tableName}
-        WHERE userid = $1
-      `;
 
-      const bloccoResult = await pool.query(bloccoQuery, [userId]);
-      blocco = bloccoResult.rows[0] || { is_blocked: false, unlock_date: null };
+    if (!isAdmin) {
+      const lastChangeResult = await pool.query(
+        `SELECT MAX(timestamp) AS last_changed_at FROM ${tableName} WHERE userid = $1`,
+        [userId]
+      );
+      const cooldown = await getPreferenceCooldown(pool, {
+        userId,
+        scope: `governo:${categoria}`,
+        fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
+      });
+      blocco = { is_blocked: cooldown.isBlocked, unlock_date: cooldown.unlockDate };
     }
 
     console.log(`🔍 DEBUG - Risposta API ministero/${categoria}/voti:`);
@@ -133,35 +126,36 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
 
     const tableName = `voti_${categoria}`;
 
-    // Controlla se l'utente è bloccato (Admin può sempre votare)
-    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-    const userResult = await pool.query(userQuery, [userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    
-    // Verifica se l'utente è admin (A, AD, Admin)
-    const isAdmin = userRole === 'Admin' || userRole === 'AD' || userRole === 'A';
-    
-    if (!isAdmin) {
-      const bloccoQuery = `
-        SELECT 
-          CASE 
-            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-            ELSE false
-          END as is_blocked
-        FROM ${tableName}
-        WHERE userid = $1
-      `;
+    // Il privilegio Admin deriva dalle capability risolte da verifyToken.
+    const isAdmin = Boolean(req.user?.isAdmin);
+    const requestedVotes = [...new Set(voti.filter(Boolean).map((nome) => String(nome).trim()).filter(Boolean))];
+    const existingResult = await pool.query(
+      `SELECT nome_display AS nome, timestamp
+       FROM ${tableName}
+       WHERE userid = $1
+       ORDER BY timestamp DESC`,
+      [userId]
+    );
+    const currentVotes = [...new Set(existingResult.rows.map((row) => String(row.nome || '').trim()).filter(Boolean))];
+    const samePreference =
+      currentVotes.length === requestedVotes.length &&
+      [...currentVotes].sort().every((value, index) => value === [...requestedVotes].sort()[index]);
 
-      const bloccoResult = await pool.query(bloccoQuery, [userId]);
-      const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
-
-      if (isBlocked) {
-        return res.status(403).json({
-          success: false,
-          error: 'Non puoi modificare i voti più di una volta a settimana'
-        });
-      }
+    if (samePreference) {
+      return res.json({ success: true, message: 'Preferenza già aggiornata' });
     }
+
+    const lastChangedAt = existingResult.rows
+      .map((row) => row.timestamp)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null;
+
+    await assertPreferenceChangeAllowed(pool, {
+      userId,
+      scope: `governo:${categoria}`,
+      fallbackChangedAt: lastChangedAt,
+      isAdmin
+    });
 
     // Inizia transazione
     const client = await pool.connect();
@@ -175,7 +169,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
       );
 
       // Inserisci i nuovi voti
-      for (const nome of voti) {
+      for (const nome of requestedVotes) {
         if (nome && nome.trim()) {
           const nomeKey = nome.trim().toLowerCase();
           const nomeDisplay = nome.trim().split(' ').map(w => 
@@ -189,6 +183,8 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
           );
         }
       }
+
+      await recordPreferenceChange(client, { userId, scope: `governo:${categoria}` });
 
       await client.query('COMMIT');
       
@@ -206,6 +202,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
     }
 
   } catch (error) {
+    if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel salvare voti ministero:', error);
     res.status(500).json({
       success: false,

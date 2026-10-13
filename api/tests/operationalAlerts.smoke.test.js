@@ -1,0 +1,54 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+
+const service = read('api/services/operationalAlertService.js');
+const logger = read('api/services/centralizedLogger.js');
+const notifications = read('api/services/notificationService.js');
+const app = read('api/app.js');
+
+test('operational alerts target Admin capability with legacy fallback only', () => {
+  assert.match(service, /columnExists\('users', 'is_admin'\)/);
+  assert.match(service, /COALESCE\(is_admin, FALSE\) = TRUE/);
+  assert.match(service, /columnExists\('users', 'ruolo'\)/);
+  assert.match(service, /ruolo = 'AD'/);
+});
+
+test('alerts persist privately for Admin and use canonical active FCM device tokens', () => {
+  assert.match(service, /INSERT INTO notifiche_demos/);
+  assert.match(service, /id_utente/);
+  assert.match(service, /FROM user_devices/);
+  assert.match(service, /is_active = TRUE/);
+  assert.match(service, /getFirebaseAdmin/);
+  assert.match(service, /firebaseAdmin\.messaging\(\)\.send/);
+});
+
+test('push content is minimal and does not ship stack traces or raw error details', () => {
+  assert.doesNotMatch(service, /error\.stack|alert\.error|alert\.details/);
+  assert.match(service, /type: 'operational_alert'/);
+  assert.match(service, /url: '\/notifiche'/);
+});
+
+test('duplicate alert storms are suppressed by fingerprint and cooldown', () => {
+  assert.match(service, /buildFingerprint/);
+  assert.match(service, /OPERATIONAL_ALERT_COOLDOWN_MS/);
+  assert.match(service, /recentAlerts/);
+  assert.match(service, /suppressed: true/);
+});
+
+test('unhandled global API errors generate operational critical alerts', () => {
+  assert.match(app, /globalError: true/);
+  assert.match(logger, /meta\.globalError === true/);
+  assert.match(logger, /OperationalAlertService\.sendCriticalAlert/);
+  assert.match(logger, /type: 'UNHANDLED_API_ERROR'/);
+});
+
+test('legacy email-disabled notification facade routes critical/system alerts to the operational channel', () => {
+  assert.match(notifications, /OperationalAlertService = require\('\.\/operationalAlertService'\)/);
+  assert.match(notifications, /sendCriticalViolationNotification[\s\S]*OperationalAlertService\.sendCriticalAlert/);
+  assert.match(notifications, /sendSystemAlertNotification[\s\S]*OperationalAlertService\.sendCriticalAlert/);
+});

@@ -1,6 +1,8 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPool } = require('../config/database');
+const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
+const PrivacyErasureLedgerService = require('../services/privacyErasureLedgerService');
 
 const router = express.Router();
 
@@ -51,10 +53,47 @@ router.get('/', verifyToken, async (req, res) => {
     // Recupera i dati dalla tabella voti_camera JOIN con votazioni_parlamento e users
     // Mostra solo i politici con ruolo="P" e grado_elezione="C" o "S"
     // Ottimizzato: usa vp.data_votazione per ORDER BY e gestisce NULL correttamente
-    const dbResult = await pool.query(
+    const dbResult = await queryWithAccountModelFallback(
+      pool,
       `SELECT DISTINCT
         COALESCE(vc.politico_nome, CONCAT(u.nome, ' ', u.cognome)) as politico_nome,
-        CASE 
+        CASE
+          WHEN pm.office_code = 'C' THEN 'Camera'
+          WHEN pm.office_code = 'S' THEN 'Senato'
+          ELSE COALESCE(vc.camera, 'Camera')
+        END as camera,
+        COALESCE(vc.url_openpolis, '') as url_openpolis,
+        COALESCE(vc.foto_url, '') as foto_url,
+        vp.titolo_votazione as votazione,
+        vp.descrizione_votazione,
+        vc.voto,
+        vp.data_votazione as data_votazione,
+        vc.ultimo_aggiornamento,
+        vp.spiegazione,
+        vp.id as votazione_id,
+        u.id as user_id,
+        u.nome,
+        u.cognome
+      FROM users u
+      JOIN LATERAL (
+        SELECT pm.office_code
+          FROM political_mandates pm
+         WHERE pm.user_id = u.id
+           AND pm.status = 'ACTIVE'
+           AND pm.starts_at <= NOW()
+           AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
+           AND pm.office_code IN ('C', 'S')
+         ORDER BY pm.starts_at DESC NULLS LAST
+         LIMIT 1
+      ) pm ON TRUE
+      LEFT JOIN voti_camera vc ON CONCAT(u.nome, ' ', u.cognome) = vc.politico_nome
+      LEFT JOIN votazioni_parlamento vp ON vc.votazione_id = vp.id
+      WHERE u.status = 'a'
+      ORDER BY vp.data_votazione DESC NULLS LAST, u.cognome ASC, u.nome ASC
+      LIMIT 1000`,
+      `SELECT DISTINCT
+        COALESCE(vc.politico_nome, CONCAT(u.nome, ' ', u.cognome)) as politico_nome,
+        CASE
           WHEN u.grado_elezione = 'C' THEN 'Camera'
           WHEN u.grado_elezione = 'S' THEN 'Senato'
           ELSE COALESCE(vc.camera, 'Camera')
@@ -74,7 +113,7 @@ router.get('/', verifyToken, async (req, res) => {
       FROM users u
       LEFT JOIN voti_camera vc ON CONCAT(u.nome, ' ', u.cognome) = vc.politico_nome
       LEFT JOIN votazioni_parlamento vp ON vc.votazione_id = vp.id
-      WHERE u.ruolo = 'P' 
+      WHERE u.ruolo = 'P'
         AND (u.grado_elezione = 'C' OR u.grado_elezione = 'S')
         AND u.status = 'a'
       ORDER BY vp.data_votazione DESC NULLS LAST, u.cognome ASC, u.nome ASC
@@ -302,23 +341,8 @@ router.get('/stats', verifyToken, async (req, res) => {
 });
 
 // PUT /api/voti-camera/:politico/url - Aggiorna l'URL Openpolis di un politico (solo admin)
-router.put('/:politico/url', verifyToken, async (req, res) => {
+router.put('/:politico/url', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Verifica che l'utente sia admin
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono modificare gli URL'
-      });
-    }
-    
     const politicoNome = decodeURIComponent(req.params.politico);
     const { url_openpolis } = req.body;
     
@@ -364,20 +388,10 @@ router.put('/:politico/url', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/voti-camera/:politico - Cancella un politico da voti_camera e users (solo admin)
-router.delete('/:politico', verifyToken, async (req, res) => {
+router.delete('/:politico', verifyToken, requireAdmin, async (req, res) => {
   const client = await pool.connect();
   
   try {
-    // Verifica che l'utente sia admin (usa req.userRole già impostato da verifyToken)
-    if (!req.userRole || (req.userRole !== 'admin' && req.userRole !== 'AD')) {
-      client.release();
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono cancellare i politici'
-      });
-    }
-    
     const politicoNome = decodeURIComponent(req.params.politico);
     console.log(`🗑️ DELETE /api/voti-camera/:politico - Tentativo di cancellare: "${politicoNome}"`);
     
@@ -407,11 +421,23 @@ router.delete('/:politico', verifyToken, async (req, res) => {
       console.log(`✅ Cancellati ${deleteVotiCamera.rowCount} record da voti_camera`);
       
       // 2. Trova l'utente corrispondente
-      const userQuery = await client.query(
-        `SELECT id FROM users 
-         WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1)) 
-           AND LOWER(TRIM(cognome)) = LOWER(TRIM($2))
-           AND ruolo = 'P'`,
+      const userQuery = await queryWithAccountModelFallback(
+        client,
+        `SELECT u.id FROM users u
+          WHERE LOWER(TRIM(u.nome)) = LOWER(TRIM($1))
+            AND LOWER(TRIM(u.cognome)) = LOWER(TRIM($2))
+            AND EXISTS (
+              SELECT 1 FROM political_mandates pm
+               WHERE pm.user_id = u.id
+                 AND pm.status = 'ACTIVE'
+                 AND pm.starts_at <= NOW()
+                 AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
+                 AND pm.office_code IN ('C', 'S')
+            )`,
+        `SELECT id FROM users
+          WHERE LOWER(TRIM(nome)) = LOWER(TRIM($1))
+            AND LOWER(TRIM(cognome)) = LOWER(TRIM($2))
+            AND ruolo = 'P'`,
         [nome, cognome]
       );
       console.log(`🔍 Trovati ${userQuery.rows.length} utenti corrispondenti`);
@@ -438,10 +464,14 @@ router.delete('/:politico', verifyToken, async (req, res) => {
         );
         console.log(`✅ Aggiornati ${updateRappresentanti.rowCount} utenti che avevano questo politico come rappresentante`);
         
-        // 5. Cancella l'utente dalla tabella users
-        // Questo cancellerà automaticamente le notifiche grazie a ON DELETE CASCADE
-        const deleteUser = await client.query('DELETE FROM users WHERE id = $1', [userId]);
-        console.log(`✅ Cancellato utente dalla tabella users`);
+        // 5. Cancella l'account tramite lo stesso cleanup privacy canonico CP-EA-042.
+        await PrivacyErasureLedgerService.recordEvent(client, {
+          userId,
+          eventType: PrivacyErasureLedgerService.EVENT_TYPES.ACCOUNT_DELETED,
+          details: { source: 'admin_voti_camera_politician_deletion' }
+        });
+        await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
+        console.log(`✅ Cancellato account con cleanup privacy canonico`);
       } else {
         console.log(`⚠️ Nessun utente trovato nella tabella users per "${nome} ${cognome}"`);
       }
@@ -491,23 +521,8 @@ router.delete('/:politico', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-camera/sync - Sincronizza i voti da Openpolis (solo admin)
-router.post('/sync', verifyToken, async (req, res) => {
+router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Verifica che l'utente sia admin
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono sincronizzare i voti'
-      });
-    }
-    
     // Esegui la sincronizzazione in background (non bloccare la risposta)
     const { syncVotiOpenpolis } = require('../sync-voti-openpolis');
     
@@ -532,52 +547,12 @@ router.post('/sync', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-camera/votazione/:votazione_id/spiegazione - Genera spiegazione AI per una votazione (solo admin)
-router.post('/votazione/:votazione_id/spiegazione', verifyToken, async (req, res) => {
+router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, async (req, res) => {
   const startTime = Date.now();
   console.log(`[DEBUG] ========== INIZIO GENERAZIONE SPIEGAZIONE ==========`);
   console.log(`[DEBUG] Timestamp: ${new Date().toISOString()}`);
   
   try {
-    // Verifica che l'utente sia admin
-    console.log(`[DEBUG] Step 1: Verifica autenticazione e ruolo admin`);
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      console.error(`[DEBUG] Token mancante nell'header`);
-      return res.status(401).json({
-        success: false,
-        error: 'Token mancante',
-        message: 'Token di autenticazione non fornito'
-      });
-    }
-    
-    const jwt = require('jsonwebtoken');
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log(`[DEBUG] Token verificato, userId: ${decoded.userId}`);
-    } catch (jwtError) {
-      console.error(`[DEBUG] Errore verifica JWT:`, jwtError.message);
-      return res.status(401).json({
-        success: false,
-        error: 'Token non valido',
-        message: 'Token di autenticazione non valido o scaduto'
-      });
-    }
-    
-    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    console.log(`[DEBUG] Ruolo utente: ${userRole}`);
-    
-    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
-      console.error(`[DEBUG] Accesso negato: utente non è admin (ruolo: ${userRole})`);
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono generare spiegazioni'
-      });
-    }
-
     const votazioneId = parseInt(req.params.votazione_id);
     console.log(`[DEBUG] Step 2: Votazione richiesta: ID=${votazioneId}`);
     
@@ -730,52 +705,12 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, async (req, res
 
 // POST /api/voti-camera/:politico/spiegazione - DEPRECATO: Usa /votazione/:votazione_id/spiegazione
 // Mantenuto per retrocompatibilità
-router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
+router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res) => {
   const startTime = Date.now();
   console.log(`[DEBUG] ========== INIZIO GENERAZIONE SPIEGAZIONE ==========`);
   console.log(`[DEBUG] Timestamp: ${new Date().toISOString()}`);
   
   try {
-    // Verifica che l'utente sia admin
-    console.log(`[DEBUG] Step 1: Verifica autenticazione e ruolo admin`);
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      console.error(`[DEBUG] Token mancante nell'header`);
-      return res.status(401).json({
-        success: false,
-        error: 'Token mancante',
-        message: 'Token di autenticazione non fornito'
-      });
-    }
-    
-    const jwt = require('jsonwebtoken');
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log(`[DEBUG] Token verificato, userId: ${decoded.userId}`);
-    } catch (jwtError) {
-      console.error(`[DEBUG] Errore verifica JWT:`, jwtError.message);
-      return res.status(401).json({
-        success: false,
-        error: 'Token non valido',
-        message: 'Token di autenticazione non valido o scaduto'
-      });
-    }
-    
-    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    console.log(`[DEBUG] Ruolo utente: ${userRole}`);
-    
-    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
-      console.error(`[DEBUG] Accesso negato: utente non è admin (ruolo: ${userRole})`);
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono generare spiegazioni'
-      });
-    }
-
     const politicoNome = decodeURIComponent(req.params.politico);
     console.log(`[DEBUG] Step 2: Politico richiesto: "${politicoNome}"`);
     
@@ -907,23 +842,8 @@ router.post('/:politico/spiegazione', verifyToken, async (req, res) => {
 });
 
 // POST /api/voti-camera/genera-spiegazioni - Genera spiegazioni per tutte le votazioni senza spiegazione (solo admin)
-router.post('/genera-spiegazioni', verifyToken, async (req, res) => {
+router.post('/genera-spiegazioni', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Verifica che l'utente sia admin
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const userResult = await pool.query('SELECT ruolo FROM users WHERE id = $1', [decoded.userId]);
-    const userRole = userResult.rows[0]?.ruolo;
-    if (userResult.rows.length === 0 || (userRole !== 'admin' && userRole !== 'AD')) {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono generare spiegazioni'
-      });
-    }
-
     const limit = Math.min(parseInt(req.body.limit) || 10, 50); // Massimo 50 per volta
 
     // Verifica limite giornaliero prima di avviare
