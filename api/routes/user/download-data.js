@@ -34,6 +34,8 @@ router.get('/', verifyToken, async (req, res) => {
         formatVersion: '2.0',
         timestamp: new Date().toISOString()
       }
+    }).catch((auditError) => {
+      console.warn('Audit DATA_EXPORT non disponibile:', auditError?.message || auditError);
     });
 
     const filename = `dati-${type}-${new Date().toISOString().split('T')[0]}.json`;
