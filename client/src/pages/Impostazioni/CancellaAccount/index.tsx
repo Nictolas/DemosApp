@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Trash2, AlertTriangle, Shield, User, FileText, Database } from "lucide-react";
+import { Loader2, Trash2, AlertTriangle, Shield, Database } from "lucide-react";
 import { useLocation } from "wouter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { apiRequest } from "@/lib/queryClient";
+import { clearSessionTokens } from "@/lib/auth-token";
 
 interface DeletionStep {
   id: string;
@@ -25,49 +27,68 @@ interface DeletionStep {
   completed: boolean;
 }
 
-const deletionSteps: DeletionStep[] = [
-  {
-    id: "backup",
-    title: "Backup dei Dati",
-    description: "Scarica una copia dei tuoi dati prima della cancellazione",
-    icon: <Database className="h-5 w-5" />,
-    completed: false
-  },
-  {
-    id: "confirm",
-    title: "Conferma Identità",
-    description: "Inserisci la tua password per confermare l'identità",
-    icon: <Shield className="h-5 w-5" />,
-    completed: false
-  },
-  {
-    id: "understand",
-    title: "Comprensione Conseguenze",
-    description: "Conferma di aver compreso le conseguenze della cancellazione",
-    icon: <AlertTriangle className="h-5 w-5" />,
-    completed: false
-  }
-];
-
 export default function CancellaAccount() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [understandConsequences, setUnderstandConsequences] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [requiresPassword, setRequiresPassword] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const steps = deletionSteps.map(step => ({
-    ...step,
-    completed: 
-      (step.id === "backup" && true) || // Sempre considerato completato se l'utente è arrivato qui
-      (step.id === "confirm" && password.length > 0) ||
-      (step.id === "understand" && understandConsequences && confirmText === "CANCELLA")
-  }));
+  useEffect(() => {
+    if (!user?.id) return;
 
-  const allStepsCompleted = steps.every(step => step.completed);
+    let cancelled = false;
+    const loadRequirements = async () => {
+      try {
+        const response = await apiRequest("GET", "/api/user/delete-account/requirements");
+        if (!cancelled) {
+          setRequiresPassword(response.data?.requiresPassword === true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Impossibile verificare i requisiti di cancellazione");
+        }
+      }
+    };
+
+    void loadRequirements();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const steps: DeletionStep[] = useMemo(() => [
+    {
+      id: "backup",
+      title: "Backup dei Dati",
+      description: "Puoi scaricare una copia dei tuoi dati prima della cancellazione",
+      icon: <Database className="h-5 w-5" />,
+      completed: true,
+    },
+    {
+      id: "confirm",
+      title: "Conferma Identità",
+      description: requiresPassword === false
+        ? "Il tuo account non usa una password: non è necessario inserirla"
+        : "Inserisci la tua password per confermare l'identità",
+      icon: <Shield className="h-5 w-5" />,
+      completed: requiresPassword === false || (requiresPassword === true && password.length > 0),
+    },
+    {
+      id: "understand",
+      title: "Comprensione Conseguenze",
+      description: "Conferma di aver compreso le conseguenze della cancellazione",
+      icon: <AlertTriangle className="h-5 w-5" />,
+      completed: understandConsequences && confirmText === "CANCELLA",
+    },
+  ], [confirmText, password, requiresPassword, understandConsequences]);
+
+  const requirementsReady = requiresPassword !== null;
+  const allStepsCompleted = requirementsReady && steps.every((step) => step.completed);
 
   const handleDeleteAccount = async () => {
     if (!user || !allStepsCompleted) return;
@@ -76,30 +97,16 @@ export default function CancellaAccount() {
     setError(null);
 
     try {
-      const response = await fetch('/api/user/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          password,
-          confirmText
-        }),
+      await apiRequest("DELETE", "/api/user/delete-account", {
+        ...(requiresPassword ? { password } : {}),
+        confirmText,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Errore durante la cancellazione dell\'account');
-      }
-
-      // Logout e redirect
-      await logout();
-      setLocation('/');
-      
+      // L'account non esiste più: rimuovi subito le credenziali locali e forza un reload pulito.
+      clearSessionTokens();
+      window.location.assign("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore durante la cancellazione');
-    } finally {
+      setError(err instanceof Error ? err.message : "Errore durante la cancellazione");
       setIsDeleting(false);
     }
   };
@@ -121,9 +128,7 @@ export default function CancellaAccount() {
             <CardDescription>Devi effettuare il login per accedere a questa pagina.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => setLocation('/auth')}>
-              Vai al Login
-            </Button>
+            <Button className="w-full" onClick={() => setLocation("/auth")}>Vai al Login</Button>
           </CardContent>
         </Card>
       </div>
@@ -133,58 +138,52 @@ export default function CancellaAccount() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => setLocation('/impostazioni')}
-            className="mb-4"
-          >
+          <Button variant="ghost" onClick={() => setLocation("/impostazioni")} className="mb-4">
             ← Torna alle Impostazioni
           </Button>
-          
+
           <Card className="border-0 shadow-lg bg-gradient-to-r from-red-600 to-orange-600 text-white">
             <CardHeader className="text-center py-6">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="h-8 w-8 text-white" />
               </div>
-              <CardTitle className="text-3xl font-bold mb-2">
-                Cancella Account
-              </CardTitle>
+              <CardTitle className="text-3xl font-bold mb-2">Cancella Account</CardTitle>
               <CardDescription className="text-red-100 text-lg">
-                Questa azione è irreversibile e cancellerà tutti i tuoi dati
+                Questa azione è irreversibile e avvia la cancellazione dei dati associati all'account secondo la Privacy Policy.
               </CardDescription>
             </CardHeader>
           </Card>
         </div>
 
-        {/* Warning Alert */}
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            <strong>Attenzione:</strong> La cancellazione del tuo account è permanente e irreversibile. 
-            Tutti i tuoi dati, opinioni, voti e attività saranno eliminati definitivamente.
+            <strong>Attenzione:</strong> la cancellazione dell'account è permanente. I dati collegati all'account vengono eliminati secondo il percorso di cancellazione DEMOS; eventuali dati soggetti a obblighi di conservazione sono trattati come indicato nella Privacy Policy.
           </AlertDescription>
         </Alert>
 
-        {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        {/* Steps */}
+        {!requirementsReady && !error && (
+          <Alert className="mb-6">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <AlertDescription>Verifica dei requisiti di cancellazione in corso…</AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-6 mb-8">
           <h2 className="text-2xl font-bold">Passaggi per la Cancellazione</h2>
-          
+
           {steps.map((step, index) => (
             <Card key={step.id} className={step.completed ? "border-green-200 bg-green-50" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    step.completed ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"
-                  }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.completed ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"}`}>
                     {step.completed ? "✓" : index + 1}
                   </div>
                   {step.icon}
@@ -194,50 +193,44 @@ export default function CancellaAccount() {
               </CardHeader>
               <CardContent>
                 {step.id === "backup" && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setLocation('/impostazioni/scarica-dati')}
-                    className="w-full"
-                  >
+                  <Button variant="outline" onClick={() => setLocation("/impostazioni/scarica-dati")} className="w-full">
                     <Database className="h-4 w-4 mr-2" />
                     Scarica i Tuoi Dati
                   </Button>
                 )}
-                
-                {step.id === "confirm" && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Inserisci la tua password"
-                      />
-                    </div>
+
+                {step.id === "confirm" && requiresPassword === true && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Inserisci la tua password"
+                      autoComplete="current-password"
+                    />
                   </div>
                 )}
-                
+
+                {step.id === "confirm" && requiresPassword === false && (
+                  <p className="text-sm text-muted-foreground">
+                    Account autenticato tramite OAuth/passkey: la sessione autenticata e la conferma finale sono sufficienti.
+                  </p>
+                )}
+
                 {step.id === "understand" && (
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="understand"
-                          checked={understandConsequences}
-                          onCheckedChange={(checked) => setUnderstandConsequences(checked as boolean)}
-                        />
-                        <Label htmlFor="understand">
-                          Ho compreso che la cancellazione è irreversibile
-                        </Label>
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="understand"
+                        checked={understandConsequences}
+                        onCheckedChange={(checked) => setUnderstandConsequences(checked as boolean)}
+                      />
+                      <Label htmlFor="understand">Ho compreso che la cancellazione è irreversibile</Label>
                     </div>
-                    
                     <div>
-                      <Label htmlFor="confirmText">
-                        Digita "CANCELLA" per confermare
-                      </Label>
+                      <Label htmlFor="confirmText">Digita "CANCELLA" per confermare</Label>
                       <Input
                         id="confirmText"
                         value={confirmText}
@@ -252,7 +245,6 @@ export default function CancellaAccount() {
           ))}
         </div>
 
-        {/* Consequences */}
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -260,24 +252,20 @@ export default function CancellaAccount() {
               Conseguenze della Cancellazione
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p>• <strong>Profilo:</strong> Tutti i dati del tuo profilo saranno eliminati</p>
-              <p>• <strong>Opinioni:</strong> Tutte le tue opinioni e voti saranno rimossi</p>
-              <p>• <strong>Attività:</strong> La cronologia delle tue attività sarà cancellata</p>
-              <p>• <strong>Accesso:</strong> Non potrai più accedere all'account</p>
-              <p>• <strong>Recupero:</strong> Non sarà possibile recuperare i dati eliminati</p>
-            </div>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>• <strong>Profilo:</strong> l'account e i dati del profilo vengono rimossi dal sistema operativo DEMOS.</p>
+            <p>• <strong>Opinioni e attività:</strong> i dati direttamente associati all'account vengono eliminati secondo il percorso privacy canonico.</p>
+            <p>• <strong>Accesso:</strong> le credenziali locali vengono rimosse e non potrai più accedere all'account cancellato.</p>
+            <p>• <strong>Retention:</strong> eventuali eccezioni strettamente necessarie sono descritte nella Privacy Policy.</p>
           </CardContent>
         </Card>
 
-        {/* Delete Button */}
         <div className="flex justify-center">
           <Button
             variant="destructive"
             size="lg"
             onClick={() => setShowDeleteDialog(true)}
-            disabled={!allStepsCompleted}
+            disabled={!allStepsCompleted || isDeleting}
             className="px-8 py-3"
           >
             <Trash2 className="h-5 w-5 mr-2" />
@@ -285,7 +273,6 @@ export default function CancellaAccount() {
           </Button>
         </div>
 
-        {/* Delete Confirmation Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <DialogContent>
             <DialogHeader>
@@ -294,33 +281,18 @@ export default function CancellaAccount() {
                 Conferma Cancellazione
               </DialogTitle>
               <DialogDescription>
-                Sei sicuro di voler cancellare definitivamente il tuo account? 
-                Questa azione non può essere annullata.
+                Sei sicuro di voler cancellare definitivamente il tuo account? Questa azione non può essere annullata.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
-              >
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
                 Annulla
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteAccount}
-                disabled={isDeleting}
-              >
+              <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeleting || !allStepsCompleted}>
                 {isDeleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Cancellazione...
-                  </>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Cancellazione...</>
                 ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Cancella Account
-                  </>
+                  <><Trash2 className="h-4 w-4 mr-2" />Cancella Account</>
                 )}
               </Button>
             </DialogFooter>
