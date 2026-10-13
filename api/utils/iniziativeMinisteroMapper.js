@@ -4,6 +4,10 @@
  */
 
 const { normalizeMinisteroDate } = require('./dateUtils');
+const { describeSourceRecord, getLegacyQueryProfile } = require('../services/civicProcessRegistryService');
+
+const MINISTERO_JURISDICTION_ID = 'it';
+const MINISTERO_SOURCE_ID = 'it.justice.signature_portal';
 
 const MINISTERO_DETTAGLIO_BASE =
   'https://firmereferendum.giustizia.it/referendum/open/dettaglio-open';
@@ -40,6 +44,12 @@ function mapToLegacyFormat(row, tipo) {
   // data_fine arriva dal DB (dal sito oppure salvata come inizio+6 mesi in sync)
   const dataFine = normalizeMinisteroDate(row.data_fine);
   const sitoWeb = resolveFirmaUrl(row.sito_web, row.id_ministero);
+  const civicMetadata = describeSourceRecord({
+    jurisdictionId: MINISTERO_JURISDICTION_ID,
+    sourceId: MINISTERO_SOURCE_ID,
+    rawType: row.tipo || tipo,
+    sourceState: row.stato
+  });
   
   return {
     id: row.id,
@@ -66,7 +76,13 @@ function mapToLegacyFormat(row, tipo) {
     id_ministero: row.id_ministero,
     dati_raw: row.dati_raw,
     data_ultimo_aggiornamento: row.data_ultimo_aggiornamento,
-    updated_at: row.updated_at
+    updated_at: row.updated_at,
+    jurisdiction_id: civicMetadata.jurisdictionId,
+    civic_process_type_id: civicMetadata.civicProcessTypeId,
+    civic_process_stage: civicMetadata.stageId,
+    civic_process_source_id: civicMetadata.sourceId,
+    signature_threshold: civicMetadata.signatureThreshold,
+    demos_actions: civicMetadata.demosActions
   };
 }
 
@@ -320,152 +336,73 @@ function mapReferendumStatusToStato(status) {
  * @param {boolean} soloInCorso - Se true, mostra solo quelle con stato = 'in_corso' e ordina per firme_raccolte DESC
  */
 function buildQueryForTipo(tipoFilter, userRole, userId = null, votaOnly = false, soloInCorso = false) {
-  // Mappa i tipi generici ai valori effettivi nella colonna tipo
-  let tipoValue;
-  if (tipoFilter === 'iniziativa') {
-    // Per iniziative popolari, cerca "Legge di iniziativa popolare" o varianti
-    // NOTA: Potrebbe avere spazi multipli come i referendum, usiamo pattern flessibile
-    tipoValue = "Legge%di%iniziativa%popolare"; // Il % gestisce spazi multipli
-  } else if (tipoFilter === 'referendum') {
-    // Per referendum, cerca sia "Referendum abrogativo" che "Referendum costituzionale"
-    // NOTA: Nel database può essere "Referendum abrogativo" (1 spazio) o "Referendum  abrogativo" (2 spazi)
-    // Usiamo un pattern che gestisce uno o più spazi tra "Referendum" e "abrogativo"/"costituzionale"
-    // Il pattern '%Referendum%abrogativo%' matcha qualsiasi numero di caratteri (inclusi spazi) tra le due parole
-    // Per includere entrambi i tipi, useremo una condizione OR nella query
-    tipoValue = null; // Segnale speciale per indicare che dobbiamo usare OR per entrambi i tipi
-  } else {
-    // Se viene passato direttamente un valore, usalo
-    tipoValue = tipoFilter;
-  }
-  
-  if (userRole === "AD") {
-    // Admin vedono tutto (con LIKE per gestire varianti del nome)
-    // Ma se votaOnly è true, anche gli admin devono vedere solo quelle con quorum_raggiunto = TRUE, stato = 'conclusa' e firme_raccolte >= 500000 (per referendum)
-    // Per iniziative: firme_raccolte >= 50000, per referendum: firme_raccolte >= 500000
-    if (votaOnly) {
-      const firmeMinime = tipoFilter === 'referendum' ? 500000 : 50000;
-      // Se tipoValue è null, significa che dobbiamo includere sia abrogativi che costituzionali
-      const tipoCondition = tipoValue === null 
-        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
-        : `tipo LIKE $1`;
-      const params = tipoValue === null ? [] : [`%${tipoValue}%`];
-      return {
-        query: `
-          SELECT *
-          FROM iniziative_ministero
-          WHERE ${tipoCondition}
-            AND id_ministero IS NOT NULL
-            AND quorum_raggiunto = true
-            AND stato = 'conclusa'
-            AND firme_raccolte >= ${firmeMinime}
-          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-        `,
-        params: params
-      };
+  const profile = getLegacyQueryProfile(tipoFilter);
+  const sqlLikePatterns = profile?.sqlLikePatterns?.length
+    ? [...profile.sqlLikePatterns]
+    : [`%${String(tipoFilter || '').trim()}%`];
+  const typeParams = [...sqlLikePatterns];
+  const tipoCondition = sqlLikePatterns.length === 1
+    ? 'tipo LIKE $1'
+    : `(${sqlLikePatterns.map((_, index) => `tipo LIKE $${index + 1}`).join(' OR ')})`;
+
+  const buildThresholdClause = () => {
+    const threshold = profile?.signatureThreshold;
+    if (!Number.isFinite(threshold) || threshold <= 0) {
+      return { clause: 'AND FALSE', params: typeParams };
     }
-    // Se soloInCorso è true, anche gli admin vedono solo quelle con stato = 'in_corso'
-    if (soloInCorso) {
-      const tipoCondition = tipoValue === null 
-        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
-        : `tipo LIKE $1`;
-      const params = tipoValue === null ? [] : [`%${tipoValue}%`];
-      return {
-        query: `
-          SELECT *
-          FROM iniziative_ministero
-          WHERE ${tipoCondition}
-            AND stato = 'in_corso'
-            AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)
-          ORDER BY firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
-        `,
-        params: params
-      };
-    }
-    // Admin vedono TUTTI i referendum (in corso e conclusi), anche senza id_ministero
-    const tipoCondition = tipoValue === null 
-      ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
-      : `tipo LIKE $1`;
-    const params = tipoValue === null ? [] : [`%${tipoValue}%`];
+    const thresholdParam = `$${typeParams.length + 1}`;
+    return {
+      clause: `AND quorum_raggiunto = true\n            AND firme_raccolte >= ${thresholdParam}`,
+      params: [...typeParams, threshold]
+    };
+  };
+
+  if (votaOnly) {
+    const threshold = buildThresholdClause();
     return {
       query: `
         SELECT *
         FROM iniziative_ministero
         WHERE ${tipoCondition}
-        ORDER BY CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
+          AND id_ministero IS NOT NULL
+          ${threshold.clause}
+        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `,
-      params: params
+      params: threshold.params
     };
-  } else {
-    // Altri utenti vedono solo le iniziative/referendum ufficiali che:
-    // Se votaOnly = true (pagine di voto): 
-    // - quorum_raggiunto = TRUE
-    // - stato = 'conclusa' (per votare la priorità delle iniziative già concluse)
-    // - firme_raccolte >= 50000 (iniziative) o >= 500000 (referendum)
-    // Altrimenti:
-    //   1. Hanno quorum_raggiunto = FALSE E stato = 'in_corso' (raccolta firme in corso)
-    //   2. Hanno quorum_raggiunto = TRUE (indipendentemente dallo stato, hanno raggiunto il quorum)
-    // ESCLUSE: quelle con quorum_raggiunto = FALSE E stato = 'conclusa'
-    if (votaOnly) {
-      const firmeMinime = tipoFilter === 'referendum' ? 500000 : 50000;
-      const tipoCondition = tipoValue === null 
-        ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
-        : `tipo LIKE $1`;
-      const params = tipoValue === null ? [] : [`%${tipoValue}%`];
-      return {
-        query: `
-          SELECT *
-          FROM iniziative_ministero
-          WHERE ${tipoCondition}
-            AND id_ministero IS NOT NULL
-            AND quorum_raggiunto = true
-            AND stato = 'conclusa'
-            AND firme_raccolte >= ${firmeMinime}
-          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-        `,
-        params: params
-      };
-      } else {
-        // Se soloInCorso è true, mostra solo quelle con stato = 'in_corso'
-        // Altrimenti mostra TUTTE (in corso, concluse, con o senza quorum) - solo quelle ufficiali (con id_ministero)
-        let whereClause;
-        let orderClause;
-        
-        const tipoCondition = tipoValue === null 
-          ? `(tipo LIKE '%Referendum%abrogativo%' OR tipo LIKE '%Referendum%costituzionale%')`
-          : `tipo LIKE $1`;
-        const params = tipoValue === null ? [] : [`%${tipoValue}%`];
-        
-        if (soloInCorso) {
-          // Per la pagina listing, mostra solo quelli in corso e non scaduti (data_fine >= oggi)
-          // Filtriamo per id_ministero IS NOT NULL per mostrare solo quelli ufficiali
-          whereClause = `${tipoCondition}
-            AND id_ministero IS NOT NULL
-            AND stato = 'in_corso'
-            AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)`;
-          // Ordina per firme_raccolte in ordine decrescente (più firme in alto)
-          orderClause = `firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
-        } else {
-          // Mostra TUTTI i referendum ufficiali (con id_ministero), indipendentemente dallo stato
-          // Questo include: in corso, concluse, con o senza quorum
-          // NOTA: Per la pagina listing (soloInCorso = true), questo blocco non viene eseguito
-          // Questo blocco viene eseguito solo quando soloInCorso = false (per esempio per admin o altre viste)
-          whereClause = `${tipoCondition}
-            AND id_ministero IS NOT NULL`;
-          // Ordina: prima quelli in corso (per stato), poi per data_inizio decrescente
-          orderClause = `CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END, firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC`;
-        }
-      
-      return {
-        query: `
-          SELECT *
-          FROM iniziative_ministero
-          WHERE ${whereClause}
-          ORDER BY ${orderClause}
-        `,
-        params: params
-      };
-    }
   }
+
+  if (soloInCorso) {
+    return {
+      query: `
+        SELECT *
+        FROM iniziative_ministero
+        WHERE ${tipoCondition}
+          AND id_ministero IS NOT NULL
+          AND stato = 'in_corso'
+          AND (data_fine IS NULL OR data_fine >= CURRENT_DATE)
+        ORDER BY firme_raccolte DESC NULLS LAST, data_inizio DESC NULLS LAST, created_at DESC
+      `,
+      params: typeParams
+    };
+  }
+
+  // Vista ampia compatibile con gli strumenti amministrativi/legacy.
+  // Per gli utenti ordinari resta comunque limitata alle fonti ufficiali con id_ministero.
+  const officialOnly = userRole === 'AD' ? '' : 'AND id_ministero IS NOT NULL';
+  return {
+    query: `
+      SELECT *
+      FROM iniziative_ministero
+      WHERE ${tipoCondition}
+        ${officialOnly}
+      ORDER BY CASE WHEN stato = 'in_corso' THEN 0 ELSE 1 END,
+               firme_raccolte DESC NULLS LAST,
+               data_inizio DESC NULLS LAST,
+               created_at DESC
+    `,
+    params: typeParams
+  };
 }
 
 module.exports = {

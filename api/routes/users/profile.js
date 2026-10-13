@@ -1,10 +1,22 @@
 const express = require('express');
+const { requireVerifiedCivicIdentity } = require('../../middleware/civicIdentity');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
 const { compressUserLocation, decompressUserLocation } = require('../../utils/locationUtils');
 const { decompressGender } = require('../../utils/genderUtils');
-const { canReadUserOpinions } = require('../../utils/opinionPrivacy');
+const { getAccountSubject } = require('../../services/accountCapabilitiesService');
+const { getUserOpinionCompletion } = require('../../services/politicalMatchingService');
+const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
+const { isCandidateSelectionEligible, isRepresentativeSelectionEligible } = require('../../services/politicalEligibilityService');
+const {
+  getLegacySelectionFields,
+  getSelectionFieldContract,
+} = require('../../services/politicalJurisdictionRegistryService');
+const {
+  resolveSelectionContract,
+  setPoliticalSelection,
+} = require('../../services/politicalSelectionService');
 
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
@@ -19,10 +31,7 @@ const PROFILE_FIELDS = new Set([
   'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url',
   'avatar_config'
 ]);
-const REPRESENTATIVE_FIELDS = new Set([
-  'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
-  'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
-]);
+const REPRESENTATIVE_FIELDS = new Set(getLegacySelectionFields('both'));
 
 // GET /api/users/me - Ottieni profilo utente autenticato
 router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
@@ -268,24 +277,13 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza', 'ruolo',
+      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
       'comune_candidatura', 'grado_candidatura',
       'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url'
     ];
-    
-    // Compressione ruolo
-    const ruoloMapping = {
-      'Elettore': 'E',
-      'Politico': 'P',
-      'Candidato': 'C',
-      'Candidato Politico': 'CP',
-      'Attivista': 'A',
-      'Istituzione': 'I',
-      'Admin': 'AD'
-    };
     
     // Normalizza i gradi di elezione e candidatura (tutto maiuscolo)
     const normalizeGrado = (grado) => {
@@ -322,10 +320,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         else if (key === 'provincia_residenza' || key === 'provincia_elezione' || key === 'provincia_candidatura') {
           const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
           filteredData[key] = compressedValue;
-        }
-        // Applica compressione per il ruolo
-        else if (key === 'ruolo') {
-          filteredData[key] = ruoloMapping[updateData[key]] || updateData[key];
         }
         // GDPR: data_nascita può essere solo anno (YYYY) → salviamo come YYYY-01-01
         else if (key === 'data_nascita') {
@@ -452,12 +446,12 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
 });
 
 // PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
-router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
     console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
     
     const { userId } = req.params;
-    const { campo, rappresentanteId } = req.body;
+    const { campo, rappresentanteId, source = 'matching' } = req.body;
     const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
     
     console.log('🔍 DEBUG - userId dal parametro:', userId);
@@ -473,37 +467,78 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
       });
     }
     
-    // Verifica che il campo sia valido
-    const validFields = [
-      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
-      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
-    ];
-    if (!validFields.includes(campo)) {
+    // I campi selezionabili derivano dal registry politico; il nome colonna resta legacy.
+    if (!REPRESENTATIVE_FIELDS.has(campo)) {
       return res.status(400).json({
         success: false,
         error: 'Campo non valido'
       });
     }
-    
-    // Aggiorna il campo del rappresentante
-    const query = `UPDATE users SET ${campo} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+
+    const fieldContract = getSelectionFieldContract(campo);
+    let selectedCandidacyId = null;
+    let selectedMandateId = null;
+
+    // Il matching richiede il 100% delle Opinioni; il Podio e una via diretta
+    // basata sulla trasparenza dimostrata. I controlli server-side di livello e
+    // territorio restano comunque obbligatori.
+    if (rappresentanteId !== null && rappresentanteId !== undefined && rappresentanteId !== '') {
+      const isPodiumDirectChoice = source === 'podio' && campo.startsWith('rappresentante_');
+      if (source !== 'matching' && source !== 'podio') {
+        return res.status(400).json({ success: false, error: 'Fonte selezione non valida' });
+      }
+
+      if (!isPodiumDirectChoice) {
+        const opinionGrade = fieldContract?.office?.opinionGrade;
+        const completion = await getUserOpinionCompletion(pool, userId, opinionGrade);
+        if (!completion.isComplete) {
+          return res.status(409).json({
+            success: false,
+            error: 'OPINIONI_INCOMPLETE',
+            message: 'Completa tutte le Opinioni di questo livello prima di effettuare la selezione.',
+            data: {
+              totalOpinions: completion.totalOpinions,
+              answeredOpinions: completion.answeredOpinions,
+              missingOpinions: completion.missingOpinions
+            }
+          });
+        }
+      }
+      const eligibilityGrade = fieldContract?.office?.aliases?.[0];
+      const isCandidateField = campo.startsWith('candidato_');
+      const eligibility = isCandidateField
+        ? await isCandidateSelectionEligible(pool, userId, rappresentanteId, eligibilityGrade)
+        : await isRepresentativeSelectionEligible(pool, userId, rappresentanteId, eligibilityGrade);
+
+      const selectedSubject = eligibility.subjects?.find((row) => String(row.id) === String(rappresentanteId));
+      if (isCandidateField) selectedCandidacyId = selectedSubject?.candidacy_id || null;
+      else selectedMandateId = selectedSubject?.mandate_id || null;
+      if (!eligibility.eligible) {
+        return res.status(422).json({
+          success: false,
+          error: isCandidateField ? 'CANDIDATO_NON_VOTABILE' : 'RAPPRESENTANTE_NON_SELEZIONABILE',
+          message: isCandidateField
+            ? 'Il candidato selezionato non è votabile nella tua elezione/circoscrizione.'
+            : 'Il rappresentante selezionato non è pertinente al livello/territorio richiesto.',
+          data: { source: eligibility.source, strict: eligibility.strict, reason: eligibility.reason }
+        });
+      }
+    }
+
     const client = await pool.connect();
     let result;
     try {
       await client.query('BEGIN');
-      result = await client.query(query, [rappresentanteId, userId]);
-
-      if (REPRESENTATIVE_FIELDS.has(campo)) {
-        await client.query(
-          `INSERT INTO user_representatives (user_id, ${campo})
-           VALUES ($1, $2)
-           ON CONFLICT (user_id) DO UPDATE SET
-             ${campo} = EXCLUDED.${campo},
-             updated_at = NOW()`,
-          [userId, rappresentanteId]
-        );
-      }
-
+      await setPoliticalSelection(client, {
+        userId,
+        kind: fieldContract.kind,
+        officeValue: fieldContract.office.id,
+        selectedUserId: rappresentanteId || null,
+        selectedCandidacyId,
+        selectedMandateId,
+        source,
+      });
+      result = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
@@ -540,6 +575,78 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
 });
 
 
+// PUT /api/users/:userId/political-selection - Canonical jurisdiction-aware political selection
+router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+  let client = null;
+  try {
+    const { userId } = req.params;
+    const { kind, officeId, selectedUserId = null, source = 'matching' } = req.body || {};
+    if (String(req.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'Non autorizzato a modificare questo profilo' });
+    }
+    if (!['matching', 'podio'].includes(source)) {
+      return res.status(400).json({ success: false, error: 'Fonte selezione non valida' });
+    }
+    const contract = resolveSelectionContract({ kind, officeValue: officeId });
+    if (!contract) {
+      return res.status(400).json({ success: false, error: 'Selezione politica non valida' });
+    }
+
+    let selectedCandidacyId = null;
+    let selectedMandateId = null;
+    if (selectedUserId) {
+      const podiumDirect = source === 'podio' && contract.kind === 'representative';
+      if (!podiumDirect && contract.office.opinionGrade) {
+        const completion = await getUserOpinionCompletion(pool, userId, contract.office.opinionGrade);
+        if (!completion.isComplete) {
+          return res.status(409).json({
+            success: false, error: 'OPINIONI_INCOMPLETE',
+            message: 'Completa tutte le Opinioni di questo livello prima di effettuare la selezione.',
+            data: completion,
+          });
+        }
+      }
+      const eligibility = contract.kind === 'candidate'
+        ? await isCandidateSelectionEligible(pool, userId, selectedUserId, contract.office.id)
+        : await isRepresentativeSelectionEligible(pool, userId, selectedUserId, contract.office.id);
+      if (!eligibility.eligible) {
+        return res.status(422).json({
+          success: false,
+          error: contract.kind === 'candidate' ? 'CANDIDATO_NON_VOTABILE' : 'RAPPRESENTANTE_NON_SELEZIONABILE',
+          data: { source: eligibility.source, strict: eligibility.strict, reason: eligibility.reason },
+        });
+      }
+      const subject = eligibility.subjects?.find((row) => String(row.id) === String(selectedUserId));
+      selectedCandidacyId = contract.kind === 'candidate' ? subject?.candidacy_id || null : null;
+      selectedMandateId = contract.kind === 'representative' ? subject?.mandate_id || null : null;
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const stored = await setPoliticalSelection(client, {
+      userId, kind: contract.kind, officeValue: contract.officeId,
+      selectedUserId, selectedCandidacyId, selectedMandateId, source,
+    });
+    await client.query('COMMIT');
+    return res.json({
+      success: true,
+      selection: {
+        kind: contract.kind, jurisdictionId: contract.jurisdictionId, officeId: contract.officeId,
+        selectedUserId: selectedUserId || null, storage: stored.canonical.available ? 'CANONICAL' : 'LEGACY',
+      },
+    });
+  } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+    }
+    console.error('Errore selezione politica canonica:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
 router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
@@ -553,24 +660,20 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     // - cittadini/utenti non politici: opinioni accessibili solo a sé stessi e agli admin;
     // - politici/candidati: opinioni consultabili dagli utenti autenticati.
     // Non usiamo più opinions_public come controllo di autorizzazione.
-    const userCheckResult = await pool.query(
-      'SELECT id, ruolo FROM users WHERE id = $1',
-      [userId]
-    );
-    if (!userCheckResult.rows[0]) {
+    const targetSubject = await getAccountSubject(pool, userId);
+    if (!targetSubject) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
 
-    const targetUser = userCheckResult.rows[0];
-    if (!canReadUserOpinions({
-      requesterId: authenticatedUserId,
-      requesterRole: req.userRole,
-      targetId: targetUser.id,
-      targetRole: targetUser.ruolo
-    })) {
+    const canReadOpinions =
+      String(authenticatedUserId) === String(targetSubject.id) ||
+      Boolean(req.user?.isAdmin) ||
+      Boolean(targetSubject.capabilities?.isPolitician) ||
+      Boolean(targetSubject.capabilities?.isCandidate);
+    if (!canReadOpinions) {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
@@ -664,8 +767,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     const { opinioni, fonti } = req.body;
     
     console.log('👤 User ID:', userId);
-    console.log('📋 Opinion ricevute:', opinioni);
-    console.log('🔗 Fonti ricevute:', fonti);
+    console.log('📋 Aggiornamento opinioni politiche ricevuto (valori non registrati nei log)');
     
     if (!opinioni || typeof opinioni !== 'object') {
       return res.status(400).json({
@@ -675,8 +777,22 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Verifica che l'utente esista
-    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    // Le opinioni politiche restano soggette al consenso esplicito del soggetto
+    // anche quando l'aggiornamento è eseguito da un Admin. Finché la DPIA non
+    // approva una base giuridica diversa per dati politici da fonti pubbliche,
+    // questa superficie deve fallire chiusa senza consenso attivo.
+    const userCheckResult = await pool.query(`
+      SELECT
+        u.id,
+        COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS political_opinions_consent
+      FROM users u
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE u.id = $1
+    `, [userId]);
     if (!userCheckResult.rows[0]) {
       return res.status(404).json({
         success: false,
@@ -685,6 +801,15 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
+    if (userCheckResult.rows[0].political_opinions_consent !== true) {
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        message: 'Le opinioni politiche del soggetto non possono essere create o modificate senza consenso esplicito attivo.',
+        consent_required: true
+      });
+    }
+
     // Verifica che gli ID delle opinioni esistano in opinioni_domande
     // e ottieni la lista delle colonne valide in opinioni_risposte
     const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
@@ -717,23 +842,21 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
         continue;
       }
       
-      // Usa direttamente l'ID come nome della colonna
+      // Usa direttamente l'ID come nome della colonna. NULL non è più una risposta valida.
       const dbField = opinionId;
-      let dbValue = null;
-      // Accetta sia il formato leggibile che quello del database
-      if (risposta === 'Favorevole' || risposta === 'f') dbValue = 'f';
-      else if (risposta === 'Contrario' || risposta === 'c') dbValue = 'c';
-      else if (risposta === 'Indeciso' || risposta === 'i') dbValue = 'i';
-      else if (risposta === 'Astenuto' || risposta === null || risposta === undefined || risposta === '') dbValue = null;
-      else {
-        // Se il valore non è riconosciuto, usa il valore così com'è (potrebbe già essere nel formato corretto)
-        dbValue = risposta;
+      const dbValue = normalizeOpinionAnswer(risposta);
+      if (!dbValue) {
+        return res.status(400).json({
+          success: false,
+          error: 'Risposta non valida',
+          message: 'Usa soltanto Favorevole, Contrario o Non lo so. Una risposta già espressa non può essere cancellata.'
+        });
       }
       
       updateFields.push(`${dbField} = $${paramIndex}`);
       updateValues.push(dbValue);
       paramIndex++;
-      console.log(`✅ Processata opinione: ${opinionId} (${dbField}) = ${dbValue}`);
+      // Non registrare nei log il valore dell'opinione politica.
     }
     
     // Processa le fonti se fornite
@@ -792,7 +915,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       const allValues = [userId, ...updateValues];
       
       console.log('📝 Query SQL INSERT:', insertQuery);
-      console.log('📝 Valori:', allValues);
+      console.log('📝 INSERT opinioni: valori sensibili omessi dai log');
       
       result = await pool.query(insertQuery, allValues);
     } else {
@@ -805,7 +928,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       `;
       
       console.log('📝 Query SQL UPDATE:', updateQuery);
-      console.log('📝 Valori:', updateValues);
+      console.log('📝 UPDATE opinioni: valori sensibili omessi dai log');
       
       result = await pool.query(updateQuery, updateValues);
     }
@@ -818,7 +941,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    console.log('✅ Opinion salvate con successo per utente:', userId);
+    console.log('✅ Opinioni politiche salvate con successo');
     
     res.json({
       success: true,

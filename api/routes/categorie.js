@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -31,7 +32,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/categorie - Aggiungi categoria
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { nome, descrizione } = req.body;
     

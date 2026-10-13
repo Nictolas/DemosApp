@@ -1,7 +1,9 @@
 const express = require('express');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { Pool } = require('pg');
 
 const router = express.Router();
+router.use(verifyToken, requireAdmin);
 
 // Endpoint per eliminare utenti temporanei
 router.post('/delete-temporary-users', async (req, res) => {

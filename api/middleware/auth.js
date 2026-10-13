@@ -3,6 +3,7 @@ const { verifyAccessToken } = require('../utils/jwt');
 const { getPool } = require('../config/database');
 const redisCache = require('../services/redisCache');
 const { keys: cacheKeys, ttl: cacheTtl } = require('../config/cacheKeys');
+const { getAccountSubject } = require('../services/accountCapabilitiesService');
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
@@ -68,28 +69,29 @@ const verifyToken = async (req, res, next) => {
       let user;
       if (authCacheKey) {
         const cached = await redisCache.getJson(authCacheKey);
-        if (cached && cached.id != null && cached.status != null && cached.ruolo != null) {
+        if (
+          cached &&
+          cached.id != null &&
+          cached.status != null &&
+          cached.legacyRole != null &&
+          cached.capabilities != null
+        ) {
           user = cached;
           log('🔐 DEBUG verifyToken - Cache auth hit per user:', userIdFromToken);
         }
       }
 
       if (!user) {
-        let userResult;
         try {
-          // La colonna email può non esistere più: selezioniamo solo i campi necessari all'autenticazione.
-          userResult = await pool.query(
-            'SELECT id, status, ruolo FROM users WHERE id = $1',
-            [userIdFromToken]
-          );
-          log('🔐 DEBUG verifyToken - Risultato query utente:', userResult.rows.length, 'righe');
+          user = await getAccountSubject(pool, userIdFromToken);
+          log('🔐 DEBUG verifyToken - Modello account caricato:', user ? 'OK' : 'NON TROVATO');
         } catch (dbError) {
           logErr('❌ DEBUG verifyToken - Errore database:', dbError.message);
           if (!isProduction) logErr('❌ DEBUG verifyToken - Stack database:', dbError.stack);
           throw dbError;
         }
 
-        if (userResult.rows.length === 0) {
+        if (!user) {
           return res.status(401).json({
             success: false,
             error: 'Utente non trovato',
@@ -97,14 +99,8 @@ const verifyToken = async (req, res, next) => {
           });
         }
 
-        user = userResult.rows[0];
-
         if (authCacheKey && authCacheTtlSec > 0) {
-          await redisCache.setJson(
-            authCacheKey,
-            { id: user.id, status: user.status, ruolo: user.ruolo },
-            authCacheTtlSec
-          );
+          await redisCache.setJson(authCacheKey, user, authCacheTtlSec);
         }
       }
 
@@ -118,12 +114,19 @@ const verifyToken = async (req, res, next) => {
 
       req.user = {
         id: user.id,
-        role: user.ruolo,
+        role: user.legacyRole,
+        legacyRole: user.legacyRole,
         status: user.status,
+        accountType: user.capabilities.accountType,
+        isAdmin: user.capabilities.isAdmin,
+        isActivist: user.capabilities.isActivist,
+        isCandidate: user.capabilities.isCandidate,
+        isPolitician: user.capabilities.isPolitician,
+        capabilities: user.capabilities,
         jti: decoded.jti
       };
       req.userId = user.id;
-      req.userRole = user.ruolo;
+      req.userRole = user.legacyRole;
       req.userEmail = null;
 
       log('🔐 DEBUG - Token verificato per utente:', req.user.id, 'ruolo:', req.user.role);
@@ -173,7 +176,7 @@ const verifyToken = async (req, res, next) => {
 const requireAdmin = async (req, res, next) => {
   try {
     // Verifica che verifyToken sia stato eseguito prima
-    if (!req.user || !req.userRole) {
+    if (!req.user) {
       if (!isProduction) console.log('❌ DEBUG requireAdmin - Utente non autenticato');
       return res.status(401).json({
         success: false,
@@ -183,10 +186,10 @@ const requireAdmin = async (req, res, next) => {
     }
     
     if (!isProduction) {
-      console.log('👑 DEBUG requireAdmin - req.userRole:', req.userRole);
+      console.log('👑 DEBUG requireAdmin - isAdmin capability:', req.user.isAdmin);
     }
-    if (!req.userRole || req.userRole !== 'AD') {
-      if (!isProduction) console.log('❌ DEBUG requireAdmin - Ruolo non admin:', req.userRole);
+    if (!req.user.isAdmin) {
+      if (!isProduction) console.log('❌ DEBUG requireAdmin - Capability Admin assente');
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',

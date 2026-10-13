@@ -1,28 +1,34 @@
 /**
- * Servizio per inizializzare Firebase Admin SDK
- * Usato per inviare notifiche push FCM
+ * Servizio per inizializzare Firebase Admin SDK.
+ * Espone una piccola facade compatibile con i caller legacy admin.messaging().
  */
 
 let admin = null;
+let firebaseApp = null;
 let isInitialized = false;
 
+function buildAdminFacade(app, getMessaging) {
+  return {
+    apps: app ? [app] : [],
+    messaging: () => getMessaging(app),
+  };
+}
+
 function initializeFirebaseAdmin() {
-  if (isInitialized && admin) {
-    return admin;
-  }
+  if (isInitialized && admin) return admin;
 
   try {
-    // Prova a caricare firebase-admin
-    admin = require('firebase-admin');
-    
-    // Verifica se Firebase è già inizializzato
-    if (admin.apps.length > 0) {
+    const { initializeApp, cert, getApps, getApp } = require('firebase-admin/app');
+    const { getMessaging } = require('firebase-admin/messaging');
+
+    if (getApps().length > 0) {
+      firebaseApp = getApp();
+      admin = buildAdminFacade(firebaseApp, getMessaging);
       isInitialized = true;
       console.log('✅ Firebase Admin già inizializzato');
       return admin;
     }
 
-    // Usa solo variabili d'ambiente (come configurato su Render.com)
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
@@ -33,7 +39,6 @@ function initializeFirebaseAdmin() {
       return null;
     }
 
-    // Pulisci la chiave privata: rimuovi virgolette iniziali/finali e converti \n
     let privateKey = privateKeyRaw.trim();
     if (
       (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
@@ -49,14 +54,10 @@ function initializeFirebaseAdmin() {
       );
     }
 
-    const credential = admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
+    firebaseApp = initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
-
-    admin.initializeApp({ credential });
-
+    admin = buildAdminFacade(firebaseApp, getMessaging);
     isInitialized = true;
     console.log('✅ Firebase Admin inizializzato con successo (env)');
     return admin;
@@ -68,7 +69,6 @@ function initializeFirebaseAdmin() {
 }
 
 function getFirebaseAdmin() {
-  // Se non è inizializzato, prova a inizializzarlo
   if (!isInitialized || !admin) {
     console.log('🔄 getFirebaseAdmin: Firebase Admin non inizializzato, tentativo di inizializzazione...');
     const result = initializeFirebaseAdmin();
@@ -87,6 +87,5 @@ function getFirebaseAdmin() {
 module.exports = {
   initializeFirebaseAdmin,
   getFirebaseAdmin,
-  isInitialized: () => isInitialized && admin !== null
+  isInitialized: () => isInitialized && admin !== null,
 };
-

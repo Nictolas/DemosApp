@@ -14,7 +14,7 @@ let opinioniRoutes, opinioniProposteRoutes, governoRoutes, governoMinistroRoutes
 let rappresentantiRoutes, notificheRoutes, notificheTotaliRoutes, fcmTokensRoutes;
 
 try {
-  console.log('📦 Caricamento moduli routes...');
+  console.log('ðŸ“¦ Caricamento moduli routes...');
   healthRoutes = require('./routes/health');
   databaseRoutes = require('./routes/database');
   compatibilityRoutes = require('./routes/compatibility');
@@ -32,10 +32,10 @@ try {
   notificheRoutes = require('./routes/notifiche');
   notificheTotaliRoutes = require('./routes/notifiche-totali');
   fcmTokensRoutes = require('./routes/fcm-tokens');
-  console.log('✅ Moduli routes base caricati correttamente');
+  console.log('âœ… Moduli routes base caricati correttamente');
 } catch (error) {
-  console.error('❌ Errore nel caricamento dei moduli routes base:', error);
-  console.error('❌ Stack trace:', error.stack);
+  console.error('âŒ Errore nel caricamento dei moduli routes base:', error);
+  console.error('âŒ Stack trace:', error.stack);
   throw error;
 }
 const testDbRoutes = require('./routes/test-db');
@@ -51,6 +51,7 @@ const referendumAbrogativiRoutes = require('./routes/referendum-abrogativi');
 const referendumRoutes = require('./routes/referendum');
 const comunicazioniRoutes = require('./routes/comunicazioni');
 const informaCittadiniRoutes = require('./routes/informa-cittadini');
+const podioTrasparenzaRoutes = require('./routes/podio-trasparenza');
 const avvistamentiRoutes = require('./routes/avvistamenti');
 const reazioniComunicazioniRoutes = require('./routes/reazioni-comunicazioni');
 const sostenitoriRoutes = require('./routes/sostenitori');
@@ -85,6 +86,8 @@ const loggingRoutes = require('./routes/admin/logging');
 const monitoringRoutes = require('./routes/admin/monitoring');
 const securityMetricsRoutes = require('./routes/admin/security-metrics');
 const dataExportRoutes = require('./routes/admin/data-export');
+const civicProcessReconciliationRoutes = require('./routes/admin/civic-process-reconciliation');
+const civicProcessAdminRoutes = require('./routes/admin/civic-processes');
 const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
 const axiomDataRoutes = require('./routes/admin/axiom-data');
 const migrationsRoutes = require('./routes/migrations');
@@ -109,6 +112,9 @@ const dataRetentionJob = require('./jobs/dataRetentionJob');
 const violationMonitoringJob = require('./jobs/violationMonitoringJob');
 const backupJob = require('./jobs/backupJob');
 const ministeroSyncJob = require('./jobs/ministeroSyncJob');
+const civicProcessSyncJob = require('./jobs/civicProcessSyncJob');
+const politicalTerritoryResolverJob = require('./jobs/politicalTerritoryResolverJob');
+const italianElectionUnitSyncJob = require('./jobs/italianElectionUnitSyncJob');
 const { startVotiParlamentoSyncJob } = require('./jobs/votiParlamentoSyncJob');
 const { startOpenpolisCosaSuccedeJob } = require('./jobs/openpolisCosaSuccedeJob');
 const { startOpenpolisVotazioniFinaliJob } = require('./jobs/openpolisVotazioniFinaliJob');
@@ -158,10 +164,10 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS: Origin autorizzato:', origin);
+      console.log('âœ… CORS: Origin autorizzato:', origin);
       callback(null, true);
     } else {
-      console.log('🚨 CORS: Origin non autorizzato:', origin);
+      console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
       callback(new Error('Non autorizzato da CORS'));
     }
   },
@@ -174,7 +180,7 @@ const corsOptions = {
 // Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  console.log('🌐 CORS Middleware - Origin:', origin);
+  console.log('ðŸŒ CORS Middleware - Origin:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
@@ -192,9 +198,9 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('✅ CORS: Header impostati per origin:', origin);
+    console.log('âœ… CORS: Header impostati per origin:', origin);
   } else if (origin) {
-    console.log('🚨 CORS: Origin non autorizzato:', origin);
+    console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
   }
   
   next();
@@ -203,7 +209,7 @@ app.use((req, res, next) => {
 // Gestione esplicita delle richieste OPTIONS per CORS
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  console.log('🔍 CORS OPTIONS richiesta da:', origin);
+  console.log('ðŸ” CORS OPTIONS richiesta da:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
@@ -221,9 +227,9 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('✅ CORS OPTIONS: Header impostati per origin:', origin);
+    console.log('âœ… CORS OPTIONS: Header impostati per origin:', origin);
   } else if (origin) {
-    console.log('🚨 CORS OPTIONS: Origin non autorizzato:', origin);
+    console.log('ðŸš¨ CORS OPTIONS: Origin non autorizzato:', origin);
   }
   
   res.status(200).end();
@@ -234,22 +240,22 @@ app.use(cors(corsOptions));
 // DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+    console.log(`ðŸš¨ UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
     if (req.originalUrl.includes('send-demos-notification')) {
-      console.log(`🔴 ========== UNIVERSAL LOG: RICHIESTA send-demos-notification ==========`);
-      console.log(`🔴 Method: ${req.method}`);
-      console.log(`🔴 URL: ${req.originalUrl}`);
-      console.log(`🔴 Path: ${req.path}`);
-      console.log(`🔴 Headers: ${JSON.stringify(req.headers)}`);
+      console.log(`ðŸ”´ ========== UNIVERSAL LOG: RICHIESTA send-demos-notification ==========`);
+      console.log(`ðŸ”´ Method: ${req.method}`);
+      console.log(`ðŸ”´ URL: ${req.originalUrl}`);
+      console.log(`ðŸ”´ Path: ${req.path}`);
+      console.log(`ðŸ”´ Headers: ${JSON.stringify(req.headers)}`);
     }
     if (req.originalUrl.includes('send-user-notification')) {
-      console.log(`🟣 ========== UNIVERSAL LOG: RICHIESTA send-user-notification ==========`);
-      console.log(`🟣 Method: ${req.method}`);
-      console.log(`🟣 URL: ${req.originalUrl}`);
-      console.log(`🟣 Path: ${req.path}`);
-      console.log(`🟣 Base URL: ${req.baseUrl}`);
-      console.log(`🟣 Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
-      console.log(`🟣 Body keys: ${req.body && typeof req.body === 'object' ? Object.keys(req.body).join(',') : 'none'}`);
+      console.log(`ðŸŸ£ ========== UNIVERSAL LOG: RICHIESTA send-user-notification ==========`);
+      console.log(`ðŸŸ£ Method: ${req.method}`);
+      console.log(`ðŸŸ£ URL: ${req.originalUrl}`);
+      console.log(`ðŸŸ£ Path: ${req.path}`);
+      console.log(`ðŸŸ£ Base URL: ${req.baseUrl}`);
+      console.log(`ðŸŸ£ Headers Authorization: ${req.headers.authorization ? 'Presente' : 'Mancante'}`);
+      console.log(`ðŸŸ£ Body keys: ${req.body && typeof req.body === 'object' ? Object.keys(req.body).join(',') : 'none'}`);
     }
     next();
   });
@@ -288,26 +294,26 @@ app.head('/', (req, res) => {
 // Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    console.log(`📡 ${req.method} ${req.path} - ${new Date().toISOString()}`);
-    console.log(`🌐 Origin: ${req.headers.origin || 'Nessuna'}`);
-    console.log(`🔗 Referer: ${req.headers.referer || 'Nessuna'}`);
+    console.log(`ðŸ“¡ ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    console.log(`ðŸŒ Origin: ${req.headers.origin || 'Nessuna'}`);
+    console.log(`ðŸ”— Referer: ${req.headers.referer || 'Nessuna'}`);
     if (req.path === '/api/auth/register' && req.method === 'POST') {
-      console.log('🚨 DEBUG: Richiesta POST /api/auth/register rilevata!');
-      console.log('🚨 DEBUG: Headers:', req.headers);
-      console.log('🚨 DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
+      console.log('ðŸš¨ DEBUG: Richiesta POST /api/auth/register rilevata!');
+      console.log('ðŸš¨ DEBUG: Headers:', req.headers);
+      console.log('ðŸš¨ DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
     }
     if (req.path.startsWith('/api/auth/') && req.method === 'POST') {
-      console.log('🔍 DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
-      console.log('🔍 DEBUG: Body presente:', !!req.body);
-      console.log('🔍 DEBUG: Content-Type:', req.headers['content-type']);
+      console.log('ðŸ” DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
+      console.log('ðŸ” DEBUG: Body presente:', !!req.body);
+      console.log('ðŸ” DEBUG: Content-Type:', req.headers['content-type']);
     }
     if (req.path === '/api/auth/login' || req.path === '/auth/login') {
-      console.log('🔐 LOGIN REQUEST DETECTED:', req.method, req.path);
+      console.log('ðŸ” LOGIN REQUEST DETECTED:', req.method, req.path);
     }
     if (req.path === '/api/referendum-abrogativi' && req.method === 'POST') {
-      console.log('📋 REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
-      console.log('📋 REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
-      console.log('📋 REFERENDUM POST - Body keys:', req.body && typeof req.body === 'object' ? Object.keys(req.body) : []);
+      console.log('ðŸ“‹ REFERENDUM POST REQUEST DETECTED:', req.method, req.path);
+      console.log('ðŸ“‹ REFERENDUM POST - Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
+      console.log('ðŸ“‹ REFERENDUM POST - Body keys:', req.body && typeof req.body === 'object' ? Object.keys(req.body) : []);
     }
     next();
   });
@@ -319,7 +325,7 @@ app.use('/api', healthRoutes);
 // Route per database
 app.use('/api', databaseRoutes);
 
-// Route per compatibilità frontend
+// Route per compatibilitÃ  frontend
 app.use('/api', compatibilityRoutes);
 
 // Route per servizi
@@ -361,6 +367,7 @@ app.use('/api/referendum-abrogativi', referendumAbrogativiRoutes);
 app.use('/api/referendum', referendumRoutes);
 app.use('/api/comunicazioni', comunicazioniRoutes);
 app.use('/api/informa-cittadini', informaCittadiniRoutes);
+app.use('/api/podio-trasparenza', userLimiter, podioTrasparenzaRoutes);
 app.use('/api/avvistamenti', avvistamentiRoutes);
 app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
 app.use('/api/sostenitori', sostenitoriRoutes);
@@ -439,6 +446,10 @@ app.use('/api/admin/logging', adminLimiter, loggingRoutes);
 // Route per export dati
 app.use('/api/admin/data-export', adminLimiter, dataExportRoutes);
 
+// IMP-029: revisione manuale dei candidati di riconciliazione multi-fonte.
+app.use('/api/admin/civic-process-reconciliation', adminLimiter, civicProcessReconciliationRoutes);
+app.use('/api/admin/civic-processes', adminLimiter, civicProcessAdminRoutes);
+
 // Route per migrazione Axiom
 app.use('/api/admin/axiom-migration', adminLimiter, axiomMigrationRoutes);
 
@@ -459,13 +470,13 @@ if (mountDevApiSurface) {
 
 if (isProductionApp && !mountDevApiSurface) {
   console.log(
-    '🔒 Route API dev/test/migrate/cleanup non esposte. Per abilitarle: ALLOW_DEV_API_SURFACE=true'
+    'ðŸ”’ Route API dev/test/migrate/cleanup non esposte. Per abilitarle: ALLOW_DEV_API_SURFACE=true'
   );
 }
 
 // Gestione errori 404
 app.use('*', (req, res) => {
-  console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
+  console.log(`âŒ Route non trovata: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     error: 'Route non trovata',
@@ -475,22 +486,22 @@ app.use('*', (req, res) => {
 
 // Middleware gestione errori globale (riceve errori da route async grazie a express-async-errors)
 app.use((error, req, res, next) => {
-  console.error('💥 Errore globale:', error);
-  if (error && error.stack) console.error('💥 Stack:', error.stack);
+  console.error('ðŸ’¥ Errore globale:', error);
+  if (error && error.stack) console.error('ðŸ’¥ Stack:', error.stack);
 
   logger.logError(error, req, {
     globalError: true,
     endpoint: req.originalUrl,
     method: req.method
   }).catch(logError => {
-    console.error('❌ Errore logging errore globale:', logError);
+    console.error('âŒ Errore logging errore globale:', logError);
   });
 
   if (!res.headersSent) {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Si è verificato un errore imprevisto'
+      message: 'Si Ã¨ verificato un errore imprevisto'
     });
   }
 });
@@ -509,7 +520,7 @@ const performanceMonitorIntervalMs = Math.max(
 if (performanceMonitorEnabled) {
   performanceMonitor.start(performanceMonitorIntervalMs);
 } else {
-  console.log('📊 Performance monitoring disabilitato (PERFORMANCE_MONITOR_ENABLED=false)');
+  console.log('ðŸ“Š Performance monitoring disabilitato (PERFORMANCE_MONITOR_ENABLED=false)');
 }
 
 // Avvia sistema di ottimizzazione performance
@@ -521,8 +532,10 @@ performanceOptimizer.start();
  * - Data retention / violation: intervalli ms via DATA_RETENTION_*_INTERVAL_MS, VIOLATION_*_INTERVAL_MS
  * - Backup: ore da BackupService (config)
  * - Ministero: MINISTERO_SYNC_INTERVAL_MS, MINISTERO_SYNC_IN_CORSO_INTERVAL_MS (vedi ministeroSyncJob.js)
+ * - Processi civici canonici: CIVIC_PROCESS_SYNC_INTERVAL_MS (default 6h), solo con ENABLE_CIVIC_PROCESS_SYNC=true
+ * - Resolver territori politici: POLITICAL_TERRITORY_RESOLVER_INTERVAL_MS (default 6h), solo con ENABLE_POLITICAL_TERRITORY_RESOLVER=true
  * - Voti parlamento: cron VOTI_PARLAMENTO_SYNC_CRON (default 6h)
- * - Openpolis: OPENPOLIS_COSA_SUCCEDE_CRON, OPENPOLIS_VOTAZIONI_FINALI_CRON (default offset rispetto all’ora)
+ * - Openpolis: OPENPOLIS_COSA_SUCCEDE_CRON, OPENPOLIS_VOTAZIONI_FINALI_CRON (default offset rispetto allâ€™ora)
  * Raggruppare sync meno frequenti o allineare le finestre riduce wake ripetuti del DB.
  */
 // Avvia job di data retention (solo se abilitato)
@@ -537,13 +550,33 @@ if (process.env.ENABLE_VIOLATION_MONITORING === 'true') {
 
 // Avvia job di backup automatico (solo se abilitato)
 if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
-  backupJob.start();
+  console.warn(
+    'Legacy application JSON backup is retired and will not start. Use PostgreSQL/provider recovery (Neon PITR in production).'
+  );
 }
 
 // Avvia job di sincronizzazione Ministero (solo se esplicitamente abilitato)
-// Se ENABLE_MINISTERO_SYNC non è presente (undefined) oppure non è "true", il job resta disabilitato.
+// Se ENABLE_MINISTERO_SYNC non Ã¨ presente (undefined) oppure non Ã¨ "true", il job resta disabilitato.
 if (process.env.ENABLE_MINISTERO_SYNC === 'true') {
   ministeroSyncJob.start();
+}
+
+// Alimenta il modello canonico multi-fonte solo dopo migrazione esplicita dell'ambiente.
+// Il flag resta opt-in: nessun ambiente esistente cambia comportamento automaticamente.
+if (process.env.ENABLE_CIVIC_PROCESS_SYNC === 'true') {
+  civicProcessSyncJob.start();
+}
+
+// Normalizza la residenza italiana contro lo snapshot ufficiale SITUAS solo dopo
+// l'installazione esplicita dello schema territoriale canonico. Opt-in per default.
+if (process.env.ENABLE_POLITICAL_TERRITORY_RESOLVER === 'true') {
+  politicalTerritoryResolverJob.start();
+}
+
+// Importa unità elettorali ufficiali DAIT per una consultazione/evento esplicitamente configurati.
+// One-shot e opt-in: nessun evento viene associato automaticamente a una fonte ministeriale.
+if (process.env.ENABLE_ITALIAN_ELECTION_UNIT_SYNC === 'true') {
+  italianElectionUnitSyncJob.start();
 }
 
 // Avvia job di sincronizzazione votazioni parlamentari (solo se esplicitamente abilitato)
@@ -555,7 +588,7 @@ if (process.env.ENABLE_VOTI_PARLAMENTO_SYNC === 'true') {
 // (include anche i job Openpolis votazioni finali) - solo se esplicitamente abilitato.
 if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC === 'true') {
   startOpenpolisCosaSuccedeJob();
-  // Esegui un sync iniziale in background così la prima richiesta ha già i titoli
+  // Esegui un sync iniziale in background cosÃ¬ la prima richiesta ha giÃ  i titoli
   const { runOpenpolisCosaSuccedeSync } = require('./jobs/openpolisCosaSuccedeJob');
   setImmediate(() => runOpenpolisCosaSuccedeSync().catch(() => {}));
 

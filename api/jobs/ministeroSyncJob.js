@@ -9,49 +9,54 @@ const logger = require('../services/centralizedLogger');
 class MinisteroSyncJob {
   constructor() {
     this.interval = null;
-    this.intervalInCorso = null; // Sincronizzazione più frequente per referendum in corso
-    this.dailyInterval = null; // Interval per sincronizzazione giornaliera
+    this.intervalInCorso = null;
+    this.dailyInterval = null;
     this.isRunning = false;
-    this.isRunningInCorso = false; // Flag separata per sync rapida
+    this.isRunningInCorso = false;
     this.lastSyncTime = null;
     this.lastSyncStatus = null;
     this.lastSyncError = null;
-    
-    // Intervallo principale: ogni 1 ora (3600000 ms) invece di 6 ore per dati più freschi
-    this.intervalMs = parseInt(process.env.MINISTERO_SYNC_INTERVAL_MS || '3600000'); // Default 1 ora
-    
-    // Intervallo per referendum "in corso": ogni 30 minuti per aggiornamenti più frequenti
-    this.intervalInCorsoMs = parseInt(process.env.MINISTERO_SYNC_IN_CORSO_INTERVAL_MS || '1800000'); // Default 30 minuti
-    
-    // Numero di tentativi in caso di errore
+
+    this.intervalMs = parseInt(process.env.MINISTERO_SYNC_INTERVAL_MS || '3600000');
+    this.intervalInCorsoMs = parseInt(process.env.MINISTERO_SYNC_IN_CORSO_INTERVAL_MS || '1800000');
     this.maxRetries = parseInt(process.env.MINISTERO_SYNC_MAX_RETRIES || '3');
-    this.retryDelayMs = parseInt(process.env.MINISTERO_SYNC_RETRY_DELAY_MS || '60000'); // 1 minuto
+    this.retryDelayMs = parseInt(process.env.MINISTERO_SYNC_RETRY_DELAY_MS || '60000');
   }
 
   /**
-   * Esegue la sincronizzazione con retry automatico
+   * Esegue la sincronizzazione con retry automatico.
+   * Un fetch riuscito non basta: se il salvataggio produce errori e non processa
+   * alcun record, il tentativo deve fallire invece di essere marcato come successo.
    */
   async executeWithRetry() {
     let lastError = null;
-    
+
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        await ministeroSync.syncAll();
-        this.lastSyncStatus = 'success';
-        this.lastSyncError = null;
-        return; // Successo, esci dal loop
+        const result = await ministeroSync.syncAll();
+        const processed = Number(result?.created || 0) + Number(result?.updated || 0);
+        const errors = Number(result?.errors || 0);
+
+        if (errors > 0 && processed === 0) {
+          const error = new Error(`MINISTERO_SYNC_ALL_ROWS_FAILED: processed=${processed}, errors=${errors}`);
+          error.code = 'MINISTERO_SYNC_ALL_ROWS_FAILED';
+          throw error;
+        }
+
+        this.lastSyncStatus = errors > 0 ? 'partial' : 'success';
+        this.lastSyncError = errors > 0 ? `processed=${processed}, errors=${errors}` : null;
+        return result;
       } catch (error) {
         lastError = error;
         console.error(`❌ Tentativo ${attempt}/${this.maxRetries} fallito:`, error.message);
-        
+
         if (attempt < this.maxRetries) {
           console.log(`⏳ Riprovo tra ${this.retryDelayMs / 1000} secondi...`);
           await new Promise(resolve => setTimeout(resolve, this.retryDelayMs));
         }
       }
     }
-    
-    // Tutti i tentativi falliti
+
     this.lastSyncStatus = 'error';
     this.lastSyncError = lastError?.message || 'Errore sconosciuto';
     throw lastError;
@@ -68,11 +73,16 @@ class MinisteroSyncJob {
     console.log(`🔄 Esecuzione sincronizzazione Ministero (${this.lastSyncTime.toISOString()})...`);
 
     try {
-      await this.executeWithRetry();
-      console.log(`✅ Sincronizzazione Ministero completata con successo (${new Date().toISOString()})`);
+      const result = await this.executeWithRetry();
+      const errors = Number(result?.errors || 0);
+      if (errors > 0) {
+        console.warn(`⚠️ Sincronizzazione Ministero completata parzialmente: ${errors} errori (${new Date().toISOString()})`);
+      } else {
+        console.log(`✅ Sincronizzazione Ministero completata con successo (${new Date().toISOString()})`);
+      }
     } catch (error) {
       console.error('❌ Errore nell\'esecuzione sincronizzazione Ministero dopo tutti i tentativi:', error);
-      await logger.error('Errore job sincronizzazione Ministero', { 
+      await logger.error('Errore job sincronizzazione Ministero', {
         error: error.message,
         stack: error.stack,
         attempts: this.maxRetries
@@ -92,34 +102,26 @@ class MinisteroSyncJob {
     console.log(`   - Sincronizzazione completa: ogni ${this.intervalMs / 1000 / 60} minuti`);
     console.log(`   - Sincronizzazione referendum in corso: ogni ${this.intervalInCorsoMs / 1000 / 60} minuti`);
     console.log(`   - Tentativi massimi in caso di errore: ${this.maxRetries}`);
-    
-    // Esegui immediatamente al primo avvio
+
     this.execute();
 
-    // Sincronizzazione completa periodica (tutti i referendum)
     this.interval = setInterval(() => {
-      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
       Promise.resolve(this.execute()).catch(error => {
         console.error('❌ Errore non gestito in execute():', error);
       });
     }, this.intervalMs);
 
-    // Sincronizzazione più frequente per referendum "in corso" (solo quelli attivi)
-    // Questo permette di avere dati più freschi per i referendum attualmente in votazione
     this.intervalInCorso = setInterval(() => {
-      // Wrappare in Promise per gestire errori async e evitare unhandledRejection
       Promise.resolve(this.syncInCorsoOnly()).catch(error => {
         console.error('❌ Errore non gestito in syncInCorsoOnly():', error);
       });
     }, this.intervalInCorsoMs);
 
-    // Esegui anche ogni giorno alle 3:00 AM per sincronizzazione completa
     this.scheduleDaily();
   }
 
   /**
-   * Sincronizza solo i referendum "in corso" per avere dati più freschi
-   * Questa sincronizzazione è più leggera e veloce
+   * Sincronizza solo i referendum "in corso" per avere dati più freschi.
    */
   async syncInCorsoOnly() {
     if (this.isRunningInCorso || this.isRunning) {
@@ -131,41 +133,45 @@ class MinisteroSyncJob {
     console.log(`🔄 Sincronizzazione rapida referendum in corso (${new Date().toISOString()})...`);
 
     try {
-      // Recupera solo i referendum in corso dall'API
       const data = await ministeroSync.fetchAllFromMinistero();
       let iniziative = [];
-      
+
       if (Array.isArray(data)) {
         iniziative = data;
       } else if (data && typeof data === 'object') {
         iniziative = data.content || data.iniziative || data.data || [];
       }
 
-      // Filtra solo quelli in corso
       const inCorso = iniziative.filter(item => {
         const stato = item.idDecStatoIniziativa?.nome || item.stato || '';
-        return stato.toLowerCase().includes('raccolta') || 
-               stato.toLowerCase().includes('aperto') || 
+        return stato.toLowerCase().includes('raccolta') ||
+               stato.toLowerCase().includes('aperto') ||
                stato.toLowerCase().includes('in corso');
       });
 
       console.log(`📊 Trovati ${inCorso.length} referendum/iniziative in corso da aggiornare`);
 
-      // Aggiorna solo questi nel database
       let updated = 0;
+      let errors = 0;
       for (const iniziativa of inCorso) {
         try {
           await ministeroSync.saveIniziativa(iniziativa);
           updated++;
         } catch (error) {
+          errors++;
           console.error(`❌ Errore aggiornamento singola iniziativa:`, error.message);
         }
       }
 
-      console.log(`✅ Sincronizzazione rapida completata: ${updated} referendum aggiornati`);
+      if (errors > 0 && updated === 0 && inCorso.length > 0) {
+        console.error(`❌ Sincronizzazione rapida fallita: 0/${inCorso.length} aggiornati, ${errors} errori`);
+      } else if (errors > 0) {
+        console.warn(`⚠️ Sincronizzazione rapida parziale: ${updated}/${inCorso.length} aggiornati, ${errors} errori`);
+      } else {
+        console.log(`✅ Sincronizzazione rapida completata: ${updated} referendum aggiornati`);
+      }
     } catch (error) {
       console.error('❌ Errore nella sincronizzazione rapida:', error.message);
-      // Non blocchiamo il job principale per errori nella sync rapida
     } finally {
       this.isRunningInCorso = false;
     }
@@ -175,19 +181,15 @@ class MinisteroSyncJob {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(3, 0, 0, 0); // 3:00 AM
+    tomorrow.setHours(3, 0, 0, 0);
 
     const msUntil3AM = tomorrow.getTime() - now.getTime();
 
     setTimeout(() => {
-      // Wrappare in Promise per gestire errori async
       Promise.resolve(this.execute()).catch(error => {
         console.error('❌ Errore non gestito in execute() (scheduleDaily):', error);
       });
-      // Dopo la prima esecuzione, programma ogni 24 ore
-      // Salva riferimento per cleanup
       this.dailyInterval = setInterval(() => {
-        // Wrappare in Promise per gestire errori async
         Promise.resolve(this.execute()).catch(error => {
           console.error('❌ Errore non gestito in execute() (dailyInterval):', error);
         });
@@ -211,9 +213,6 @@ class MinisteroSyncJob {
     console.log('🛑 Job sincronizzazione Ministero fermato');
   }
 
-  /**
-   * Restituisce lo stato attuale della sincronizzazione
-   */
   getStatus() {
     return {
       isRunning: this.isRunning,
@@ -228,4 +227,3 @@ class MinisteroSyncJob {
 }
 
 module.exports = new MinisteroSyncJob();
-

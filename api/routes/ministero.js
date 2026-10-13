@@ -5,6 +5,7 @@ const ministeroSync = require('../services/ministeroSync');
 const ministeroSyncJob = require('../jobs/ministeroSyncJob');
 const { remember, isEnabled } = require('../services/redisCache');
 const { keys, ttl } = require('../config/cacheKeys');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 
 /**
  * Endpoint per recuperare i dati dal database (sincronizzati dal Ministero)
@@ -17,12 +18,8 @@ const { keys, ttl } = require('../config/cacheKeys');
 router.get('/iniziative', async (req, res) => {
   try {
     const { pool } = require('../middleware/auth');
-    const { source } = req.query; // Permette di forzare la chiamata all'API con ?source=ministero
-    
-    // Se viene richiesto esplicitamente, chiama l'API del Ministero
-    if (source === 'ministero') {
-      return await fetchFromMinisteroAPI(req, res);
-    }
+    // La superficie pubblica legge sempre il dataset canonico sincronizzato.
+    // Le chiamate live e gli strumenti operativi non sono controllabili dal client pubblico.
 
     console.log('📊 Recupero dati iniziative dal database (sincronizzati)...');
 
@@ -209,7 +206,7 @@ async function fetchFromMinisteroAPI(req, res) {
  * Endpoint per sincronizzare manualmente le iniziative/referendum dal Ministero
  * POST /api/ministero/sync
  */
-router.post('/sync', async (req, res) => {
+router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 Sincronizzazione manuale richiesta');
     
@@ -241,7 +238,7 @@ router.post('/sync', async (req, res) => {
  * Endpoint per verificare lo stato della sincronizzazione automatica
  * GET /api/ministero/sync/status
  */
-router.get('/sync/status', async (req, res) => {
+router.get('/sync/status', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { pool } = require('../middleware/auth');
     
@@ -307,7 +304,7 @@ router.get('/sync/status', async (req, res) => {
  * Endpoint per ottenere le iniziative sincronizzate dal database
  * GET /api/ministero/database
  */
-router.get('/database', async (req, res) => {
+router.get('/database', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { pool } = require('../middleware/auth');
     
@@ -360,7 +357,7 @@ router.get('/database', async (req, res) => {
  * Endpoint per vedere gli ultimi log di sincronizzazione (solo per debug)
  * GET /api/ministero/logs
  */
-router.get('/logs', async (req, res) => {
+router.get('/logs', verifyToken, requireAdmin, async (req, res) => {
   try {
     // Verifica se Axiom è configurato
     if (process.env.AXIOM_ENABLED !== 'true') {

@@ -1,6 +1,10 @@
 const express = require('express');
-const { verifyToken } = require('../../middleware/auth');
+const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
+const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
+const { createSupporterOpinionNotifications } = require('../../services/politicalOpinionNotificationService');
+const { sendPushToCurrentSupporters } = require('../../services/currentSupporterPushService');
+const { requireVerifiedCivicIdentity } = require('../../middleware/civicIdentity');
 
 const router = express.Router();
 
@@ -74,7 +78,7 @@ router.get('/profile', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente  
-router.post('/salva', verifyToken, async (req, res) => {
+router.post('/salva', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   // Le opinioni sono categorie di dati particolarmente sensibili: non loggare body o valori.
   if (typeof req.body === 'string') {
     try {
@@ -145,6 +149,8 @@ router.post('/salva', verifyToken, async (req, res) => {
     // Salva le opinioni nella struttura con colonne separate
     let savedCount = 0;
     let errorCount = 0;
+    let notificationsCreated = 0;
+    let changedOpinionsForPush = [];
     
     // Mappa delle opinioni ai campi del database
     const opinionMapping = {
@@ -227,17 +233,10 @@ router.post('/salva', verifyToken, async (req, res) => {
       } else {
       }
       
-      // Converti i valori al formato corretto
-      let dbValue = null;
-      if (risposta === 'f') dbValue = 'f';
-      else if (risposta === 'c') dbValue = 'c';
-      else if (risposta === 'i') dbValue = 'i';
-      else if (risposta === 'Favorevole') dbValue = 'f';
-      else if (risposta === 'Contrario') dbValue = 'c';
-      else if (risposta === 'Indeciso') dbValue = 'i';
-      else if (risposta === 'Astenuto') dbValue = null;
-      else {
-        console.warn('⚠️ Valore opinione non riconosciuto');
+      // Una volta espressa, un'Opinione può soltanto cambiare tra f/c/i: NULL non è una risposta.
+      const dbValue = normalizeOpinionAnswer(risposta);
+      if (!dbValue) {
+        console.warn('⚠️ Valore opinione non valido: sono ammesse solo Favorevole, Contrario o Non lo so');
         unmappedOpinions.push(opinionId);
         errorCount++;
         continue;
@@ -263,58 +262,98 @@ router.post('/salva', verifyToken, async (req, res) => {
       });
     }
     
-    // Esegui l'aggiornamento
+    // Salva la posizione e l'eventuale evento di cambio nello stesso commit DB.
+    const client = await pool.connect();
     try {
-      // Prima controlla se l'utente ha già delle risposte
-      const checkQuery = `SELECT user_id FROM opinioni_risposte WHERE user_id = $1`;
-      const checkResult = await pool.query(checkQuery, [userId]);
-      
+      await client.query('BEGIN');
+
+      const quotedFields = insertFields.map((field) => `"${String(field).replace(/"/g, '""')}"`);
+      const checkQuery = `
+        SELECT user_id${quotedFields.length ? `, ${quotedFields.join(', ')}` : ''}
+        FROM opinioni_risposte
+        WHERE user_id = $1
+        FOR UPDATE
+      `;
+      const checkResult = await client.query(checkQuery, [userId]);
+
       if (checkResult.rows.length === 0) {
-        // Prima volta: inserisci tutte le opinioni
+        // Prima risposta: salva, ma non notificare i sostenitori.
         const insertQuery = `
           INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
           VALUES ($1, ${insertFields.map((_, i) => `$${i + 2}`).join(', ')})
         `;
-        
         const allValues = [userId, ...insertValues];
-        console.log('🔍 DEBUG - Prima volta, inserisco tutte le opinioni');
-        
-        const result = await pool.query(insertQuery, allValues);
+        const result = await client.query(insertQuery, allValues);
         savedCount = insertFields.length;
-        console.log(`✅ Query eseguita con successo. Righe inserite: ${result.rowCount}`);
-        
+        console.log(`✅ Prima risposta salvata. Righe inserite: ${result.rowCount}`);
       } else {
-        // Utente esistente: aggiorna solo le opinioni specifiche
+        const previous = checkResult.rows[0];
+        const changes = insertFields
+          .map((field, index) => ({
+            opinionId: field,
+            previousValue: previous[field],
+            newValue: insertValues[index]
+          }))
+          // NULL/non risposta → prima risposta a quella singola Opinione: niente notifica.
+          .filter((change) =>
+            ['f', 'c', 'i'].includes(change.previousValue) &&
+            change.previousValue !== change.newValue
+          );
+
         const updateQuery = `
-          UPDATE opinioni_risposte 
+          UPDATE opinioni_risposte
           SET ${updateFields.join(', ')}
           WHERE user_id = $${updateFields.length + 1}
         `;
-        
         const allValues = [...insertValues, userId];
-        console.log('🔍 DEBUG - Numero parametri UPDATE:', updateFields.length, 'campo WHERE:', updateFields.length + 1);
-        console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
-        
-        const result = await pool.query(updateQuery, allValues);
+        const result = await client.query(updateQuery, allValues);
         savedCount = updateFields.length;
-        console.log(`✅ Query eseguita con successo. Righe aggiornate: ${result.rowCount}`);
-        
-        // Verifica che l'aggiornamento sia andato a buon fine
         if (result.rowCount === 0) {
-          console.warn('⚠️ ATTENZIONE: Nessuna riga aggiornata!');
+          throw new Error('Nessuna riga Opinioni aggiornata');
+        }
+
+        if ((req.user?.isPolitician || req.user?.isCandidate) && changes.length > 0) {
+          const notificationResult = await createSupporterOpinionNotifications(client, {
+            subjectUserId: userId,
+            changes
+          });
+          notificationsCreated = notificationResult.created;
+          changedOpinionsForPush = changes;
         }
       }
-      
+
+      await client.query('COMMIT');
       console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
-      
     } catch (error) {
-      console.error(`❌ Errore nel salvare opinioni:`, error.message);
-      console.error(`❌ Stack trace:`, error.stack);
-      console.error(`❌ Code:`, error.code);
-      console.error(`❌ Detail:`, error.detail);
-      errorCount++;
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-    
+
+    if (notificationsCreated > 0 && changedOpinionsForPush.length > 0) {
+      try {
+        const kind = req.user?.isPolitician && req.user?.isCandidate
+          ? 'both'
+          : (req.user?.isCandidate ? 'candidate' : 'representative');
+        await sendPushToCurrentSupporters(pool, {
+          subjectUserId: userId,
+          kind,
+          title: 'Cambio di posizione',
+          body: changedOpinionsForPush.length === 1
+            ? 'Un profilo che sostieni ha cambiato una posizione politica.'
+            : `Un profilo che sostieni ha cambiato ${changedOpinionsForPush.length} posizioni politiche.`,
+          data: {
+            type: 'political_opinion_change',
+            subjectUserId: userId,
+            link: 'https://www.demos.community/notifiche'
+          }
+        });
+      } catch (pushError) {
+        console.warn('Push cambio Opinione non disponibile:', pushError?.message || pushError);
+      }
+    }
+
     console.log(`📊 Risultato salvataggio: ${savedCount} salvate, ${errorCount} errori`);
     
     if (savedCount === 0) {
@@ -333,6 +372,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       message: 'Opinioni salvate con successo',
       savedCount: savedCount,
       errorCount: errorCount,
+      notificationsCreated,
       timestamp: new Date().toISOString()
     });
     
@@ -468,27 +508,13 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
 });
 
 // PUT /api/opinioni/:id/approfondimento - Aggiorna approfondimento di un'opinione (solo admin)
-router.put('/:id/approfondimento', verifyToken, async (req, res) => {
+router.put('/:id/approfondimento', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params; // ID vecchio (UUID temporaneo)
     const { approfondimento, gradi_opinione, customId } = req.body; // customId = nuovo ID scelto dall'admin
     
     console.log('💾 PUT /api/opinioni/:id/approfondimento - Salvataggio approfondimento per opinione:', id);
     console.log('📋 Dati ricevuti:', { approfondimento, gradi_opinione, customId });
-    
-    // Verifica che l'utente sia admin
-    const userQuery = `
-      SELECT ruolo FROM users WHERE id = $1
-    `;
-    const userResult = await pool.query(userQuery, [req.userId]);
-    
-    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'AD') {
-      return res.status(403).json({
-        success: false,
-        error: 'Accesso negato',
-        message: 'Solo gli amministratori possono modificare gli approfondimenti'
-      });
-    }
     
     // Determina se è un cambio ID (da UUID a ID personalizzato)
     let actualId = id;

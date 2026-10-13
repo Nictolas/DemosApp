@@ -6,4 +6,4 @@
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS opinione_proposta_id TEXT;
 
-COMMENT ON COLUMN users.opinione_proposta_id IS 'ID dell''unica opinione proposta dall''utente (max 1 proposta per utente)';
+COMMENT ON COLUMN users.opinione_proposta_id IS 'ID della proposta di Opinione attualmente pendente dell''utente (max 1 pendente per utente)';

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { URL, URLSearchParams } = require('url');
 const { createCieOidcTransaction } = require('./cieOidcTransactionService');
+const { IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
 
 const FISCAL_NUMBER_CLAIM = 'https://attributes.eid.gov.it/fiscal_number';
 

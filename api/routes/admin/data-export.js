@@ -4,22 +4,17 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
+const { verifyToken, requireAdmin } = require('../../middleware/auth');
 require('dotenv').config();
 
 const router = express.Router();
+router.use(verifyToken, requireAdmin);
 
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
-
-// Middleware per autenticazione admin
-const requireAdmin = (req, res, next) => {
-  // Implementa controllo admin
-  // Per ora salto il controllo
-  next();
-};
 
 /**
  * GET /api/admin/data-export/axiom-analysis

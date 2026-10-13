@@ -3,6 +3,7 @@ const router = express.Router();
 const { decompressUserLocation } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { getAccountSubject, hasCapability, ACCOUNT_TYPES } = require('../services/accountCapabilitiesService');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -22,7 +23,7 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
 
-    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+    if (String(req.userId) !== String(sostenuto_id) && !req.user?.isAdmin) {
       return res.status(403).json({ success: false, error: 'Accesso negato' });
     }
 
@@ -133,7 +134,7 @@ router.get('/', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      supporters: req.userRole === 'AD' ? supporters : [],
+      supporters: req.user?.isAdmin ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
@@ -208,28 +209,14 @@ router.post('/follow', verifyToken, async (req, res) => {
       });
     }
 
-    // Verifica che entrambi gli utenti esistano
-    const usersCheck = await pool.query(`
-      SELECT id, ruolo FROM users WHERE id IN ($1, $2)
-    `, [supporter_id, supported_id]);
-
-    if (usersCheck.rows.length !== 2) {
-      return res.status(404).json({
-        success: false,
-        error: 'Uno o entrambi gli utenti non esistono'
-      });
+    // L'utente autenticato esiste già per definizione; il target deve avere la capability Attivista.
+    const supportedSubject = await getAccountSubject(pool, supported_id);
+    if (!supportedSubject || supportedSubject.status !== 'a') {
+      return res.status(404).json({ success: false, error: 'Utente supportato non trovato o non attivo' });
     }
-
-    // Verifica che l'utente supportato sia un attivista
-    const supportedUser = usersCheck.rows.find(u => u.id === supported_id);
-    if (supportedUser.ruolo !== 'A' && supportedUser.ruolo !== 'AD') {
-      return res.status(400).json({
-        success: false,
-        error: 'Puoi votare solo per gli attivisti'
-      });
+    if (!hasCapability(supportedSubject, 'isActivist')) {
+      return res.status(400).json({ success: false, error: 'Puoi votare solo per gli attivisti' });
     }
-
-    console.log('🗳️ Votazione per attivista - user:', supportedUser);
 
     // Verifica se l'utente sta già votando questo attivista
     const currentVote = await pool.query(`
@@ -441,28 +428,14 @@ router.post('/follow-organizzazione', verifyToken, async (req, res) => {
       });
     }
 
-    // Verifica che entrambi gli utenti esistano
-    const usersCheck = await pool.query(`
-      SELECT id, ruolo FROM users WHERE id IN ($1, $2)
-    `, [supporter_id, supported_id]);
-
-    if (usersCheck.rows.length !== 2) {
-      return res.status(404).json({
-        success: false,
-        error: 'Uno o entrambi gli utenti non esistono'
-      });
+    // Il target Organizzazione è definito dall'account type, non dal ruolo legacy.
+    const supportedSubject = await getAccountSubject(pool, supported_id);
+    if (!supportedSubject || supportedSubject.status !== 'a') {
+      return res.status(404).json({ success: false, error: 'Organizzazione non trovata o non attiva' });
     }
-
-    // Verifica che l'utente supportato sia un'organizzazione
-    const supportedUser = usersCheck.rows.find(u => u.id === supported_id);
-    if (supportedUser.ruolo !== 'O') {
-      return res.status(400).json({
-        success: false,
-        error: 'Puoi votare solo per le organizzazioni'
-      });
+    if (supportedSubject.capabilities.accountType !== ACCOUNT_TYPES.ORGANIZATION) {
+      return res.status(400).json({ success: false, error: 'Puoi votare solo per le organizzazioni' });
     }
-
-    console.log('🗳️ Votazione per organizzazione - user:', supportedUser);
 
     // Verifica se l'utente sta già votando questa organizzazione
     const currentVote = await pool.query(`
@@ -566,7 +539,7 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
       });
     }
 
-    if (String(req.userId) !== String(sostenuto_id) && req.userRole !== 'AD') {
+    if (String(req.userId) !== String(sostenuto_id) && !req.user?.isAdmin) {
       return res.status(403).json({ success: false, error: 'Accesso negato' });
     }
 
@@ -648,7 +621,7 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      supporters: req.userRole === 'AD' ? supporters : [],
+      supporters: req.user?.isAdmin ? supporters : [],
       stats: {
         totalSupporters,
         genderDistribution,
@@ -666,71 +639,103 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/sostenitori/totale - Conteggi aggregati per utente
+// Helper conteggi pubblici: solo Attivista/Organizzazione.
+async function getPublicSupportCounts(sostenutoId) {
+  const result = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE attivisti::text = $1::text) AS attivista,
+       COUNT(*) FILTER (WHERE organizzazioni::text = $1::text) AS organizzazione
+     FROM users`,
+    [sostenutoId]
+  );
+  const row = result.rows[0] || {};
+  const attivista = Number(row.attivista) || 0;
+  const organizzazione = Number(row.organizzazione) || 0;
+  return { attivista, organizzazione, totale: attivista + organizzazione };
+}
+
+async function getPrivatePoliticalSupportCounts(sostenutoId) {
+  const result = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (
+         WHERE rappresentante_europeo::text = $1::text
+            OR rappresentante_camera::text = $1::text
+            OR rappresentante_senato::text = $1::text
+            OR rappresentante_regionale::text = $1::text
+            OR rappresentante_comune::text = $1::text
+       ) AS politico,
+       COUNT(*) FILTER (
+         WHERE candidato_europeo::text = $1::text
+            OR candidato_camera::text = $1::text
+            OR candidato_senato::text = $1::text
+            OR candidato_regionale::text = $1::text
+            OR candidato_comune::text = $1::text
+       ) AS candidato
+     FROM users`,
+    [sostenutoId]
+  );
+  const row = result.rows[0] || {};
+  return {
+    politico: Number(row.politico) || 0,
+    candidato: Number(row.candidato) || 0,
+  };
+}
+
+// GET /api/sostenitori/totale - Vista pubblica: non espone mai conteggi Politico/Candidato.
 router.get('/totale', async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
-
     if (!sostenuto_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID sostenuto richiesto'
-      });
+      return res.status(400).json({ success: false, error: 'ID sostenuto richiesto' });
     }
 
-    // Politico: utenti che hanno scelto questo utente come rappresentante a qualunque livello
-    const politicoQ = await pool.query(`
-      SELECT COUNT(*) AS count
-      FROM users
-      WHERE $1 IN (
-        rappresentante_europeo,
-        rappresentante_camera,
-        rappresentante_senato,
-        rappresentante_regionale,
-        rappresentante_comune
-      )
-    `, [sostenuto_id]);
-    const politico = parseInt(politicoQ.rows[0].count);
-
-    // Attivista: voti nella colonna attivisti
-    const attivistaQ = await pool.query(`
-      SELECT COUNT(*) AS count FROM users WHERE attivisti = $1
-    `, [sostenuto_id]);
-    const attivista = parseInt(attivistaQ.rows[0].count);
-
-    // Organizzazione: voti nella colonna organizzazioni
-    const organizzazioneQ = await pool.query(`
-      SELECT COUNT(*) AS count FROM users WHERE organizzazioni = $1
-    `, [sostenuto_id]);
-    const organizzazione = parseInt(organizzazioneQ.rows[0].count);
-
-    // Candidato: verifica se esiste la colonna 'candidati' e in caso conta, altrimenti 0
-    let candidato = 0;
-    const candidatesColumn = await pool.query(`
-      SELECT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'candidati'
-      ) AS exists
-    `);
-    if (candidatesColumn.rows[0] && candidatesColumn.rows[0].exists) {
-      const candidatoQ = await pool.query(`
-        SELECT COUNT(*) AS count FROM users WHERE candidati = $1
-      `, [sostenuto_id]);
-      candidato = parseInt(candidatoQ.rows[0].count);
-    }
-
-    const totale = politico + candidato + attivista + organizzazione;
-
-    res.json({
+    const counts = await getPublicSupportCounts(sostenuto_id);
+    return res.json({
       success: true,
-      data: { politico, candidato, attivista, organizzazione, totale }
+      data: {
+        ...counts,
+        politico: null,
+        candidato: null,
+        restricted: { politico: true, candidato: true }
+      }
     });
   } catch (error) {
-    console.error('❌ Errore nel calcolo totale sostenitori:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+    console.error('❌ Errore nel calcolo conteggi pubblici sostenitori:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+// GET /api/sostenitori/totale-privato - Conteggi P/C solo al soggetto o ad Admin.
+router.get('/totale-privato', verifyToken, async (req, res) => {
+  try {
+    const { sostenuto_id } = req.query;
+    if (!sostenuto_id) {
+      return res.status(400).json({ success: false, error: 'ID sostenuto richiesto' });
+    }
+    if (String(req.userId) !== String(sostenuto_id) && !req.user?.isAdmin) {
+      return res.status(403).json({ success: false, error: 'Accesso negato' });
+    }
+
+    const [publicCounts, politicalCounts] = await Promise.all([
+      getPublicSupportCounts(sostenuto_id),
+      getPrivatePoliticalSupportCounts(sostenuto_id),
+    ]);
+    return res.json({
+      success: true,
+      data: {
+        ...politicalCounts,
+        attivista: publicCounts.attivista,
+        organizzazione: publicCounts.organizzazione,
+        totale:
+          politicalCounts.politico +
+          politicalCounts.candidato +
+          publicCounts.attivista +
+          publicCounts.organizzazione,
+      }
     });
+  } catch (error) {
+    console.error('❌ Errore nel calcolo conteggi privati sostenitori:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 

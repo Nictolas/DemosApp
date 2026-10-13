@@ -4,7 +4,7 @@
  * Database: "LO", "TO", "SI", etc. (codici ISTAT ufficiali)
  */
 
-// Mapping da database a frontend per regioni (codici ISTAT)
+// Mapping da database a frontend per regioni (codici legacy DEMOS, non codici Regione ISTAT)
 const REGIONI_DB_TO_FRONTEND = {
   'AB': 'Abruzzo',
   'BA': 'Basilicata',

@@ -265,3 +265,45 @@ test('retrying the same chunk is idempotent at the B2 data-object key level', as
 
   assert.equal(secondDataKey, firstDataKey);
 });
+
+test('archive restore verification rejects modified object bytes', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({ env: makeEnv(), b2Client });
+  const event = { _time: '2026-10-06T15:05:00.000Z', level: 'INFO' };
+  const envelope = {
+    archive_event_id: recordFingerprint('centralized_logs', event),
+    source_dataset: 'centralized_logs',
+    category: 'technical',
+    event
+  };
+  const key = 'test/data/technical/verified.jsonl.gz';
+  await service.putVerifiedObject({
+    key,
+    body: zlib.gzipSync(Buffer.from(JSON.stringify(envelope) + '\n')),
+    contentType: 'application/x-ndjson',
+    contentEncoding: 'gzip'
+  });
+  assert.equal((await service.verifyArchiveObject(key)).recordCount, 1);
+  const entry = b2Client.objects.get(key);
+  entry.body[0] ^= 0x01;
+  await assert.rejects(() => service.verifyArchiveObject(key), /SHA-256 mismatch/);
+});
+
+test('archive restore verification rejects modified event fingerprints even with matching object hash', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({ env: makeEnv(), b2Client });
+  const event = { _time: '2026-10-06T15:05:00.000Z', level: 'INFO' };
+  const key = 'test/data/technical/forged.jsonl.gz';
+  await service.putVerifiedObject({
+    key,
+    body: zlib.gzipSync(Buffer.from(JSON.stringify({
+      archive_event_id: 'invalid-fingerprint',
+      source_dataset: 'centralized_logs',
+      category: 'technical',
+      event
+    }) + '\n')),
+    contentType: 'application/x-ndjson',
+    contentEncoding: 'gzip'
+  });
+  await assert.rejects(() => service.verifyArchiveObject(key), /fingerprint mismatch/);
+});

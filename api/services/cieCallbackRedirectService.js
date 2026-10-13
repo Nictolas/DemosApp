@@ -30,7 +30,28 @@ function buildCieCallbackRedirect(outcome) {
   return url.toString();
 }
 
+function buildRegistrationCieCallbackRedirect(outcome, ticket = null) {
+  if (!['success', 'error', 'already-linked', 'account-already-verified'].includes(outcome)) {
+    throw new Error('Esito callback CIE registrazione non valido');
+  }
+  if (outcome === 'success' && (typeof ticket !== 'string' || ticket.length < 32)) {
+    throw new Error('Ticket registrazione mancante');
+  }
+
+  const url = getTrustedFrontendBaseUrl();
+  url.pathname = '/registrazione-crea-passkey';
+  url.search = '';
+
+  const fragment = new URLSearchParams({ cie: outcome });
+  if (ticket) fragment.set('ticket', ticket);
+  // The one-time ticket stays in the URL fragment: it is not sent in HTTP requests or referrers.
+  url.hash = fragment.toString();
+
+  return url.toString();
+}
+
 module.exports = {
   getTrustedFrontendBaseUrl,
-  buildCieCallbackRedirect
+  buildCieCallbackRedirect,
+  buildRegistrationCieCallbackRedirect
 };

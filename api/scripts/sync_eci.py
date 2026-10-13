@@ -1,220 +1,319 @@
+"""Sincronizza la cache DEMOS delle ICE attualmente in raccolta.
+
+La sorgente e' l'API pubblica usata dal portale ufficiale dell'Iniziativa dei
+cittadini europei. Il job non crea classifiche DEMOS e non inferisce stati dal
+numero di firme: importa esclusivamente record con status ufficiale ONGOING.
+
+Per una verifica non distruttiva della sorgente:
+    python api/scripts/sync_eci.py --dry-run
 """
-Sync ECI via scraping HTML: lista iniziative in corso → link dettaglio → scrape titolo/firme → DB.
-Fallback Playwright se la lista è caricata via JavaScript.
-"""
+
+import argparse
+import html as html_lib
 import os
 import re
-import time
-import requests
-from bs4 import BeautifulSoup
-import psycopg2
-from psycopg2.extras import execute_values
+import sys
+from datetime import datetime
+from html.parser import HTMLParser
+from typing import Any, List, Optional, Sequence, Tuple
 
-BASE = "https://citizens-initiative.europa.eu"
-LIST_URL = f"{BASE}/find-initiative_it"
-LIST_PARAMS = {"CATEGORY[0]": "any", "STATUS[0]": "ONGOING", "SECTION": "ALL"}
-DATABASE_URL = os.environ.get("DATABASE_URL")
+REGISTER_API = "https://register.eci.ec.europa.eu/core/api/register"
+PORTAL_BASE = "https://citizens-initiative.europa.eu"
+LANGUAGE = "IT"
+STATUS = "ONGOING"
+PAGE_SIZE = 10
+REQUEST_TIMEOUT_SECONDS = 25
+MAX_OBJECTIVES_LENGTH = 8000
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "it-IT,it;q=0.9",
+    "Accept": "application/json",
+    "User-Agent": "DEMOS-ECI-Sync/1.0 (+official EU public register)",
 }
 
 
-def _get_html(url, params=None):
-    r = requests.get(url, headers=HEADERS, params=params, timeout=25)
-    r.raise_for_status()
-    return r.text
+class _TextExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: List[str] = []
+
+    def handle_data(self, data: str) -> None:
+        if data:
+            self.parts.append(data)
 
 
-def _extract_detail_links(html):
-    """Estrae URL di dettaglio dal HTML della pagina lista (es. /initiatives/details/2025/000005_it)."""
-    soup = BeautifulSoup(html, "html.parser")
-    links = []
-    seen = set()
-    for a in soup.find_all("a", href=True):
-        href = a["href"].strip()
-        m = re.search(r"/initiatives/details/(\d{4})/(\d+)_it", href)
-        if m:
-            year, num = m.group(1), m.group(2)
-            key = (year, num)
-            if key not in seen:
-                seen.add(key)
-                full = href if href.startswith("http") else BASE.rstrip("/") + "/" + href.lstrip("/")
-                links.append({"url": full, "year": year, "num": num, "eid": f"{year}-{num}"})
-    return links
-
-
-def _parse_scadenza(text):
-    """Estrae 'Scadenza: DD/MM/YYYY' e ritorna 'YYYY-MM-DD' o None."""
-    m = re.search(r"Scadenza\s*:\s*(\d{1,2})/(\d{1,2})/(\d{4})", text, re.IGNORECASE)
-    if m:
-        d, mon, y = m.group(1).zfill(2), m.group(2).zfill(2), m.group(3)
-        try:
-            return f"{y}-{mon}-{d}"
-        except Exception:
-            return None
-    return None
-
-
-def _extract_obiettivi(soup):
-    """Estrae il testo della sezione Obiettivi dalla pagina di dettaglio."""
-    text_full = soup.get_text(" ", strip=True)
-    m = re.search(r"Obiettivi\s*(.+?)(?=Informazioni|Clausola|Scadenza|Numero totale|$)", text_full, re.DOTALL | re.IGNORECASE)
-    if m:
-        block = (m.group(1) or "").strip()
-        block = re.sub(r"\s+", " ", block)[:8000]
-        return block if len(block) > 10 else None
-    return None
-
-
-def _scrape_detail(html, eid):
-    """Estrae titolo, firme, scadenza e obiettivi dalla pagina di dettaglio (HTML già renderizzato)."""
-    soup = BeautifulSoup(html, "html.parser")
-    text = soup.get_text(" ", strip=True)
-
-    title = "Senza titolo"
-    for h1 in soup.find_all("h1"):
-        t = (h1.get_text() or "").strip()
-        if t and len(t) > 15 and "informazioni" not in t.lower()[:25] and "iniziativa dei cittadini" not in t.lower()[:30]:
-            title = t[:500]
-            break
-    if title == "Senza titolo":
-        main = soup.find(attrs={"role": "main"}) or soup.find("main")
-        if main:
-            for h in main.find_all(["h1", "h2"]):
-                t = (h.get_text() or "").strip()
-                if t and len(t) > 15 and "iniziativa" not in t.lower()[:20]:
-                    title = t[:500]
-                    break
-    if title == "Senza titolo":
-        meta = soup.find("meta", property="og:title")
-        if meta and meta.get("content"):
-            title = (meta["content"] or "").strip()[:500] or title
-
-    count = 0
-    for pattern in [
-        r"Numero totale di firmatari\s*[\s\t]*([\d.,]+)",
-        r"firmatari\s+([\d.,]+)",
-        r"([\d.,]+)\s*(?:firmatari|firme|supporti|signature)",
-        r"(?:firme|supporti|signature)[:\s]*([\d.,]+)",
-    ]:
-        m = re.search(pattern, text, re.IGNORECASE)
-        if m:
-            raw = m.group(1).replace(".", "").replace(",", "")
-            if raw.isdigit():
-                count = int(raw)
-                break
-
-    end_date = _parse_scadenza(text)
-    obiettivi = _extract_obiettivi(soup)
-    return title, count, end_date, obiettivi
-
-
-def _fetch_list_html():
-    """Ritorna HTML della pagina lista (solo requests)."""
-    return _get_html(LIST_URL, LIST_PARAMS)
-
-
-def _fetch_html_playwright(url, wait_extra=2):
-    """Rende la pagina con Playwright e ritorna HTML (per liste e dettagli JS-rendered)."""
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
+def _strip_html(value: Optional[str]) -> Optional[str]:
+    if not value:
         return None
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(url, wait_until="networkidle", timeout=25000)
-        time.sleep(wait_extra)
-        html = page.content()
-        browser.close()
-    return html
+    parser = _TextExtractor()
+    parser.feed(value)
+    parser.close()
+    text = html_lib.unescape(" ".join(parser.parts))
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return None
+    return text[:MAX_OBJECTIVES_LENGTH]
 
 
-def _fetch_list_html_playwright():
-    """Fallback: rende la pagina lista con Playwright."""
-    return _fetch_html_playwright(
-        f"{LIST_URL}?CATEGORY%5B0%5D=any&STATUS%5B0%5D=ONGOING&SECTION=ALL"
+def _parse_eu_date(value: Optional[str]) -> Optional[str]:
+    """Converte DD/MM/YYYY in YYYY-MM-DD e rifiuta date impossibili."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(str(value).strip(), "%d/%m/%Y")
+    except ValueError:
+        return None
+    return parsed.date().isoformat()
+
+
+def _request_json(method: str, url: str, *, payload: Optional[dict] = None, session=None) -> dict:
+    if session is None:
+        try:
+            import requests
+        except ImportError as exc:  # pragma: no cover - dependency error is integration-only
+            raise RuntimeError("Dipendenza requests mancante") from exc
+        client = requests
+    else:
+        client = session
+    response = client.request(
+        method,
+        url,
+        headers=HEADERS,
+        json=payload,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    data = response.json()
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Risposta JSON inattesa da {url}")
+    return data
+
+
+def _fetch_ongoing_entries(*, session=None) -> List[dict]:
+    """Legge tutte le ICE ONGOING dall'API ufficiale usando offset + limit."""
+    entries: List[dict] = []
+    seen_ids = set()
+    offset = 0
+    expected_total: Optional[int] = None
+
+    while True:
+        url = f"{REGISTER_API}/search/{STATUS}/{LANGUAGE}/{offset}/{PAGE_SIZE}"
+        payload = _request_json("POST", url, payload={}, session=session)
+        batch = payload.get("entries")
+        if not isinstance(batch, list):
+            raise RuntimeError("API ECI: campo entries mancante o non valido")
+
+        records_found = payload.get("recordsFound")
+        if expected_total is None:
+            try:
+                expected_total = int(records_found)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("API ECI: recordsFound mancante o non valido") from exc
+            if expected_total <= 0:
+                raise RuntimeError("API ECI: nessuna iniziativa ONGOING restituita; sync bloccato fail-closed")
+
+        if not batch:
+            break
+
+        for item in batch:
+            if not isinstance(item, dict):
+                raise RuntimeError("API ECI: entry non-oggetto")
+            if item.get("status") != STATUS:
+                raise RuntimeError(f"API ECI: status inatteso {item.get('status')!r} nel feed ONGOING")
+            item_id = item.get("id")
+            if item_id in seen_ids:
+                continue
+            seen_ids.add(item_id)
+            entries.append(item)
+
+        if len(entries) >= expected_total:
+            break
+        offset += len(batch)
+        if offset > 10000:
+            raise RuntimeError("API ECI: offset oltre il limite di sicurezza")
+
+    if expected_total is None or len(entries) != expected_total:
+        raise RuntimeError(
+            f"API ECI incompleta: attesi {expected_total}, ricevuti {len(entries)} record unici"
+        )
+    return entries
+
+
+def _fetch_detail(year: str, number: str, *, session=None) -> dict:
+    return _request_json(
+        "GET",
+        f"{REGISTER_API}/details/{year}/{number}",
+        session=session,
     )
 
 
-def sync():
-    if not DATABASE_URL:
-        print("[ERR] Manca DATABASE_URL.")
-        return
+def _choose_version(detail: dict) -> dict:
+    versions = detail.get("linguisticVersions")
+    if not isinstance(versions, list) or not versions:
+        return {}
 
-    print("[*] Fase 1: Caricamento pagina lista (iniziative in corso)...")
+    for version in versions:
+        if isinstance(version, dict) and str(version.get("languageCode", "")).upper() == LANGUAGE:
+            return version
+    for version in versions:
+        if isinstance(version, dict) and version.get("original") is True:
+            return version
+    for version in versions:
+        if isinstance(version, dict) and str(version.get("languageCode", "")).upper() == "EN":
+            return version
+    return next((version for version in versions if isinstance(version, dict)), {})
+
+
+def _normalize_number(value: Any) -> int:
     try:
-        html_list = _fetch_list_html()
-    except Exception as e:
-        print(f"[ERR] Lista non scaricabile: {e}")
-        return
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Numero firme ufficiale non valido: {value!r}") from exc
+    if number < 0:
+        raise RuntimeError(f"Numero firme ufficiale negativo: {number}")
+    return number
 
-    detail_links = _extract_detail_links(html_list)
-    if not detail_links:
-        print("[!] Nessun link nella lista (probabile rendering JS). Provo con Playwright...")
-        try:
-            html_list = _fetch_list_html_playwright()
-            if html_list:
-                detail_links = _extract_detail_links(html_list)
-        except Exception as e:
-            print(f"[!] Playwright fallito: {e}")
-    if not detail_links:
-        print("[ERR] Impossibile ottenere link alle iniziative.")
-        return
 
-    print(f"[OK] Trovate {len(detail_links)} iniziative. Scraping dettagli (Playwright per contenuto reale)...")
+def _normalize_identity(entry: dict) -> Tuple[str, str]:
+    year = str(entry.get("year") or "").strip()
+    number = str(entry.get("number") or "").strip()
+    if not re.fullmatch(r"\d{4}", year) or not re.fullmatch(r"\d{6}", number):
+        pub_reg = str(entry.get("pubRegNum") or "")
+        match = re.fullmatch(r"ECI\((\d{4})\)(\d{6})", pub_reg)
+        if not match:
+            raise RuntimeError(f"Identificatore ECI ufficiale non valido: {pub_reg!r}")
+        year, number = match.groups()
+    return year, number
 
-    to_insert = []
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        print("[ERR] Playwright non disponibile. Installa: pip install playwright && playwright install chromium")
-        return
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        for i, item in enumerate(detail_links):
-            try:
-                page = browser.new_page()
-                page.goto(item["url"], wait_until="networkidle", timeout=20000)
-                time.sleep(1)
-                html_detail = page.content()
-                page.close()
-                title, count, end_date, obiettivi = _scrape_detail(html_detail, item["eid"])
-                status = "SUCCESS" if count >= 1000000 else "ONGOING"
-                slug = f"eci-{item['eid']}"
-                url = item["url"]
-                to_insert.append((item["eid"], title, count, slug, status, end_date, obiettivi, url))
-                print(f"    [{item['eid']}] {title[:50]}... | {count} firme | scadenza {end_date or '—'}")
-            except Exception as e:
-                print(f"[!] Saltata {item['url']}: {e}")
-            time.sleep(0.5)
-        browser.close()
+def _normalize_record(entry: dict, detail: dict) -> Tuple[str, str, int, str, str, Optional[str], Optional[str], str]:
+    year, number = _normalize_identity(entry)
+    if detail.get("status") != STATUS:
+        raise RuntimeError(f"Dettaglio {year}/{number}: status {detail.get('status')!r} non ONGOING")
 
-    if not to_insert:
-        print("[ERR] Nessun dettaglio estratto.")
-        return
+    version = _choose_version(detail)
+    title = str(version.get("title") or entry.get("title") or "").strip()
+    if not title:
+        raise RuntimeError(f"Dettaglio {year}/{number}: titolo mancante")
 
-    print(f"[OK] Dati pronti: {len(to_insert)} iniziative. Scrittura su Neon...")
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        cur = conn.cursor()
-        cur.execute("DELETE FROM eci")
-        execute_values(
-            cur,
-            "INSERT INTO eci (id, title, signature_count, slug, status, end_date, obiettivi, url) VALUES %s",
-            to_insert,
+    supporters = _normalize_number(entry.get("totalSupporters", 0))
+    deadline = _parse_eu_date(detail.get("deadline"))
+    if detail.get("deadline") and not deadline:
+        raise RuntimeError(f"Dettaglio {year}/{number}: scadenza non valida {detail.get('deadline')!r}")
+
+    objectives = _strip_html(version.get("objectives"))
+    support_link = str(version.get("supportLink") or entry.get("supportLink") or "").strip()
+    detail_url = f"{PORTAL_BASE}/initiatives/details/{year}/{number}_it"
+    official_url = support_link if support_link.startswith("https://") else detail_url
+
+    eid = f"{year}-{number}"
+    slug = f"eci-{eid}"
+    return (
+        eid,
+        title[:500],
+        supporters,
+        slug,
+        STATUS,
+        deadline,
+        objectives,
+        official_url,
+    )
+
+
+def fetch_official_records(*, session=None) -> List[Tuple[str, str, int, str, str, Optional[str], Optional[str], str]]:
+    entries = _fetch_ongoing_entries(session=session)
+    records = []
+    for index, entry in enumerate(entries, start=1):
+        year, number = _normalize_identity(entry)
+        detail = _fetch_detail(year, number, session=session)
+        record = _normalize_record(entry, detail)
+        records.append(record)
+        print(
+            f"    [{index}/{len(entries)}] {record[0]} | {record[2]} firme | "
+            f"scadenza {record[5] or '—'} | {record[1][:60]}"
         )
-        conn.commit()
-        cur.close()
+
+    ids = [record[0] for record in records]
+    if len(ids) != len(set(ids)):
+        raise RuntimeError("API ECI: identificatori duplicati dopo la normalizzazione")
+    if len(records) != len(entries):
+        raise RuntimeError("API ECI: il set normalizzato non coincide con il feed ufficiale")
+    return records
+
+
+def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
+    if not database_url:
+        raise RuntimeError("DATABASE_URL mancante")
+    if not records:
+        raise RuntimeError("Rifiutata sostituzione cache ECI con dataset vuoto")
+
+    try:
+        import psycopg2
+        from psycopg2.extras import execute_values
+    except ImportError as exc:  # pragma: no cover - dependency error is integration-only
+        raise RuntimeError("Dipendenza psycopg2-binary mancante") from exc
+
+    conn = psycopg2.connect(database_url, connect_timeout=10)
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM eci")
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO eci
+                      (id, title, signature_count, slug, status, end_date, obiettivi, url)
+                    VALUES %s
+                    """,
+                    records,
+                )
+                cur.execute("SELECT COUNT(*) FROM eci WHERE status = %s", (STATUS,))
+                stored_count = int(cur.fetchone()[0])
+                if stored_count != len(records):
+                    raise RuntimeError(
+                        f"Verifica cache ECI fallita: attesi {len(records)}, trovati {stored_count}"
+                    )
+    finally:
         conn.close()
-        print(f"[SUCCESS] Database popolato con {len(to_insert)} ECI (scraping).")
-    except Exception as e:
-        print(f"[ERR] Database: {e}")
+
+
+def sync(*, dry_run: bool = False, database_url: Optional[str] = None, session=None) -> int:
+    print("[*] ECI: lettura API ufficiale UE (solo status ONGOING)...")
+    records = fetch_official_records(session=session)
+    print(f"[OK] API ufficiale validata: {len(records)} iniziative ONGOING complete.")
+
+    if dry_run:
+        print("[DRY-RUN] Nessuna scrittura database eseguita.")
+        return len(records)
+
+    target_database = database_url or os.environ.get("DATABASE_URL")
+    if not target_database:
+        raise RuntimeError("DATABASE_URL mancante")
+
+    print(f"[*] Sostituzione atomica cache ECI: {len(records)} record...")
+    _replace_cache(target_database, records)
+    print(f"[SUCCESS] Cache ECI aggiornata e verificata: {len(records)} record ONGOING.")
+    return len(records)
+
+
+def _parse_args(argv: Optional[Sequence[str]] = None):
+    parser = argparse.ArgumentParser(description="Sync delle ICE ufficiali attualmente in raccolta")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="verifica sorgente, dettagli e normalizzazione senza scrivere sul database",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = _parse_args(argv)
+    try:
+        sync(dry_run=args.dry_run)
+        return 0
+    except Exception as exc:
+        print(f"[ERR] Sync ECI fallito: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    sync()
+    raise SystemExit(main())

@@ -3,12 +3,30 @@ const logger = require('./centralizedLogger');
 const { invalidateMinisteroIniziativeCache } = require('./redisCache');
 const { normalizeMinisteroDate, resolveIniziativaDataFine } = require('../utils/dateUtils');
 const { resolveFirmaUrl } = require('../utils/iniziativeMinisteroMapper');
+const { resolveProcessTypeFromSource, getSignatureThreshold } = require('./civicProcessRegistryService');
+
+const MINISTERO_JURISDICTION_ID = 'it';
+const MINISTERO_SOURCE_ID = 'it.justice.signature_portal';
+
+function resolveMinisteroProcessType(tipo) {
+  return resolveProcessTypeFromSource({
+    jurisdictionId: MINISTERO_JURISDICTION_ID,
+    sourceId: MINISTERO_SOURCE_ID,
+    rawType: tipo
+  });
+}
 
 function isIniziativaPopolareTipo(tipo) {
-  if (!tipo) return false;
-  const t = String(tipo).toLowerCase();
-  if (t.includes('referendum')) return false;
-  return t.includes('iniziativa');
+  return resolveMinisteroProcessType(tipo)?.family === 'popular_initiative';
+}
+
+function isReferendumTipo(tipo) {
+  return resolveMinisteroProcessType(tipo)?.family === 'referendum';
+}
+
+function getOfficialSignatureThreshold(tipo) {
+  const processType = resolveMinisteroProcessType(tipo);
+  return processType ? getSignatureThreshold(processType.id) : null;
 }
 
 /**
@@ -216,8 +234,11 @@ class MinisteroSyncService {
       }
     }
 
-    // quorum_raggiunto non più calcolato (colonna quorum rimossa)
-    extracted.quorum_raggiunto = false;
+    // La fonte canonica e il Ministero: il raggiungimento della soglia deriva
+    // automaticamente dal numero ufficiale di firme, mai da inserimento manuale.
+    const signatureThreshold = getOfficialSignatureThreshold(extracted.tipo);
+    extracted.quorum_raggiunto = signatureThreshold !== null
+      && extracted.firme_raccolte >= signatureThreshold;
 
     return extracted;
   }
@@ -641,6 +662,32 @@ class MinisteroSyncService {
         if (backfillPopolari.rowCount > 0) {
           console.log(`📅 Backfill data_fine iniziative_popolari: aggiornate ${backfillPopolari.rowCount} proposte`);
           results.backfilled_data_fine_popolari = backfillPopolari.rowCount;
+        }
+
+        const referendumThreshold = getOfficialSignatureThreshold('Referendum abrogativo');
+        const initiativeThreshold = getOfficialSignatureThreshold('Legge di iniziativa popolare');
+        const quorumBackfill = await pool.query(`
+          UPDATE iniziative_ministero
+          SET quorum_raggiunto = CASE
+                WHEN LOWER(COALESCE(tipo, '')) LIKE '%referendum%'
+                  THEN COALESCE(firme_raccolte, 0) >= $1
+                WHEN LOWER(COALESCE(tipo, '')) LIKE '%iniziativa%'
+                  THEN COALESCE(firme_raccolte, 0) >= $2
+                ELSE FALSE
+              END,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE quorum_raggiunto IS DISTINCT FROM CASE
+                WHEN LOWER(COALESCE(tipo, '')) LIKE '%referendum%'
+                  THEN COALESCE(firme_raccolte, 0) >= $1
+                WHEN LOWER(COALESCE(tipo, '')) LIKE '%iniziativa%'
+                  THEN COALESCE(firme_raccolte, 0) >= $2
+                ELSE FALSE
+              END
+          RETURNING id
+        `, [referendumThreshold, initiativeThreshold]);
+        if (quorumBackfill.rowCount > 0) {
+          console.log(`✅ Soglia firme riallineata automaticamente per ${quorumBackfill.rowCount} record ufficiali`);
+          results.backfilled_quorum = quorumBackfill.rowCount;
         }
       } catch (backfillError) {
         console.warn('⚠️ Backfill data_fine fallito:', backfillError.message);

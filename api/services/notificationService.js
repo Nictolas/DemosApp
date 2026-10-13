@@ -4,6 +4,7 @@
 
 const { pool } = require('../middleware/auth');
 const AuditService = require('./auditService');
+const OperationalAlertService = require('./operationalAlertService');
 
 // Importazione condizionale del servizio email
 let emailService;
@@ -58,45 +59,12 @@ class NotificationService {
    * Invia notifica per violazione critica
    */
   static async sendCriticalViolationNotification(violation) {
-    try {
-      const config = this.getNotificationConfig();
-      
-      const emailData = {
-        to: config.adminEmails,
-        subject: config.templates.violation_alert.subject,
-        template: config.templates.violation_alert.template,
-        data: {
-          violation: violation,
-          timestamp: new Date().toISOString(),
-          severity: violation.severity,
-          description: violation.description,
-          details: violation.details,
-          action_required: this.getActionRequired(violation.type)
-        }
-      };
-      
-      const result = await emailService.sendEmail(emailData);
-      
-      // Log della notifica
-      await AuditService.logAction({
-        userId: 'system',
-        action: 'NOTIFICATION_SENT',
-        resource: 'violation',
-        resourceId: violation.type,
-        details: {
-          violation_type: violation.type,
-          severity: violation.severity,
-          recipients: config.adminEmails,
-          email_result: result
-        },
-        success: result.success
-      });
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Errore nell\'invio notifica violazione critica:', error);
-      throw error;
-    }
+    return OperationalAlertService.sendCriticalAlert({
+      type: violation?.type || 'CRITICAL_VIOLATION',
+      component: 'violation_monitoring',
+      severity: violation?.severity || 'CRITICAL',
+      code: violation?.code || ''
+    });
   }
 
   /**
@@ -191,44 +159,13 @@ class NotificationService {
    * Invia notifica di sistema
    */
   static async sendSystemAlertNotification(alert) {
-    try {
-      const config = this.getNotificationConfig();
-      
-      const emailData = {
-        to: config.adminEmails,
-        subject: config.templates.system_alert.subject,
-        template: config.templates.system_alert.template,
-        data: {
-          alert: alert,
-          timestamp: new Date().toISOString(),
-          system_component: alert.component,
-          error_message: alert.error,
-          resolution_steps: this.getResolutionSteps(alert.type)
-        }
-      };
-      
-      const result = await emailService.sendEmail(emailData);
-      
-      // Log della notifica
-      await AuditService.logAction({
-        userId: 'system',
-        action: 'SYSTEM_ALERT_SENT',
-        resource: 'system',
-        resourceId: alert.type,
-        details: {
-          alert_type: alert.type,
-          component: alert.component,
-          recipients: config.adminEmails,
-          email_result: result
-        },
-        success: result.success
-      });
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Errore nell\'invio notifica sistema:', error);
-      throw error;
-    }
+    return OperationalAlertService.sendCriticalAlert({
+      type: alert?.type || 'SYSTEM_ALERT',
+      component: alert?.component || 'system',
+      severity: alert?.severity || 'CRITICAL',
+      endpoint: alert?.endpoint || '',
+      code: alert?.code || ''
+    });
   }
 
   /**

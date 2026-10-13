@@ -1,11 +1,21 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const { getPool } = require('../config/database');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { getAccountSubject } = require('../services/accountCapabilitiesService');
+const { sendPushToCurrentSupporters } = require('../services/currentSupporterPushService');
+const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+const debugLog = (...args) => {
+  if (process.env.NODE_ENV !== 'production') console.log(...args);
+};
+const debugWarn = (...args) => {
+  if (process.env.NODE_ENV !== 'production') console.warn(...args);
+};
 
 // Status utente considerati bloccati per invio notifiche push
 const BLOCKED_USER_STATUSES = ['banned', 'deleted', 'disabled', '2', '9'];
@@ -55,7 +65,7 @@ async function invalidateUserFcmTokens(userId, invalidTokens = []) {
       [userId, cleanedInvalid]
     );
   } catch (err) {
-    console.warn('⚠️ Impossibile invalidare token in user_devices:', err.message);
+    debugWarn('⚠️ Impossibile invalidare token in user_devices:', err.message);
   }
 
   // Legacy storage: rimuovi token da users.fcm_tokens (fallback transitorio)
@@ -78,54 +88,119 @@ async function invalidateUserFcmTokens(userId, invalidTokens = []) {
 // perché ora si usa la colonna read_by nella tabella comunicazioni per tracciare le notifiche lette
 // La tabella notifiche_utente non è più necessaria
 
+
+function normalizeInstitutionalLevel(value) {
+  const office = resolvePoliticalOffice(value);
+  return office?.podiumLevel || null;
+}
+
+async function getActiveInstitutionalLevels(userId) {
+  const values = [];
+  try {
+    const mandates = await pool.query(
+      `SELECT jurisdiction->>'level' AS jurisdiction_level, office_code, institution_code
+       FROM political_mandates
+       WHERE user_id = $1
+         AND status = 'ACTIVE'
+         AND starts_at <= NOW()
+         AND (ends_at IS NULL OR ends_at > NOW())`,
+      [userId]
+    );
+    for (const row of mandates.rows) {
+      values.push(row.jurisdiction_level, row.office_code, row.institution_code);
+    }
+  } catch (error) {
+    if (!['42P01', '42703'].includes(error?.code)) throw error;
+  }
+
+  if (values.every(v => !normalizeInstitutionalLevel(v))) {
+    const legacy = await pool.query('SELECT grado_elezione FROM users WHERE id = $1', [userId]);
+    if (legacy.rows[0]) values.push(legacy.rows[0].grado_elezione);
+  }
+
+  return [...new Set(values.map(normalizeInstitutionalLevel).filter(Boolean))];
+}
+
+async function resolveInstitutionalCommunicationTarget(req, requestedLevel) {
+  const requestedTargetId = req.body?.politician_id || req.body?.id_utente || null;
+  if (!req.user?.isAdmin && requestedTargetId && String(requestedTargetId) !== String(req.userId)) {
+    const error = new Error('Non puoi comunicare voti istituzionali per un altro utente');
+    error.status = 403;
+    throw error;
+  }
+
+  const targetUserId = req.user?.isAdmin && requestedTargetId ? requestedTargetId : req.userId;
+  const subject = await getAccountSubject(pool, targetUserId);
+  if (!subject?.capabilities?.isPolitician) {
+    const error = new Error('Il soggetto deve avere un mandato politico attivo');
+    error.status = 403;
+    throw error;
+  }
+
+  const activeLevels = await getActiveInstitutionalLevels(targetUserId);
+  const normalizedRequested = normalizeInstitutionalLevel(requestedLevel);
+  if (requestedLevel && !normalizedRequested) {
+    const error = new Error('Livello istituzionale non valido');
+    error.status = 400;
+    throw error;
+  }
+  if (normalizedRequested) {
+    if (!activeLevels.includes(normalizedRequested)) {
+      const error = new Error('Il livello indicato non corrisponde a un mandato attivo del politico');
+      error.status = 403;
+      throw error;
+    }
+    return { targetUserId, level: normalizedRequested };
+  }
+  if (activeLevels.length === 1) return { targetUserId, level: activeLevels[0] };
+  if (activeLevels.length === 0) {
+    const error = new Error('Impossibile determinare il livello del mandato attivo');
+    error.status = 409;
+    throw error;
+  }
+  const error = new Error('Il politico ha più mandati attivi: specifica il livello istituzionale');
+  error.status = 400;
+  error.levels = activeLevels;
+  throw error;
+}
+
+function buildInstitutionalVoteKey({ level, voteDate, title, sourceVoteId }) {
+  const stableSource = sourceVoteId
+    ? `source:${String(sourceVoteId).trim()}`
+    : `manual:${String(voteDate)}:${String(title).trim().toLocaleLowerCase('it-IT').replace(/\s+/g, ' ')}`;
+  return crypto.createHash('sha256').update(`${level}|${stableSource}`, 'utf8').digest('hex');
+}
+
 // ===== ENDPOINTS PER COMUNICAZIONI =====
 
-// MIDDLEWARE DI DEBUG PER TUTTE LE RICHIESTE A QUESTO ROUTER
+// Debug routing only outside production; never dump request bodies.
 router.use((req, res, next) => {
-  console.log(`🟡 ROUTER COMUNICAZIONI: ${req.method} ${req.path} - ${req.originalUrl}`);
-  if (req.path.includes('send-demos-notification') || req.originalUrl.includes('send-demos-notification')) {
-    console.log('🔴 ========== ROUTER MIDDLEWARE: RICHIESTA A COMUNICAZIONI ==========');
-    console.log('🔴 Method:', req.method);
-    console.log('🔴 Path:', req.path);
-    console.log('🔴 Original URL:', req.originalUrl);
-    console.log('🔴 Base URL:', req.baseUrl);
-    console.log('🔴 Full URL:', req.originalUrl);
-  }
-  if (req.path.includes('send-user-notification') || req.originalUrl.includes('send-user-notification')) {
-    console.log('🟢 ========== ROUTER MIDDLEWARE: RICHIESTA send-user-notification ==========');
-    console.log('🟢 Method:', req.method);
-    console.log('🟢 Path:', req.path);
-    console.log('🟢 Original URL:', req.originalUrl);
-    console.log('🟢 Base URL:', req.baseUrl);
-    console.log('🟢 Full URL:', req.originalUrl);
-    console.log('🟢 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
-    console.log('🟢 Body:', JSON.stringify(req.body));
-  }
+  debugLog(`ROUTER COMUNICAZIONI: ${req.method} ${req.path}`);
   next();
 });
 
 // POST /api/comunicazioni/send-demos-notification - Invia notifica "Notifiche Demos" manualmente
 // IMPORTANTE: Questa route deve essere definita PRIMA di router.post('/') per evitare conflitti
 router.post('/send-demos-notification', (req, res, next) => {
-  console.log('🔵 ========== ROUTE HIT: /send-demos-notification ==========');
-  console.log('🔵 Method:', req.method);
-  console.log('🔵 Path:', req.path);
-  console.log('🔵 Original URL:', req.originalUrl);
-  console.log('🔵 Base URL:', req.baseUrl);
-  console.log('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
+  debugLog('🔵 ========== ROUTE HIT: /send-demos-notification ==========');
+  debugLog('🔵 Method:', req.method);
+  debugLog('🔵 Path:', req.path);
+  debugLog('🔵 Original URL:', req.originalUrl);
+  debugLog('🔵 Base URL:', req.baseUrl);
+  debugLog('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
   next();
-}, verifyToken, async (req, res) => {
+}, verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
-    console.log('📢 Timestamp:', new Date().toISOString());
-    console.log('📢 User ID:', req.user?.id);
-    console.log('📢 Request body:', JSON.stringify(req.body));
+    debugLog('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
+    debugLog('📢 Timestamp:', new Date().toISOString());
+    debugLog('📢 User ID:', req.user?.id);
+    debugLog('📢 Request body:', JSON.stringify(req.body));
     const { titolo, messaggio } = req.body;
     
-    console.log('📝 Dati ricevuti:', { titolo, messaggio });
+    debugLog('📝 Dati ricevuti:', { titolo, messaggio });
     
     if (!titolo) {
-      console.log('❌ Titolo mancante');
+      debugLog('❌ Titolo mancante');
       return res.status(400).json({
         success: false,
         error: 'Titolo richiesto'
@@ -133,7 +208,7 @@ router.post('/send-demos-notification', (req, res, next) => {
     }
 
     const commento = messaggio || titolo;
-    console.log('🚀 Avvio invio notifiche...');
+    debugLog('🚀 Avvio invio notifiche...');
 
     // Prima di inviare, verifica quanti utenti sono idonei
     const checkResult = await pool.query(`
@@ -148,50 +223,16 @@ router.post('/send-demos-notification', (req, res, next) => {
     `);
 
     const stats = checkResult.rows[0];
-    console.log('📊 Statistiche utenti:');
-    console.log(`   - Totale utenti: ${stats.totale_utenti}`);
-    console.log(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
-    console.log(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
-    console.log(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
-
-    // DEBUG: Verifica tutti gli utenti con FCM tokens e le loro preferenze
-    const debugAllUsers = await pool.query(`
-      SELECT 
-        u.id,
-        u.email,
-        u.status,
-        u.fcm_tokens,
-        array_length(u.fcm_tokens, 1) as num_tokens,
-        np.demos,
-        np.user_id as pref_user_id,
-        pg_typeof(np.demos) as demos_type,
-        CASE 
-          WHEN np.demos IS NULL THEN 'NULL'
-          WHEN np.demos = true THEN 'true'
-          WHEN np.demos = false THEN 'false'
-          ELSE 'unknown'
-        END as demos_status
-      FROM users u
-      LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-      WHERE u.fcm_tokens IS NOT NULL 
-        AND array_length(u.fcm_tokens, 1) > 0
-      ORDER BY u.email
-      LIMIT 10
-    `);
-    
-    console.log('🔍 DEBUG: Primi 10 utenti con FCM tokens:');
-    debugAllUsers.rows.forEach((user, index) => {
-      console.log(`   ${index + 1}. ${user.email || user.id}:`);
-      console.log(`      - Status: ${user.status}`);
-      console.log(`      - FCM tokens: ${user.num_tokens}`);
-      console.log(`      - demos: ${user.demos} (tipo: ${user.demos_type}, status: ${user.demos_status})`);
-      console.log(`      - pref_user_id: ${user.pref_user_id || 'NULL'}`);
-    });
+    debugLog('📊 Statistiche utenti:');
+    debugLog(`   - Totale utenti: ${stats.totale_utenti}`);
+    debugLog(`   - Utenti con demos=true: ${stats.utenti_con_demos_attivo}`);
+    debugLog(`   - Utenti con FCM tokens: ${stats.utenti_con_fcm_tokens}`);
+    debugLog(`   - Utenti idonei (demos=true + FCM tokens): ${stats.utenti_idonei}`);
 
     // Invia la notifica a tutti gli utenti con demos: true
     await notifyAllUsers(titolo, commento);
 
-    console.log('✅ Invio notifiche completato');
+    debugLog('✅ Invio notifiche completato');
 
     res.json({
       success: true,
@@ -213,8 +254,7 @@ router.post('/send-demos-notification', (req, res, next) => {
     console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -222,31 +262,31 @@ router.post('/send-demos-notification', (req, res, next) => {
 // POST /api/comunicazioni/send-user-notification - Invia notifica push a un utente specifico
 // IMPORTANTE: Questa route deve essere definita PRIMA di router.post('/') per evitare conflitti
 router.post('/send-user-notification', (req, res, next) => {
-  console.log('🔵 ========== ROUTE HIT: /send-user-notification ==========');
-  console.log('🔵 Method:', req.method);
-  console.log('🔵 Path:', req.path);
-  console.log('🔵 Original URL:', req.originalUrl);
-  console.log('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
+  debugLog('🔵 ========== ROUTE HIT: /send-user-notification ==========');
+  debugLog('🔵 Method:', req.method);
+  debugLog('🔵 Path:', req.path);
+  debugLog('🔵 Original URL:', req.originalUrl);
+  debugLog('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
   next();
-}, verifyToken, async (req, res) => {
+}, verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('\n\n');
-    console.log('🚨🚨🚨 ========== INIZIO INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨');
-    console.log('📢 Timestamp:', new Date().toISOString());
-    console.log('📢 User ID richiedente:', req.user?.id);
+    debugLog('\n\n');
+    debugLog('🚨🚨🚨 ========== INIZIO INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨');
+    debugLog('📢 Timestamp:', new Date().toISOString());
+    debugLog('📢 User ID richiedente:', req.user?.id);
     
     const { userId, titolo, messaggio } = req.body;
     
-    console.log('📢 User ID destinatario:', userId);
-    console.log('📢 Titolo:', titolo);
-    console.log('📢 Messaggio:', messaggio);
-    console.log('📢 Request body completo:', JSON.stringify(req.body));
-    console.log('\n');
+    debugLog('📢 User ID destinatario:', userId);
+    debugLog('📢 Titolo:', titolo);
+    debugLog('📢 Messaggio:', messaggio);
+    debugLog('📢 Request body completo:', JSON.stringify(req.body));
+    debugLog('\n');
     
     // Verifica Firebase Admin all'inizio
     const { getFirebaseAdmin } = require('../services/firebaseAdmin');
     const admin = getFirebaseAdmin();
-    console.log(`🔥 Firebase Admin disponibile: ${admin ? '✅ Sì' : '❌ No'}`);
+    debugLog(`🔥 Firebase Admin disponibile: ${admin ? '✅ Sì' : '❌ No'}`);
     if (!admin) {
       console.error('❌ Firebase Admin non configurato. Impossibile inviare notifiche push.');
       return res.status(500).json({
@@ -287,14 +327,14 @@ router.post('/send-user-notification', (req, res, next) => {
     const fcmTokens = await getResolvedFcmTokensForUser(userId);
     
     // Log dettagliato per debug
-    console.log(`   📊 Token FCM nel database per ${destinatario.email}:`);
-    console.log(`      - Numero token: ${fcmTokens.length}`);
+    debugLog(`   📊 Token FCM nel database per ${destinatario.email}:`);
+    debugLog(`      - Numero token: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
       fcmTokens.forEach((token, idx) => {
-        console.log(`      - Token ${idx + 1}: ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
+        debugLog(`      - Token ${idx + 1}: ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
       });
     } else {
-      console.log(`      - ⚠️ Nessun token FCM trovato nel database`);
+      debugLog(`      - ⚠️ Nessun token FCM trovato nel database`);
     }
 
     if (fcmTokens.length === 0) {
@@ -310,12 +350,12 @@ router.post('/send-user-notification', (req, res, next) => {
       });
     }
 
-    console.log(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
-    console.log(`   Token FCM disponibili: ${fcmTokens.length}`);
+    debugLog(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
+    debugLog(`   Token FCM disponibili: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
-      console.log(`   📋 Token disponibili:`);
+      debugLog(`   📋 Token disponibili:`);
       fcmTokens.forEach((token, index) => {
-        console.log(`      ${index + 1}. ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
+        debugLog(`      ${index + 1}. ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
       });
     }
 
@@ -332,21 +372,21 @@ router.post('/send-user-notification', (req, res, next) => {
     // Se ci sono più token, significa che c'è un token desktop vecchio che deve essere rimosso
     const tokensToSend = fcmTokens.length > 0 ? [fcmTokens[fcmTokens.length - 1]] : [];
     
-    console.log(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili nel database (tag: ${notificationTag})...`);
-    console.log(`    📊 Strategia: Userò SOLO l'ULTIMO token (${tokensToSend.length} token selezionato)`);
+    debugLog(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili nel database (tag: ${notificationTag})...`);
+    debugLog(`    📊 Strategia: Userò SOLO l'ULTIMO token (${tokensToSend.length} token selezionato)`);
     
     if (fcmTokens.length > 1) {
-      console.log(`    ⚠️ ATTENZIONE: Trovati ${fcmTokens.length} token nel database (dovrebbe esserci solo 1 token mobile).`);
-      console.log(`    📋 Token che verrà usato (ultimo): ${tokensToSend[0]?.substring(0, 50)}...`);
-      console.log(`    📋 Token che verranno IGNORATI (${fcmTokens.length - 1} token):`);
+      debugLog(`    ⚠️ ATTENZIONE: Trovati ${fcmTokens.length} token nel database (dovrebbe esserci solo 1 token mobile).`);
+      debugLog(`    📋 Token che verrà usato (ultimo): ${tokensToSend[0]?.substring(0, 50)}...`);
+      debugLog(`    📋 Token che verranno IGNORATI (${fcmTokens.length - 1} token):`);
       fcmTokens.slice(0, -1).forEach((token, idx) => {
-        console.log(`       - Token ${idx + 1}: ${token.substring(0, 50)}...`);
+        debugLog(`       - Token ${idx + 1}: ${token.substring(0, 50)}...`);
       });
-      console.log(`    💡 Suggerimento: I token extra verranno rimossi automaticamente al prossimo salvataggio token mobile.`);
+      debugLog(`    💡 Suggerimento: I token extra verranno rimossi automaticamente al prossimo salvataggio token mobile.`);
     } else if (fcmTokens.length === 1) {
-      console.log(`    ✅ Token mobile trovato: ${tokensToSend[0].substring(0, 50)}...`);
+      debugLog(`    ✅ Token mobile trovato: ${tokensToSend[0].substring(0, 50)}...`);
     } else {
-      console.log(`    ⚠️ Nessun token FCM disponibile per l'invio.`);
+      debugLog(`    ⚠️ Nessun token FCM disponibile per l'invio.`);
     }
     
     // Invia notifica al token mobile
@@ -354,11 +394,11 @@ router.post('/send-user-notification', (req, res, next) => {
       const token = tokensToSend[i];
       
       if (!token || !token.trim()) {
-        console.log(`    ⚠️ Token ${i + 1}/${tokensToSend.length}: vuoto o non valido, saltato`);
+        debugLog(`    ⚠️ Token ${i + 1}/${tokensToSend.length}: vuoto o non valido, saltato`);
         continue;
       }
       
-      console.log(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${token.substring(0, 50)}...`);
+      debugLog(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${token.substring(0, 50)}...`);
       
       try {
         const result = await sendPushNotification(
@@ -378,20 +418,20 @@ router.post('/send-user-notification', (req, res, next) => {
         
         if (result && result.success) {
           successCount++;
-          console.log(`    ✅ Notifica inviata con successo a Firebase (token ${i + 1}/${tokensToSend.length})`);
+          debugLog(`    ✅ Notifica inviata con successo a Firebase (token ${i + 1}/${tokensToSend.length})`);
           if (result.messageId) {
-            console.log(`    📨 Message ID: ${result.messageId}`);
+            debugLog(`    📨 Message ID: ${result.messageId}`);
           }
         } else {
           failureCount++;
           const errorMsg = result?.error || 'Errore sconosciuto';
-          console.log(`    ❌ Errore invio notifica (token ${i + 1}/${tokensToSend.length}): ${errorMsg}`);
+          debugLog(`    ❌ Errore invio notifica (token ${i + 1}/${tokensToSend.length}): ${errorMsg}`);
           if (result?.code) {
-            console.log(`    📋 Error code: ${result.code}`);
+            debugLog(`    📋 Error code: ${result.code}`);
           }
           if (result?.shouldRemoveToken) {
             invalidTokens.push(token);
-            console.log(`    🗑️ Token ${i + 1} marcato per rimozione (non valido o scaduto)`);
+            debugLog(`    🗑️ Token ${i + 1} marcato per rimozione (non valido o scaduto)`);
           }
         }
       } catch (error) {
@@ -401,39 +441,39 @@ router.post('/send-user-notification', (req, res, next) => {
         console.error(`    ❌ Error stack: ${error.stack}`);
         // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
         if (error.message && error.message.includes('Firebase Admin')) {
-          console.log(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
+          debugLog(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
         } else {
           invalidTokens.push(token);
-          console.log(`    🗑️ Token ${i + 1} marcato per rimozione a causa di eccezione`);
+          debugLog(`    🗑️ Token ${i + 1} marcato per rimozione a causa di eccezione`);
         }
       }
     }
     
     if (successCount === 0 && fcmTokens.length > 0) {
-      console.log(`    ⚠️ Nessun token valido trovato tra ${fcmTokens.length} token disponibili`);
+      debugLog(`    ⚠️ Nessun token valido trovato tra ${fcmTokens.length} token disponibili`);
     }
 
     // Rimuovi token non validi dal database
     if (invalidTokens.length > 0) {
       await invalidateUserFcmTokens(userId, invalidTokens);
-      console.log(`🧹 Rimossi/invalidati ${invalidTokens.length} token FCM non validi per utente ${userId}`);
+      debugLog(`🧹 Rimossi/invalidati ${invalidTokens.length} token FCM non validi per utente ${userId}`);
     }
 
-    console.log('\n');
-    console.log(`📊 ========== RISULTATO INVIO NOTIFICA ==========`);
-    console.log(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
-    console.log(`📋 Token totali disponibili: ${fcmTokens.length}`);
-    console.log(`📋 Token mobile usato: ${tokensToSend.length} (dovrebbe essere sempre 1)`);
-    console.log(`📋 Token rimossi (non validi): ${invalidTokens.length}`);
+    debugLog('\n');
+    debugLog(`📊 ========== RISULTATO INVIO NOTIFICA ==========`);
+    debugLog(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
+    debugLog(`📋 Token totali disponibili: ${fcmTokens.length}`);
+    debugLog(`📋 Token mobile usato: ${tokensToSend.length} (dovrebbe essere sempre 1)`);
+    debugLog(`📋 Token rimossi (non validi): ${invalidTokens.length}`);
     if (fcmTokens.length > 1) {
-      console.log(`   ⚠️ ATTENZIONE: ${fcmTokens.length - 1} token extra trovati (dovrebbe esserci solo 1 token mobile)`);
-      console.log(`   💡 I token extra verranno rimossi automaticamente al prossimo salvataggio token.`);
+      debugLog(`   ⚠️ ATTENZIONE: ${fcmTokens.length - 1} token extra trovati (dovrebbe esserci solo 1 token mobile)`);
+      debugLog(`   💡 I token extra verranno rimossi automaticamente al prossimo salvataggio token.`);
     }
     
     // Salva la notifica nella tabella notifiche_demos se almeno una notifica è stata inviata con successo
     if (successCount > 0) {
       try {
-        console.log(`💾 Salvataggio notifica in notifiche_demos per utente ${userId}...`);
+        debugLog(`💾 Salvataggio notifica in notifiche_demos per utente ${userId}...`);
         const saveResult = await pool.query(`
           INSERT INTO notifiche_demos (
             id, id_utente, titolo, testo, data, data_creazione
@@ -447,7 +487,7 @@ router.post('/send-user-notification', (req, res, next) => {
         ]);
         
         const notificaId = saveResult.rows[0].id;
-        console.log(`✅ Notifica salvata in notifiche_demos con ID: ${notificaId}`);
+        debugLog(`✅ Notifica salvata in notifiche_demos con ID: ${notificaId}`);
       } catch (saveError) {
         console.error(`❌ Errore nel salvataggio notifica in notifiche_demos:`, saveError);
         console.error(`❌ Error message: ${saveError.message}`);
@@ -455,11 +495,11 @@ router.post('/send-user-notification', (req, res, next) => {
         // Non bloccare la risposta se il salvataggio fallisce
       }
     } else {
-      console.log(`⚠️ Notifica non salvata in notifiche_demos (nessuna notifica inviata con successo)`);
+      debugLog(`⚠️ Notifica non salvata in notifiche_demos (nessuna notifica inviata con successo)`);
     }
     
-    console.log(`🚨🚨🚨 ========== FINE INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨`);
-    console.log('\n\n');
+    debugLog(`🚨🚨🚨 ========== FINE INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨`);
+    debugLog('\n\n');
 
     if (successCount === 0) {
       // Verifica se il problema è Firebase Admin non configurato
@@ -514,8 +554,7 @@ router.post('/send-user-notification', (req, res, next) => {
     console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -540,353 +579,159 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/comunicazioni - Crea o aggiorna comunicazione
-router.post('/', async (req, res) => {
+// POST /api/comunicazioni - Pubblica/aggiorna un voto istituzionale
+router.post('/', verifyToken, async (req, res) => {
   try {
+    if (!req.user?.isPolitician && !req.user?.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Solo un Politico in carica o un Admin può comunicare un voto istituzionale'
+      });
+    }
+
     const {
       titolo,
       voto_dato,
-      commento,
-      vincitore,
-      zona,
-      id_utente,
-      tipo = 'votazione',
-      voti, // Array di voti per "Comunica Voti"
-      tipologia, // Per "Informa Cittadini"
-      dove, // Per "Informa Cittadini"
-      dal_giorno, // Per "Informa Cittadini"
-      al_giorno // Per "Informa Cittadini"
-    } = req.body;
+      commento = '',
+      vincitore = null,
+      data_votazione,
+      votazione_id = null,
+      livello = null,
+      tipo = 'votazione'
+    } = req.body || {};
 
-    // Validazione: per "informa_cittadini" il titolo non è obbligatorio
-    if (tipo !== 'informa_cittadini' && (!titolo || !id_utente)) {
+    if (tipo !== 'votazione') {
       return res.status(400).json({
         success: false,
-        error: 'Titolo e ID utente sono obbligatori'
+        error: 'Questa route accetta solo voti istituzionali. Usa la superficie dedicata per altri tipi di comunicazione.'
       });
     }
-
-    // Validazione per "informa_cittadini"
-    if (tipo === 'informa_cittadini' && (!id_utente || !tipologia || !dove || !dal_giorno || !al_giorno)) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID utente, tipologia, dove, dal_giorno e al_giorno sono obbligatori per Informa Cittadini'
-      });
+    if (!titolo || !String(titolo).trim() || !data_votazione) {
+      return res.status(400).json({ success: false, error: 'Titolo e data della votazione sono obbligatori' });
+    }
+    if (!['Favorevole', 'Contrario', 'Astenuto'].includes(voto_dato)) {
+      return res.status(400).json({ success: false, error: 'Voto istituzionale non valido' });
+    }
+    if (vincitore && !['Favorevole', 'Contrario', 'Astenuto'].includes(vincitore)) {
+      return res.status(400).json({ success: false, error: 'Esito indicato non valido' });
+    }
+    if (String(commento).length > 20) {
+      return res.status(400).json({ success: false, error: 'Il commento non può superare 20 caratteri' });
     }
 
-    // Gestione speciale per "Informa Cittadini" - ora gestita da /api/informa-cittadini
-    // Questo codice è stato spostato in api/routes/informa-cittadini.js che usa notifiche_comunali
-    if (tipo === 'informa_cittadini') {
-      return res.status(400).json({
-        success: false,
-        error: 'Usa l\'endpoint /api/informa-cittadini per questa funzionalità'
-      });
+    const voteDate = String(data_votazione).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(voteDate) || Number.isNaN(Date.parse(`${voteDate}T00:00:00Z`))) {
+      return res.status(400).json({ success: false, error: 'Data della votazione non valida' });
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (voteDate > today) {
+      return res.status(400).json({ success: false, error: 'Non puoi comunicare una votazione futura' });
     }
 
-    // Gestione speciale per notifiche di Demos - ora gestita da notifyAllUsers che usa notifiche_demos
-    if (tipo === 'demos_notification') {
-      // Invia notifica a TUTTI gli utenti usando notifiche_demos
-      await notifyAllUsers(titolo, commento || '');
-
-      return res.status(201).json({
-        success: true,
-        message: 'Notifica Demos inviata a tutti gli utenti'
-      });
-    }
-
-    // Gestione speciale per "Istituzione" - crea più righe (una per voto) con upsert
-    if (tipo === 'istituzione' && voti && Array.isArray(voti) && voti.length > 0) {
-      // Recupera comune_residenza dell'utente operante (Istituzione)
-      const utenteOperanteResult = await pool.query(
-        'SELECT comune_residenza FROM users WHERE id = $1',
-        [id_utente]
-      );
-      
-      if (utenteOperanteResult.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Utente operante non trovato'
-        });
-      }
-      
-      const comuneResidenzaOperante = utenteOperanteResult.rows[0].comune_residenza;
-      
-      if (!comuneResidenzaOperante) {
-        return res.status(400).json({
-          success: false,
-          error: 'Comune residenza dell\'utente operante non trovato. Imposta il comune residenza nel tuo profilo.'
-        });
-      }
-
-      const comunicazioni = [];
-      const { getFirebaseAdmin } = require('../services/firebaseAdmin');
-      const admin = getFirebaseAdmin();
-
-      for (const voto of voti) {
-        if (!voto.nome || !voto.voto) continue;
-
-        // Cerca l'utente per nome completo (deve essere "Nome Cognome")
-        const utenteResult = await pool.query(
-          `SELECT id, nome, cognome, ruolo FROM users 
-           WHERE CONCAT(nome, ' ', cognome) = $1
-           LIMIT 1`,
-          [voto.nome.trim()]
-        );
-
-        if (utenteResult.rows.length === 0) {
-          console.log(`⚠️ Consigliere comunale non trovato per: ${voto.nome}`);
-          return res.status(400).json({
-            success: false,
-            error: `Consigliere comunale "${voto.nome}" non trovato. Assicurati di selezionare un consigliere dalla lista suggerita.`
-          });
-        }
-
-        const utentePolitico = utenteResult.rows[0];
-        const nomeCompletoPolitico = `${utentePolitico.nome} ${utentePolitico.cognome}`;
-        const testo = `Il voto di ${nomeCompletoPolitico}: ${voto.voto}`;
-        const titoloCompleto = `${titolo} - ${nomeCompletoPolitico}`;
-
-        // Upsert: se esiste già una riga con stesso comune_residenza e politico, la sovrascrive
-        const existingResult = await pool.query(
-          `SELECT id FROM notifiche_voti_comuni 
-           WHERE comune_residenza = $1 AND politico = $2`,
-          [comuneResidenzaOperante, nomeCompletoPolitico]
-        );
-
-        let result;
-        if (existingResult.rows.length > 0) {
-          // Aggiorna riga esistente
-          result = await pool.query(
-            `UPDATE notifiche_voti_comuni SET
-              id_utente = $1,
-              titolo = $2,
-              testo = $3,
-              voto = $4,
-              data = CURRENT_DATE,
-              data_creazione = CURRENT_TIMESTAMP,
-              likes = 0,
-              dislikes = 0
-            WHERE comune_residenza = $5 AND politico = $6
-            RETURNING *`,
-            [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenzaOperante, nomeCompletoPolitico]
-          );
-          console.log(`🔄 Aggiornata riga esistente per ${nomeCompletoPolitico} nel comune ${comuneResidenzaOperante}`);
-        } else {
-          // Inserisci nuova riga
-          result = await pool.query(
-            `INSERT INTO notifiche_voti_comuni (
-              id, id_utente, titolo, testo, voto, comune_residenza, politico, likes, dislikes, data, data_creazione
-            ) VALUES (
-              gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, 0, CURRENT_DATE, CURRENT_TIMESTAMP
-            ) RETURNING *`,
-            [utentePolitico.id, titoloCompleto, testo, voto.voto, comuneResidenzaOperante, nomeCompletoPolitico]
-          );
-          console.log(`✅ Inserita nuova riga per ${nomeCompletoPolitico} nel comune ${comuneResidenzaOperante}`);
-        }
-
-        comunicazioni.push(result.rows[0]);
-
-        // Trova gli utenti che hanno questo rappresentante come rappresentante_comune
-        // Gestisce sia UUID che TEXT per rappresentante_comune
-        const rappresentanteComuneType = await pool.query(`
-          SELECT data_type, udt_name
-          FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'rappresentante_comune'
-        `);
-        
-        const isUUID = rappresentanteComuneType.rows.length > 0 && 
-                       (rappresentanteComuneType.rows[0].udt_name === 'uuid' || 
-                        rappresentanteComuneType.rows[0].data_type === 'uuid');
-        
-        // Usa la preferenza specifica per consigliere_comunale
-        const utentiConRappresentante = isUUID
-          ? await pool.query(
-              `SELECT u.id, u.email, u.nome, u.cognome,
-                      COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
-                      COALESCE(np.consigliere_comunale, false) as consigliere_comunale
-               FROM users u
-               LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-               LEFT JOIN LATERAL (
-                 SELECT ARRAY(
-                   SELECT DISTINCT tok
-                   FROM (
-                     SELECT d.fcm_token as tok
-                     FROM user_devices d
-                     WHERE d.user_id = u.id
-                       AND d.is_active = TRUE
-                       AND d.fcm_token IS NOT NULL
-                       AND btrim(d.fcm_token) <> ''
-                     UNION
-                     SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-                   ) merged
-                   WHERE tok IS NOT NULL AND btrim(tok) <> ''
-                 ) as tokens
-               ) tokens ON TRUE
-               WHERE u.rappresentante_comune = $1::uuid
-                 AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($2::text[]))
-                 AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
-                 AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
-              [utentePolitico.id, BLOCKED_USER_STATUSES]
-            )
-          : await pool.query(
-              `SELECT u.id, u.email, u.nome, u.cognome,
-                      COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
-                      COALESCE(np.consigliere_comunale, false) as consigliere_comunale
-               FROM users u
-               LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-               LEFT JOIN LATERAL (
-                 SELECT ARRAY(
-                   SELECT DISTINCT tok
-                   FROM (
-                     SELECT d.fcm_token as tok
-                     FROM user_devices d
-                     WHERE d.user_id = u.id
-                       AND d.is_active = TRUE
-                       AND d.fcm_token IS NOT NULL
-                       AND btrim(d.fcm_token) <> ''
-                     UNION
-                     SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-                   ) merged
-                   WHERE tok IS NOT NULL AND btrim(tok) <> ''
-                 ) as tokens
-               ) tokens ON TRUE
-               WHERE u.rappresentante_comune::text = $1::text
-                 AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($2::text[]))
-                 AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
-                 AND (np.consigliere_comunale = true OR np.consigliere_comunale IS NULL)`,
-              [utentePolitico.id, BLOCKED_USER_STATUSES]
-            );
-
-        console.log(`📢 Trovati ${utentiConRappresentante.rows.length} utenti con rappresentante_comune = ${utentePolitico.id}`);
-
-        // Invia notifica push solo agli utenti che hanno questo rappresentante
-        if (admin && utentiConRappresentante.rows.length > 0) {
-          const pushTitle = `Voto del tuo rappresentante: ${utentePolitico.nome} ${utentePolitico.cognome}`;
-          const pushBody = `${titolo}: ${voto.voto}`;
-
-          for (const utenteDestinatario of utentiConRappresentante.rows) {
-            const fcmTokens = utenteDestinatario.fcm_tokens || [];
-            
-            for (const token of fcmTokens) {
-              if (token && token.trim()) {
-                try {
-                  await sendPushNotification(
-                    token,
-                    pushTitle,
-                    pushBody,
-                    {
-                      type: 'istituzione',
-                      comunicazione_id: result.rows[0].id,
-                      rappresentante_id: utentePolitico.id,
-                      titolo: titolo,
-                      voto: voto.voto,
-                      url: '/comunica',
-                      link: 'https://www.demos.community/comunica'
-                    }
-                  );
-                } catch (error) {
-                  console.error(`❌ Errore invio notifica a ${utenteDestinatario.email}:`, error);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      return res.status(201).json({
-        success: true,
-        data: comunicazioni,
-        message: `${comunicazioni.length} voti istituzionali salvati con successo`
-      });
-    }
-
-    // Per comunicazioni che devono essere sovrascritte (votazione, comunicazione)
-    // Controlla se esiste già una comunicazione per questo utente con lo stesso tipo
-    const tipiSovrascrivibili = ['votazione', 'comunicazione'];
-    const existingComunicazione = tipiSovrascrivibili.includes(tipo) 
-      ? await pool.query(
-          'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
-          [id_utente, tipo]
-        )
-      : { rows: [] };
-
-    const testo = `Voto: ${voto_dato || 'Non specificato'}${commento ? ` - Commento: ${commento}` : ''}`;
-
-    if (existingComunicazione.rows.length > 0) {
-      // Aggiorna comunicazione esistente
-      const comunicazioneId = existingComunicazione.rows[0].id;
-      
-      // Reset like/dislike
-      await pool.query(
-        'DELETE FROM reazioni WHERE comunicazione_id = $1',
-        [comunicazioneId]
-      );
-
-      const result = await pool.query(
-        `UPDATE comunicazioni SET 
-          titolo = $1, 
-          testo = $2, 
-          voto_dato = $3, 
-          vincitore = $4, 
-          commento = $5,
-          data_creazione = NOW(),
-          likes = 0,
-          dislikes = 0,
-        WHERE id = $6 
-        RETURNING *`,
-        [titolo, testo, voto_dato, vincitore, commento || '', comunicazioneId]
-      );
-
-      // Invia notifica ai sostenitori
-      await notifySostenitori(id_utente, titolo, result.rows[0]);
-
-      // Reset read_by per renderla non letta per tutti (sovrascrittura)
-      const readByTypeCheck = await pool.query(`
-        SELECT udt_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'comunicazioni' 
-        AND column_name = 'read_by'
-      `);
-      const isUUIDArray = readByTypeCheck.rows.length > 0 && readByTypeCheck.rows[0].udt_name?.includes('uuid');
-      const readByInit = isUUIDArray ? 'ARRAY[]::UUID[]' : 'ARRAY[]::VARCHAR[]';
-      
-      await pool.query(`
-        UPDATE comunicazioni 
-        SET read_by = ${readByInit}
-        WHERE id = $1
-      `, [comunicazioneId]);
-
-      res.status(200).json({
-        success: true,
-        data: result.rows[0],
-        message: 'Comunicazione aggiornata con successo'
-      });
-    } else {
-      // Crea nuova comunicazione
-      const result = await pool.query(
-        `INSERT INTO comunicazioni (
-          id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-          data_creazione, likes, dislikes, punti_trasparenza, tipo
-        ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
-        ) RETURNING *`,
-        [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '', tipo]
-      );
-
-      // Invia notifica ai sostenitori
-      await notifySostenitori(id_utente, titolo, result.rows[0]);
-
-      res.status(201).json({
-        success: true,
-        data: result.rows[0]
-      });
-    }
-  } catch (error) {
-    console.error('❌ Errore nella creazione/aggiornamento comunicazione:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+    const { targetUserId, level } = await resolveInstitutionalCommunicationTarget(req, livello);
+    const voteKey = buildInstitutionalVoteKey({
+      level,
+      voteDate,
+      title: titolo,
+      sourceVoteId: votazione_id
     });
+    const testo = `Voto: ${voto_dato}${commento ? ` - Commento: ${commento}` : ''}`;
+
+    const result = await pool.query(
+      `INSERT INTO comunicazioni (
+         id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+         data_creazione, likes, dislikes, punti_trasparenza, tipo,
+         institutional_level, vote_date, source_vote_id, institutional_vote_key
+       ) VALUES (
+         gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7,
+         NOW(), 0, 0, 0, 'votazione', $4, $8, $9, $10
+       )
+       ON CONFLICT (id_utente, institutional_vote_key)
+         WHERE institutional_vote_key IS NOT NULL
+       DO UPDATE SET
+         titolo = EXCLUDED.titolo,
+         testo = EXCLUDED.testo,
+         zona = EXCLUDED.zona,
+         voto_dato = EXCLUDED.voto_dato,
+         vincitore = EXCLUDED.vincitore,
+         commento = EXCLUDED.commento,
+         data_creazione = NOW(),
+         likes = 0,
+         dislikes = 0,
+         punti_trasparenza = 0,
+         institutional_level = EXCLUDED.institutional_level,
+         vote_date = EXCLUDED.vote_date,
+         source_vote_id = EXCLUDED.source_vote_id
+       RETURNING *`,
+      [
+        targetUserId,
+        String(titolo).trim(),
+        testo,
+        level,
+        voto_dato,
+        vincitore,
+        String(commento),
+        voteDate,
+        votazione_id ? String(votazione_id).trim() : null,
+        voteKey
+      ]
+    );
+
+    let supporterPush = null;
+    try {
+      supporterPush = await sendPushToCurrentSupporters(pool, {
+        subjectUserId: targetUserId,
+        kind: 'representative',
+        level,
+        title: 'Nuovo voto istituzionale',
+        body: `${String(titolo).trim()}: ${voto_dato}`,
+        data: {
+          type: 'institutional_vote',
+          politicianId: targetUserId,
+          communicationId: result.rows[0]?.id || '',
+          level,
+          link: 'https://www.demos.community/notifiche'
+        }
+      });
+    } catch (pushError) {
+      console.warn('Push ai sostenitori correnti non disponibile:', pushError?.message || pushError);
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: result.rows[0],
+      supporterPush,
+      message: 'Voto istituzionale comunicato con successo'
+    });
+  } catch (error) {
+    const status = Number(error?.status) || 500;
+    if (status >= 500) console.error('Errore nella comunicazione del voto istituzionale:', error);
+    return res.status(status).json({
+      success: false,
+      error: status >= 500 ? 'Errore interno del server' : error.message,
+      ...(error?.levels ? { livelli_disponibili: error.levels } : {})
+    });
+  }
+});
+
+// GET /api/comunicazioni/ultima - Ultimo voto istituzionale comunicato dall'account autenticato
+router.get('/ultima', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, titolo, voto_dato, vincitore, commento,
+              institutional_level AS livello, vote_date AS data_votazione, data_creazione
+       FROM comunicazioni
+       WHERE id_utente = $1
+         AND tipo = 'votazione'
+         AND institutional_vote_key IS NOT NULL
+       ORDER BY vote_date DESC NULLS LAST, data_creazione DESC
+       LIMIT 1`,
+      [req.userId]
+    );
+    return res.json({ success: true, comunicazione: result.rows[0] || null });
+  } catch (error) {
+    console.error('Errore nel recupero dell\'ultima comunicazione istituzionale:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
@@ -904,7 +749,7 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
     // NOTE: Le notifiche ai sostenitori ora vengono gestite tramite la tabella comunicazioni
     // con la colonna read_by. La tabella notifiche_utente non è più utilizzata.
     // Le comunicazioni create/aggiornate sono visibili a tutti gli utenti tramite GET /api/notifiche
-    console.log(`✅ Comunicazione disponibile per ${sostenitoriResult.rows.length} sostenitori`);
+    debugLog(`✅ Comunicazione disponibile per ${sostenitoriResult.rows.length} sostenitori`);
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche ai sostenitori:', error);
   }
@@ -922,7 +767,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     const admin = getFirebaseAdmin();
     
     if (!admin) {
-      console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
+      debugWarn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
       return { success: false, error: 'Firebase Admin non configurato' };
     }
     
@@ -933,7 +778,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
         console.error('❌ admin.messaging() non disponibile');
         return { success: false, error: 'Firebase Admin messaging non disponibile' };
       }
-      console.log('✅ admin.messaging() verificato e disponibile');
+      debugLog('✅ admin.messaging() verificato e disponibile');
     } catch (messagingError) {
       console.error('❌ Errore nell\'accesso a admin.messaging():', messagingError.message);
       return { success: false, error: `Errore Firebase messaging: ${messagingError.message}` };
@@ -1000,21 +845,21 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     };
 
     // Invia la notifica push
-    console.log(`📤 Invio notifica push a Firebase...`);
-    console.log(`   Token: ${fcmToken.substring(0, 30)}...`);
-    console.log(`   Titolo: ${title}`);
-    console.log(`   Body: ${body}`);
-    console.log(`   Data:`, JSON.stringify(data));
+    debugLog(`📤 Invio notifica push a Firebase...`);
+    debugLog(`   Token: ${fcmToken.substring(0, 30)}...`);
+    debugLog(`   Titolo: ${title}`);
+    debugLog(`   Body: ${body}`);
+    debugLog(`   Data:`, JSON.stringify(data));
     
     try {
-      console.log(`🔧 Verifica admin.messaging() disponibile...`);
+      debugLog(`🔧 Verifica admin.messaging() disponibile...`);
       const messaging = admin.messaging();
-      console.log(`✅ admin.messaging() disponibile`);
+      debugLog(`✅ admin.messaging() disponibile`);
       
-      console.log(`📤 Chiamata a messaging.send()...`);
+      debugLog(`📤 Chiamata a messaging.send()...`);
       const response = await messaging.send(message);
-      console.log(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
-      console.log(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
+      debugLog(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
+      debugLog(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
       
       return { success: true, messageId: response };
     } catch (sendError) {
@@ -1042,7 +887,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       // Gestisci errori specifici di FCM
       if (sendError.code === 'messaging/invalid-registration-token' || 
           sendError.code === 'messaging/registration-token-not-registered') {
-        console.warn(`⚠️ Token FCM non valido o non registrato - verrà rimosso dal database`);
+        debugWarn(`⚠️ Token FCM non valido o non registrato - verrà rimosso dal database`);
         return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: sendError.code };
       }
       
@@ -1108,7 +953,7 @@ async function notifyAllUsers(titolo, commento) {
         comunicazioneId
       ]);
       
-      console.log(`✅ Notifica Demos aggiornata (sovrascritta) con ID: ${comunicazioneId}`);
+      debugLog(`✅ Notifica Demos aggiornata (sovrascritta) con ID: ${comunicazioneId}`);
     } else {
       // Crea nuova comunicazione solo se non esiste
       const comunicazioneResult = await pool.query(`
@@ -1124,7 +969,7 @@ async function notifyAllUsers(titolo, commento) {
       ]);
 
       comunicazioneId = comunicazioneResult.rows[0].id;
-      console.log(`✅ Notifica Demos creata con ID: ${comunicazioneId}`);
+      debugLog(`✅ Notifica Demos creata con ID: ${comunicazioneId}`);
     }
 
     // Prima verifica quanti utenti hanno FCM tokens
@@ -1150,7 +995,7 @@ async function notifyAllUsers(titolo, commento) {
       WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `, [BLOCKED_USER_STATUSES]);
-    console.log(`📊 Utenti con FCM tokens: ${utentiConFCMResult.rows[0].count}`);
+    debugLog(`📊 Utenti con FCM tokens: ${utentiConFCMResult.rows[0].count}`);
 
     // Verifica quanti utenti hanno preferenze
     const utentiConPreferenzeResult = await pool.query(`
@@ -1164,15 +1009,15 @@ async function notifyAllUsers(titolo, commento) {
       WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
     `, [BLOCKED_USER_STATUSES]);
     const prefStats = utentiConPreferenzeResult.rows[0];
-    console.log(`📊 Statistiche preferenze Demos:`);
-    console.log(`   - Totale utenti con preferenze: ${prefStats.totale}`);
-    console.log(`   - demos = true: ${prefStats.demos_true}`);
-    console.log(`   - demos = false: ${prefStats.demos_false}`);
-    console.log(`   - demos = NULL: ${prefStats.demos_null}`);
+    debugLog(`📊 Statistiche preferenze Demos:`);
+    debugLog(`   - Totale utenti con preferenze: ${prefStats.totale}`);
+    debugLog(`   - demos = true: ${prefStats.demos_true}`);
+    debugLog(`   - demos = false: ${prefStats.demos_false}`);
+    debugLog(`   - demos = NULL: ${prefStats.demos_null}`);
 
     // Recupera solo gli utenti che hanno attivato "Notifiche Demos" e hanno FCM tokens
     // Prova prima senza filtro status per vedere se è quello il problema
-    console.log('🔍 Eseguendo query per utenti con demos=true e FCM tokens...');
+    debugLog('🔍 Eseguendo query per utenti con demos=true e FCM tokens...');
     const utentiConPushResult = await pool.query(`
       SELECT u.id, u.email, u.nome, u.cognome,
              COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
@@ -1202,11 +1047,11 @@ async function notifyAllUsers(titolo, commento) {
         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `, [BLOCKED_USER_STATUSES]);
     
-    console.log(`🔍 Query senza filtro status: trovati ${utentiConPushResult.rows.length} utenti`);
+    debugLog(`🔍 Query senza filtro status: trovati ${utentiConPushResult.rows.length} utenti`);
     
     // Se non trova utenti, prova anche con LEFT JOIN e COALESCE
     if (utentiConPushResult.rows.length === 0) {
-      console.log('⚠️ Nessun utente trovato con INNER JOIN, provo con LEFT JOIN...');
+      debugLog('⚠️ Nessun utente trovato con INNER JOIN, provo con LEFT JOIN...');
       const utentiConPushResult2 = await pool.query(`
         SELECT u.id, u.email, u.nome, u.cognome,
                COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
@@ -1236,7 +1081,7 @@ async function notifyAllUsers(titolo, commento) {
           AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
       `, [BLOCKED_USER_STATUSES]);
       
-      console.log(`🔍 Query con LEFT JOIN e COALESCE: trovati ${utentiConPushResult2.rows.length} utenti`);
+      debugLog(`🔍 Query con LEFT JOIN e COALESCE: trovati ${utentiConPushResult2.rows.length} utenti`);
       
       if (utentiConPushResult2.rows.length > 0) {
         utentiConPushResult.rows = utentiConPushResult2.rows;
@@ -1245,7 +1090,7 @@ async function notifyAllUsers(titolo, commento) {
     
     // Se ancora non trova, prova una query ancora più semplice
     if (utentiConPushResult.rows.length === 0) {
-      console.log('⚠️ Ancora nessun utente trovato, provo query semplificata...');
+      debugLog('⚠️ Ancora nessun utente trovato, provo query semplificata...');
       const utentiConPushResult3 = await pool.query(`
         SELECT u.id, u.email, u.nome, u.cognome,
                COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
@@ -1274,14 +1119,14 @@ async function notifyAllUsers(titolo, commento) {
           AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
       `, [BLOCKED_USER_STATUSES]);
       
-      console.log(`🔍 Query semplificata: trovati ${utentiConPushResult3.rows.length} utenti`);
+      debugLog(`🔍 Query semplificata: trovati ${utentiConPushResult3.rows.length} utenti`);
       
       if (utentiConPushResult3.rows.length > 0) {
         utentiConPushResult.rows = utentiConPushResult3.rows;
       }
     }
 
-    console.log(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
+    debugLog(`🔍 Utenti trovati con demos: true e FCM tokens: ${utentiConPushResult.rows.length}`);
     
     // Debug: verifica utenti specifici con FCM ma senza demos=true
     const debugUtentiResult = await pool.query(`
@@ -1294,29 +1139,29 @@ async function notifyAllUsers(titolo, commento) {
         AND array_length(u.fcm_tokens, 1) > 0
       LIMIT 5
     `, [BLOCKED_USER_STATUSES]);
-    console.log(`🔍 Esempi utenti con FCM tokens (primi 5):`);
+    debugLog(`🔍 Esempi utenti con FCM tokens (primi 5):`);
     debugUtentiResult.rows.forEach((utente, index) => {
-      console.log(`   ${index + 1}. ${utente.email || utente.id}: demos=${utente.demos} (${typeof utente.demos}), tokens=${utente.num_tokens}`);
+      debugLog(`   ${index + 1}. ${utente.email || utente.id}: demos=${utente.demos} (${typeof utente.demos}), tokens=${utente.num_tokens}`);
     });
     
     // Log dettagliato per debug
     if (utentiConPushResult.rows.length > 0) {
-      console.log('📋 Dettagli utenti che riceveranno la notifica:');
+      debugLog('📋 Dettagli utenti che riceveranno la notifica:');
       utentiConPushResult.rows.forEach((utente, index) => {
-        console.log(`   ${index + 1}. ${utente.email || utente.id} - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
+        debugLog(`   ${index + 1}. ${utente.email || utente.id} - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
         if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
           utente.fcm_tokens.forEach((token, tokenIndex) => {
-            console.log(`      Token ${tokenIndex + 1}: ${token.substring(0, 30)}...`);
+            debugLog(`      Token ${tokenIndex + 1}: ${token.substring(0, 30)}...`);
           });
         }
       });
     }
     
     if (utentiConPushResult.rows.length === 0) {
-      console.log('ℹ️ Nessun utente con push notifications attive per Demos');
-      console.log('💡 Verifica che gli utenti abbiano:');
-      console.log('   1. notifiche_preferenze.demos = true');
-      console.log('   2. fcm_tokens non vuoto');
+      debugLog('ℹ️ Nessun utente con push notifications attive per Demos');
+      debugLog('💡 Verifica che gli utenti abbiano:');
+      debugLog('   1. notifiche_preferenze.demos = true');
+      debugLog('   2. fcm_tokens non vuoto');
       
       // Query di debug per vedere quanti utenti hanno FCM tokens ma non demos=true
       const debugResult = await pool.query(`
@@ -1333,10 +1178,10 @@ async function notifyAllUsers(titolo, commento) {
       `, [BLOCKED_USER_STATUSES]);
       
       const debug = debugResult.rows[0];
-      console.log('🔍 Debug utenti con FCM ma senza demos=true:');
-      console.log(`   - Utenti con FCM ma demos non attivo: ${debug.utenti_con_fcm_senza_demos}`);
-      console.log(`   - Utenti senza record preferenze: ${debug.utenti_senza_preferenze}`);
-      console.log(`   - Utenti con demos=false: ${debug.utenti_con_demos_false}`);
+      debugLog('🔍 Debug utenti con FCM ma senza demos=true:');
+      debugLog(`   - Utenti con FCM ma demos non attivo: ${debug.utenti_con_fcm_senza_demos}`);
+      debugLog(`   - Utenti senza record preferenze: ${debug.utenti_senza_preferenze}`);
+      debugLog(`   - Utenti con demos=false: ${debug.utenti_con_demos_false}`);
       
       return;
     }
@@ -1349,14 +1194,14 @@ async function notifyAllUsers(titolo, commento) {
 
     const invalidTokens = []; // Raccogli token non validi da rimuovere
     
-    console.log(`📤 Invio push notifications a ${utentiConPushResult.rows.length} utenti...`);
-    console.log(`📋 Dettagli utenti che riceveranno la notifica:`);
+    debugLog(`📤 Invio push notifications a ${utentiConPushResult.rows.length} utenti...`);
+    debugLog(`📋 Dettagli utenti che riceveranno la notifica:`);
     utentiConPushResult.rows.forEach((utente, index) => {
-      console.log(`   ${index + 1}. ${utente.email || utente.id}:`);
-      console.log(`      - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
+      debugLog(`   ${index + 1}. ${utente.email || utente.id}:`);
+      debugLog(`      - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
       if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
         utente.fcm_tokens.forEach((token, tokenIndex) => {
-          console.log(`         Token ${tokenIndex + 1}: ${token.substring(0, 50)}...`);
+          debugLog(`         Token ${tokenIndex + 1}: ${token.substring(0, 50)}...`);
         });
       }
     });
@@ -1365,12 +1210,12 @@ async function notifyAllUsers(titolo, commento) {
       const fcmTokens = utente.fcm_tokens || [];
       const validTokens = [];
       
-      console.log(`  📱 Utente ${utente.email || utente.id}: ${fcmTokens.length} token(s) FCM`);
+      debugLog(`  📱 Utente ${utente.email || utente.id}: ${fcmTokens.length} token(s) FCM`);
       
       // Invia push notification a tutti i token FCM dell'utente
       for (const token of fcmTokens) {
         if (token && token.trim()) {
-          console.log(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
+          debugLog(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
           
           const result = await sendPushNotification(
             token,
@@ -1388,23 +1233,23 @@ async function notifyAllUsers(titolo, commento) {
             if (result.success) {
             pushSuccessCount++;
             validTokens.push(token); // Mantieni solo i token validi
-            console.log(`    ✅ Notifica inviata con successo a Firebase`);
+            debugLog(`    ✅ Notifica inviata con successo a Firebase`);
             if (result.messageId) {
-              console.log(`    📨 Message ID: ${result.messageId}`);
+              debugLog(`    📨 Message ID: ${result.messageId}`);
             }
           } else {
             pushFailureCount++;
-            console.log(`    ❌ Errore invio notifica: ${result.error}`);
+            debugLog(`    ❌ Errore invio notifica: ${result.error}`);
             if (result.code) {
-              console.log(`    📋 Error code: ${result.code}`);
+              debugLog(`    📋 Error code: ${result.code}`);
             }
             // Se il token non è valido, segnalo per rimozione
             if (result.shouldRemoveToken) {
               invalidTokens.push({ userId: utente.id, token });
-              console.log(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
+              debugLog(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
             } else {
               validTokens.push(token); // Mantieni il token se l'errore è temporaneo
-              console.log(`    ⚠️ Errore temporaneo, token mantenuto`);
+              debugLog(`    ⚠️ Errore temporaneo, token mantenuto`);
             }
           }
         }
@@ -1414,23 +1259,23 @@ async function notifyAllUsers(titolo, commento) {
       if (invalidTokens.length > 0 && validTokens.length !== fcmTokens.length) {
         try {
           await invalidateUserFcmTokens(utente.id, invalidTokens.map(t => t.token));
-          console.log(`🧹 Rimossi ${fcmTokens.length - validTokens.length} token FCM non validi per utente ${utente.id}`);
+          debugLog(`🧹 Rimossi ${fcmTokens.length - validTokens.length} token FCM non validi per utente ${utente.id}`);
         } catch (error) {
           console.error(`❌ Errore nella rimozione token FCM per utente ${utente.id}:`, error);
         }
       }
     }
 
-    console.log(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiConPushResult.rows.length} utenti`);
+    debugLog(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiConPushResult.rows.length} utenti`);
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche Demos:', error);
   }
 }
 
 // GET /api/comunicazioni/debug-firebase-admin - Debug per verificare lo stato di Firebase Admin
-router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
+router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('🔍 ========== DEBUG FIREBASE ADMIN ==========');
+    debugLog('🔍 ========== DEBUG FIREBASE ADMIN ==========');
     
     const { getFirebaseAdmin, initializeFirebaseAdmin, isInitialized } = require('../services/firebaseAdmin');
     
@@ -1445,7 +1290,6 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
         FIREBASE_CLIENT_EMAIL: {
           presente: !!process.env.FIREBASE_CLIENT_EMAIL,
           valore: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.substring(0, 30) + '...' : null,
-          valore_completo: process.env.FIREBASE_CLIENT_EMAIL || null, // Per debug - mostra l'email completa
           lunghezza: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.length : 0,
           formato_corretto: process.env.FIREBASE_CLIENT_EMAIL ? process.env.FIREBASE_CLIENT_EMAIL.includes('@') && process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk') : false
         },
@@ -1453,8 +1297,6 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
           presente: !!process.env.FIREBASE_PRIVATE_KEY,
           valore: process.env.FIREBASE_PRIVATE_KEY ? 'Presente (nascosto)' : null,
           lunghezza: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.length : 0,
-          inizia_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(0, 30) : null,
-          finisce_con: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.substring(process.env.FIREBASE_PRIVATE_KEY.length - 30) : null,
           contiene_begin: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('BEGIN PRIVATE KEY') : false,
           contiene_end: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('END PRIVATE KEY') : false,
           contiene_backslash_n: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.includes('\\n') : false,
@@ -1472,7 +1314,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
       }
     };
     
-    console.log('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
+    debugLog('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
     
     // Verifica corrispondenza tra variabili d'ambiente
     const envCheck = {
@@ -1481,7 +1323,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
         process.env.FIREBASE_CLIENT_EMAIL.includes('firebase-adminsdk') && 
         process.env.FIREBASE_CLIENT_EMAIL.includes('@demos-finale.iam.gserviceaccount.com') : false,
       client_email_expected: 'firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com',
-      client_email_actual: process.env.FIREBASE_CLIENT_EMAIL || null,
+      client_email_present: !!process.env.FIREBASE_CLIENT_EMAIL,
       client_email_matches: process.env.FIREBASE_CLIENT_EMAIL === 'firebase-adminsdk-fbsvc@demos-finale.iam.gserviceaccount.com'
     };
     
@@ -1504,7 +1346,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
     };
     
     if (timeDiffSeconds >= 60) {
-      console.warn(`⚠️ Possibile problema di sincronizzazione tempo: differenza di ${timeDiffSeconds} secondi`);
+      debugWarn(`⚠️ Possibile problema di sincronizzazione tempo: differenza di ${timeDiffSeconds} secondi`);
     }
     
     // Raccogli informazioni sul parsing della chiave privata
@@ -1543,19 +1385,19 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
     
     // Prova a inizializzare Firebase Admin
     try {
-      console.log('🔍 Tentativo di inizializzazione Firebase Admin...');
-      console.log('🔍 Chiamata a initializeFirebaseAdmin()...');
+      debugLog('🔍 Tentativo di inizializzazione Firebase Admin...');
+      debugLog('🔍 Chiamata a initializeFirebaseAdmin()...');
       const admin = initializeFirebaseAdmin();
-      console.log('🔍 Risultato initializeFirebaseAdmin():', admin ? 'Admin disponibile' : 'Admin null');
+      debugLog('🔍 Risultato initializeFirebaseAdmin():', admin ? 'Admin disponibile' : 'Admin null');
       debugInfo.stato_inizializzazione.admin_disponibile = !!admin;
       
       if (admin) {
-        console.log('✅ Firebase Admin inizializzato con successo');
+        debugLog('✅ Firebase Admin inizializzato con successo');
         debugInfo.stato_inizializzazione.admin_disponibile = true;
         // Verifica che admin.messaging() sia disponibile
         try {
           const messaging = admin.messaging();
-          console.log('✅ admin.messaging() disponibile');
+          debugLog('✅ admin.messaging() disponibile');
           debugInfo.stato_inizializzazione.messaging_disponibile = true;
           
           // Test reale: prova a inviare una notifica di test (se l'utente ha un token FCM)
@@ -1565,7 +1407,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
               const resolvedTokens = await getResolvedFcmTokensForUser(userId);
               if (resolvedTokens.length > 0) {
                 const testToken = resolvedTokens[0];
-                console.log('🧪 Test invio notifica reale a token:', testToken.substring(0, 30) + '...');
+                debugLog('🧪 Test invio notifica reale: token FCM presente');
                 
                 const testMessage = {
                   token: testToken,
@@ -1581,7 +1423,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
                 
                 try {
                   const testResponse = await messaging.send(testMessage);
-                  console.log('✅ Test invio notifica riuscito. Message ID:', testResponse);
+                  debugLog('✅ Test invio notifica riuscito. Message ID:', testResponse);
                   debugInfo.stato_inizializzazione.test_invio = {
                     successo: true,
                     message_id: testResponse,
@@ -1597,7 +1439,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
                   };
                 }
               } else {
-                console.log('ℹ️ Utente corrente non ha token FCM per test reale');
+                debugLog('ℹ️ Utente corrente non ha token FCM per test reale');
                 debugInfo.stato_inizializzazione.test_invio = {
                   successo: null,
                   messaggio: 'Utente corrente non ha token FCM registrati per il test'
@@ -1621,7 +1463,7 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
           };
         }
       } else {
-        console.log('❌ Firebase Admin non inizializzato - initializeFirebaseAdmin() ha restituito null');
+        debugLog('❌ Firebase Admin non inizializzato - initializeFirebaseAdmin() ha restituito null');
         debugInfo.stato_inizializzazione.admin_disponibile = false;
         debugInfo.stato_inizializzazione.errore = {
           message: 'initializeFirebaseAdmin() ha restituito null. Verifica i log del server per dettagli.',
@@ -1651,14 +1493,13 @@ router.get('/debug-firebase-admin', verifyToken, async (req, res) => {
     console.error('❌ Errore nel debug Firebase Admin:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
 
 // GET /api/comunicazioni/debug-notifiche-demos - Debug per verificare lo stato delle notifiche Demos
-router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
+router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -1779,8 +1620,7 @@ router.get('/debug-notifiche-demos', verifyToken, async (req, res) => {
     console.error('❌ Errore nel debug notifiche Demos:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
