@@ -7,7 +7,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.demos.app"
+    namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
 
     signingConfigs {
@@ -22,10 +22,10 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.demos.app"
+        applicationId "community.demos"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
+        versionCode 6
         versionName "1.0.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

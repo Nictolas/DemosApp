@@ -1,4 +1,4 @@
-package com.demos.app;
+package community.demos;
 
 import com.getcapacitor.BridgeActivity;
 

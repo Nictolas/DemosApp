@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.demos.app',
+  appId: 'community.demos',
   appName: 'DEMOS',
   webDir: 'dist',
   server: {
@@ -23,4 +23,3 @@ const config: CapacitorConfig = {
 };
 
 export default config;
-
