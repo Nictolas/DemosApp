@@ -10,8 +10,16 @@ test('data export UI uses canonical authenticated API helper', () => {
   const page = read('client/src/pages/Impostazioni/ScaricaDati/index.tsx');
   assert.match(page, /apiRequest\(/);
   assert.match(page, /\/api\/user\/download-data\?type=/);
-  assert.doesNotMatch(page, /user\.token/);
+  assert.doesNotMatch(page, /user\??\.token/);
   assert.doesNotMatch(page, /setTimeout\([^)]*2000/);
+});
+
+test('privacy settings UI uses canonical authenticated API helper', () => {
+  const page = read('client/src/pages/Impostazioni/GestionePrivacy/index.tsx');
+  assert.match(page, /apiRequest\("GET",\s*"\/api\/user\/privacy-settings"\)/);
+  assert.match(page, /apiRequest\("PUT",\s*"\/api\/user\/privacy-settings"/);
+  assert.doesNotMatch(page, /user\??\.token/);
+  assert.doesNotMatch(page, /fetch\(['"]\/api\/user\/privacy-settings/);
 });
 
 test('download route delegates to schema-aware export service', () => {
