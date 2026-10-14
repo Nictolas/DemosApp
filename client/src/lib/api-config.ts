@@ -59,7 +59,11 @@ export const getApiUrl = (endpoint: string | undefined | null) => {
   const baseUrl = resolveBaseUrl();
 
   let cleanEndpoint = endpoint;
-  if (endpoint.startsWith('/api/')) {
+  if (endpoint === '/api') {
+    cleanEndpoint = '';
+  } else if (endpoint.startsWith('/api?')) {
+    cleanEndpoint = endpoint.substring(4);
+  } else if (endpoint.startsWith('/api/')) {
     cleanEndpoint = endpoint.substring(4);
   } else if (!endpoint.startsWith('/')) {
     cleanEndpoint = `/${endpoint}`;
