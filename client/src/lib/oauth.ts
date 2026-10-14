@@ -46,40 +46,67 @@ function getBuildTimeAppleClientId(): string {
 }
 
 export function getGoogleClientId(): string {
-  return getBuildTimeGoogleClientId() || runtimeGoogleClientId;
+  // Quando disponibile, il valore runtime del backend è autorevole: garantisce
+  // che l'audience richiesta dal client coincida con quella verificata dal server.
+  return runtimeGoogleClientId || getBuildTimeGoogleClientId();
 }
 
 export function getAppleClientId(): string {
-  return getBuildTimeAppleClientId() || runtimeAppleClientId;
+  return runtimeAppleClientId || getBuildTimeAppleClientId();
 }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 /**
  * Carica i Client ID OAuth pubblici dal backend quando non sono stati incorporati
  * nella build Vite. Questo è particolarmente importante per le build Capacitor,
  * che non devono dipendere dalla presenza di VITE_* sulla macchina che genera APK/AAB.
+ *
+ * Il caricamento è retryable: su un backend freddo o su una rete instabile non
+ * memorizziamo permanentemente un fallimento che renderebbe invisibile il login.
  */
 export async function loadOAuthConfig(): Promise<void> {
   if (runtimeConfigLoaded) return;
   if (runtimeConfigPromise) return runtimeConfigPromise;
 
   runtimeConfigPromise = (async () => {
+    let loadedFromBackend = false;
+    let lastError: unknown = null;
+
     try {
-      const res = await fetch(getApiUrl(API_CONFIG.OAUTH.CONFIG), {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.success) {
-        runtimeGoogleClientId = typeof data.googleClientId === "string" ? data.googleClientId : "";
-        runtimeAppleClientId = typeof data.appleClientId === "string" ? data.appleClientId : "";
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const res = await fetch(getApiUrl(API_CONFIG.OAUTH.CONFIG), {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.success) {
+            throw new Error(`OAuth config HTTP ${res.status}`);
+          }
+
+          runtimeGoogleClientId = typeof data.googleClientId === "string" ? data.googleClientId : "";
+          runtimeAppleClientId = typeof data.appleClientId === "string" ? data.appleClientId : "";
+          runtimeConfigLoaded = true;
+          loadedFromBackend = true;
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 3) await sleep(500 * attempt);
+        }
       }
-    } catch (error) {
-      // Le build web possono continuare a usare VITE_* come fallback.
-      console.warn("Configurazione OAuth runtime non disponibile:", error);
     } finally {
-      runtimeConfigLoaded = true;
       runtimeConfigPromise = null;
+      // Se la build contiene già almeno un ID possiamo continuare in fallback.
+      // In assenza di fallback lasciamo runtimeConfigLoaded=false, così un tap
+      // successivo su Android ritenta il bootstrap invece di restare bloccato.
+      if (!loadedFromBackend && (getBuildTimeGoogleClientId() || getBuildTimeAppleClientId())) {
+        runtimeConfigLoaded = true;
+      }
+      if (!loadedFromBackend && lastError) {
+        console.warn("Configurazione OAuth runtime non disponibile:", lastError);
+      }
     }
   })();
 
