@@ -8,6 +8,7 @@ const {
 } = require('../../services/accessRevocationService');
 const {
   getRefreshTokenFromRequest,
+  isTrustedRefreshCookieRequest,
   clearRefreshTokenCookie,
 } = require('../../services/refreshTokenCookieService');
 
@@ -16,10 +17,19 @@ const router = express.Router();
 // Endpoint per il logout
 router.post('/logout', async (req, res) => {
   try {
-    const { refreshToken } = getRefreshTokenFromRequest(req);
+    const { refreshToken, source } = getRefreshTokenFromRequest(req);
 
-    // Il logout deve rimuovere sempre la credenziale browser, anche se la revoca
-    // persistente fallisce o il token era già scaduto.
+    // Se il browser sta autenticando il logout solo tramite cookie, richiediamo
+    // un Origin frontend esplicitamente autorizzato per evitare logout CSRF.
+    if (source === 'cookie' && !isTrustedRefreshCookieRequest(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Origin non autorizzato per logout tramite cookie',
+      });
+    }
+
+    // Dopo la verifica Origin il logout rimuove sempre la credenziale browser,
+    // anche se la revoca persistente fallisce o il token era già scaduto.
     clearRefreshTokenCookie(res);
 
     let decodedAccess = null;
