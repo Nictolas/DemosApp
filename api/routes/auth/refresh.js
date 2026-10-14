@@ -5,6 +5,7 @@ const { getPool } = require('../../config/database');
 const { rotateRefreshSession } = require('../../services/sessionService');
 const {
   getRefreshTokenFromRequest,
+  isTrustedRefreshCookieRequest,
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
 } = require('../../services/refreshTokenCookieService');
@@ -18,7 +19,8 @@ const pool = getPool();
  *
  * Migrazione trasporto:
  * - client legacy/mobile: il body refreshToken resta autorevole finché presente;
- * - client migrati: quando il body manca viene usato il cookie HttpOnly demos_refresh.
+ * - client migrati: quando il body manca viene usato il cookie HttpOnly demos_refresh;
+ * - richieste che usano il cookie devono provenire da un Origin frontend autorizzato.
  */
 router.post('/refresh', authLimiter, async (req, res) => {
   try {
@@ -28,6 +30,13 @@ router.post('/refresh', authLimiter, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Refresh token richiesto',
+      });
+    }
+
+    if (source === 'cookie' && !isTrustedRefreshCookieRequest(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Origin non autorizzato per refresh tramite cookie',
       });
     }
 
