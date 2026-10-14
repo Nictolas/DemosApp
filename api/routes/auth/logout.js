@@ -6,13 +6,21 @@ const {
   revokeAccessSession,
   revokeDecodedAccessToken,
 } = require('../../services/accessRevocationService');
+const {
+  getRefreshTokenFromRequest,
+  clearRefreshTokenCookie,
+} = require('../../services/refreshTokenCookieService');
 
 const router = express.Router();
 
 // Endpoint per il logout
 router.post('/logout', async (req, res) => {
   try {
-    const { refreshToken } = req.body || {};
+    const { refreshToken } = getRefreshTokenFromRequest(req);
+
+    // Il logout deve rimuovere sempre la credenziale browser, anche se la revoca
+    // persistente fallisce o il token era già scaduto.
+    clearRefreshTokenCookie(res);
 
     let decodedAccess = null;
     const authHeader = req.headers.authorization;
@@ -27,7 +35,7 @@ router.post('/logout', async (req, res) => {
     }
 
     let refreshSessionId = null;
-    if (refreshToken && typeof refreshToken === 'string') {
+    if (refreshToken) {
       let decoded = null;
       try {
         decoded = verifyRefreshToken(refreshToken);
@@ -80,6 +88,7 @@ router.post('/logout', async (req, res) => {
       message: 'Logout effettuato con successo'
     });
   } catch (error) {
+    clearRefreshTokenCookie(res);
     console.error('Errore durante logout:', error?.message || error);
     res.status(500).json({
       success: false,
