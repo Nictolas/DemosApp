@@ -8,6 +8,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
+import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 
 interface User {
@@ -144,7 +145,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ refreshToken: refreshTokenToRevoke }),
         });
       } catch (error) {
-        console.warn("Errore logout:", error);
+        console.warn("Errore logout backend:", error);
+      }
+
+      try {
+        await clearNativeGoogleCredentialState();
+      } catch (error) {
+        // Il logout DEMOS deve riuscire anche se il provider Android non riesce
+        // a pulire il proprio stato; il prossimo login mostrerà comunque l'errore.
+        console.warn("Errore pulizia Credential Manager Android:", error);
       }
     },
     onSuccess: () => {
