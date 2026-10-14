@@ -16,7 +16,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
 import java.util.concurrent.Executor;
@@ -24,10 +24,10 @@ import java.util.concurrent.Executor;
 /**
  * Bridge minimo per Sign in with Google su Android.
  *
- * Credential Manager apre l'UI nativa Google e restituisce un ID token con
- * audience uguale al Web Client ID DEMOS. Il token non viene considerato
- * attendibile lato client: viene inviato al backend /api/auth/oauth/google,
- * che continua a verificarne firma/audience come per il login web.
+ * Il tap sul pulsante DEMOS usa il button flow ufficiale di Credential Manager
+ * (`GetSignInWithGoogleOption`). Il token ottenuto non viene considerato
+ * attendibile lato client: viene sempre inviato al backend /api/auth/oauth/google,
+ * che ne verifica firma, issuer e audience prima di creare la sessione DEMOS.
  */
 @CapacitorPlugin(name = "NativeGoogleAuth")
 public class NativeGoogleAuthPlugin extends Plugin {
@@ -40,14 +40,11 @@ public class NativeGoogleAuthPlugin extends Plugin {
             return;
         }
 
-        GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(serverClientId.trim())
-            .setAutoSelectEnabled(false)
-            .build();
+        GetSignInWithGoogleOption signInWithGoogleOption =
+            new GetSignInWithGoogleOption.Builder(serverClientId.trim()).build();
 
         GetCredentialRequest request = new GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
+            .addCredentialOption(signInWithGoogleOption)
             .build();
 
         CredentialManager credentialManager = CredentialManager.create(getActivity());
