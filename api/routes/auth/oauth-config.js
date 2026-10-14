@@ -5,7 +5,7 @@ const router = express.Router();
 /**
  * Public OAuth client configuration.
  * OAuth client IDs are public identifiers, not secrets. Exposing them at runtime
- * keeps native/Capacitor builds from depending on Vite build-time environment variables.
+ * keeps native/Capacitor builds from depending on Vite build-time variables.
  */
 router.get('/oauth/config', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
