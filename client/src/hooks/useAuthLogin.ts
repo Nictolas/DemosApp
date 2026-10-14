@@ -84,7 +84,7 @@ export function useAuthLogin() {
       await loadOAuthConfig();
       const clientId = getGoogleClientId();
       if (!clientId) {
-        finishOAuthLogin("Google", { success: false, message: "Google OAuth non configurato." });
+        finishOAuthLogin("Google", { success: false, message: "Google OAuth non configurato. Riprova tra poco." });
         return;
       }
 
@@ -152,7 +152,9 @@ export function useAuthLogin() {
 
   const nativeAndroid = isNativeAndroid();
   const nativePlatform = Capacitor.isNativePlatform();
-  const showGoogle = !!getGoogleClientId();
+  // Su Android manteniamo sempre visibile il percorso nativo Google: il tap
+  // ritenta il bootstrap dei Client ID se il backend era freddo o la rete instabile.
+  const showGoogle = nativeAndroid || !!getGoogleClientId();
   // Apple JS e WebAuthn in WebView richiedono un gate nativo dedicato: non mostrarli
   // su Android finché non sono qualificati. Google resta il percorso nativo supportato.
   const showApple = !!getAppleClientId() && !nativeAndroid;
