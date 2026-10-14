@@ -1,6 +1,14 @@
 name: Institutional communications contract
 
 on:
+  push:
+    branches:
+      - 'test/comunica-contract-20261014'
+    paths:
+      - 'api/routes/comunicazioni.js'
+      - 'api/tests/institutionalCommunications.contract.test.js'
+      - '20261009_institutional_vote_communications.sql'
+      - '.github/workflows/institutional-communications-contract.yml'
   pull_request:
     paths:
       - 'api/routes/comunicazioni.js'
