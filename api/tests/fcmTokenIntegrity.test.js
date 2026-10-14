@@ -15,6 +15,14 @@ test('web FCM token uses the explicitly configured Firebase service worker', () 
   assert.doesNotMatch(hook, /`web_\$\{Date\.now\(\)\}/);
 });
 
+test('web FCM is fail-closed inside the native Capacitor app', () => {
+  const hook = read('client/src/hooks/useFCM.ts');
+  assert.match(hook, /import \{ Capacitor \} from '@capacitor\/core'/);
+  assert.match(hook, /Capacitor\.isNativePlatform\(\)/);
+  assert.match(hook, /if \(isNativeApp\(\)\) \{[\s\S]*setMessaging\(null\);[\s\S]*return;/);
+  assert.match(hook, /FCM web disabilitato nell’app nativa/);
+});
+
 test('FCM service worker has no fake project configuration and reads registered public config', () => {
   const sw = read('client/public/firebase-messaging-sw.js');
   assert.match(sw, /self\.location\.href/);
