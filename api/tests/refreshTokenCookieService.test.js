@@ -19,16 +19,25 @@ test('parsa cookie senza dipendenza da cookie-parser', () => {
   });
 });
 
-test('preferisce il refresh token HttpOnly al body legacy', () => {
+test('durante la migrazione il body legacy prevale su un eventuale cookie vecchio', () => {
+  const result = getRefreshTokenFromRequest({
+    headers: { cookie: `${REFRESH_TOKEN_COOKIE_NAME}=stale-cookie-token` },
+    body: { refreshToken: 'current-body-token' },
+  });
+
+  assert.deepEqual(result, { refreshToken: 'current-body-token', source: 'body' });
+});
+
+test('usa il cookie HttpOnly quando il client non invia piu il token nel body', () => {
   const result = getRefreshTokenFromRequest({
     headers: { cookie: `${REFRESH_TOKEN_COOKIE_NAME}=cookie-token` },
-    body: { refreshToken: 'body-token' },
+    body: {},
   });
 
   assert.deepEqual(result, { refreshToken: 'cookie-token', source: 'cookie' });
 });
 
-test('mantiene fallback body per client legacy/mobile', () => {
+test('mantiene fallback body per client legacy/mobile senza cookie', () => {
   const result = getRefreshTokenFromRequest({
     headers: {},
     body: { refreshToken: 'legacy-token' },
@@ -49,7 +58,11 @@ test('cookie refresh e HttpOnly, SameSite Lax, path auth e TTL 7 giorni', () => 
     assert.equal(options.path, '/api/auth');
     assert.equal(options.maxAge, REFRESH_TOKEN_COOKIE_MAX_AGE_MS);
   } finally {
-    process.env.NODE_ENV = previousNodeEnv;
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
   }
 });
 
