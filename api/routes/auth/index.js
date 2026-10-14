@@ -6,6 +6,7 @@ const verificationRoutes = require('./verification');
 const refreshRoutes = require('./refresh');
 const logoutRoutes = require('./logout');
 const webauthnRoutes = require('./webauthn');
+const oauthConfigRoutes = require('./oauth-config');
 const oauthRoutes = require('./oauth');
 const identityRoutes = require('./identity');
 
@@ -16,6 +17,7 @@ router.use('/', verificationRoutes);
 router.use('/', refreshRoutes);
 router.use('/', logoutRoutes);
 router.use('/', webauthnRoutes);
+router.use('/', oauthConfigRoutes);
 router.use('/', oauthRoutes);
 router.use('/', identityRoutes);
 
