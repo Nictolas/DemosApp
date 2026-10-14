@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 import { getMessaging, getToken as getFCMToken, onMessage, Messaging } from 'firebase/messaging';
+import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
 
 function isNativeApp(): boolean {
   try {
@@ -12,9 +12,8 @@ function isNativeApp(): boolean {
 }
 
 /**
- * Hook per ottenere e gestire il token FCM per notifiche push web.
- * Il percorso Firebase Web Messaging è intenzionalmente disabilitato dentro
- * l'app nativa Capacitor: Android userà un'integrazione push nativa dedicata.
+ * Hook per ottenere e gestire il token FCM per notifiche push web
+ * Usa Firebase Cloud Messaging per web
  */
 export function useFCM() {
   const firebaseConfig = {
@@ -34,99 +33,62 @@ export function useFCM() {
   const [message, setMessage] = useState<any>(null);
   const [messaging, setMessaging] = useState<Messaging | null>(null);
 
+  // Inizializza Firebase se non già fatto
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Firebase Web Messaging non deve partire nella WebView Capacitor.
-    // Evita registrazioni Service Worker / Notification API web nell'app nativa.
+    // Firebase Web Messaging non deve partire dentro la WebView Capacitor.
     if (isNativeApp()) {
       setMessaging(null);
       setPermission(null);
       return;
     }
 
+    // Verifica permesso notifiche
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
 
+    // Inizializza Firebase Messaging con le credenziali essenziali
+    // NOTA: Per FCM web NON serve Firestore o altri servizi Firebase
+    // Serve solo: projectId, messagingSenderId, e VAPID key (per l'autenticazione)
+    
+    // Log per debug
+    console.log('🔧 Configurazione Firebase FCM:', {
+      projectId: firebaseConfig.projectId || 'MANCANTE',
+      messagingSenderId: firebaseConfig.messagingSenderId || 'MANCANTE',
+      apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'MANCANTE',
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY ? 'PRESENTE' : 'MANCANTE'
+    });
+
+    // Verifica se abbiamo almeno le credenziali essenziali per FCM web
+    // Servono: projectId, messagingSenderId, e vapidKey (quest'ultima viene usata dopo)
     if (firebaseConfig.projectId && firebaseConfig.messagingSenderId) {
       try {
         const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
         if ('serviceWorker' in navigator && 'Notification' in window) {
-          setMessaging(getMessaging(app));
+          const messagingInstance = getMessaging(app);
+          setMessaging(messagingInstance);
+          console.log('✅ Firebase Messaging inizializzato per web push');
+          console.log('   Project ID:', firebaseConfig.projectId);
+          console.log('   Messaging Sender ID:', firebaseConfig.messagingSenderId);
+          console.log('   VAPID Key presente:', !!import.meta.env.VITE_FIREBASE_VAPID_KEY);
         }
       } catch (firebaseError) {
-        console.warn('Firebase Messaging non disponibile:', firebaseError);
+        console.warn('⚠️ Firebase non configurato o non disponibile:', firebaseError);
+        // Non è un errore critico, continuiamo senza Firebase
       }
     } else {
-      console.warn('Credenziali Firebase essenziali non configurate; push web disabilitato.');
+      console.warn('⚠️ Credenziali Firebase essenziali non configurate');
+      console.warn('   VITE_FIREBASE_PROJECT_ID:', firebaseConfig.projectId || 'MANCANTE');
+      console.warn('   VITE_FIREBASE_MESSAGING_SENDER_ID:', firebaseConfig.messagingSenderId || 'MANCANTE');
+      console.warn('   VITE_FIREBASE_VAPID_KEY:', import.meta.env.VITE_FIREBASE_VAPID_KEY ? 'PRESENTE' : 'MANCANTE');
+      console.warn('   Le notifiche push web non funzioneranno.');
     }
   }, []);
 
-  const getToken = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      if (isNativeApp()) {
-        setToken(null);
-        setError(new Error('FCM web disabilitato nell’app nativa.'));
-        return;
-      }
-
-      if (!messaging) {
-        setToken(null);
-        setError(new Error('Firebase Messaging non configurato. Notifiche push non disponibili.'));
-        return;
-      }
-
-      if (!('serviceWorker' in navigator)) {
-        throw new Error('Service Worker non supportato dal browser');
-      }
-
-      const swParams = new URLSearchParams({
-        apiKey: String(firebaseConfig.apiKey || ''),
-        authDomain: String(firebaseConfig.authDomain || ''),
-        projectId: String(firebaseConfig.projectId || ''),
-        storageBucket: String(firebaseConfig.storageBucket || ''),
-        messagingSenderId: String(firebaseConfig.messagingSenderId || ''),
-        appId: String(firebaseConfig.appId || ''),
-      });
-
-      const registration = await navigator.serviceWorker.register(
-        `/firebase-messaging-sw.js?${swParams.toString()}`,
-        { scope: '/' }
-      );
-      await navigator.serviceWorker.ready;
-
-      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-      if (!vapidKey) {
-        throw new Error('VAPID key non configurata.');
-      }
-
-      const currentToken = await getFCMToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: registration,
-      });
-
-      if (!currentToken) {
-        throw new Error('Nessun token FCM disponibile');
-      }
-
-      setToken(currentToken);
-    } catch (err) {
-      const nextError = err instanceof Error ? err : new Error('Errore nel recupero token FCM');
-      setToken(null);
-      setError(nextError);
-      console.error('Errore nel recupero token FCM:', nextError);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Richiedi permesso notifiche
   const requestPermission = async () => {
-    setError(null);
-
     if (isNativeApp()) {
       setError(new Error('Le notifiche push native non sono ancora configurate.'));
       return;
@@ -150,59 +112,163 @@ export function useFCM() {
     }
 
     try {
-      const nextPermission = await Notification.requestPermission();
-      setPermission(nextPermission);
-
-      if (nextPermission === 'granted') {
+      const permission = await Notification.requestPermission();
+      setPermission(permission);
+      
+      if (permission === 'granted') {
         await getToken();
       } else {
         setError(new Error('Permesso notifiche negato'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Errore nella richiesta permesso'));
+      const error = err instanceof Error ? err : new Error('Errore nella richiesta permesso');
+      setError(error);
     }
   };
 
+  // Ottieni token FCM per web
+  const getToken = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (isNativeApp()) {
+        setToken(null);
+        setError(new Error("FCM web disabilitato nell'app nativa."));
+        return;
+      }
+
+      // Se Firebase Messaging è disponibile, usa quello
+      if (messaging) {
+        try {
+          if (!('serviceWorker' in navigator)) {
+            throw new Error('Service Worker non supportato dal browser');
+          }
+
+          const swParams = new URLSearchParams({
+            apiKey: String(firebaseConfig.apiKey || ''),
+            authDomain: String(firebaseConfig.authDomain || ''),
+            projectId: String(firebaseConfig.projectId || ''),
+            storageBucket: String(firebaseConfig.storageBucket || ''),
+            messagingSenderId: String(firebaseConfig.messagingSenderId || ''),
+            appId: String(firebaseConfig.appId || ''),
+          });
+          const registration = await navigator.serviceWorker.register(
+            `/firebase-messaging-sw.js?${swParams.toString()}`,
+            { scope: '/' }
+          );
+          await navigator.serviceWorker.ready;
+          console.log('✅ Service Worker FCM configurato e registrato');
+
+          const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+          
+          // Log dettagliato per debug
+          console.log('🔑 VAPID Key check:', {
+            presente: !!vapidKey,
+            lunghezza: vapidKey ? vapidKey.length : 0,
+            inizio: vapidKey ? vapidKey.substring(0, 30) + '...' : 'N/A',
+            tutteEnvVars: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_FIREBASE_'))
+          });
+          
+          if (!vapidKey) {
+            console.error('❌ VAPID KEY MANCANTE!');
+            console.error('   Verifica che VITE_FIREBASE_VAPID_KEY sia configurata su Render.com');
+            console.error('   E che il frontend sia stato rideployato dopo averla aggiunta');
+            throw new Error('VAPID key non configurata. Configura VITE_FIREBASE_VAPID_KEY nel frontend e rideploya.');
+          }
+
+          if (vapidKey.length < 80) {
+            console.warn('⚠️ VAPID key sembra troppo corta. Dovrebbe essere ~87 caratteri');
+          }
+
+          console.log('🔐 Tentativo di ottenere token FCM con VAPID key...');
+          
+          // Non hardcodare mai una VAPID "attesa" nel codice: usa solo la variabile d'ambiente.
+          
+          const currentToken = await getFCMToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+          
+          if (currentToken) {
+            setToken(currentToken);
+            console.log('✅ Token FCM ottenuto:', currentToken.substring(0, 30) + '...');
+          } else {
+            throw new Error('Nessun token FCM disponibile');
+          }
+        } catch (fcmError: any) {
+          console.error('❌ Errore nel recupero token FCM:', fcmError);
+          
+          // Fail closed: un device ID locale non è un token FCM e non deve mai essere sincronizzato.
+          setToken(null);
+          setError(new Error('Firebase FCM non disponibile. Token push non creato.'));
+        }
+      } else {
+        setToken(null);
+        setError(new Error('Firebase Messaging non configurato. Notifiche push non disponibili.'));
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Errore nel recupero token');
+      setError(error);
+      console.error('Errore nel recupero token FCM:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Ascolta messaggi push
   useEffect(() => {
-    if (!messaging || isNativeApp()) return;
+    if (!messaging) return;
 
     const unsubscribe = onMessage(messaging, (payload) => {
+      console.log('📨 Messaggio push ricevuto in foreground:', payload);
       setMessage(payload);
-
-      if (Notification.permission !== 'granted') return;
-
-      const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
-      const notificationBody = payload.notification?.body || payload.data?.messaggio || '';
-      const notificationTag = payload.data?.notificationTag || `demos-notification-${Date.now()}`;
-
-      const notificationOptions: NotificationOptions = {
-        body: notificationBody,
-        icon: payload.notification?.icon || '/icona.png',
-        badge: '/icona.png',
-        tag: notificationTag,
-        requireInteraction: true,
-        data: {
-          ...payload.data,
-          url: payload.data?.url || '/notifiche',
-          link: payload.data?.link || 'https://www.demos.community/notifiche',
-        },
-      };
-
-      const notification = new Notification(notificationTitle, notificationOptions);
-      notification.onclick = (event) => {
-        event.preventDefault();
-        window.focus();
-        const url = payload.data?.link || payload.data?.url || '/notifiche';
-        if (url.startsWith('http')) {
-          window.open(url, '_blank');
-        } else {
-          window.location.href = url;
-        }
-        notification.close();
-      };
+      
+      // Mostra notifica quando l'app è in foreground
+      // IMPORTANTE: onMessage viene chiamato SOLO quando l'app è in foreground
+      // onBackgroundMessage viene chiamato SOLO quando l'app è in background/chiusa
+      // Quindi non ci dovrebbero essere duplicati se usiamo il tag correttamente
+      if (Notification.permission === 'granted') {
+        const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
+        const notificationBody = payload.notification?.body || payload.data?.messaggio || '';
+        
+        // Usa il tag dal payload se disponibile, altrimenti usa un default
+        // Il tag deve essere UNICO per questa notifica per evitare duplicati
+        const notificationTag = payload.data?.notificationTag || `demos-notification-${Date.now()}`;
+        
+        console.log('🔔 Mostro notifica in foreground con tag:', notificationTag);
+        
+        const notificationOptions: NotificationOptions = {
+          body: notificationBody,
+          icon: payload.notification?.icon || '/icona.png',
+          badge: '/icona.png',
+          tag: notificationTag, // Tag univoco per evitare duplicati
+          requireInteraction: true,
+          data: {
+            ...payload.data,
+            url: payload.data?.url || '/notifiche',
+            link: payload.data?.link || 'https://www.demos.community/notifiche'
+          }
+        };
+        
+        // Mostra la notifica
+        const notification = new Notification(notificationTitle, notificationOptions);
+        
+        // Gestisci il click sulla notifica
+        notification.onclick = (event) => {
+          event.preventDefault();
+          window.focus();
+          const url = payload.data?.link || payload.data?.url || '/notifiche';
+          if (url.startsWith('http')) {
+            window.open(url, '_blank');
+          } else {
+            window.location.href = url;
+          }
+          notification.close();
+        };
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   }, [messaging]);
 
   return {
@@ -212,6 +278,6 @@ export function useFCM() {
     permission,
     message,
     requestPermission,
-    getToken,
+    getToken
   };
 }
