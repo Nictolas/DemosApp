@@ -1,0 +1,23 @@
+name: Institutional communications contract
+
+on:
+  pull_request:
+    paths:
+      - 'api/routes/comunicazioni.js'
+      - 'api/tests/institutionalCommunications.contract.test.js'
+      - '20261009_institutional_vote_communications.sql'
+      - '.github/workflows/institutional-communications-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run contract test
+        run: node --test api/tests/institutionalCommunications.contract.test.js
