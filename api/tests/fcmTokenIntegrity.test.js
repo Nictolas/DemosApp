@@ -50,3 +50,43 @@ test('legacy cache service worker remains disabled instead of competing with FCM
   const main = read('client/src/main.tsx');
   assert.doesNotMatch(main, /^\s*navigator\.serviceWorker\.register\('\/sw\.js'\)/m);
 });
+
+test('native Capacitor push path is wired separately from web FCM', () => {
+  const packageJson = read('client/package.json');
+  const nativeHook = read('client/src/hooks/useNativePush.ts');
+  const unifiedHook = read('client/src/hooks/usePushNotifications.ts');
+  const syncHook = read('client/src/hooks/useSyncFcmToken.ts');
+
+  assert.match(packageJson, /@capacitor\/push-notifications/);
+  assert.match(nativeHook, /PushNotifications\.requestPermissions\(\)/);
+  assert.match(nativeHook, /PushNotifications\.register\(\)/);
+  assert.match(nativeHook, /addListener\('registration'/);
+  assert.match(nativeHook, /addListener\('pushNotificationReceived'/);
+  assert.match(nativeHook, /addListener\('pushNotificationActionPerformed'/);
+  assert.match(unifiedHook, /transport:\s*'native'/);
+  assert.match(syncHook, /source:\s*transport === 'native' \? 'android-native' : 'web-mobile'/);
+});
+
+test('logout invalidates stored native push token before clearing the session', () => {
+  const auth = read('client/src/hooks/use-auth.tsx');
+  const tokenRead = auth.indexOf('getStoredNativePushToken()');
+  const serverDelete = auth.indexOf('method: "DELETE"', tokenRead);
+  const unregister = auth.indexOf('await unregisterNativePush()', tokenRead);
+  const clearSession = auth.indexOf('clearSessionTokens()', tokenRead);
+
+  assert.ok(tokenRead >= 0);
+  assert.ok(serverDelete > tokenRead);
+  assert.ok(unregister > serverDelete);
+  assert.ok(clearSession > unregister);
+});
+
+test('native push registration is gated until Firebase Android config is explicitly enabled', () => {
+  const nativeState = read('client/src/lib/native-push.ts');
+  const nativeHook = read('client/src/hooks/useNativePush.ts');
+  const syncHook = read('client/src/hooks/useSyncFcmToken.ts');
+  assert.match(nativeState, /VITE_ANDROID_NATIVE_PUSH_ENABLED === 'true'/);
+  assert.match(nativeState, /if \(!isNativePushEnabled\(\)\) return;/);
+  assert.match(nativeHook, /const enabled = isNativePushEnabled\(\)/);
+  assert.match(nativeHook, /if \(!enabled\) return;/);
+  assert.match(syncHook, /if \(!user\?\.id \|\| !enabled\) return;/);
+});
