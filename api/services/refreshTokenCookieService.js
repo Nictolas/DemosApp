@@ -22,16 +22,19 @@ function parseCookieHeader(cookieHeader) {
 }
 
 function getRefreshTokenFromRequest(req) {
-  const cookies = parseCookieHeader(req?.headers?.cookie);
-  const cookieToken = cookies[REFRESH_TOKEN_COOKIE_NAME];
-
-  if (cookieToken && typeof cookieToken === 'string') {
-    return { refreshToken: cookieToken, source: 'cookie' };
-  }
-
+  // Fase di migrazione: se un client legacy/mobile invia ancora il token nel body,
+  // quello resta autorevole. Evita che un vecchio cookie browser sopravvissuto a un
+  // nuovo login possa oscurare un refresh token più recente. Al cutover web il body
+  // verrà rimosso e il cookie diventerà automaticamente l'unica sorgente.
   const bodyToken = req?.body?.refreshToken;
   if (bodyToken && typeof bodyToken === 'string') {
     return { refreshToken: bodyToken, source: 'body' };
+  }
+
+  const cookies = parseCookieHeader(req?.headers?.cookie);
+  const cookieToken = cookies[REFRESH_TOKEN_COOKIE_NAME];
+  if (cookieToken && typeof cookieToken === 'string') {
+    return { refreshToken: cookieToken, source: 'cookie' };
   }
 
   return { refreshToken: null, source: null };
