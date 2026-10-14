@@ -25,6 +25,7 @@ import {
   Eye
 } from 'lucide-react';
 import { apiRequest } from '../lib/queryClient';
+import { getApiUrl } from '@/lib/api-config';
 
 interface LogEntry {
   id: string;
@@ -123,7 +124,7 @@ const LoggingDashboard: React.FC = () => {
       if (searchFilters.level) params.append('level', searchFilters.level);
       params.append('format', format);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/admin/logging/export?${params.toString()}`, {
+      const response = await fetch(getApiUrl(`/admin/logging/export?${params.toString()}`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

@@ -18,7 +18,7 @@ const resolveBaseUrl = (): string => {
   const configured = normalizeApiBaseUrl(env.VITE_API_BASE_URL || env.VITE_API_URL || '');
 
   if (Capacitor.isNativePlatform()) {
-    return configured || DEFAULT_API_BASE_URL;
+    return DEFAULT_API_BASE_URL;
   }
 
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
@@ -27,8 +27,8 @@ const resolveBaseUrl = (): string => {
     return configured || DEFAULT_API_BASE_URL;
   }
 
-  // Sviluppo locale
-  return 'http://localhost:3001/api';
+  // Sviluppo locale: usa il proxy Vite relativo, mai un host localhost assoluto.
+  return '/api';
 };
 
 const API_BASE_URL = resolveBaseUrl();
