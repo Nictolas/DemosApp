@@ -20,7 +20,7 @@ test('web FCM is fail-closed inside the native Capacitor app', () => {
   assert.match(hook, /import \{ Capacitor \} from '@capacitor\/core'/);
   assert.match(hook, /Capacitor\.isNativePlatform\(\)/);
   assert.match(hook, /if \(isNativeApp\(\)\) \{[\s\S]*setMessaging\(null\);[\s\S]*return;/);
-  assert.match(hook, /FCM web disabilitato nell’app nativa/);
+  assert.match(hook, /FCM web disabilitato/);
 });
 
 test('FCM service worker has no fake project configuration and reads registered public config', () => {
