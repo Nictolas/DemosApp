@@ -40,6 +40,43 @@ function getRefreshTokenFromRequest(req) {
   return { refreshToken: null, source: null };
 }
 
+function normalizeOrigin(value) {
+  if (!value || typeof value !== 'string' || value === 'null') return null;
+  try {
+    return new URL(value).origin;
+  } catch (_) {
+    return null;
+  }
+}
+
+function getTrustedRefreshCookieOrigins() {
+  const origins = new Set([
+    'https://www.demos.community',
+    'https://demos.community',
+  ]);
+
+  const configuredFrontend = normalizeOrigin(process.env.FRONTEND_URL);
+  if (configuredFrontend) origins.add(configuredFrontend);
+
+  if (process.env.NODE_ENV !== 'production') {
+    origins.add('http://localhost:3000');
+    origins.add('http://localhost:5173');
+    origins.add('http://127.0.0.1:3000');
+    origins.add('http://127.0.0.1:5173');
+  }
+
+  return origins;
+}
+
+function isTrustedRefreshCookieRequest(req) {
+  const rawOrigin = typeof req?.get === 'function'
+    ? req.get('Origin')
+    : req?.headers?.origin;
+  const origin = normalizeOrigin(rawOrigin);
+  if (!origin) return false;
+  return getTrustedRefreshCookieOrigins().has(origin);
+}
+
 function getRefreshTokenCookieOptions() {
   return {
     httpOnly: true,
@@ -74,6 +111,9 @@ module.exports = {
   REFRESH_TOKEN_COOKIE_MAX_AGE_MS,
   parseCookieHeader,
   getRefreshTokenFromRequest,
+  normalizeOrigin,
+  getTrustedRefreshCookieOrigins,
+  isTrustedRefreshCookieRequest,
   getRefreshTokenCookieOptions,
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
