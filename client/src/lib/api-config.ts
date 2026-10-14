@@ -27,6 +27,7 @@ export const API_CONFIG = {
     LOGIN_VERIFY: '/auth/webauthn/login/verify',
   },
   OAUTH: {
+    CONFIG: '/auth/oauth/config',
     GOOGLE: '/auth/oauth/google',
     APPLE: '/auth/oauth/apple',
   },
