@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
+import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 
 interface User {
   id: string;
@@ -131,6 +132,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       const tokenToRevoke = token;
       const refreshTokenToRevoke = getRefreshToken();
+      const pushTokenToRevoke = getStoredNativePushToken();
+
+      // Prima di eliminare la sessione, disattiva il token push associato all'utente.
+      if (pushTokenToRevoke && tokenToRevoke) {
+        try {
+          await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${tokenToRevoke}`,
+            },
+          });
+        } catch (error) {
+          console.warn("Impossibile disattivare il token push durante il logout:", error);
+        }
+      }
+
+      await unregisterNativePush();
+      clearStoredNativePushToken();
       clearSessionTokens();
       setToken(null);
 
@@ -158,7 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.href = "/";
     },
   });
-
   return (
     <AuthContext.Provider
       value={{
