@@ -17,10 +17,11 @@ const getConfiguredBaseUrl = (): string => {
 };
 
 const resolveBaseUrl = (): string => {
-  // La build Capacitor proposta usa un hostname locale custom (demos.community),
-  // quindi distinguiamo la piattaforma nativa dal vero localhost di sviluppo.
+  // Android/iOS usano temporaneamente l'endpoint Render diretto: api.demos.community
+  // è attualmente bloccato da Cloudflare Error 1000. Non lasciare che una variabile
+  // Vite web sovrascriva il backend nativo finché il custom domain non è riparato.
   if (Capacitor.isNativePlatform()) {
-    return getConfiguredBaseUrl() || DEFAULT_API_BASE_URL;
+    return DEFAULT_API_BASE_URL;
   }
 
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
