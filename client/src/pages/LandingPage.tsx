@@ -1,15 +1,12 @@
 import { Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { useMobile } from "@/hooks/use-mobile";
 import { AuthCard } from "@/components/AuthCard";
-import { Loader2, Download, Smartphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import appIcon from "/icona.png";
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();
-  const { isInstallable, isInstalled, isMobile, installApp, showInstallInstructions } = usePWAInstall();
   const isMobileLayout = useMobile();
 
   if (user && !isLoading) {
@@ -49,27 +46,6 @@ export default function LandingPage() {
                     Scopri le opinioni dei politici, segui votazioni ed eventi, trova i candidati più
                     compatibili con le tue idee e partecipa attivamente alla vita democratica italiana.
                   </p>
-
-                  {!isInstalled && isMobile && (
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="border-blue-600 text-blue-600 hover:bg-blue-50"
-                      onClick={isInstallable ? installApp : showInstallInstructions}
-                    >
-                      {isInstallable ? (
-                        <>
-                          <Download className="w-5 h-5 mr-2" />
-                          Aggiungi a Schermata Home
-                        </>
-                      ) : (
-                        <>
-                          <Smartphone className="w-5 h-5 mr-2" />
-                          Aggiungi a Schermata Home
-                        </>
-                      )}
-                    </Button>
-                  )}
                 </div>
 
                 <div className={`flex justify-center ${!isMobileLayout ? "md:justify-end" : ""}`}>
