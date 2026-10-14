@@ -4,23 +4,41 @@ import { useToast } from "@/hooks/use-toast";
 import {
   getGoogleClientId,
   getAppleClientId,
+  loadOAuthConfig,
   loginWithGoogle,
   loginWithApple,
   isIOSOrMobileSafari,
   loginWithGoogleRedirect,
   handleGoogleRedirectCallback,
 } from "@/lib/oauth";
+import { isWebAuthnSupported, loginWithPasskey } from "@/lib/webauthn";
 
 const AUTH_ROUTES = ["/", "/auth"];
+
+type AuthMethod = "google" | "apple" | "passkey";
 
 export function useAuthLogin() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
 
-  const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<AuthMethod | null>(null);
+  const [oauthConfigLoading, setOauthConfigLoading] = useState(true);
+  const [, setOauthConfigRevision] = useState(0);
 
   useEffect(() => {
-    if (!getGoogleClientId() || !AUTH_ROUTES.includes(location)) return;
+    let active = true;
+    loadOAuthConfig().finally(() => {
+      if (!active) return;
+      setOauthConfigLoading(false);
+      setOauthConfigRevision((value) => value + 1);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (oauthConfigLoading || !getGoogleClientId() || !AUTH_ROUTES.includes(location)) return;
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     if (!hash || !hash.includes("id_token=")) return;
     handleGoogleRedirectCallback().then((result) => {
@@ -44,9 +62,10 @@ export function useAuthLogin() {
       }
       setOauthLoading(null);
     });
-  }, [location, navigate, toast]);
+  }, [location, navigate, oauthConfigLoading, toast]);
 
   const handleGoogleLogin = async () => {
+    await loadOAuthConfig();
     if (isIOSOrMobileSafari()) {
       setOauthLoading("google");
       loginWithGoogleRedirect();
@@ -79,6 +98,7 @@ export function useAuthLogin() {
   };
 
   const handleAppleLogin = async () => {
+    await loadOAuthConfig();
     setOauthLoading("apple");
     try {
       const result = await loginWithApple();
@@ -105,18 +125,45 @@ export function useAuthLogin() {
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setOauthLoading("passkey");
+    try {
+      const result = await loginWithPasskey();
+      if (result.success) {
+        toast({ title: "Login effettuato", description: "Accesso con passkey completato." });
+        setTimeout(() => {
+          window.location.href = "/preferiti";
+        }, 200);
+      } else if (result.code !== "CANCELLED") {
+        toast({
+          title: "Accesso non completato",
+          description: result.message || "Errore con la passkey.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
   const showGoogle = !!getGoogleClientId();
   const showApple = !!getAppleClientId();
+  const showPasskey = isWebAuthnSupported();
   const showOAuth = showGoogle || showApple;
+  const showAnyAuth = showOAuth || showPasskey;
   const oauthBusy = oauthLoading !== null;
 
   return {
     oauthLoading,
+    oauthConfigLoading,
     showGoogle,
     showApple,
+    showPasskey,
     showOAuth,
+    showAnyAuth,
     oauthBusy,
     handleGoogleLogin,
     handleAppleLogin,
+    handlePasskeyLogin,
   };
 }
