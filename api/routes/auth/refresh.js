@@ -3,6 +3,11 @@ const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
 const { authLimiter } = require('../../middleware/rateLimiting');
 const { getPool } = require('../../config/database');
 const { rotateRefreshSession } = require('../../services/sessionService');
+const {
+  getRefreshTokenFromRequest,
+  setRefreshTokenCookie,
+  clearRefreshTokenCookie,
+} = require('../../services/refreshTokenCookieService');
 
 const router = express.Router();
 const pool = getPool();
@@ -10,12 +15,16 @@ const pool = getPool();
 /**
  * POST /api/auth/refresh
  * Rinnova la coppia di token e ruota il refresh token in modo monouso.
+ *
+ * Migrazione trasporto:
+ * - browser: preferisce il cookie HttpOnly demos_refresh;
+ * - client legacy/mobile: mantiene temporaneamente il body refreshToken.
  */
 router.post('/refresh', authLimiter, async (req, res) => {
   try {
-    const { refreshToken } = req.body || {};
+    const { refreshToken, source } = getRefreshTokenFromRequest(req);
 
-    if (!refreshToken || typeof refreshToken !== 'string') {
+    if (!refreshToken) {
       return res.status(400).json({
         success: false,
         error: 'Refresh token richiesto',
@@ -37,6 +46,7 @@ router.post('/refresh', authLimiter, async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
+      clearRefreshTokenCookie(res);
       return res.status(401).json({
         success: false,
         error: 'Utente non trovato',
@@ -63,12 +73,25 @@ router.post('/refresh', authLimiter, async (req, res) => {
       userAgent: req.get('User-Agent') || null,
     });
 
-    return res.json({
+    setRefreshTokenCookie(res, tokens.refreshToken);
+
+    const payload = {
       success: true,
       message: 'Token aggiornati con successo',
-      ...tokens,
-    });
+      accessToken: tokens.accessToken,
+      expiresIn: tokens.expiresIn,
+      tokenType: tokens.tokenType,
+    };
+
+    // Compatibilità temporanea: solo chi è ancora entrato via body riceve il nuovo
+    // refresh token nel JSON. In modalità cookie il refresh token non è JS-readable.
+    if (source === 'body') {
+      payload.refreshToken = tokens.refreshToken;
+    }
+
+    return res.json(payload);
   } catch (error) {
+    clearRefreshTokenCookie(res);
     console.error('❌ Errore durante refresh token:', error?.message || error);
     return res.status(401).json({
       success: false,
