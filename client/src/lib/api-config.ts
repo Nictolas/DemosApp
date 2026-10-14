@@ -3,13 +3,22 @@ import { Capacitor } from '@capacitor/core';
 // Configurazione centralizzata per l'API
 const DEFAULT_API_BASE_URL = 'https://demos-c7k0.onrender.com/api';
 
+const normalizeApiBaseUrl = (value: string): string => {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
 const getConfiguredBaseUrl = (): string => {
-  return (import.meta as any).env?.VITE_API_BASE_URL || '';
+  const env = (import.meta as any).env || {};
+  // Il progetto storico usa entrambe le convenzioni; supportarle evita che una
+  // build Android ignori VITE_API_URL e ricada involontariamente sul fallback.
+  return normalizeApiBaseUrl(env.VITE_API_BASE_URL || env.VITE_API_URL || '');
 };
 
 const resolveBaseUrl = (): string => {
-  // Capacitor serve la WebView da https://localhost: non va confusa con il
-  // localhost di sviluppo. Su Android/iOS l'API deve puntare al backend Render.
+  // La build Capacitor proposta usa un hostname locale custom (demos.community),
+  // quindi distinguiamo la piattaforma nativa dal vero localhost di sviluppo.
   if (Capacitor.isNativePlatform()) {
     return getConfiguredBaseUrl() || DEFAULT_API_BASE_URL;
   }
