@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { getApiUrl } from '@/lib/api-config';
 import { GeographicData } from '../types';
 
 export const useGeographicData = () => {
@@ -18,9 +17,9 @@ export const useGeographicData = () => {
         setError(null);
 
         const [regioniRes, provinceRes, comuniRes] = await Promise.all([
-          fetch(getApiUrl('/api/regioni')),
-          fetch(getApiUrl('/api/province')),
-          fetch(getApiUrl('/api/comuni'))
+          fetch('/api/regioni'),
+          fetch('/api/province'),
+          fetch('/api/comuni')
         ]);
 
         if (!regioniRes.ok || !provinceRes.ok || !comuniRes.ok) {
