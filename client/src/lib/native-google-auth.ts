@@ -7,6 +7,7 @@ type NativeGoogleAuthResult = {
 
 interface NativeGoogleAuthPlugin {
   signIn(options: { serverClientId: string }): Promise<NativeGoogleAuthResult>;
+  clearState(): Promise<void>;
 }
 
 const NativeGoogleAuth = registerPlugin<NativeGoogleAuthPlugin>('NativeGoogleAuth');
@@ -57,4 +58,10 @@ export async function loginWithNativeGoogle(serverClientId: string): Promise<{
     message: data.message,
     isNew: data.isNew === true,
   };
+}
+
+/** Notifica Credential Manager quando l'utente esegue un logout esplicito. */
+export async function clearNativeGoogleCredentialState(): Promise<void> {
+  if (!isNativeAndroid()) return;
+  await NativeGoogleAuth.clearState();
 }
