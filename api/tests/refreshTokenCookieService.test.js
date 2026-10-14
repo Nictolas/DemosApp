@@ -6,6 +6,9 @@ const {
   REFRESH_TOKEN_COOKIE_MAX_AGE_MS,
   parseCookieHeader,
   getRefreshTokenFromRequest,
+  normalizeOrigin,
+  getTrustedRefreshCookieOrigins,
+  isTrustedRefreshCookieRequest,
   getRefreshTokenCookieOptions,
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
@@ -44,6 +47,43 @@ test('mantiene fallback body per client legacy/mobile senza cookie', () => {
   });
 
   assert.deepEqual(result, { refreshToken: 'legacy-token', source: 'body' });
+});
+
+test('normalizza solo Origin validi', () => {
+  assert.equal(normalizeOrigin('https://www.demos.community/path?q=1'), 'https://www.demos.community');
+  assert.equal(normalizeOrigin('null'), null);
+  assert.equal(normalizeOrigin('not-an-origin'), null);
+});
+
+test('include frontend configurato tra gli Origin cookie fidati', () => {
+  const previousFrontend = process.env.FRONTEND_URL;
+  process.env.FRONTEND_URL = 'https://preview.example.test/app';
+
+  try {
+    const origins = getTrustedRefreshCookieOrigins();
+    assert.equal(origins.has('https://preview.example.test'), true);
+    assert.equal(origins.has('https://www.demos.community'), true);
+  } finally {
+    if (previousFrontend === undefined) {
+      delete process.env.FRONTEND_URL;
+    } else {
+      process.env.FRONTEND_URL = previousFrontend;
+    }
+  }
+});
+
+test('accetta cookie auth solo da Origin frontend fidato', () => {
+  const trusted = isTrustedRefreshCookieRequest({
+    headers: { origin: 'https://www.demos.community' },
+  });
+  const untrusted = isTrustedRefreshCookieRequest({
+    headers: { origin: 'https://evil.example' },
+  });
+  const missing = isTrustedRefreshCookieRequest({ headers: {} });
+
+  assert.equal(trusted, true);
+  assert.equal(untrusted, false);
+  assert.equal(missing, false);
 });
 
 test('cookie refresh e HttpOnly, SameSite Lax, path auth e TTL 7 giorni', () => {
