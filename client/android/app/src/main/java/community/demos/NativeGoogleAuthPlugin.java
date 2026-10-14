@@ -2,12 +2,14 @@ package community.demos;
 
 import android.os.CancellationSignal;
 
+import androidx.credentials.ClearCredentialStateRequest;
 import androidx.credentials.Credential;
 import androidx.credentials.CredentialManager;
 import androidx.credentials.CredentialManagerCallback;
 import androidx.credentials.CustomCredential;
 import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.exceptions.ClearCredentialException;
 import androidx.credentials.exceptions.GetCredentialException;
 import androidx.core.content.ContextCompat;
 
@@ -92,6 +94,32 @@ public class NativeGoogleAuthPlugin extends Plugin {
                 @Override
                 public void onError(GetCredentialException error) {
                     call.reject("Accesso Google annullato o non riuscito", error);
+                }
+            }
+        );
+    }
+
+    @PluginMethod
+    public void clearState(PluginCall call) {
+        CredentialManager credentialManager = CredentialManager.create(getActivity());
+        ClearCredentialStateRequest request = new ClearCredentialStateRequest(
+            ClearCredentialStateRequest.TYPE_CLEAR_CREDENTIAL_STATE
+        );
+        Executor executor = ContextCompat.getMainExecutor(getActivity());
+
+        credentialManager.clearCredentialStateAsync(
+            request,
+            new CancellationSignal(),
+            executor,
+            new CredentialManagerCallback<Void, ClearCredentialException>() {
+                @Override
+                public void onResult(Void result) {
+                    call.resolve();
+                }
+
+                @Override
+                public void onError(ClearCredentialException error) {
+                    call.reject("Impossibile pulire lo stato credenziali Android", error);
                 }
             }
         );
