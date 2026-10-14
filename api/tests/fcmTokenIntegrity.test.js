@@ -90,3 +90,12 @@ test('native push registration is gated until Firebase Android config is explici
   assert.match(nativeHook, /if \(!enabled\) return;/);
   assert.match(syncHook, /if \(!user\?\.id \|\| !enabled\) return;/);
 });
+test('native push build helper validates the canonical Firebase Android config', () => {
+  const helper = read('client/scripts/build-android-native-push.mjs');
+  const packageJson = read('client/package.json');
+  assert.match(helper, /EXPECTED_PROJECT_ID = 'demos-finale'/);
+  assert.match(helper, /EXPECTED_PACKAGE_NAME = 'community\.demos'/);
+  assert.match(helper, /VITE_ANDROID_NATIVE_PUSH_ENABLED: 'true'/);
+  assert.match(helper, /google-services\.json does not contain Android package/);
+  assert.match(packageJson, /"android:sync:push"\s*:\s*"node scripts\/build-android-native-push\.mjs"/);
+});
