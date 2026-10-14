@@ -20,7 +20,7 @@ function buildAxiomArchiveSummary(results = []) {
     const targetEnd = asIso(result.targetEnd);
     const startMs = startTime ? new Date(startTime).getTime() : NaN;
     const endMs = endTime ? new Date(endTime).getTime() : NaN;
-    const progressMs = Number.isFinite(startMs) && Number.isFinite(endMs)
+    const windowMs = Number.isFinite(startMs) && Number.isFinite(endMs)
       ? Math.max(0, endMs - startMs)
       : 0;
     const count = Math.max(0, asFiniteNumber(result.count));
@@ -38,7 +38,9 @@ function buildAxiomArchiveSummary(results = []) {
       windowStart: startTime,
       windowEnd: endTime,
       targetEnd,
-      progressHours: roundHours(progressMs),
+      // This is the processed source window, not net checkpoint advancement:
+      // the archive service intentionally overlaps consecutive windows.
+      windowHours: roundHours(windowMs),
       remainingMs,
       remainingHours: roundHours(remainingMs)
     };
