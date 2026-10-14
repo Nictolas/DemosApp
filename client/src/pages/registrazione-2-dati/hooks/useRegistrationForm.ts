@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'wouter';
+import { getApiUrl } from '@/lib/api-config';
 import { registrationSchema } from '../schemas/validationSchema';
 import { useGeographicData } from './useGeographicData';
 import { useLocalStorage } from './useLocalStorage';
@@ -36,7 +37,6 @@ export const useRegistrationForm = () => {
     selectedComune: storedData.comune || ''
   });
 
-  // Aggiorna i dati geografici quando cambiano
   useEffect(() => {
     setFormState(prev => ({
       ...prev,
@@ -44,7 +44,6 @@ export const useRegistrationForm = () => {
     }));
   }, [geographicData]);
 
-  // Aggiorna i dati quando cambiano quelli salvati
   useEffect(() => {
     setFormState(prev => ({
       ...prev,
@@ -165,7 +164,6 @@ export const useRegistrationForm = () => {
 
     setSubmitting(true);
     try {
-      // Mappa i campi geografici ai nomi corretti delle API
       const apiData = {
         ...formState.data,
         paese_residenza: formState.data.regione ? "Italia" : undefined,
@@ -175,13 +173,12 @@ export const useRegistrationForm = () => {
         data_nascita: formState.data.dataNascita
       };
       
-      // Rimuovi i campi non necessari per l'API
       delete apiData.regione;
       delete apiData.provincia;
       delete apiData.comune;
       delete apiData.dataNascita;
 
-      const response = await fetch('/api/register', {
+      const response = await fetch(getApiUrl('/api/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -194,7 +191,7 @@ export const useRegistrationForm = () => {
         throw new Error(errorData.message || 'Errore nella registrazione');
       }
 
-      const result = await response.json();
+      await response.json();
       clearData();
       router.push('/registrazione-completata');
       return true;
