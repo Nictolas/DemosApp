@@ -7,8 +7,10 @@ This document records the observed technical behavior of `main` and the producti
 - Canonical account deletion is `DELETE /api/user/delete-account` and delegates to `PrivacyErasureLedgerService.enforceAccountDeletion`.
 - The production data-retention scheduler is **not running**. Render logs report `Job di data retention non in esecuzione`.
 - Axiom is active in production. Render startup logs report `Axiom archive job enabled (17 * * * * UTC)`.
-- No successful or failed archive-run messages were observed in the inspected production window after startup; therefore the Axiom→B2 archive must not yet be treated as continuously proven operational.
+- The Axiom→B2 job has completed at least three observed production runs (7, 12 and 13 October 2026) with no matching `Axiom archive failed` entries in the inspected 7–14 October window. However every observed run reported `caughtUp:false`, 24 chunks per dataset, **0 archived records**, and a remaining backlog of roughly 30.3, 34.8 and 35.8 days respectively. The archive path is therefore configured and executable but **not qualified as a functioning historical archive**.
+- The archive worker defaults to 15-minute chunks and at most 24 chunks per run (about six hours of source time per run). Because it currently runs as an in-process cron inside a Render Free web service that can sleep, hourly execution is not a reliable assumption and the observed backlog can grow faster than catch-up progresses.
 - Repository documentation says B2 lifecycle retention for `technical`, `audit` and `security` is still to be defined/approved.
+- Dedicated follow-up: GitHub issue #147 (`Axiom→B2 archive does not catch up and archives 0 records`).
 
 ## Canonical matrix
 
@@ -20,7 +22,7 @@ This document records the observed technical behavior of `main` and the producti
 | Auth providers / identity verification | `user_auth_providers`, `identity_verifications`, session infrastructure | Direct provider links and pseudonymous CIE verification link are deleted with the account | Session token lifetime is separate from data-retention policy | Server-side session/revocation records must be assessed separately | VERIFIED FOR ACCOUNT DELETION |
 | Local audit logs | `audit_logs` / `AuditService` | Deleted for the user only when `AXIOM_ENABLED !== 'true'` | Legacy cleanup code contains 365-day local cleanup logic, but production Axiom path bypasses local deletion | Production uses Axiom, so provider retention controls the effective log history | PROVIDER-DEPENDENT |
 | Axiom logs | Axiom datasets | Canonical account deletion does not delete provider records | Axiom is confirmed active; exact provider retention was not independently read from provider configuration | Current repository comments claiming a fixed legal retention are not sufficient evidence | ACTIVE; RETENTION UNVERIFIED |
-| Axiom → Backblaze B2 archive | `axiomArchiveJob`, `axiomArchiveService` | No per-user deletion path verified in the archive | Job is enabled in production, but no completed runs were observed in inspected logs | Repository explicitly says B2 lifecycle retention is still to be defined for technical/audit/security prefixes | ENABLED; CONTINUOUS OPERATION AND RETENTION NOT YET VERIFIED |
+| Axiom → Backblaze B2 archive | `axiomArchiveJob`, `axiomArchiveService` | No per-user deletion path verified in the archive | Production runs on 7/12/13 Oct completed without logged failure, but each archived 0 records, remained `caughtUp:false`, and left ~30–36 days backlog | Dataset/query/checkpoint correctness and scheduling cadence must be verified; B2 lifecycle retention is still undefined | EXECUTABLE BUT NOT QUALIFIED; #147 OPEN |
 | Privacy erasure ledger | `privacy_erasure_ledger` | Intentionally retained across account deletion because it is written before cleanup and is not deleted by `enforceAccountDeletion` | No TTL/retention rule exists in the service | Stores `subject_user_id` in clear text plus event type/time/details; this is the main minimization decision still open | RETAINED; RETENTION/MINIMIZATION GAP |
 | Automatic retention engine | `DataRetentionService`, `dataRetentionJob` | Separate from account deletion | Production scheduler is not running | Service applies multiple conceptual categories through `UPDATE users`, including categories whose real data lives elsewhere; it must not be treated as authoritative retention enforcement | NOT AUTHORITATIVE / DISABLED IN PROD |
 
@@ -40,7 +42,7 @@ A technically accurate interim description is:
 1. Decide whether `privacy_erasure_ledger.subject_user_id` must remain a direct identifier. Prefer a keyed pseudonymous value if replay/idempotency requirements allow it.
 2. Set an explicit ledger retention period and deletion/rotation procedure.
 3. Verify the actual Axiom dataset retention from provider configuration.
-4. Verify whether the Axiom→B2 archive is completing successfully, not merely scheduled.
+4. Resolve #147: verify dataset/query/checkpoint behavior and make archive catch-up demonstrably progress until it reaches current source data; do not create a paid scheduler without explicit approval.
 5. Define B2 lifecycle rules separately for `technical`, `audit` and `security`.
 6. Repair or retire `DataRetentionService` so it cannot be presented as an implemented multi-table retention engine while it only updates `users`.
 7. Only after 1–6, align `PrivacyPolicy.tsx`, GDPR export metadata, `eliminazione-account.html`, internal retention docs and Google Play Data Safety.
@@ -57,3 +59,4 @@ A technically accurate interim description is:
 - `client/src/pages/PrivacyPolicy.tsx`
 - `docs/operations/axiom-b2-log-archive.md`
 - `CONFIGURAZIONE_LOG_PRODUZIONE.md`
+- GitHub issue #147
