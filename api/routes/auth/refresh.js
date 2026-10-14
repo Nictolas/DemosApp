@@ -17,8 +17,8 @@ const pool = getPool();
  * Rinnova la coppia di token e ruota il refresh token in modo monouso.
  *
  * Migrazione trasporto:
- * - browser: preferisce il cookie HttpOnly demos_refresh;
- * - client legacy/mobile: mantiene temporaneamente il body refreshToken.
+ * - client legacy/mobile: il body refreshToken resta autorevole finché presente;
+ * - client migrati: quando il body manca viene usato il cookie HttpOnly demos_refresh.
  */
 router.post('/refresh', authLimiter, async (req, res) => {
   try {
