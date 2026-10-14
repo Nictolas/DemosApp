@@ -32,12 +32,58 @@ interface IdConfiguration {
   login_uri?: string;
 }
 
-export function getGoogleClientId(): string {
+let runtimeGoogleClientId = "";
+let runtimeAppleClientId = "";
+let runtimeConfigLoaded = false;
+let runtimeConfigPromise: Promise<void> | null = null;
+
+function getBuildTimeGoogleClientId(): string {
   return (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "";
 }
 
-export function getAppleClientId(): string {
+function getBuildTimeAppleClientId(): string {
   return (import.meta as any).env?.VITE_APPLE_CLIENT_ID || "";
+}
+
+export function getGoogleClientId(): string {
+  return getBuildTimeGoogleClientId() || runtimeGoogleClientId;
+}
+
+export function getAppleClientId(): string {
+  return getBuildTimeAppleClientId() || runtimeAppleClientId;
+}
+
+/**
+ * Carica i Client ID OAuth pubblici dal backend quando non sono stati incorporati
+ * nella build Vite. Questo è particolarmente importante per le build Capacitor,
+ * che non devono dipendere dalla presenza di VITE_* sulla macchina che genera APK/AAB.
+ */
+export async function loadOAuthConfig(): Promise<void> {
+  if (runtimeConfigLoaded) return;
+  if (runtimeConfigPromise) return runtimeConfigPromise;
+
+  runtimeConfigPromise = (async () => {
+    try {
+      const res = await fetch(getApiUrl(API_CONFIG.OAUTH.CONFIG), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success) {
+        runtimeGoogleClientId = typeof data.googleClientId === "string" ? data.googleClientId : "";
+        runtimeAppleClientId = typeof data.appleClientId === "string" ? data.appleClientId : "";
+      }
+    } catch (error) {
+      // Le build web possono continuare a usare VITE_* come fallback.
+      console.warn("Configurazione OAuth runtime non disponibile:", error);
+    } finally {
+      runtimeConfigLoaded = true;
+      runtimeConfigPromise = null;
+    }
+  })();
+
+  return runtimeConfigPromise;
 }
 
 function saveTokensFromResponse(data: { accessToken?: string; refreshToken?: string; user?: { id: string } }) {
@@ -65,7 +111,7 @@ export function loadAndInitGoogle(
   onCredential: (idToken: string) => Promise<void>
 ): Promise<void> {
   const clientId = getGoogleClientId();
-  if (!clientId) return Promise.reject(new Error("VITE_GOOGLE_CLIENT_ID non configurato"));
+  if (!clientId) return Promise.reject(new Error("Google OAuth non configurato"));
 
   const config: IdConfiguration = {
     client_id: clientId,
@@ -160,9 +206,6 @@ export function loginWithGoogle(): Promise<{ success: boolean; message?: string;
 /**
  * Costruisce l'URL per il redirect OAuth Google (flusso id_token implicito).
  * Usato su iOS/Safari dove il One Tap non funziona.
- * In Google Cloud Console → API e servizi → Credenziali → client OAuth 2.0:
- * aggiungere in "URI di reindirizzamento autorizzati" l'URL https://TUODOMINIO/auth
- * (e in sviluppo http://localhost:5173/auth se usi Vite sulla porta 5173).
  */
 function buildGoogleRedirectUrl(): string {
   const clientId = getGoogleClientId();
@@ -184,35 +227,26 @@ function buildGoogleRedirectUrl(): string {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-/**
- * Avvia il login con Google tramite redirect (per iOS/Safari).
- * L'utente viene reindirizzato a Google e al ritorno l'auth page deve leggere id_token dall'hash e chiamare sendGoogleIdTokenToBackend.
- */
+/** Avvia il login con Google tramite redirect. */
 export function loginWithGoogleRedirect(): void {
   const url = buildGoogleRedirectUrl();
   if (!url) return;
   window.location.href = url;
 }
 
-/**
- * Legge id_token dall'hash della pagina (dopo redirect da Google) e lo invia al backend.
- * Restituisce il risultato del backend o null se non c'è id_token nell'hash.
- */
+/** Legge id_token dall'hash dopo redirect Google e lo invia al backend. */
 export function handleGoogleRedirectCallback(): Promise<{ success: boolean; message?: string; isNew?: boolean } | null> {
   if (typeof window === "undefined") return Promise.resolve(null);
   const hash = window.location.hash?.slice(1) || "";
   const params = new URLSearchParams(hash);
   const idToken = params.get("id_token");
   if (!idToken) return Promise.resolve(null);
-  // Rimuovi l'hash dalla URL per evitare riuso
   const cleanUrl = window.location.pathname + window.location.search;
   window.history.replaceState(null, "", cleanUrl);
   return sendGoogleIdTokenToBackend(idToken);
 }
 
-/**
- * Invia id_token al backend (per uso dopo callback/popup esterno).
- */
+/** Invia id_token Google al backend. */
 export async function sendGoogleIdTokenToBackend(idToken: string): Promise<{ success: boolean; message?: string; isNew?: boolean }> {
   try {
     const res = await fetch(getApiUrl(API_CONFIG.OAUTH.GOOGLE), {
@@ -231,9 +265,7 @@ export async function sendGoogleIdTokenToBackend(idToken: string): Promise<{ suc
   }
 }
 
-/**
- * Carica lo script Sign in with Apple e inizializza.
- */
+/** Carica lo script Sign in with Apple e inizializza. */
 function loadAppleScript(): Promise<void> {
   if (window.AppleID?.auth) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -246,9 +278,7 @@ function loadAppleScript(): Promise<void> {
   });
 }
 
-/**
- * Login con Apple: popup Apple, invio identityToken al backend, salvataggio token.
- */
+/** Login con Apple: popup Apple, invio identityToken al backend, salvataggio token. */
 export async function loginWithApple(): Promise<{ success: boolean; message?: string; isNew?: boolean }> {
   const clientId = getAppleClientId();
   if (!clientId) {
