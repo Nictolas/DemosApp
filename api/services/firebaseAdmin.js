@@ -18,11 +18,12 @@ function initializeFirebaseAdmin() {
   if (isInitialized && admin) return admin;
 
   try {
-    const { initializeApp, cert, getApps, getApp } = require('firebase-admin/app');
+    const { initializeApp, cert, getApps } = require('firebase-admin/app');
     const { getMessaging } = require('firebase-admin/messaging');
 
-    if (getApps().length > 0) {
-      firebaseApp = getApp();
+    const existingApps = getApps();
+    if (existingApps.length > 0) {
+      firebaseApp = existingApps[0];
       admin = buildAdminFacade(firebaseApp, getMessaging);
       isInitialized = true;
       console.log('✅ Firebase Admin già inizializzato');

@@ -1,0 +1,2 @@
+# CP-037 – Boundary Audit Health Signals v0.37
+Aggiunge un segnale health deterministico e minimizzato per il Boundary Audit. Audit shadow disponibile senza fallimenti => green; almeno una validazione fallita => orange; audit non disponibile/non-shadow => gray. Il segnale è osservativo e mantiene authorized=false, executable=false e actionRunnerAvailable=false.

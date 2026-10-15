@@ -1,0 +1,294 @@
+const {
+  DEFAULT_RETENTION_MS,
+  sanitizeIncidentForStore,
+  sanitizeSourceState
+} = require('./securityStore');
+
+const SCHEMA = 'security_agent';
+const INCIDENTS_TABLE = `${SCHEMA}.incidents`;
+const SOURCE_STATE_TABLE = `${SCHEMA}.source_state`;
+const ALLOWED_STATUSES = new Set(['open', 'acknowledged', 'resolved']);
+const ALLOWED_SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
+
+function validatePool(pool) {
+  if (!pool || typeof pool.query !== 'function' || typeof pool.connect !== 'function') {
+    throw new TypeError('pg pool with query() and connect() is required');
+  }
+  return pool;
+}
+
+function normalizeFilter(value, allowed, name) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const normalized = String(value).toLowerCase();
+  if (!allowed.has(normalized)) throw new Error(`invalid ${name}`);
+  return normalized;
+}
+
+function normalizeLimit(value, fallback = 100) {
+  if (value === undefined || value === null) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1000) {
+    throw new Error('limit must be an integer between 1 and 1000');
+  }
+  return parsed;
+}
+
+function persistedDate(value, { optional = false, kind = 'incident' } = {}) {
+  if ((value === null || value === undefined || value === '') && optional) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error(`invalid persisted ${kind}`);
+  return date.toISOString();
+}
+
+function persistedCounter(value, kind) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    throw new Error(`invalid persisted ${kind}`);
+  }
+  return parsed;
+}
+
+function resultRows(result) {
+  if (!result || !Array.isArray(result.rows)) throw new Error('invalid postgres result');
+  return result.rows;
+}
+
+function persistedStatCount(value) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error('invalid persisted stats');
+  return parsed;
+}
+
+function rowToIncident(row) {
+  const required = [row?.incident_id, row?.finding_id, row?.rule_id];
+  if (required.some(value => typeof value !== 'string' || value.trim() === '') ||
+      !ALLOWED_SEVERITIES.has(row?.severity) || !ALLOWED_STATUSES.has(row?.status)) {
+    throw new Error('invalid persisted incident');
+  }
+  return {
+    incidentId: row.incident_id,
+    findingId: row.finding_id,
+    ruleId: row.rule_id,
+    severity: row.severity,
+    status: row.status,
+    count: persistedCounter(row.event_count, 'incident'),
+    firstSeen: persistedDate(row.first_seen),
+    lastSeen: persistedDate(row.last_seen),
+    createdAt: persistedDate(row.created_at),
+    updatedAt: persistedDate(row.updated_at)
+  };
+}
+
+function rowToSourceState(row) {
+  if (!row) return null;
+  return {
+    enabled: row.enabled === true,
+    watermark: persistedDate(row.watermark, { optional: true, kind: 'source state' }),
+    lastPollStartedAt: persistedDate(row.last_poll_started_at, { optional: true, kind: 'source state' }),
+    lastSuccessAt: persistedDate(row.last_success_at, { optional: true, kind: 'source state' }),
+    lastFailureAt: persistedDate(row.last_failure_at, { optional: true, kind: 'source state' }),
+    consecutiveFailures: persistedCounter(row.consecutive_failures, 'source state'),
+    totals: {
+      polls: persistedCounter(row.total_polls, 'source state'),
+      fetched: persistedCounter(row.total_fetched, 'source state'),
+      accepted: persistedCounter(row.total_accepted, 'source state'),
+      duplicates: persistedCounter(row.total_duplicates, 'source state')
+    },
+    storedAt: persistedDate(row.stored_at, { kind: 'source state' })
+  };
+}
+class PostgresSecurityStore {
+  constructor({ pool, maintenancePool = null, retentionMs = DEFAULT_RETENTION_MS } = {}) {
+    this.pool = validatePool(pool);
+    this.maintenancePool = maintenancePool ? validatePool(maintenancePool) : null;
+    if (!Number.isInteger(retentionMs) || retentionMs < 60 * 60 * 1000) {
+      throw new Error('retentionMs must be an integer >= 3600000');
+    }
+    this.retentionMs = retentionMs;
+  }
+
+  async upsertIncidents(inputs, now = new Date()) {
+    if (!Array.isArray(inputs)) throw new TypeError('incidents must be an array');
+    if (inputs.length > 1000) throw new Error('too many incidents in one batch');
+    if (inputs.length === 0) return [];
+
+    const db = await this.pool.connect();
+    const stored = [];
+    try {
+      await db.query('BEGIN');
+      for (const input of inputs) {
+        const incident = sanitizeIncidentForStore(input, now);
+        const result = await db.query(`
+          INSERT INTO ${INCIDENTS_TABLE} (
+            incident_id, finding_id, rule_id, severity, status, event_count,
+            first_seen, last_seen, created_at, updated_at
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          ON CONFLICT (incident_id) DO UPDATE SET
+            finding_id = EXCLUDED.finding_id,
+            rule_id = EXCLUDED.rule_id,
+            severity = CASE
+              WHEN array_position(ARRAY['info','low','medium','high','critical'], EXCLUDED.severity)
+                   > array_position(ARRAY['info','low','medium','high','critical'], security_agent.incidents.severity)
+                THEN EXCLUDED.severity
+              ELSE security_agent.incidents.severity
+            END,
+            status = CASE
+              WHEN security_agent.incidents.status = 'resolved' THEN 'resolved'
+              WHEN security_agent.incidents.status = 'acknowledged' AND EXCLUDED.status = 'open' THEN 'acknowledged'
+              ELSE EXCLUDED.status
+            END,
+            event_count = GREATEST(security_agent.incidents.event_count, EXCLUDED.event_count),
+            first_seen = LEAST(${INCIDENTS_TABLE}.first_seen, EXCLUDED.first_seen),
+            last_seen = GREATEST(${INCIDENTS_TABLE}.last_seen, EXCLUDED.last_seen),
+            updated_at = GREATEST(security_agent.incidents.updated_at, EXCLUDED.updated_at)
+          RETURNING incident_id, finding_id, rule_id, severity, status, event_count,
+                    first_seen, last_seen, created_at, updated_at
+        `, [
+          incident.incidentId, incident.findingId, incident.ruleId, incident.severity,
+          incident.status, incident.count, incident.firstSeen, incident.lastSeen,
+          incident.createdAt, incident.updatedAt
+        ]);
+        stored.push(rowToIncident(result.rows[0]));
+      }
+      await db.query('COMMIT');
+      return stored;
+    } catch (error) {
+      try { await db.query('ROLLBACK'); } catch (_rollbackError) {}
+      throw error;
+    } finally {
+      if (typeof db.release === 'function') db.release();
+    }
+  }
+
+  async listIncidents({ status, severity, limit = 100 } = {}) {
+    const safeStatus = normalizeFilter(status, ALLOWED_STATUSES, 'status');
+    const safeSeverity = normalizeFilter(severity, ALLOWED_SEVERITIES, 'severity');
+    const safeLimit = normalizeLimit(limit, 100);
+    const clauses = [];
+    const values = [];
+    if (safeStatus) {
+      values.push(safeStatus);
+      clauses.push(`status = $${values.length}`);
+    }
+    if (safeSeverity) {
+      values.push(safeSeverity);
+      clauses.push(`severity = $${values.length}`);
+    }
+    values.push(safeLimit);
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const result = await this.pool.query(`
+      SELECT incident_id, finding_id, rule_id, severity, status, event_count,
+             first_seen, last_seen, created_at, updated_at
+      FROM ${INCIDENTS_TABLE}
+      ${where}
+      ORDER BY updated_at DESC
+      LIMIT $${values.length}
+    `, values);
+    return resultRows(result).map(rowToIncident);
+  }
+
+  async saveSourceState(sourceName, state, now = new Date()) {
+    const name = String(sourceName || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 80);
+    if (!name) throw new Error('sourceName is required');
+    const sanitized = sanitizeSourceState(state, now);
+    const result = await this.pool.query(`
+      INSERT INTO ${SOURCE_STATE_TABLE} (
+        source_name, enabled, watermark, last_poll_started_at, last_success_at,
+        last_failure_at, consecutive_failures, total_polls, total_fetched,
+        total_accepted, total_duplicates, stored_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      ON CONFLICT (source_name) DO UPDATE SET
+        enabled = EXCLUDED.enabled,
+        watermark = GREATEST(security_agent.source_state.watermark, EXCLUDED.watermark),
+        last_poll_started_at = GREATEST(security_agent.source_state.last_poll_started_at, EXCLUDED.last_poll_started_at),
+        last_success_at = GREATEST(security_agent.source_state.last_success_at, EXCLUDED.last_success_at),
+        last_failure_at = GREATEST(security_agent.source_state.last_failure_at, EXCLUDED.last_failure_at),
+        consecutive_failures = EXCLUDED.consecutive_failures,
+        total_polls = GREATEST(security_agent.source_state.total_polls, EXCLUDED.total_polls),
+        total_fetched = GREATEST(security_agent.source_state.total_fetched, EXCLUDED.total_fetched),
+        total_accepted = GREATEST(security_agent.source_state.total_accepted, EXCLUDED.total_accepted),
+        total_duplicates = GREATEST(security_agent.source_state.total_duplicates, EXCLUDED.total_duplicates),
+        stored_at = GREATEST(security_agent.source_state.stored_at, EXCLUDED.stored_at)
+      RETURNING source_name, enabled, watermark, last_poll_started_at, last_success_at,
+                last_failure_at, consecutive_failures, total_polls, total_fetched,
+                total_accepted, total_duplicates, stored_at
+    `, [
+      name,
+      sanitized.enabled,
+      sanitized.watermark,
+      sanitized.lastPollStartedAt,
+      sanitized.lastSuccessAt,
+      sanitized.lastFailureAt,
+      sanitized.consecutiveFailures,
+      sanitized.totals.polls,
+      sanitized.totals.fetched,
+      sanitized.totals.accepted,
+      sanitized.totals.duplicates,
+      sanitized.storedAt
+    ]);
+    return rowToSourceState(resultRows(result)[0]);
+  }
+
+  async getSourceState(sourceName) {
+    const name = String(sourceName || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 80);
+    if (!name) return null;
+    const result = await this.pool.query(`
+      SELECT source_name, enabled, watermark, last_poll_started_at, last_success_at,
+             last_failure_at, consecutive_failures, total_polls, total_fetched,
+             total_accepted, total_duplicates, stored_at
+      FROM ${SOURCE_STATE_TABLE}
+      WHERE source_name = $1
+      LIMIT 1
+    `, [name]);
+    return rowToSourceState(resultRows(result)[0]);
+  }
+
+  async prune({ now = new Date() } = {}) {
+    if (!this.maintenancePool) return 0;
+    const threshold = new Date(new Date(now).getTime() - this.retentionMs);
+    if (Number.isNaN(threshold.getTime())) throw new Error('invalid prune timestamp');
+    const result = await this.maintenancePool.query(`
+      DELETE FROM ${INCIDENTS_TABLE}
+      WHERE updated_at < $1
+    `, [threshold.toISOString()]);
+    return Number(result.rowCount || 0);
+  }
+
+  async stats() {
+    const [summary, sources, bySeverity, byStatus] = await Promise.all([
+      this.pool.query(`SELECT COUNT(*)::bigint AS incident_count FROM ${INCIDENTS_TABLE}`),
+      this.pool.query(`SELECT COUNT(*)::bigint AS source_count FROM ${SOURCE_STATE_TABLE}`),
+      this.pool.query(`SELECT severity, COUNT(*)::bigint AS count FROM ${INCIDENTS_TABLE} GROUP BY severity`),
+      this.pool.query(`SELECT status, COUNT(*)::bigint AS count FROM ${INCIDENTS_TABLE} GROUP BY status`)
+    ]);
+    const severity = {};
+    const status = {};
+    const severityRows = resultRows(bySeverity);
+    const statusRows = resultRows(byStatus);
+    const summaryRows = resultRows(summary);
+    const sourceRows = resultRows(sources);
+    for (const row of severityRows) {
+      if (!ALLOWED_SEVERITIES.has(row.severity) || Object.prototype.hasOwnProperty.call(severity, row.severity)) throw new Error('invalid persisted stats');
+      severity[row.severity] = persistedStatCount(row.count ?? 0);
+    }
+    for (const row of statusRows) {
+      if (!ALLOWED_STATUSES.has(row.status) || Object.prototype.hasOwnProperty.call(status, row.status)) throw new Error('invalid persisted stats');
+      status[row.status] = persistedStatCount(row.count ?? 0);
+    }
+    return {
+      incidentCount: persistedStatCount(summaryRows[0]?.incident_count ?? 0),
+      sourceCount: persistedStatCount(sourceRows[0]?.source_count ?? 0),
+      bySeverity: severity,
+      byStatus: status
+    };
+  }
+}
+
+module.exports = {
+  PostgresSecurityStore,
+  SCHEMA,
+  INCIDENTS_TABLE,
+  SOURCE_STATE_TABLE,
+  rowToIncident,
+  rowToSourceState
+};

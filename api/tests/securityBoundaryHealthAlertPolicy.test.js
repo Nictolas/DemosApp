@@ -1,0 +1,10 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {buildBoundaryHealthAlerts}=require('../security-agent/securityBoundaryHealthAlertPolicy');const {BoundaryAudit}=require('../security-agent/securityBoundaryAudit');const {SecurityCenterService}=require('../security-agent/securityCenterService');
+const store={listIncidents:async()=>[],getSourceState:async()=>null,stats:async()=>({incidentCount:0})};const runner={status:()=>({enabled:false})};
+test('green health has no alert',()=>assert.equal(buildBoundaryHealthAlerts({available:true,level:'green'}).activeCount,0));
+test('orange health creates P1',()=>{const a=buildBoundaryHealthAlerts({available:true,level:'orange'});assert.equal(a.highestPriority,'P1');assert.equal(a.alerts[0].code,'BOUNDARY_VALIDATION_FAILURES');});
+test('unavailable creates P2',()=>assert.equal(buildBoundaryHealthAlerts({available:false,level:'gray'}).highestPriority,'P2'));
+test('unknown health fails closed to P1',()=>assert.equal(buildBoundaryHealthAlerts({available:true,level:'purple'}).highestPriority,'P1'));
+test('alerts are non operational',()=>{const a=buildBoundaryHealthAlerts({available:true,level:'orange'});assert.equal(a.executable,false);assert.equal(a.authorized,false);assert.equal(a.actionRunnerAvailable,false);});
+test('overview integrates alerts',async()=>{const a=new BoundaryAudit();a.record({action:'investigate'},{ok:false,issueCount:1});const s=new SecurityCenterService({runner,store,boundaryAudit:a});const d=await s.getOverview();assert.equal(d.boundaryAudit.alerts.highestPriority,'P1');});
+test('health integrates alerts',async()=>{const s=new SecurityCenterService({runner,store});const d=await s.getHealth();assert.equal(d.boundaryAudit.alerts.highestPriority,'P2');});
+test('boundary audit read integrates alerts',async()=>{const s=new SecurityCenterService({runner,store,boundaryAudit:new BoundaryAudit()});const d=await s.getBoundaryAudit();assert.equal(d.alerts.activeCount,0);});

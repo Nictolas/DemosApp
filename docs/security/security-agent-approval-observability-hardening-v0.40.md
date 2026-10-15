@@ -1,0 +1,2 @@
+# CP-040 – Approval/Boundary Observability Hardening v0.40
+Chiude il debito CP-030/032: consistency Approval opzionale e compatibility-safe; assenza non più rappresentata come sana; output minimizzato; errori generici senza dettagli grezzi; health gray/green/orange e alert in Overview, Health e getApprovals. Boundary separato e read-only. Nessun Action Runner.

@@ -1,0 +1,15 @@
+﻿{
+  "version": "0.72",
+  "scope": "local-shadow-read-only-foundation",
+  "status": "ready-for-explicitly-authorized-external-validation",
+  "execution": {"authorized": false, "executable": false, "actionRunnerAvailable": false},
+  "evidence": {
+    "localPreCi": "pass-at-cp070",
+    "dependencyAudit": {"api": 0, "client": 0, "baseline": "cp070"},
+    "clientProductionBuild": "pass-at-cp070",
+    "invariantScan": "api/tests/securityFoundationInvariantScan.test.js",
+    "readinessReview": "docs/security/local-foundation-readiness-v0.71.md"
+  },
+  "externalPending": ["phase0-1-deployed-telemetry-and-infrastructure-validation","rt01-rt06-staging-ci-acceptance","real-ai-provider-quality-validation","deployed-policy-audit-validation","phases5-8-action-runner-red-team-operations"],
+  "prohibitedByThisGate": ["github-push","github-actions","deploy","migration","production-write","action-runner"]
+}

@@ -1,0 +1,90 @@
+name: Security Agent Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/security-agent/**'
+      - 'api/tests/security*.test.js'
+      - 'api/tests/firebaseAdminCompatibility.test.js'
+      - 'api/app.js'
+      - 'api/middleware/rateLimiting.js'
+      - 'api/services/accessRevocationService.js'
+      - 'api/services/firebaseAdmin.js'
+      - 'scripts/security-*.js'
+      - 'client/**'
+      - 'package*.json'
+      - 'api/package*.json'
+      - 'client/package*.json'
+      - '.github/workflows/security-agent-validation.yml'
+  push:
+    branches:
+      - security/agent-foundation-v0
+    paths:
+      - 'api/security-agent/**'
+      - 'api/tests/security*.test.js'
+      - 'api/tests/firebaseAdminCompatibility.test.js'
+      - 'api/app.js'
+      - 'api/middleware/rateLimiting.js'
+      - 'api/services/accessRevocationService.js'
+      - 'api/services/firebaseAdmin.js'
+      - 'scripts/security-*.js'
+      - 'client/**'
+      - 'package*.json'
+      - 'api/package*.json'
+      - 'client/package*.json'
+      - '.github/workflows/security-agent-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-agent-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            api/package-lock.json
+            client/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci --ignore-scripts
+
+      - name: Dependency audit API
+        working-directory: api
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Dependency audit client
+        working-directory: client
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Phase 2 CI staging evidence (RT01-RT06)
+        run: npm run test:security-phase2-staging
+
+      - name: Security pre-CI gate
+        run: npm run test:security-preci

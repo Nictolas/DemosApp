@@ -1,0 +1,26 @@
+const express = require('express');
+const { createSecurityCenterHandlers } = require('./securityCenterApi');
+
+function createSecurityCenterRouter({ service, verifyToken, requireAdmin } = {}) {
+  if (typeof verifyToken !== 'function' || typeof requireAdmin !== 'function') {
+    throw new TypeError('verifyToken and requireAdmin middleware are required');
+  }
+
+  const router = express.Router();
+  const handlers = createSecurityCenterHandlers(service);
+
+  // Read-only by design. No POST/PATCH/PUT/DELETE routes belong in this router.
+  router.get('/overview', verifyToken, requireAdmin, handlers.overview);
+  router.get('/incidents', verifyToken, requireAdmin, handlers.incidents);
+  router.get('/health', verifyToken, requireAdmin, handlers.health);
+  router.get('/notifications', verifyToken, requireAdmin, handlers.notifications);
+  router.get('/ai-analyses', verifyToken, requireAdmin, handlers.aiAnalyses);
+  router.get('/ai-orchestrator', verifyToken, requireAdmin, handlers.aiOrchestrator);
+  router.get('/ai-policy', verifyToken, requireAdmin, handlers.aiPolicy);
+  router.get('/approvals', verifyToken, requireAdmin, handlers.approvals);
+  router.get('/boundary-audit', verifyToken, requireAdmin, handlers.boundaryAudit);
+
+  return router;
+}
+
+module.exports = { createSecurityCenterRouter };

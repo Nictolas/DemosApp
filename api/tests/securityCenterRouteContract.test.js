@@ -1,0 +1,10 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {ROUTES,METHODS,securityCenterRouteContract}=require('../security-agent/securityCenterRouteContract');
+const src=()=>fs.readFileSync(path.join(__dirname,'../security-agent/securityCenterRouter.js'),'utf8');
+test('GET only',()=>assert.deepEqual(METHODS,['GET']));
+test('admin read only non executable',()=>{const c=securityCenterRouteContract();assert.equal(c.adminOnly,true);assert.equal(c.readOnly,true);assert.equal(c.executable,false);assert.equal(c.actionRunnerAvailable,false)});
+test('all routes exist',()=>{const s=src();for(const r of ROUTES)assert.equal(s.includes("router.get('"+r+"',"),true,r)});
+test('all routes use auth and admin',()=>{const s=src();for(const r of ROUTES)assert.equal(s.includes("router.get('"+r+"', verifyToken, requireAdmin,"),true,r)});
+test('no write verbs',()=>assert.doesNotMatch(src(),/router\.(post|put|patch|delete)\(/i));
+test('no extra GET routes',()=>{const found=[...src().matchAll(/router\.get\('([^']+)'/g)].map(x=>x[1]).sort();assert.deepEqual(found,[...ROUTES].sort())});
+test('collections frozen',()=>{assert.equal(Object.isFrozen(ROUTES),true);assert.equal(Object.isFrozen(METHODS),true)});
+test('boundary remains contracted',()=>assert.equal(ROUTES.includes('/boundary-audit'),true));

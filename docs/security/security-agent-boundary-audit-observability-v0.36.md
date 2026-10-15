@@ -1,0 +1,2 @@
+# CP-036 – Boundary Audit Observability v0.36
+Espone nel SecurityCenterService una vista read-only e limitata dell'audit del boundary. Se l'audit non è configurato restituisce un modello vuoto e non operativo. Nessuna route write, nessuna esecuzione, nessun Action Runner.

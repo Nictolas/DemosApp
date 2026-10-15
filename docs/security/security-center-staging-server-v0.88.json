@@ -1,0 +1,34 @@
+{
+  "version": "0.88",
+  "checkpoint": "CP-088",
+  "scope": "dedicated-security-center-staging-server",
+  "status": "code-ready",
+  "surface": [
+    "GET /healthz",
+    "GET /api/security-center/* contracted routes"
+  ],
+  "invariants": {
+    "mainAppImported": false,
+    "databaseRequired": false,
+    "databaseWriterAllowed": false,
+    "stagingAuthRequired": true,
+    "stagingIsolationRequired": true,
+    "memoryOnly": true,
+    "readOnly": true,
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false
+  },
+  "renderPlan": {
+    "branch": "security/agent-foundation-v0",
+    "plan": "free",
+    "region": "frankfurt",
+    "autoDeploy": false,
+    "buildCommand": "cd api && npm ci --ignore-scripts",
+    "startCommand": "cd api && npm run start:security-center-staging"
+  },
+  "production": {
+    "servicesTouched": false,
+    "databaseCredentialsRequired": false
+  }
+}
