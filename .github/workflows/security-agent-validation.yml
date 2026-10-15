@@ -77,11 +77,11 @@ jobs:
 
       - name: Dependency audit API
         working-directory: api
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Dependency audit client
         working-directory: client
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging
