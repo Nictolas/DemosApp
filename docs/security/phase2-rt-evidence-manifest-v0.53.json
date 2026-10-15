@@ -1,0 +1,11 @@
+﻿{
+  "version": "0.53",
+  "tests": {
+    "RT01": {"localStatus":"partial","rules":["DET-AUTH-FAILED-BURST","DET-BRUTE-FORCE","DET-RATE-LIMIT-SURGE"],"externalRequired":["distributed staging traffic","real rate-limit behavior","legitimate-user impact"]},
+    "RT02": {"localStatus":"partial","rules":["DET-SUSPICIOUS-REQUEST"],"externalRequired":["staging HTTP block","database non-access evidence"]},
+    "RT03": {"localStatus":"external-only","rules":[],"externalRequired":["CI secret-scanner blocking pipeline"]},
+    "RT04": {"localStatus":"external-only","rules":[],"externalRequired":["controlled vulnerable dependency","CI/deploy gate rejection"]},
+    "RT05": {"localStatus":"guardrail-only","rules":[],"guardrails":["propose_session_revocation","execution boundary non-executable"],"externalRequired":["target-only staging revocation"]},
+    "RT06": {"localStatus":"guardrail-only","rules":["DET-ADMIN-FAILED-BURST","DET-ADMIN-EXCESSIVE"],"guardrails":["human escalation","execution boundary non-executable"],"externalRequired":["controlled staging freeze"]}
+  }
+}

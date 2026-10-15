@@ -1,0 +1,34 @@
+{
+  "version": "0.85",
+  "scope": "phase4-deployed-read-only-validation-harness",
+  "status": "code-ready-disabled-by-default",
+  "probes": ["/ai-policy", "/approvals", "/boundary-audit"],
+  "method": "GET",
+  "preconditions": [
+    "explicit live validation enable flag",
+    "staging isolation required",
+    "environment class staging",
+    "staging id containing staging",
+    "HTTPS-only origin",
+    "exact staging hostname allowlist",
+    "production-like hostname rejected",
+    "external admin token"
+  ],
+  "acceptance": [
+    "all three reads return HTTP 200 JSON",
+    "no authorized=true",
+    "no executable=true",
+    "no actionRunnerAvailable=true",
+    "no executionEnabled=true",
+    "no writeAccess=true"
+  ],
+  "ciBehavior": "tests inject fake fetch; no external network",
+  "livePending": [
+    "dedicated non-production deployed Security Center",
+    "dedicated staging admin credential",
+    "explicit staging hostname allowlist"
+  ],
+  "productionTouched": false,
+  "writesAllowed": false,
+  "actionRunnerAvailable": false
+}

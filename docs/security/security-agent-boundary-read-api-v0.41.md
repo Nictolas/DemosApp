@@ -1,0 +1,2 @@
+# CP-041 – Security Center Boundary Read API v0.41
+Boundary Audit esposto tramite GET read-only del Security Center, protetto dalla stessa catena verifyToken + requireAdmin delle altre viste. Handler fail-closed con errore generico e solo limit inoltrato. Nessuna route POST, PUT, PATCH o DELETE; nessun Action Runner.

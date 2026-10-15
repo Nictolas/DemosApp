@@ -44,56 +44,75 @@ function unavailableError(cause) {
   return error;
 }
 
-function getRedisClientOrThrow() {
+function defaultClientProvider() {
   const client = redisCache.getClient();
   if (client) return client;
   if (stagingMemoryFallbackEnabled()) return stagingMemoryClient;
-  throw unavailableError();
+  return null;
 }
 
-async function isAccessSessionRevoked(decoded) {
-  const sessionId = getAccessSessionId(decoded);
-  if (!sessionId) return false;
+function createAccessRevocationService({ getClient = defaultClientProvider } = {}) {
+  if (typeof getClient !== 'function') throw new TypeError('getClient must be a function');
 
-  const client = getRedisClientOrThrow();
-  try {
-    const value = await client.get(keys.revokedAccessSession(sessionId));
-    return value === '1' || value === 1 || value === true || value === 'revoked';
-  } catch (error) {
-    throw unavailableError(error);
-  }
-}
-
-async function revokeAccessSession(sessionId, ttlSeconds = MAX_ACCESS_TOKEN_TTL_SECONDS) {
-  if (typeof sessionId !== 'string' || !sessionId.trim()) {
-    throw new Error('Identificatore sessione access non valido');
+  function getRedisClientOrThrow() {
+    const client = getClient();
+    if (client) return client;
+    throw unavailableError();
   }
 
-  const client = getRedisClientOrThrow();
-  try {
-    await client.set(
-      keys.revokedAccessSession(sessionId.trim()),
-      '1',
-      { ex: Math.max(1, Math.floor(ttlSeconds)) }
-    );
-  } catch (error) {
-    throw unavailableError(error);
+  async function isAccessSessionRevoked(decoded) {
+    const sessionId = getAccessSessionId(decoded);
+    if (!sessionId) return false;
+
+    const client = getRedisClientOrThrow();
+    try {
+      const value = await client.get(keys.revokedAccessSession(sessionId));
+      return value === '1' || value === 1 || value === true || value === 'revoked';
+    } catch (error) {
+      throw unavailableError(error);
+    }
   }
+
+  async function revokeAccessSession(sessionId, ttlSeconds = MAX_ACCESS_TOKEN_TTL_SECONDS) {
+    if (typeof sessionId !== 'string' || !sessionId.trim()) {
+      throw new Error('Identificatore sessione access non valido');
+    }
+
+    const client = getRedisClientOrThrow();
+    try {
+      await client.set(
+        keys.revokedAccessSession(sessionId.trim()),
+        '1',
+        { ex: Math.max(1, Math.floor(ttlSeconds)) }
+      );
+    } catch (error) {
+      throw unavailableError(error);
+    }
+  }
+
+  async function revokeDecodedAccessToken(decoded) {
+    const sessionId = getAccessSessionId(decoded);
+    if (!sessionId) return false;
+    await revokeAccessSession(sessionId, getRemainingAccessTtlSeconds(decoded));
+    return true;
+  }
+
+  return Object.freeze({
+    isAccessSessionRevoked,
+    revokeAccessSession,
+    revokeDecodedAccessToken,
+  });
 }
 
-async function revokeDecodedAccessToken(decoded) {
-  const sessionId = getAccessSessionId(decoded);
-  if (!sessionId) return false;
-  await revokeAccessSession(sessionId, getRemainingAccessTtlSeconds(decoded));
-  return true;
-}
+const defaultService = createAccessRevocationService();
 
 module.exports = {
   MAX_ACCESS_TOKEN_TTL_SECONDS,
   getAccessSessionId,
   getRemainingAccessTtlSeconds,
   stagingMemoryFallbackEnabled,
-  isAccessSessionRevoked,
-  revokeAccessSession,
-  revokeDecodedAccessToken,
+  createAccessRevocationService,
+  isAccessSessionRevoked: defaultService.isAccessSessionRevoked,
+  revokeAccessSession: defaultService.revokeAccessSession,
+  revokeDecodedAccessToken: defaultService.revokeDecodedAccessToken,
 };

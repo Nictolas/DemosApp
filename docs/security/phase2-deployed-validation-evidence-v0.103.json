@@ -1,0 +1,78 @@
+﻿{
+    "checkpoint":  "CP-103",
+    "recordedAt":  "2026-10-15T17:59:00+02:00",
+    "branch":  "security/agent-foundation-v0",
+    "commit":  "5b478d0eafa2007cf17e32a2bd0ebae09bc5623d",
+    "renderService":  "demos-security-staging",
+    "renderDeploy":  "dep-db8ffljl550s738vf3rg",
+    "environment":  "non-production isolated staging",
+    "productionTouched":  false,
+    "databaseWriterAllowed":  false,
+    "actionRunnerAvailable":  false,
+    "executable":  false,
+    "preCI":  {
+                  "status":  "pass",
+                  "securityAgent":  "336/336",
+                  "deterministicDetection":  "37/37",
+                  "phase2Harness":  "6/6",
+                  "clientBuild":  "pass",
+                  "dependencyAudit":  "0 vulnerabilities in Render npm ci"
+              },
+    "live":  {
+                 "status":  {
+                                "version":  "v0.102",
+                                "state":  "ready",
+                                "syntheticStateOnly":  true,
+                                "renderKvEnabled":  true,
+                                "renderKvReady":  true,
+                                "privateNetworkOnly":  true,
+                                "productionWriteAllowed":  false
+                            },
+                 "RT01":  {
+                              "status":  "pass",
+                              "attackerFinalHttpStatus":  429,
+                              "separateLegitimateSourceHttpStatus":  401,
+                              "legitimateDownstream":  "reached",
+                              "observedAttempts":  102,
+                              "finding":  "DET-AUTH-FAILED-BURST",
+                              "severity":  "high"
+                          },
+                 "RT02":  {
+                              "benignPathStatus":  "pass",
+                              "benignHttpStatus":  204,
+                              "benignDownstream":  "reached",
+                              "blockingCorrelationLiveThisCheckpoint":  "pending",
+                              "existingEvidence":  "CP-077 CI synthetic pass + CP-102 local harness 6/6"
+                          },
+                 "RT05":  {
+                              "status":  "pass",
+                              "backend":  "render-key-value",
+                              "targetRevoked":  true,
+                              "otherRevoked":  false,
+                              "cleanupConfirmed":  true,
+                              "privateNetworkOnly":  true,
+                              "productionWrite":  false
+                          },
+                 "RT06":  {
+                              "status":  "pass",
+                              "finding":  "DET-ADMIN-FAILED-BURST",
+                              "severity":  "critical",
+                              "policyDecision":  "escalate",
+                              "humanReviewRequired":  true,
+                              "freezeAttempted":  true,
+                              "freezeConfirmed":  true,
+                              "cleanupConfirmed":  true,
+                              "syntheticStateOnly":  true,
+                              "productionWrite":  false,
+                              "authorized":  false,
+                              "executable":  false,
+                              "actionRunnerAvailable":  false
+                          }
+             },
+    "result":  "partial-live-accepted",
+    "residual":  [
+                     "RT02 deployed blocking/correlation must still be captured as live evidence before Phase 2 is marked complete.",
+                     "AI Red Team RT07-RT10 remains a separate Phase 6 gate.",
+                     "Action Runner remains intentionally disabled and requires a separate explicit authorization and reversible-playbook gate."
+                 ]
+}

@@ -1,0 +1,2 @@
+# CP-038 – Boundary Health Integration v0.38
+Integra il segnale health del Boundary Audit nelle viste overview e health del Security Center. Espone solo livello, disponibilità e conteggio sintetico dei fallimenti; nessun payload grezzo. Green/orange/gray restano segnali read-only e non abilitano alcuna azione.

@@ -33,39 +33,46 @@ const generalLimiter = rateLimit({
 });
 
 // Rate limiting per autenticazione - OTTIMIZZATO per molti utenti
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 100, // Aumentato a 100 tentativi di login per IP per supportare più utenti
-  trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
-  // Escludi localhost in sviluppo
-  skip: (req) => {
-    const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
-    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
-    return isLocalhost && isDevelopment;
-  },
-  message: {
-    success: false,
-    error: 'Troppi tentativi di accesso',
-    message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
-    retryAfter: 15 * 60
-  },
-  skipSuccessfulRequests: true, // Non conta i login riusciti
-  handler: (req, res) => {
-    console.log(`🚨 AUTH RATE LIMIT: IP ${req.ip} ha superato il limite di autenticazione`);
-    console.log(`🚨 AUTH RATE LIMIT: Path: ${req.path}, Method: ${req.method}`);
-    
-    if (!res.headersSent) {
-      res.status(429).json({
-        success: false,
-        error: 'Troppi tentativi di accesso',
-        message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
-        retryAfter: 15 * 60
-      });
-    } else {
-      console.error('❌ RATE LIMIT: Headers già inviati, impossibile inviare risposta');
+function createAuthLimiter({ keyGenerator } = {}) {
+  const config = {
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
+    skip: (req) => {
+      const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
+      const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+      return isLocalhost && isDevelopment;
+    },
+    message: {
+      success: false,
+      error: 'Troppi tentativi di accesso',
+      message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    },
+    skipSuccessfulRequests: true,
+    handler: (req, res) => {
+      console.log(`🚨 AUTH RATE LIMIT: IP ${req.ip} ha superato il limite di autenticazione`);
+      console.log(`🚨 AUTH RATE LIMIT: Path: ${req.path}, Method: ${req.method}`);
+      if (!res.headersSent) {
+        res.status(429).json({
+          success: false,
+          error: 'Troppi tentativi di accesso',
+          message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
+          retryAfter: 15 * 60
+        });
+      } else {
+        console.error('❌ RATE LIMIT: Headers già inviati, impossibile inviare risposta');
+      }
     }
+  };
+  if (keyGenerator !== undefined) {
+    if (typeof keyGenerator !== 'function') throw new TypeError('auth limiter keyGenerator must be a function');
+    config.keyGenerator = keyGenerator;
   }
-});
+  return rateLimit(config);
+}
+
+const authLimiter = createAuthLimiter();
 
 // Rate limiting per registrazione
 // Aumentato a 10 registrazioni all'ora per permettere test e sviluppo
@@ -258,6 +265,7 @@ const publicLimiter = rateLimit({
 module.exports = {
   generalLimiter,
   authLimiter,
+  createAuthLimiter,
   registrationLimiter,
   passwordResetLimiter,
   adminLimiter,

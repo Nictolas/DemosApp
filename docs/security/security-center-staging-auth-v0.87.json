@@ -1,0 +1,27 @@
+{
+  "version": "0.87",
+  "checkpoint": "CP-087",
+  "scope": "security-center-staging-auth",
+  "status": "code-ready",
+  "invariants": {
+    "stagingOnly": true,
+    "nodeEnvProductionRequired": true,
+    "databaseAuthUsed": false,
+    "minTokenLength": 32,
+    "constantTimeComparison": true,
+    "readOnly": true,
+    "adminOnly": true,
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false
+  },
+  "production": {
+    "touched": false,
+    "enabledByDefault": false
+  },
+  "next": [
+    "create isolated Render staging service only after CI green",
+    "use dedicated random staging token",
+    "run CP-085 deployed GET-only validator"
+  ]
+}

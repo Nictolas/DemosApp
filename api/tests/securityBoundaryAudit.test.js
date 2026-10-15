@@ -1,0 +1,6 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {BoundaryAudit}=require('../security-agent/securityBoundaryAudit');
+test('audit is minimized',()=>{const a=new BoundaryAudit();const r=a.record({action:'investigate'},{ok:true,issueCount:0});assert.equal(r.validationOk,true);assert.equal(r.executable,false);});
+test('arbitrary fields are excluded',()=>{const a=new BoundaryAudit();a.record({action:'investigate',extra:'PRIVATE'},{ok:true});assert.doesNotMatch(JSON.stringify(a.list()),/PRIVATE|extra/);});
+test('capacity is bounded',()=>{const a=new BoundaryAudit({maxRecords:10});for(let i=0;i<12;i++)a.record({action:'investigate'},{ok:true});assert.equal(a.list({limit:100}).length,10);});
+test('bad read limit fails',()=>assert.throws(()=>new BoundaryAudit().list({limit:0}),/AUDIT_READ_LIMIT_INVALID/));
+test('status stays shadow',()=>{const s=new BoundaryAudit().status();assert.equal(s.mode,'shadow');assert.equal(s.authorized,false);assert.equal(s.actionRunnerAvailable,false);});

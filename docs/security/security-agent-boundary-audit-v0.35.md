@@ -1,0 +1,2 @@
+# CP-035 – Boundary Audit Trail v0.35
+Audit trail in-memory, limitato e minimizzato per il confine di esecuzione. Registra timestamp, azione ed esito sintetico della validazione. I campi arbitrari del boundary non vengono conservati. Il buffer resta limitato e shadow/read-only: authorized=false, executable=false, actionRunnerAvailable=false. Nessuna esecuzione o side effect.

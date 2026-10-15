@@ -1,0 +1,47 @@
+﻿{
+    "checkpoint":  "CP-105",
+    "recordedAt":  "2026-10-15",
+    "branch":  "security/agent-integration-v1",
+    "baseMain":  "2f381623d9d9c55b8fdc3a4cff0b12ebbfa75f87",
+    "sourceFoundation":  "0f1e0e8eba394070e48a6275e2fcf5ff5d4378df",
+    "scope":  "selective backend-only integration of Security Agent foundation onto current main; no legacy client overlay",
+    "productionTouched":  false,
+    "clientFilesChanged":  0,
+    "guardrails":  {
+                       "securityCenterDefault":  "off",
+                       "actionRunnerAvailable":  false,
+                       "authorized":  false,
+                       "executable":  false,
+                       "databaseWriterDefault":  false
+                   },
+    "integration":  {
+                        "securityAgentFiles":  56,
+                        "securityTests":  73,
+                        "securityDocs":  91,
+                        "securityScripts":  8,
+                        "firebaseAdminCompatibilityFix":  "existing Firebase app reused from getApps()[0] without getApp default-app assumption",
+                        "accessRevocationCompatibility":  "injectable client added while preserving current main staging memory fallback",
+                        "lockfile":  "minimal ioredis subtree added; npm ci verified"
+                    },
+    "validation":  {
+                       "securityPreCI":  "PASS",
+                       "securityAgent":  "336/336 PASS",
+                       "deterministicDetection":  "37/37 PASS",
+                       "phase2Harness":  "6/6 PASS",
+                       "phase2RenderKv":  "4/4 PASS",
+                       "firebaseAdminCompatibility":  "3/3 PASS",
+                       "focusedAndroidOAuthSecurity":  "42/42 PASS",
+                       "webauthn":  "48/48 PASS",
+                       "clientProductionBuild":  "PASS, 3968 modules",
+                       "apiRuntimeAudit":  "0 vulnerabilities",
+                       "clientRuntimeAudit":  "0 vulnerabilities",
+                       "gitDiffCheck":  "PASS"
+                   },
+    "result":  "integration-candidate-ready-for-draft-pr",
+    "residual":  [
+                     "Run GitHub CI on the integration branch/PR.",
+                     "Keep PR draft until CI and diff review are green.",
+                     "Do not enable Action Runner or production Security Center as part of this integration.",
+                     "Phase 2 still has RT02 deployed blocking/correlation evidence pending; Phase 6 formal staging RT07-RT09 remains pending."
+                 ]
+}
