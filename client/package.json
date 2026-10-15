@@ -15,12 +15,14 @@
     "cap:run": "cap run",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
-    "android:run": "npm run build && cap run android"
+    "android:run": "npm run build && cap run android",
+    "android:sync:push": "node scripts/build-android-native-push.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "@capacitor/haptics": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.5",
     "@hookform/resolvers": "^3.9.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-avatar": "^1.1.0",

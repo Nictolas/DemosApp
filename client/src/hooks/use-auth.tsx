@@ -8,6 +8,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
+import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
+import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 
 interface User {
@@ -131,6 +133,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       const tokenToRevoke = token;
       const refreshTokenToRevoke = getRefreshToken();
+      const pushTokenToRevoke = getStoredNativePushToken();
+
+      // Finché la sessione è ancora autenticata, disattiva il token push server-side.
+      if (pushTokenToRevoke && tokenToRevoke) {
+        try {
+          await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${tokenToRevoke}`,
+            },
+          });
+        } catch (error) {
+          console.warn("Impossibile disattivare il token push durante il logout:", error);
+        }
+      }
+
+      await unregisterNativePush();
+      clearStoredNativePushToken();
       clearSessionTokens();
       setToken(null);
 
@@ -144,7 +164,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ refreshToken: refreshTokenToRevoke }),
         });
       } catch (error) {
-        console.warn("Errore logout:", error);
+        console.warn("Errore logout backend:", error);
+      }
+
+      try {
+        await clearNativeGoogleCredentialState();
+      } catch (error) {
+        // Il logout DEMOS deve riuscire anche se Credential Manager non riesce
+        // a pulire il proprio stato locale.
+        console.warn("Errore pulizia Credential Manager Android:", error);
       }
     },
     onSuccess: () => {

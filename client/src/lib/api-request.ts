@@ -1,22 +1,37 @@
 /**
  * Utility per le richieste API
  */
+import { Capacitor } from "@capacitor/core";
 import { getAuthToken } from "@/lib/auth-token";
 
-// Configurazione API che rispetta l'ambiente
+const DEFAULT_API_BASE_URL = 'https://demos-c7k0.onrender.com/api';
+
+const normalizeApiBaseUrl = (value: string): string => {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+// Configurazione API coerente con api-config.ts anche per i vecchi consumer di ApiRequest.
 const resolveBaseUrl = (): string => {
-  // Controlla se siamo in produzione (Render)
+  const env = (import.meta as any).env || {};
+  const configured = normalizeApiBaseUrl(env.VITE_API_BASE_URL || env.VITE_API_URL || '');
+
+  if (Capacitor.isNativePlatform()) {
+    return DEFAULT_API_BASE_URL;
+  }
+
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     console.log('🔍 DEBUG api-request.ts - Hostname:', window.location.hostname);
     console.log('🔍 DEBUG api-request.ts - URL completo:', window.location.href);
-    return 'https://demos-c7k0.onrender.com/api';
+    return configured || DEFAULT_API_BASE_URL;
   }
 
-  // Sviluppo locale
-  return 'http://localhost:3001/api';
+  // Sviluppo locale: usa il proxy Vite relativo, mai un host localhost assoluto.
+  return '/api';
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || resolveBaseUrl();
+const API_BASE_URL = resolveBaseUrl();
 
 interface ApiResponse<T = any> {
   success: boolean;
