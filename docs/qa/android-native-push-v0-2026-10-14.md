@@ -13,27 +13,40 @@ Scope: prepare the native Android push transport without changing the Google Pla
 - Stores the native registration token locally only so logout can deactivate the matching server token.
 - Logout deletes the server-side token, unregisters the native Firebase token, clears local push state, then clears the auth session.
 - Foreground native notifications are configured for alert + sound.
+- Creates the Android notification channels already referenced by backend payloads: `demos_notifications` and `avvistamenti_notifications`. Channel creation is best-effort and never blocks FCM registration.
+- Native notification taps prefer explicit `data.link` / `data.url`, then use a compatibility fallback for legacy payload types (`demos_notification`, `user_notification`, `political_opinion_change`, `avvistamento`, `operational_alert`). This prevents older Android payloads from opening the app without routing to the intended DEMOS screen.
 
 ## Required before release
 
-1. Obtain the Firebase Android `google-services.json` for package `community.demos` from the canonical DEMOS Firebase project.
-2. Add it to `client/android/app/` only after verifying `client.package_name == community.demos`.
-3. Build/sync native push through `npm run android:sync:push`; the helper validates Firebase project `demos-finale` + package `community.demos` and only then injects `VITE_ANDROID_NATIVE_PUSH_ENABLED=true`.
-4. Re-run `cap sync android`, signed APK/AAB builds and real-device/account tests.
+1. Keep the verified Firebase Android `google-services.json` for package `community.demos` in `client/android/app/` locally and out of Git.
+2. Build/sync native push through `npm run android:sync:push`; the helper validates Firebase project `demos-finale` + package `community.demos` and only then injects `VITE_ANDROID_NATIVE_PUSH_ENABLED=true`.
+3. Re-run the focused Node integrity tests, Vite build, Capacitor sync and signed APK/AAB builds on the latest PR head.
+4. Re-run the Android runtime smoke and verify the two expected notification channels exist before delivery tests.
 5. E2E gate: permission -> FCM registration -> `/api/fcm-tokens` persistence -> receive foreground/background -> tap routing -> logout -> server token inactive + Firebase unregister.
 6. Update Google Play Data Safety in the same release that first ships native push, including Firebase Installation ID under Device or other IDs as applicable.
 
 Until all six gates pass, native push is code-complete scaffolding only and must not be represented as a released Android capability.
 
-## Verified now
+## Qualification history
 
-- Web build passes.
-- Capacitor sync detects `@capacitor/push-notifications` 6.0.5.
-- Android debug and release bundle builds pass; `signReleaseBundle` passes.
-- Merged Android manifest includes `POST_NOTIFICATIONS` and the Capacitor/Firebase messaging services.
-- Android 35 runtime reports platform `android`, native=true and PushNotifications plugin available.
-- With no Firebase Android config, a forced direct `register()` reproduces the expected FirebaseApp initialization crash. The production hook is therefore explicitly gated and will not call native registration until the verified config + enable flag are present.
+### Head `2c01fa28` — qualified 2026-10-14
+
+- `npm ci`: PASS.
+- `node --test api/tests/fcmTokenIntegrity.test.js`: 9/9 PASS.
+- `npm run android:sync:push`: PASS.
+- Vite build + Capacitor sync: PASS; detected `@capacitor/push-notifications@6.0.5`.
+- Gradle `assembleDebug bundleRelease`: PASS, including `signReleaseBundle`.
+- `processDebugGoogleServices` / `processReleaseGoogleServices`: PASS.
+- Merged Android manifest included `POST_NOTIFICATIONS` and the Capacitor/Firebase messaging services.
+- Android 35 runtime reported platform `android`, plugin available and notification permission granted.
+- Firebase initialization: PASS.
+- Real `PushNotifications.register()`: PASS with a real FCM registration token emitted; token value was not exposed.
+- Emulator restored afterward to Android 1.0.5 / versionCode 7 / minSdk 24 / targetSdk 36.
+
+### Latest head after channel/tap hardening — requalification required
+
+The PR now also contains Android-channel creation and legacy tap-routing fallbacks. Snyk is green on the updated head, but the focused test/build/sync/Gradle/runtime sequence above must be rerun before those previous PASS results can be attributed to the latest commit.
 
 ## Release boundary
 
-Do not rebuild, replace or modify the Alpha 1.0.5 (7) currently under Google Play review for this work. Use a later versionCode after qualification.
+Do not rebuild, replace or modify the Alpha 1.0.5 (7) currently under Google Play review for this work. Use a later versionCode after qualification. Production remains untouched by this branch.
