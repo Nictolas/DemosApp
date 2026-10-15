@@ -1,3 +1,4 @@
+// CP-110 validated on isolated Render staging: kill switch + TTL rollback, production writes forbidden.
 process.env.NODE_ENV = 'production';
 const test = require('node:test');
 const assert = require('node:assert/strict');
