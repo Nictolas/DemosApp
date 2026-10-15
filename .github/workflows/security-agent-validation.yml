@@ -98,5 +98,8 @@ jobs:
       - name: Phase 7 P07 deploy rollback dry-run planner
         run: node --test api/tests/securityPhase7P07DeployRollbackPlanner.test.js
 
+      - name: Phase 7 P07 Render dry-run binding contract
+        run: node --test api/tests/securityPhase7P07RenderDryRunContract.test.js
+
       - name: Security pre-CI gate
         run: npm run test:security-preci
