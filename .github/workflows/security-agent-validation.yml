@@ -86,5 +86,8 @@ jobs:
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging
 
+      - name: Phase 5 Action Runner sandbox (RT10)
+        run: node --test api/tests/securityActionRunnerSandbox.test.js
+
       - name: Security pre-CI gate
         run: npm run test:security-preci

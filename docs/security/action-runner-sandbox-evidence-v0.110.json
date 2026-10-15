@@ -1,0 +1,66 @@
+{
+  "checkpoint": "CP-110",
+  "recordedAt": "2026-10-15",
+  "scope": "isolated synthetic Action Runner sandbox / defensive RT10 validation",
+  "pr": 171,
+  "validatedCodeCommit": "f5462dd64f50bf8cb94813e08d2d4d5c8c10012d",
+  "ci": {
+    "workflow": "Security Agent Validation",
+    "runNumber": 32,
+    "runId": 38781700971,
+    "status": "pass",
+    "rt10Step": "pass",
+    "securityPreCi": "pass",
+    "runtimeDependencyAuditApi": "pass",
+    "runtimeDependencyAuditClient": "pass"
+  },
+  "render": {
+    "service": "demos-action-runner-sandbox-staging",
+    "serviceId": "srv-db8h8ubncjis73b26hu0",
+    "deployId": "dep-db8h8v3ncjis73b26jr0",
+    "status": "live",
+    "branch": "phase5/action-runner-sandbox-v0",
+    "autoDeploy": false,
+    "productionTouched": false
+  },
+  "sandbox": {
+    "version": "v0.110",
+    "environmentClass": "staging",
+    "runtimeMode": "memory",
+    "syntheticTargetsOnly": true,
+    "externalClientsAllowed": false,
+    "productionWriteAllowed": false,
+    "killSwitchDefaultEngaged": true,
+    "explicitSandboxAuthorizationRequired": true,
+    "approvalRequired": true,
+    "ttlRequired": true,
+    "rollbackAvailable": true
+  },
+  "stagingTests": {
+    "tests": 6,
+    "pass": 6,
+    "fail": 0,
+    "skipped": 0,
+    "p01SyntheticRateLimitTtlRollback": "pass",
+    "p02SyntheticSessionRevocationRollback": "pass",
+    "failClosedConfiguration": "pass",
+    "syntheticTargetRestriction": "pass",
+    "approvalAndAllowlistRestriction": "pass"
+  },
+  "RT10": {
+    "status": "pass-isolated-sandbox",
+    "activeSyntheticActionsBeforeKill": 2,
+    "killSwitchEngaged": true,
+    "rolledBackByKillSwitch": 2,
+    "activeSyntheticActionsAfterKill": 0,
+    "subsequentExecutionBlocked": true,
+    "productionWrite": false,
+    "externalSideEffects": false
+  },
+  "result": "RT10-isolated-sandbox-pass",
+  "residual": [
+    "Phase 5 remains incomplete: first four reversible playbooks are not yet all implemented/qualified.",
+    "No Action Runner authorization or production wiring is granted by this checkpoint.",
+    "Any future production-capable automation requires a separate explicit gate, least-privilege adapters, rollback evidence and human authorization policy."
+  ]
+}
