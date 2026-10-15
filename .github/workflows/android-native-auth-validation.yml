@@ -12,6 +12,8 @@ on:
       - 'client/android/gradle/**'
       - 'client/package.json'
       - 'client/package-lock.json'
+      - 'api/routes/auth/oauth.js'
+      - 'api/tests/androidAuthNativePushIntegration.test.js'
       - '.github/workflows/android-native-auth-validation.yml'
   workflow_dispatch:
 
@@ -32,6 +34,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: client/package-lock.json
+
+      - name: Run Android auth regression checks
+        run: node --test api/tests/androidAuthNativePushIntegration.test.js
 
       - name: Install client dependencies
         working-directory: client
