@@ -1,0 +1,59 @@
+{
+  "version": "0.115",
+  "checkpoint": "CP-115",
+  "scope": "phase7-p07-deploy-rollback-provider-unbound-dry-run",
+  "status": "qualified",
+  "branch": "phase7/p07-deploy-rollback-dry-run-v0",
+  "validatedCommit": "d283db88636bda911b8fe49edd6678ceb7db1c6a",
+  "githubActions": {
+    "runNumber": 49,
+    "status": "success",
+    "steps": {
+      "dependencyAuditApi": "pass",
+      "dependencyAuditClient": "pass",
+      "phase2Rt01Rt06": "pass",
+      "phase5Rt10": "pass",
+      "phase5P01P04": "pass",
+      "phase7L3ApprovalPreGate": "pass",
+      "phase7P07DryRunPlanner": "pass",
+      "securityPreCi": "pass"
+    }
+  },
+  "renderStaging": {
+    "serviceId": "srv-db8i4d689jmc73drmhp0",
+    "serviceName": "demos-p07-rollback-dryrun-staging",
+    "deployId": "dep-db8i4du89jmc73drmiq0",
+    "status": "live",
+    "tests": 20,
+    "pass": 20,
+    "fail": 0,
+    "skipped": 0,
+    "provider": "unbound",
+    "externalWrite": false,
+    "productionTouched": false
+  },
+  "p07Invariants": {
+    "action": "propose_deploy_rollback",
+    "policyDecision": "escalate",
+    "approvalBound": true,
+    "humanApprovalRequired": true,
+    "singleUseBoundary": true,
+    "dryRunOnly": true,
+    "serviceReferenceHashed": true,
+    "deployReferencesHashed": true,
+    "providerAdapterAvailable": false,
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false,
+    "externalWrite": false,
+    "killSwitchGate": "pass",
+    "expiryGate": "pass",
+    "replayGate": "pass",
+    "noOpRollbackGate": "pass",
+    "rawReferenceRedactionGate": "pass"
+  },
+  "providerCredentialsUsed": false,
+  "providerApiCallsUsed": false,
+  "productionActionRunnerEnabled": false,
+  "note": "Render npm install reported high-severity findings in the full dependency tree, while the exact-head GitHub runtime audits for API and client completed successfully. No new dependency was added by this checkpoint."
+}
