@@ -1,0 +1,60 @@
+{
+  "checkpoint": "CP-112",
+  "recordedAt": "2026-10-15",
+  "scope": "first four reversible Phase 5 playbooks in isolated synthetic sandbox",
+  "pr": 172,
+  "validatedCodeCommit": "dcf557b85a70bc8df6b46a59757c39a48dbbef30",
+  "ci": {
+    "workflow": "Security Agent Validation",
+    "runNumber": 35,
+    "runId": 38783080897,
+    "status": "pass",
+    "firstFourPlaybooksStep": "pass",
+    "rt10Step": "pass",
+    "securityPreCi": "pass",
+    "runtimeDependencyAuditApi": "pass",
+    "runtimeDependencyAuditClient": "pass",
+    "snyk": "pass"
+  },
+  "render": {
+    "service": "demos-first-four-playbooks-staging",
+    "serviceId": "srv-db8hdg8u01pc7387rbc0",
+    "deployId": "dep-db8hdgou01pc7387rcvg",
+    "status": "live",
+    "branch": "phase5/first-four-playbooks-v0",
+    "autoDeploy": false,
+    "productionTouched": false
+  },
+  "playbooks": {
+    "P01": { "scenario": "brute_force_login", "syntheticLease": "pass", "ttlRollback": "pass" },
+    "P02": { "scenario": "suspicious_session", "syntheticLease": "pass", "explicitRollback": "pass" },
+    "P03": { "scenario": "secret_in_commit", "syntheticPipelineBlock": "pass", "explicitRollback": "pass" },
+    "P04": { "scenario": "critical_dependency_cve", "syntheticDeployBlock": "pass", "explicitRollback": "pass" }
+  },
+  "stagingTests": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "skipped": 0,
+    "allFourSyntheticNoExternalSideEffect": "pass",
+    "p03P04ProductionTargetRejection": "pass",
+    "approvalMismatchRejection": "pass",
+    "killSwitchRollbackAllFour": "pass"
+  },
+  "guardrails": {
+    "environmentClass": "staging",
+    "runtimeMode": "memory",
+    "syntheticTargetsOnly": true,
+    "reversibleOnly": true,
+    "externalClientsAllowed": false,
+    "productionWriteAllowed": false,
+    "productionAdaptersPresent": false
+  },
+  "dependencyNote": "Render npm ci reports dev-dependency advisories in the full install; GitHub runtime audits with --omit=dev passed. No runtime vulnerability gate failure was observed.",
+  "result": "first-four-playbooks-isolated-sandbox-pass",
+  "residual": [
+    "Production-capable automation remains unauthorized and unwired.",
+    "A future production adapter phase requires separate least-privilege credentials, per-playbook authorization, rollback evidence, audit and human approval policy.",
+    "Phase 5 sandbox criterion is satisfied, but production automation must remain a separate gate."
+  ]
+}
