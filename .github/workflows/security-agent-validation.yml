@@ -1,9 +1,22 @@
-﻿name: Security Agent Validation
+name: Security Agent Validation
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/security-agent/**'
+      - 'api/tests/security*.test.js'
+      - 'scripts/security-*.js'
+      - 'client/**'
+      - 'package*.json'
+      - 'api/package*.json'
+      - 'client/package*.json'
+      - '.github/workflows/security-agent-validation.yml'
   push:
     branches:
       - security/agent-foundation-v0
+      - security/agent-integration-v1
     paths:
       - 'api/security-agent/**'
       - 'api/tests/security*.test.js'
