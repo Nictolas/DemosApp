@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -31,7 +31,7 @@ test('backend rejects fake or malformed FCM tokens before token persistence', ()
   assert.match(route, /token\.length > 100 && !token\.startsWith\('web_'\)/);
   const validation = route.indexOf('if (!isValidFcmToken(token))');
   const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(userId);', validation);
-  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens);", validation);
+  const legacyWrite = route.indexOf("UPDATE users SET fcm_tokens = $1", validation);
   assert.ok(validation >= 0);
   assert.ok(existingLookup > validation);
   assert.ok(legacyWrite > validation);

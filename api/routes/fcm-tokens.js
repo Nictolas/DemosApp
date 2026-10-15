@@ -11,37 +11,14 @@ function isValidFcmToken(token) {
   return !!(token && token.trim() && token.length > 100 && !token.startsWith('web_'));
 }
 
-function isMissingLegacyFcmColumn(error) {
-  return error?.code === '42703';
-}
-
 async function getLegacyTokens(userId) {
-  try {
-    const userResult = await pool.query(
-      'SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens FROM users WHERE id = $1',
-      [userId]
-    );
+  const userResult = await pool.query(
+    'SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens FROM users WHERE id = $1',
+    [userId]
+  );
 
-    if (userResult.rows.length === 0) return null;
-    return userResult.rows[0].fcm_tokens || [];
-  } catch (error) {
-    if (!isMissingLegacyFcmColumn(error)) throw error;
-    const userResult = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
-    return userResult.rows.length === 0 ? null : [];
-  }
-}
-
-async function updateLegacyTokens(userId, tokens) {
-  try {
-    await pool.query(
-      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
-      [tokens, userId]
-    );
-    return true;
-  } catch (error) {
-    if (!isMissingLegacyFcmColumn(error)) throw error;
-    return false;
-  }
+  if (userResult.rows.length === 0) return null;
+  return userResult.rows[0].fcm_tokens || [];
 }
 
 async function upsertUserDeviceToken(userId, token) {
@@ -166,7 +143,10 @@ router.post('/', verifyToken, async (req, res) => {
     }
     
     // Salva su storage legacy (transitorio)
-    await updateLegacyTokens(userId, updatedTokens);
+    await pool.query(
+      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
+      [updatedTokens, userId]
+    );
 
     // Salva su nuovo storage (user_devices): mantieni un solo token attivo per utente
     await upsertUserDeviceToken(userId, token);
@@ -232,7 +212,10 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     }
     
     // Salva i token puliti su storage legacy (transitorio)
-    await updateLegacyTokens(userId, cleanedTokens);
+    await pool.query(
+      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
+      [cleanedTokens, userId]
+    );
 
     // Allinea nuovo storage: disattiva tutti i token user, poi attiva solo il più recente (se presente)
     await pool.query(
@@ -288,7 +271,10 @@ router.delete('/:token', verifyToken, async (req, res) => {
     const updatedTokens = existingTokens.filter(t => t !== token);
     
     // Salva i token aggiornati
-    await updateLegacyTokens(userId, updatedTokens);
+    await pool.query(
+      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
+      [updatedTokens, userId]
+    );
 
     // Nuovo storage: disattiva token specifico
     await deactivateUserDeviceToken(userId, token);
