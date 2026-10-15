@@ -1,16 +1,34 @@
+import { Capacitor } from '@capacitor/core';
+
 // Configurazione centralizzata per l'API
-declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BASE_URL?: string };
+const DEFAULT_API_BASE_URL = 'https://demos-c7k0.onrender.com/api';
+
+const normalizeApiBaseUrl = (value: string): string => {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+const getConfiguredBaseUrl = (): string => {
+  const env = (import.meta as any).env || {};
+  // Il progetto storico usa entrambe le convenzioni; supportarle evita che una
+  // build Android ignori VITE_API_URL e ricada involontariamente sul fallback.
+  return normalizeApiBaseUrl(env.VITE_API_BASE_URL || env.VITE_API_URL || '');
+};
 
 const resolveBaseUrl = (): string => {
+  // Android/iOS usano temporaneamente l'endpoint Render diretto: api.demos.community
+  // è attualmente bloccato da Cloudflare Error 1000. Non lasciare che una variabile
+  // Vite web sovrascriva il backend nativo finché il custom domain non è riparato.
+  if (Capacitor.isNativePlatform()) {
+    return DEFAULT_API_BASE_URL;
+  }
+
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return '/api';
   }
 
-  if (typeof importMetaEnv !== 'undefined' && importMetaEnv.VITE_API_BASE_URL) {
-    return importMetaEnv.VITE_API_BASE_URL;
-  }
-
-  return 'https://demos-c7k0.onrender.com/api';
+  return getConfiguredBaseUrl() || DEFAULT_API_BASE_URL;
 };
 
 export const API_CONFIG = {
@@ -27,6 +45,7 @@ export const API_CONFIG = {
     LOGIN_VERIFY: '/auth/webauthn/login/verify',
   },
   OAUTH: {
+    CONFIG: '/auth/oauth/config',
     GOOGLE: '/auth/oauth/google',
     APPLE: '/auth/oauth/apple',
   },
@@ -41,7 +60,11 @@ export const getApiUrl = (endpoint: string | undefined | null) => {
   const baseUrl = resolveBaseUrl();
 
   let cleanEndpoint = endpoint;
-  if (endpoint.startsWith('/api/')) {
+  if (endpoint === '/api') {
+    cleanEndpoint = '';
+  } else if (endpoint.startsWith('/api?')) {
+    cleanEndpoint = endpoint.substring(4);
+  } else if (endpoint.startsWith('/api/')) {
     cleanEndpoint = endpoint.substring(4);
   } else if (!endpoint.startsWith('/')) {
     cleanEndpoint = `/${endpoint}`;
