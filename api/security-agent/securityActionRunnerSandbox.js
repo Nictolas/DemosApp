@@ -1,5 +1,17 @@
-const ACTION_RUNNER_SANDBOX_VERSION = 'v0.110';
-const SANDBOX_ACTIONS = Object.freeze(['propose_rate_limit', 'propose_session_revocation']);
+const ACTION_RUNNER_SANDBOX_VERSION = 'v0.112';
+const SANDBOX_ACTIONS = Object.freeze([
+  'propose_rate_limit',
+  'propose_session_revocation',
+  'sandbox_block_pipeline_secret',
+  'sandbox_block_vulnerable_deploy'
+]);
+
+const SANDBOX_PLAYBOOKS = Object.freeze({
+  P01: Object.freeze({ action: 'propose_rate_limit', scenario: 'brute_force_login', reversible: true }),
+  P02: Object.freeze({ action: 'propose_session_revocation', scenario: 'suspicious_session', reversible: true }),
+  P03: Object.freeze({ action: 'sandbox_block_pipeline_secret', scenario: 'secret_in_commit', reversible: true }),
+  P04: Object.freeze({ action: 'sandbox_block_vulnerable_deploy', scenario: 'critical_dependency_cve', reversible: true })
+});
 
 function safeToken(value, max = 96) {
   return String(value ?? '').trim().replace(/[^a-zA-Z0-9:_-]/g, '_').slice(0, max);
@@ -25,6 +37,7 @@ function buildActionRunnerSandboxConfig(env = {}) {
     syntheticTargetsOnly: true,
     reversibleOnly: true,
     killSwitchDefaultEngaged: true,
+    supportedPlaybooks: Object.freeze(Object.keys(SANDBOX_PLAYBOOKS)),
     blockers: Object.freeze([...new Set(blockers)])
   });
 }
@@ -61,11 +74,13 @@ class SecurityActionRunnerSandbox {
     this.audit.unshift(Object.freeze({
       at,
       type,
+      playbookId: details.playbookId || null,
       action: details.action || null,
       target: details.target || null,
       leaseId: details.leaseId || null,
       reason: details.reason || null,
       productionWrite: false,
+      externalSideEffect: false,
       syntheticOnly: true
     }));
     if (this.audit.length > this.maxAudit) this.audit.length = this.maxAudit;
@@ -89,13 +104,18 @@ class SecurityActionRunnerSandbox {
     if (!Number.isInteger(ttlMs) || ttlMs < 1000 || ttlMs > 300000) throw new Error('SANDBOX_TTL_INVALID');
   }
 
-  execute({ approval, action, target, ttlMs = 60000 } = {}) {
+  execute({ approval, action, target, ttlMs = 60000, playbookId = null } = {}) {
     this._assertExecutable({ approval, action, target, ttlMs });
+    if (playbookId != null) {
+      const spec = SANDBOX_PLAYBOOKS[String(playbookId)];
+      if (!spec || spec.action !== action) throw new Error('SANDBOX_PLAYBOOK_ACTION_MISMATCH');
+    }
     const now = this._timestamp();
     this.sequence += 1;
     const leaseId = `sandbox_${now.getTime()}_${this.sequence}`;
     const record = {
       leaseId,
+      playbookId: playbookId == null ? null : String(playbookId),
       action,
       target: String(target),
       approvalId: safeToken(approval.approvalId || 'approved', 128),
@@ -105,6 +125,7 @@ class SecurityActionRunnerSandbox {
       state: 'active',
       reversible: true,
       productionWrite: false,
+      externalSideEffect: false,
       syntheticOnly: true
     };
     this.active.set(leaseId, record);
@@ -112,13 +133,29 @@ class SecurityActionRunnerSandbox {
     return Object.freeze({ ...record });
   }
 
+  executePlaybook(playbookId, { approval, target, ttlMs = 60000 } = {}) {
+    const id = safeToken(playbookId, 8);
+    const spec = SANDBOX_PLAYBOOKS[id];
+    if (!spec) throw new Error('SANDBOX_PLAYBOOK_NOT_ALLOWED');
+    return this.execute({ approval, action: spec.action, target, ttlMs, playbookId: id });
+  }
+
   rollback(leaseId, reason = 'manual') {
     const id = safeToken(leaseId, 128);
     const record = this.active.get(id);
-    if (!record) return Object.freeze({ rolledBack: false, leaseId: id || null, productionWrite: false, syntheticOnly: true });
+    if (!record) return Object.freeze({ rolledBack: false, leaseId: id || null, productionWrite: false, externalSideEffect: false, syntheticOnly: true });
     this.active.delete(id);
     this._audit('rolled_back', { ...record, reason: safeToken(reason, 96) || 'manual' });
-    return Object.freeze({ rolledBack: true, leaseId: id, action: record.action, target: record.target, productionWrite: false, syntheticOnly: true });
+    return Object.freeze({
+      rolledBack: true,
+      leaseId: id,
+      playbookId: record.playbookId,
+      action: record.action,
+      target: record.target,
+      productionWrite: false,
+      externalSideEffect: false,
+      syntheticOnly: true
+    });
   }
 
   sweepExpired() {
@@ -129,7 +166,7 @@ class SecurityActionRunnerSandbox {
         if (this.rollback(leaseId, 'ttl_expired').rolledBack) rolledBack += 1;
       }
     }
-    return Object.freeze({ rolledBack, activeLeaseCount: this.active.size, productionWrite: false, syntheticOnly: true });
+    return Object.freeze({ rolledBack, activeLeaseCount: this.active.size, productionWrite: false, externalSideEffect: false, syntheticOnly: true });
   }
 
   engageKillSwitch(reason = 'manual_kill_switch') {
@@ -141,7 +178,14 @@ class SecurityActionRunnerSandbox {
     this.killSwitchEngaged = true;
     this.authorizationId = null;
     this._audit('kill_switch_engaged', { reason: safeToken(reason, 96) || 'manual_kill_switch' });
-    return Object.freeze({ killSwitchEngaged: true, rolledBack, activeLeaseCount: this.active.size, productionWrite: false, syntheticOnly: true });
+    return Object.freeze({
+      killSwitchEngaged: true,
+      rolledBack,
+      activeLeaseCount: this.active.size,
+      productionWrite: false,
+      externalSideEffect: false,
+      syntheticOnly: true
+    });
   }
 
   listAudit({ limit = 50 } = {}) {
@@ -160,6 +204,7 @@ class SecurityActionRunnerSandbox {
       killSwitchEngaged: this.killSwitchEngaged,
       activeLeaseCount: this.active.size,
       supportedActions: SANDBOX_ACTIONS,
+      supportedPlaybooks: Object.freeze(Object.keys(SANDBOX_PLAYBOOKS)),
       syntheticTargetsOnly: true,
       reversibleOnly: true,
       productionWriteAllowed: false,
@@ -171,6 +216,7 @@ class SecurityActionRunnerSandbox {
 module.exports = {
   ACTION_RUNNER_SANDBOX_VERSION,
   SANDBOX_ACTIONS,
+  SANDBOX_PLAYBOOKS,
   buildActionRunnerSandboxConfig,
   SecurityActionRunnerSandbox
 };
