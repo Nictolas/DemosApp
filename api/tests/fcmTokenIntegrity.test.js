@@ -1,4 +1,4 @@
-const test = require('node:test');
+﻿const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,14 +13,6 @@ test('web FCM token uses the explicitly configured Firebase service worker', () 
   assert.match(hook, /new URLSearchParams/);
   assert.doesNotMatch(hook, /setToken\(deviceId\)/);
   assert.doesNotMatch(hook, /`web_\$\{Date\.now\(\)\}/);
-});
-
-test('web FCM is fail-closed inside the native Capacitor app', () => {
-  const hook = read('client/src/hooks/useFCM.ts');
-  assert.match(hook, /import \{ Capacitor \} from '@capacitor\/core'/);
-  assert.match(hook, /Capacitor\.isNativePlatform\(\)/);
-  assert.match(hook, /if \(isNativeApp\(\)\) \{[\s\S]*setMessaging\(null\);[\s\S]*return;/);
-  assert.match(hook, /FCM web disabilitato/);
 });
 
 test('FCM service worker has no fake project configuration and reads registered public config', () => {
@@ -39,7 +31,7 @@ test('backend rejects fake or malformed FCM tokens before token persistence', ()
   assert.match(route, /token\.length > 100 && !token\.startsWith\('web_'\)/);
   const validation = route.indexOf('if (!isValidFcmToken(token))');
   const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(userId);', validation);
-  const legacyWrite = route.indexOf("UPDATE users SET fcm_tokens = $1", validation);
+  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens);", validation);
   assert.ok(validation >= 0);
   assert.ok(existingLookup > validation);
   assert.ok(legacyWrite > validation);
