@@ -177,7 +177,7 @@ test('RT05 deployed harness validates target-only revocation using the real serv
   assert.equal(result.body.productionWrite, false);
 });
 
-test('RT06 deployed harness proves critical escalation stays non-executable without attempting a freeze', async t => {
+test('RT06 deployed harness performs a real freeze on isolated synthetic state, verifies it, cleans it up, and keeps the global runner non-executable', async t => {
   const server = await createServer();
   t.after(() => server.close());
   const result = await request(server, `${SECURITY_PHASE2_DEPLOYED_HARNESS_PREFIX}/rt06/guardrail`, {
@@ -188,8 +188,18 @@ test('RT06 deployed harness proves critical escalation stays non-executable with
   assert.equal(result.body.finding.ruleId, 'DET-ADMIN-FAILED-BURST');
   assert.equal(result.body.finding.severity, 'critical');
   assert.equal(result.body.policyDecision, 'escalate');
-  assert.equal(result.body.freezeAttempted, false);
+  assert.equal(result.body.freezeAttempted, true);
+  assert.equal(result.body.freezeConfirmed, true);
+  assert.equal(result.body.cleanupConfirmed, true);
+  assert.equal(result.body.syntheticStateOnly, true);
+  assert.equal(result.body.productionWrite, false);
   assert.equal(result.body.authorized, false);
   assert.equal(result.body.executable, false);
   assert.equal(result.body.actionRunnerAvailable, false);
+
+  const evidence = await request(server, `${SECURITY_PHASE2_DEPLOYED_HARNESS_PREFIX}/evidence`, { headers: authHeaders() });
+  assert.equal(evidence.body.RT06.freezeAttempted, true);
+  assert.equal(evidence.body.RT06.freezeConfirmed, true);
+  assert.equal(evidence.body.RT06.cleanupConfirmed, true);
+  assert.equal(evidence.body.RT06.syntheticStateOnly, true);
 });

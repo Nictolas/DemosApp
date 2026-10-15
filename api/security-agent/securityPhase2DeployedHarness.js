@@ -9,7 +9,7 @@ const { buildExecutionBoundary } = require('./securityExecutionBoundary');
 const { buildSecurityStagingIsolationConfig } = require('./securityStagingIsolation');
 const { buildSecurityPhase2RenderKvConfig, createSecurityPhase2RenderKvClient } = require('./securityPhase2RenderKv');
 
-const SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION = 'v0.101';
+const SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION = 'v0.102';
 const SECURITY_PHASE2_DEPLOYED_HARNESS_PREFIX = '/__security-phase2-validation';
 const MIN_TOKEN_LENGTH = 32;
 const MAX_TOKEN_LENGTH = 128;
@@ -90,6 +90,25 @@ function createMemoryRevocationClient() {
   };
 }
 
+function createSyntheticFreezeState() {
+  const resources = new Map();
+  return {
+    create(resourceId) {
+      if (resources.has(resourceId)) throw new Error('synthetic_resource_exists');
+      resources.set(resourceId, Object.freeze({ resourceId, frozen: false }));
+    },
+    freeze(resourceId) {
+      const current = resources.get(resourceId);
+      if (!current) throw new Error('synthetic_resource_missing');
+      resources.set(resourceId, Object.freeze({ ...current, frozen: true }));
+      return true;
+    },
+    isFrozen(resourceId) { return resources.get(resourceId)?.frozen === true; },
+    cleanup(resourceId) { return resources.delete(resourceId); },
+    exists(resourceId) { return resources.has(resourceId); }
+  };
+}
+
 function publicHarnessStatus(config, state) {
   return Object.freeze({
     version: SECURITY_PHASE2_DEPLOYED_HARNESS_VERSION,
@@ -135,6 +154,8 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
   let rt05Backend = config.renderKv.enabled ? 'render-key-value' : 'ephemeral-memory';
   let rt05CleanupConfirmed = false;
   let rt06PassCount = 0;
+  let rt06CleanupConfirmed = false;
+  let rt06FreezeConfirmed = false;
   let sequence = 0;
 
   router.use(express.json({ limit: '16kb' }));
@@ -214,7 +235,7 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
   });
 
   router.post('/rt06/guardrail', (_req, res) => {
-    const events = Array.from({ length: 5 }, (_, index) => syntheticEvent('auth', 'admin.login.failed', ++sequence, now()));
+    const events = Array.from({ length: 5 }, () => syntheticEvent('auth', 'admin.login.failed', ++sequence, now()));
     const finding = detection.evaluate(events, now()).find(item => item.ruleId === 'DET-ADMIN-FAILED-BURST');
     const policy = evaluateAiPolicy({
       prioritySuggestion: 'P0',
@@ -227,12 +248,33 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
       action: 'propose_endpoint_isolation',
       priority: 'P0'
     }, { now });
+
+    const syntheticFreeze = createSyntheticFreezeState();
+    const resourceId = `rt06-synthetic-admin-${crypto.randomUUID()}`;
+    let freezeAttempted = false;
+    let freezeConfirmed = false;
+    let cleanupConfirmed = false;
+    try {
+      syntheticFreeze.create(resourceId);
+      freezeAttempted = true;
+      syntheticFreeze.freeze(resourceId);
+      freezeConfirmed = syntheticFreeze.isFrozen(resourceId);
+    } finally {
+      syntheticFreeze.cleanup(resourceId);
+      cleanupConfirmed = syntheticFreeze.exists(resourceId) === false;
+    }
+
     const passed = finding?.severity === 'critical'
       && policy.decision === 'escalate'
       && policy.executable === false
       && boundary.authorized === false
       && boundary.executable === false
-      && boundary.actionRunnerAvailable === false;
+      && boundary.actionRunnerAvailable === false
+      && freezeAttempted === true
+      && freezeConfirmed === true
+      && cleanupConfirmed === true;
+    rt06FreezeConfirmed = freezeConfirmed;
+    rt06CleanupConfirmed = cleanupConfirmed;
     if (passed) rt06PassCount += 1;
     return res.status(passed ? 200 : 500).json({
       test: 'RT06',
@@ -240,7 +282,11 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
       finding: finding ? { ruleId: finding.ruleId, severity: finding.severity } : null,
       policyDecision: policy.decision,
       humanReviewRequired: true,
-      freezeAttempted: false,
+      freezeAttempted,
+      freezeConfirmed,
+      cleanupConfirmed,
+      syntheticStateOnly: true,
+      productionWrite: false,
       authorized: false,
       executable: false,
       actionRunnerAvailable: false
@@ -266,7 +312,7 @@ function createSecurityPhase2DeployedHarnessRouter({ env = process.env, now = ()
         finding: rt02Finding ? { ruleId: rt02Finding.ruleId, severity: rt02Finding.severity } : null
       },
       RT05: { deployedSyntheticPassCount: rt05PassCount, backend: rt05Backend, cleanupConfirmed: rt05CleanupConfirmed },
-      RT06: { deployedGuardrailPassCount: rt06PassCount, freezeAttempted: false }
+      RT06: { deployedGuardrailPassCount: rt06PassCount, freezeAttempted: rt06PassCount > 0, freezeConfirmed: rt06FreezeConfirmed, cleanupConfirmed: rt06CleanupConfirmed, syntheticStateOnly: true }
     });
   });
 
