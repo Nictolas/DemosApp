@@ -89,5 +89,8 @@ jobs:
       - name: Phase 5 Action Runner sandbox (RT10)
         run: node --test api/tests/securityActionRunnerSandbox.test.js
 
+      - name: Phase 5 first four reversible playbooks
+        run: node --test api/tests/securityPhase5FirstFourPlaybooks.test.js
+
       - name: Security pre-CI gate
         run: npm run test:security-preci
