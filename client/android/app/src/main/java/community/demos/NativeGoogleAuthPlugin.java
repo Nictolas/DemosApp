@@ -9,12 +9,8 @@ import androidx.credentials.CredentialManagerCallback;
 import androidx.credentials.CustomCredential;
 import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
-import androidx.credentials.exceptions.GetCredentialCancellationException;
-import androidx.credentials.exceptions.GetCredentialException;
-import androidx.credentials.exceptions.GetCredentialProviderConfigurationException;
-import androidx.credentials.exceptions.GetCredentialUnsupportedException;
-import androidx.credentials.exceptions.NoCredentialException;
 import androidx.credentials.exceptions.ClearCredentialException;
+import androidx.credentials.exceptions.GetCredentialException;
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
@@ -39,23 +35,27 @@ import java.util.concurrent.Executor;
 public class NativeGoogleAuthPlugin extends Plugin {
 
     private String publicCredentialError(GetCredentialException error) {
-        if (error instanceof GetCredentialCancellationException) {
-            return "Accesso Google annullato.";
-        }
-        if (error instanceof GetCredentialProviderConfigurationException) {
-            return "Google Sign-In non è configurato per questa build dell'app. Codice: provider_configuration.";
-        }
-        if (error instanceof NoCredentialException) {
-            return "Nessun account Google utilizzabile è stato restituito al dispositivo. Codice: no_credential.";
-        }
-        if (error instanceof GetCredentialUnsupportedException) {
-            return "Il servizio credenziali Google non è supportato o aggiornato su questo dispositivo. Codice: unsupported.";
-        }
-
         String type = error.getType();
         if (type == null || type.trim().isEmpty()) {
             type = error.getClass().getSimpleName();
         }
+
+        // Classifichiamo tramite il type pubblico di Credential Manager invece di
+        // dipendere da sottoclassi AndroidX specifiche: il messaggio resta utile
+        // anche se il provider restituisce una variante nuova o specifica OEM.
+        if (type.contains("TYPE_USER_CANCELED") || type.contains("CANCELLATION")) {
+            return "Accesso Google annullato.";
+        }
+        if (type.contains("PROVIDER_CONFIGURATION")) {
+            return "Google Sign-In non è configurato per questa build dell'app. Codice: provider_configuration.";
+        }
+        if (type.contains("TYPE_NO_CREDENTIAL") || type.contains("NO_CREDENTIAL")) {
+            return "Nessun account Google utilizzabile è stato restituito al dispositivo. Codice: no_credential.";
+        }
+        if (type.contains("UNSUPPORTED")) {
+            return "Il servizio credenziali Google non è supportato o aggiornato su questo dispositivo. Codice: unsupported.";
+        }
+
         return "Accesso Google non riuscito. Codice: " + type + ".";
     }
 
