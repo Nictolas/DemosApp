@@ -92,5 +92,8 @@ jobs:
       - name: Phase 5 first four reversible playbooks
         run: node --test api/tests/securityPhase5FirstFourPlaybooks.test.js
 
+      - name: Phase 7 L3 approval-bound control-plane pre-gate
+        run: node --test api/tests/securityPhase7L3ApprovalControlPlane.test.js
+
       - name: Security pre-CI gate
         run: npm run test:security-preci
