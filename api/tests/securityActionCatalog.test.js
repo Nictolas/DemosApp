@@ -20,13 +20,19 @@ test('catalog validates as one bounded source of truth', () => {
   const result = validateActionCatalog();
   assert.equal(result.ok, true);
   assert.deepEqual(result.issues, []);
-  assert.equal(result.actionCount, 7);
-  assert.equal(result.approvalActionCount, 6);
-  assert.equal(result.boundaryActionCount, 6);
+  assert.equal(result.actionCount, 8);
+  assert.equal(result.approvalActionCount, 7);
+  assert.equal(result.boundaryActionCount, 7);
   assert.equal(result.defaultUnknownDecision, 'deny');
   assert.equal(result.executable, false);
   assert.equal(result.actionRunnerAvailable, false);
   assert.equal(Object.isFrozen(ACTION_CATALOG), true);
+  assert.deepEqual(ACTION_CATALOG.propose_deploy_rollback, {
+    policyDecision: 'escalate',
+    approvalEligible: true,
+    boundaryEligible: true,
+    effectClass: 'proposal_only'
+  });
 });
 
 test('AI contract and policy engine derive the exact catalog action set', () => {
@@ -70,7 +76,7 @@ test('observe and unknown actions cannot enter approval or execution boundary', 
 test('catalog status exposes no execution capability', () => {
   const status = actionCatalogStatus();
   assert.equal(status.ok, true);
-  assert.equal(status.actionCount, 7);
+  assert.equal(status.actionCount, 8);
   assert.equal(status.defaultUnknownDecision, 'deny');
   assert.equal(status.executable, false);
   assert.equal(status.actionRunnerAvailable, false);
