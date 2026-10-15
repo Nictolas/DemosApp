@@ -49,7 +49,26 @@ jobs:
           java-version: '21'
 
       - name: Compile Android debug Java
+        id: compile
         working-directory: client/android
+        shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew :app:compileDebugJavaWithJavac --no-daemon --stacktrace
+          set +e
+          ./gradlew :app:compileDebugJavaWithJavac --no-daemon --stacktrace 2>&1 | tee android-native-auth-compile.log
+          status=${PIPESTATUS[0]}
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload Android compile log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-native-auth-compile-log
+          path: client/android/android-native-auth-compile.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Android compile result
+        if: steps.compile.outputs.exit_code != '0'
+        run: exit 1
