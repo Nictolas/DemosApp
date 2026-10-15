@@ -1,73 +1,57 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useFCM } from "@/hooks/useFCM";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { apiRequest } from "@/lib/queryClient";
 
 /**
- * Hook per sincronizzare automaticamente il token FCM con il server
- * quando l'utente è loggato e ha concesso i permessi per le notifiche
+ * Sincronizza il token push con il server quando l'utente è autenticato.
+ * Web/PWA usa FCM web; Capacitor usa il token FCM nativo Android.
  */
 export function useSyncFcmToken() {
   const { user } = useAuth();
-  const { token: fcmToken, permission, requestPermission, getToken } = useFCM();
+  const { enabled, token: fcmToken, permission, requestPermission, getToken, transport } = usePushNotifications();
 
   useEffect(() => {
-    // Se l'utente non è loggato, non fare nulla
-    if (!user?.id) {
-      return;
-    }
+    if (!user?.id || !enabled) return;
 
-    // Se il permesso non è ancora stato richiesto, richiedilo
     if (permission === null || permission === 'default') {
-      // Richiedi permesso solo una volta
-      const hasRequested = localStorage.getItem('fcm_permission_requested');
+      const permissionStorageKey = `push_permission_requested_${transport}`;
+      const hasRequested = localStorage.getItem(permissionStorageKey);
       if (!hasRequested) {
-        requestPermission();
-        localStorage.setItem('fcm_permission_requested', 'true');
+        void requestPermission();
+        localStorage.setItem(permissionStorageKey, 'true');
       }
       return;
     }
 
-    // Se il permesso è negato, non fare nulla
-    if (permission === 'denied') {
-      return;
-    }
+    if (permission === 'denied') return;
 
-    // Se abbiamo il permesso ma non abbiamo ancora il token, ottienilo
     if (permission === 'granted' && !fcmToken) {
-      getToken();
+      void getToken();
       return;
     }
 
-    // Se abbiamo un token FCM e l'utente è loggato, salvalo sul server
-    // IMPORTANTE: Sincronizza SOLO se il dispositivo è mobile (non desktop)
-    if (fcmToken && user.id) {
-      // Verifica se il dispositivo è mobile
-      const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      if (!isMobile) {
-        console.log('⚠️ Token FCM da desktop ignorato (solo token mobile vengono salvati)');
-        return;
-      }
-      
-      const saveToken = async () => {
-        try {
-          const response = await apiRequest('POST', '/api/fcm-tokens', {
-            token: fcmToken
-          });
+    if (!fcmToken) return;
 
-          if (response?.ok || response?.status === 200) {
-            console.log('✅ Token FCM sincronizzato con successo');
-          } else {
-            const data = await response?.json?.() || {};
-            console.warn('⚠️ Errore nella sincronizzazione token FCM:', data?.error || 'Errore sconosciuto');
-          }
-        } catch (error: any) {
-          console.warn('⚠️ Errore nella sincronizzazione token FCM:', error?.message || error);
-        }
-      };
-
-      saveToken();
+    // Il trasporto nativo è sempre mobile. Per il web manteniamo la policy mobile-only.
+    const isMobileWeb = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (transport === 'web' && !isMobileWeb) {
+      console.log('Token FCM web da desktop ignorato (solo token mobile vengono salvati)');
+      return;
     }
-  }, [user?.id, fcmToken, permission, requestPermission, getToken]);
+
+    const saveToken = async () => {
+      try {
+        await apiRequest('POST', '/api/fcm-tokens', {
+          token: fcmToken,
+          source: transport === 'native' ? 'android-native' : 'web-mobile',
+        });
+        console.log(`Token push ${transport} sincronizzato con successo`);
+      } catch (error: any) {
+        console.warn('Errore nella sincronizzazione token push:', error?.message || error);
+      }
+    };
+
+    void saveToken();
+  }, [user?.id, enabled, fcmToken, permission, requestPermission, getToken, transport]);
 }
