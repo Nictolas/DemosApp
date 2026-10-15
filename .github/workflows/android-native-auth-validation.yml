@@ -42,6 +42,10 @@ jobs:
         working-directory: client
         run: npm ci --ignore-scripts
 
+      - name: Generate Capacitor Android project files
+        working-directory: client
+        run: npm run android:sync
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
