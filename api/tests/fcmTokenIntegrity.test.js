@@ -73,7 +73,7 @@ test('native Android channels and legacy tap fallbacks cover current backend pay
   assert.match(nativeHook, /id:\s*'avvistamenti_notifications'/);
   assert.match(nativeHook, /PushNotifications\.createChannel\(channel\)/);
   assert.match(nativeHook, /case 'demos_notification':[\s\S]*return '\/comunica'/);
-  assert.match(nativeHook, /case 'avvistamento':[\s\S]*return '\/notifiche'/);
+  assert.match(nativeHook, /case 'avvistamento':[\s\S]*return '\/avvistamenti'/);
   assert.match(nativeHook, /case 'operational_alert':[\s\S]*return '\/notifiche'/);
   assert.match(nativeHook, /getFallbackNotificationTarget\(data\.type\)/);
 });
