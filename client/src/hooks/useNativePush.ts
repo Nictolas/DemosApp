@@ -166,7 +166,9 @@ export function useNativePush() {
     setIsLoading(true);
     setError(null);
     try {
-      await ensureAndroidNotificationChannels();
+      await ensureAndroidNotificationChannels().catch((channelError) => {
+        console.warn('Impossibile preparare i canali push Android prima della registrazione:', channelError);
+      });
       await PushNotifications.register();
     } catch (registrationError) {
       setIsLoading(false);
