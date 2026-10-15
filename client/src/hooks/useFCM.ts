@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { getMessaging, getToken as getFCMToken, onMessage, Messaging } from 'firebase/messaging';
 import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
+
+function isNativeApp(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Hook per ottenere e gestire il token FCM per notifiche push web
@@ -27,6 +36,13 @@ export function useFCM() {
   // Inizializza Firebase se non già fatto
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Firebase Web Messaging non deve partire dentro la WebView Capacitor.
+    if (isNativeApp()) {
+      setMessaging(null);
+      setPermission(null);
+      return;
+    }
 
     // Verifica permesso notifiche
     if ('Notification' in window) {
@@ -73,6 +89,11 @@ export function useFCM() {
 
   // Richiedi permesso notifiche
   const requestPermission = async () => {
+    if (isNativeApp()) {
+      setError(new Error('Le notifiche push native non sono ancora configurate.'));
+      return;
+    }
+
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setError(new Error('Notifiche non supportate dal browser'));
       return;
@@ -111,6 +132,12 @@ export function useFCM() {
     setError(null);
 
     try {
+      if (isNativeApp()) {
+        setToken(null);
+        setError(new Error("FCM web disabilitato nell'app nativa."));
+        return;
+      }
+
       // Se Firebase Messaging è disponibile, usa quello
       if (messaging) {
         try {
