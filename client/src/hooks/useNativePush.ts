@@ -40,9 +40,10 @@ function getFallbackNotificationTarget(type: unknown): string | null {
   switch (String(type || '')) {
     case 'demos_notification':
       return '/comunica';
+    case 'avvistamento':
+      return '/avvistamenti';
     case 'user_notification':
     case 'political_opinion_change':
-    case 'avvistamento':
     case 'operational_alert':
       return '/notifiche';
     default:
