@@ -43,14 +43,7 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.substring(7);
 
     try {
-      const qaAuthUiEnabled =
-        process.env.NODE_ENV === 'staging' &&
-        process.env.DEMOS_STAGING_AUTH_UI_E2E === 'true' &&
-        process.env.DEMOS_STAGING_AUTH_UI_E2E_TOKEN &&
-        token === process.env.DEMOS_STAGING_AUTH_UI_E2E_TOKEN;
-      const decoded = qaAuthUiEnabled
-        ? { userId: require('../scripts/stagingMigrate').E2E_USER_ID, jti: 'qa-auth-ui-e2e' }
-        : verifyAccessToken(token);
+      const decoded = verifyAccessToken(token);
       log('🔐 DEBUG verifyToken - Token decodificato:', decoded);
       log('🔐 DEBUG verifyToken - Verifica utente nel database...');
 
