@@ -1,0 +1,30 @@
+{
+  "version": "0.115",
+  "scope": "policy-action-catalog-completeness-and-p07-proposal-gate",
+  "status": "code-ready",
+  "singleSourceOfTruth": "api/security-agent/securityActionCatalog.js",
+  "consumers": [
+    "AI analyst recommendedActions allowlist",
+    "Policy Engine deterministic decisions",
+    "Approval Gate eligible actions",
+    "Execution Boundary eligible actions",
+    "Execution Boundary Validator action allowlist",
+    "Phase 7 L3 approval-bound control plane",
+    "P07 deploy rollback dry-run planner"
+  ],
+  "invariants": {
+    "actionCount": 8,
+    "approvalActionCount": 7,
+    "boundaryActionCount": 7,
+    "observe": "allow-read-only-no-approval-no-boundary",
+    "propose_deploy_rollback": "escalate-human-approval-boundary-proposal-only",
+    "otherActions": "escalate-human-approval-boundary-non-executable",
+    "unknownAction": "deny",
+    "authorized": false,
+    "executable": false,
+    "actionRunnerAvailable": false
+  },
+  "productionTouched": false,
+  "networkUsed": false,
+  "providerAdaptersAvailable": false
+}

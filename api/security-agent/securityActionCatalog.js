@@ -1,4 +1,4 @@
-const ACTION_CATALOG_VERSION = 'v0.83';
+const ACTION_CATALOG_VERSION = 'v0.115';
 const POLICY_DECISIONS = Object.freeze(['allow', 'deny', 'escalate']);
 
 const ACTION_CATALOG = Object.freeze({
@@ -8,7 +8,8 @@ const ACTION_CATALOG = Object.freeze({
   propose_rate_limit: Object.freeze({ policyDecision: 'escalate', approvalEligible: true, boundaryEligible: true, effectClass: 'proposal_only' }),
   propose_session_revocation: Object.freeze({ policyDecision: 'escalate', approvalEligible: true, boundaryEligible: true, effectClass: 'proposal_only' }),
   propose_endpoint_isolation: Object.freeze({ policyDecision: 'escalate', approvalEligible: true, boundaryEligible: true, effectClass: 'proposal_only' }),
-  propose_secret_rotation: Object.freeze({ policyDecision: 'escalate', approvalEligible: true, boundaryEligible: true, effectClass: 'proposal_only' })
+  propose_secret_rotation: Object.freeze({ policyDecision: 'escalate', approvalEligible: true, boundaryEligible: true, effectClass: 'proposal_only' }),
+  propose_deploy_rollback: Object.freeze({ policyDecision: 'escalate', approvalEligible: true, boundaryEligible: true, effectClass: 'proposal_only' })
 });
 
 const RECOMMENDED_ACTIONS = Object.freeze(Object.keys(ACTION_CATALOG));
