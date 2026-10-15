@@ -11,17 +11,60 @@ import {
   storeNativePushToken,
 } from '@/lib/native-push';
 
+const NATIVE_NOTIFICATION_CHANNELS = [
+  {
+    id: 'demos_notifications',
+    name: 'Notifiche DEMOS',
+    description: 'Comunicazioni e aggiornamenti DEMOS',
+    importance: 4 as const,
+    visibility: 1 as const,
+    vibration: true,
+  },
+  {
+    id: 'avvistamenti_notifications',
+    name: 'Avvistamenti',
+    description: 'Avvisi relativi agli avvistamenti nella tua zona',
+    importance: 4 as const,
+    visibility: 1 as const,
+    vibration: true,
+  },
+];
+
 function normalizePermission(receive: string): NotificationPermission {
   if (receive === 'granted') return 'granted';
   if (receive === 'denied') return 'denied';
   return 'default';
 }
 
+function getFallbackNotificationTarget(type: unknown): string | null {
+  switch (String(type || '')) {
+    case 'demos_notification':
+      return '/comunica';
+    case 'user_notification':
+    case 'political_opinion_change':
+    case 'avvistamento':
+    case 'operational_alert':
+      return '/notifiche';
+    default:
+      return null;
+  }
+}
+
+async function ensureAndroidNotificationChannels() {
+  for (const channel of NATIVE_NOTIFICATION_CHANNELS) {
+    await PushNotifications.createChannel(channel);
+  }
+}
+
 function openNotificationTarget(action: ActionPerformed) {
   if (typeof window === 'undefined') return;
 
   const data = action.notification?.data || {};
-  const rawTarget = data.link || data.url || action.notification?.link;
+  const rawTarget =
+    data.link ||
+    data.url ||
+    action.notification?.link ||
+    getFallbackNotificationTarget(data.type);
   if (!rawTarget || typeof rawTarget !== 'string') return;
 
   try {
@@ -64,6 +107,12 @@ export function useNativePush() {
         handles.push(handle);
       }
     };
+
+    void ensureAndroidNotificationChannels().catch((channelError) => {
+      if (!cancelled) {
+        console.warn('Impossibile preparare i canali push Android:', channelError);
+      }
+    });
 
     void trackHandle(
       PushNotifications.addListener('registration', ({ value }) => {
@@ -117,6 +166,7 @@ export function useNativePush() {
     setIsLoading(true);
     setError(null);
     try {
+      await ensureAndroidNotificationChannels();
       await PushNotifications.register();
     } catch (registrationError) {
       setIsLoading(false);
