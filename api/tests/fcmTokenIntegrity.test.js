@@ -67,6 +67,17 @@ test('native Capacitor push path is wired separately from web FCM', () => {
   assert.match(syncHook, /source:\s*transport === 'native' \? 'android-native' : 'web-mobile'/);
 });
 
+test('native Android channels and legacy tap fallbacks cover current backend payloads', () => {
+  const nativeHook = read('client/src/hooks/useNativePush.ts');
+  assert.match(nativeHook, /id:\s*'demos_notifications'/);
+  assert.match(nativeHook, /id:\s*'avvistamenti_notifications'/);
+  assert.match(nativeHook, /PushNotifications\.createChannel\(channel\)/);
+  assert.match(nativeHook, /case 'demos_notification':[\s\S]*return '\/comunica'/);
+  assert.match(nativeHook, /case 'avvistamento':[\s\S]*return '\/notifiche'/);
+  assert.match(nativeHook, /case 'operational_alert':[\s\S]*return '\/notifiche'/);
+  assert.match(nativeHook, /getFallbackNotificationTarget\(data\.type\)/);
+});
+
 test('logout invalidates stored native push token before clearing the session', () => {
   const auth = read('client/src/hooks/use-auth.tsx');
   const tokenRead = auth.indexOf('getStoredNativePushToken()');
@@ -90,6 +101,7 @@ test('native push registration is gated until Firebase Android config is explici
   assert.match(nativeHook, /if \(!enabled\) return;/);
   assert.match(syncHook, /if \(!user\?\.id \|\| !enabled\) return;/);
 });
+
 test('native push build helper validates the canonical Firebase Android config', () => {
   const helper = read('client/scripts/build-android-native-push.mjs');
   const packageJson = read('client/package.json');
