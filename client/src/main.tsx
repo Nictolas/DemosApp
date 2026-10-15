@@ -1,16 +1,19 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { Capacitor } from "@capacitor/core";
 import App from "./App";
 import "./index.css";
+import { installNativeApiFetchBridge } from "./lib/native-api-fetch-bridge";
 import GestisciGrazia from "./pages/GestisciGrazia";
 import Limiti from "./pages/Limiti";
 import GestisciGoverno from "./pages/GestisciGoverno";
 
+// Prima di montare React, normalizza le vecchie fetch relative /api nella build
+// Capacitor. Sul web il bridge è un no-op.
+installNativeApiFetchBridge();
+
 // Inizializza Capacitor se disponibile (app native)
 if (typeof window !== 'undefined') {
   try {
-    // Capacitor si auto-inizializza, ma possiamo verificare che sia disponibile
     if ((window as any).Capacitor) {
       console.log('✅ Capacitor inizializzato');
     }
