@@ -30,6 +30,20 @@ test('combined Android build preserves auth stack, minSdk 24 and push plugin wir
   assert.match(settings, /capacitor-push-notifications/);
 });
 
+test('Google auth diagnostics expose safe Credential Manager classes without weakening backend audience verification', () => {
+  const nativeGoogle = read('client/android/app/src/main/java/community/demos/NativeGoogleAuthPlugin.java');
+  const oauth = read('api/routes/auth/oauth.js');
+
+  assert.match(nativeGoogle, /error\.getType\(\)/);
+  assert.match(nativeGoogle, /provider_configuration/);
+  assert.match(nativeGoogle, /no_credential/);
+  assert.match(nativeGoogle, /unsupported/);
+  assert.doesNotMatch(nativeGoogle, /getMessage\(\)/);
+
+  assert.match(oauth, /new OAuth2Client\(GOOGLE_CLIENT_ID\)/);
+  assert.match(oauth, /audience:\s*GOOGLE_CLIENT_ID/);
+});
+
 test('combined logout preserves push invalidation and Google Credential Manager cleanup', () => {
   const auth = read('client/src/hooks/use-auth.tsx');
   const tokenRead = auth.indexOf('getStoredNativePushToken()');
