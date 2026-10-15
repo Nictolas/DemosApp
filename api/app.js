@@ -351,6 +351,9 @@ app.use('/api/rappresentanti', publicLimiter, userLimiter, rappresentantiRoutes)
 app.use('/api/notifiche', publicLimiter, userLimiter, notificheRoutes);
 app.use('/api/notifiche-totali', userLimiter, notificheTotaliRoutes);
 app.use('/api/fcm-tokens', userLimiter, fcmTokensRoutes);
+if (process.env.NODE_ENV === 'staging' && process.env.DEMOS_STAGING_AUTH_UI_E2E === 'true') {
+  app.use('/api/staging-auth-ui', require('./routes/staging-auth-ui-e2e'));
+}
 if (mountDevApiSurface) {
   app.use('/api/test-db', publicLimiter, testDbRoutes);
 }
