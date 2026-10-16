@@ -88,12 +88,18 @@ function requestPath(req) {
   return String(req?.originalUrl || req?.url || '');
 }
 
+function isAppApiPath(req) {
+  return /^\/api(?:\/|\?|$)/.test(requestPath(req));
+}
+
 function isAuthApiPath(req) {
   return /^\/api\/auth(?:\/|\?|$)/.test(requestPath(req));
 }
 
 function enforceCanonicalBearerToken(req, res) {
-  if (isAuthApiPath(req)) return null;
+  // Internal validation surfaces can have their own isolated Bearer contracts.
+  // The DEMOS access-token contract applies only to the public application API.
+  if (!isAppApiPath(req) || isAuthApiPath(req)) return null;
 
   const header = String(req?.headers?.authorization || '');
   if (!header.startsWith('Bearer ')) return null;
@@ -348,7 +354,7 @@ const securityMiddleware = (req, res, next) => {
   }
 
   // Preserve deterministic attack-filter precedence, then enforce the canonical
-  // access-token contract before any downstream route can execute.
+  // access-token contract before any downstream application route can execute.
   const bearerRejection = enforceCanonicalBearerToken(req, res);
   if (bearerRejection) return bearerRejection;
 
