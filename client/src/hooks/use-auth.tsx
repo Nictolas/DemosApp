@@ -21,6 +21,7 @@ interface User {
   role?: string;
   ruolo?: string;
   status?: string;
+  is_admin?: boolean;
 }
 
 type AuthContextType = {
