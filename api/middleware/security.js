@@ -1,40 +1,145 @@
 // File: api/middleware/security.js
 const rateLimit = require('express-rate-limit');
 
+const isProduction = process.env.NODE_ENV === 'production';
+const REDACTED = '[REDACTED]';
+const CONSOLE_REDACTION_FLAG = Symbol.for('demos.productionConsoleRedactionInstalled');
+const SENSITIVE_LOG_KEY = /(?:authorization|cookie|token|secret|password|credential|api[_-]?key|session|jti|sid|email|given_name|family_name|provider_sub|\bsub\b|user[_-]?id)/i;
+
+const debugLog = (...args) => {
+  if (!isProduction) console.log(...args);
+};
+
+function redactStringForLogs(value) {
+  return String(value)
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/=:-]+/gi, `Bearer ${REDACTED}`)
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, REDACTED);
+}
+
+function redactForLogs(value, depth = 0, seen = new WeakSet()) {
+  if (typeof value === 'string') return redactStringForLogs(value);
+  if (value == null || typeof value !== 'object') return value;
+  if (depth > 6) return '[REDACTED:MAX_DEPTH]';
+  if (seen.has(value)) return '[REDACTED:CIRCULAR]';
+  seen.add(value);
+
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: redactStringForLogs(value.message || ''),
+      ...(isProduction ? {} : { stack: value.stack })
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactForLogs(item, depth + 1, seen));
+  }
+
+  const clean = {};
+  for (const [key, item] of Object.entries(value)) {
+    clean[key] = SENSITIVE_LOG_KEY.test(key)
+      ? REDACTED
+      : redactForLogs(item, depth + 1, seen);
+  }
+  return clean;
+}
+
+function installProductionConsoleRedaction() {
+  if (!isProduction || globalThis[CONSOLE_REDACTION_FLAG]) return;
+  globalThis[CONSOLE_REDACTION_FLAG] = true;
+
+  for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
+    if (typeof console[method] !== 'function') continue;
+    const original = console[method].bind(console);
+    console[method] = (...args) => original(...args.map((arg) => redactForLogs(arg)));
+  }
+}
+
+installProductionConsoleRedaction();
+
+function sanitizeProduction5xxBody(body) {
+  if (!isProduction) return body;
+
+  const requestId = body && typeof body === 'object' && !Array.isArray(body)
+    ? body.requestId
+    : undefined;
+
+  return {
+    success: false,
+    error: 'Errore interno del server',
+    ...(requestId ? { requestId } : {})
+  };
+}
+
+function installProductionResponseSanitizer(res) {
+  if (!isProduction || !res || typeof res.json !== 'function' || res.__demos5xxSanitizerInstalled) return;
+
+  const originalJson = res.json.bind(res);
+  res.__demos5xxSanitizerInstalled = true;
+  res.json = function jsonWithProductionErrorSanitization(body) {
+    if (Number(this.statusCode) >= 500) {
+      return originalJson(sanitizeProduction5xxBody(body));
+    }
+    return originalJson(body);
+  };
+}
+
+function requestPath(req) {
+  return String(req?.originalUrl || req?.url || '');
+}
+
+function isAppApiPath(req) {
+  return /^\/api(?:\/|\?|$)/.test(requestPath(req));
+}
+
+function isAuthApiPath(req) {
+  return /^\/api\/auth(?:\/|\?|$)/.test(requestPath(req));
+}
+
+function enforceCanonicalBearerToken(req, res) {
+  // Internal validation surfaces can have their own isolated Bearer contracts.
+  // The DEMOS access-token contract applies only to the public application API.
+  if (!isAppApiPath(req) || isAuthApiPath(req)) return null;
+
+  const header = String(req?.headers?.authorization || '');
+  if (!header.startsWith('Bearer ')) return null;
+
+  const token = header.slice(7).trim();
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Token non valido' });
+  }
+
+  try {
+    // Lazy import: auth routes use special short-lived tokens during registration and are exempt above.
+    const { verifyAccessToken } = require('../utils/jwt');
+    verifyAccessToken(token);
+    return null;
+  } catch (_error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Token non valido',
+      message: 'Effettua nuovamente il login'
+    });
+  }
+}
+
 // Middleware per headers di sicurezza (sostituisce Helmet)
 const securityHeaders = (req, res, next) => {
-  // Non applicare CSP alle richieste API
-  // Il CSP per il frontend è gestito da render.yaml
-  // Non impostiamo CSP qui per evitare conflitti con il frontend statico
-  
-  // X-Frame-Options
+  // Non applicare CSP alle richieste API. Il CSP del frontend è gestito dal deploy.
   res.setHeader('X-Frame-Options', 'DENY');
-  
-  // X-Content-Type-Options
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  
-  // X-XSS-Protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  
-  // Referrer-Policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
-  // Strict-Transport-Security
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-  
-  // X-Permitted-Cross-Domain-Policies
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
-  
-  // Permissions-Policy
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
   next();
 };
 
 // Rate limiting per sicurezza
 const securityLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 50, // Limite più basso per sicurezza
+  windowMs: 15 * 60 * 1000,
+  max: 50,
   message: {
     success: false,
     error: 'Troppe richieste di sicurezza',
@@ -54,9 +159,10 @@ const securityLimiter = rateLimit({
   }
 });
 
-// Middleware per prevenire attacchi comuni
+// Middleware per prevenire attacchi comuni e applicare guardrail di produzione.
 const securityMiddleware = (req, res, next) => {
-  // Prevenire SQL Injection nei parametri
+  installProductionResponseSanitizer(res);
+
   const sqlInjectionPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/i,
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
@@ -72,13 +178,12 @@ const securityMiddleware = (req, res, next) => {
     /(UPDATE\s+SET)/i
   ];
 
-  // Controlla body, query e params
   const checkForSQLInjection = (obj, path = '') => {
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'string') {
         for (const pattern of sqlInjectionPatterns) {
           if (pattern.test(value)) {
-            console.log(`🚨 SQL INJECTION ATTEMPT: ${path}${key} = ${value}`);
+            console.log(`🚨 SQL INJECTION ATTEMPT: ${path}${key}`);
             return res.status(400).json({
               success: false,
               error: 'Input non valido',
@@ -94,39 +199,35 @@ const securityMiddleware = (req, res, next) => {
     return null;
   };
 
-  // Controlla body
   if (req.body && typeof req.body === 'object') {
     const bodyCheck = checkForSQLInjection(req.body, 'body.');
     if (bodyCheck) return bodyCheck;
   }
 
-  // Controlla query
   if (req.query && typeof req.query === 'object') {
     const queryCheck = checkForSQLInjection(req.query, 'query.');
     if (queryCheck) return queryCheck;
   }
 
-  // Controlla params
   if (req.params && typeof req.params === 'object') {
     const paramsCheck = checkForSQLInjection(req.params, 'params.');
     if (paramsCheck) return paramsCheck;
   }
 
-  // Prevenire XSS nei parametri
   const xssPatterns = [
-    /<script[^>]*>.*?<\/script>/gi,
-    /<iframe[^>]*>.*?<\/iframe>/gi,
-    /<object[^>]*>.*?<\/object>/gi,
-    /<embed[^>]*>.*?<\/embed>/gi,
-    /<link[^>]*>.*?<\/link>/gi,
-    /<meta[^>]*>.*?<\/meta>/gi,
-    /<style[^>]*>.*?<\/style>/gi,
-    /javascript:/gi,
-    /vbscript:/gi,
-    /onload\s*=/gi,
-    /onerror\s*=/gi,
-    /onclick\s*=/gi,
-    /onmouseover\s*=/gi
+    /<script[^>]*>.*?<\/script>/i,
+    /<iframe[^>]*>.*?<\/iframe>/i,
+    /<object[^>]*>.*?<\/object>/i,
+    /<embed[^>]*>.*?<\/embed>/i,
+    /<link[^>]*>.*?<\/link>/i,
+    /<meta[^>]*>.*?<\/meta>/i,
+    /<style[^>]*>.*?<\/style>/i,
+    /javascript:/i,
+    /vbscript:/i,
+    /onload\s*=/i,
+    /onerror\s*=/i,
+    /onclick\s*=/i,
+    /onmouseover\s*=/i
   ];
 
   const checkForXSS = (obj, path = '') => {
@@ -134,7 +235,7 @@ const securityMiddleware = (req, res, next) => {
       if (typeof value === 'string') {
         for (const pattern of xssPatterns) {
           if (pattern.test(value)) {
-            console.log(`🚨 XSS ATTEMPT: ${path}${key} = ${value}`);
+            console.log(`🚨 XSS ATTEMPT: ${path}${key}`);
             return res.status(400).json({
               success: false,
               error: 'Input non valido',
@@ -150,32 +251,28 @@ const securityMiddleware = (req, res, next) => {
     return null;
   };
 
-  // Controlla body per XSS
   if (req.body && typeof req.body === 'object') {
     const bodyCheck = checkForXSS(req.body, 'body.');
     if (bodyCheck) return bodyCheck;
   }
 
-  // Controlla query per XSS
   if (req.query && typeof req.query === 'object') {
     const queryCheck = checkForXSS(req.query, 'query.');
     if (queryCheck) return queryCheck;
   }
 
-  // Controlla params per XSS
   if (req.params && typeof req.params === 'object') {
     const paramsCheck = checkForXSS(req.params, 'params.');
     if (paramsCheck) return paramsCheck;
   }
 
-  // Prevenire attacchi di path traversal
   const pathTraversalPatterns = [
-    /\.\.\//g,
-    /\.\.\\/g,
-    /\.\.%2f/gi,
-    /\.\.%5c/gi,
-    /\.\.%252f/gi,
-    /\.\.%255c/gi
+    /\.\.\//,
+    /\.\.\\/,
+    /\.\.%2f/i,
+    /\.\.%5c/i,
+    /\.\.%252f/i,
+    /\.\.%255c/i
   ];
 
   const checkForPathTraversal = (obj, path = '') => {
@@ -183,7 +280,7 @@ const securityMiddleware = (req, res, next) => {
       if (typeof value === 'string') {
         for (const pattern of pathTraversalPatterns) {
           if (pattern.test(value)) {
-            console.log(`🚨 PATH TRAVERSAL ATTEMPT: ${path}${key} = ${value}`);
+            console.log(`🚨 PATH TRAVERSAL ATTEMPT: ${path}${key}`);
             return res.status(400).json({
               success: false,
               error: 'Input non valido',
@@ -199,27 +296,23 @@ const securityMiddleware = (req, res, next) => {
     return null;
   };
 
-  // Controlla body per path traversal
   if (req.body && typeof req.body === 'object') {
     const bodyCheck = checkForPathTraversal(req.body, 'body.');
     if (bodyCheck) return bodyCheck;
   }
 
-  // Controlla query per path traversal
   if (req.query && typeof req.query === 'object') {
     const queryCheck = checkForPathTraversal(req.query, 'query.');
     if (queryCheck) return queryCheck;
   }
 
-  // Controlla params per path traversal
   if (req.params && typeof req.params === 'object') {
     const paramsCheck = checkForPathTraversal(req.params, 'params.');
     if (paramsCheck) return paramsCheck;
   }
 
-  // Limita dimensione richiesta
-  const contentLength = parseInt(req.get('content-length') || '0');
-  const maxSize = 10 * 1024 * 1024; // 10MB
+  const contentLength = parseInt(req.get('content-length') || '0', 10);
+  const maxSize = 10 * 1024 * 1024;
 
   if (contentLength > maxSize) {
     console.log(`🚨 REQUEST TOO LARGE: ${contentLength} bytes from ${req.ip}`);
@@ -230,7 +323,6 @@ const securityMiddleware = (req, res, next) => {
     });
   }
 
-  // Controlla User-Agent sospetti
   const userAgent = req.get('User-Agent') || '';
   const suspiciousUserAgents = [
     /sqlmap/i,
@@ -261,25 +353,27 @@ const securityMiddleware = (req, res, next) => {
     }
   }
 
-  // Aggiungi timestamp per tracking
+  // Preserve deterministic attack-filter precedence, then enforce the canonical
+  // access-token contract before any downstream application route can execute.
+  const bearerRejection = enforceCanonicalBearerToken(req, res);
+  if (bearerRejection) return bearerRejection;
+
   req.securityTimestamp = new Date().toISOString();
-  
   next();
 };
 
 // Middleware per logging sicurezza
 const securityLogger = (req, res, next) => {
   const originalSend = res.send;
-  
+
   res.send = function(data) {
-    // Log richieste sospette
     if (res.statusCode >= 400) {
       console.log(`🚨 SECURITY ALERT: ${req.method} ${req.originalUrl} - ${res.statusCode} - IP: ${req.ip} - UA: ${req.get('User-Agent')}`);
     }
-    
+
     return originalSend.call(this, data);
   };
-  
+
   next();
 };
 
@@ -287,28 +381,27 @@ const securityLogger = (req, res, next) => {
 const validateInput = (requiredFields) => {
   return (req, res, next) => {
     try {
-      console.log(`🔍 VALIDATE INPUT: Controllo campi ${requiredFields.join(', ')}`);
-      console.log(`📦 REQ BODY:`, req.body);
-      
-      // Se non ci sono campi richiesti, passa direttamente
+      debugLog(`🔍 VALIDATE INPUT: Controllo campi ${requiredFields.join(', ')}`);
+      debugLog('📦 REQ BODY:', req.body);
+
       if (!requiredFields || requiredFields.length === 0) {
-        console.log(`✅ VALIDATION SKIPPED: Nessun campo richiesto`);
+        debugLog('✅ VALIDATION SKIPPED: Nessun campo richiesto');
         return next();
       }
-      
+
       const missingFields = [];
-      
+
       for (const field of requiredFields) {
         if (!req.body[field] || req.body[field].toString().trim() === '') {
           missingFields.push(field);
-          console.log(`❌ Campo mancante: ${field}`);
+          debugLog(`❌ Campo mancante: ${field}`);
         } else {
-          console.log(`✅ Campo presente: ${field}`);
+          debugLog(`✅ Campo presente: ${field}`);
         }
       }
-      
+
       if (missingFields.length > 0) {
-        console.log(`🚫 VALIDATION FAILED: Campi mancanti: ${missingFields.join(', ')}`);
+        debugLog(`🚫 VALIDATION FAILED: Campi mancanti: ${missingFields.join(', ')}`);
         return res.status(400).json({
           success: false,
           error: 'Campi richiesti mancanti',
@@ -316,8 +409,8 @@ const validateInput = (requiredFields) => {
           missingFields
         });
       }
-      
-      console.log(`✅ VALIDATION PASSED: Tutti i campi presenti`);
+
+      debugLog('✅ VALIDATION PASSED: Tutti i campi presenti');
       next();
     } catch (error) {
       console.error('❌ Errore nel middleware validateInput:', error);
@@ -330,35 +423,33 @@ const validateInput = (requiredFields) => {
 const sanitizeInput = (fieldsToSanitize = []) => {
   return (req, res, next) => {
     try {
-      console.log(`🧹 SANITIZE INPUT: Campi da sanitizzare ${fieldsToSanitize.join(', ')}`);
-      console.log(`📦 REQ BODY PRIMA:`, req.body);
-      
-      // Se non ci sono campi da sanitizzare, passa direttamente
+      debugLog(`🧹 SANITIZE INPUT: Campi da sanitizzare ${fieldsToSanitize.join(', ')}`);
+      debugLog('📦 REQ BODY PRIMA:', req.body);
+
       if (!fieldsToSanitize || fieldsToSanitize.length === 0) {
-        console.log(`✅ SANITIZE SKIPPED: Nessun campo da sanitizzare`);
+        debugLog('✅ SANITIZE SKIPPED: Nessun campo da sanitizzare');
         return next();
       }
-      
+
       if (req.body && typeof req.body === 'object') {
         for (const field of fieldsToSanitize) {
           if (req.body[field] && typeof req.body[field] === 'string') {
             const originalValue = req.body[field];
-            // Rimuovi caratteri pericolosi
             req.body[field] = req.body[field]
-              .replace(/[<>]/g, '') // Rimuovi < e >
-              .replace(/javascript:/gi, '') // Rimuovi javascript:
-              .replace(/on\w+\s*=/gi, '') // Rimuovi event handlers
-              .trim(); // Rimuovi spazi iniziali/finali
-            
+              .replace(/[<>]/g, '')
+              .replace(/javascript:/gi, '')
+              .replace(/on\w+\s*=/gi, '')
+              .trim();
+
             if (originalValue !== req.body[field]) {
-              console.log(`🧹 Campo ${field} sanitizzato: "${originalValue}" -> "${req.body[field]}"`);
+              debugLog(`🧹 Campo ${field} sanitizzato`);
             }
           }
         }
       }
-      
-      console.log(`📦 REQ BODY DOPO:`, req.body);
-      console.log(`✅ SANITIZE COMPLETED`);
+
+      debugLog('📦 REQ BODY DOPO:', req.body);
+      debugLog('✅ SANITIZE COMPLETED');
       next();
     } catch (error) {
       console.error('❌ Errore nel middleware sanitizeInput:', error);
@@ -373,5 +464,11 @@ module.exports = {
   securityMiddleware,
   securityLogger,
   validateInput,
-  sanitizeInput
+  sanitizeInput,
+  // Exported for deterministic regression tests only.
+  _test: {
+    redactForLogs,
+    sanitizeProduction5xxBody,
+    enforceCanonicalBearerToken
+  }
 };
