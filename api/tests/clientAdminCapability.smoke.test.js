@@ -107,3 +107,16 @@ test('Ops Center identifies Neon and reads the existing Security Center health e
   assert.match(src, /AI Cybersecurity Agent/);
   assert.match(src, /Non disponibile/);
 });
+
+test('Data Export uses real API data, authenticated downloads and no web Render fallback', () => {
+  const src = read('client/src/pages/DataExport.tsx');
+  assert.match(src, /getApiUrl/);
+  assert.match(src, /getAuthToken/);
+  assert.match(src, /Authorization:\s*`Bearer \$\{token\}`/);
+  assert.match(src, /Neon Database/);
+  assert.match(src, /Neon → Axiom/);
+  assert.doesNotMatch(src, /mockTables/);
+  assert.doesNotMatch(src, /usa dati mock/i);
+  assert.doesNotMatch(src, /demos-c7k0\.onrender\.com/);
+  assert.doesNotMatch(src, /Supabase/);
+});
