@@ -1,37 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'wouter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import apiRequest from '@/lib/api-request';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Download, 
-  HardDrive, 
-  Database, 
-  FileText, 
-  Trash2, 
-  Play, 
-  Pause, 
-  CheckCircle, 
+import apiRequest from '@/lib/api-request';
+import { getApiUrl } from '@/lib/api-config';
+import { getAuthToken } from '@/lib/auth-token';
+import {
+  Activity,
   AlertCircle,
+  CheckCircle,
   Clock,
-  BarChart3,
-  Settings,
-  PieChart as PieChartIcon,
+  Database,
+  Download,
+  FileText,
+  HardDrive,
+  Info,
   List,
+  Pause,
+  Play,
   RefreshCw,
   Search,
-  Filter,
-  Info,
-  TrendingUp,
-  TrendingDown,
-  Activity
+  Trash2,
 } from 'lucide-react';
-import { Link } from 'wouter';
 
 interface ExportStatus {
   isRunning: boolean;
@@ -60,70 +55,32 @@ interface TableInfo {
   sizeMB: number;
   sizeKB: number;
   sizeBytes: number;
+  exportableRecords?: number;
 }
 
 interface DatabaseAnalysis {
-  totalDatabaseSizeMB: number;
-  totalDatabaseSizePretty: string;
-  categories: {
-    users: {
-      name: string;
-      tables: Array<{
+  totalDatabaseSizeMB?: number;
+  totalDatabaseSizePretty?: string;
+  categories?: Record<
+    string,
+    {
+      name?: string;
+      totalSizeMB?: number;
+      totalSizeKB?: number;
+      percentage?: number;
+      tables?: Array<{
         name: string;
-        sizeMB: number;
-        sizePretty: string;
-        columnCount: number;
+        sizeMB?: number;
+        sizePretty?: string;
+        columnCount?: number;
       }>;
-      totalSizeMB: number;
-      totalSizeKB: number;
-      percentage: number;
-      color: string;
-    };
-    content: {
-      name: string;
-      tables: Array<{
-        name: string;
-        sizeMB: number;
-        sizePretty: string;
-        columnCount: number;
-      }>;
-      totalSizeMB: number;
-      totalSizeKB: number;
-      percentage: number;
-      color: string;
-    };
-    system: {
-      name: string;
-      tables: Array<{
-        name: string;
-        sizeMB: number;
-        sizePretty: string;
-        columnCount: number;
-      }>;
-      totalSizeMB: number;
-      totalSizeKB: number;
-      percentage: number;
-      color: string;
-    };
-    other: {
-      name: string;
-      tables: Array<{
-        name: string;
-        sizeMB: number;
-        sizePretty: string;
-        columnCount: number;
-      }>;
-      totalSizeMB: number;
-      totalSizeKB: number;
-      percentage: number;
-      color: string;
-    };
-  };
+    }
+  >;
 }
 
 interface AxiomDatasetAnalysis {
   name: string;
-  label: string;
+  label?: string;
   count: number | null;
   dataSizeMB?: number | null;
   error?: string | null;
@@ -134,37 +91,46 @@ interface AxiomAnalysis {
   totalEvents: number;
   totalDataSizeMB?: number;
   datasets: AxiomDatasetAnalysis[];
-  edgeDomain?: string;
-  region?: string;
-  apiDomain?: string;
   needsManualCheck?: boolean;
   migrationCompleted?: boolean;
 }
 
-// Funzione helper per formattare le dimensioni
-const formatSize = (sizeMB: number, sizeKB: number): string => {
-  if (sizeMB >= 1) {
-    return `${sizeMB.toFixed(1)} MB`;
-  } else if (sizeKB >= 1) {
-    return `${sizeKB} KB`;
-  } else {
-    return '0 KB';
-  }
+const EMPTY_STATUS: ExportStatus = {
+  isRunning: false,
+  progress: 0,
+  currentTable: '',
+  totalTables: 0,
+  exportedRecords: 0,
+  totalRecords: 0,
+};
+
+const formatSize = (sizeMB = 0, sizeKB = 0): string => {
+  if (sizeMB >= 1) return `${sizeMB.toFixed(1)} MB`;
+  if (sizeKB >= 1) return `${sizeKB.toFixed(1)} KB`;
+  return '0 KB';
+};
+
+const tableDescription = (tableName: string) => {
+  const descriptions: Record<string, string> = {
+    centralized_logs: 'Log centralizzati di tutte le operazioni del sistema',
+    security_events: 'Eventi di sicurezza e tentativi di accesso',
+    performance_metrics: 'Metriche di performance del sistema',
+    health_checks: 'Controlli di salute del sistema e servizi',
+    access_audit: 'Audit degli accessi e delle operazioni utente',
+    audit_logs: 'Log di audit per conformità e sicurezza',
+  };
+  return descriptions[tableName] || 'Tabella del database DEMOS';
 };
 
 export default function DataExport() {
-  const [exportStatus, setExportStatus] = useState<ExportStatus>({
-    isRunning: false,
-    progress: 0,
-    currentTable: '',
-    totalTables: 0,
-    exportedRecords: 0,
-    totalRecords: 0
-  });
+  const { toast } = useToast();
 
+  const [exportStatus, setExportStatus] = useState<ExportStatus>(EMPTY_STATUS);
   const [exportHistory, setExportHistory] = useState<ExportHistory[]>([]);
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [tableSearch, setTableSearch] = useState('');
+  const [tablesError, setTablesError] = useState<string | null>(null);
   const [deleteAfterExport, setDeleteAfterExport] = useState(false);
   const [dryRun, setDryRun] = useState(false);
   const [loadingTables, setLoadingTables] = useState(true);
@@ -175,11 +141,8 @@ export default function DataExport() {
   const [securityEventsStats, setSecurityEventsStats] = useState<any>(null);
   const [loadingSecurityEvents, setLoadingSecurityEvents] = useState(false);
   const [migrating, setMigrating] = useState(false);
-  const [tableSearch, setTableSearch] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const { toast } = useToast();
 
-  // Carica dati iniziali
   useEffect(() => {
     loadExportHistory();
     loadTableInfo();
@@ -188,341 +151,63 @@ export default function DataExport() {
     loadSecurityEventsStats();
   }, []);
 
-  // Auto-refresh se abilitato
   useEffect(() => {
     if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       loadDatabaseAnalysis();
       loadAxiomAnalysis();
       loadSecurityEventsStats();
-    }, 30000); // Refresh ogni 30 secondi
-
-    return () => clearInterval(interval);
+    }, 30000);
+    return () => window.clearInterval(interval);
   }, [autoRefresh]);
+
+  const filteredTables = useMemo(
+    () => tables.filter((table) => table.name.toLowerCase().includes(tableSearch.toLowerCase())),
+    [tables, tableSearch],
+  );
 
   const loadExportHistory = async () => {
     try {
-      const response = await apiRequest.get('/admin/data-export/history');
-      if (response.success) {
-        setExportHistory(response.data);
-      }
+      const response = await apiRequest.get<ExportHistory[]>('/admin/data-export/history');
+      setExportHistory(response.success && Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Errore caricamento cronologia:', error);
+      setExportHistory([]);
     }
   };
 
   const loadTableInfo = async () => {
     setLoadingTables(true);
+    setTablesError(null);
     try {
-      const response = await apiRequest.get('/admin/data-export/tables');
-      if (response.success) {
-        setTables(response.data);
-        // Seleziona tutte le tabelle abilitate di default
-        setSelectedTables(response.data.filter((t: TableInfo) => t.enabled).map((t: TableInfo) => t.name));
-      } else {
-        // Fallback: usa dati mock se l'API non è disponibile
-        const mockTables: TableInfo[] = [
-          {
-            name: 'centralized_logs',
-            enabled: true,
-            retentionDays: 14,
-            recordCount: 0,
-            sizeMB: 0,
-            sizeKB: 0,
-            sizeBytes: 0
-          },
-          {
-            name: 'security_events',
-            enabled: true,
-            retentionDays: 30,
-            recordCount: 0,
-            sizeMB: 0,
-            sizeKB: 0,
-            sizeBytes: 0
-          },
-          {
-            name: 'performance_metrics',
-            enabled: true,
-            retentionDays: 7,
-            recordCount: 0,
-            sizeMB: 0,
-            sizeKB: 0,
-            sizeBytes: 0
-          },
-          {
-            name: 'health_checks',
-            enabled: true,
-            retentionDays: 7,
-            recordCount: 0,
-            sizeMB: 0,
-            sizeKB: 0,
-            sizeBytes: 0
-          },
-          {
-            name: 'access_audit',
-            enabled: true,
-            retentionDays: 30,
-            recordCount: 0,
-            sizeMB: 0,
-            sizeKB: 0,
-            sizeBytes: 0
-          },
-          {
-            name: 'audit_logs',
-            enabled: true,
-            retentionDays: 30,
-            recordCount: 0,
-            sizeMB: 0,
-            sizeKB: 0,
-            sizeBytes: 0
-          }
-        ];
-        setTables(mockTables);
-        setSelectedTables(mockTables.map(t => t.name));
+      const response = await apiRequest.get<TableInfo[]>('/admin/data-export/tables');
+      if (!response.success || !Array.isArray(response.data)) {
+        setTables([]);
+        setSelectedTables([]);
+        setTablesError(response.error || 'Impossibile caricare le tabelle reali dal server.');
+        return;
       }
+
+      setTables(response.data);
+      setSelectedTables(response.data.filter((table) => table.enabled).map((table) => table.name));
     } catch (error) {
       console.error('Errore caricamento tabelle:', error);
-      // Usa dati mock in caso di errore
-      const mockTables: TableInfo[] = [
-        {
-          name: 'centralized_logs',
-          enabled: true,
-          retentionDays: 14,
-          recordCount: 0,
-          sizeMB: 0,
-          sizeKB: 0,
-          sizeBytes: 0
-        },
-        {
-          name: 'security_events',
-          enabled: true,
-          retentionDays: 30,
-          recordCount: 0,
-          sizeMB: 0,
-          sizeKB: 0,
-          sizeBytes: 0
-        },
-        {
-          name: 'performance_metrics',
-          enabled: true,
-          retentionDays: 7,
-          recordCount: 0,
-          sizeMB: 0,
-          sizeKB: 0,
-          sizeBytes: 0
-        },
-        {
-          name: 'health_checks',
-          enabled: true,
-          retentionDays: 7,
-          recordCount: 0,
-          sizeMB: 0,
-          sizeKB: 0,
-          sizeBytes: 0
-        },
-        {
-          name: 'access_audit',
-          enabled: true,
-          retentionDays: 30,
-          recordCount: 0,
-          sizeMB: 0,
-          sizeKB: 0,
-          sizeBytes: 0
-        },
-        {
-          name: 'audit_logs',
-          enabled: true,
-          retentionDays: 30,
-          recordCount: 0,
-          sizeMB: 0,
-          sizeKB: 0,
-          sizeBytes: 0
-        }
-      ];
-      setTables(mockTables);
-      setSelectedTables(mockTables.map(t => t.name));
+      setTables([]);
+      setSelectedTables([]);
+      setTablesError('Impossibile caricare le tabelle reali dal server.');
     } finally {
       setLoadingTables(false);
     }
   };
 
-  const startExport = async () => {
-    if (selectedTables.length === 0) {
-      toast({
-        title: 'Nessuna tabella selezionata',
-        description: 'Seleziona almeno una tabella da esportare',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setExportStatus({
-      isRunning: true,
-      progress: 0,
-      currentTable: '',
-      totalTables: selectedTables.length,
-      exportedRecords: 0,
-      totalRecords: 0
-    });
-
-    try {
-      const response = await apiRequest.post('/admin/data-export/start', {
-        tables: selectedTables,
-        deleteAfterExport,
-        dryRun
-      });
-
-      if (!response.success) {
-        throw new Error(response.error || 'Errore avvio export');
-      }
-
-      toast({
-        title: 'Export avviato',
-        description: `Export di ${selectedTables.length} tabella/e avviato con successo`
-      });
-
-      // Polling per aggiornare lo stato
-      pollExportStatus();
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
-      setExportStatus(prev => ({
-        ...prev,
-        isRunning: false,
-        error: errorMessage
-      }));
-      toast({
-        title: 'Errore avvio export',
-        description: errorMessage,
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const pollExportStatus = async () => {
-    const poll = async () => {
-      try {
-        const response = await apiRequest.get('/admin/data-export/status');
-        if (response.success) {
-          setExportStatus(response.data);
-
-          if (response.data.isRunning) {
-            setTimeout(poll, 2000); // Poll ogni 2 secondi
-          } else {
-            // Export completato, ricarica cronologia
-            loadExportHistory();
-            if (response.data.progress === 100 && !response.data.error) {
-              toast({
-                title: 'Export completato',
-                description: `Esportati ${response.data.exportedRecords.toLocaleString()} record con successo`
-              });
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Errore polling status:', error);
-        setExportStatus(prev => ({
-          ...prev,
-          isRunning: false,
-          error: 'Errore comunicazione server'
-        }));
-      }
-    };
-
-    poll();
-  };
-
-  const stopExport = async () => {
-    try {
-      await apiRequest.post('/admin/data-export/stop');
-      setExportStatus(prev => ({ ...prev, isRunning: false }));
-      toast({
-        title: 'Export interrotto',
-        description: 'L\'export è stato interrotto con successo'
-      });
-    } catch (error) {
-      console.error('Errore stop export:', error);
-      toast({
-        title: 'Errore',
-        description: 'Impossibile interrompere l\'export',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const downloadExport = async (exportId: string) => {
-    try {
-      // Per il download, usiamo fetch diretto perché apiRequest non gestisce blob
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://demos-c7k0.onrender.com/api'}/admin/data-export/download/${exportId}`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `export_${exportId}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error('Errore download:', error);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'running':
-        return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      completed: 'default',
-      failed: 'destructive',
-      running: 'secondary'
-    } as const;
-
-    return (
-      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
-        {status === 'completed' && 'Completato'}
-        {status === 'failed' && 'Fallito'}
-        {status === 'running' && 'In corso'}
-      </Badge>
-    );
-  };
-
   const loadDatabaseAnalysis = async () => {
     setLoadingAnalysis(true);
     try {
-      const response = await apiRequest.get('/admin/data-export/database-analysis');
-      if (response.success) {
-        setDatabaseAnalysis(response.data);
-      } else {
-        console.error('Errore caricamento analisi database:', response.error);
-        setDatabaseAnalysis(null);
-        toast({
-          title: 'Errore caricamento',
-          description: response.error || 'Impossibile caricare l\'analisi del database',
-          variant: 'destructive'
-        });
-      }
+      const response = await apiRequest.get<DatabaseAnalysis>('/admin/data-export/database-analysis');
+      setDatabaseAnalysis(response.success && response.data ? response.data : null);
     } catch (error) {
       console.error('Errore caricamento analisi database:', error);
       setDatabaseAnalysis(null);
-      toast({
-        title: 'Errore caricamento',
-        description: 'Impossibile caricare l\'analisi del database',
-        variant: 'destructive'
-      });
     } finally {
       setLoadingAnalysis(false);
     }
@@ -531,33 +216,11 @@ export default function DataExport() {
   const loadAxiomAnalysis = async () => {
     setLoadingAxiom(true);
     try {
-      const response = await apiRequest.get('/admin/data-export/axiom-analysis');
-      if (response.success && response.data) {
-        setAxiomAnalysis(response.data);
-      } else {
-        setAxiomAnalysis(null);
-        // Non mostrare toast per errori Axiom se non configurato (è normale)
-        if (response.error && !response.error.includes('configurato') && !response.error.includes('abilitato')) {
-          toast({
-            title: 'Errore caricamento Axiom',
-            description: response.error || 'Impossibile caricare i dati da Axiom',
-            variant: 'destructive'
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error('Errore caricamento analisi Axiom:', error);
+      const response = await apiRequest.get<AxiomAnalysis>('/admin/data-export/axiom-analysis');
+      setAxiomAnalysis(response.success && response.data ? response.data : null);
+    } catch (error) {
+      console.error('Errore caricamento Axiom:', error);
       setAxiomAnalysis(null);
-      // Mostra errore solo se non è un errore di configurazione
-      if (error?.response?.data?.error && 
-          !error.response.data.error.includes('configurato') && 
-          !error.response.data.error.includes('abilitato')) {
-        toast({
-          title: 'Errore caricamento Axiom',
-          description: error.response?.data?.error || 'Impossibile caricare i dati da Axiom',
-          variant: 'destructive'
-        });
-      }
     } finally {
       setLoadingAxiom(false);
     }
@@ -567,1504 +230,537 @@ export default function DataExport() {
     setLoadingSecurityEvents(true);
     try {
       const response = await apiRequest.get('/admin/data-export/security-events-stats');
-      if (response.success && response.data) {
-        setSecurityEventsStats(response.data);
-      } else {
-        setSecurityEventsStats(null);
-      }
-    } catch (error: any) {
+      setSecurityEventsStats(response.success && response.data ? response.data : null);
+    } catch (error) {
       console.error('Errore caricamento statistiche security events:', error);
       setSecurityEventsStats(null);
-      // Non mostrare toast per errori se Axiom non è configurato
-      if (error?.response?.data?.error && 
-          !error.response.data.error.includes('configurato') && 
-          !error.response.data.error.includes('abilitato')) {
-        // Errore silenzioso per non disturbare l'utente
-      }
     } finally {
       setLoadingSecurityEvents(false);
+    }
+  };
+
+  const pollExportStatus = () => {
+    const poll = async () => {
+      try {
+        const response = await apiRequest.get<ExportStatus>('/admin/data-export/status');
+        if (!response.success || !response.data) {
+          setExportStatus((previous) => ({ ...previous, isRunning: false, error: response.error || 'Errore lettura stato export' }));
+          return;
+        }
+
+        setExportStatus(response.data);
+        if (response.data.isRunning) {
+          window.setTimeout(poll, 2000);
+          return;
+        }
+
+        await loadExportHistory();
+        if (response.data.progress === 100 && !response.data.error) {
+          toast({
+            title: 'Export completato',
+            description: `Esportati ${Number(response.data.exportedRecords || 0).toLocaleString('it-IT')} record`,
+          });
+        }
+      } catch (error) {
+        console.error('Errore polling status:', error);
+        setExportStatus((previous) => ({ ...previous, isRunning: false, error: 'Errore comunicazione server' }));
+      }
+    };
+    poll();
+  };
+
+  const startExport = async () => {
+    if (selectedTables.length === 0) {
+      toast({
+        title: 'Nessuna tabella selezionata',
+        description: 'Seleziona almeno una tabella da esportare.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setExportStatus({ ...EMPTY_STATUS, isRunning: true, totalTables: selectedTables.length });
+    try {
+      const response = await apiRequest.post('/admin/data-export/start', {
+        tables: selectedTables,
+        deleteAfterExport,
+        dryRun,
+      });
+      if (!response.success) throw new Error(response.error || 'Errore avvio export');
+
+      toast({
+        title: 'Export avviato',
+        description: `Export di ${selectedTables.length} tabella/e avviato.`,
+      });
+      pollExportStatus();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Errore sconosciuto';
+      setExportStatus((previous) => ({ ...previous, isRunning: false, error: message }));
+      toast({ title: 'Errore avvio export', description: message, variant: 'destructive' });
+    }
+  };
+
+  const stopExport = async () => {
+    try {
+      const response = await apiRequest.post('/admin/data-export/stop');
+      if (!response.success) throw new Error(response.error || 'Impossibile interrompere l\'export');
+      setExportStatus((previous) => ({ ...previous, isRunning: false }));
+      toast({ title: 'Export interrotto' });
+    } catch (error) {
+      toast({
+        title: 'Errore',
+        description: error instanceof Error ? error.message : 'Impossibile interrompere l\'export',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const downloadExport = async (exportId: string) => {
+    const token = getAuthToken();
+    if (!token) {
+      toast({
+        title: 'Sessione non disponibile',
+        description: 'Accedi di nuovo prima di scaricare un export.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(getApiUrl(`/admin/data-export/download/${encodeURIComponent(exportId)}`), {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error(`Download fallito (HTTP ${response.status})`);
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `export_${exportId}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Impossibile scaricare il file';
+      console.error('Errore download:', error);
+      toast({ title: 'Errore download', description: message, variant: 'destructive' });
     }
   };
 
   const testAuth = async () => {
     try {
       const response = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (response.success) {
-        toast({
-          title: 'Autenticazione OK',
-          description: `Utente: ${response.data?.user?.email} (${response.data?.user?.role})`,
-          variant: 'default'
-        });
-        console.log('✅ Test auth riuscito:', response.data);
-      } else {
-        toast({
-          title: 'Errore autenticazione',
-          description: response.error || 'Autenticazione fallita',
-          variant: 'destructive'
-        });
-      }
-    } catch (error: any) {
-      console.error('Errore test auth:', error);
+      if (!response.success) throw new Error(response.error || 'Autenticazione fallita');
+      toast({ title: 'Autenticazione OK', description: 'Sessione Admin valida.' });
+    } catch (error) {
       toast({
         title: 'Errore autenticazione',
-        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
-        variant: 'destructive'
+        description: error instanceof Error ? error.message : 'Autenticazione fallita',
+        variant: 'destructive',
       });
+    }
+  };
+
+  const startAxiomMigration = async (onlyCentralizedLogs = false) => {
+    try {
+      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
+      if (!authTest.success) {
+        toast({
+          title: 'Errore autenticazione',
+          description: 'La sessione Admin non è valida. Effettua di nuovo il login.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    } catch (_error) {
+      toast({ title: 'Errore autenticazione', description: 'Impossibile verificare la sessione Admin.', variant: 'destructive' });
+      return;
+    }
+
+    const label = onlyCentralizedLogs ? 'centralized_logs' : 'centralized_logs e audit_logs';
+    if (!window.confirm(`Vuoi avviare la migrazione di ${label} da Neon ad Axiom?`)) return;
+
+    setMigrating(true);
+    try {
+      const response = await apiRequest.post(
+        '/admin/axiom-migration/migrate',
+        { tables: onlyCentralizedLogs ? ['centralized_logs'] : ['centralized_logs', 'audit_logs'], dryRun: false },
+        { timeout: 30000 },
+      );
+      if (!response.success) throw new Error(response.error || response.message || 'Impossibile avviare la migrazione');
+      toast({ title: 'Migrazione avviata', description: response.message || 'Migrazione avviata in background.' });
+      window.setTimeout(() => {
+        loadAxiomAnalysis();
+        loadDatabaseAnalysis();
+      }, 10000);
+    } catch (error) {
+      toast({
+        title: 'Errore avvio migrazione',
+        description: error instanceof Error ? error.message : 'Impossibile avviare la migrazione',
+        variant: 'destructive',
+      });
+    } finally {
+      setMigrating(false);
     }
   };
 
   const deleteMigratedData = async () => {
-    const tables = ['centralized_logs', 'audit_logs'];
-    
-    // Conferma multipla per sicurezza
-    const confirm1 = confirm(
-      '⚠️ ATTENZIONE: Questa operazione è IRREVERSIBILE!\n\n' +
-      'Stai per eliminare i dati migrati da Supabase.\n\n' +
-      'Hai verificato che i dati sono presenti su Axiom?\n\n' +
-      'Clicca OK per continuare o Annulla per interrompere.'
-    );
-    
-    if (!confirm1) return;
-    
-    const confirm2 = prompt(
-      'Per confermare, digita DELETE (tutto maiuscolo):'
-    );
-    
-    if (confirm2 !== 'DELETE') {
-      toast({
-        title: 'Operazione annullata',
-        description: 'Conferma non valida. I dati non sono stati eliminati.',
-        variant: 'default'
-      });
+    if (!window.confirm('ATTENZIONE: stai per eliminare da Neon i dati già migrati. Hai verificato che siano presenti su Axiom?')) return;
+    const confirmation = window.prompt('Per confermare, digita DELETE (tutto maiuscolo):');
+    if (confirmation !== 'DELETE') {
+      toast({ title: 'Operazione annullata', description: 'I dati non sono stati eliminati.' });
       return;
     }
-    
+
     setMigrating(true);
     try {
       const response = await apiRequest.post('/admin/axiom-migration/delete-migrated', {
-        tables,
-        confirm: 'DELETE'
+        tables: ['centralized_logs', 'audit_logs'],
+        confirm: 'DELETE',
       });
-      
-      if (response.success) {
-        toast({
-          title: 'Dati eliminati',
-          description: 'I dati migrati sono stati eliminati da Supabase con successo.',
-          variant: 'default'
-        });
-        // Ricarica i dati
-        setTimeout(() => {
-          loadDatabaseAnalysis();
-          loadAxiomAnalysis();
-        }, 2000);
-      } else {
-        toast({
-          title: 'Errore eliminazione',
-          description: response.error || response.message || 'Impossibile eliminare i dati',
-          variant: 'destructive'
-        });
-      }
-    } catch (error: any) {
-      console.error('Errore eliminazione dati:', error);
+      if (!response.success) throw new Error(response.error || response.message || 'Impossibile eliminare i dati');
+      toast({ title: 'Dati eliminati', description: 'I dati migrati sono stati eliminati da Neon.' });
+      await Promise.all([loadDatabaseAnalysis(), loadAxiomAnalysis(), loadTableInfo()]);
+    } catch (error) {
       toast({
         title: 'Errore eliminazione',
-        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
-        variant: 'destructive'
+        description: error instanceof Error ? error.message : 'Impossibile eliminare i dati',
+        variant: 'destructive',
       });
     } finally {
       setMigrating(false);
     }
   };
 
-  const startAxiomMigration = async () => {
-    // Prima testa l'autenticazione
-    try {
-      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!authTest.success) {
-        toast({
-          title: 'Errore autenticazione',
-          description: 'Non sei autenticato correttamente. Effettua il logout e login di nuovo.',
-          variant: 'destructive'
-        });
-        return;
-      }
-    } catch (error: any) {
-      console.error('Errore test auth:', error);
-      toast({
-        title: 'Errore autenticazione',
-        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!confirm('Vuoi avviare la migrazione dei dati da Supabase a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
-      return;
-    }
-
-    setMigrating(true);
-    try {
-      console.log('🚀 DEBUG - Avvio richiesta migrazione...');
-      const response = await apiRequest.post('/admin/axiom-migration/migrate', {
-        tables: ['centralized_logs', 'audit_logs'],
-        dryRun: false
-      }, {
-        timeout: 30000 // 30 secondi di timeout
-      });
-
-      console.log('📦 DEBUG - Risposta migrazione ricevuta:', response);
-
-      if (response.success) {
-        toast({
-          title: 'Migrazione avviata',
-          description: response.message || 'La migrazione è stata avviata in background. Controlla i log su Render per monitorare il progresso.',
-          variant: 'default'
-        });
-        // Ricarica i dati dopo un breve delay
-        setTimeout(() => {
-          loadAxiomAnalysis();
-        }, 10000);
-      } else {
-        console.error('❌ DEBUG - Migrazione fallita:', response);
-        toast({
-          title: 'Errore avvio migrazione',
-          description: response.error || response.message || 'Impossibile avviare la migrazione',
-          variant: 'destructive'
-        });
-      }
-    } catch (error: any) {
-      console.error('❌ DEBUG - Errore avvio migrazione:', error);
-      console.error('❌ DEBUG - Error response:', error.response);
-      console.error('❌ DEBUG - Error data:', error.response?.data);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Impossibile avviare la migrazione';
-      toast({
-        title: 'Errore avvio migrazione',
-        description: errorMessage,
-        variant: 'destructive'
-      });
-    } finally {
-      setMigrating(false);
-    }
+  const statusIcon = (status: ExportHistory['status']) => {
+    if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
+    if (status === 'failed') return <AlertCircle className="h-4 w-4 text-red-500" />;
+    return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
   };
 
-  const startCentralizedLogsMigration = async () => {
-    // Prima testa l'autenticazione
-    try {
-      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!authTest.success) {
-        toast({
-          title: 'Errore autenticazione',
-          description: 'Non sei autenticato correttamente. Effettua il logout e login di nuovo.',
-          variant: 'destructive'
-        });
-        return;
-      }
-    } catch (error: any) {
-      console.error('Errore test auth:', error);
-      toast({
-        title: 'Errore autenticazione',
-        description: error.response?.data?.error || error.response?.data?.message || 'Errore di connessione',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!confirm('Vuoi avviare la migrazione di centralized_logs da Supabase a Axiom? Questa operazione potrebbe richiedere diversi minuti.')) {
-      return;
-    }
-
-    setMigrating(true);
-    try {
-      console.log('🚀 DEBUG - Avvio richiesta migrazione centralized_logs...');
-      const response = await apiRequest.post('/admin/axiom-migration/migrate', {
-        tables: ['centralized_logs'],
-        dryRun: false
-      }, {
-        timeout: 30000 // 30 secondi di timeout
-      });
-
-      console.log('📦 DEBUG - Risposta migrazione ricevuta:', response);
-
-      if (response.success) {
-        toast({
-          title: 'Migrazione centralized_logs avviata',
-          description: response.message || 'La migrazione è stata avviata in background. Controlla i log su Render per monitorare il progresso.',
-          variant: 'default'
-        });
-        // Ricarica i dati dopo un breve delay
-        setTimeout(() => {
-          loadAxiomAnalysis();
-          loadDatabaseAnalysis();
-        }, 10000);
-      } else {
-        console.error('❌ DEBUG - Migrazione fallita:', response);
-        toast({
-          title: 'Errore avvio migrazione',
-          description: response.error || response.message || 'Impossibile avviare la migrazione',
-          variant: 'destructive'
-        });
-      }
-    } catch (error: any) {
-      console.error('❌ DEBUG - Errore avvio migrazione:', error);
-      console.error('❌ DEBUG - Error response:', error.response);
-      console.error('❌ DEBUG - Error data:', error.response?.data);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Impossibile avviare la migrazione';
-      toast({
-        title: 'Errore avvio migrazione',
-        description: errorMessage,
-        variant: 'destructive'
-      });
-    } finally {
-      setMigrating(false);
-    }
+  const statusBadge = (status: ExportHistory['status']) => {
+    if (status === 'completed') return <Badge>Completato</Badge>;
+    if (status === 'failed') return <Badge variant="destructive">Fallito</Badge>;
+    return <Badge variant="secondary">In corso</Badge>;
   };
 
-
-  const getTableDescription = (tableName: string) => {
-    const descriptions: { [key: string]: string } = {
-      'centralized_logs': 'Log centralizzati di tutte le operazioni del sistema',
-      'security_events': 'Eventi di sicurezza e tentativi di accesso',
-      'performance_metrics': 'Metriche di performance del sistema (CPU, memoria, DB)',
-      'health_checks': 'Controlli di salute del sistema e servizi',
-      'access_audit': 'Audit di tutti gli accessi e operazioni utente',
-      'audit_logs': 'Log di audit per conformità e sicurezza'
-    };
-    
-    return descriptions[tableName] || 'Tabella di monitoraggio e logging';
-  };
-
-  // Filtra tabelle in base alla ricerca
-  const filteredTables = tables.filter(table => 
-    table.name.toLowerCase().includes(tableSearch.toLowerCase())
-  );
-
-  // Calcola statistiche aggregate
-  const getAggregateStats = () => {
-    if (!databaseAnalysis || !axiomAnalysis) return null;
-
-    // Usa il totale del database
-    const neonTotal = databaseAnalysis?.totalDatabaseSizeMB || 0;
-    const axiomTotalEvents = axiomAnalysis.totalEvents;
-    const axiomTotalMB = axiomAnalysis.totalDataSizeMB || 0;
-    // Stima record su Supabase basandosi sulla dimensione (approssimazione: 1MB = ~1000 record)
-    const estimatedSupabaseRecords = Math.round(neonTotal * 1000);
-
-    return {
-      neonTotal,
-      axiomTotal: axiomTotalEvents,
-      axiomTotalMB,
-      estimatedSupabaseRecords,
-      migrationProgress: axiomTotalMB > 0 && neonTotal > 0 
-        ? Math.min(100, Math.round((axiomTotalMB / neonTotal) * 100))
-        : 0
-    };
-  };
-
-  const aggregateStats = getAggregateStats();
+  const categoryRows = Object.values(databaseAnalysis?.categories || {}).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="w-full p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Export Dati su Hard Disk</h1>
-          <p className="text-gray-600 mt-2">
-            Esporta i dati storici dal database Supabase su hard disk esterno per alleggerire il database
-          </p>
+      <div className="w-full p-4 space-y-4 pt-20">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Export Dati</h1>
+            <p className="text-gray-600 mt-2">
+              Esporta dati reali dal database Neon e controlla le migrazioni verso Axiom.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <HardDrive className="h-8 w-8 text-blue-500" />
+            <Database className="h-8 w-8 text-green-500" />
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <HardDrive className="h-8 w-8 text-blue-500" />
-          <Database className="h-8 w-8 text-green-500" />
-        </div>
-      </div>
 
-      <Tabs defaultValue="analysis" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="analysis">Analisi</TabsTrigger>
-          <TabsTrigger value="export">Export</TabsTrigger>
-          <TabsTrigger value="history">Cronologia</TabsTrigger>
-          <TabsTrigger value="settings">Impostazioni</TabsTrigger>
-        </TabsList>
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Questa pagina non usa dati simulati: se il backend non risponde, lo stato viene mostrato come non disponibile invece di inventare valori.
+          </AlertDescription>
+        </Alert>
 
-        <TabsContent value="export" className="space-y-6">
-          {/* Status Export */}
-          {exportStatus.isRunning && (
-            <Card className="bg-white shadow-lg">
+        <Tabs defaultValue="analysis" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="analysis">Analisi</TabsTrigger>
+            <TabsTrigger value="export">Export</TabsTrigger>
+            <TabsTrigger value="history">Cronologia</TabsTrigger>
+            <TabsTrigger value="settings">Impostazioni</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="analysis" className="space-y-6">
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  loadDatabaseAnalysis();
+                  loadAxiomAnalysis();
+                  loadSecurityEventsStats();
+                }}
+                disabled={loadingAnalysis || loadingAxiom || loadingSecurityEvents}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${(loadingAnalysis || loadingAxiom || loadingSecurityEvents) ? 'animate-spin' : ''}`} />
+                Aggiorna
+              </Button>
+              <Button variant={autoRefresh ? 'default' : 'outline'} size="sm" onClick={() => setAutoRefresh((value) => !value)}>
+                <Clock className="h-4 w-4 mr-2" />
+                {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Neon Database</CardTitle>
+                  <CardDescription>Dimensione reale restituita dal backend DEMOS.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingAnalysis ? (
+                    <p className="text-sm text-gray-500">Caricamento...</p>
+                  ) : databaseAnalysis ? (
+                    <>
+                      <div className="text-3xl font-bold">{databaseAnalysis.totalDatabaseSizePretty || `${databaseAnalysis.totalDatabaseSizeMB || 0} MB`}</div>
+                      <p className="text-sm text-gray-500 mt-1">Database applicativo principale</p>
+                    </>
+                  ) : (
+                    <Badge variant="outline">Non disponibile</Badge>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Axiom</CardTitle>
+                  <CardDescription>Dati di logging e sicurezza già presenti sulla piattaforma.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingAxiom ? (
+                    <p className="text-sm text-gray-500">Caricamento...</p>
+                  ) : axiomAnalysis ? (
+                    <div className="space-y-1">
+                      <div className="text-3xl font-bold">{Number(axiomAnalysis.totalDataSizeMB || 0).toFixed(2)} MB</div>
+                      <p className="text-sm text-gray-500">{Number(axiomAnalysis.totalEvents || 0).toLocaleString('it-IT')} eventi · {axiomAnalysis.datasets?.length || 0} dataset</p>
+                    </div>
+                  ) : (
+                    <Badge variant="outline">Non disponibile</Badge>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {databaseAnalysis && categoryRows.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuzione dati su Neon</CardTitle>
+                  <CardDescription>Categorie e tabelle restituite dall'analisi del database.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {categoryRows.map((category, index) => (
+                    <div key={`${category.name || 'categoria'}-${index}`} className="rounded-lg border p-3">
+                      <div className="flex justify-between gap-3">
+                        <span className="font-medium">{category.name || 'Categoria'}</span>
+                        <span className="font-semibold">{Number(category.totalSizeMB || 0).toFixed(2)} MB</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{category.tables?.length || 0} tabelle · {category.percentage ?? 0}%</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Play className="h-5 w-5 text-blue-500" />
-                  <span>Export in Corso</span>
-                </CardTitle>
+                <CardTitle>Migrazione Neon → Axiom</CardTitle>
+                <CardDescription>Azioni amministrative esistenti, con conferme esplicite per le operazioni distruttive.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progresso</span>
-                    <span>{exportStatus.progress}%</span>
-                  </div>
-                  <Progress value={exportStatus.progress} className="w-full" />
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={testAuth}>Verifica sessione Admin</Button>
+                  <Button onClick={() => startAxiomMigration(false)} disabled={migrating}>Migra log verso Axiom</Button>
+                  <Button variant="outline" onClick={() => startAxiomMigration(true)} disabled={migrating}>Migra solo centralized_logs</Button>
+                  {axiomAnalysis && axiomAnalysis.totalEvents > 0 && (
+                    <Button variant="destructive" onClick={deleteMigratedData} disabled={migrating}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Elimina da Neon dopo verifica
+                    </Button>
+                  )}
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Tabella corrente:</span>
-                    <p className="text-gray-600">{exportStatus.currentTable || 'Inizializzazione...'}</p>
+
+                {axiomAnalysis?.datasets?.length ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {axiomAnalysis.datasets.map((dataset) => (
+                      <div key={dataset.name} className="rounded-lg border p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-medium">{dataset.label || dataset.name}</span>
+                          <Badge variant="outline">{dataset.dataSizeMB != null ? `${dataset.dataSizeMB.toFixed(2)} MB` : `${Number(dataset.count || 0).toLocaleString('it-IT')} eventi`}</Badge>
+                        </div>
+                        {dataset.error && <p className="text-xs text-amber-700 mt-2">{dataset.error}</p>}
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <span className="font-medium">Record esportati:</span>
-                    <p className="text-gray-600">
-                      {exportStatus.exportedRecords.toLocaleString()} / {exportStatus.totalRecords.toLocaleString()}
+                ) : null}
+
+                {securityEventsStats && (
+                  <div className="rounded-lg border p-3">
+                    <div className="font-medium">Security Events</div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {Number(securityEventsStats.totalEvents || 0).toLocaleString('it-IT')} eventi · {Number(securityEventsStats.dataSizeMB || 0).toFixed(2)} MB
                     </p>
                   </div>
-                </div>
-
-                <Button onClick={stopExport} variant="outline" className="w-full">
-                  <Pause className="h-4 w-4 mr-2" />
-                  Interrompi Export
-                </Button>
+                )}
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
-          {/* Errori */}
-          {exportStatus.error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{exportStatus.error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Selezione Tabelle */}
-          <Card className="bg-white shadow-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Seleziona Tabelle</CardTitle>
-                  <CardDescription>
-                    Scegli quali tabelle esportare. I dati più vecchi di 30 giorni verranno esportati.
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Link to="/admin/data-export/centralized-logs">
-                    <Button variant="outline" size="sm">
-                      <List className="h-4 w-4 mr-2" />
-                      Visualizza Log
-                    </Button>
-                  </Link>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadTableInfo}
-                    disabled={loadingTables}
-                  >
-                    {loadingTables ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                    ) : (
-                      'Aggiorna'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Barra di ricerca e filtri */}
-              <div className="mb-4 flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Cerca tabella..."
-                    value={tableSearch}
-                    onChange={(e) => setTableSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTables(tables.filter(t => t.enabled).map(t => t.name));
-                  }}
-                >
-                  Seleziona tutte
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTables([]);
-                  }}
-                >
-                  Deseleziona tutte
-                </Button>
-              </div>
-
-              {loadingTables ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  <span className="ml-3 text-gray-600">Caricamento tabelle...</span>
-                </div>
-              ) : filteredTables.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nessuna tabella trovata con "{tableSearch}"</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    onClick={() => setTableSearch('')}
-                  >
-                    Rimuovi filtro
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredTables.map((table) => (
-                  <div key={table.name} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedTables.includes(table.name)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedTables([...selectedTables, table.name]);
-                          } else {
-                            setSelectedTables(selectedTables.filter(t => t !== table.name));
-                          }
-                        }}
-                        className="h-4 w-4"
-                      />
-                      <div>
-                        <h4 className="font-medium">{table.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          {table.recordCount.toLocaleString()} record • {formatSize(table.sizeMB, table.sizeKB)}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                          {getTableDescription(table.name)}
-                          <Info className="h-3 w-3 text-gray-400" title={getTableDescription(table.name)} />
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant={table.enabled ? 'default' : 'secondary'}>
-                        {table.enabled ? 'Abilitata' : 'Disabilitata'}
-                      </Badge>
-                      <Badge variant="outline">
-                        {table.retentionDays} giorni
-                      </Badge>
-                      {table.exportableRecords > 0 && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                          {table.exportableRecords.toLocaleString()} esportabili
-                        </Badge>
-                      )}
-                    </div>
+          <TabsContent value="export" className="space-y-6">
+            {exportStatus.isRunning && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Play className="h-5 w-5" /> Export in corso</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between text-sm"><span>Progresso</span><span>{exportStatus.progress}%</span></div>
+                  <Progress value={exportStatus.progress} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div><span className="font-medium">Tabella:</span> {exportStatus.currentTable || 'Inizializzazione...'}</div>
+                    <div><span className="font-medium">Record:</span> {Number(exportStatus.exportedRecords || 0).toLocaleString('it-IT')} / {Number(exportStatus.totalRecords || 0).toLocaleString('it-IT')}</div>
                   </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  <Button variant="outline" onClick={stopExport}><Pause className="h-4 w-4 mr-2" />Interrompi export</Button>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Opzioni Export */}
-          <Card className="bg-white shadow-lg">
-            <CardHeader>
-              <CardTitle>Opzioni Export</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="deleteAfterExport"
-                  checked={deleteAfterExport}
-                  onChange={(e) => setDeleteAfterExport(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="deleteAfterExport" className="text-sm">
-                  Elimina dati dal database dopo l'export
-                </label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="dryRun"
-                  checked={dryRun}
-                  onChange={(e) => setDryRun(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="dryRun" className="text-sm">
-                  Modalità test (solo conteggi, nessun file creato)
-                </label>
-              </div>
-            </CardContent>
-          </Card>
+            {exportStatus.error && (
+              <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{exportStatus.error}</AlertDescription></Alert>
+            )}
 
-          {/* Pulsante Avvio */}
-          <div className="flex justify-center">
-            <Button 
-              onClick={startExport} 
-              disabled={exportStatus.isRunning || selectedTables.length === 0}
-              size="lg"
-              className="px-8"
-            >
-              <Download className="h-5 w-5 mr-2" />
-              {dryRun ? 'Simula Export' : 'Avvia Export'}
-            </Button>
-          </div>
-        </TabsContent>
+            {tablesError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{tablesError} Nessun dato simulato è stato mostrato.</AlertDescription>
+              </Alert>
+            )}
 
-        <TabsContent value="analysis" className="space-y-6">
-          {/* Statistiche Aggregate e Confronto */}
-          {aggregateStats && (
-            <Card className="bg-white shadow-lg border-2 border-blue-200">
+            <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-blue-600" />
-                      Confronto Supabase vs Axiom
-                    </CardTitle>
-                    <CardDescription>
-                      Panoramica della distribuzione dei dati tra Supabase e Axiom
-                    </CardDescription>
+                    <CardTitle>Seleziona tabelle</CardTitle>
+                    <CardDescription>Vengono mostrate esclusivamente le tabelle restituite dal backend.</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        loadDatabaseAnalysis();
-                        loadAxiomAnalysis();
-                      }}
-                      disabled={loadingAnalysis || loadingAxiom}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${(loadingAnalysis || loadingAxiom) ? 'animate-spin' : ''}`} />
-                      Aggiorna
-                    </Button>
-                    <Button
-                      variant={autoRefresh ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setAutoRefresh(!autoRefresh)}
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-                    </Button>
+                  <div className="flex gap-2">
+                    <Link to="/admin/data-export/centralized-logs"><Button variant="outline" size="sm"><List className="h-4 w-4 mr-2" />Visualizza log</Button></Link>
+                    <Button variant="outline" size="sm" onClick={loadTableInfo} disabled={loadingTables}><RefreshCw className={`h-4 w-4 ${loadingTables ? 'animate-spin' : ''}`} /></Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-800">Supabase Database</span>
-                      <Database className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div className="text-2xl font-bold text-blue-900">
-                      {databaseAnalysis?.totalDatabaseSizeMB?.toLocaleString('it-IT') || '0'} MB
-                    </div>
-                    <div className="text-xs text-blue-600 mt-1">
-                      Database completo
-                    </div>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-green-800">Axiom Platform</span>
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div className="text-2xl font-bold text-green-900">
-                      {axiomAnalysis?.totalDataSizeMB ? `${axiomAnalysis.totalDataSizeMB.toFixed(2)} MB` : '0 MB'}
-                    </div>
-                    <div className="text-xs text-green-600 mt-1">
-                      {axiomAnalysis?.totalEvents ? axiomAnalysis.totalEvents.toLocaleString('it-IT') + ' eventi' : 'N eventi'} • {axiomAnalysis?.datasets.length || 0} dataset
-                    </div>
-                  </div>
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    value={tableSearch}
+                    onChange={(event) => setTableSearch(event.target.value)}
+                    placeholder="Cerca tabella..."
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                  />
                 </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                      { name: 'Supabase (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
-                      { name: 'Axiom (MB)', value: aggregateStats.axiomTotalMB || 0, color: '#10b981' }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={(value: number) => `${value.toFixed(2)} MB`} />
-                      <Bar dataKey="value" fill="#8884d8">
-                        {[
-                          { name: 'Supabase (MB)', value: aggregateStats.neonTotal, color: '#3b82f6' },
-                          { name: 'Axiom (MB)', value: aggregateStats.axiomTotalMB || 0, color: '#10b981' }
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setSelectedTables(tables.filter((table) => table.enabled).map((table) => table.name))}>Seleziona tutte</Button>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedTables([])}>Deseleziona tutte</Button>
                 </div>
+
+                {loadingTables ? (
+                  <p className="text-sm text-gray-500 py-6">Caricamento tabelle reali...</p>
+                ) : filteredTables.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-6">Nessuna tabella disponibile.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredTables.map((table) => (
+                      <div key={table.name} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedTables.includes(table.name)}
+                            onChange={(event) => {
+                              setSelectedTables((current) => event.target.checked ? [...current, table.name] : current.filter((name) => name !== table.name));
+                            }}
+                            className="h-4 w-4 mt-1"
+                          />
+                          <div>
+                            <div className="font-medium">{table.name}</div>
+                            <p className="text-sm text-gray-600">{Number(table.recordCount || 0).toLocaleString('it-IT')} record · {formatSize(table.sizeMB, table.sizeKB)}</p>
+                            <p className="text-xs text-gray-500 mt-1">{tableDescription(table.name)}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant={table.enabled ? 'default' : 'secondary'}>{table.enabled ? 'Abilitata' : 'Disabilitata'}</Badge>
+                          <Badge variant="outline">{table.retentionDays} giorni</Badge>
+                          {Number(table.exportableRecords || 0) > 0 && <Badge variant="outline">{Number(table.exportableRecords).toLocaleString('it-IT')} esportabili</Badge>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
 
-          {/* Grid con Dati su Supabase e Dati su Axiom */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Analisi Database - Dati su Supabase */}
-            <Card className="bg-white shadow-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <PieChartIcon className="h-5 w-5" />
-                    Dati su Supabase
-                  </CardTitle>
-                  <CardDescription>
-                    Distribuzione del peso del database per categorie
-                  </CardDescription>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadDatabaseAnalysis}
-                  disabled={loadingAnalysis}
-                >
-                  {loadingAnalysis ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  ) : (
-                    'Aggiorna'
-                  )}
+            <Card>
+              <CardHeader><CardTitle>Opzioni export</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={deleteAfterExport} onChange={(event) => setDeleteAfterExport(event.target.checked)} />
+                  Elimina dal database dopo l'export
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
+                  Modalità test (solo conteggi, nessun file creato)
+                </label>
+                <Button onClick={startExport} disabled={exportStatus.isRunning || selectedTables.length === 0}>
+                  <Download className="h-4 w-4 mr-2" />{dryRun ? 'Simula export' : 'Avvia export'}
                 </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingAnalysis ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  <span className="ml-3 text-gray-600">Caricamento analisi...</span>
-                </div>
-              ) : databaseAnalysis ? (
-                    <div className="space-y-4">
-                  {/* Dimensione Totale */}
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <h3 className="text-2xl font-bold text-blue-800">
-                      {databaseAnalysis.totalDatabaseSizePretty}
-                    </h3>
-                    <p className="text-blue-600">Dimensione totale database</p>
-                  </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                  {/* Grafico a Torta */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-lg">Distribuzione per Categorie</h4>
-                      <div className="h-64 xl:h-56">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={Object.values(databaseAnalysis.categories).map(category => ({
-                                name: category.name,
-                                value: category.totalSizeMB,
-                                percentage: category.percentage,
-                                color: category.color
-                              }))}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percentage }) => `${name}: ${percentage}%`}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {Object.values(databaseAnalysis.categories).map((category, index) => (
-                                <Cell key={`cell-${index}`} fill={category.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value: number) => [`${value} MB`, 'Dimensione']}
-                              labelFormatter={(label) => `Categoria: ${label}`}
-                            />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    {/* Dettagli Categorie */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-lg">Dettagli Categorie</h4>
-                      <div className="space-y-3">
-                        {Object.values(databaseAnalysis.categories).map((category) => (
-                          <div key={category.name} className="p-3 border rounded-lg bg-gray-50">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-4 h-4 rounded-full" 
-                                  style={{ backgroundColor: category.color }}
-                                ></div>
-                                <span className="font-medium">{category.name}</span>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-semibold">
-                                  {category.totalSizeMB > 0 ? 
-                                    category.totalSizeMB.toFixed(2) + ' MB' : 
-                                    (category.totalSizeKB > 0 ? category.totalSizeKB.toFixed(2) + ' kB' : '0 MB')
-                                  }
-                                </div>
-                                <div className="text-sm text-gray-600">{category.percentage}%</div>
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {category.tables.length} tabelle
-                            </div>
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cronologia export</CardTitle>
+                <CardDescription>I download richiedono la sessione Admin autenticata.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {exportHistory.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500"><FileText className="h-12 w-12 mx-auto mb-3 opacity-50" /><p>Nessun export disponibile</p></div>
+                ) : (
+                  <div className="space-y-3">
+                    {exportHistory.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3">
+                          {statusIcon(item.status)}
+                          <div>
+                            <div className="font-medium">Export del {item.date}</div>
+                            <p className="text-sm text-gray-600">{Number(item.totalRecords || 0).toLocaleString('it-IT')} record · {item.totalFiles} file · {item.tables} tabelle</p>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card per tutte le categorie di tabelle */}
-                  <div className="space-y-6">
-                    {/* Dati Utenti */}
-                    {databaseAnalysis.categories.users.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-blue-500"></span>
-                          Dati Utenti ({databaseAnalysis.categories.users.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.users.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-blue-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-blue-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-blue-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-blue-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {statusBadge(item.status)}
+                          {item.status === 'completed' && <Button size="sm" variant="outline" onClick={() => downloadExport(item.id)}><Download className="h-4 w-4 mr-1" />Download</Button>}
                         </div>
                       </div>
-                    )}
-
-                    {/* Contenuti App */}
-                    {databaseAnalysis.categories.content.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-green-500"></span>
-                          Contenuti App ({databaseAnalysis.categories.content.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.content.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-green-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-green-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-green-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sistema */}
-                    {databaseAnalysis.categories.system.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
-                          Sistema ({databaseAnalysis.categories.system.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.system.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-yellow-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-yellow-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-yellow-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-yellow-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Ministeri */}
-                    {databaseAnalysis.categories.ministries?.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-red-600"></span>
-                          Ministeri ({databaseAnalysis.categories.ministries.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.ministries.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-red-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-red-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-red-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-red-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Voti */}
-                    {databaseAnalysis.categories.votes?.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-purple-600"></span>
-                          Voti ({databaseAnalysis.categories.votes.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.votes.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-purple-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-purple-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-purple-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-purple-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-purple-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Strumenti */}
-                    {databaseAnalysis.categories.tools?.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-green-600"></span>
-                          Strumenti ({databaseAnalysis.categories.tools.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.tools.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-green-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-green-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-green-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-green-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tabelle Temporanee */}
-                    {databaseAnalysis.categories.other.tables.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-base flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-gray-500"></span>
-                          Tabelle Temporanee ({databaseAnalysis.categories.other.tables.length} tabelle)
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                          {databaseAnalysis.categories.other.tables.map((table) => (
-                            <div 
-                              key={table.name} 
-                              className="p-3 border rounded-md bg-white border-gray-200 hover:shadow-sm transition-all"
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-gray-800 text-xs">{table.name}</h5>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-gray-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-gray-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Potenziale Risparmio */}
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h4 className="font-semibold text-green-800 mb-2">
-                        💾 Potenziale Risparmio
-                      </h4>
-                      <p className="text-green-700">
-                        Esportando le tabelle di monitoraggio, potresti liberare{' '}
-                        <strong>{databaseAnalysis.totalDatabaseSizeMB} MB</strong>
-                        (database totale)
-                      </p>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nessun dato disponibile</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* Analisi Axiom - Dati su Axiom */}
-            <Card className="bg-white shadow-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <PieChartIcon className="h-5 w-5" />
-                    <Link 
-                      to="/admin/data-export/axiom"
-                      className="hover:underline flex items-center gap-2"
-                    >
-                      Dati su Axiom
-                    </Link>
-                  </CardTitle>
-                  <CardDescription>
-                    Distribuzione eventi presenti in Axiom (post-migrazione)
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={testAuth}
-                    title="Testa autenticazione"
-                  >
-                    <Info className="h-4 w-4" />
-                  </Button>
-                  {(axiomAnalysis?.totalEvents === 0 || !axiomAnalysis) && (
-                    <Button 
-                      variant="default" 
-                      size="sm" 
-                      onClick={startAxiomMigration}
-                      disabled={migrating || loadingAxiom}
-                    >
-                      {migrating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Migrazione...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Avvia Migrazione
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {axiomAnalysis && axiomAnalysis.totalEvents > 0 && (
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      onClick={deleteMigratedData}
-                      disabled={migrating || loadingAxiom}
-                      title="Elimina i dati migrati da Supabase (IRREVERSIBILE)"
-                    >
-                      {migrating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Eliminazione...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Elimina da Supabase
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadAxiomAnalysis}
-                    disabled={loadingAxiom}
-                  >
-                    {loadingAxiom ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Aggiorna
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingAxiom ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  <span className="ml-3 text-gray-600">Caricamento analisi Axiom...</span>
-                </div>
-              ) : axiomAnalysis && axiomAnalysis.datasets.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Dimensione Totale */}
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <h3 className="text-2xl font-bold text-green-800">
-                      {axiomAnalysis.totalDataSizeMB ? `${axiomAnalysis.totalDataSizeMB.toFixed(2)} MB` : '0 MB'}
-                    </h3>
-                    <p className="text-green-600">Dimensione totale database</p>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={axiomAnalysis.datasets.map(ds => ({
-                                name: ds.label || ds.name,
-                                value: ds.count,
-                                color: ds.name === 'centralized_logs' ? '#2563eb' : '#10b981'
-                              }))}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, value }) => `${name}: ${value.toLocaleString('it-IT')}`}
-                              outerRadius={80}
-                              dataKey="value"
-                            >
-                              {axiomAnalysis.datasets.map((ds, index) => (
-                                <Cell 
-                                  key={`axiom-cell-${index}`} 
-                                  fill={ds.name === 'centralized_logs' ? '#2563eb' : '#10b981'} 
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value: number) => [`${Number(value).toLocaleString('it-IT')}`, 'Eventi']}
-                              labelFormatter={(label) => `Dataset: ${label}`}
-                            />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-lg">Dettaglio Dataset</h4>
-                      <div className="space-y-3">
-                        {axiomAnalysis.datasets.map(ds => {
-                          // Il dataset real-time può avere nome 'real-time' o il valore di AXIOM_REALTIME_DATASET
-                          // Il label è 'Audit Logs' ma contiene anche Security Events e Performance Metrics
-                          const isRealtimeDataset = ds.name === 'real-time' || 
-                                                    ds.name.includes('real-time') || 
-                                                    (ds.label === 'Audit Logs' && ds.name !== 'centralized_logs');
-                          const realtimeLogTypes = [
-                            { name: 'Audit Logs', description: 'Log delle azioni degli utenti e accessi ai dati', color: '#10b981' },
-                            { name: 'Security Events', description: 'Eventi di sicurezza e tentativi di accesso sospetti', color: '#ef4444' },
-                            { name: 'Performance Metrics', description: 'Metriche di performance e tempi di risposta', color: '#f59e0b' }
-                          ];
-                          
-                          return (
-                            <div key={ds.name} className="p-3 border rounded-lg bg-gray-50">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-4 h-4 rounded-full" 
-                                    style={{ backgroundColor: ds.name === 'centralized_logs' ? '#2563eb' : '#10b981' }}
-                                  ></div>
-                                  <div>
-                                    <div className="font-medium">{ds.label || ds.name}</div>
-                                    <div className="text-xs text-gray-500">{ds.name}</div>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  {ds.dataSizeMB !== null && ds.dataSizeMB !== undefined ? (
-                                    <div className="font-semibold">
-                                      {ds.dataSizeMB.toFixed(2)} MB
-                                    </div>
-                                  ) : ds.count !== null && ds.count !== undefined ? (
-                                    <div className="font-semibold">
-                                      {ds.count.toLocaleString('it-IT')} eventi
-                                    </div>
-                                  ) : (
-                                    <div className="font-semibold text-yellow-600">
-                                      Verifica manuale richiesta
-                                    </div>
-                                  )}
-                                  {ds.error && (
-                                    <div className={`text-xs max-w-xs mt-1 ${ds.needsManualCheck ? 'text-yellow-600' : 'text-red-600'}`}>
-                                      {ds.error}
-                                    </div>
-                                  )}
-                                  {ds.needsManualCheck && (
-                                    <a 
-                                      href={`https://app.axiom.co/demos-institute-jrim/datasets/${ds.name}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:underline mt-1 block"
-                                    >
-                                      Apri su Axiom →
-                                    </a>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {/* Mostra dettagli per dataset real-time */}
-                              {isRealtimeDataset && (
-                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                  <div className="text-xs font-medium text-gray-700 mb-2">Tipi di log contenuti:</div>
-                                  <div className="space-y-2">
-                                    {realtimeLogTypes.map((logType, idx) => (
-                                      <div key={idx} className="flex items-start gap-2 text-xs">
-                                        <div 
-                                          className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" 
-                                          style={{ backgroundColor: logType.color }}
-                                        ></div>
-                                        <div className="flex-1">
-                                          <div className="font-medium text-gray-800">{logType.name}</div>
-                                          <div className="text-gray-500 text-xs">{logType.description}</div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Mostra descrizione per centralized_logs */}
-                              {ds.name === 'centralized_logs' && (
-                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                  <div className="text-xs text-gray-600">
-                                    Log applicativi centralizzati: errori, warning, info e debug del sistema
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {axiomAnalysis.needsManualCheck && (
-                          <Alert className="mt-4">
-                            <Info className="h-4 w-4" />
-                            <AlertDescription>
-                              Le query API non sono disponibili per questa regione. 
-                              Verifica manualmente i dati su{' '}
-                              <a 
-                                href="https://app.axiom.co/demos-institute-jrim/datasets"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                              >
-                                Axiom Dashboard
-                              </a>
-                              . La migrazione è stata completata con successo.
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Card Security Events */}
-                  {securityEventsStats && (
-                    <div className="mt-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                            Security Events
-                          </CardTitle>
-                          <CardDescription>
-                            Eventi di sicurezza e tentativi di accesso sospetti (GDPR obbligatori - Articolo 32)
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-red-800">Totale Eventi</span>
-                                <Activity className="h-5 w-5 text-red-600" />
-                              </div>
-                              <div className="text-2xl font-bold text-red-900">
-                                {securityEventsStats.totalEvents?.toLocaleString('it-IT') || '0'}
-                              </div>
-                              <div className="text-xs text-red-600 mt-1">
-                                Dataset: {securityEventsStats.dataset || 'real-time'}
-                              </div>
-                            </div>
-                            <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-orange-800">Dimensione</span>
-                                <Database className="h-5 w-5 text-orange-600" />
-                              </div>
-                              <div className="text-2xl font-bold text-orange-900">
-                                {securityEventsStats.dataSizeMB ? securityEventsStats.dataSizeMB.toFixed(2) : '0.00'} MB
-                              </div>
-                              <div className="text-xs text-orange-600 mt-1">
-                                {securityEventsStats.dataSizeBytes ? (securityEventsStats.dataSizeBytes / 1024).toFixed(0) : '0'} KB
-                              </div>
-                            </div>
-                            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-blue-800">Periodo</span>
-                                <Clock className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div className="text-sm font-bold text-blue-900">
-                                Ultimi 365 giorni
-                              </div>
-                              <div className="text-xs text-blue-600 mt-1">
-                                GDPR: Conservazione 3 anni
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {securityEventsStats.severityStats && (
-                            <div className="mt-4 pt-4 border-t">
-                              <div className="text-sm font-medium mb-3">Distribuzione per Gravità:</div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {Object.entries(securityEventsStats.severityStats).map(([severity, count]: [string, any]) => (
-                                  <div key={severity} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                    <span className="text-xs font-medium capitalize">{severity}</span>
-                                    <span className="text-xs font-bold">{count || 0}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="mt-4 pt-4 border-t">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs text-gray-600">
-                                <strong>GDPR:</strong> Obbligatori per conformità (Articolo 32 - Sicurezza del trattamento)
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={loadSecurityEventsStats}
-                                disabled={loadingSecurityEvents}
-                              >
-                                <RefreshCw className={`h-3 w-3 mr-1 ${loadingSecurityEvents ? 'animate-spin' : ''}`} />
-                                Aggiorna
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="mb-2">
-                    {axiomAnalysis?.totalEvents === 0 
-                      ? 'Nessun dato presente su Axiom. Avvia la migrazione per trasferire i dati da Supabase.'
-                      : 'Impossibile caricare i dati Axiom'}
-                  </p>
-                  <p className="text-sm mt-2 mb-4">
-                    {axiomAnalysis?.totalEvents === 0 
-                      ? 'I dati verranno migrati dalle tabelle centralized_logs e audit_logs'
-                      : 'Verifica configurazione AXIOM_* e riprova'}
-                  </p>
-                  {axiomAnalysis?.totalEvents === 0 && (
-                    <Button
-                      onClick={startAxiomMigration}
-                      disabled={migrating}
-                      className="mt-4"
-                    >
-                      {migrating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Migrazione in corso...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Avvia Migrazione
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-6">
-          <Card className="bg-white shadow-lg">
-            <CardHeader>
-              <CardTitle>Cronologia Export</CardTitle>
-              <CardDescription>
-                Storico degli export eseguiti su hard disk esterno
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {exportHistory.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nessun export eseguito</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {exportHistory.map((exportItem) => (
-                    <div key={exportItem.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
-                      <div className="flex items-center space-x-3">
-                        {getStatusIcon(exportItem.status)}
-                        <div>
-                          <h4 className="font-medium">Export del {exportItem.date}</h4>
-                          <p className="text-sm text-gray-600">
-                            {exportItem.totalRecords.toLocaleString()} record • {exportItem.totalFiles} file • {exportItem.tables} tabelle
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {getStatusBadge(exportItem.status)}
-                        {exportItem.status === 'completed' && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => downloadExport(exportItem.id)}
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <Card className="bg-white shadow-lg">
-            <CardHeader>
-              <CardTitle>Impostazioni Export</CardTitle>
-              <CardDescription>
-                Configura le impostazioni per l'export automatico
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Directory di Destinazione</h4>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <code className="text-sm">/mnt/external-drive/archivio</code>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <h4 className="font-medium">Compressione</h4>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="default">Abilitata</Badge>
-                    <span className="text-sm text-gray-600">GZIP Level 6</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <h4 className="font-medium">Formato File</h4>
-                  <Badge variant="outline">CSV</Badge>
-                </div>
-                
-                <div className="space-y-4">
-                  <h4 className="font-medium">Dimensione Max File</h4>
-                  <Badge variant="outline">100 MB</Badge>
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t">
-                <h4 className="font-medium mb-4">Policy di Retention</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Security Events:</span>
-                    <span>30 giorni</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Performance Metrics:</span>
-                    <span>7 giorni</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Centralized Logs:</span>
-                    <span>14 giorni</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Access Audit:</span>
-                    <span>30 giorni</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Impostazioni export</CardTitle>
+                <CardDescription>Configurazione operativa mostrata dalla pagina Admin.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="rounded-lg border p-3"><div className="font-medium">Destinazione</div><code>/mnt/external-drive/archivio</code></div>
+                <div className="rounded-lg border p-3"><div className="font-medium">Compressione</div><span>GZIP Level 6</span></div>
+                <div className="rounded-lg border p-3"><div className="font-medium">Formato</div><span>CSV</span></div>
+                <div className="rounded-lg border p-3"><div className="font-medium">Dimensione max file</div><span>100 MB</span></div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
