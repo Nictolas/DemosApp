@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { SectionsGrid } from "./components/SectionsGrid";
 import { PageContainer } from "@/components/PageContainer";
+import { hasAdminCapability } from "@/lib/admin-access";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -17,6 +18,10 @@ export default function Gestisci() {
 
   if (!user) {
     return <Redirect to="/auth" />;
+  }
+
+  if (!hasAdminCapability(user)) {
+    return <Redirect to="/menu" />;
   }
 
   return (
