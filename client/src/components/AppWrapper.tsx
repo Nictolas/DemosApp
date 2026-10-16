@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { Redirect, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
+import { hasAdminCapability, isAdminOnlyPath } from '@/lib/admin-access';
 import { SplashScreen } from './SplashScreen';
 
 interface AppWrapperProps {
@@ -52,6 +53,26 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
   // Mostra la splash screen solo quando necessario
   if (showSplash) {
     return <SplashScreen onComplete={() => {}} duration={2000} />;
+  }
+
+  // Le superfici amministrative sono capability-only anche lato client.
+  // Le API sensibili continuano comunque ad applicare requireAdmin server-side.
+  if (isAdminOnlyPath(location)) {
+    if (isAuthLoading) {
+      return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+        </div>
+      );
+    }
+
+    if (!user) {
+      return <Redirect to="/auth" />;
+    }
+
+    if (!hasAdminCapability(user)) {
+      return <Redirect to="/menu" />;
+    }
   }
 
   // Mostra l'app quando è pronta
