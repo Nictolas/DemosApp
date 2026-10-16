@@ -3,18 +3,39 @@ const assert = require('node:assert/strict');
 
 process.env.IDENTITY_HMAC_SECRET = 'test-secret-for-demos-identity-key-1234567890';
 
-const { completeOAuthRegistrationAfterCie } = require('../services/oauthRegistrationService');
+const {
+  completeOAuthRegistrationWithoutCie,
+  completeOAuthRegistrationAfterCie,
+} = require('../services/oauthRegistrationService');
 
-function makePool({ duplicatePerson = false } = {}) {
+function makePool({ duplicatePerson = false, duplicateProviderRace = false } = {}) {
   const calls = [];
+  let providerLookupCount = 0;
+  let providerInsertCount = 0;
   const client = {
     async query(sql, params = []) {
       const normalized = String(sql).replace(/\s+/g, ' ').trim();
       calls.push({ sql: normalized, params });
       if (normalized === 'BEGIN' || normalized === 'COMMIT' || normalized === 'ROLLBACK') return { rows: [] };
-      if (normalized.includes('FROM user_auth_providers uap')) return { rows: [] };
+      if (normalized.includes('FROM user_auth_providers uap')) {
+        providerLookupCount += 1;
+        if (duplicateProviderRace && providerLookupCount >= 2) {
+          return { rows: [{ id: 'existing-user-id', ruolo: 'E', status: 'a' }] };
+        }
+        return { rows: [] };
+      }
       if (/SELECT id, ruolo, status FROM users WHERE (google_sub|apple_user_id)/.test(normalized)) return { rows: [] };
-      if (normalized.startsWith('INSERT INTO users')) return { rows: [] };
+      if (normalized.startsWith('UPDATE users SET paese_residenza')) return { rows: [] };
+      if (normalized.startsWith('INSERT INTO users')) {
+        providerInsertCount += 1;
+        if (duplicateProviderRace && providerInsertCount === 1) {
+          const error = new Error('duplicate provider identity');
+          error.code = '23505';
+          error.constraint = 'idx_users_google_sub';
+          throw error;
+        }
+        return { rows: [] };
+      }
       if (normalized.startsWith('INSERT INTO user_profile')) return { rows: [] };
       if (normalized.startsWith('INSERT INTO user_consents')) return { rows: [] };
       if (normalized.startsWith('INSERT INTO user_auth_providers')) return { rows: [] };
@@ -94,4 +115,19 @@ test('rifiuta la finalizzazione senza consensi obbligatori prima di aprire la tr
     error => error?.code === 'REGISTRATION_CONSENT_REQUIRED'
   );
   assert.equal(calls.length, 0);
+});
+
+test('una doppia finalizzazione Google concorrente recupera l account gia creato invece di restituire 503', async () => {
+  const { calls, pool } = makePool({ duplicateProviderRace: true });
+
+  const result = await completeOAuthRegistrationWithoutCie({ registration: registration() }, pool);
+
+  assert.equal(result.created, false);
+  assert.equal(result.userId, 'existing-user-id');
+  assert.equal(result.role, 'E');
+  assert.equal(calls.filter(call => call.sql === 'BEGIN').length, 2);
+  assert.equal(calls.filter(call => call.sql === 'ROLLBACK').length, 1);
+  assert.equal(calls.filter(call => call.sql === 'COMMIT').length, 1);
+  assert.equal(calls.some(call => call.sql.startsWith('UPDATE users SET paese_residenza')), true);
+  assert.equal(calls.some(call => call.sql.startsWith('INSERT INTO user_auth_providers')), true);
 });
