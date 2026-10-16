@@ -51,6 +51,19 @@ test('auth user type exposes is_admin without deriving it from the legacy JWT ro
   assert.doesNotMatch(jwtFallback, /is_admin\s*:/);
 });
 
+test('/utenti uses canonical Admin capability instead of legacy role strings', () => {
+  const src = read('client/src/pages/Utenti/index.tsx');
+  assert.match(src, /hasAdminCapability\(user\)/);
+  assert.doesNotMatch(src, /user\.role !== ['"]Admin['"]/);
+  assert.doesNotMatch(src, /ruolo !== ['"]AD['"]/);
+});
+
+test('auth state refreshes on mount and window focus so capability changes are picked up', () => {
+  const src = read('client/src/hooks/use-auth.tsx');
+  assert.match(src, /refetchOnWindowFocus:\s*true/);
+  assert.match(src, /refetchOnMount:\s*["']always["']/);
+});
+
 test('/gestisci redirects authenticated non-Admin users away', () => {
   const src = read('client/src/pages/Gestisci/index.tsx');
   assert.match(src, /hasAdminCapability\(user\)/);

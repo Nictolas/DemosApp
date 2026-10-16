@@ -27,6 +27,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { hasAdminCapability } from "@/lib/admin-access";
 
 // Import per le statistiche
 type StatisticheUtenti = {
@@ -264,7 +265,7 @@ export default function Utenti() {
       isAuthLoading,
       userRole: user?.ruolo,
       userRuolo: user?.ruolo,
-      isAdmin: user?.ruolo === "AD"
+      isAdmin: hasAdminCapability(user)
     });
   }, [user, isAuthLoading]);
 
@@ -282,7 +283,7 @@ export default function Utenti() {
   // Hook per forzare il refresh quando la pagina diventa visibile
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && user?.ruolo === "AD") {
+      if (!document.hidden && hasAdminCapability(user)) {
         console.log('🔄 Pagina diventata visibile, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
@@ -290,7 +291,7 @@ export default function Utenti() {
     };
 
     const handleFocus = () => {
-      if (user?.ruolo === "AD") {
+      if (hasAdminCapability(user)) {
         console.log('🔄 Finestra riprende focus, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
@@ -320,7 +321,7 @@ export default function Utenti() {
     );
   }
 
-  if (!user || (user.role !== 'Admin' && (user as any).ruolo !== "AD")) {
+  if (!user || !hasAdminCapability(user)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-red-100 to-red-200 page-with-navbar flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-lg shadow-xl">
