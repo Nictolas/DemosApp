@@ -6,6 +6,10 @@ const { registerVerifiedIdentity } = require('./identityVerificationStore');
 const { IDENTITY_PROVIDERS } = require('../constants/identityVerification');
 
 const SUPPORTED_OAUTH_PROVIDERS = new Set(['google', 'apple']);
+const PROVIDER_IDENTITY_CONSTRAINTS = Object.freeze({
+  google: 'idx_users_google_sub',
+  apple: 'idx_users_apple_user_id',
+});
 
 function normalizeRegistration(registration) {
   if (!registration || typeof registration !== 'object') {
@@ -39,6 +43,11 @@ function normalizeRegistration(registration) {
   };
 }
 
+function isProviderIdentityRace(error, provider) {
+  return error?.code === '23505'
+    && error?.constraint === PROVIDER_IDENTITY_CONSTRAINTS[provider];
+}
+
 async function findExistingAccount(client, provider, providerSub) {
   const providerResult = await client.query(
     `SELECT u.id, u.ruolo, u.status
@@ -56,6 +65,29 @@ async function findExistingAccount(client, provider, providerSub) {
     [providerSub]
   );
   return legacyResult.rows[0] || null;
+}
+
+async function updateExistingUserCore(client, existing, compressedLocation) {
+  if (existing.status !== 'a') throw new Error('Account non attivo');
+  const userId = existing.id;
+  const role = existing.ruolo || 'E';
+
+  await client.query(
+    `UPDATE users SET
+      paese_residenza = $1, regione_residenza = $2, provincia_residenza = $3, comune_residenza = $4,
+      privacy_policy_consent = true, terms_of_service_consent = true,
+      consent_timestamp = NOW(), updated_at = CURRENT_TIMESTAMP
+     WHERE id = $5`,
+    [
+      compressedLocation.paese_residenza ?? null,
+      compressedLocation.regione_residenza ?? null,
+      compressedLocation.provincia_residenza ?? null,
+      compressedLocation.comune_residenza ?? null,
+      userId,
+    ]
+  );
+
+  return { userId, role };
 }
 
 async function upsertRegistrationData(client, userId, registration, compressedLocation) {
@@ -141,6 +173,24 @@ async function upsertRegistrationData(client, userId, registration, compressedLo
   }
 }
 
+async function finalizeExistingAccount(
+  client,
+  existing,
+  normalized,
+  compressedLocation,
+  fiscalNumber
+) {
+  const { userId, role } = await updateExistingUserCore(client, existing, compressedLocation);
+  await upsertRegistrationData(client, userId, normalized, compressedLocation);
+  if (typeof fiscalNumber === 'string' && fiscalNumber.trim()) {
+    await registerVerifiedIdentity(
+      { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
+      client
+    );
+  }
+  return { userId, role, created: false };
+}
+
 async function completeOAuthRegistration(
   { registration, fiscalNumber = null, requireVerifiedIdentity = false },
   pool = getPool()
@@ -162,62 +212,50 @@ async function completeOAuthRegistration(
     await client.query('BEGIN');
 
     const existing = await findExistingAccount(client, normalized.provider, normalized.providerSub);
-    let userId;
-    let role;
-
     if (existing) {
-      if (existing.status !== 'a') throw new Error('Account non attivo');
-      userId = existing.id;
-      role = existing.ruolo || 'E';
-
-      await client.query(
-        `UPDATE users SET
-          paese_residenza = $1, regione_residenza = $2, provincia_residenza = $3, comune_residenza = $4,
-          privacy_policy_consent = true, terms_of_service_consent = true,
-          consent_timestamp = NOW(), updated_at = CURRENT_TIMESTAMP
-         WHERE id = $5`,
-        [
-          compressedLocation.paese_residenza ?? null,
-          compressedLocation.regione_residenza ?? null,
-          compressedLocation.provincia_residenza ?? null,
-          compressedLocation.comune_residenza ?? null,
-          userId,
-        ]
+      const completed = await finalizeExistingAccount(
+        client,
+        existing,
+        normalized,
+        compressedLocation,
+        fiscalNumber
       );
-    } else {
-      userId = randomUUID();
-      role = 'E';
-      const legacyColumn = normalized.provider === 'google' ? 'google_sub' : 'apple_user_id';
-      const displayName = normalized.givenName || normalized.name || 'Utente';
-      const familyName = normalized.familyName || 'OAuth';
-      const emailPlain = normalized.email || `oauth-${normalized.provider}-${normalized.providerSub.replace(/[^a-zA-Z0-9._-]/g, '_')}@demos.oauth`;
-      const email = encryptEmail(emailPlain) ?? emailPlain;
-
-      await client.query(
-        `INSERT INTO users (
-          id, ruolo, status, nome, cognome, email, ${legacyColumn},
-          paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-          privacy_policy_consent, terms_of_service_consent, consent_timestamp,
-          created_at, updated_at
-        ) VALUES (
-          $1, $2, 'a', $3, $4, $5, $6,
-          $7, $8, $9, $10,
-          true, true, NOW(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )`,
-        [
-          userId,
-          role,
-          displayName,
-          familyName,
-          email,
-          normalized.providerSub,
-          compressedLocation.paese_residenza ?? null,
-          compressedLocation.regione_residenza ?? null,
-          compressedLocation.provincia_residenza ?? null,
-          compressedLocation.comune_residenza ?? null,
-        ]
-      );
+      await client.query('COMMIT');
+      return completed;
     }
+
+    const userId = randomUUID();
+    const role = 'E';
+    const legacyColumn = normalized.provider === 'google' ? 'google_sub' : 'apple_user_id';
+    const displayName = normalized.givenName || normalized.name || 'Utente';
+    const familyName = normalized.familyName || 'OAuth';
+    const emailPlain = normalized.email || `oauth-${normalized.provider}-${normalized.providerSub.replace(/[^a-zA-Z0-9._-]/g, '_')}@demos.oauth`;
+    const email = encryptEmail(emailPlain) ?? emailPlain;
+
+    await client.query(
+      `INSERT INTO users (
+        id, ruolo, status, nome, cognome, email, ${legacyColumn},
+        paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+        privacy_policy_consent, terms_of_service_consent, consent_timestamp,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, 'a', $3, $4, $5, $6,
+        $7, $8, $9, $10,
+        true, true, NOW(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      )`,
+      [
+        userId,
+        role,
+        displayName,
+        familyName,
+        email,
+        normalized.providerSub,
+        compressedLocation.paese_residenza ?? null,
+        compressedLocation.regione_residenza ?? null,
+        compressedLocation.provincia_residenza ?? null,
+        compressedLocation.comune_residenza ?? null,
+      ]
+    );
 
     await upsertRegistrationData(client, userId, normalized, compressedLocation);
     if (typeof fiscalNumber === 'string' && fiscalNumber.trim()) {
@@ -228,9 +266,38 @@ async function completeOAuthRegistration(
     }
 
     await client.query('COMMIT');
-    return { userId, role, created: !existing };
+    return { userId, role, created: true };
   } catch (error) {
     await client.query('ROLLBACK');
+
+    // Due richieste di finalizzazione possono arrivare quasi nello stesso istante
+    // (es. WebView/remount). La prima crea l'account; la seconda deve diventare
+    // idempotente invece di mostrare un 503 per il vincolo unique del provider.
+    if (isProviderIdentityRace(error, normalized.provider)) {
+      await client.query('BEGIN');
+      try {
+        const existing = await findExistingAccount(
+          client,
+          normalized.provider,
+          normalized.providerSub
+        );
+        if (!existing) throw error;
+
+        const completed = await finalizeExistingAccount(
+          client,
+          existing,
+          normalized,
+          compressedLocation,
+          fiscalNumber
+        );
+        await client.query('COMMIT');
+        return completed;
+      } catch (recoveryError) {
+        await client.query('ROLLBACK');
+        throw recoveryError;
+      }
+    }
+
     throw error;
   } finally {
     client.release();
