@@ -153,3 +153,10 @@ test('communications hub exposes one canonical notification surface with send, h
   assert.match(notifications, /\/api\/notifiche-totali/);
   assert.match(notifications, /\/api\/comunicazioni\/debug-firebase-admin/);
 });
+
+test('/auth/me identity refresh bypasses HTTP caches so Admin capability cannot fall back to stale JWT role', () => {
+  const auth = read('client/src/hooks/use-auth.tsx');
+  const profile = read('api/routes/auth/profile.js');
+  assert.match(auth, /cache:\s*["']no-store["']/);
+  assert.match(profile, /Cache-Control["']?,\s*["']private, no-store, max-age=0["']/);
+});

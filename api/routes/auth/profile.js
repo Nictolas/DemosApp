@@ -14,6 +14,7 @@ const isSchemaMigrationError = (error) => (
 
 // GET /api/auth/me - Ottieni profilo utente autenticato
 router.get('/me', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     console.log('🔍 GET /api/auth/me - Richiesta profilo utente (route modulare)');
     
