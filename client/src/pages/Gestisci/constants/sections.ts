@@ -82,24 +82,13 @@ export const gestisciSections: GestisciSection[] = [
   {
     id: "notifiche-totali",
     category: "comunicazione",
-    title: "Notifiche Totali",
-    description: "Visualizza e gestisci tutte le notifiche del sistema",
+    title: "Notifiche",
+    description: "Invia notifiche, verifica la consegna e consulta la cronologia da un'unica pagina",
     icon: Bell,
     color: "text-pink-600 group-hover:text-pink-800",
     buttonColor: "bg-pink-500 hover:bg-pink-600",
     route: "/notifiche-totali",
-    buttonText: "Notifiche Totali"
-  },
-  {
-    id: "notifiche-demos",
-    category: "comunicazione",
-    title: "Notifiche Demos",
-    description: "Invia notifiche push a tutti gli utenti con preferenze Demos attivate",
-    icon: Bell,
-    color: "text-indigo-600 group-hover:text-indigo-800",
-    buttonColor: "bg-indigo-500 hover:bg-indigo-600",
-    route: "/gestisci/notifiche-demos",
-    buttonText: "Notifiche Demos"
+    buttonText: "Gestisci Notifiche"
   },
   {
     id: "test-ministero",
@@ -116,7 +105,7 @@ export const gestisciSections: GestisciSection[] = [
     id: "data-export",
     category: "istituzionale-dati",
     title: "Export Dati su Hard Disk",
-    description: "Esporta dati storici dal database Supabase su hard disk esterno per alleggerire il database",
+    description: "Esporta dati storici dal database Neon su hard disk esterno per alleggerire il database",
     icon: HardDrive,
     color: "text-blue-600 group-hover:text-blue-800",
     buttonColor: "bg-blue-500 hover:bg-blue-600",
@@ -187,7 +176,7 @@ export const gestisciCategoryMeta: Record<GestisciSection["category"], { title: 
   },
   "comunicazione": {
     title: "Comunicazione",
-    description: "Gestione notifiche e comunicazioni verso utenti."
+    description: "Invio, diagnostica e cronologia delle notifiche da un'unica superficie."
   },
   "istituzionale-dati": {
     title: "Dati Istituzionali ed Export",
