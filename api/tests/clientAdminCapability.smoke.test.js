@@ -77,7 +77,8 @@ test('/gestisci home exposes five canonical hubs instead of low-level tools', ()
     assert.match(hubs, new RegExp(`id: ["']${id}["']`));
   }
 
-  assert.equal((hubs.match(/\{\n\s*id: /g) || []).length, 5);
+  const hubArray = hubs.slice(hubs.indexOf('export const gestisciHubs'));
+  assert.equal((hubArray.match(/\n\s*id: /g) || []).length, 5);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']backup-recovery["']/s);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']data-export["']/s);
   assert.match(hubs, /route:\s*["']\/admin\/ops-center["']/);
@@ -86,9 +87,23 @@ test('/gestisci home exposes five canonical hubs instead of low-level tools', ()
 });
 
 test('web API defaults to the restored canonical domain while native fallback remains isolated', () => {
-  const src = read('client/src/lib/api-config.ts');
-  assert.match(src, /CANONICAL_API_BASE_URL\s*=\s*['"]https:\/\/api\.demos\.community\/api['"]/);
-  assert.match(src, /NATIVE_API_FALLBACK_URL\s*=\s*['"]https:\/\/demos-c7k0\.onrender\.com\/api['"]/);
-  assert.match(src, /return configuredBaseUrl \|\| CANONICAL_API_BASE_URL/);
-  assert.match(src, /Capacitor\.isNativePlatform\(\)/);
+  const apiConfig = read('client/src/lib/api-config.ts');
+  const apiRequest = read('client/src/lib/api-request.ts');
+
+  for (const src of [apiConfig, apiRequest]) {
+    assert.match(src, /CANONICAL_API_BASE_URL\s*=\s*['"]https:\/\/api\.demos\.community\/api['"]/);
+    assert.match(src, /NATIVE_API_FALLBACK_URL\s*=\s*['"]https:\/\/demos-c7k0\.onrender\.com\/api['"]/);
+    assert.match(src, /Capacitor\.isNativePlatform\(\)/);
+  }
+  assert.match(apiConfig, /return configuredBaseUrl \|\| CANONICAL_API_BASE_URL/);
+  assert.match(apiRequest, /return configured \|\| CANONICAL_API_BASE_URL/);
+});
+
+test('Ops Center identifies Neon and reads the existing Security Center health endpoint', () => {
+  const src = read('client/src/pages/Admin/OpsCenter.tsx');
+  assert.match(src, /Database \(Neon\)/);
+  assert.doesNotMatch(src, /Database \(Supabase\)/);
+  assert.match(src, /\/security-center\/health/);
+  assert.match(src, /AI Cybersecurity Agent/);
+  assert.match(src, /Non disponibile/);
 });
