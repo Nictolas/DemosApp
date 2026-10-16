@@ -77,7 +77,7 @@ test('/gestisci home exposes five canonical hubs instead of low-level tools', ()
     assert.match(hubs, new RegExp(`id: ["']${id}["']`));
   }
 
-  assert.equal((hubs.match(/\n\s*id: /g) || []).length, 5);
+  assert.equal((hubs.match(/\{\n\s*id: /g) || []).length, 5);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']backup-recovery["']/s);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']data-export["']/s);
   assert.match(hubs, /route:\s*["']\/admin\/ops-center["']/);
