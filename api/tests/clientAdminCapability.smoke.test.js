@@ -120,3 +120,23 @@ test('Data Export uses real API data, authenticated downloads and no web Render 
   assert.doesNotMatch(src, /demos-c7k0\.onrender\.com/);
   assert.doesNotMatch(src, /Supabase/);
 });
+
+test('communications hub exposes one canonical notification surface with send, history and diagnostics', () => {
+  const hubs = read('client/src/pages/Gestisci/constants/hubs.ts');
+  const sections = read('client/src/pages/Gestisci/constants/sections.ts');
+  const notifications = read('client/src/pages/NotificheTotali/index.tsx');
+
+  assert.match(hubs, /sectionIds:\s*\[["']notifiche-totali["']\]/);
+  assert.doesNotMatch(hubs, /notifiche-demos/);
+  assert.match(sections, /id:\s*["']notifiche-totali["']/);
+  assert.doesNotMatch(sections, /id:\s*["']notifiche-demos["']/);
+  assert.match(sections, /title:\s*["']Notifiche["']/);
+  assert.doesNotMatch(sections, /Supabase/);
+  assert.match(notifications, /hasAdminCapability\(user\)/);
+  assert.match(notifications, /value="invio"/);
+  assert.match(notifications, /value="cronologia"/);
+  assert.match(notifications, /value="diagnostica"/);
+  assert.match(notifications, /\/api\/comunicazioni\/send-user-notification/);
+  assert.match(notifications, /\/api\/notifiche-totali/);
+  assert.match(notifications, /\/api\/comunicazioni\/debug-firebase-admin/);
+});
