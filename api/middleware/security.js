@@ -157,9 +157,6 @@ const securityLimiter = rateLimit({
 const securityMiddleware = (req, res, next) => {
   installProductionResponseSanitizer(res);
 
-  const bearerRejection = enforceCanonicalBearerToken(req, res);
-  if (bearerRejection) return bearerRejection;
-
   const sqlInjectionPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/i,
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
@@ -349,6 +346,11 @@ const securityMiddleware = (req, res, next) => {
       });
     }
   }
+
+  // Preserve deterministic attack-filter precedence, then enforce the canonical
+  // access-token contract before any downstream route can execute.
+  const bearerRejection = enforceCanonicalBearerToken(req, res);
+  if (bearerRejection) return bearerRejection;
 
   req.securityTimestamp = new Date().toISOString();
   next();
