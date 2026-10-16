@@ -53,6 +53,7 @@ steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securi
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityCenterStagingAuth.test.js')], root, 'Security Center staging auth gate']);
 steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'securityCenterStagingServer.test.js')], root, 'Security Center dedicated staging server gate']);
 steps.push(npmStep(path.join(root, 'api'), 'test:firebase-admin-compat', 'Firebase Admin 14 compatibility'));
+steps.push([process.execPath, ['--test', path.join(root, 'api', 'tests', 'clientAdminCapability.smoke.test.js')], root, 'Client Admin capability gate']);
 steps.push(npmStep(path.join(root, 'client'), 'build', 'Client production build'));
 
 for (const [command, args, cwd, label] of steps) {
