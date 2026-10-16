@@ -30,10 +30,10 @@ export const gestisciHubs: GestisciHub[] = [
   {
     id: "comunicazioni",
     title: "Comunicazioni",
-    description: "Invio, controllo e cronologia delle notifiche DEMOS.",
+    description: "Invio, diagnostica e cronologia delle notifiche DEMOS.",
     icon: Bell,
     buttonColor: "bg-pink-500 hover:bg-pink-600",
-    sectionIds: ["notifiche-demos", "notifiche-totali"],
+    sectionIds: ["notifiche-totali"],
   },
   {
     id: "dati-istituzionali",
