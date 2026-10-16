@@ -84,3 +84,11 @@ test('/gestisci home exposes five canonical hubs instead of low-level tools', ()
   assert.match(grid, /gestisciHubs\.map/);
   assert.match(grid, /selectedHubId/);
 });
+
+test('web API defaults to the restored canonical domain while native fallback remains isolated', () => {
+  const src = read('client/src/lib/api-config.ts');
+  assert.match(src, /CANONICAL_API_BASE_URL\s*=\s*['"]https:\/\/api\.demos\.community\/api['"]/);
+  assert.match(src, /NATIVE_API_FALLBACK_URL\s*=\s*['"]https:\/\/demos-c7k0\.onrender\.com\/api['"]/);
+  assert.match(src, /return configuredBaseUrl \|\| CANONICAL_API_BASE_URL/);
+  assert.match(src, /Capacitor\.isNativePlatform\(\)/);
+});
