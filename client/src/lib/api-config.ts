@@ -1,7 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 
-// Configurazione centralizzata per l'API
-const DEFAULT_API_BASE_URL = 'https://demos-c7k0.onrender.com/api';
+// Endpoint pubblico canonico ripristinato il 16/10/2026.
+const CANONICAL_API_BASE_URL = 'https://api.demos.community/api';
+// Fallback nativo temporaneo: la build Alpha 1.0.7(9) è già congelata/in revisione
+// e il passaggio del client nativo al dominio canonico va qualificato nella release successiva.
+const NATIVE_API_FALLBACK_URL = 'https://demos-c7k0.onrender.com/api';
 
 const normalizeApiBaseUrl = (value: string): string => {
   const trimmed = value.trim().replace(/\/+$/, '');
@@ -12,23 +15,22 @@ const normalizeApiBaseUrl = (value: string): string => {
 const getConfiguredBaseUrl = (): string => {
   const env = (import.meta as any).env || {};
   // Il progetto storico usa entrambe le convenzioni; supportarle evita che una
-  // build Android ignori VITE_API_URL e ricada involontariamente sul fallback.
+  // build ignori una configurazione esplicita dell'endpoint API.
   return normalizeApiBaseUrl(env.VITE_API_BASE_URL || env.VITE_API_URL || '');
 };
 
 const resolveBaseUrl = (): string => {
-  // Android/iOS usano temporaneamente l'endpoint Render diretto: api.demos.community
-  // è attualmente bloccato da Cloudflare Error 1000. Non lasciare che una variabile
-  // Vite web sovrascriva il backend nativo finché il custom domain non è riparato.
-  if (Capacitor.isNativePlatform()) {
-    return DEFAULT_API_BASE_URL;
-  }
+  const configuredBaseUrl = getConfiguredBaseUrl();
 
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     return '/api';
   }
 
-  return getConfiguredBaseUrl() || DEFAULT_API_BASE_URL;
+  if (Capacitor.isNativePlatform()) {
+    return configuredBaseUrl || NATIVE_API_FALLBACK_URL;
+  }
+
+  return configuredBaseUrl || CANONICAL_API_BASE_URL;
 };
 
 export const API_CONFIG = {

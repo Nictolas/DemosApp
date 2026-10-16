@@ -21,6 +21,7 @@ interface User {
   role?: string;
   ruolo?: string;
   status?: string;
+  is_admin?: boolean;
 }
 
 type AuthContextType = {
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          cache: "no-store",
           signal: controller.signal,
         });
 
@@ -100,8 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {

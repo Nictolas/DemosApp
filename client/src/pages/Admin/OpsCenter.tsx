@@ -1,12 +1,77 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal, PieChart, Gauge } from "lucide-react";
+import apiRequest from "@/lib/api-request";
+import { Shield, Activity, Scale, Database, HardDrive, Bell, ArrowRight, SlidersHorizontal, PieChart, Gauge, Bot } from "lucide-react";
+
+type SecurityAgentHealth = {
+  generatedAt?: string;
+  shield?: {
+    color?: string;
+    state?: string;
+    reason?: string;
+  };
+  agent?: {
+    enabled?: boolean;
+    running?: boolean;
+    inFlight?: boolean;
+    lastRunAt?: string | null;
+    lastRunStatus?: string;
+    runCount?: number;
+    failureCount?: number;
+  };
+  openIncidentCount?: number;
+  highestOpenSeverity?: string | null;
+};
+
+const securityStateLabel = (state?: string) => {
+  switch (state) {
+    case "healthy": return "Regolare";
+    case "attention": return "Attenzione";
+    case "critical": return "Critico";
+    case "disabled": return "Disattivato";
+    default: return state || "Sconosciuto";
+  }
+};
 
 const OpsCenter: React.FC = () => {
   const [, setLocation] = useLocation();
+  const [securityAgent, setSecurityAgent] = useState<SecurityAgentHealth | null>(null);
+  const [securityAgentLoading, setSecurityAgentLoading] = useState(true);
+  const [securityAgentUnavailable, setSecurityAgentUnavailable] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSecurityAgent = async () => {
+      try {
+        const response = await apiRequest.get<SecurityAgentHealth>("/security-center/health");
+        if (cancelled) return;
+
+        if (response.success && response.data) {
+          setSecurityAgent(response.data);
+          setSecurityAgentUnavailable(false);
+        } else {
+          setSecurityAgent(null);
+          setSecurityAgentUnavailable(true);
+        }
+      } catch (_error) {
+        if (!cancelled) {
+          setSecurityAgent(null);
+          setSecurityAgentUnavailable(true);
+        }
+      } finally {
+        if (!cancelled) setSecurityAgentLoading(false);
+      }
+    };
+
+    loadSecurityAgent();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="w-full mx-auto px-4 md:px-6 py-8 pt-20 min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f6f9ff_36%,_#ffffff_72%)]">
@@ -38,7 +103,7 @@ const OpsCenter: React.FC = () => {
           </Card>
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Supabase)</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Neon)</CardTitle>
               <CardDescription>Ti aiuta a capire se il database e sotto stress o sta rallentando.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -101,6 +166,42 @@ const OpsCenter: React.FC = () => {
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-900 mb-3">Security</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <Card className="border-slate-200/70 bg-white/90 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> AI Cybersecurity Agent</CardTitle>
+              <CardDescription>Riepilogo reale del Security Center, in sola lettura.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {securityAgentLoading ? (
+                <Badge variant="outline">Verifica stato...</Badge>
+              ) : securityAgentUnavailable ? (
+                <>
+                  <Badge variant="outline">Non disponibile</Badge>
+                  <p className="text-sm text-slate-600">
+                    Il Security Center non e esposto in questo ambiente oppure la lettura non e disponibile.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{securityStateLabel(securityAgent?.shield?.state)}</Badge>
+                    <Badge variant="outline">{securityAgent?.agent?.enabled ? "Agent attivo" : "Agent disattivato"}</Badge>
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Incidenti aperti: {securityAgent?.openIncidentCount ?? 0}
+                    {securityAgent?.highestOpenSeverity ? ` · Severita massima: ${securityAgent.highestOpenSeverity}` : ""}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Ultimo ciclo: {securityAgent?.agent?.lastRunStatus || "never"}
+                    {securityAgent?.agent?.lastRunAt ? ` · ${new Date(securityAgent.agent.lastRunAt).toLocaleString("it-IT")}` : ""}
+                  </p>
+                </>
+              )}
+              <Button className="w-full justify-between" onClick={() => setLocation("/security-dashboard")}>
+                Apri Security Dashboard <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Security Dashboard</CardTitle>

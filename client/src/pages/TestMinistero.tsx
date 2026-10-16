@@ -4,6 +4,7 @@ import { Redirect } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
 import { Building2, RefreshCw, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { hasAdminCapability } from "@/lib/admin-access";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface MinisteroData {
@@ -134,6 +135,10 @@ export default function TestMinistero() {
 
   if (!user) {
     return <Redirect to="/auth" />;
+  }
+
+  if (!hasAdminCapability(user)) {
+    return <Redirect to="/menu" />;
   }
 
   return (

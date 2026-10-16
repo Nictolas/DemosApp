@@ -58,7 +58,8 @@ test('Ministero diagnostics are Admin-only and public collection cannot force li
   assert.match(ministero, /router\.get\('\/logs', verifyToken, requireAdmin,/);
   assert.doesNotMatch(ministero, /source === 'ministero'/);
   const client = fs.readFileSync(path.join(ROOT, '..', 'client', 'src', 'pages', 'TestMinistero.tsx'), 'utf8');
-  assert.match(client, /user\.ruolo !== \"AD\"/);
+  assert.match(client, /hasAdminCapability\(user\)/);
+  assert.doesNotMatch(client, /user\.ruolo !== \"AD\"/);
 });
 
 test('manual notification creation and Ministero sync are Admin-only', () => {

@@ -4,7 +4,8 @@
 import { Capacitor } from "@capacitor/core";
 import { getAuthToken } from "@/lib/auth-token";
 
-const DEFAULT_API_BASE_URL = 'https://demos-c7k0.onrender.com/api';
+const CANONICAL_API_BASE_URL = 'https://api.demos.community/api';
+const NATIVE_API_FALLBACK_URL = 'https://demos-c7k0.onrender.com/api';
 
 const normalizeApiBaseUrl = (value: string): string => {
   const trimmed = value.trim().replace(/\/+$/, '');
@@ -13,22 +14,21 @@ const normalizeApiBaseUrl = (value: string): string => {
 };
 
 // Configurazione API coerente con api-config.ts anche per i vecchi consumer di ApiRequest.
+// Web usa sempre il dominio canonico salvo override esplicito; il fallback Render resta
+// confinato al client nativo fino alla qualificazione della prossima release Android.
 const resolveBaseUrl = (): string => {
   const env = (import.meta as any).env || {};
   const configured = normalizeApiBaseUrl(env.VITE_API_BASE_URL || env.VITE_API_URL || '');
 
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return '/api';
+  }
+
   if (Capacitor.isNativePlatform()) {
-    return DEFAULT_API_BASE_URL;
+    return configured || NATIVE_API_FALLBACK_URL;
   }
 
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    console.log('🔍 DEBUG api-request.ts - Hostname:', window.location.hostname);
-    console.log('🔍 DEBUG api-request.ts - URL completo:', window.location.href);
-    return configured || DEFAULT_API_BASE_URL;
-  }
-
-  // Sviluppo locale: usa il proxy Vite relativo, mai un host localhost assoluto.
-  return '/api';
+  return configured || CANONICAL_API_BASE_URL;
 };
 
 const API_BASE_URL = resolveBaseUrl();
