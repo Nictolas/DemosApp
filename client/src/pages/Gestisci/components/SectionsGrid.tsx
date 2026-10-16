@@ -36,6 +36,9 @@ export const SectionsGrid: React.FC = () => {
   };
 
   if (selectedHub) {
+    const SelectedHubIcon = selectedHub.icon;
+    const selectedAccent = hubAccent(selectedHub.buttonColor);
+
     return (
       <div className="w-full space-y-5">
         <button
@@ -51,12 +54,9 @@ export const SectionsGrid: React.FC = () => {
           <div className="flex items-start gap-3">
             <div
               className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-              style={{ backgroundColor: `${hubAccent(selectedHub.buttonColor)}20` }}
+              style={{ backgroundColor: `${selectedAccent}20` }}
             >
-              <selectedHub.icon
-                className="h-6 w-6"
-                style={{ color: hubAccent(selectedHub.buttonColor) }}
-              />
+              <SelectedHubIcon className="h-6 w-6" style={{ color: selectedAccent }} />
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">{selectedHub.title}</h1>
