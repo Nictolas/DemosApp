@@ -128,3 +128,14 @@ test('auth API paths remain available for their dedicated pending-token validati
   assert.equal(nextCalled, true);
   assert.equal(res.statusCode, 200);
 });
+
+test('non-app validation harness bearer tokens are not interpreted as DEMOS access tokens', () => {
+  const req = makeReq('/__security-phase2-validation/rt02/probe', 'synthetic-harness-token-not-a-jwt');
+  const res = makeRes();
+  let nextCalled = false;
+
+  securityMiddleware(req, res, () => { nextCalled = true; });
+
+  assert.equal(nextCalled, true);
+  assert.equal(res.statusCode, 200);
+});
