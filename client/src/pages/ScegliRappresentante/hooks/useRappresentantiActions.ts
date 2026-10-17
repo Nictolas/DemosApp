@@ -39,9 +39,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         }
       );
 
-      if (!updateResponse.ok) {
-        throw new Error("Impossibile aggiornare la selezione.");
-      }
+
       
       onSuccess(rappresentanteId);
 
@@ -97,9 +95,19 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
 
     } catch (error) {
       console.error("Errore durante la selezione:", error);
+      const errorMessage = error instanceof Error ? error.message : "";
+      const description = errorMessage.includes("OPINIONI_INCOMPLETE")
+        ? "Completa tutte le opinioni di questo livello prima di scegliere."
+        : errorMessage.includes("CANDIDATO_NON_VOTABILE")
+          ? "Questo candidato non è selezionabile nella tua circoscrizione."
+          : errorMessage.includes("RAPPRESENTANTE_NON_SELEZIONABILE")
+            ? "Questo rappresentante non è selezionabile per il tuo territorio."
+            : errorMessage.includes("403")
+              ? "Accesso non autorizzato: verifica la tua identità e riprova."
+              : isCandidateRoute ? "Impossibile selezionare il candidato." : "Impossibile selezionare il rappresentante.";
       toast({
         title: "Errore",
-        description: isCandidateRoute ? "Impossibile selezionare il candidato." : "Impossibile selezionare il rappresentante.",
+        description,
         variant: "destructive",
       });
     } finally {
