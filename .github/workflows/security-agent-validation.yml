@@ -11,6 +11,7 @@ on:
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
       - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
       - 'api/tests/referendumGazetteLifecycleService.test.js'
+      - 'api/tests/referendumGazetteReindictionService.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/tests/referendumForecastStats.test.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
@@ -18,6 +19,7 @@ on:
       - 'api/services/italianReferendumOfficialSyncService.js'
       - 'api/services/italianReferendumResultSyncService.js'
       - 'api/services/referendumGazetteLifecycleService.js'
+      - 'api/services/referendumGazetteReindictionService.js'
       - 'api/services/referendumBallotSyncService.js'
       - 'api/services/referendumForecastStatsService.js'
       - 'api/services/referendumForecastSnapshotService.js'
@@ -45,6 +47,7 @@ on:
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
       - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
       - 'api/tests/referendumGazetteLifecycleService.test.js'
+      - 'api/tests/referendumGazetteReindictionService.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/tests/referendumForecastStats.test.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
@@ -52,6 +55,7 @@ on:
       - 'api/services/italianReferendumOfficialSyncService.js'
       - 'api/services/italianReferendumResultSyncService.js'
       - 'api/services/referendumGazetteLifecycleService.js'
+      - 'api/services/referendumGazetteReindictionService.js'
       - 'api/services/referendumBallotSyncService.js'
       - 'api/services/referendumForecastStatsService.js'
       - 'api/services/referendumForecastSnapshotService.js'
@@ -118,7 +122,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Official referendum sources and forecast statistics
-        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/italyInteriorEligendoReferendumAdapter.test.js api/tests/referendumGazetteLifecycleService.test.js api/tests/referendumForecastStats.test.js api/tests/referendumRealVote.smoke.test.js
+        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/italyInteriorEligendoReferendumAdapter.test.js api/tests/referendumGazetteLifecycleService.test.js api/tests/referendumGazetteReindictionService.test.js api/tests/referendumForecastStats.test.js api/tests/referendumRealVote.smoke.test.js
 
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging
