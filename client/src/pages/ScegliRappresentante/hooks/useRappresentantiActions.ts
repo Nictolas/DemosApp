@@ -17,13 +17,47 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   // canonica della modalità, senza dipendere da useRoute annidati.
   const isCandidateRoute = location === "/candidati" || location.startsWith("/candidati/");
 
+  const selectionErrorDescription = (error: any) => {
+    const apiCode = error?.data?.code || error?.data?.error || "";
+    const apiMessage = error?.data?.message || error?.message || "";
+
+    if (apiCode === "CIVIC_IDENTITY_CIE_REQUIRED") {
+      return "Per effettuare questa scelta devi prima verificare la tua identità con CIE.";
+    }
+    if (apiCode === "CIVIC_IDENTITY_CHECK_UNAVAILABLE") {
+      return "La verifica dell'identità è temporaneamente non disponibile. Riprova tra poco.";
+    }
+    if (apiCode === "OPINIONI_INCOMPLETE" || apiMessage.includes("OPINIONI_INCOMPLETE")) {
+      return "Completa tutte le opinioni di questo livello prima di scegliere.";
+    }
+    if (apiCode === "CANDIDATO_NON_VOTABILE" || apiMessage.includes("CANDIDATO_NON_VOTABILE")) {
+      return "Questo candidato non è selezionabile nella tua circoscrizione.";
+    }
+    if (apiCode === "RAPPRESENTANTE_NON_SELEZIONABILE" || apiMessage.includes("RAPPRESENTANTE_NON_SELEZIONABILE")) {
+      return "Questo rappresentante non è selezionabile per il tuo territorio.";
+    }
+    if (error?.status === 401) {
+      return "Sessione non valida o scaduta. Accedi di nuovo e riprova.";
+    }
+    if (error?.status === 403) {
+      return apiMessage || "Non sei autorizzato a effettuare questa scelta.";
+    }
+
+    return isCandidateRoute
+      ? "Impossibile selezionare il candidato."
+      : "Impossibile selezionare il rappresentante.";
+  };
+
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
 
     setSelezionando(true);
-    try {
-      const userId = user.uid || user.id;
+    const userId = user.uid || user.id;
 
+    // Solo questa chiamata determina se la selezione è riuscita o no. Le attività
+    // successive (cache e notifiche push) non devono trasformare un salvataggio
+    // riuscito in un falso messaggio di errore.
+    try {
       await apiRequest(
         "PUT",
         `/api/users/${userId}/seleziona-rappresentante`,
@@ -32,67 +66,58 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
           rappresentanteId,
         }
       );
-
-      onSuccess(rappresentanteId);
-
-      if (isCandidateRoute) {
-        await queryClient.invalidateQueries({ queryKey: ["candidatiData"] });
-        await queryClient.invalidateQueries({ queryKey: ["rappresentantiData"] });
-        await queryClient.invalidateQueries({ queryKey: ["user"] });
-        await queryClient.refetchQueries({ queryKey: ["candidatiData"] });
-      } else {
-        await queryClient.invalidateQueries({ queryKey: ["rappresentantiData"] });
-        await queryClient.invalidateQueries({ queryKey: ["rappresentantiData", "rappresentanti"] });
-        await queryClient.invalidateQueries({ queryKey: ["user"] });
-        await queryClient.refetchQueries({ queryKey: ["rappresentantiData"] });
-      }
-
-      if (fcmToken && !isCandidateRoute) {
-        const topic = `sostenitori_politico_${rappresentanteId}`;
-        await apiRequest("POST", "/api/notifications/subscribe-topic", { token: fcmToken, topic });
-      }
-
-      toast({
-        title: "Successo",
-        description: isCandidateRoute
-          ? "Candidato selezionato con successo!"
-          : "Rappresentante selezionato con successo!",
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      setLocation(isCandidateRoute ? "/candidati" : "/rappresentanti");
     } catch (error: any) {
-      console.error("Errore durante la selezione:", error);
-
-      const apiCode = error?.data?.code || error?.data?.error || "";
-      const apiMessage = error?.data?.message || error?.message || "";
-
-      let description = isCandidateRoute
-        ? "Impossibile selezionare il candidato."
-        : "Impossibile selezionare il rappresentante.";
-
-      if (apiCode === "CIVIC_IDENTITY_CIE_REQUIRED") {
-        description = "Per effettuare questa scelta devi prima verificare la tua identità con CIE.";
-      } else if (apiCode === "OPINIONI_INCOMPLETE" || apiMessage.includes("OPINIONI_INCOMPLETE")) {
-        description = "Completa tutte le opinioni di questo livello prima di scegliere.";
-      } else if (apiCode === "CANDIDATO_NON_VOTABILE" || apiMessage.includes("CANDIDATO_NON_VOTABILE")) {
-        description = "Questo candidato non è selezionabile nella tua circoscrizione.";
-      } else if (apiCode === "RAPPRESENTANTE_NON_SELEZIONABILE" || apiMessage.includes("RAPPRESENTANTE_NON_SELEZIONABILE")) {
-        description = "Questo rappresentante non è selezionabile per il tuo territorio.";
-      } else if (error?.status === 401) {
-        description = "Sessione non valida o scaduta. Accedi di nuovo e riprova.";
-      } else if (error?.status === 403) {
-        description = apiMessage || "Non sei autorizzato a effettuare questa scelta.";
-      }
-
+      console.error("Errore durante il salvataggio della selezione:", error);
       toast({
         title: "Errore",
-        description,
+        description: selectionErrorDescription(error),
         variant: "destructive",
       });
-    } finally {
       setSelezionando(false);
+      return;
     }
+
+    onSuccess(rappresentanteId);
+
+    try {
+      if (isCandidateRoute) {
+        await Promise.allSettled([
+          queryClient.invalidateQueries({ queryKey: ["candidatiData"] }),
+          queryClient.invalidateQueries({ queryKey: ["rappresentantiData"] }),
+          queryClient.invalidateQueries({ queryKey: ["user"] }),
+        ]);
+        await queryClient.refetchQueries({ queryKey: ["candidatiData"] });
+      } else {
+        await Promise.allSettled([
+          queryClient.invalidateQueries({ queryKey: ["rappresentantiData"] }),
+          queryClient.invalidateQueries({ queryKey: ["rappresentantiData", "rappresentanti"] }),
+          queryClient.invalidateQueries({ queryKey: ["user"] }),
+        ]);
+        await queryClient.refetchQueries({ queryKey: ["rappresentantiData"] });
+      }
+    } catch (error) {
+      console.warn("Selezione salvata, ma aggiornamento cache non completato:", error);
+    }
+
+    if (fcmToken && !isCandidateRoute) {
+      try {
+        const topic = `sostenitori_politico_${rappresentanteId}`;
+        await apiRequest("POST", "/api/notifications/subscribe-topic", { token: fcmToken, topic });
+      } catch (error) {
+        console.warn("Rappresentante salvato, ma iscrizione notifiche non completata:", error);
+      }
+    }
+
+    toast({
+      title: "Successo",
+      description: isCandidateRoute
+        ? "Candidato selezionato con successo!"
+        : "Rappresentante selezionato con successo!",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    setLocation(isCandidateRoute ? "/candidati" : "/rappresentanti");
+    setSelezionando(false);
   };
 
   const openOpinioniDialog = (data: OpinioniDialogData) => {
