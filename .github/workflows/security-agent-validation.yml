@@ -136,6 +136,9 @@ jobs:
       - name: Political representative eligibility
         run: node --test api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js
 
+      - name: PWA legacy cache retirement
+        run: node --test api/tests/pwaServiceWorkerRetirement.smoke.test.js
+
       - name: Popular initiatives civic sources
         run: node --test api/tests/civicProcessMultiSourcePersistence.test.js api/tests/italianPopularInitiativesMultiSource.test.js
 
