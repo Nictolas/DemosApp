@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Redirect, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { hasAdminCapability, isAdminOnlyPath } from '@/lib/admin-access';
+import VotaReferendum from '@/pages/VotaReferendum';
 import { SplashScreen } from './SplashScreen';
 
 interface AppWrapperProps {
@@ -36,23 +37,36 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     setIsAppReady(true);
   }, []);
 
-  // Controlla se l'app è pronta (auth completato)
   useEffect(() => {
     if (!isAuthLoading && isAppReady) {
       // L'app è pronta, non serve altro
     }
   }, [isAuthLoading, isAppReady]);
 
-  // Redirect automatico: tutti gli utenti autenticati vanno ai preferiti
   useEffect(() => {
     if (!isAuthLoading && user && location === '/') {
       setLocation('/preferiti');
     }
   }, [isAuthLoading, user, location, setLocation]);
 
-  // Mostra la splash screen solo quando necessario
   if (showSplash) {
     return <SplashScreen onComplete={() => {}} duration={2000} />;
+  }
+
+  // F12-36: nuova superficie semanticamente distinta dalla vecchia priorità referendum.
+  // È gestita qui finché il router legacy di App.tsx non viene modularizzato.
+  if (location === '/vota-referendum') {
+    if (isAuthLoading) {
+      return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+        </div>
+      );
+    }
+    if (!user) {
+      return <Redirect to="/auth" />;
+    }
+    return <VotaReferendum />;
   }
 
   // Le superfici amministrative sono capability-only anche lato client.
@@ -75,11 +89,9 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     }
   }
 
-  // Mostra l'app quando è pronta
   if (isAppReady) {
     return <>{children}</>;
   }
 
-  // Fallback: mostra l'app comunque
   return <>{children}</>;
 };

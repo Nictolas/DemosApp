@@ -31,6 +31,18 @@ const SOURCE_ADAPTERS = Object.freeze({
     authority: 'Senato della Repubblica',
     kind: 'official_legislative_source',
   }),
+  'it.official_gazette': Object.freeze({
+    id: 'it.official_gazette',
+    jurisdictionId: 'it',
+    authority: 'Gazzetta Ufficiale della Repubblica Italiana',
+    kind: 'official_ballot_source',
+  }),
+  'it.interior.eligendo': Object.freeze({
+    id: 'it.interior.eligendo',
+    jurisdictionId: 'it',
+    authority: 'Ministero dell’Interno',
+    kind: 'official_election_results',
+  }),
 });
 
 const INFORMATION_ONLY = Object.freeze({
@@ -38,6 +50,13 @@ const INFORMATION_ONLY = Object.freeze({
   external_signature: false,
   demos_priority: false,
   position_on_question: false,
+});
+
+const BALLOT_POSITION = Object.freeze({
+  information: true,
+  external_signature: false,
+  demos_priority: false,
+  position_on_question: true,
 });
 
 const CIVIC_PROCESS_TYPES = Object.freeze({
@@ -80,9 +99,9 @@ const CIVIC_PROCESS_TYPES = Object.freeze({
     }),
   }),
 
-  // Adapter transitorio per il portale firme italiano. Oggi la route legacy raggruppa
-  // referendum abrogativi e costituzionali; il core non deve assumere che siano lo stesso
-  // istituto giuridico. Il prossimo adapter potrà separarli senza cambiare il contratto.
+  // Adapter transitorio per il portale firme italiano. Il core conserva separati
+  // ciclo di raccolta firme e scheda di voto reale; tipo e quorum effettivi della
+  // consultazione vengono memorizzati nella civic_ballot ufficiale.
   'it.referendum_signature_request': Object.freeze({
     id: 'it.referendum_signature_request',
     jurisdictionId: 'it',
@@ -109,12 +128,14 @@ const CIVIC_PROCESS_TYPES = Object.freeze({
           rifiutata: CIVIC_PROCESS_STAGES.REJECTED,
         }),
       }),
+      Object.freeze({ sourceId: 'it.official_gazette' }),
+      Object.freeze({ sourceId: 'it.interior.eligendo' }),
     ]),
     demosActionPolicies: Object.freeze({
       [CIVIC_PROCESS_STAGES.SIGNATURE_COLLECTION]: Object.freeze({ information: true, external_signature: true, demos_priority: false, position_on_question: false }),
       [CIVIC_PROCESS_STAGES.QUALIFIED]: INFORMATION_ONLY,
       [CIVIC_PROCESS_STAGES.COLLECTION_CLOSED]: INFORMATION_ONLY,
-      [CIVIC_PROCESS_STAGES.BALLOT_SCHEDULED]: INFORMATION_ONLY,
+      [CIVIC_PROCESS_STAGES.BALLOT_SCHEDULED]: BALLOT_POSITION,
       [CIVIC_PROCESS_STAGES.CLOSED]: INFORMATION_ONLY,
       [CIVIC_PROCESS_STAGES.REJECTED]: INFORMATION_ONLY,
     }),

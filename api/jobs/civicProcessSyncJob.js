@@ -2,6 +2,7 @@
 
 const { getPool } = require('../config/database');
 const { syncItalianPopularInitiativesSources } = require('../services/italianPopularInitiativesParliamentSyncService');
+const { syncReferendumBallotsFromCanonicalSources } = require('../services/referendumBallotSyncService');
 
 class CivicProcessSyncJob {
   constructor() {
@@ -21,14 +22,22 @@ class CivicProcessSyncJob {
     this.isRunning = true;
     this.lastRunAt = new Date();
     try {
-      const result = await syncItalianPopularInitiativesSources({ pool: getPool() });
+      const pool = getPool();
+      const result = await syncItalianPopularInitiativesSources({ pool });
+      const referendumBallots = await syncReferendumBallotsFromCanonicalSources({ pool });
+      result.referendumBallots = referendumBallots;
       this.lastResult = result;
+
       const sourceEntries = Object.entries(result.sources || {});
-      const errorCount = sourceEntries.reduce((sum, [, stats]) => sum + (stats.errors?.length || 0), 0);
+      const errorCount = sourceEntries.reduce((sum, [, stats]) => sum + (stats.errors?.length || 0), 0)
+        + (referendumBallots.errors?.length || 0);
       const fetchedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.fetched || 0), 0);
       const ingestedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.ingested || 0), 0);
       const summary = sourceEntries
         .map(([source, stats]) => `${source}: ${stats.ingested}/${stats.fetched}, errori=${stats.errors?.length || 0}`)
+        .concat([
+          `referendum-ballots: ${referendumBallots.ingested}/${referendumBallots.fetched}, errori=${referendumBallots.errors?.length || 0}${referendumBallots.schemaReady ? '' : ', schema=pending'}`,
+        ])
         .join(' | ');
 
       if (fetchedCount > 0 && ingestedCount === 0 && errorCount > 0) {

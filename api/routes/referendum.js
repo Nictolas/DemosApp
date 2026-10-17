@@ -5,8 +5,13 @@ const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
+const referendumVoteRoutes = require('./referendum-vote');
 
 const router = express.Router();
+
+// F12-36 — voto Sì/No/Non voterei sui referendum realmente convocati.
+// È distinto dalla vecchia classifica di priorità, che resta ritirata.
+router.use('/vote-real', referendumVoteRoutes);
 
 // ===== FUNZIONE PER GENERARE EMOJI AUTOMATICHE =====
 /**
@@ -78,12 +83,10 @@ router.get('/', async (req, res) => {
         firestore_id_backup: r.firestore_id_backup,
         voti: classificaResult.rows.find(c => c.nome === r.nome)?.voti || 0
       };
-      // Aggiungi emoji
       referendumData.emoji = getEmojiAutomaticaReferendum(referendumData);
       return referendumData;
     });
 
-    // Aggiungi emoji anche alla classifica
     const classificaConEmoji = classificaResult.rows.map(row => {
       const referendumCorrispondente = referendum.find(r => r.nome === row.nome);
       return {
@@ -96,7 +99,7 @@ router.get('/', async (req, res) => {
       success: true,
       referendum: referendum,
       classifica: classificaConEmoji,
-      mieiVoti: [] // Inizialmente vuoto, sarà popolato se l'utente è autenticato
+      mieiVoti: []
     });
   } catch (error) {
     console.error('Errore nel recupero dei referendum abrogativi:', error);
@@ -111,7 +114,6 @@ router.get('/', async (req, res) => {
 // GET /api/referendum/abrogativi - Ottieni referendum abrogativi (endpoint specifico)
 router.get('/abrogativi', async (req, res) => {
   try {
-    // 1. Ottieni referendum abrogativi accettati con JOIN per i nomi
     const referendumQuery = `
       SELECT DISTINCT r.id, r.nome, r.data_inizio, r.data_fine, r.status, r.quorum, r.firestore_id_backup
       FROM referendum_abrogativi r
@@ -120,7 +122,6 @@ router.get('/abrogativi', async (req, res) => {
     `;
     const referendumResult = await pool.query(referendumQuery);
 
-    // 2. Genera classifica basata sui voti con nomi reali
     const classificaQuery = `
       SELECT r.nome, COUNT(*) as voti
       FROM voti_referendum_abrogativi v
@@ -130,7 +131,6 @@ router.get('/abrogativi', async (req, res) => {
     `;
     const classificaResult = await pool.query(classificaQuery);
 
-    // 3. Se l'utente è autenticato, ottieni i suoi voti
     let mieiVoti = [];
     if (req.headers.authorization) {
       try {
@@ -146,22 +146,19 @@ router.get('/abrogativi', async (req, res) => {
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.referendum_id);
       } catch (authError) {
-        // Se il token non è valido, continua senza autenticazione
         console.log('⚠️ Token non valido per referendum abrogativi:', authError.message);
       }
     }
 
-    // Aggiungi emoji ai referendum
     const referendumConEmoji = referendumResult.rows.map(row => {
       const referendumData = {
         ...row,
-        id: row.firestore_id_backup || row.id // Assicurati che firestore_id_backup sia disponibile
+        id: row.firestore_id_backup || row.id
       };
       referendumData.emoji = getEmojiAutomaticaReferendum(referendumData);
       return referendumData;
     });
     
-    // Aggiungi emoji anche alla classifica
     const classificaConEmoji = classificaResult.rows.map(row => {
       const referendumCorrispondente = referendumConEmoji.find(r => r.nome === row.nome);
       return {
@@ -215,7 +212,7 @@ router.get('/abrogativi/richieste', verifyToken, async (req, res) => {
 router.post('/abrogativi', verifyToken, validateInput(['titolo', 'descrizione', 'legge']), async (req, res) => {
   try {
     const { titolo, descrizione, legge } = req.body;
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    const userId = req.userId;
     
     const query = `
       INSERT INTO referendum_abrogativi (utente_id, titolo, descrizione, legge, created_at)
@@ -265,10 +262,8 @@ router.post('/abrogativi/vota', verifyToken, requireVerifiedCivicIdentity, requi
     const { voti } = req.body;
     const userId = req.userId;
 
-    // Elimina i voti esistenti
     await pool.query('DELETE FROM voti_referendum_abrogativi WHERE userid = $1', [userId]);
 
-    // Inserisci i nuovi voti
     for (const referendumId of voti) {
       await pool.query(
         'INSERT INTO voti_referendum_abrogativi (userid, referendum_id) VALUES ($1, $2) ON CONFLICT (userid, referendum_id) DO NOTHING',
@@ -292,7 +287,6 @@ router.delete('/abrogativi/vota', verifyToken, async (req, res) => {
     const { referendumId } = req.body;
     const userId = req.userId;
 
-    // Rimuovi il voto
     const result = await pool.query(
       'DELETE FROM voti_referendum_abrogativi WHERE userid = $1 AND referendum_id = $2',
       [userId, referendumId]
