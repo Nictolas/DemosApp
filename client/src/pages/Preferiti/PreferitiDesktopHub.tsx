@@ -16,6 +16,7 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
+import { useReferendumVoteAvailability } from "@/hooks/useReferendumVoteAvailability";
 
 type NavigateHandler = (path: string, options?: { skipOpinioniCheck?: boolean }) => void;
 
@@ -218,6 +219,16 @@ const VOTA_SHORTCUTS: Shortcut[] = [
   },
 ];
 
+const REFERENDUM_VOTE_SHORTCUT: Shortcut = {
+  id: "vota-referendum-reale",
+  path: "/vota-referendum",
+  label: "Referendum",
+  description: "Come voteresti nel referendum reale",
+  icon: Vote,
+  accent: "#dc2626",
+  accentSoft: "#fef2f2",
+};
+
 type DashboardSection = {
   id: string;
   title: string;
@@ -227,7 +238,7 @@ type DashboardSection = {
   items: Shortcut[];
 };
 
-const SECTIONS: DashboardSection[] = [
+const STATIC_SECTIONS: DashboardSection[] = [
   {
     id: "preferiti",
     title: "Preferiti",
@@ -251,14 +262,6 @@ const SECTIONS: DashboardSection[] = [
     accent: "#16a34a",
     accentSoft: "#f0fdf4",
     items: FIRMA_SHORTCUTS,
-  },
-  {
-    id: "vota",
-    title: "Vota",
-    icon: Vote,
-    accent: "#db2777",
-    accentSoft: "#fdf2f8",
-    items: VOTA_SHORTCUTS,
   },
 ];
 
@@ -318,16 +321,20 @@ function DashSection({
       </header>
       <div className="demos-dash-section__divider" />
       <div className={gridClass}>
-        {items.map((item) => (
-          <DashCard
-            key={item.id}
-            item={item}
-            className={
-              item.id === "proponi-opinione" || item.id === "eventi" ? "demos-dash-card--span" : undefined
-            }
-            onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
-          />
-        ))}
+        {items.map((item) => {
+          const spans =
+            item.id === "proponi-opinione" ||
+            item.id === "eventi" ||
+            (isVota && item.id === "vota-iniziativa" && items.length % 2 === 1);
+          return (
+            <DashCard
+              key={item.id}
+              item={item}
+              className={spans ? "demos-dash-card--span" : undefined}
+              onClick={() => onNavigate(item.path, { skipOpinioniCheck: item.skipOpinioniCheck })}
+            />
+          );
+        })}
       </div>
     </section>
   );
@@ -339,14 +346,23 @@ function DashSection({
  */
 export function PreferitiDesktopHub({ user, onNavigate }: PreferitiDesktopHubProps) {
   const firstName = user?.nome || "benvenuto";
+  const { available: referendumAvailable } = useReferendumVoteAvailability();
 
   const sectionById = useMemo(() => {
-    const map = new Map(SECTIONS.map((s) => [s.id, s]));
+    const map = new Map(STATIC_SECTIONS.map((section) => [section.id, section]));
     return map;
   }, []);
 
+  const vota = useMemo<DashboardSection>(() => ({
+    id: "vota",
+    title: "Vota",
+    icon: Vote,
+    accent: "#db2777",
+    accentSoft: "#fdf2f8",
+    items: referendumAvailable ? [...VOTA_SHORTCUTS, REFERENDUM_VOTE_SHORTCUT] : VOTA_SHORTCUTS,
+  }), [referendumAvailable]);
+
   const preferiti = sectionById.get("preferiti")!;
-  const vota = sectionById.get("vota")!;
   const opinioni = sectionById.get("opinioni")!;
   const firma = sectionById.get("firma")!;
 
