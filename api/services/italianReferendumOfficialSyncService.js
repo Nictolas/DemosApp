@@ -1,6 +1,9 @@
 'use strict';
 
-const { fetchOfficialGazetteReferendumRecords } = require('./civicSources/italyOfficialGazetteReferendumAdapter');
+const {
+  fetchOfficialGazetteReferendumRecords,
+  writeSyncState,
+} = require('./civicSources/italyOfficialGazetteReferendumAdapter');
 const { ingestCivicSourceRecord } = require('./civicProcessPersistenceService');
 
 async function ingestOne(pool, record) {
@@ -28,6 +31,10 @@ async function syncItalianOfficialReferendumSources({
   try {
     sourceResult = await fetchGazette({ pool });
   } catch (error) {
+    await writeSyncState(pool, {
+      success: false,
+      errorMessage: error.message,
+    }).catch(() => {});
     return {
       gazzetta: {
         fetched: 0,
@@ -57,6 +64,13 @@ async function syncItalianOfficialReferendumSources({
     }
   }
 
+  const success = errors.length === 0 && ingested === records.length;
+  await writeSyncState(pool, {
+    success,
+    errorMessage: success ? null : errors.slice(0, 3).map((entry) => entry.error || entry.code).join(' | '),
+    now: sourceResult.scanCompletedAt ? new Date(sourceResult.scanCompletedAt) : new Date(),
+  });
+
   return {
     gazzetta: {
       fetched: records.length,
@@ -64,7 +78,9 @@ async function syncItalianOfficialReferendumSources({
       scannedIssues: Number(sourceResult.scannedIssues || 0),
       referendumCandidates: Number(sourceResult.referendumCandidates || 0),
       cutoff: sourceResult.cutoff || null,
-      lastSuccessfulSyncAt: sourceResult.lastSuccessfulSyncAt || null,
+      lastSuccessfulSyncAt: success
+        ? (sourceResult.scanCompletedAt || null)
+        : (sourceResult.lastSuccessfulSyncAt || null),
       errors,
     },
   };
