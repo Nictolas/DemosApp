@@ -8,12 +8,16 @@ on:
       - 'api/security-agent/**'
       - 'api/tests/security*.test.js'
       - 'api/tests/firebaseAdminCompatibility.test.js'
+      - 'api/tests/civicProcessMultiSourcePersistence.test.js'
+      - 'api/tests/italianPopularInitiativesMultiSource.test.js'
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
       - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
       - 'api/tests/referendumGazetteLifecycleService.test.js'
       - 'api/tests/referendumGazetteReindictionService.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/tests/referendumForecastStats.test.js'
+      - 'api/services/civicSources/italyCameraPopularInitiativesAdapter.js'
+      - 'api/services/italianPopularInitiativesParliamentSyncService.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
       - 'api/services/civicSources/italyInteriorEligendoReferendumAdapter.js'
       - 'api/services/italianReferendumOfficialSyncService.js'
@@ -44,12 +48,16 @@ on:
       - 'api/security-agent/**'
       - 'api/tests/security*.test.js'
       - 'api/tests/firebaseAdminCompatibility.test.js'
+      - 'api/tests/civicProcessMultiSourcePersistence.test.js'
+      - 'api/tests/italianPopularInitiativesMultiSource.test.js'
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
       - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
       - 'api/tests/referendumGazetteLifecycleService.test.js'
       - 'api/tests/referendumGazetteReindictionService.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/tests/referendumForecastStats.test.js'
+      - 'api/services/civicSources/italyCameraPopularInitiativesAdapter.js'
+      - 'api/services/italianPopularInitiativesParliamentSyncService.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
       - 'api/services/civicSources/italyInteriorEligendoReferendumAdapter.js'
       - 'api/services/italianReferendumOfficialSyncService.js'
@@ -120,6 +128,9 @@ jobs:
       - name: Dependency audit client
         working-directory: client
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Popular initiatives civic sources
+        run: node --test api/tests/civicProcessMultiSourcePersistence.test.js api/tests/italianPopularInitiativesMultiSource.test.js
 
       - name: Official referendum sources and forecast statistics
         run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/italyInteriorEligendoReferendumAdapter.test.js api/tests/referendumGazetteLifecycleService.test.js api/tests/referendumGazetteReindictionService.test.js api/tests/referendumForecastStats.test.js api/tests/referendumRealVote.smoke.test.js
