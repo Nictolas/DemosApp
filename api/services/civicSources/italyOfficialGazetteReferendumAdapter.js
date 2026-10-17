@@ -420,16 +420,9 @@ async function fetchOfficialGazetteReferendumRecords({
     }
   });
 
-  if (errors.length === 0) {
-    await writeSyncState(pool, { success: true, now });
-  } else {
-    await writeSyncState(pool, {
-      success: false,
-      errorMessage: errors.slice(0, 3).map((entry) => entry.error).join(' | '),
-      now,
-    });
-  }
-
+  // Il checkpoint NON viene avanzato qui: il caller lo conferma solo dopo che
+  // tutti i record recuperati sono stati persistiti con successo. In questo modo
+  // un errore di ingestione non rende invisibile il record al ciclo successivo.
   return {
     records,
     errors,
@@ -437,6 +430,7 @@ async function fetchOfficialGazetteReferendumRecords({
     referendumCandidates: uniqueCandidates.length,
     cutoff: cutoff.toISOString(),
     lastSuccessfulSyncAt: lastSuccessful?.toISOString() || null,
+    scanCompletedAt: now.toISOString(),
   };
 }
 
@@ -449,5 +443,7 @@ module.exports = {
   extractPollDates,
   detectBallotKind,
   romeLocalToUtcIso,
+  readSyncState,
+  writeSyncState,
   fetchOfficialGazetteReferendumRecords,
 };
