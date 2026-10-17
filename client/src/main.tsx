@@ -22,17 +22,40 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Service Worker temporaneamente disabilitato per risolvere problemi di cache
-// if ('serviceWorker' in navigator) {
-//   window.addEventListener('load', () => {
-//     navigator.serviceWorker.register('/sw.js')
-//       .then((registration) => {
-//         console.log('SW registrato con successo:', registration.scope);
-//       })
-//       .catch((registrationError) => {
-//         console.log('Registrazione SW fallita:', registrationError);
-//       });
-//   });
-// }
+// Rimuove i vecchi Service Worker PWA che possono tenere in cache l'HTML
+// e mostrare una build precedente. Non tocca firebase-messaging-sw.js (FCM).
+// Il vecchio /sw.js resta disponibile come worker di dismissione per le installazioni pregresse.
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+  if (!isNative) {
+    window.addEventListener("load", () => {
+      void (async () => {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          const legacy = registrations.filter((registration) =>
+            [registration.active, registration.waiting, registration.installing]
+              .some((worker) => worker && new URL(worker.scriptURL).pathname === "/sw.js")
+          );
+          const controlledByLegacy = navigator.serviceWorker.controller
+            ? new URL(navigator.serviceWorker.controller.scriptURL).pathname === "/sw.js"
+            : false;
+          const unregistered = await Promise.all(legacy.map((registration) => registration.unregister()));
+
+          if ("caches" in window) {
+            const names = await caches.keys();
+            await Promise.all(
+              names.filter((name) => /^demos-v\d+$/.test(name)).map((name) => caches.delete(name))
+            );
+          }
+          if (controlledByLegacy && unregistered.some(Boolean)) {
+            window.location.reload();
+          }
+        } catch (error) {
+          console.warn("Impossibile completare la rimozione della cache PWA precedente:", error);
+        }
+      })();
+    }, { once: true });
+  }
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
