@@ -15,6 +15,8 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   
   // Detect if the current route is under /candidati
   const [isTestRoute] = useRoute("/candidati/:categoria");
+  const [isLegacyCandidateRoute] = useRoute("/scegli-candidato/:categoria");
+  const isCandidateRoute = isTestRoute || isLegacyCandidateRoute;
 
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
@@ -33,7 +35,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         "PUT",
         `/api/users/${userId}/seleziona-rappresentante`,
         {
-          campo: getFieldName(categoria, isTestRoute),
+          campo: getFieldName(categoria, isCandidateRoute),
           rappresentanteId: rappresentanteId,
         }
       );
@@ -45,7 +47,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       onSuccess(rappresentanteId);
 
       // Invalida le query appropriate in base alla modalità
-      if (isTestRoute) {
+      if (isCandidateRoute) {
         console.log('🔄 DEBUG - Invalidando query per modalità test');
         await queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
@@ -79,14 +81,14 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
 
       toast({
         title: "Successo",
-        description: isTestRoute ? "Candidato selezionato con successo!" : "Rappresentante selezionato con successo!",
+        description: isCandidateRoute ? "Candidato selezionato con successo!" : "Rappresentante selezionato con successo!",
       });
 
       // Piccolo delay per assicurarsi che il refetch sia completato prima della navigazione
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Reindirizza automaticamente dopo la selezione
-      if (isTestRoute) {
+      if (isCandidateRoute) {
         console.log('🔄 DEBUG - Reindirizzamento a /candidati dopo selezione candidato');
         setLocation('/candidati');
       } else {
@@ -98,7 +100,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       console.error("Errore durante la selezione:", error);
       toast({
         title: "Errore",
-        description: isTestRoute ? "Impossibile selezionare il candidato." : "Impossibile selezionare il rappresentante.",
+        description: isCandidateRoute ? "Impossibile selezionare il candidato." : "Impossibile selezionare il rappresentante.",
         variant: "destructive",
       });
     } finally {
