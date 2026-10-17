@@ -78,7 +78,6 @@ import SondaggiRegione from "./pages/SondaggiRegione";
 import SondaggiProvincia from "./pages/SondaggiProvincia";
 import SondaggiComune from "./pages/SondaggiComune";
 import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
-import VotaReferendumAbrogativo from "./pages/VotaReferendumAbrogativo";
 import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
 import Sostenitori from "./pages/Sostenitori";
@@ -1028,11 +1027,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route vota referendum abrogativo */}
+              {/* Vecchio URL della priorità referendum: redirect alla raccolta ufficiale */}
               <Route path="/vota-referendum-abrogativo">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/vota-referendum-abrogativo" component={VotaReferendumAbrogativo} />
-                </PageTransition>
+                <Redirect to="/referendum-abrogativi" />
               </Route>
 
               {/* Route vota ICE */}
