@@ -3,6 +3,7 @@
 const { getPool } = require('../config/database');
 const { syncItalianPopularInitiativesSources } = require('../services/italianPopularInitiativesParliamentSyncService');
 const { syncItalianOfficialReferendumSources } = require('../services/italianReferendumOfficialSyncService');
+const { syncOfficialGazetteReferendumLifecycle } = require('../services/referendumGazetteLifecycleService');
 const { syncItalianReferendumResults } = require('../services/italianReferendumResultSyncService');
 const { syncReferendumBallotsFromCanonicalSources } = require('../services/referendumBallotSyncService');
 const referendumForecastSnapshotJob = require('./referendumForecastSnapshotJob');
@@ -35,16 +36,25 @@ class CivicProcessSyncJob {
         ...(officialReferendumSources || {}),
       };
 
-      // 2) Eligendo: solo dopo la chiusura dei seggi tenta di acquisire il
+      // 2) Gazzetta Ufficiale: intercetta atti successivi all'indizione
+      // (per ora precisazione/riformulazione del quesito e revoca).
+      // Il matching e' fail-closed: se il precedente non e' univoco non aggiorna nulla.
+      const referendumLifecycle = await syncOfficialGazetteReferendumLifecycle({ pool });
+      result.sources = {
+        ...(result.sources || {}),
+        gazzettaLifecycle: referendumLifecycle,
+      };
+
+      // 3) Eligendo: solo dopo la chiusura dei seggi tenta di acquisire il
       // risultato nazionale definitivo Italia + Estero. Se il mapping del
-      // quesito non è univoco resta fail-closed e non associa dati a caso.
+      // quesito non e' univoco resta fail-closed e non associa dati a caso.
       const referendumResults = await syncItalianReferendumResults({ pool });
       result.sources = {
         ...(result.sources || {}),
         ...(referendumResults || {}),
       };
 
-      // 3) Proiezione finale: la fonte Eligendo, quando presente e completa,
+      // 4) Proiezione finale: la fonte Eligendo, quando presente e completa,
       // ha precedenza sulla Gazzetta per i campi di risultato ufficiale.
       const referendumBallots = await syncReferendumBallotsFromCanonicalSources({ pool });
       result.referendumBallots = referendumBallots;
