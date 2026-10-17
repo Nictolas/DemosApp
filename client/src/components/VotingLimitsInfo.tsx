@@ -25,7 +25,6 @@ export const VotingLimitsInfo: React.FC<VotingLimitsInfoProps> = ({
       opinioni_proposte: "Opinioni Proposte",
       capo_stato: "Capo di Stato",
       iniziative_popolari: "Iniziative Popolari",
-      referendum_abrogativi: "Referendum Abrogativi",
       ice: "ICE",
       ministri: "Ministri",
       amnistia: "Amnistia",
