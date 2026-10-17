@@ -61,31 +61,38 @@ async function captureReferendumForecastSnapshots({
 
     const opensAt = new Date(row.opens_at);
     const isFrozen = Number.isFinite(opensAt.getTime()) && now >= opensAt;
+    const snapshotTime = isFrozen ? opensAt : currentBucket;
+
     try {
-      await pool.query(
-        `INSERT INTO civic_ballot_forecast_snapshots (
-           civic_ballot_id, bucket_start, total_responses,
-           yes_count, no_count, abstain_count, is_frozen, updated_at
-         ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW())
-         ON CONFLICT (civic_ballot_id, bucket_start)
-         DO UPDATE SET
-           total_responses = EXCLUDED.total_responses,
-           yes_count = EXCLUDED.yes_count,
-           no_count = EXCLUDED.no_count,
-           abstain_count = EXCLUDED.abstain_count,
-           is_frozen = EXCLUDED.is_frozen,
-           updated_at = NOW()`,
+      const result = await pool.query(
+        isFrozen
+          ? `INSERT INTO civic_ballot_forecast_snapshots (
+               civic_ballot_id, bucket_start, total_responses,
+               yes_count, no_count, abstain_count, is_frozen, updated_at
+             ) VALUES ($1::uuid, $2, $3, $4, $5, $6, TRUE, NOW())
+             ON CONFLICT (civic_ballot_id, bucket_start) DO NOTHING`
+          : `INSERT INTO civic_ballot_forecast_snapshots (
+               civic_ballot_id, bucket_start, total_responses,
+               yes_count, no_count, abstain_count, is_frozen, updated_at
+             ) VALUES ($1::uuid, $2, $3, $4, $5, $6, FALSE, NOW())
+             ON CONFLICT (civic_ballot_id, bucket_start)
+             DO UPDATE SET
+               total_responses = EXCLUDED.total_responses,
+               yes_count = EXCLUDED.yes_count,
+               no_count = EXCLUDED.no_count,
+               abstain_count = EXCLUDED.abstain_count,
+               updated_at = NOW()
+             WHERE civic_ballot_forecast_snapshots.is_frozen = FALSE`,
         [
           String(row.civic_ballot_id),
-          currentBucket.toISOString(),
+          snapshotTime.toISOString(),
           total,
           yes,
           no,
           abstain,
-          isFrozen,
         ],
       );
-      captured += 1;
+      captured += Number(result.rowCount || 0);
     } catch (error) {
       errors.push({ ballotId: row.civic_ballot_id, error: error.message });
     }
