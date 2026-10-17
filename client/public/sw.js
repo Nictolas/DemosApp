@@ -1,74 +1,20 @@
-// Service Worker per DEMOS PWA
-const CACHE_NAME = 'demos-v5';
-const urlsToCache = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/icona.png',
-  '/manifest.json'
-];
-
-// Installazione del Service Worker
+// DEMOS legacy PWA service worker retirement.
+// Non usare una cache-first strategy per la shell applicativa:
+// l'HTML vecchio può puntare a bundle React obsoleti dopo un deploy.
+// Il worker delle notifiche Firebase è un file separato e non viene modificato.
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Cache aperta');
-        return cache.addAll(urlsToCache).catch((error) => {
-          console.warn('Errore nel caching di alcune risorse:', error);
-          // Continua anche se alcune risorse non possono essere cachate
-          return Promise.resolve();
-        });
-      })
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
-// Attivazione del Service Worker
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Rimozione cache vecchia:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(
+      names.filter((name) => /^demos-v\d+$/.test(name)).map((name) => caches.delete(name))
+    );
+    await self.clients.claim();
+    await self.registration.unregister();
+  })());
 });
 
-// Intercettazione delle richieste
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  
-  // NON intercettare le richieste API - lasciale passare direttamente alla rete
-  if (url.pathname.startsWith('/api/') || 
-      url.hostname.includes('api.demos.community') ||
-      url.hostname.includes('demos-c7k0.onrender.com') ||
-      url.hostname.includes('localhost') && url.port === '3001') {
-    // Per le richieste API, passa direttamente alla rete senza cache
-    return fetch(event.request);
-  }
-  
-  // Non cachare i file JavaScript e CSS per evitare problemi di aggiornamento
-  if (event.request.url.includes('.js') || event.request.url.includes('.css')) {
-    return fetch(event.request);
-  }
-  
-  // Per le altre richieste, usa la cache
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Restituisce la risposta dalla cache se disponibile
-        if (response) {
-          return response;
-        }
-        
-        // Altrimenti, effettua la richiesta di rete
-        return fetch(event.request);
-      }
-    )
-  );
-});
+// Intenzionalmente nessun fetch handler: tutte le risorse passano alla rete.
