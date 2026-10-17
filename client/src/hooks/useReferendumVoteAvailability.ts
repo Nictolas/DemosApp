@@ -10,7 +10,7 @@ export function useReferendumVoteAvailability() {
 
     const load = async () => {
       try {
-        const response = await apiRequest("GET", "/api/referendum-vote/availability");
+        const response = await apiRequest("GET", "/api/referendum/vote-real/availability");
         if (!cancelled) {
           setAvailable(response?.data?.available === true);
         }
