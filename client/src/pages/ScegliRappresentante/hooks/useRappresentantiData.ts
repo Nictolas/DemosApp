@@ -31,6 +31,18 @@ const useOpinioniCheck = (grado: string) => {
   return { checkOpinioni, isChecking, checkResult };
 };
 
+const normalizeGrade = (value: unknown) => String(value ?? "").trim().toUpperCase();
+
+const filterEligibleRepresentatives = (rows: Rappresentante[], categoria: string) => {
+  const expectedGrade = normalizeGrade(getTitolo(categoria));
+
+  return rows.filter((rappresentante) => {
+    const hasRepresentativeRole = rappresentante.ruolo === "P" || rappresentante.ruolo === "CP";
+    const hasExpectedGrade = normalizeGrade(rappresentante.grado_elezione) === expectedGrade;
+    return hasRepresentativeRole && hasExpectedGrade;
+  });
+};
+
 export const useRappresentantiData = (user: any, categoria: string) => {
   const { toast } = useToast();
   const toastRef = useRef(toast);
@@ -119,9 +131,25 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           setRappresentanti(candidati);
         } else {
           const { candidati, utente } = result.data || {};
+          const candidatiRicevuti: Rappresentante[] = Array.isArray(candidati) ? candidati : [];
+          const rappresentantiValidi = filterEligibleRepresentatives(candidatiRicevuti, categoria);
+
+          if (rappresentantiValidi.length !== candidatiRicevuti.length) {
+            console.warn("⚠️ Rimossi rappresentanti non coerenti con ruolo/grado", {
+              categoria,
+              ricevuti: candidatiRicevuti.length,
+              validi: rappresentantiValidi.length,
+            });
+          }
+
           const fieldName = getFieldName(categoria, false);
-          setRappresentanteSelezionato(utente?.[fieldName] || null);
-          setRappresentanti(candidati || []);
+          const selezionato = utente?.[fieldName] || null;
+          const selezionatoValido = selezionato && rappresentantiValidi.some((item) => item.id === selezionato)
+            ? selezionato
+            : null;
+
+          setRappresentanteSelezionato(selezionatoValido);
+          setRappresentanti(rappresentantiValidi);
         }
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
