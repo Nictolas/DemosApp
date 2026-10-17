@@ -83,11 +83,11 @@ test('fails closed when a later act does not identify the prior induction public
 
 test('extracts the referenced induction publication date from both supported official phrasings', () => {
   assert.equal(
-    extractReferencedIndictionPublicationDate('Visto il decreto del 13 gennaio 2026, pubblicato nella Gazzetta Ufficiale del 14 gennaio 2026, di indizione del referendum.'),
+    extractReferencedIndictionPublicationDate('Visto il decreto del 13 gennaio 2026, pubblicato nella Gazzetta Ufficiale del 14 gennaio 2026, di indizione del referendum;'),
     '2026-01-14',
   );
   assert.equal(
-    extractReferencedIndictionPublicationDate("Visto il proprio decreto del 28 gennaio 2020, pubblicato nella Gazzetta Ufficiale della Repubblica italiana n. 23 del 29 gennaio 2020, con il quale e' stato indetto il referendum."),
+    extractReferencedIndictionPublicationDate("Visto il proprio decreto del 28 gennaio 2020, pubblicato nella Gazzetta Ufficiale della Repubblica italiana n. 23 del 29 gennaio 2020, con il quale e' stato indetto il referendum;"),
     '2020-01-29',
   );
 });
