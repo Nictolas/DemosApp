@@ -2,6 +2,7 @@
 
 const { getPool } = require('../config/database');
 const { syncItalianPopularInitiativesSources } = require('../services/italianPopularInitiativesParliamentSyncService');
+const { syncItalianOfficialReferendumSources } = require('../services/italianReferendumOfficialSyncService');
 const { syncReferendumBallotsFromCanonicalSources } = require('../services/referendumBallotSyncService');
 
 class CivicProcessSyncJob {
@@ -24,6 +25,15 @@ class CivicProcessSyncJob {
     try {
       const pool = getPool();
       const result = await syncItalianPopularInitiativesSources({ pool });
+      const officialReferendumSources = await syncItalianOfficialReferendumSources({ pool });
+      result.sources = {
+        ...(result.sources || {}),
+        ...(officialReferendumSources || {}),
+      };
+
+      // La proiezione civic_ballots avviene solo dopo avere acquisito le fonti
+      // ufficiali, così un nuovo decreto di indizione può rendere disponibile
+      // il pulsante Referendum nello stesso ciclo di sincronizzazione.
       const referendumBallots = await syncReferendumBallotsFromCanonicalSources({ pool });
       result.referendumBallots = referendumBallots;
       this.lastResult = result;
@@ -34,7 +44,10 @@ class CivicProcessSyncJob {
       const fetchedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.fetched || 0), 0);
       const ingestedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.ingested || 0), 0);
       const summary = sourceEntries
-        .map(([source, stats]) => `${source}: ${stats.ingested}/${stats.fetched}, errori=${stats.errors?.length || 0}`)
+        .map(([source, stats]) => {
+          const scan = stats.scannedIssues != null ? `, fascicoli=${stats.scannedIssues}` : '';
+          return `${source}: ${stats.ingested}/${stats.fetched}, errori=${stats.errors?.length || 0}${scan}`;
+        })
         .concat([
           `referendum-ballots: ${referendumBallots.ingested}/${referendumBallots.fetched}, errori=${referendumBallots.errors?.length || 0}${referendumBallots.schemaReady ? '' : ', schema=pending'}`,
         ])
