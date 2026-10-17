@@ -47,6 +47,15 @@ test('unhandled global API errors generate operational critical alerts', () => {
   assert.match(logger, /type: 'UNHANDLED_API_ERROR'/);
 });
 
+test('malformed client URI errors are suppressed before critical delivery', () => {
+  assert.match(service, /function isMalformedClientUriAlert/);
+  assert.match(service, /alert\.type !== 'UNHANDLED_API_ERROR'/);
+  assert.match(service, /alert\.code !== 'URIError'/);
+  assert.match(service, /decodeURI\(endpoint\)/);
+  assert.match(service, /if \(isMalformedClientUriAlert\(normalized\)\)/);
+  assert.match(service, /reason: 'MALFORMED_CLIENT_URI'/);
+});
+
 test('legacy email-disabled notification facade routes critical/system alerts to the operational channel', () => {
   assert.match(notifications, /OperationalAlertService = require\('\.\/operationalAlertService'\)/);
   assert.match(notifications, /sendCriticalViolationNotification[\s\S]*OperationalAlertService\.sendCriticalAlert/);

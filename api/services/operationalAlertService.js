@@ -13,6 +13,20 @@ function cleanText(value, maxLength = 180) {
     .slice(0, maxLength);
 }
 
+function isMalformedClientUriAlert(alert = {}) {
+  if (alert.type !== 'UNHANDLED_API_ERROR' || alert.code !== 'URIError') return false;
+
+  const endpoint = String(alert.endpoint || '');
+  if (!endpoint) return false;
+
+  try {
+    decodeURI(endpoint);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 function buildFingerprint(alert) {
   return crypto
     .createHash('sha256')
@@ -162,6 +176,18 @@ class OperationalAlertService {
       code: cleanText(alert.code || '', 80)
     };
 
+    // Scanner e bot inviano periodicamente URI con percent-encoding non valido
+    // (es. /%c0). Express le segnala come URIError: sono richieste client malformate,
+    // non incidenti applicativi e non devono generare notifiche CRITICAL agli Admin.
+    if (isMalformedClientUriAlert(normalized)) {
+      return {
+        success: true,
+        suppressed: true,
+        reason: 'MALFORMED_CLIENT_URI',
+        fingerprint: buildFingerprint(normalized)
+      };
+    }
+
     const fingerprint = buildFingerprint(normalized);
     if (isSuppressed(fingerprint)) {
       return { success: true, suppressed: true, fingerprint };
@@ -197,4 +223,10 @@ class OperationalAlertService {
 }
 
 module.exports = OperationalAlertService;
-module.exports.__testables = { buildFingerprint, cleanText, isSuppressed, recentAlerts };
+module.exports.__testables = {
+  buildFingerprint,
+  cleanText,
+  isMalformedClientUriAlert,
+  isSuppressed,
+  recentAlerts
+};
