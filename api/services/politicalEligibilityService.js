@@ -168,6 +168,7 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
       AND pm.starts_at <= NOW()
       AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
       AND u.status = 'a'
+      AND u.ruolo IN ('P', 'CP')
       AND regexp_replace(UPPER(COALESCE(pm.jurisdiction->>'level', pm.office_code, '')), '[^A-Z0-9]', '', 'g') = ANY($1::text[])
     ORDER BY u.cognome, u.nome
     `,
@@ -196,6 +197,7 @@ async function listEligibleRepresentativesLegacy(pool, grade) {
       u.grado_elezione, u.regione_elezione, u.provincia_elezione, u.comune_elezione
     FROM users u
     WHERE (u.ruolo = 'P' OR u.ruolo = 'CP')
+      AND u.status = 'a'
       AND u.grado_elezione = $1
     ORDER BY u.cognome, u.nome
     `,
