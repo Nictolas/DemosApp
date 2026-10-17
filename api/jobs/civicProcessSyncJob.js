@@ -3,6 +3,7 @@
 const { getPool } = require('../config/database');
 const { syncItalianPopularInitiativesSources } = require('../services/italianPopularInitiativesParliamentSyncService');
 const { syncItalianOfficialReferendumSources } = require('../services/italianReferendumOfficialSyncService');
+const { syncItalianReferendumResults } = require('../services/italianReferendumResultSyncService');
 const { syncReferendumBallotsFromCanonicalSources } = require('../services/referendumBallotSyncService');
 
 class CivicProcessSyncJob {
@@ -25,15 +26,25 @@ class CivicProcessSyncJob {
     try {
       const pool = getPool();
       const result = await syncItalianPopularInitiativesSources({ pool });
+
+      // 1) Gazzetta Ufficiale: scopre convocazione, quesito e date.
       const officialReferendumSources = await syncItalianOfficialReferendumSources({ pool });
       result.sources = {
         ...(result.sources || {}),
         ...(officialReferendumSources || {}),
       };
 
-      // La proiezione civic_ballots avviene solo dopo avere acquisito le fonti
-      // ufficiali, così un nuovo decreto di indizione può rendere disponibile
-      // il pulsante Referendum nello stesso ciclo di sincronizzazione.
+      // 2) Eligendo: solo dopo la chiusura dei seggi tenta di acquisire il
+      // risultato nazionale definitivo Italia + Estero. Se il mapping del
+      // quesito non è univoco resta fail-closed e non associa dati a caso.
+      const referendumResults = await syncItalianReferendumResults({ pool });
+      result.sources = {
+        ...(result.sources || {}),
+        ...(referendumResults || {}),
+      };
+
+      // 3) Proiezione finale: la fonte Eligendo, quando presente e completa,
+      // ha precedenza sulla Gazzetta per i campi di risultato ufficiale.
       const referendumBallots = await syncReferendumBallotsFromCanonicalSources({ pool });
       result.referendumBallots = referendumBallots;
       this.lastResult = result;
@@ -45,8 +56,13 @@ class CivicProcessSyncJob {
       const ingestedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.ingested || 0), 0);
       const summary = sourceEntries
         .map(([source, stats]) => {
-          const scan = stats.scannedIssues != null ? `, fascicoli=${stats.scannedIssues}` : '';
-          return `${source}: ${stats.ingested}/${stats.fetched}, errori=${stats.errors?.length || 0}${scan}`;
+          const extras = [];
+          if (stats.scannedIssues != null) extras.push(`fascicoli=${stats.scannedIssues}`);
+          if (stats.datesQueried != null) extras.push(`date=${stats.datesQueried}`);
+          if (stats.pending) extras.push(`pending=${stats.pending}`);
+          if (stats.ambiguous) extras.push(`ambigui=${stats.ambiguous}`);
+          const suffix = extras.length ? `, ${extras.join(', ')}` : '';
+          return `${source}: ${stats.ingested}/${stats.fetched}, errori=${stats.errors?.length || 0}${suffix}`;
         })
         .concat([
           `referendum-ballots: ${referendumBallots.ingested}/${referendumBallots.fetched}, errori=${referendumBallots.errors?.length || 0}${referendumBallots.schemaReady ? '' : ', schema=pending'}`,
