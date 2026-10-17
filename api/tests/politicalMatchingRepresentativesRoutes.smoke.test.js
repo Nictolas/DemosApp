@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const express = require('express');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
@@ -28,6 +29,7 @@ function makePool({ complete = true } = {}) {
     if (s.includes('FROM political_mandates')) { const err = new Error('capability schema missing'); err.code = '42P01'; throw err; }
     if (s.includes('FROM political_selections ps')) { const err = new Error('political selections schema missing'); err.code = '42P01'; throw err; }
     if (s.includes('FROM users u') && s.includes("u.ruolo = 'P' OR u.ruolo = 'CP'")) {
+      assert.match(s, /u\.status = 'a'/);
       return { rows: Object.keys(reps).map((id) => ({ id, nome: id.toUpperCase(), cognome: 'Test', ruolo: 'P', status: 'a', avatar_config: null, grado_elezione: params[0] })) };
     }
     if (s.includes('SELECT id FROM opinioni_domande')) return { rows: questionIds.map((id) => ({ id })) };
@@ -64,7 +66,7 @@ async function withRoute({ routeFile, mount, pool, fn }) {
   }
 }
 
-test('HTTP rappresentanti: utente completo riceve top 4 con compatibilitÃ  e copertura', async () => {
+test('HTTP rappresentanti: utente completo riceve top 4 con compatibilità e copertura', async () => {
   await withRoute({ routeFile: 'rappresentanti.js', mount: '/api/rappresentanti', pool: makePool({ complete: true }), fn: async (base) => {
     const res = await fetch(`${base}/api/rappresentanti/disponibili?grado_elezione=E`);
     assert.equal(res.status, 200);
@@ -89,4 +91,19 @@ test('HTTP rappresentanti: utente incompleto riceve zero suggerimenti e metadata
     assert.equal(body.data.matching.answeredOpinions, 3);
     assert.equal(body.data.matching.missingOpinions, 1);
   }});
+});
+
+test('eleggibilità rappresentanti: backend esclude profili non politici e inattivi', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services', 'politicalEligibilityService.js'), 'utf8');
+
+  assert.match(
+    source,
+    /FROM political_mandates[\s\S]*?AND u\.status = 'a'[\s\S]*?AND u\.ruolo IN \('P', 'CP'\)/,
+    'il modello canonico deve accettare solo politici attivi'
+  );
+  assert.match(
+    source,
+    /async function listEligibleRepresentativesLegacy[\s\S]*?WHERE \(u\.ruolo = 'P' OR u\.ruolo = 'CP'\)[\s\S]*?AND u\.status = 'a'[\s\S]*?AND u\.grado_elezione = \$1/,
+    'il fallback legacy deve accettare solo politici attivi del grado richiesto'
+  );
 });

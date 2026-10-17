@@ -16,6 +16,8 @@ on:
       - 'api/tests/referendumGazetteReindictionService.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/tests/referendumForecastStats.test.js'
+      - 'api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js'
+      - 'api/services/politicalEligibilityService.js'
       - 'api/services/civicSources/italyCameraPopularInitiativesAdapter.js'
       - 'api/services/italianPopularInitiativesParliamentSyncService.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
@@ -56,6 +58,8 @@ on:
       - 'api/tests/referendumGazetteReindictionService.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/tests/referendumForecastStats.test.js'
+      - 'api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js'
+      - 'api/services/politicalEligibilityService.js'
       - 'api/services/civicSources/italyCameraPopularInitiativesAdapter.js'
       - 'api/services/italianPopularInitiativesParliamentSyncService.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
@@ -128,6 +132,9 @@ jobs:
       - name: Dependency audit client
         working-directory: client
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Political representative eligibility
+        run: node --test api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js
 
       - name: Popular initiatives civic sources
         run: node --test api/tests/civicProcessMultiSourcePersistence.test.js api/tests/italianPopularInitiativesMultiSource.test.js
