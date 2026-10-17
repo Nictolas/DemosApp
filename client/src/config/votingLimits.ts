@@ -16,9 +16,6 @@ export const VOTING_LIMITS = {
   // Iniziative popolari proposte - solo 1 proposta
   iniziative_popolari_proposte: 1,
   
-  // Referendum abrogativi - solo 1 voto
-  referendum_abrogativi: 1,
-  
   // Referendum abrogativi proposti - solo 1 proposta
   referendum_abrogativi_proposti: 1,
   
