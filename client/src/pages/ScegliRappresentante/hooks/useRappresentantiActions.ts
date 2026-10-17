@@ -15,8 +15,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   
   // Detect if the current route is under /candidati
   const [isTestRoute] = useRoute("/candidati/:categoria");
-  const [isLegacyCandidateRoute] = useRoute("/scegli-candidato/:categoria");
-  const isCandidateRoute = isTestRoute || isLegacyCandidateRoute;
+  const isCandidateRoute = isTestRoute;
 
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
