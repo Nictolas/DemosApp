@@ -143,12 +143,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           }
 
           const fieldName = getFieldName(categoria, false);
-          const selezionato = utente?.[fieldName] || null;
-          const selezionatoValido = selezionato && rappresentantiValidi.some((item) => item.id === selezionato)
-            ? selezionato
-            : null;
-
-          setRappresentanteSelezionato(selezionatoValido);
+          setRappresentanteSelezionato(utente?.[fieldName] || null);
           setRappresentanti(rappresentantiValidi);
         }
       } catch (error) {
