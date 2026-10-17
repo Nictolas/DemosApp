@@ -57,10 +57,9 @@ function parseProviderTimestamp(value) {
   const day = Number(digits.slice(6, 8));
   const hour = digits.length >= 10 ? Number(digits.slice(8, 10)) : 0;
   const minute = digits.length >= 12 ? Number(digits.slice(10, 12)) : 0;
-  const second = digits.length >= 14 ? Number(digits.slice(12, 14)) : 0;
-  if (![year, month, day, hour, minute, second].every(Number.isFinite)) return null;
+  if (![year, month, day, hour, minute].every(Number.isFinite)) return null;
   try {
-    return romeLocalToUtcIso({ year, month, day, hour, minute, second });
+    return romeLocalToUtcIso({ year, month, day, hour, minute });
   } catch {
     return null;
   }
@@ -222,14 +221,21 @@ function resultsUrl({ electionDate, abroad = false }) {
   return `${BASE_URL}/${endpoint}/DE/${electionDate}/TE/${REFERENDUM_ELECTION_TYPE}`;
 }
 
-async function fetchNationalReferendumResult({ electionDate, ballot, candidateCountForDate = 1, httpGet = defaultHttpGet }) {
+async function fetchNationalPayloads({ electionDate, httpGet = defaultHttpGet }) {
   if (!/^\d{8}$/.test(String(electionDate || ''))) throw new Error('ELIGENDO_ELECTION_DATE_REQUIRED');
-
   const [italyPayload, abroadPayload] = await Promise.all([
     httpGet(resultsUrl({ electionDate, abroad: false })),
     httpGet(resultsUrl({ electionDate, abroad: true })),
   ]);
+  return {
+    italyPayload,
+    abroadPayload,
+    italyError: getProviderError(italyPayload),
+    abroadError: getProviderError(abroadPayload),
+  };
+}
 
+function resolveNationalResultFromPayloads({ ballot, candidateCountForDate = 1, italyPayload, abroadPayload }) {
   const italyError = getProviderError(italyPayload);
   const abroadError = getProviderError(abroadPayload);
   if (italyError || abroadError) {
@@ -261,8 +267,19 @@ async function fetchNationalReferendumResult({ electionDate, ballot, candidateCo
     pending: result.complete !== true,
     ambiguous: false,
     mappingMethod: resolved.method,
+    questionCode: resolved.code,
     result,
   };
+}
+
+async function fetchNationalReferendumResult({ electionDate, ballot, candidateCountForDate = 1, httpGet = defaultHttpGet }) {
+  const payloads = await fetchNationalPayloads({ electionDate, httpGet });
+  return resolveNationalResultFromPayloads({
+    ballot,
+    candidateCountForDate,
+    italyPayload: payloads.italyPayload,
+    abroadPayload: payloads.abroadPayload,
+  });
 }
 
 module.exports = {
@@ -277,5 +294,7 @@ module.exports = {
   areaResult,
   combineNationalResult,
   resultsUrl,
+  fetchNationalPayloads,
+  resolveNationalResultFromPayloads,
   fetchNationalReferendumResult,
 };
