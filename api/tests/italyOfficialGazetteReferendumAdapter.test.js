@@ -6,7 +6,9 @@ const {
   parseArchiveIssues,
   parseIssueReferendumCandidates,
   parseOfficialGazetteReferendumAct,
+  fetchOfficialGazetteReferendumRecords,
 } = require('../services/civicSources/italyOfficialGazetteReferendumAdapter');
+const { syncItalianOfficialReferendumSources } = require('../services/italianReferendumOfficialSyncService');
 
 test('parses official Gazette archive issues deterministically', () => {
   const html = `
@@ -83,4 +85,54 @@ test('uses turnout quorum for an abrogative referendum and closes past ballots',
   assert.equal(record.metadata.ballot.kind, 'abrogative');
   assert.equal(record.metadata.ballot.quorumKind, 'turnout_threshold');
   assert.equal(record.metadata.ballot.quorumThreshold, 0.5);
+});
+
+test('source fetch does not advance checkpoint before persistence', async () => {
+  const queries = [];
+  const pool = {
+    async query(sql, params) {
+      queries.push({ sql, params });
+      if (/SELECT last_successful_sync_at/.test(sql)) return { rows: [] };
+      throw new Error(`unexpected query: ${sql}`);
+    },
+  };
+  const result = await fetchOfficialGazetteReferendumRecords({
+    pool,
+    now: new Date('2026-10-17T00:00:00Z'),
+    bootstrapLookbackDays: 1,
+    httpGet: async () => '<html><body></body></html>',
+  });
+  assert.equal(result.records.length, 0);
+  assert.equal(result.errors.length, 0);
+  assert.equal(queries.filter(({ sql }) => /INSERT INTO civic_source_sync_state/.test(sql)).length, 0);
+});
+
+test('sync service advances checkpoint only after a complete successful cycle', async () => {
+  const queries = [];
+  const pool = {
+    async query(sql, params) {
+      queries.push({ sql, params });
+      return { rows: [] };
+    },
+    async connect() {
+      throw new Error('connect should not be called when no records were fetched');
+    },
+  };
+  const result = await syncItalianOfficialReferendumSources({
+    pool,
+    fetchGazette: async () => ({
+      records: [],
+      errors: [],
+      scannedIssues: 2,
+      referendumCandidates: 0,
+      cutoff: '2026-10-16T00:00:00.000Z',
+      lastSuccessfulSyncAt: null,
+      scanCompletedAt: '2026-10-17T00:00:00.000Z',
+    }),
+  });
+  assert.equal(result.gazzetta.errors.length, 0);
+  const checkpoint = queries.find(({ sql }) => /INSERT INTO civic_source_sync_state/.test(sql));
+  assert.ok(checkpoint);
+  assert.equal(checkpoint.params[3], true);
+  assert.equal(checkpoint.params[1], '2026-10-17T00:00:00.000Z');
 });
