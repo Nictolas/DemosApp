@@ -11,6 +11,7 @@ const CONSENT_SCOPED_TABLES = Object.freeze([
   'voti_capo_stato',
   'voti_ice',
   'voti_referendum_abrogativi',
+  'civic_ballot_positions',
   'voti_amnistia',
   'voti_grazia',
   'voti_iniziative_popolari',
@@ -56,9 +57,6 @@ async function getPoliticalConsentState(db, userId) {
 }
 
 async function clearLegacyUserOpinionColumns(db, userId) {
-  // Alcuni schema storici duplicavano le risposte anche su users. Individuiamo
-  // solo le colonne che esistono sia su users sia su opinioni_risposte, così il
-  // cleanup resta schema-aware e non dipende da una lista hardcoded obsoleta.
   const sharedColumns = await db.query(`
     SELECT response_cols.column_name
     FROM information_schema.columns response_cols
@@ -85,9 +83,6 @@ async function clearLegacyUserOpinionColumns(db, userId) {
 }
 
 async function clearPendingProposalLink(db, userId) {
-  // Una proposta pendente è collegata al proponente tramite users.opinione_proposta_id.
-  // Alla revoca rimuoviamo l'associazione personale, senza cancellare il testo
-  // condiviso o i voti di altri utenti.
   if (!(await PrivacyErasureLedgerService.tableHasColumn(db, 'users', 'opinione_proposta_id'))) {
     return 0;
   }
