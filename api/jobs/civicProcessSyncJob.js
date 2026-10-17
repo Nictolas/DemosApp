@@ -73,8 +73,13 @@ class CivicProcessSyncJob {
       this.lastResult = result;
 
       const sourceEntries = Object.entries(result.sources || {});
-      const errorCount = sourceEntries.reduce((sum, [, stats]) => sum + (stats.errors?.length || 0), 0)
-        + (referendumBallots.errors?.length || 0);
+      const errorCount = sourceEntries.reduce((sum, [, stats]) => (
+        sum
+        + (stats.errors?.length || 0)
+        + Number(stats.pending || 0)
+        + Number(stats.ambiguous || 0)
+        + Number(stats.unsafe || 0)
+      ), 0) + (referendumBallots.errors?.length || 0);
       const fetchedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.fetched || 0), 0);
       const ingestedCount = sourceEntries.reduce((sum, [, stats]) => sum + Number(stats.ingested || 0), 0);
       const summary = sourceEntries
