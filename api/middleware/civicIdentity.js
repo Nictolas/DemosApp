@@ -8,6 +8,18 @@ async function requireVerifiedCivicIdentity(req, res, next) {
     return res.status(401).json({ success: false, error: 'Autenticazione richiesta', code: 'AUTH_REQUIRED' });
   }
 
+  // Eccezione amministratore temporanea: serve finché il rollout CIE non è
+  // operativo per l'account di amministrazione. Resta fail-closed per tutti
+  // gli altri utenti e non modifica lo stato di verifica persistente.
+  if (req.user?.isAdmin === true) {
+    req.civicIdentity = Object.freeze({
+      verified: true,
+      provider: 'ADMIN_TEMPORARY_EXCEPTION',
+      temporaryAdminException: true,
+    });
+    return next();
+  }
+
   try {
     const identity = await getIdentityVerificationStatus(req.userId);
     if (!identity.verified || identity.provider !== IDENTITY_PROVIDERS.CIE) {
