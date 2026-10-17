@@ -56,14 +56,28 @@ test('source records are rejected when source/process/jurisdiction do not agree'
   }), /PROCESS_JURISDICTION_MISMATCH/);
 });
 
-test('Camera adapter queries official popular bills in the selected legislature', () => {
+test('Camera adapter keeps the base popular-initiative query lightweight', () => {
   const query = camera.buildCameraPopularInitiativesQuery({ legislature: 19, limit: 25 });
-  assert.match(query, /ocd:iniziativa "Popolare"/);
-  assert.match(query, /dc:type "Progetto di Legge"/);
+  assert.match(query, /ocd:iniziativa \?iniziativa/);
+  assert.match(query, /CONTAINS\(LCASE\(STR\(\?iniziativa\)\), "popolare"\)/);
+  assert.match(query, /dc:type \?tipo/);
+  assert.match(query, /CONTAINS\(LCASE\(STR\(\?tipo\)\), "progetto di legge"\)/);
+  assert.doesNotMatch(query, /rif_statoIter/);
   assert.match(query, /legislatura\.rdf\/repubblica_19/);
   assert.match(query, /LIMIT 25/);
   assert.equal(camera.ENDPOINT, 'https://dati.camera.it/sparql');
+  assert.equal(camera.DEFAULT_TIMEOUT_MS, 60000);
   assert.equal(camera.decodeCameraText('l&rsquo;iniziativa'), 'l’iniziativa');
+});
+
+test('Camera state enrichment is isolated to the already selected acts', () => {
+  const query = camera.buildCameraPopularInitiativeStatesQuery([
+    'http://dati.camera.it/ocd/attocamera.rdf/ac19_9999',
+    'https://evil.example/ocd/attocamera.rdf/ac19_1',
+  ]);
+  assert.match(query, /VALUES \?atto \{ <http:\/\/dati\.camera\.it\/ocd\/attocamera\.rdf\/ac19_9999> \}/);
+  assert.match(query, /\?atto ocd:rif_statoIter \?statoIter/);
+  assert.match(query, /\?statoIter dc:title \?statoLabel/);
 });
 
 test('Camera binding normalizes to the canonical parliamentary source contract', () => {
@@ -80,6 +94,32 @@ test('Camera binding normalizes to the canonical parliamentary source contract',
   assert.equal(record.stageId, 'parliamentary_review');
   assert.equal(record.officialReference, null);
   assert.deepEqual(record.officialIdentifiers, [{ namespace: 'it.parliament.phase', value: '19:C:9999' }]);
+});
+
+test('Camera state enrichment prefers a terminal state and keeps its date', () => {
+  const base = camera.normalizeCameraBinding({
+    atto: { value: 'http://dati.camera.it/ocd/attocamera.rdf/ac19_9999' },
+    numero: { value: '9999' },
+    titolo: { value: 'Iniziativa popolare test' },
+  });
+  const records = camera.applyCameraStateBindings([base], [
+    {
+      atto: { value: base.sourceUri },
+      statoIter: { value: 'http://dati.camera.it/ocd/statoIter.rdf/si19_100' },
+      statoLabel: { value: 'Assegnato' },
+      statoData: { value: '20261001' },
+    },
+    {
+      atto: { value: base.sourceUri },
+      statoIter: { value: 'http://dati.camera.it/ocd/statoIter.rdf/si19_200' },
+      statoLabel: { value: 'Approvato definitivamente' },
+      statoData: { value: '20261010' },
+    },
+  ]);
+  assert.equal(records[0].stageId, 'closed');
+  assert.equal(records[0].sourceStatus, 'Approvato definitivamente');
+  assert.equal(records[0].statusUpdatedAt, '20261010');
+  assert.equal(records[0].metadata.stateUri, 'http://dati.camera.it/ocd/statoIter.rdf/si19_200');
 });
 
 test('Senato adapter filters initiative type Popolare and carries a strong shared iter reference', () => {
