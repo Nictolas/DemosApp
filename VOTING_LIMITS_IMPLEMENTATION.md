@@ -22,7 +22,6 @@ export const VOTING_LIMITS = {
   opinioni_proposte: 1,        // 1 voto per opinioni proposte
   capo_stato: 1,               // 1 voto per capo di stato
   iniziative_popolari: 1,      // 1 voto per iniziative popolari
-  referendum_abrogativi: 1,    // 1 voto per referendum
   ice: 1,                      // 1 voto per ICE
   ministri: 1,                 // 1 voto per ministero
   amnistia: 1,                 // 1 voto per amnistia
@@ -30,6 +29,8 @@ export const VOTING_LIMITS = {
   comunicazioni: 10            // 10 like/dislike
 };
 ```
+
+La vecchia votazione DEMOS sulla **priorità dei referendum abrogativi** è stata dismessa: i referendum seguono il proprio iter istituzionale e non richiedono una graduatoria di priorità parlamentare. La pagina attiva resta `/referendum-abrogativi` per informazione e raccolta firme.
 
 ## 📊 **IMPATTO SULLA SCALABILITÀ**
 
@@ -119,22 +120,17 @@ export const VOTING_LIMITS = {
 - **Funzionalità**: Voto/rimozione, contatore, feedback, sistema centralizzato
 - **File**: `client/src/pages/Amnistia/`
 
-### 6. **Referendum Abrogativi** ✅
-- **Limite**: 1 voto massimo (solo 1 referendum)
-- **Funzionalità**: Voto/rimozione, contatore, feedback, sistema centralizzato
-- **File**: `client/src/pages/VotaReferendumAbrogativo/`
-
-### 7. **Iniziative Popolari Proposte** ✅
+### 6. **Iniziative Popolari Proposte** ✅
 - **Limite**: 1 proposta massima (solo 1 iniziativa popolare)
 - **Funzionalità**: Proposta/rimozione, contatore, feedback, sistema centralizzato
 - **File**: `client/src/pages/IniziativePopolari/`
 
-### 8. **Referendum Abrogativi Proposti** ✅
+### 7. **Referendum Abrogativi Proposti** ✅
 - **Limite**: 1 proposta massima (solo 1 referendum abrogativo)
 - **Funzionalità**: Proposta/rimozione, contatore, feedback, sistema centralizzato
 - **File**: `client/src/pages/ReferendumAbrogativi/`
 
-### 9. **ICE Proposti** ✅
+### 8. **ICE Proposti** ✅
 - **Limite**: 1 proposta massima (solo 1 ICE)
 - **Funzionalità**: Proposta/rimozione, contatore, feedback, sistema centralizzato
 - **File**: `client/src/pages/ICE/`
