@@ -8,6 +8,11 @@ on:
       - 'api/security-agent/**'
       - 'api/tests/security*.test.js'
       - 'api/tests/firebaseAdminCompatibility.test.js'
+      - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
+      - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
+      - 'api/services/italianReferendumOfficialSyncService.js'
+      - 'api/services/referendumBallotSyncService.js'
+      - 'api/jobs/civicProcessSyncJob.js'
       - 'api/app.js'
       - 'api/middleware/rateLimiting.js'
       - 'api/services/accessRevocationService.js'
@@ -25,6 +30,11 @@ on:
       - 'api/security-agent/**'
       - 'api/tests/security*.test.js'
       - 'api/tests/firebaseAdminCompatibility.test.js'
+      - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
+      - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
+      - 'api/services/italianReferendumOfficialSyncService.js'
+      - 'api/services/referendumBallotSyncService.js'
+      - 'api/jobs/civicProcessSyncJob.js'
       - 'api/app.js'
       - 'api/middleware/rateLimiting.js'
       - 'api/services/accessRevocationService.js'
@@ -82,6 +92,9 @@ jobs:
       - name: Dependency audit client
         working-directory: client
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Official referendum source adapter
+        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/referendumRealVote.smoke.test.js
 
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging
