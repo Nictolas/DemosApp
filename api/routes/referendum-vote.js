@@ -12,67 +12,23 @@ const {
   recordPreferenceChange,
   sendCooldownError,
 } = require('../services/preferenceCooldownService');
+const {
+  MIN_PUBLIC_RESPONSES,
+  buildForecastStats,
+  loadGeographicForecast,
+  loadForecastTrend,
+  loadRecentReferendumHistory,
+} = require('../services/referendumForecastStatsService');
 
 const pool = getPool();
-const MIN_PUBLIC_RESPONSES = 10;
 const ALLOWED_CHOICES = new Set(['YES', 'NO', 'ABSTAIN']);
 
 function isMissingBallotSchema(error) {
   return Boolean(error && error.code === '42P01' && /civic_ballot/i.test(String(error.message || '')));
 }
 
-function round1(value) {
-  if (value == null || !Number.isFinite(Number(value))) return null;
-  return Math.round(Number(value) * 10) / 10;
-}
-
-function buildForecastStats(row) {
-  const total = Number(row.total_responses || 0);
-  const yes = Number(row.yes_count || 0);
-  const no = Number(row.no_count || 0);
-  const abstain = Number(row.abstain_count || 0);
-  const intendingVoters = yes + no;
-
-  if (total < MIN_PUBLIC_RESPONSES) {
-    return {
-      suppressed: true,
-      minimumResponses: MIN_PUBLIC_RESPONSES,
-      totalResponses: total,
-    };
-  }
-
-  const turnout = total > 0 ? (intendingVoters / total) * 100 : null;
-  const yesPercent = intendingVoters > 0 ? (yes / intendingVoters) * 100 : null;
-  const noPercent = intendingVoters > 0 ? (no / intendingVoters) * 100 : null;
-  const abstainPercent = total > 0 ? (abstain / total) * 100 : null;
-  const quorumThreshold = row.quorum_threshold == null ? null : Number(row.quorum_threshold) * 100;
-
-  let quorum = { kind: row.quorum_kind, required: false, thresholdPercent: null, forecastReached: null };
-  if (row.quorum_kind === 'turnout_threshold') {
-    quorum = {
-      kind: row.quorum_kind,
-      required: true,
-      thresholdPercent: round1(quorumThreshold),
-      forecastReached: turnout == null || quorumThreshold == null ? null : turnout >= quorumThreshold,
-    };
-  } else if (row.quorum_kind === 'custom') {
-    quorum = { kind: row.quorum_kind, required: true, thresholdPercent: null, forecastReached: null };
-  }
-
-  return {
-    suppressed: false,
-    minimumResponses: MIN_PUBLIC_RESPONSES,
-    totalResponses: total,
-    intendingVoters,
-    yesCount: yes,
-    noCount: no,
-    abstainCount: abstain,
-    turnoutPercent: round1(turnout),
-    yesPercent: round1(yesPercent),
-    noPercent: round1(noPercent),
-    abstainPercent: round1(abstainPercent),
-    quorum,
-  };
+function isMissingSnapshotSchema(error) {
+  return Boolean(error && error.code === '42P01' && /civic_ballot_forecast_snapshots/i.test(String(error.message || '')));
 }
 
 async function loadActiveBallots(db, userId = null, isAdmin = false) {
@@ -208,6 +164,90 @@ router.get('/', verifyToken, async (req, res) => {
       });
     }
     console.error('Errore recupero referendum reali:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+// Consultazioni già congelate: mantiene accessibile la previsione DEMOS finale
+// e la confronta con il risultato istituzionale quando Eligendo lo ha completato.
+router.get('/history', verifyToken, async (req, res) => {
+  try {
+    const ballots = await loadRecentReferendumHistory(pool, {
+      limit: req.query.limit,
+      lookbackDays: req.query.lookbackDays,
+    });
+    return res.json({
+      success: true,
+      ballots,
+      minimumPublicResponses: MIN_PUBLIC_RESPONSES,
+    });
+  } catch (error) {
+    if (isMissingSnapshotSchema(error)) {
+      return res.json({
+        success: true,
+        ballots: [],
+        minimumPublicResponses: MIN_PUBLIC_RESPONSES,
+        reason: 'REFERENDUM_FORECAST_SNAPSHOT_MIGRATION_REQUIRED',
+      });
+    }
+    if (isMissingBallotSchema(error)) {
+      return res.json({ success: true, ballots: [], reason: 'REFERENDUM_BALLOT_MIGRATION_REQUIRED' });
+    }
+    console.error('Errore storico referendum reali:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+// Aggregati DEMOS per residenza. I gruppi con meno di 10 risposte non vengono
+// restituiti, quindi il client non riceve mai micro-segmenti territoriali.
+router.get('/:ballotId/geography', verifyToken, async (req, res) => {
+  const ballotId = String(req.params.ballotId || '').trim();
+  if (!ballotId) return res.status(400).json({ success: false, error: 'REFERENDUM_BALLOT_ID_REQUIRED' });
+
+  try {
+    const geography = await loadGeographicForecast(pool, ballotId);
+    if (!geography) {
+      return res.status(404).json({ success: false, error: 'REFERENDUM_BALLOT_NOT_FOUND' });
+    }
+    return res.json({ success: true, ...geography });
+  } catch (error) {
+    if (isMissingBallotSchema(error)) {
+      return res.json({
+        success: true,
+        minimumResponses: MIN_PUBLIC_RESPONSES,
+        regions: [],
+        provinces: [],
+        municipalities: [],
+        reason: 'REFERENDUM_BALLOT_MIGRATION_REQUIRED',
+      });
+    }
+    console.error('Errore statistiche geografiche referendum:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+// Serie temporale solo aggregata: la tabella snapshot non contiene user_id.
+router.get('/:ballotId/trend', verifyToken, async (req, res) => {
+  const ballotId = String(req.params.ballotId || '').trim();
+  if (!ballotId) return res.status(400).json({ success: false, error: 'REFERENDUM_BALLOT_ID_REQUIRED' });
+
+  try {
+    const trend = await loadForecastTrend(pool, ballotId);
+    return res.json({
+      success: true,
+      trend,
+      minimumPublicResponses: MIN_PUBLIC_RESPONSES,
+    });
+  } catch (error) {
+    if (isMissingSnapshotSchema(error)) {
+      return res.json({
+        success: true,
+        trend: [],
+        minimumPublicResponses: MIN_PUBLIC_RESPONSES,
+        reason: 'REFERENDUM_FORECAST_SNAPSHOT_MIGRATION_REQUIRED',
+      });
+    }
+    console.error('Errore trend referendum:', error);
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });

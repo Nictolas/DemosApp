@@ -10,12 +10,19 @@ on:
       - 'api/tests/firebaseAdminCompatibility.test.js'
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
       - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
+      - 'api/tests/referendumRealVote.smoke.test.js'
+      - 'api/tests/referendumForecastStats.test.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
       - 'api/services/civicSources/italyInteriorEligendoReferendumAdapter.js'
       - 'api/services/italianReferendumOfficialSyncService.js'
       - 'api/services/italianReferendumResultSyncService.js'
       - 'api/services/referendumBallotSyncService.js'
+      - 'api/services/referendumForecastStatsService.js'
+      - 'api/services/referendumForecastSnapshotService.js'
+      - 'api/jobs/referendumForecastSnapshotJob.js'
       - 'api/jobs/civicProcessSyncJob.js'
+      - 'api/routes/referendum-vote.js'
+      - '20261017_referendum_forecast_snapshots.sql'
       - 'api/app.js'
       - 'api/middleware/rateLimiting.js'
       - 'api/services/accessRevocationService.js'
@@ -35,12 +42,19 @@ on:
       - 'api/tests/firebaseAdminCompatibility.test.js'
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
       - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
+      - 'api/tests/referendumRealVote.smoke.test.js'
+      - 'api/tests/referendumForecastStats.test.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
       - 'api/services/civicSources/italyInteriorEligendoReferendumAdapter.js'
       - 'api/services/italianReferendumOfficialSyncService.js'
       - 'api/services/italianReferendumResultSyncService.js'
       - 'api/services/referendumBallotSyncService.js'
+      - 'api/services/referendumForecastStatsService.js'
+      - 'api/services/referendumForecastSnapshotService.js'
+      - 'api/jobs/referendumForecastSnapshotJob.js'
       - 'api/jobs/civicProcessSyncJob.js'
+      - 'api/routes/referendum-vote.js'
+      - '20261017_referendum_forecast_snapshots.sql'
       - 'api/app.js'
       - 'api/middleware/rateLimiting.js'
       - 'api/services/accessRevocationService.js'
@@ -99,8 +113,8 @@ jobs:
         working-directory: client
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Official referendum source adapters
-        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/italyInteriorEligendoReferendumAdapter.test.js api/tests/referendumRealVote.smoke.test.js
+      - name: Official referendum sources and forecast statistics
+        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/italyInteriorEligendoReferendumAdapter.test.js api/tests/referendumForecastStats.test.js api/tests/referendumRealVote.smoke.test.js
 
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging

@@ -5,6 +5,7 @@ const { syncItalianPopularInitiativesSources } = require('../services/italianPop
 const { syncItalianOfficialReferendumSources } = require('../services/italianReferendumOfficialSyncService');
 const { syncItalianReferendumResults } = require('../services/italianReferendumResultSyncService');
 const { syncReferendumBallotsFromCanonicalSources } = require('../services/referendumBallotSyncService');
+const referendumForecastSnapshotJob = require('./referendumForecastSnapshotJob');
 
 class CivicProcessSyncJob {
   constructor() {
@@ -92,6 +93,7 @@ class CivicProcessSyncJob {
   start() {
     if (this.interval) return;
     console.log(`🚀 Job processi civici attivo ogni ${this.intervalMs / 3600000}h`);
+    referendumForecastSnapshotJob.start();
     setImmediate(() => this.execute().catch(() => {}));
     this.interval = setInterval(() => this.execute().catch(() => {}), this.intervalMs);
     if (typeof this.interval.unref === 'function') this.interval.unref();
@@ -100,6 +102,7 @@ class CivicProcessSyncJob {
   stop() {
     if (this.interval) clearInterval(this.interval);
     this.interval = null;
+    referendumForecastSnapshotJob.stop();
   }
 
   getStatus() {
@@ -109,6 +112,7 @@ class CivicProcessSyncJob {
       lastResult: this.lastResult,
       lastError: this.lastError,
       intervalMs: this.intervalMs,
+      referendumForecastSnapshots: referendumForecastSnapshotJob.getStatus(),
     };
   }
 }

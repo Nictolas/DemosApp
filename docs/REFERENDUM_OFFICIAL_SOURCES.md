@@ -4,7 +4,7 @@
 
 Il database effettivamente usato dal backend Render è il progetto Supabase `Demos` (`wxnblcqoyjqxktwkcqok`), non il vecchio progetto Neon usato in precedenza per alcune verifiche.
 
-Le migrazioni `20261017_referendum_ballots.sql` e `20261017_civic_source_sync_state.sql` sono state applicate in produzione il 17 ottobre 2026.
+Le migrazioni `20261017_referendum_ballots.sql`, `20261017_civic_source_sync_state.sql` e `20261017_referendum_forecast_snapshots.sql` sono state applicate in produzione il 17 ottobre 2026.
 
 ## Gazzetta Ufficiale
 
@@ -42,6 +42,16 @@ Endpoint di riferimento:
 
 DEMOS non pubblica come "risultato ufficiale" conteggi parziali o privi della componente Estero.
 
+## Statistiche DEMOS, geografia e storico
+
+Le statistiche DEMOS restano separate dalle fonti istituzionali:
+- la geografia Regione → Provincia → Comune descrive la previsione DEMOS in base alla residenza registrata degli utenti, non i risultati territoriali ufficiali Eligendo;
+- ogni territorio deve avere almeno 10 risposte prima di essere restituito al client;
+- lo storico usa `civic_ballot_forecast_snapshots`, che contiene solo conteggi aggregati e nessun `user_id`;
+- prima dell'apertura dei seggi gli snapshot sono aggiornati nella finestra temporale corrente;
+- al primo ciclo successivo all'apertura viene creato uno snapshot finale immutabile ancorato a `opens_at`;
+- l'archivio confronta quella previsione finale DEMOS con affluenza, Sì e No ufficiali quando disponibili da Eligendo.
+
 ## Regole DEMOS
 
 - Referendum abrogativo: quorum di affluenza al 50%.
@@ -53,5 +63,5 @@ DEMOS non pubblica come "risultato ufficiale" conteggi parziali o privi della co
 ## Da completare
 
 - Gestione automatica di eventuali decreti successivi che riformulano il quesito già indetto.
-- Statistiche territoriali Regione → Provincia → Comune, riusando la gerarchia ufficiale Eligendo.
-- Snapshot/trend temporale aggregato e confronto finale previsione DEMOS / risultato ufficiale.
+- Eventuale confronto territoriale anche con i risultati ufficiali Eligendo, mantenuto distinto dalla previsione DEMOS per residenza.
+- Raffinamenti visuali dello storico quando saranno disponibili serie reali sufficientemente lunghe.
