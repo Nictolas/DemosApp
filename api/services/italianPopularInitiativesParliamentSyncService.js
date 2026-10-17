@@ -60,12 +60,29 @@ async function ingestRecords(pool, records) {
   return { results, errors };
 }
 
-async function runSourcePlan(pool, sourceResult) {
+function summarizeFetchFailure(reason) {
+  const status = reason?.response?.status ?? null;
+  const code = reason?.code || null;
+  const message = reason?.message || 'SOURCE_FETCH_FAILED';
+  return {
+    code: code || message,
+    message,
+    status,
+  };
+}
+
+async function runSourcePlan(pool, sourceResult, sourceName = 'unknown') {
   if (sourceResult.status === 'rejected') {
+    const failure = summarizeFetchFailure(sourceResult.reason);
+    console.warn(
+      `[civic-source-sync] ${sourceName} fetch failed` +
+      `${failure.status ? ` status=${failure.status}` : ''}` +
+      `${failure.code ? ` code=${failure.code}` : ''}: ${failure.message}`
+    );
     return {
       fetched: 0,
       ingested: 0,
-      errors: [{ code: sourceResult.reason?.message || 'SOURCE_FETCH_FAILED' }],
+      errors: [failure],
     };
   }
 
@@ -99,9 +116,9 @@ async function syncItalianPopularInitiativesSources({
   return {
     legislature,
     sources: {
-      ministero: await runSourcePlan(pool, ministeroResult),
-      camera: await runSourcePlan(pool, cameraResult),
-      senato: await runSourcePlan(pool, senatoResult),
+      ministero: await runSourcePlan(pool, ministeroResult, 'ministero'),
+      camera: await runSourcePlan(pool, cameraResult, 'camera'),
+      senato: await runSourcePlan(pool, senatoResult, 'senato'),
     },
   };
 }
@@ -114,6 +131,7 @@ module.exports = {
   ingestRecordInTransaction,
   ingestRecordWithStrongReconciliation,
   ingestRecords,
+  summarizeFetchFailure,
   runSourcePlan,
   syncItalianPopularInitiativesSources,
   syncItalianPopularInitiativesParliament,
