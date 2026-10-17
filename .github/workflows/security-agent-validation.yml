@@ -9,8 +9,11 @@ on:
       - 'api/tests/security*.test.js'
       - 'api/tests/firebaseAdminCompatibility.test.js'
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
+      - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
+      - 'api/services/civicSources/italyInteriorEligendoReferendumAdapter.js'
       - 'api/services/italianReferendumOfficialSyncService.js'
+      - 'api/services/italianReferendumResultSyncService.js'
       - 'api/services/referendumBallotSyncService.js'
       - 'api/jobs/civicProcessSyncJob.js'
       - 'api/app.js'
@@ -31,8 +34,11 @@ on:
       - 'api/tests/security*.test.js'
       - 'api/tests/firebaseAdminCompatibility.test.js'
       - 'api/tests/italyOfficialGazetteReferendumAdapter.test.js'
+      - 'api/tests/italyInteriorEligendoReferendumAdapter.test.js'
       - 'api/services/civicSources/italyOfficialGazetteReferendumAdapter.js'
+      - 'api/services/civicSources/italyInteriorEligendoReferendumAdapter.js'
       - 'api/services/italianReferendumOfficialSyncService.js'
+      - 'api/services/italianReferendumResultSyncService.js'
       - 'api/services/referendumBallotSyncService.js'
       - 'api/jobs/civicProcessSyncJob.js'
       - 'api/app.js'
@@ -93,8 +99,8 @@ jobs:
         working-directory: client
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Official referendum source adapter
-        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/referendumRealVote.smoke.test.js
+      - name: Official referendum source adapters
+        run: node --test api/tests/italyOfficialGazetteReferendumAdapter.test.js api/tests/italyInteriorEligendoReferendumAdapter.test.js api/tests/referendumRealVote.smoke.test.js
 
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging
