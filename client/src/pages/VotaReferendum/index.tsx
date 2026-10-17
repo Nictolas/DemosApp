@@ -3,7 +3,7 @@ import { ExternalLink, Loader2, MinusCircle, Vote, XCircle, CheckCircle2 } from 
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
- type Choice = "YES" | "NO" | "ABSTAIN";
+type Choice = "YES" | "NO" | "ABSTAIN";
 
 type Forecast = {
   suppressed: boolean;
@@ -83,7 +83,7 @@ export default function VotaReferendum() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const response = await apiRequest("GET", "/api/referendum-vote");
+      const response = await apiRequest("GET", "/api/referendum/vote-real");
       setBallots(Array.isArray(response?.data?.ballots) ? response.data.ballots : []);
     } catch (err: any) {
       setError(err?.data?.message || err?.message || "Impossibile caricare i referendum.");
@@ -101,7 +101,7 @@ export default function VotaReferendum() {
     setSavingId(ballot.id);
     setError(null);
     try {
-      await apiRequest("POST", `/api/referendum-vote/${ballot.id}/choice`, { choice });
+      await apiRequest("POST", `/api/referendum/vote-real/${ballot.id}/choice`, { choice });
       await load();
     } catch (err: any) {
       if (err?.data?.error === "PREFERENCE_COOLDOWN" && err?.data?.unlockDate) {
