@@ -4,6 +4,7 @@ const { getPool } = require('../config/database');
 const { syncItalianPopularInitiativesSources } = require('../services/italianPopularInitiativesParliamentSyncService');
 const { syncItalianOfficialReferendumSources } = require('../services/italianReferendumOfficialSyncService');
 const { syncOfficialGazetteReferendumLifecycle } = require('../services/referendumGazetteLifecycleService');
+const { syncOfficialGazetteReferendumReindictions } = require('../services/referendumGazetteReindictionService');
 const { syncItalianReferendumResults } = require('../services/italianReferendumResultSyncService');
 const { syncReferendumBallotsFromCanonicalSources } = require('../services/referendumBallotSyncService');
 const referendumForecastSnapshotJob = require('./referendumForecastSnapshotJob');
@@ -37,7 +38,7 @@ class CivicProcessSyncJob {
       };
 
       // 2) Gazzetta Ufficiale: intercetta atti successivi all'indizione
-      // (per ora precisazione/riformulazione del quesito e revoca).
+      // (precisazione/riformulazione del quesito e revoca).
       // Il matching e' fail-closed: se il precedente non e' univoco non aggiorna nulla.
       const referendumLifecycle = await syncOfficialGazetteReferendumLifecycle({ pool });
       result.sources = {
@@ -45,7 +46,18 @@ class CivicProcessSyncJob {
         gazzettaLifecycle: referendumLifecycle,
       };
 
-      // 3) Eligendo: solo dopo la chiusura dei seggi tenta di acquisire il
+      // 3) Se dopo una revoca lo stesso referendum viene indetto di nuovo, il nuovo
+      // decreto viene ricondotto alla consultazione originaria soltanto quando la
+      // Gazzetta contiene una catena esplicita revoca -> precedente indizione.
+      // Questo passaggio avviene prima della proiezione in civic_ballots, così non
+      // vengono create due schede per la stessa consultazione rinviata.
+      const referendumReindictions = await syncOfficialGazetteReferendumReindictions({ pool });
+      result.sources = {
+        ...(result.sources || {}),
+        gazzettaReindiction: referendumReindictions,
+      };
+
+      // 4) Eligendo: solo dopo la chiusura dei seggi tenta di acquisire il
       // risultato nazionale definitivo Italia + Estero. Se il mapping del
       // quesito non e' univoco resta fail-closed e non associa dati a caso.
       const referendumResults = await syncItalianReferendumResults({ pool });
@@ -54,7 +66,7 @@ class CivicProcessSyncJob {
         ...(referendumResults || {}),
       };
 
-      // 4) Proiezione finale: la fonte Eligendo, quando presente e completa,
+      // 5) Proiezione finale: la fonte Eligendo, quando presente e completa,
       // ha precedenza sulla Gazzetta per i campi di risultato ufficiale.
       const referendumBallots = await syncReferendumBallotsFromCanonicalSources({ pool });
       result.referendumBallots = referendumBallots;
@@ -72,6 +84,7 @@ class CivicProcessSyncJob {
           if (stats.datesQueried != null) extras.push(`date=${stats.datesQueried}`);
           if (stats.pending) extras.push(`pending=${stats.pending}`);
           if (stats.ambiguous) extras.push(`ambigui=${stats.ambiguous}`);
+          if (stats.unsafe) extras.push(`unsafe=${stats.unsafe}`);
           const suffix = extras.length ? `, ${extras.join(', ')}` : '';
           return `${source}: ${stats.ingested}/${stats.fetched}, errori=${stats.errors?.length || 0}${suffix}`;
         })
