@@ -74,3 +74,43 @@ BEGIN
    THEN RAISE EXCEPTION 'Wrong mirror fields modified'; END IF;
 END $$;
 SELECT 'IMP-046 SQL regression PASS' AS result;
+
+
+-- Regression: same politician with TWO currently active Camera capabilities.
+-- A selection tied to the ended capability must be cleared, but an unbound
+-- legacy-only selection must be preserved until ALL same-office capabilities end.
+INSERT INTO public.users(id,rappresentante_camera)
+VALUES
+ ('00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004'),
+ ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004');
+INSERT INTO public.user_representatives(user_id,rappresentante_camera)
+VALUES
+ ('00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004'),
+ ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004');
+INSERT INTO public.political_mandates(id,user_id,office_code,status)
+VALUES
+ ('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000004','C','ACTIVE'),
+ ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000004','C','ACTIVE');
+INSERT INTO public.political_selections(user_id,selected_user_id,selection_kind,political_office_id,selected_mandate_id)
+VALUES ('00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','representative','it.camera','00000000-0000-0000-0000-000000000021');
+UPDATE public.political_mandates SET status='CANCELLED'
+WHERE id='00000000-0000-0000-0000-000000000021';
+DO $$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.political_selections WHERE user_id='00000000-0000-0000-0000-000000000003')
+    THEN RAISE EXCEPTION 'Bound old mandate was not removed'; END IF;
+ IF EXISTS (SELECT 1 FROM public.users WHERE id='00000000-0000-0000-0000-000000000003' AND rappresentante_camera IS NOT NULL)
+    THEN RAISE EXCEPTION 'Bound old mandate left stale legacy projection'; END IF;
+ IF EXISTS (SELECT 1 FROM public.user_representatives WHERE user_id='00000000-0000-0000-0000-000000000003' AND rappresentante_camera IS NOT NULL)
+    THEN RAISE EXCEPTION 'Bound old mandate left stale legacy mirror'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.users WHERE id='00000000-0000-0000-0000-000000000005' AND rappresentante_camera IS NOT NULL)
+    THEN RAISE EXCEPTION 'Unbound legacy choice cleared despite second active mandate'; END IF;
+END $$;
+UPDATE public.political_mandates SET status='CANCELLED'
+WHERE id='00000000-0000-0000-0000-000000000022';
+DO $$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.users WHERE id='00000000-0000-0000-0000-000000000005' AND rappresentante_camera IS NOT NULL)
+    THEN RAISE EXCEPTION 'Last mandate ending left a stale legacy-only choice'; END IF;
+END $$;
+SELECT 'IMP-046 duplicate-office capability regression PASS' AS result;
