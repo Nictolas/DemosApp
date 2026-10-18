@@ -14,6 +14,7 @@ interface RobustAppLayoutProps {
 const PUBLIC_ROUTES_WITHOUT_NAV = [
   '/',
   '/auth',
+  '/scopri-demos',
   '/reset-password',
   '/privacy-policy',
   '/terms-of-service',
