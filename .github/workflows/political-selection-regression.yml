@@ -19,6 +19,19 @@ permissions:
 jobs:
   node-regression:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: imp046
+          POSTGRES_PASSWORD: imp046_test_only
+          POSTGRES_DB: imp046
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U imp046 -d imp046"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,3 +53,11 @@ jobs:
             api/tests/politicalSelectionWiring.smoke.test.js \
             api/tests/politicalEligibilityService.test.js \
             api/tests/politicalLifecycleService.test.js
+
+      - name: PostgreSQL trigger isolation smoke
+        env:
+          PGPASSWORD: imp046_test_only
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U imp046 -d imp046 -v ON_ERROR_STOP=1 -f api/tests/sql/imp046-invalidation-smoke.sql
