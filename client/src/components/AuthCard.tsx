@@ -6,9 +6,10 @@ import { useAuthLogin } from "@/hooks/useAuthLogin";
 
 interface AuthCardProps {
   embedded?: boolean;
+  compact?: boolean;
 }
 
-export function AuthCard({ embedded = false }: AuthCardProps) {
+export function AuthCard({ embedded = false, compact = false }: AuthCardProps) {
   const {
     oauthLoading,
     oauthConfigLoading,
@@ -23,8 +24,8 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
   } = useAuthLogin();
 
   return (
-    <Card className="w-full max-w-md shadow-xl bg-white">
-      <CardHeader className="text-center space-y-4">
+    <Card className={compact ? "auth-card-compact w-full max-w-sm border-0 bg-transparent shadow-none" : "w-full max-w-md shadow-xl bg-white"}>
+      <CardHeader className={compact ? "sr-only" : "text-center space-y-4"}>
         {!embedded && (
           <div className="flex flex-col items-center">
             <img src={appIcon} alt="Logo Demos" className="w-20 h-20 mb-2" />
@@ -51,7 +52,7 @@ export function AuthCard({ embedded = false }: AuthCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className={compact ? "space-y-2.5 p-0" : "space-y-4"}>
         {oauthConfigLoading && (
           <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
             <Loader2 className="h-4 w-4 animate-spin" />

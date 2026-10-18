@@ -2,7 +2,8 @@ import { Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useMobile } from "@/hooks/use-mobile";
 import { AuthCard } from "@/components/AuthCard";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import "./landing-mobile.css";
 import appIcon from "/icona.png";
 
 export default function LandingPage() {
@@ -17,6 +18,43 @@ export default function LandingPage() {
     return (
       <div className="min-h-full flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+
+  if (isMobileLayout) {
+    return (
+      <div className="landing-mobile">
+        <header className="landing-mobile__brand" aria-label="DEMOS">
+          <img src={appIcon} alt="" className="landing-mobile__logo" />
+          <span className="landing-mobile__wordmark">DEMOS</span>
+        </header>
+
+        <main className="landing-mobile__center">
+          <div className="landing-mobile__intro">
+            <h1 className="landing-mobile__title">La democrazia nelle tue mani.</h1>
+            <p className="landing-mobile__subtitle">
+              Esprimi le tue opinioni, scopri i politici più vicini alle tue idee e partecipa alla vita democratica.
+            </p>
+          </div>
+
+          <section className="landing-mobile__auth" aria-label="Accedi o registrati">
+            <AuthCard embedded compact />
+            <p className="landing-mobile__auth-note">Accedi o registrati per iniziare</p>
+          </section>
+        </main>
+
+        <footer className="landing-mobile__footer">
+          <Link href="/scopri-demos" className="landing-mobile__learn-more">
+            Cos&apos;è DEMOS? <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <nav className="landing-mobile__legal" aria-label="Informazioni legali">
+            <Link href="/privacy-policy">Privacy</Link>
+            <Link href="/terms-of-service">Termini</Link>
+            <Link href="/cookie-policy">Cookie</Link>
+          </nav>
+        </footer>
       </div>
     );
   }
