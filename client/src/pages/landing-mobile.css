@@ -48,7 +48,7 @@ html:has(.landing-mobile) #root,
   justify-content: flex-start;
   gap: 0.2rem;
   /* A little breathing room below the iPhone status bar; scale with height. */
-  margin: clamp(0.75rem, 2dvh, 1.25rem) auto 0;
+  margin: clamp(1.75rem, 4.5dvh, 2.75rem) auto 0;
   text-align: center;
 }
 
