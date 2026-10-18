@@ -1,0 +1,103 @@
+-- IMP-046: invalidate active political choices in the SAME transaction in
+-- which a mandate or candidacy is ended/cancelled. This migration is NOT
+-- retroactive; historical rows require a separate reviewed reconciliation.
+-- Only the supported Italian offices are mapped; other political adapters
+-- continue to use the API's capability-validation path.
+BEGIN;
+
+CREATE OR REPLACE FUNCTION public.invalidate_political_selections_on_end()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  office_id text;
+  selected_kind text;
+  legacy_field text;
+  office_grade text;
+BEGIN
+  IF OLD.status IS DISTINCT FROM 'ACTIVE' THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.status = 'ACTIVE' AND
+     (NEW.ends_at IS NULL OR NEW.ends_at > CURRENT_TIMESTAMP) THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_TABLE_NAME = 'political_mandates' THEN
+    selected_kind := 'representative';
+    office_grade := upper(coalesce(NEW.office_code, ''));
+  ELSIF TG_TABLE_NAME = 'political_candidacies' THEN
+    selected_kind := 'candidate';
+    office_grade := upper(coalesce(NEW.jurisdiction ->> 'level', ''));
+  ELSE
+    RETURN NEW;
+  END IF;
+
+  SELECT v.office_id, v.field_name INTO office_id, legacy_field
+  FROM (VALUES
+    ('E',  'eu.parliament.it', 'rappresentante_europeo', 'candidato_europeo'),
+    ('C',  'it.camera',        'rappresentante_camera',   'candidato_camera'),
+    ('S',  'it.senato',        'rappresentante_senato',   'candidato_senato'),
+    ('R',  'it.regional',      'rappresentante_regionale','candidato_regionale'),
+    ('CO', 'it.municipal',     'rappresentante_comune',   'candidato_comune')
+  ) AS v(grade, office_id, representative_field, candidate_field)
+  CROSS JOIN LATERAL (
+    SELECT CASE WHEN selected_kind = 'representative'
+                THEN v.representative_field ELSE v.candidate_field END AS field_name
+  ) fields
+  WHERE v.grade = office_grade;
+
+  -- A jurisdiction or office we do not recognize must never trigger broad
+  -- deletion. Future adapters should add a separate explicit mapping.
+  IF office_id IS NULL OR legacy_field IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF selected_kind = 'representative' THEN
+    DELETE FROM public.political_selections ps
+    WHERE ps.selected_user_id = NEW.user_id
+      AND ps.selection_kind = selected_kind
+      AND ps.political_office_id = office_id
+      AND (ps.selected_mandate_id IS NULL OR ps.selected_mandate_id = NEW.id);
+  ELSE
+    DELETE FROM public.political_selections ps
+    WHERE ps.selected_user_id = NEW.user_id
+      AND ps.selection_kind = selected_kind
+      AND ps.political_office_id = office_id
+      AND (ps.selected_candidacy_id IS NULL OR ps.selected_candidacy_id = NEW.id);
+  END IF;
+
+  -- Clearing only a capability record would leave stale chosen identities in
+  -- the legacy user and mirror tables, which some older clients still read.
+  -- Match the exact selected user so unrelated office choices remain intact.
+  EXECUTE format(
+    'UPDATE public.users SET %1$I = NULL, updated_at = NOW() WHERE %1$I::text = $1',
+    legacy_field
+  ) USING NEW.user_id::text;
+
+  IF to_regclass('public.user_representatives') IS NOT NULL THEN
+    EXECUTE format(
+      'UPDATE public.user_representatives SET %1$I = NULL, updated_at = NOW() WHERE %1$I::text = $1',
+      legacy_field
+    ) USING NEW.user_id::text;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS political_mandate_selection_invalidation ON public.political_mandates;
+CREATE TRIGGER political_mandate_selection_invalidation
+AFTER UPDATE OF status, ends_at ON public.political_mandates
+FOR EACH ROW
+WHEN (OLD.status IS DISTINCT FROM NEW.status OR OLD.ends_at IS DISTINCT FROM NEW.ends_at)
+EXECUTE FUNCTION public.invalidate_political_selections_on_end();
+
+DROP TRIGGER IF EXISTS political_candidacy_selection_invalidation ON public.political_candidacies;
+CREATE TRIGGER political_candidacy_selection_invalidation
+AFTER UPDATE OF status, ends_at ON public.political_candidacies
+FOR EACH ROW
+WHEN (OLD.status IS DISTINCT FROM NEW.status OR OLD.ends_at IS DISTINCT FROM NEW.ends_at)
+EXECUTE FUNCTION public.invalidate_political_selections_on_end();
+
+COMMIT;
