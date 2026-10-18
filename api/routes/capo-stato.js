@@ -11,6 +11,13 @@ require('dotenv').config();
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
+// I candidati non piu' eleggibili non devono apparire nella classifica ne' ricevere nuovi voti.
+// Il confronto normalizzato gestisce anche spazi Unicode come U+202F.
+const normalizeCandidateName = (name) =>
+  String(name || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const INELIGIBLE_CANDIDATE_NAMES = new Set(['emmabonino']);
+const isIneligibleCandidate = (name) => INELIGIBLE_CANDIDATE_NAMES.has(normalizeCandidateName(name));
+
 // ===== ENDPOINTS PER CAPO DI STATO =====
 
 // GET /api/capo-stato - Lista candidati capo di stato con classifica voti
@@ -31,10 +38,12 @@ router.get('/', async (req, res) => {
     console.log('🔍 DEBUG /api/capo-stato - Candidati trovati:', classificaResult.rows.length);
 
     // Processa la classifica per il frontend
-    const classifica = classificaResult.rows.map(candidato => ({
-      nome: candidato.nome,
-      voti: parseInt(candidato.voti)
-    }));
+    const classifica = classificaResult.rows
+      .filter(candidato => !isIneligibleCandidate(candidato.nome))
+      .map(candidato => ({
+        nome: candidato.nome,
+        voti: parseInt(candidato.voti, 10)
+      }));
 
     // Ottieni i voti dell'utente corrente se autenticato
     let mieiVoti = [];
@@ -158,6 +167,14 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       return res.status(400).json({
         success: false,
         error: 'I voti devono essere un array'
+      });
+    }
+
+    if (voti.some(isIneligibleCandidate)) {
+      return res.status(422).json({
+        success: false,
+        error: 'Candidato non selezionabile',
+        message: 'La persona indicata non e piu eleggibile per questa votazione'
       });
     }
 
