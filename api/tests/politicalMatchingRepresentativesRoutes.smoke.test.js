@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
 
-function makePool({ complete = true } = {}) {
+function makePool({ complete = true, withEmptyProfiles = false } = {}) {
   const questionIds = ['q1', 'q2', 'q3', 'q4'];
   const userRow = { user_id: 'u1', q1: 'f', q2: 'c', q3: 'i', q4: complete ? 'f' : null };
   const reps = {
@@ -18,6 +18,12 @@ function makePool({ complete = true } = {}) {
     p4: { user_id: 'p4', q1: 'f', q2: null, q3: null, q4: null },
     p5: { user_id: 'p5', q1: 'c', q2: 'c', q3: 'i', q4: 'f' }
   };
+  if (withEmptyProfiles) {
+    // Un profilo privo di opinioni non deve occupare uno dei quattro slot.
+    for (const id of ['p2', 'p4']) {
+      reps[id] = { user_id: id, q1: null, q2: null, q3: null, q4: null };
+    }
+  }
   const query = async (sql, params = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
       if (s.includes('FROM user_political_territories') || s.includes('FROM user_electoral_unit_memberships')) {
@@ -77,6 +83,19 @@ test('HTTP rappresentanti: utente completo riceve top 4 con compatibilità e cop
     assert.deepEqual(rows.map((x) => x.matching_score), [10, 6, 6, 3]);
     assert.equal(rows[0].compatibilita_percentuale, 83.3);
     assert.equal(rows[3].copertura_posizioni, 1);
+    assert.equal(body.data.matching.userComplete, true);
+  }});
+});
+
+test('HTTP rappresentanti: esclude profili senza opinioni prima del top 4, mantenendo i discordanti', async () => {
+  await withRoute({ routeFile: 'rappresentanti.js', mount: '/api/rappresentanti', pool: makePool({ complete: true, withEmptyProfiles: true }), fn: async (base) => {
+    const res = await fetch(`${base}/api/rappresentanti/disponibili?grado_elezione=E`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    const rows = body.data.candidati;
+    assert.deepEqual(rows.map((x) => x.id), ['p1', 'p5', 'p3']);
+    assert.ok(rows.every((x) => x.copertura_posizioni > 0));
+    assert.ok(rows[2].matching_score < 0, 'anche chi ha opinioni discordanti deve restare visibile');
     assert.equal(body.data.matching.userComplete, true);
   }});
 });
