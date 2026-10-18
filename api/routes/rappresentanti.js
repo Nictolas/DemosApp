@@ -61,7 +61,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       grade: gradoDatabase
     });
 
-    let candidati = matching.matches.slice(0, 4);
+    // Non suggerire politici senza alcuna risposta disponibile per questo livello.
+    // Filtrare prima del top 4: anche chi ha posizioni discordanti deve
+    // precedere un rappresentante senza posizioni documentate.
+    let candidati = matching.matches
+      .filter((candidato) => candidato.copertura_posizioni > 0)
+      .slice(0, 4);
 
     console.log('🔍 DEBUG - Rappresentanti finali matching:', candidati.map((candidato) => ({
       id: candidato.id,
