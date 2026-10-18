@@ -1,8 +1,8 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
-import { useNoScroll } from "@/hooks/useNoScroll";
 import { useReferendumVoteAvailability } from "@/hooks/useReferendumVoteAvailability";
+import "./vota-layout.css";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Crown, Building2, Scale, Archive, Users, Vote, type LucideIcon } from "lucide-react";
 
@@ -42,7 +42,6 @@ export default function Vota() {
   const { user, isLoading } = useAuth();
   const { available: referendumAvailable } = useReferendumVoteAvailability();
 
-  useNoScroll(true);
 
   if (isLoading) {
     return (
@@ -57,7 +56,7 @@ export default function Vota() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+    <div className="vota-page bg-gradient-to-br from-purple-50 to-pink-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between" />
 
