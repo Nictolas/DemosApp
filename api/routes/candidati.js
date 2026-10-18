@@ -11,7 +11,7 @@ const {
 } = require('../services/politicalJurisdictionRegistryService');
 const {
   setPoliticalSelection,
-  loadPoliticalSelections,
+  loadCurrentPoliticalSelections,
   selectionsByOffice,
 } = require('../services/politicalSelectionService');
 
@@ -22,7 +22,7 @@ const CANDIDATE_TEST_FIELD_MAPPING = Object.freeze(Object.fromEntries(
 ));
 
 async function loadCandidateSelectionProjection(userId) {
-  const state = await loadPoliticalSelections(pool, { userId, kind: 'candidate', adapterId: 'it' });
+  const state = await loadCurrentPoliticalSelections(pool, { userId, kind: 'candidate', adapterId: 'it' });
   const byOffice = selectionsByOffice(state);
   const projection = Object.fromEntries(CANDIDATE_SELECTION_DESCRIPTORS.map((descriptor) => [
     descriptor.field,
