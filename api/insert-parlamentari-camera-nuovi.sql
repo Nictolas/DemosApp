@@ -237,7 +237,7 @@ FROM (
     ('Emanuele', 'Loperfido', '1977-04-20'::date),
     ('Giorgio', 'Lovecchio', '1978-02-11'::date),
     ('Ylenja', 'Lucaselli', '1976-04-22'::date),
-    ('Maurizio Enzo', 'Lupi', '1959-10-03'::date),
+    ('Maurizio', 'Lupi', '1959-10-03'::date),
     ('Elena', 'Maccanti', '1971-05-15'::date),
     ('Carlo', 'Maccari', '1965-12-23'::date),
     ('Maria Anna', 'Madia', '1980-09-05'::date),
