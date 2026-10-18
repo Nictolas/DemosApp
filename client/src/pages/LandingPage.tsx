@@ -27,7 +27,9 @@ export default function LandingPage() {
     return (
       <div className="landing-mobile">
         <header className="landing-mobile__brand" aria-label="DEMOS">
-          <img src={appIcon} alt="" className="landing-mobile__logo" />
+          <div className="landing-mobile__logo-frame" aria-hidden="true">
+            <img src={appIcon} alt="" className="landing-mobile__logo" />
+          </div>
           <span className="landing-mobile__wordmark">DEMOS</span>
         </header>
 
