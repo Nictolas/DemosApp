@@ -397,7 +397,7 @@ FROM (
     ('Beatrice', 'Lorenzin', 'LA'),
     ('Alberto', 'Losacco', 'PU'),
     ('Luca', 'Lotti', 'TO'),
-    ('Maurizio Enzo', 'Lupi', 'LO'),
+    ('Maurizio', 'Lupi', 'LO'),
     ('Loredana', 'Lupo', 'SI'),
     ('Maria Anna', 'Madia', 'LA'),
     ('Andrea', 'Maestri', 'ER'),
