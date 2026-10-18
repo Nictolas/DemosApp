@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 
 // Import dei componenti principali
 import LandingPage from "./pages/LandingPage";
+import ScopriDemos from "./pages/ScopriDemos";
 import AuthPage from "./pages/auth-page";
 
 // Import delle pagine di registrazione separate
@@ -297,6 +298,12 @@ export default function App() {
                 <Route path="/auth">
                   <PageTransition location={location} type="fade-up">
                     <AuthPage />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/scopri-demos">
+                  <PageTransition location={location} type="fade-up">
+                    <ScopriDemos />
                   </PageTransition>
                 </Route>
 
