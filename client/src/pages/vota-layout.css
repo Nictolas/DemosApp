@@ -1,0 +1,34 @@
+/*
+ * Vota belongs to the mobile app shell, where .app-navbar already occupies
+ * its own grid row. Do not reserve the navbar a second time with
+ * .page-with-navbar or force a 100vh child inside the smaller app-main area.
+ */
+.demos-mobile-layout .app-main:has(.vota-page) {
+  /* The scrollport must have the same surface as Vota: no white strip appears
+     if the page is shorter than the available space. */
+  background: linear-gradient(to bottom right, #faf5ff, #fce7f3);
+}
+
+.demos-mobile-layout .app-main .fade-up-transition:has(> .vota-page) {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.demos-mobile-layout .app-main .vota-page {
+  /* Grow with the cards rather than clipping the last one at the shell edge. */
+  flex: 1 0 auto;
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  /* Navbar is in a sibling grid row: only a small reading margin is needed. */
+  padding-bottom: 1.25rem;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demos-mobile-layout .app-main .fade-up-transition:has(> .vota-page) {
+    transition: none;
+  }
+}
