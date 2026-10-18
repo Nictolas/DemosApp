@@ -15,6 +15,7 @@ DECLARE
   legacy_field text;
   office_grade text;
   another_active_office boolean := false;
+  removed_electors uuid[] := ARRAY[]::uuid[];
 BEGIN
   IF OLD.status IS DISTINCT FROM 'ACTIVE' THEN
     RETURN NEW;
@@ -75,35 +76,46 @@ BEGIN
   END IF;
 
   IF selected_kind = 'representative' THEN
-    DELETE FROM public.political_selections ps
-    WHERE ps.selected_user_id = NEW.user_id
-      AND ps.selection_kind = selected_kind
-      AND ps.political_office_id = office_id
-      AND (ps.selected_mandate_id = NEW.id OR (ps.selected_mandate_id IS NULL AND NOT another_active_office));
+    WITH removed AS (
+      DELETE FROM public.political_selections ps
+      WHERE ps.selected_user_id = NEW.user_id
+        AND ps.selection_kind = selected_kind
+        AND ps.political_office_id = office_id
+        AND (ps.selected_mandate_id = NEW.id
+             OR (ps.selected_mandate_id IS NULL AND NOT another_active_office))
+      RETURNING ps.user_id
+    )
+    SELECT coalesce(array_agg(user_id), ARRAY[]::uuid[])
+    INTO removed_electors FROM removed;
   ELSE
-    DELETE FROM public.political_selections ps
-    WHERE ps.selected_user_id = NEW.user_id
-      AND ps.selection_kind = selected_kind
-      AND ps.political_office_id = office_id
-      AND (ps.selected_candidacy_id = NEW.id OR (ps.selected_candidacy_id IS NULL AND NOT another_active_office));
+    WITH removed AS (
+      DELETE FROM public.political_selections ps
+      WHERE ps.selected_user_id = NEW.user_id
+        AND ps.selection_kind = selected_kind
+        AND ps.political_office_id = office_id
+        AND (ps.selected_candidacy_id = NEW.id
+             OR (ps.selected_candidacy_id IS NULL AND NOT another_active_office))
+      RETURNING ps.user_id
+    )
+    SELECT coalesce(array_agg(user_id), ARRAY[]::uuid[])
+    INTO removed_electors FROM removed;
   END IF;
 
-  -- Clearing only a capability record would leave stale chosen identities in
-  -- the legacy user and mirror tables, which some older clients still read.
-  -- Match the exact selected user so unrelated office choices remain intact.
-  IF NOT another_active_office THEN
-    EXECUTE format(
-    'UPDATE public.users SET %1$I = NULL, updated_at = NOW() WHERE %1$I::text = $1',
+  -- Clear projections for electors whose specific stored capability ended.
+  -- For legacy-only choices, where no capability ID is recorded, clear all
+  -- references only if NO alternative same-office capability remains active.
+  EXECUTE format(
+    'UPDATE public.users SET %1$I = NULL, updated_at = NOW() ' ||
+    'WHERE %1$I::text = $1 AND (NOT $3 OR id = ANY($2::uuid[]))',
     legacy_field
-  ) USING NEW.user_id::text;
+  ) USING NEW.user_id::text, removed_electors, another_active_office;
 
   IF to_regclass('public.user_representatives') IS NOT NULL THEN
     EXECUTE format(
-      'UPDATE public.user_representatives SET %1$I = NULL, updated_at = NOW() WHERE %1$I::text = $1',
+      'UPDATE public.user_representatives SET %1$I = NULL, updated_at = NOW() ' ||
+      'WHERE %1$I::text = $1 AND (NOT $3 OR user_id = ANY($2::uuid[]))',
       legacy_field
-    ) USING NEW.user_id::text;
-  END IF;
-
+    ) USING NEW.user_id::text, removed_electors, another_active_office;
   END IF;
 
   RETURN NEW;
