@@ -1,0 +1,42 @@
+name: IMP-046 political selection regression
+
+on:
+  push:
+    branches: [fix/imp-046-expired-political-selections]
+  pull_request:
+    paths:
+      - 'api/services/politicalSelectionService.js'
+      - 'api/routes/candidati.js'
+      - 'api/routes/rappresentanti.js'
+      - 'api/tests/politicalSelection*.test.js'
+      - 'api/tests/politicalSelection*.smoke.test.js'
+      - 'api/migrations/20261018_imp046_invalidate_political_selections.sql'
+      - '.github/workflows/political-selection-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts
+      - name: Syntax checks
+        run: |
+          node --check api/services/politicalSelectionService.js
+          node --check api/routes/rappresentanti.js
+          node --check api/routes/candidati.js
+      - name: Selection and capability regression suite
+        run: |
+          node --test \
+            api/tests/politicalSelectionExpiry.test.js \
+            api/tests/politicalSelectionService.test.js \
+            api/tests/politicalSelectionWiring.smoke.test.js \
+            api/tests/politicalEligibilityService.test.js \
+            api/tests/politicalLifecycleService.test.js
