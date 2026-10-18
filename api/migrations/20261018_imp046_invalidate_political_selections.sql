@@ -108,7 +108,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS political_mandate_selection_invalidation ON public.political_mandates;
 CREATE TRIGGER political_mandate_selection_invalidation
