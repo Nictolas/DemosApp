@@ -65,13 +65,13 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
           {classifica.map((item, index) => (
             <div 
               key={item.nome} 
-              className={`group flex items-center justify-between p-4 lg:p-2 ${
+              className={`group flex flex-col gap-2 p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between lg:gap-2 lg:p-2 ${
                 index < 3 
                   ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200' 
                   : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100'
               } rounded-xl border transition-all duration-300 lg:hover:scale-100 hover:scale-[1.02] hover:shadow-lg lg:hover:shadow-sm`}
             >
-              <div className="flex items-center space-x-4 lg:space-x-2 min-w-0">
+              <div className="flex w-full min-w-0 items-center gap-3 lg:w-auto lg:flex-1 lg:gap-2">
                 <div className={`flex items-center justify-center w-10 h-10 lg:w-7 lg:h-7 shrink-0 ${
                   index < 3 
                     ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700' 
@@ -79,8 +79,8 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
                 } text-white rounded-full font-bold text-lg lg:text-xs shadow-md transition-all duration-300`}>
                   {index + 1}
                 </div>
-                <div className="min-w-0">
-                  <h4 className={`font-bold text-gray-800 text-lg lg:text-sm truncate transition-colors duration-300 ${
+                <div className="min-w-0 flex-1">
+                  <h4 className={`font-bold text-gray-800 text-base leading-snug sm:text-lg lg:text-sm whitespace-normal break-words lg:truncate lg:whitespace-nowrap transition-colors duration-300 ${
                     index < 3 ? 'group-hover:text-yellow-800' : 'group-hover:text-indigo-800'
                   }`}>
                     {item.nome}
@@ -96,7 +96,7 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
                 size="sm"
                 onClick={() => onToggleSelezione(item.nome)}
                 disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
-                className={`shrink-0 lg:h-7 lg:px-2 lg:text-xs transition-all duration-300 ${
+                className={`w-full self-stretch shrink-0 sm:w-auto sm:self-end lg:ml-2 lg:w-auto lg:self-auto lg:h-7 lg:px-2 lg:text-xs transition-all duration-300 ${
                   selectedVoti.includes(item.nome) 
                     ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
                     : selectedVoti.length >= 3
