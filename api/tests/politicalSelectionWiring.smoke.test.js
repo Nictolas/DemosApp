@@ -22,9 +22,9 @@ test('legacy Italian selection routes write through the canonical political sele
   assert.match(candidates, /getSelectionFieldContract\(realField\)/);
 });
 
-test('candidate and representative reads use canonical-read-with-legacy-fallback service', () => {
-  assert.match(candidates, /loadPoliticalSelections\(pool, \{ userId, kind: 'candidate', adapterId: 'it' \}\)/);
-  assert.match(representatives, /loadPoliticalSelections\(pool, \{ userId, kind: 'representative', adapterId: 'it' \}\)/);
+test('candidate and representative reads reconcile expired selections with current eligibility', () => {
+  assert.match(candidates, /loadCurrentPoliticalSelections\(pool, \{ userId, kind: 'candidate', adapterId: 'it' \}\)/);
+  assert.match(representatives, /loadCurrentPoliticalSelections\(pool, \{ userId, kind: 'representative', adapterId: 'it' \}\)/);
   assert.match(selectionService, /catch \(error\)[\s\S]*loadLegacySelections/);
 });
 
