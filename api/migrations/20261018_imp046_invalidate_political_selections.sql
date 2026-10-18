@@ -33,7 +33,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT v.office_id, v.field_name INTO office_id, legacy_field
+  SELECT v.office_id, fields.field_name INTO office_id, legacy_field
   FROM (VALUES
     ('E',  'eu.parliament.it', 'rappresentante_europeo', 'candidato_europeo'),
     ('C',  'it.camera',        'rappresentante_camera',   'candidato_camera'),
