@@ -14,6 +14,7 @@ DECLARE
   selected_kind text;
   legacy_field text;
   office_grade text;
+  another_active_office boolean := false;
 BEGIN
   IF OLD.status IS DISTINCT FROM 'ACTIVE' THEN
     RETURN NEW;
@@ -53,24 +54,45 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- If the person has a second active capability for the same office,
+  -- keep unbound/legacy choices; only invalidate choices tied to this ID.
+  IF selected_kind = 'representative' THEN
+    SELECT EXISTS (
+      SELECT 1 FROM public.political_mandates other
+      WHERE other.user_id = NEW.user_id AND other.id <> NEW.id
+        AND other.office_code = NEW.office_code
+        AND other.status = 'ACTIVE'
+        AND (other.ends_at IS NULL OR other.ends_at > CURRENT_TIMESTAMP)
+    ) INTO another_active_office;
+  ELSE
+    SELECT EXISTS (
+      SELECT 1 FROM public.political_candidacies other
+      WHERE other.user_id = NEW.user_id AND other.id <> NEW.id
+        AND upper(coalesce(other.jurisdiction->>'level', '')) = office_grade
+        AND other.status = 'ACTIVE'
+        AND (other.ends_at IS NULL OR other.ends_at > CURRENT_TIMESTAMP)
+    ) INTO another_active_office;
+  END IF;
+
   IF selected_kind = 'representative' THEN
     DELETE FROM public.political_selections ps
     WHERE ps.selected_user_id = NEW.user_id
       AND ps.selection_kind = selected_kind
       AND ps.political_office_id = office_id
-      AND (ps.selected_mandate_id IS NULL OR ps.selected_mandate_id = NEW.id);
+      AND (ps.selected_mandate_id = NEW.id OR (ps.selected_mandate_id IS NULL AND NOT another_active_office));
   ELSE
     DELETE FROM public.political_selections ps
     WHERE ps.selected_user_id = NEW.user_id
       AND ps.selection_kind = selected_kind
       AND ps.political_office_id = office_id
-      AND (ps.selected_candidacy_id IS NULL OR ps.selected_candidacy_id = NEW.id);
+      AND (ps.selected_candidacy_id = NEW.id OR (ps.selected_candidacy_id IS NULL AND NOT another_active_office));
   END IF;
 
   -- Clearing only a capability record would leave stale chosen identities in
   -- the legacy user and mirror tables, which some older clients still read.
   -- Match the exact selected user so unrelated office choices remain intact.
-  EXECUTE format(
+  IF NOT another_active_office THEN
+    EXECUTE format(
     'UPDATE public.users SET %1$I = NULL, updated_at = NOW() WHERE %1$I::text = $1',
     legacy_field
   ) USING NEW.user_id::text;
@@ -82,9 +104,11 @@ BEGIN
     ) USING NEW.user_id::text;
   END IF;
 
+  END IF;
+
   RETURN NEW;
 END;
-$$;
+$;
 
 DROP TRIGGER IF EXISTS political_mandate_selection_invalidation ON public.political_mandates;
 CREATE TRIGGER political_mandate_selection_invalidation
