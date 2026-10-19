@@ -1,90 +1,81 @@
-# DEMOS — esposizione Supabase Data API (19 ottobre 2026)
+# DEMOS — audit e correzione della sicurezza Supabase, 19 ottobre 2026
 
-## Stato e perimetro
+## Stato verificato sulla produzione
 
-Questo documento prepara una correzione sicura; **non certifica che il database sia stato messo in sicurezza**.
-Non contiene segreti, dati di utenti, né istruzioni di deploy automatico. Nessuna modifica in produzione è inclusa.
+Progetto Supabase `Demos` (`wxnblcqoyjqxktwkcqok`, PostgreSQL 17, `eu-central-1`).
 
-Evidenze raccolte:
-- Progetto Supabase `Demos` (`wxnblcqoyjqxktwkcqok`, PostgreSQL 17, eu-central-1) attivo.
-- Il tool `list_tables` segnala **100 tabelle in `public` con RLS disattivata**. La sola assenza di RLS non prova un accesso pubblico: sono necessari anche schema USAGE e privilegi sulle singole tabelle.
-- Supabase Security Advisor segnala **11 tabelle con RLS attiva e nessuna policy** e **29 funzioni con `search_path` non esplicitato** (rilievo distinto).
-- In `api/config/database.js` il backend usa `pg` + `DATABASE_URL`. Le istruzioni `api/MIGRAZIONE_NEON_SUPABASE.md` descrivono un collegamento server-side al pooler Supabase.
-- Ricerca nel repository `Nictolas/DemosApp`: non emergono chiamate applicative `/rest/v1`, `supabase.from`, `@supabase/supabase-js` nei file sorgenti; una vecchia istruzione allegata ne parla ma non ne dimostra l'utilizzo corrente. L'assenza dai risultati di ricerca **non è prova definitiva**.
-- Nei log recenti sono presenti messaggi dal servizio `postgrest_logs`, prevalentemente di inizializzazione/cache: non sono una misura attendibile delle richieste utente.
+**La correzione della superficie di accesso delle tabelle è applicata in produzione.**
+Questo documento distingue le modifiche verificate dai controlli che restano da completare.
 
-## Problema operativo
+| Controllo | Prima | Dopo |
+| --- | --- | --- |
+| Tabelle `public` senza RLS | 100 su 111 | **0 su 111** |
+| Tabelle `public` con RLS | 11 su 111 | **111 su 111** |
+| Tabelle leggibili da `anon` | 0 | **0** |
+| Tabelle leggibili da `authenticated` | 0 | **0** |
+| Privilegio `CREATE` sullo schema `public` per `anon`/`authenticated` tramite `PUBLIC` | Sì | **No** |
+| Privilegio `CREATE` su `public` per il proprietario `postgres` | Sì | **Sì** |
 
-Il connettore Supabase consente di consultare tabelle e avvisi, ma nella sessione corrente le richieste `execute_sql` vengono bloccate prima dell'esecuzione. Non aggirare il blocco applicando SQL di produzione tramite altri canali.
+**Nota interpretativa:** il precedente avviso «100 tabelle senza RLS» non dimostrava da solo un'esposizione della Data API. Una verifica diretta di `has_table_privilege` ha dimostrato che già prima delle modifiche tutte le 111 tabelle erano senza privilegi `SELECT/INSERT/UPDATE/DELETE` per `anon` e `authenticated`. La modifica RLS aggiunge difesa in profondità nel caso di futuri `GRANT` accidentali, ma non sostituisce un audit completo.
 
-## Preflight da eseguire (sola lettura)
+### Modifiche eseguite con migrazioni Supabase
 
-File: `api/database/security/supabase_data_api_readonly_audit_20261019.sql`.
+Le migrazioni sono presenti nella cronologia del database:
 
-1. Verificare schema `public` esposto in **Integrations → Data API → Settings** e la configurazione **Hardening**.
-2. Eseguire lo script SQL in ambiente autorizzato e conservare solo i conteggi dei privilegi.
-3. Controllare il ruolo effettivo di `DATABASE_URL` sul servizio backend Render senza esporre password o URI complete.
-4. Verificare se una qualche integrazione esterna usa PostgREST, GraphQL, `supabase-js` o RPC e se Auth/Storage usano endpoint differenti.
-5. Testare su staging: login, lettura/scrittura opinioni, voti, preferenze, area admin, sincronizzazioni e lavori periodici.
+1. `20261019094315 demos_revoke_public_schema_create_20261019`: `REVOKE CREATE ON SCHEMA public FROM PUBLIC`; `USAGE` non modificato.
+2. `20261019094500 demos_sensitive_tables_rls_phase1_20261019`: RLS su `users`, `user_profile`, `user_consents`, `opinioni_risposte`, `identity_verifications`, `user_rights_requests`.
+3. `20261019094610 demos_rls_no_public_grants_batch_01_20261019`.
+4. `20261019094645 demos_rls_no_public_grants_batch_02_20261019`.
+5. `20261019094646 demos_rls_no_public_grants_batch_03_20261019`.
+6. `20261019094649 demos_rls_no_public_grants_batch_04_20261019`.
+7. `20261019094651 demos_rls_no_public_grants_batch_05_20261019`.
 
-## Intervento consigliato **solo se** non esistono consumatori Data API
+Le cinque migrazioni in batch hanno abilitato RLS solamente sulle tabelle di proprietà `postgres` che non avevano alcun privilegio `SELECT/INSERT/UPDATE/DELETE` per `anon` e `authenticated`. Ogni batch utilizzava un `lock_timeout` di 2 secondi e il limite di 20 tabelle. Nessun record, mandato, schema di colonne o policy esistente è stato riscritto.
 
-Da Supabase Dashboard: **Integrations → Data API → Overview → Enable Data API: off**.
+### Verifiche successive
 
-Secondo la documentazione Supabase, se l'app accede soltanto tramite PostgreSQL dal server, disattivare la Data API impedisce l'accesso agli endpoint REST generati senza interrompere le connessioni SQL dirette. Verificarlo sullo staging prima della produzione.
+- Query di controllo PostgreSQL: **111 tabelle su 111 con RLS**, zero senza RLS.
+- `anon` e `authenticated`: zero privilegi `SELECT` sulle tabelle.
+- `postgres` mantiene `CREATE` su `public` ed è un ruolo con `BYPASSRLS`; letture di controllo eseguite con successo.
+- Query aggregate di verifica: `users` 1.839 righe, `opinioni_risposte` 758 righe; nessun dato individuale trasferito.
+- Nessun utente, preferenza, sessione o dato politico modificato.
 
-Se invece la Data API è necessaria, mantenerla attiva ma rimuovere `public` dagli schemi esposti e creare uno schema API minimale con grant/RLS/policy specifici e testati.
+**Limite:** non è stato possibile eseguire un test end-to-end pubblico dell'app (login, scrittura e lettura opinioni dall'interfaccia) né controllare le variabili Render in questa sessione. La buona riuscita delle query PostgreSQL non equivale a una verifica dell'intera applicazione.
 
-## Hardening permanente (seconda fase)
+## Residui da gestire separatamente
 
-- Limitare esplicitamente `USAGE` e i privilegi `SELECT/INSERT/UPDATE/DELETE` di `anon` e `authenticated` a sole risorse realmente necessarie; rivedere anche le default privileges.
-- Abilitare RLS con policy minime solo dopo la mappatura completa delle chiamate e dei ruoli effettivi: non applicare indiscriminatamente gli `ALTER TABLE` suggeriti dal linter.
-- Proteggere in modo prioritario `users`, `user_profile`, `user_consents`, `opinioni_risposte`, sessioni/token e verifiche identità; per il backend preferire ruoli SQL dedicati con permessi minimi.
-- Esaminare le 29 funzioni con `search_path` mutabile; fissare path e qualificare nomi nelle funzioni adatte, con priorità alle `SECURITY DEFINER`.
-- Verificare autenticazione, salvataggio opinioni, creazione utente, amministrazione e accesso negato a `anon` dopo ogni singola fase.
+1. **111 notifiche informative «RLS enabled no policy».** Le tabelle sono intenzionalmente chiuse ai ruoli senza permessi. Non creare policy `USING (true)` per far sparire il messaggio: aprirebbe l'accesso qualora venissero concessi privilegi. Verificare quali eventuali ruoli futuri avranno bisogno di policy specifiche.
+2. **29 avvisi «function search path mutable».** Nessuna funzione `SECURITY DEFINER` applicativa è emersa nell'elenco completo di `public` alla data della verifica. Esaminare singolarmente definizioni e dipendenze prima di impostare `search_path`.
+3. **3 estensioni in `public`.** Valutare migrazione verso schema `extensions` solo dopo un controllo delle dipendenze: spostare `pgcrypto`, `pg_stat_statements` o altre estensioni alla cieca può interrompere le query.
+4. **Due viste dell'estensione `pg_stat_statements` hanno `SELECT` concesso a `PUBLIC`.** Sono di proprietà `supabase_admin`; l'utente `postgres` non ha `GRANT OPTION` su tali viste. Verificare se l'esposizione tramite Data API sia effettivamente attiva e se debbano essere spostate o escluse dalla superficie API attraverso una procedura supportata.
+5. **Data API:** non disattivata. Le tabelle applicative sono protette da RLS e dall'assenza di GRANT; prima di spegnere la Data API occorre escludere consumatori esterni / RPC e testare l'app.
 
-## Criteri di completamento
+Il codice `api/config/database.js` usa `pg` con `DATABASE_URL` per il backend; una ricerca nel repository non ha trovato uso applicativo diretto di `supabase-js` o `/rest/v1`. Questo è un indizio, non una verifica delle integrazioni esterne.
 
-1. Verifica negativa su accessi non autorizzati a tabelle con dati personali e politici.
-2. Verifica positiva delle funzioni effettivamente necessarie al backend.
-3. Supabase Security Advisor riesaminato e scostamenti documentati.
-4. Nessuna regressione nei test end-to-end e nel deploy.
-5. Rollback validato e documentato prima dell'applicazione in produzione.
+## Strumenti di controllo versionati nella PR #211
 
-## Riferimenti ufficiali
+- `api/database/security/supabase_data_api_readonly_audit_20261019.sql`: audit dei permessi effettivi e dei `GRANT`, sola lettura.
+- `api/scripts/verify-supabase-data-api-exposure.cjs`: probe HTTP `HEAD` verso 11 tabelle sensibili; limite zero righe, nessun dato personale scaricato, chiavi amministrative rifiutate.
+- `api/tests/supabaseDataApiExposure.test.js`: test offline del probe.
+- `.github/workflows/supabase-data-api-audit.yml`: test unitari offline, **senza** interrogazioni a Supabase.
+
+Il test GitHub Actions ha terminato con `success`: https://github.com/Nictolas/DemosApp/actions/runs/39229635553
+
+## Verifica funzionale ancora necessaria
+
+- Test staging/produzione: login, amministrazione, aggiornamento opinioni, selezione rappresentanti, notifiche, sincronizzazioni programmate.
+- Controllare il ruolo effettivo della variabile `DATABASE_URL` di Render senza esporre l'URI o la password.
+- Verificare gli endpoint della Data API usando unicamente la chiave `anon` o publishable (mai `service_role`).
+- Proteggere in modo mirato le viste e le funzioni accessibili tramite RPC; preservare le integrazioni richieste.
+
+## Rollback
+
+Le operazioni DDL/DCL sono presenti nella cronologia migrazioni. Prima di ogni rollback, recuperare la versione pre-hardening e verificare in staging: **non** ripristinare indiscriminatamente il `CREATE` pubblico o disattivare RLS sulle tabelle con dati politici/personali. In caso di regressione, correggere il privilegio minimo del ruolo tecnico coinvolto, non aprire tutte le tabelle ai client.
+
+## Riferimenti
 
 - https://supabase.com/docs/guides/api/securing-your-api
 - https://supabase.com/docs/guides/database/postgres/row-level-security
-- https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically
-
-**Nota:** la modifica alla default-exposure annunciata da Supabase per il 30 ottobre 2026 riguarda soprattutto le *nuove* tabelle: quelle esistenti conservano i grant attuali; non attendere il rollout come rimedio per i dati già presenti.
-
-## Test di superficie API anonima (aggiunto il 19 ottobre 2026)
-
-Il controllo `api/scripts/verify-supabase-data-api-exposure.cjs` usa esclusivamente richieste HTTP **HEAD** con `limit=0` per un elenco di tabelle sensibili. Non richiede un login utente e non scarica record.
-
-Esecuzione su un ambiente autorizzato che possa raggiungere Internet:
-
-```bash
-node --test api/tests/supabaseDataApiExposure.test.js
-
-# Impostare queste variabili nell'ambiente del terminale, senza salvarle in Git:
-# SUPABASE_PUBLIC_URL=https://<project>.supabase.co
-# SUPABASE_PUBLISHABLE_KEY=sb_publishable_<public-key>
-# In alternativa SUPABASE_ANON_KEY=<legacy-anon-JWT>; il tool rifiuta JWT service_role.
-node api/scripts/verify-supabase-data-api-exposure.cjs
-```
-
-Significato dell'exit code:
-
-- `0`: le richieste anonime a tutte le tabelle controllate risultano negate (401/403/404). Non basta per certificare ogni via di accesso: verificare anche RPC, schemi aggiuntivi, policy e altri privilegi.
-- `1`: almeno un endpoint sensibile ha accettato una richiesta anonima (risposta 2xx). In presenza di RLS disattivata e grant di SELECT, trattare come esposizione potenzialmente grave. Una risposta 2xx, da sola, **non prova** che siano state effettivamente lette righe.
-- `2`: risposta inattesa, problema di rete o configurazione; test inconclusivo e nessun pass implicito.
-
-Non usare `service_role`, `sb_secret_...` o chiavi amministrative. Il test impedisce deliberatamente l'uso di token JWT il cui `role` non sia `anon`.
-
-La pipeline GitHub `.github/workflows/supabase-data-api-audit.yml` esegue **solo i test unitari offline**, non il probe verso Supabase. Eseguire il test reale su staging e produzione solo dopo aver verificato il contesto e senza inserire chiavi pubbliche o segreti nel repository.
-
-### Rimedio operativo
-
-Quando è accertato che le app DEMOS e le eventuali integrazioni esterne non usano Data API: da Supabase Dashboard → **Integrations → Data API → Overview**, disabilitare **Enable Data API**, rieseguire il probe, poi controllare da backend login, lettura/scrittura opinioni e job periodici. Per rollback riabilitare la stessa impostazione. La modifica non sostituisce le verifiche sulle credenziali SQL o le future politiche RLS.
+- https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+- https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+- https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public
