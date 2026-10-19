@@ -15,6 +15,19 @@ interface IniziativeRankingProps {
   hasReachedLimit: boolean;
 }
 
+
+/** Solo il testo della scheda viene abbreviato: il titolo ufficiale non cambia. */
+function getTitoloBreve(nome: string): string {
+  const s = nome.toLocaleLowerCase("it-IT");
+  if (s.includes("accisa generale sui prodotti da fumo") && s.includes("servizio sanitario nazionale"))
+    return "Accise su tabacco e nicotina per finanziare il SSN";
+  if (s.includes("divieto progressivo delle gabbie") && s.includes("allevamenti"))
+    return "Stop alle gabbie negli allevamenti";
+  if (s.includes("decreto del presidente della repubblica 26 ottobre 1972") && s.includes("igiene femminile"))
+    return "IVA ridotta sui prodotti per l'igiene femminile e la prima infanzia";
+  return nome;
+}
+
 export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
   classifica,
   iniziative,
@@ -55,7 +68,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
 
   return (
     <Card className="bg-white">
-      <CardHeader>
+      <CardHeader className="px-3 pt-4 pb-3 sm:px-6">
         <CardTitle className="flex items-center space-x-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
           <span>Classifica Iniziative Popolari</span>
@@ -64,113 +77,103 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
           Le iniziative che hanno ricevuto più voti ({classifica.length} totali)
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-4 sm:px-6">
         <div className="space-y-4">
           {/* Tutte le iniziative sempre visibili */}
           <div className="space-y-3">
-            {classifica.map((item, index) => (
-              <div 
-                key={item.nome} 
-                className={`group flex items-center justify-between p-4 ${
-                  index < 3 
-                    ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200' 
-                    : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100'
-                } rounded-xl border transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
-                  onViewIniziativa ? 'cursor-pointer' : ''
-                }`}
-                onClick={() => {
-                  if (onViewIniziativa) {
-                    const iniziativa = iniziative.find(i => i.nome === item.nome);
-                    if (iniziativa) onViewIniziativa(iniziativa);
-                  }
-                }}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`flex items-center justify-center w-10 h-10 ${
-                    index < 3 
-                      ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 group-hover:from-yellow-500 group-hover:to-yellow-700' 
-                      : 'bg-gradient-to-br from-blue-400 to-indigo-600 group-hover:from-blue-500 group-hover:to-indigo-700'
-                  } text-white rounded-full font-bold text-lg shadow-md transition-all duration-300`}>
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 flex items-center gap-2 ${
-                      index < 3 ? 'group-hover:text-yellow-800' : 'group-hover:text-indigo-800'
-                    }`}>
-                      {/* Mostra emoji se disponibile - a sinistra del nome */}
-                      {item.emoji && (
-                        <span className="text-2xl" role="img" aria-label="emoji">
-                          {item.emoji}
-                        </span>
-                      )}
-                      {item.sitoWeb ? (
-                        <a 
-                          href={item.sitoWeb} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="hover:text-yellow-600 hover:underline transition-colors duration-300"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {item.nome}
-                        </a>
-                      ) : (
-                        item.nome
-                      )}
-                    </h4>
-                    {(() => {
-                      const iniziativaItem = iniziative.find(i => i.nome === item.nome);
-                      return iniziativaItem?.descrizione ? (
-                        <p className="text-gray-600 mb-2 mt-1 line-clamp-2">
-                          {iniziativaItem.descrizione}
-                        </p>
-                      ) : null;
-                    })()}
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>
-                        Firme raccolte: <strong>
-                          {(() => {
-                            const iniziativaItem = iniziative.find(i => i.nome === item.nome);
-                            return (iniziativaItem?.firme || 0).toLocaleString('it-IT');
-                          })()}
-                        </strong>
+
+            {classifica.map((item, index) => {
+              const iniziativa = iniziative.find(i => i.nome === item.nome);
+              const isSelected = !!iniziativa && selectedVoti.includes(iniziativa.id);
+              const isTopThree = index < 3;
+              const titoloBreve = getTitoloBreve(item.nome);
+
+              return (
+                <div
+                  key={item.nome}
+                  className={"group rounded-xl border p-3 sm:p-4 transition-colors " +
+                    (isTopThree
+                      ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-yellow-100"
+                      : "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50") +
+                    (onViewIniziativa && iniziativa ? " cursor-pointer" : "")}
+                  onClick={() => {
+                    if (onViewIniziativa && iniziativa) onViewIniziativa(iniziativa);
+                  }}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span
+                      className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-sm " +
+                        (isTopThree
+                          ? "bg-gradient-to-br from-yellow-400 to-yellow-600"
+                          : "bg-gradient-to-br from-blue-400 to-indigo-600")}
+                      aria-label={"Posizione " + (index + 1)}
+                    >
+                      {index + 1}
+                    </span>
+                    {item.emoji && (
+                      <span className="text-xl" role="img" aria-label="Categoria dell'iniziativa">
+                        {item.emoji}
                       </span>
-                      <p className="text-sm text-gray-600 flex items-center">
-                        <Trophy className={`h-4 w-4 mr-2 ${index < 3 ? 'text-yellow-500' : 'text-blue-500'}`} />
-                        {item.voti} voti
-                      </p>
+                    )}
+                  </div>
+                  <h4 className={"min-w-0 text-[15px] font-bold leading-snug sm:text-base [overflow-wrap:anywhere] " +
+                    (isTopThree ? "text-gray-900" : "text-indigo-900")} title={item.nome}>
+                    {item.sitoWeb ? (
+                      <a href={item.sitoWeb} target="_blank" rel="noopener noreferrer"
+                        className="hover:underline" aria-label={item.nome}
+                        onClick={(e) => e.stopPropagation()}>
+                        {titoloBreve}
+                      </a>
+                    ) : titoloBreve}
+                  </h4>
+                  {iniziativa?.descrizione && (
+                    <p className="mt-1 hidden text-sm leading-relaxed text-gray-600 sm:line-clamp-2">
+                      {iniziativa.descrizione}
+                    </p>
+                  )}
+                  <div className="mt-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-3 border-t border-gray-300/50 pt-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[11px] leading-tight text-gray-600">Firme raccolte</span>
+                        <strong className="text-sm tabular-nums text-gray-800">
+                          {(iniziativa?.firme || 0).toLocaleString("it-IT")}
+                        </strong>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[11px] leading-tight text-gray-600">Voti DEMOS</span>
+                        <span className="flex items-center gap-1 text-sm font-bold tabular-nums text-gray-800">
+                          <Trophy className={"h-3.5 w-3.5 " + (isTopThree ? "text-yellow-600" : "text-blue-600")}
+                            aria-hidden="true" />
+                          {item.voti}
+                        </span>
+                      </div>
                     </div>
+                    <Button
+                      variant="outline" size="sm" type="button"
+                      aria-pressed={isSelected}
+                      aria-label={(isSelected ? "Rimuovi selezione: " : "Seleziona: ") + item.nome}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelezioneClassifica(item.nome);
+                      }}
+                      disabled={isPending || isBlocked}
+                      className={"ml-auto h-9 shrink-0 whitespace-nowrap transition-colors " +
+                        (isSelected
+                          ? "border-blue-500 bg-blue-100 text-blue-700 hover:bg-blue-200"
+                          : isTopThree
+                            ? "hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700"
+                            : "hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700")}
+                    >
+                      {isSelected ? (
+                        <><ThumbsUp className="mr-1.5 h-4 w-4" aria-hidden="true" />Selezionato</>
+                      ) : (
+                        <><Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />Seleziona</>
+                      )}
+                    </Button>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleSelezioneClassifica(item.nome);
-                  }}
-                  disabled={isPending || isBlocked}
-                  className={`transition-all duration-300 ${
-                    iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
-                      ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
-                      : index < 3 
-                        ? "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
-                        : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
-                  }`}
-                >
-                  {iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id) ? (
-                    <>
-                      <ThumbsUp className="h-4 w-4 mr-2" />
-                      Selezionato
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Seleziona
-                    </>
-                  )}
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </CardContent>
