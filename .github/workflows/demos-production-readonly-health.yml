@@ -40,8 +40,8 @@ jobs:
           PY
             rm -f "$response_path"
           }
-          check_url "public-api-health" "https://www.demos.community/api/health"
-          check_url "public-db-readonly-health" "https://www.demos.community/api/test-db"
+          check_url "public-api-health" "https://api.demos.community/api/health"
+          check_url "public-db-readonly-health" "https://api.demos.community/api/test-db"
 
 # This job intentionally does not authenticate, mutate Supabase, fetch personal
 # records or handle API keys. It checks only public health JSON success fields.
