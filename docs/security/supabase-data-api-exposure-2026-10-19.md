@@ -4,7 +4,7 @@
 
 Progetto Supabase `Demos` (`wxnblcqoyjqxktwkcqok`, PostgreSQL 17, `eu-central-1`).
 
-**La correzione della superficie di accesso delle tabelle è applicata in produzione.**
+**La correzione della superficie di accesso delle tabelle e delle 29 funzioni PL/pgSQL è applicata in produzione.**
 Questo documento distingue le modifiche verificate dai controlli che restano da completare.
 
 | Controllo | Prima | Dopo |
@@ -45,7 +45,7 @@ Le cinque migrazioni in batch hanno abilitato RLS solamente sulle tabelle di pro
 ## Residui da gestire separatamente
 
 1. **111 notifiche informative «RLS enabled no policy».** Le tabelle sono intenzionalmente chiuse ai ruoli senza permessi. Non creare policy `USING (true)` per far sparire il messaggio: aprirebbe l'accesso qualora venissero concessi privilegi. Verificare quali eventuali ruoli futuri avranno bisogno di policy specifiche.
-2. **29 avvisi «function search path mutable».** Nessuna funzione `SECURITY DEFINER` applicativa è emersa nell'elenco completo di `public` alla data della verifica. Esaminare singolarmente definizioni e dipendenze prima di impostare `search_path`.
+2. **Avvisi «function search path mutable»: 0.** Tutte le 29 funzioni PL/pgSQL segnalate, di proprietà `postgres` e non `SECURITY DEFINER`, hanno ora un `search_path` esplicito `pg_catalog, public, pg_temp` (migrazione `demos_secure_public_function_search_paths_20261019`). Verificati prima/dopo risultati equivalenti per `normalize_slug`, `compress_log_level`, `decompress_log_level`, `compress_ip_address`, `decompress_user_agent`.
 3. **3 estensioni in `public`.** Valutare migrazione verso schema `extensions` solo dopo un controllo delle dipendenze: spostare `pgcrypto`, `pg_stat_statements` o altre estensioni alla cieca può interrompere le query.
 4. **Due viste dell'estensione `pg_stat_statements` hanno `SELECT` concesso a `PUBLIC`.** Sono di proprietà `supabase_admin`; l'utente `postgres` non ha `GRANT OPTION` su tali viste. Verificare se l'esposizione tramite Data API sia effettivamente attiva e se debbano essere spostate o escluse dalla superficie API attraverso una procedura supportata.
 5. **Data API:** non disattivata. Le tabelle applicative sono protette da RLS e dall'assenza di GRANT; prima di spegnere la Data API occorre escludere consumatori esterni / RPC e testare l'app.
@@ -61,11 +61,13 @@ Il codice `api/config/database.js` usa `pg` con `DATABASE_URL` per il backend; u
 
 Il test GitHub Actions ha terminato con `success`: https://github.com/Nictolas/DemosApp/actions/runs/39229635553
 
-## Verifica funzionale ancora necessaria
+## Verifiche live riuscite e verifiche ancora necessarie
 
-- Test staging/produzione: login, amministrazione, aggiornamento opinioni, selezione rappresentanti, notifiche, sincronizzazioni programmate.
+- **Pass GitHub Actions HTTP 200, `success=true` su entrambe le richieste:** `https://api.demos.community/api/health` e `https://api.demos.community/api/test-db`, test remoto non autenticato e in sola lettura, esecuzione https://github.com/Nictolas/DemosApp/actions/runs/39236160877.
+- Restano da testare i flussi autenticati: login, amministrazione, aggiornamento opinioni, selezione rappresentanti, notifiche, sincronizzazioni programmate.
 - Controllare il ruolo effettivo della variabile `DATABASE_URL` di Render senza esporre l'URI o la password.
 - Verificare gli endpoint della Data API usando unicamente la chiave `anon` o publishable (mai `service_role`).
+- L'estensione `pg_stat_statements`, `pgcrypto` e `unaccent` è ancora nello schema `public`, appartiene a `supabase_admin` e risulta relocatable secondo il catalogo. Non è stata spostata: occorre qualificarne le dipendenze e la procedura supportata, preferibilmente in staging.
 - Proteggere in modo mirato le viste e le funzioni accessibili tramite RPC; preservare le integrazioni richieste.
 
 ## Rollback
