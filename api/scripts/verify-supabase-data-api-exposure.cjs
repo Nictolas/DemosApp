@@ -38,6 +38,14 @@ function validatePublicKey(key) {
   if (!value.startsWith('sb_publishable_') && !/^eyJ[A-Za-z0-9_-]+\./.test(value)) {
     throw new Error('Unrecognized key format: require sb_publishable_ or legacy JWT anon key');
   }
+  if (value.startsWith('eyJ')) {
+    try {
+      const payload = JSON.parse(Buffer.from(value.split('.')[1], 'base64url').toString('utf8'));
+      if (payload.role !== 'anon') throw new Error('Legacy JWT key is not an anon key');
+    } catch {
+      throw new Error('Legacy JWT key must have the anon role; service_role keys are forbidden');
+    }
+  }
   return value;
 }
 
