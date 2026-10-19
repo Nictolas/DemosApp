@@ -81,3 +81,33 @@ Le operazioni DDL/DCL sono presenti nella cronologia migrazioni. Prima di ogni r
 - https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
 - https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
 - https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public
+
+
+## Collaudo applicativo pubblico ampliato (19 ottobre 2026)
+
+Eseguito workflow GitHub Actions read-only senza credenziali utente: https://github.com/Nictolas/DemosApp/actions/runs/39237159322
+
+| Chiamata | Risultato live | Esito |
+|---|---|---|
+| `GET /api/health` | HTTP 200, `success=true` | PASS |
+| `GET /api/test-db` | HTTP 200, `success=true` | PASS |
+| `GET /api/statistiche/utenti` | HTTP 200, JSON `success=true` | PASS |
+| `GET /api/statistiche/opinioni` | HTTP 200, JSON `success=true` | PASS |
+| `GET /api/auth/me` senza token | HTTP 401 | PASS |
+| `GET /api/users/me` senza token | HTTP 401 | PASS |
+| `GET /api/opinioni/profile` senza token | HTTP 401 | PASS |
+| `GET /api/user/political-opinions-consent` senza token | HTTP 401 | PASS |
+
+Le statistiche pubbliche verificano che il backend riesce a leggere aggregate dal database. Le risposte private non sono state lette né registrate dal workflow: è stato ispezionato solo lo stato HTTP.
+L'URL corretto è `https://api.demos.community/api`; usare `www.demos.community/api` causa una risposta HTML di frontend, non un errore PostgreSQL.
+
+### Audit estensioni (solo lettura)
+
+- `pgcrypto`: relocatable, proprietario `supabase_admin`, **0 dipendenze esterne tramite `pg_depend`**.
+- `unaccent`: relocatable, proprietario `supabase_admin`, **0 dipendenze esterne tramite `pg_depend`**.
+- `pg_stat_statements`: relocatable, proprietario `supabase_admin`, due dipendenze normali delle regole interne delle viste `pg_stat_statements` e `pg_stat_statements_info`.
+- Il ruolo `postgres` non è membro del ruolo `supabase_admin`, quindi non può presumere di poter alterare le estensioni gestite.
+- Nel repository esistono riferimenti SQL non qualificati a `pg_stat_statements` in `api/services/performanceMonitor.js` e `api/routes/admin/monitoring.js`. Spostarla senza aggiornare e testare questi consumatori potrebbe interrompere il monitoraggio.
+- Le tre estensioni **non sono state spostate**. Non ci sono evidenze sufficienti per farlo senza un ambiente di staging e la procedura approvata dal proprietario.
+
+Rimangono non verificati i flussi autenticati end-to-end (scrittura opinioni, login reale, sessioni, selezione rappresentanti). Non dichiarare la chiusura completa di questi test soltanto sulla base dei controlli pubblici.
