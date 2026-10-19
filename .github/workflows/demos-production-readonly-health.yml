@@ -1,0 +1,47 @@
+name: DEMOS production health (read-only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/demos-production-readonly-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public API and database connectivity without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_url() {
+            local label="$1"
+            local url="$2"
+            local response_path
+            response_path="$(mktemp)"
+            local status
+            status="$(curl --location --retry 1 --connect-timeout 8 --max-time 25 --silent --show-error --output "$response_path" --write-out '%{http_code}' "$url")"
+            python3 - "$label" "$status" "$response_path" <<'PY'
+          import json,sys
+          label,status,path=sys.argv[1:4]
+          try:
+              with open(path,encoding='utf-8') as f:
+                  payload=json.load(f)
+          except (ValueError,UnicodeError,OSError):
+              print(f'{label}: HTTP {status}, JSON unavailable')
+              sys.exit(1)
+          ok=(status=='200' and payload.get('success') is True)
+          print(f'{label}: HTTP {status}, success={payload.get("success")!r}, verified={ok}')
+          sys.exit(0 if ok else 1)
+          PY
+            rm -f "$response_path"
+          }
+          check_url "public-api-health" "https://www.demos.community/api/health"
+          check_url "public-db-readonly-health" "https://www.demos.community/api/test-db"
+
+# This job intentionally does not authenticate, mutate Supabase, fetch personal
+# records or handle API keys. It checks only public health JSON success fields.
