@@ -1,0 +1,51 @@
+name: DEMOS authenticated security contract tests (offline)
+
+on:
+  pull_request:
+    paths:
+      - 'api/routes/opinioni/**'
+      - 'api/routes/user/political-opinions-consent.js'
+      - 'api/routes/auth/**'
+      - 'api/services/politicalConsentService.js'
+      - 'api/middleware/auth.js'
+      - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
+      - 'api/tests/politicalConsentAtomic.smoke.test.js'
+      - 'api/tests/politicalConsentScope.smoke.test.js'
+      - 'api/tests/opinionPrivacy.test.js'
+      - 'api/tests/securityProductionHardening.test.js'
+      - 'api/tests/clientAdminCapability.smoke.test.js'
+      - '.github/workflows/demos-authenticated-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auth-opinion-consent-contracts:
+    name: Authentication, opinion and consent contract checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+      - name: Install locked API dependencies without install scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Test login token security, consent revocation and opinion writes (mock data only)
+        run: |
+          node --test \
+            api/tests/securityProductionHardening.test.js \
+            api/tests/politicalOpinionWriteRules.smoke.test.js \
+            api/tests/politicalConsentAtomic.smoke.test.js \
+            api/tests/politicalConsentScope.smoke.test.js \
+            api/tests/opinionPrivacy.test.js \
+            api/tests/clientAdminCapability.smoke.test.js
+
+# All tests run on localhost or in-memory mocks; no live database, test users,
+# authentication secrets, remote writes or real user opinion changes.
