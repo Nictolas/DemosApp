@@ -58,3 +58,33 @@ Se invece la Data API è necessaria, mantenerla attiva ma rimuovere `public` dag
 - https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically
 
 **Nota:** la modifica alla default-exposure annunciata da Supabase per il 30 ottobre 2026 riguarda soprattutto le *nuove* tabelle: quelle esistenti conservano i grant attuali; non attendere il rollout come rimedio per i dati già presenti.
+
+## Test di superficie API anonima (aggiunto il 19 ottobre 2026)
+
+Il controllo `api/scripts/verify-supabase-data-api-exposure.cjs` usa esclusivamente richieste HTTP **HEAD** con `limit=0` per un elenco di tabelle sensibili. Non richiede un login utente e non scarica record.
+
+Esecuzione su un ambiente autorizzato che possa raggiungere Internet:
+
+```bash
+node --test api/tests/supabaseDataApiExposure.test.js
+
+# Impostare queste variabili nell'ambiente del terminale, senza salvarle in Git:
+# SUPABASE_PUBLIC_URL=https://<project>.supabase.co
+# SUPABASE_PUBLISHABLE_KEY=sb_publishable_<public-key>
+# In alternativa SUPABASE_ANON_KEY=<legacy-anon-JWT>; il tool rifiuta JWT service_role.
+node api/scripts/verify-supabase-data-api-exposure.cjs
+```
+
+Significato dell'exit code:
+
+- `0`: le richieste anonime a tutte le tabelle controllate risultano negate (401/403/404). Non basta per certificare ogni via di accesso: verificare anche RPC, schemi aggiuntivi, policy e altri privilegi.
+- `1`: almeno un endpoint sensibile ha accettato una richiesta anonima (risposta 2xx). In presenza di RLS disattivata e grant di SELECT, trattare come esposizione potenzialmente grave. Una risposta 2xx, da sola, **non prova** che siano state effettivamente lette righe.
+- `2`: risposta inattesa, problema di rete o configurazione; test inconclusivo e nessun pass implicito.
+
+Non usare `service_role`, `sb_secret_...` o chiavi amministrative. Il test impedisce deliberatamente l'uso di token JWT il cui `role` non sia `anon`.
+
+La pipeline GitHub `.github/workflows/supabase-data-api-audit.yml` esegue **solo i test unitari offline**, non il probe verso Supabase. Eseguire il test reale su staging e produzione solo dopo aver verificato il contesto e senza inserire chiavi pubbliche o segreti nel repository.
+
+### Rimedio operativo
+
+Quando è accertato che le app DEMOS e le eventuali integrazioni esterne non usano Data API: da Supabase Dashboard → **Integrations → Data API → Overview**, disabilitare **Enable Data API**, rieseguire il probe, poi controllare da backend login, lettura/scrittura opinioni e job periodici. Per rollback riabilitare la stessa impostazione. La modifica non sostituisce le verifiche sulle credenziali SQL o le future politiche RLS.
