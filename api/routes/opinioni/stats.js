@@ -99,6 +99,12 @@ router.get('/stats/:opinionId', async (req, res) => {
       // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
+      // Opinioni ufficiali pubblicate il 20/10/2026.
+      'autonomia_differenziata': 'autonomia_differenziata',
+      'mes': 'mes',
+      'premierato': 'premierato',
+      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
+      'allevamenti_intensivi': 'allevamenti_intensivi',
       'legalizzazione_canapa': 'legalizzazione_canapa',
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
@@ -250,6 +256,12 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
+      // Opinioni ufficiali pubblicate il 20/10/2026.
+      'autonomia_differenziata': 'autonomia_differenziata',
+      'mes': 'mes',
+      'premierato': 'premierato',
+      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
+      'allevamenti_intensivi': 'allevamenti_intensivi',
       'legalizzazione_canapa': 'legalizzazione_canapa',
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
@@ -387,6 +399,12 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
+      // Opinioni ufficiali pubblicate il 20/10/2026.
+      'autonomia_differenziata': 'autonomia_differenziata',
+      'mes': 'mes',
+      'premierato': 'premierato',
+      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
+      'allevamenti_intensivi': 'allevamenti_intensivi',
       'legalizzazione_canapa': 'legalizzazione_canapa',
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
@@ -520,6 +538,12 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
+      // Opinioni ufficiali pubblicate il 20/10/2026.
+      'autonomia_differenziata': 'autonomia_differenziata',
+      'mes': 'mes',
+      'premierato': 'premierato',
+      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
+      'allevamenti_intensivi': 'allevamenti_intensivi',
       'legalizzazione_canapa': 'legalizzazione_canapa',
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
@@ -673,6 +697,12 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
     const opinionMapping = {
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
+      // Opinioni ufficiali pubblicate il 20/10/2026.
+      'autonomia_differenziata': 'autonomia_differenziata',
+      'mes': 'mes',
+      'premierato': 'premierato',
+      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
+      'allevamenti_intensivi': 'allevamenti_intensivi',
       'legalizzazione_canapa': 'legalizzazione_canapa',
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
@@ -798,6 +828,12 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
     const opinionMapping = {
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
+      // Opinioni ufficiali pubblicate il 20/10/2026.
+      'autonomia_differenziata': 'autonomia_differenziata',
+      'mes': 'mes',
+      'premierato': 'premierato',
+      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
+      'allevamenti_intensivi': 'allevamenti_intensivi',
       'legalizzazione_canapa': 'legalizzazione_canapa',
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
