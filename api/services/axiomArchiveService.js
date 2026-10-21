@@ -7,6 +7,9 @@ const {
   PutObjectCommand
 } = require('@aws-sdk/client-s3');
 const { classifyRecord } = require('../utils/archiveEventClassification');
+const { boundedBodyToBuffer, MAX_COMPRESSED_BYTES } = require('./archiveOverlapB2Reader');
+const MAX_RESTORE_DECOMPRESSED_BYTES = 32 * 1024 * 1024;
+const MAX_RESTORE_EVENTS_PER_OBJECT = 60000;
 
 const DEFAULT_QUERY_LIMIT = 5000;
 const DEFAULT_MAX_WINDOW_MINUTES = 15;
@@ -289,15 +292,32 @@ class AxiomArchiveService {
   }
 
   async getObject(key) {
-    const response = await this.getB2Client().send(new GetObjectCommand({
+    // Reject oversized B2 objects before GET to cap readback egress and RAM.
+    const head = await this.getB2Client().send(new HeadObjectCommand({
       Bucket: this.bucket,
       Key: key
     }));
+    const size = Number(head.ContentLength);
+    if (!Number.isSafeInteger(size) || size < 1 || size > MAX_COMPRESSED_BYTES) {
+      throw new Error('ARCHIVE_RESTORE_OBJECT_SIZE_REJECTED');
+    }
+    const response = await this.getB2Client().send(new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Range: `bytes=0-${size - 1}`
+    }));
+    let body;
+    try {
+      // Never invoke transformToByteArray(): it allocates before size checks.
+      body = await boundedBodyToBuffer(response.Body, size);
+    } catch (_error) {
+      throw new Error('ARCHIVE_RESTORE_OBJECT_SIZE_CHANGED');
+    }
     return {
-      body: await bodyToBuffer(response.Body),
-      metadata: response.Metadata || {},
-      contentEncoding: response.ContentEncoding,
-      contentType: response.ContentType
+      body,
+      metadata: response.Metadata || head.Metadata || {},
+      contentEncoding: response.ContentEncoding || head.ContentEncoding,
+      contentType: response.ContentType || head.ContentType
     };
   }
 
@@ -603,8 +623,21 @@ class AxiomArchiveService {
       throw new Error(`Unexpected archive format metadata for ${key}`);
     }
 
-    const decoded = contentEncoding === 'gzip' || key.endsWith('.gz') ? zlib.gunzipSync(body) : body;
+    let decoded;
+    try {
+      decoded = contentEncoding === 'gzip' || key.endsWith('.gz')
+        ? zlib.gunzipSync(body, { maxOutputLength: MAX_RESTORE_DECOMPRESSED_BYTES })
+        : body;
+    } catch (_error) {
+      throw new Error('ARCHIVE_RESTORE_DECOMPRESSION_REJECTED');
+    }
+    if (decoded.length > MAX_RESTORE_DECOMPRESSED_BYTES) {
+      throw new Error('ARCHIVE_RESTORE_DECOMPRESSION_REJECTED');
+    }
     const lines = decoded.toString('utf8').split('\n').filter(Boolean);
+    if (lines.length > MAX_RESTORE_EVENTS_PER_OBJECT) {
+      throw new Error('ARCHIVE_RESTORE_RECORD_LIMIT');
+    }
     for (const line of lines) {
       const envelope = JSON.parse(line);
       if (!envelope.archive_event_id || !envelope.source_dataset || !envelope.category || !('event' in envelope)) {

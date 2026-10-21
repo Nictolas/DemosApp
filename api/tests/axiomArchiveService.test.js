@@ -30,7 +30,7 @@ class MemoryB2Client {
       }
       return {
         Body: {
-          transformToByteArray: async () => Uint8Array.from(entry.body)
+          async *[Symbol.asyncIterator]() { yield entry.body; }
         },
         Metadata: entry.metadata,
         ContentEncoding: entry.contentEncoding,
@@ -51,7 +51,6 @@ class MemoryB2Client {
     }
 
     if (name === 'HeadObjectCommand') {
-      if (this.failHead) return { ContentLength: -1, Metadata: {} };
       const entry = this.objects.get(input.Key);
       if (!entry) {
         const error = new Error('NoSuchKey');
@@ -59,6 +58,7 @@ class MemoryB2Client {
         error.$metadata = { httpStatusCode: 404 };
         throw error;
       }
+      if (this.failHead) return { ContentLength: -1, Metadata: {} };
       return {
         ContentLength: entry.body.length,
         Metadata: entry.metadata
@@ -468,4 +468,92 @@ test('conflicting delivery IDs fail archive window before B2 manifest/checkpoint
   }), /AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT/);
   assert.equal(b2.objects.size, 0,
     'conflicts must not upload a manifest or advance archive checkpoint');
+});
+
+test('read-only B2 restore refuses oversized remote object before GET', async () => {
+  let getCalls = 0;
+  const b2Client = {
+    async send(command) {
+      if (command.constructor.name === 'HeadObjectCommand') {
+        return { ContentLength: 9 * 1024 * 1024, Metadata: {} };
+      }
+      if (command.constructor.name === 'GetObjectCommand') {
+        getCalls++;
+        throw new Error('GET must not execute for oversized object');
+      }
+      throw new Error('unexpected command');
+    }
+  };
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.getObject('test/oversized.gz'),
+    /ARCHIVE_RESTORE_OBJECT_SIZE_REJECTED/);
+  assert.equal(getCalls, 0);
+});
+
+test('read-only B2 restore aborts a stream when body exceeds HEAD ContentLength', async () => {
+  const b2Client = {
+    async send(command) {
+      if (command.constructor.name === 'HeadObjectCommand') {
+        return { ContentLength: 3, Metadata: {} };
+      }
+      if (command.constructor.name === 'GetObjectCommand') {
+        assert.equal(command.input.Range, 'bytes=0-2');
+        return { Body: {
+          async *[Symbol.asyncIterator]() {
+            yield Buffer.from('abcd');
+          }
+        } };
+      }
+      throw new Error('unexpected command');
+    }
+  };
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.getObject('test/changed.gz'),
+    /ARCHIVE_RESTORE_OBJECT_SIZE_CHANGED/);
+});
+
+test('read-only B2 restore rejects gzip expansion above 32 MiB', async () => {
+  const { createHash } = require('node:crypto');
+  const b2Client = new MemoryB2Client();
+  const body = zlib.gzipSync(Buffer.alloc(32 * 1024 * 1024 + 32, 65));
+  const key = 'test/data/technical/oversized.jsonl.gz';
+  b2Client.objects.set(key, {
+    body,
+    metadata: {
+      sha256: createHash('sha256').update(body).digest('hex'),
+      archiveformat: 'demos-axiom-v1'
+    },
+    contentEncoding: 'gzip',
+    contentType: 'application/x-ndjson'
+  });
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.verifyArchiveObject(key),
+    /ARCHIVE_RESTORE_DECOMPRESSION_REJECTED/);
+});
+
+test('read-only B2 restore rejects more than 60000 records in a single object', async () => {
+  const { createHash } = require('node:crypto');
+  const b2Client = new MemoryB2Client();
+  const body = zlib.gzipSync(Buffer.from(('{"a":1}\n').repeat(60001)));
+  const key = 'test/data/technical/too-many.jsonl.gz';
+  b2Client.objects.set(key, {
+    body,
+    metadata: {
+      sha256: createHash('sha256').update(body).digest('hex'),
+      archiveformat: 'demos-axiom-v1'
+    },
+    contentEncoding: 'gzip',
+    contentType: 'application/x-ndjson'
+  });
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.verifyArchiveObject(key),
+    /ARCHIVE_RESTORE_RECORD_LIMIT/);
 });
