@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { healthHandler, waitingHandler, startReadonlyHealthServer } =
+const { healthHandler, waitingHandler, startupStatus, startReadonlyHealthServer } =
   require('../scripts/audit-outbox-readonly-health-server');
 
 const staging = 'fkeayjzvtuvzesljhjbc';
@@ -70,6 +70,13 @@ test('unconfigured staging service starts safely without a DB secret', async () 
     serve: () => { opened = true; }
   }), /AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED/);
   assert.equal(opened, false);
+});
+
+test('log status never reports success when the service has no database credential', () => {
+  assert.equal(startupStatus({}),
+    'AUDIT_RENDER_STAGING_STANDBY_NO_DB_SECRET');
+  assert.equal(startupStatus({ AUDIT_OUTBOX_DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL }),
+    'AUDIT_RENDER_STAGING_PREFLIGHT_OK');
 });
 
 test('unsafe environment and failed readiness never open a public listener', async () => {
