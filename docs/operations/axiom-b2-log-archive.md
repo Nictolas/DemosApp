@@ -19,6 +19,7 @@ The design intentionally does **not** encode a generic "GDPR = 7 years" retentio
 - Verifies each upload with `HEAD`: compressed byte length and a SHA-256 value stored in metadata must match before progress is committed.
 - Advances the checkpoint only after all data objects and the manifest for a dataset were uploaded and verified.
 - Uses a B2-resident checkpoint, so Render/local ephemeral disks are not relied on for progress state.
+- On resume, checks the checkpoint's B2 SHA-256 metadata against the downloaded bytes and validates the dataset/manifest reference **before** using its date cursor. Corrupted, mismatched or untrusted checkpoints fail closed: the archiver does not advance or silently skip events. This is an integrity check against accidental corruption, not proof of cryptographic authenticity against a party who can replace both content and metadata.
 - Processes backfills in bounded chunks and advances the checkpoint after every successful chunk, limiting memory usage and restart cost.
 - Re-reads an overlap window on every run to catch late-arriving events.
 - Gives every archived event a deterministic SHA-256 fingerprint. For eligible replayed audit/security events with a valid `axiom_delivery_id` UUID, the fingerprint is derived from dataset + delivery UUID, rather than Axiom per-ingestion metadata. Restore/import tooling can deduplicate overlaps using `archive_event_id`.
