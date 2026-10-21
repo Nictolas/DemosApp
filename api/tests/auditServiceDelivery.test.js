@@ -208,3 +208,38 @@ test('outbox preprocessor applies configured anonymization before persistent sto
     }
   }
 });
+
+
+test('outbox HTTP worker never crosses Axiom staging/production dataset boundaries', async () => {
+  const oldScope = process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE;
+  const event = {
+    _time: '2026-10-21T12:00:00.000Z',
+    log_type: 'audit',
+    action: 'SYNTHETIC_STAGING_TEST',
+    axiom_delivery_id: '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f'
+  };
+  let requests = 0;
+  try {
+    await withStubbedAxiom(async (url) => {
+      requests++;
+      assert.match(url, /\/v1\/ingest\//);
+      return { status: 202 };
+    }, async () => {
+      process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = 'staging';
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), false);
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('centralized_logs', event), false);
+      assert.equal(requests, 0, 'staging must not contact live Axiom datasets');
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('demos-security-staging', event), true);
+      assert.equal(requests, 1, 'the existing isolated staging dataset is allowed');
+
+      process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = 'production';
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('demos-security-staging', event), false);
+      assert.equal(requests, 1, 'production must not contact the staging dataset');
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), true);
+      assert.equal(requests, 2);
+    });
+  } finally {
+    if (oldScope === undefined) delete process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE;
+    else process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = oldScope;
+  }
+});
