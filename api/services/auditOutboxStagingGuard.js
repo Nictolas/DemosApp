@@ -3,6 +3,9 @@
 // This guard is deliberately pinned to DEMOS's dedicated staging project.
 // It must never accept the production project or any arbitrary URL.
 const STAGING_PROJECT_REF = 'fkeayjzvtuvzesljhjbc';
+// Verified from the project's Connect > Session pooler URI, 22 Oct 2026.
+// The shared pooler cluster index cannot be guessed from the AWS region.
+const STAGING_POOLER_HOST = 'aws-1-eu-central-1.pooler.supabase.com';
 
 function validateStagingOutboxTarget(connectionString) {
   let url;
@@ -23,7 +26,7 @@ function validateStagingOutboxTarget(connectionString) {
   const direct = hostname === `db.${STAGING_PROJECT_REF}.supabase.co` &&
     /^demos_outbox_[a-z0-9_]{1,40}$/.test(username);
   const sessionPooler =
-    /^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(hostname) &&
+    hostname === STAGING_POOLER_HOST &&
     /^demos_outbox_[a-z0-9_]{1,40}$/.test(username.split('.')[0]) &&
     username.endsWith(`.${STAGING_PROJECT_REF}`);
   if (!direct && !sessionPooler) {
@@ -52,5 +55,5 @@ async function runStagingOutboxPreflight({
 }
 
 module.exports = {
-  STAGING_PROJECT_REF, validateStagingOutboxTarget, runStagingOutboxPreflight
+  STAGING_PROJECT_REF, STAGING_POOLER_HOST, validateStagingOutboxTarget, runStagingOutboxPreflight
 };
