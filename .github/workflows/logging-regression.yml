@@ -5,12 +5,15 @@ on:
     branches: [main]
     paths:
       - 'api/services/centralizedLogger.js'
+      - 'api/services/auditService.js'
       - 'api/services/axiomArchiveService.js'
       - 'api/utils/log*.js'
       - 'api/utils/archiveEventClassification.js'
+      - 'api/utils/axiomAuditEvent.js'
       - 'api/tests/log*.test.js'
       - 'api/tests/axiomArchiveService.test.js'
       - 'api/tests/archiveEventClassification.test.js'
+      - 'api/tests/axiomAuditEvent.test.js'
       - 'api/package.json'
       - 'api/package-lock.json'
       - '.github/workflows/logging-regression.yml'
@@ -37,6 +40,7 @@ jobs:
         working-directory: api
         run: |
           node --check services/centralizedLogger.js
+          node --check services/auditService.js
           node --check services/axiomArchiveService.js
       - name: Logging privacy and delivery tests
         working-directory: api
