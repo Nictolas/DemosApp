@@ -14,6 +14,7 @@ on:
       - 'api/tests/axiomArchiveService.test.js'
       - 'api/tests/archiveEventClassification.test.js'
       - 'api/tests/axiomAuditEvent.test.js'
+      - 'api/tests/auditServiceDelivery.test.js'
       - 'api/package.json'
       - 'api/package-lock.json'
       - '.github/workflows/logging-regression.yml'
