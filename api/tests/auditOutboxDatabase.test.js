@@ -6,6 +6,10 @@ const { createAuditOutboxDatabase } = require('../services/auditOutboxDatabase')
 const local = 'postgresql://audit_user:ci-secret@127.0.0.1:5432/demos_outbox_ci';
 const role = Object.freeze({
   is_superuser: false, bypass_rls: false, can_login: true,
+  can_create_database: false, can_create_roles: false,
+  can_replicate: false, can_create_public: false,
+  unrelated_table_grants: 0, unrelated_definer_grants: 0,
+  unrelated_role_memberships: 0,
   worker_member: true, schema_access: true,
   can_select: true, can_insert: true, can_update: true,
   can_delete: true, rls_enabled: true
@@ -85,7 +89,11 @@ test('Supabase connection has verified TLS and ignores untrusted sslmode URL ove
 test('preflight denies owner/bypass/admin permissions, missing grants and absent policy', async () => {
   for (const extra of [
     { is_superuser: true }, { bypass_rls: true }, { worker_member: false },
-    { can_insert: false }, { rls_enabled: false }, { can_login: false }
+    { can_insert: false }, { rls_enabled: false }, { can_login: false },
+    { can_create_database: true }, { can_create_roles: true },
+    { can_replicate: true }, { can_create_public: true },
+    { unrelated_table_grants: 1 }, { unrelated_definer_grants: 1 },
+    { unrelated_role_memberships: 1 }
   ]) {
     const f = fixture({ resultRole: { ...role, ...extra } });
     await assert.rejects(() => f.get().ensureReady(), /DATABASE_PREFLIGHT_FAILED/);
