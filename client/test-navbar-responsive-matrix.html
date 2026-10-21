@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DEMOS navbar responsive matrix</title>
+  <style>
+    body { margin: 1rem; font-family: system-ui, sans-serif; }
+    #matrix { display: flex; flex-wrap: wrap; align-items: start; gap: 1rem; }
+    figure { margin: 0; }
+    iframe { display: block; border: 1px solid #94a3b8; max-width: 100%; }
+    figcaption { margin: 0.5rem 0; font-size: 0.875rem; }
+    .passed { color: #15803d; }
+    .failed { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>DEMOS navbar responsive audit</h1>
+  <p>Standalone viewport matrix using the actual robust shell and Android overrides.</p>
+  <strong id="result">Running matrix…</strong>
+  <div id="matrix"></div>
+  <script>
+    const cases = [
+      ['small-web-320x568', 320, 568, false],
+      ['compact-android-360x640', 360, 640, true],
+      ['android-360x800', 360, 800, true],
+      ['iphone-web-390x844', 390, 844, false],
+      ['large-web-430x932', 430, 932, false],
+      ['landscape-android-667x375', 667, 375, true],
+      ['tablet-boundary-768x1024', 768, 1024, true],
+      ['desktop-1024x768', 1024, 768, false],
+      ['desktop-wide-1440x900', 1440, 900, false],
+    ];
+    const results = new Map();
+    const shell = new URL('./src/robust-layout.css', location.href).href;
+    const android = new URL('./src/css/android-navbar-fix.css', location.href).href;
+    const isMobile = (w) => w < 1024;
+    window.addEventListener('message', event => {
+      if (event.data?.kind !== 'navbar-matrix') return;
+      if (!cases.some(c => c[0] === event.data.id)) return;
+      results.set(event.data.id, event.data);
+      const label = document.querySelector('[data-case="' + event.data.id + '"]');
+      if (label) {
+        label.textContent = event.data.id + ': ' + (event.data.ok ? 'PASS' : 'FAIL ' + event.data.error);
+        label.className = event.data.ok ? 'passed' : 'failed';
+      }
+      if (results.size === cases.length) {
+        const allPass = [...results.values()].every(r => r.ok);
+        const result = document.getElementById('result');
+        result.textContent = allPass ? 'MATRIX PASS' : 'MATRIX FAIL';
+        result.className = allPass ? 'passed' : 'failed';
+      }
+    });
+    for (const [id, w, h, isAndroid] of cases) {
+      const figure = document.createElement('figure');
+      const label = document.createElement('figcaption');
+      label.dataset.case = id;
+      label.textContent = id + ': checking';
+      const frame = document.createElement('iframe');
+      frame.setAttribute('title', id);
+      frame.width = w;
+      frame.height = h;
+      const testScript = [
+        '(function(){',
+        'const nav=document.querySelector(".app-navbar");',
+        'const link=nav.querySelector("a");',
+        'const main=document.querySelector(".app-main");',
+        'const a=nav.getBoundingClientRect(), b=link.getBoundingClientRect(), m=main.getBoundingClientRect();',
+        'const mobile=document.documentElement.classList.contains("demos-mobile-layout");',
+        'const ok= a.height>=b.height && b.top>=a.top-1 && b.bottom<=a.bottom+1 && a.height<145 && (!mobile || m.bottom<=a.top+1);',
+        'parent.postMessage({kind:"navbar-matrix",id:'+JSON.stringify(id)+',ok,error:"nav="+a.height+" link="+b.height+" mainEnd="+m.bottom+" navTop="+a.top},"*");',
+        '})();'
+      ].join('');
+      frame.srcdoc =
+        '<!doctype html><html class="' + (isMobile(w) ? 'demos-mobile-layout' : 'demos-desktop-layout') + '"><head>' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1"/>' +
+        '<link rel="stylesheet" href="' + shell + '"/>' +
+        '<link rel="stylesheet" href="' + android + '"/>' +
+        '<style>*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:sans-serif}' +
+        '.robust-app-layout{height:100dvh}.app-main{min-height:0}.app-bottom-nav{display:flex;justify-content:center;align-items:flex-end}' +
+        '.app-bottom-nav>div{display:flex;align-items:flex-end;width:100%;justify-content:space-around}' +
+        '.app-bottom-nav a{display:flex;align-items:center;justify-content:center;text-decoration:none;color:#2563eb}' +
+        '</style></head><body class="' + (isAndroid ? 'android-device' : '') + '">' +
+        '<div class="robust-app-layout"><div class="robust-app-layout__content">' +
+        '<main class="app-main"><p>Content</p></main>' +
+        '<div class="app-navbar"><nav class="app-bottom-nav"><div><a href="#">Navigation</a></div></nav></div>' +
+        '</div></div><scr' + 'ipt>' + testScript + '<' + '/script></body></html>';
+      figure.append(frame,label);
+      document.getElementById('matrix').append(figure);
+    }
+  </script>
+</body>
+</html>
