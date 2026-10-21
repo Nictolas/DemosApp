@@ -11,7 +11,7 @@
     "test:identity": "node --test tests/identityVerificationService.test.js tests/identityVerificationStore.test.js tests/cieVerificationService.test.js tests/cieOidcTransactionService.test.js tests/cieMockFlowService.test.js tests/cieOidcAuthorizationService.test.js tests/cieOidcTransactionStore.test.js tests/cieOidcTokenService.test.js tests/cieOidcIdTokenService.test.js tests/cieOidcUserInfoService.test.js tests/cieCallbackRedirectService.test.js",
     "test:webauthn": "node --test tests/webauthnAtomicConsume.test.js tests/webauthnChallengePayloadPolicy.test.js tests/webauthnChallengeStore.integration.test.js tests/webauthnClientInstancePolicy.test.js tests/webauthnCredentialIdPolicy.test.js tests/webauthnCredentialRegistrationService.test.js tests/webauthnLoginSessionPolicy.test.js tests/webauthnPublicErrorService.test.js tests/webauthnRateLimiting.test.js tests/webauthnRegistrationPolicy.test.js tests/webauthnRegistrationSessionPolicy.test.js tests/webauthnSecurityPolicy.test.js tests/webauthnSignCounterService.test.js tests/webauthnUserHandleService.test.js",
     "test:privacy": "node --test tests/opinionPrivacy.test.js",
-    "test:logging-privacy": "node --test tests/logPrivacy.test.js tests/logDeliveryFailureReporter.test.js tests/logEventPolicy.test.js tests/axiomAuditEvent.test.js tests/auditServiceDelivery.test.js tests/auditOutboxService.test.js tests/auditOutboxWorker.test.js",
+    "test:logging-privacy": "node --test tests/logPrivacy.test.js tests/logDeliveryFailureReporter.test.js tests/logEventPolicy.test.js tests/axiomAuditEvent.test.js tests/auditServiceDelivery.test.js tests/auditOutboxService.test.js tests/auditOutboxWorker.test.js tests/auditOutboxPostgres.test.js",
     "test:axiom-archive": "node --test tests/axiomArchiveService.test.js tests/archiveEventClassification.test.js",
     "archive:axiom": "node scripts/run-axiom-archive.js",
     "archive:axiom:verify": "node scripts/verify-axiom-archive-object.js",
@@ -48,14 +48,15 @@
     "firebase-admin": "^14.5.0",
     "google-auth-library": "^9.14.0",
     "groq-sdk": "^0.5.0",
+    "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.1.0",
     "node-cron": "^3.0.3",
     "pg": "^8.11.3",
-    "puppeteer": "^25.11.0",
-    "ioredis": "^5.8.2"
+    "puppeteer": "^25.11.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.11",
     "nodemon": "^3.0.2"
   },
   "overrides": {

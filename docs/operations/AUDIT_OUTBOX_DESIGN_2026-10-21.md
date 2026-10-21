@@ -95,10 +95,10 @@ stesso Supabase di DEMOS, con un limite di dimensione e monitoraggio dei costi.
 
 ```bash
 cd api
-node --test tests/auditOutboxService.test.js
+npm run test:logging-privacy
 ```
 
-I test mock non equivalgono a un'esecuzione SQL vera. La prova indipendente di
+Oltre ai mock, `api/tests/auditOutboxPostgres.test.js` usa `@electric-sql/pglite` (PostgreSQL WASM) per eseguire realmente lo schema SQL con dati sintetici e verificare RLS, mancanza di privilegi di `anon`/`authenticated`, INSERT, lease SQL, retry, DELETE dopo ACK e dead-letter. Verificati 32 test logging e 15 test archivio sul ramo di sviluppo. **PGlite non equivale a uno staging Supabase collegato né testa due connessioni realmente concorrenti.** La prova indipendente di
 recupero B2 resta un'altra attività: `archive:axiom:verify-latest` è presente
 in `main` ma richiede un ambiente autorizzato con credenziali **di lettura**
 sul bucket reale, che non sono risultate disponibili nella copia di sviluppo

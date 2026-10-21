@@ -11,6 +11,8 @@ on:
       - 'api/app.js'
       - 'api/tests/auditOutboxService.test.js'
       - 'api/tests/auditOutboxWorker.test.js'
+      - 'api/tests/auditOutboxPostgres.test.js'
+      - 'docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'
       - 'api/services/axiomArchiveService.js'
       - 'api/scripts/verify-latest-axiom-archive.js'
       - 'api/utils/log*.js'
