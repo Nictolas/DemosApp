@@ -1,3 +1,4 @@
+import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
@@ -114,10 +115,7 @@ export default function OpinioniRegionali() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => {
-      console.log('🔍 DEBUG saveMutation.mutationFn chiamata con:', newOpinions);
-      return apiRequest("POST", "/api/opinioni/salva", { opinioni: newOpinions });
-    },
+    mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("R", newOpinions),
     onSuccess: (data) => {
       console.log('🔍 DEBUG saveMutation.onSuccess:', data);
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
