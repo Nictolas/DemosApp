@@ -108,9 +108,15 @@ Non creare policy aperte a `anon` o `authenticated` per eliminare avvisi.
 
 Prima di creare o attivare un backend di collaudo, usare soltanto una
 connessione del ruolo PostgreSQL dedicato allo **staging**.
-Il server connesso deve avere la variabile `AUDIT_OUTBOX_DATABASE_URL`
-impostata tramite un secret manager (non salvare password in Git, issue,
-documentazione, log o cron). NON riusare `DATABASE_URL` di DEMOS.
+Il server connesso deve avere `DATABASE_URL` puntata **esclusivamente
+a Demos-Staging** e `AUDIT_OUTBOX_DATABASE_URL` impostata tramite un
+secret manager (non salvare password in Git, issue, documentazione, log o cron).
+Deve inoltre impostare `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`.
+Le due URL devono essere distinte per credenziale ma riferite allo **stesso
+progetto** `fkeayjzvtuvzesljhjbc`. Il codice verifica entrambi gli
+identificativi; rifiuta un backend principale collegato a DEMOS produttivo,
+anche quando la URL della outbox punta a staging. Non riusare la normale
+`DATABASE_URL` di DEMOS.
 
 ```bash
 cd api

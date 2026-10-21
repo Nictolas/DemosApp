@@ -142,6 +142,25 @@ letta finché la funzione non è attivata. La URL è obbligatoria e non può
 essere identica alla normale `DATABASE_URL`; non deve contenere account
 `postgres` o `service_role`.
 
+**Nuova barriera anti-scambio database:** la variabile obbligatoria
+`AUDIT_OUTBOX_DEPLOYMENT_SCOPE` deve valere precisamente `staging` o
+`production`. Entrambe le connessioni `DATABASE_URL` e
+`AUDIT_OUTBOX_DATABASE_URL` devono identificare **lo stesso** progetto
+Supabase, e il suo identificativo deve essere quello immutabilmente
+previsto dal codice: `fkeayjzvtuvzesljhjbc` per lo staging,
+`wxnblcqoyjqxktwkcqok` per la produzione. Le connessioni via
+Supavisor devono usare lo username nel formato
+`ruolo.<project-ref>` sul pooler di sessione 5432; le connessioni dirette
+richiedono `db.<project-ref>.supabase.co:5432/postgres`. Se il progetto,
+il ruolo, la porta o la dichiarazione dell'ambiente non coincidono, il
+pool dedicato **non viene nemmeno creato**. Nessuna scelta automatica
+del progetto in base alla sola variabile `NODE_ENV`.
+
+**Solo in CI** è consentito `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=ci-only`,
+con `NODE_ENV=test` ed entrambe le URL vincolate al database temporaneo
+`127.0.0.1:5432/demos_outbox_ci`. Questa eccezione è respinta su Render
+in modalità production.
+
 Al primo utilizzo, il servizio legge soltanto metadati di autorizzazione
 del ruolo effettivamente autenticato: membership nel ruolo NOLOGIN
 `demos_outbox_worker`, nessun superuser/BYPASSRLS, ruolo abilitato al

@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Pool } = require('pg');
 const { buildDatabaseSsl } = require('../utils/databaseTlsPolicy');
+const { assertOutboxProjectScope } = require('./auditOutboxProjectScope');
 const REQUIRED_ROLE = 'demos_outbox_worker';
 
 function createAuditOutboxDatabase({
@@ -29,6 +30,16 @@ function createAuditOutboxDatabase({
   } catch (_error) {
     throw new Error('AUDIT_OUTBOX_DATABASE_URL_INVALID');
   }
+
+  // Compare tenant identities before even constructing the connection pool.
+  // The scope is pinned to the explicit DEMOS project references, never to
+  // the hostname alone, and refuses cross-project credentials.
+  assertOutboxProjectScope({
+    mainUrl: env.DATABASE_URL,
+    outboxUrl: connectionString,
+    deploymentScope: env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE,
+    nodeEnv: env.NODE_ENV
+  });
 
   // SSL URL query values must not override the verified Supabase certificate
   // policy enforced by the common production database configuration.

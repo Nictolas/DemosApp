@@ -122,6 +122,8 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       const restricted = createAuditOutboxDatabase({
         env: {
           DATABASE_URL: testUrl,
+          NODE_ENV: 'test',
+          AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
           AUDIT_OUTBOX_DATABASE_URL:
             'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
         }
@@ -155,6 +157,8 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       const restricted = createAuditOutboxDatabase({
         env: {
           DATABASE_URL: testUrl,
+          NODE_ENV: 'test',
+          AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
           AUDIT_OUTBOX_DATABASE_URL: 'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
         }
       });

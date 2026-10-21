@@ -26,8 +26,9 @@ function fixture({ resultRole = role, environment = {}, failFirst = false } = {}
       return { rows: resultRole ? [resultRole] : [] };
     }
   }
-  const env = { AUDIT_OUTBOX_DATABASE_URL: local,
-    DATABASE_URL: 'postgresql://main_user:ci-password@127.0.0.1:5432/demos_app_ci',
+  const env = { NODE_ENV: 'test', AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
+    AUDIT_OUTBOX_DATABASE_URL: local,
+    DATABASE_URL: 'postgresql://main_user:ci-password@127.0.0.1:5432/demos_outbox_ci',
     ...environment };
   return {
     get: () => createAuditOutboxDatabase({ env, PoolClass: StubPool, ca: () => 'CA-TEST-ONLY' }),
@@ -69,8 +70,11 @@ test('dedicated pool is small, TLS-aware, and checks Postgres membership before 
 test('Supabase connection has verified TLS and ignores untrusted sslmode URL override', async () => {
   const f = fixture({
     environment: {
+      DATABASE_URL:
+        'postgresql://postgres:staging-test-secret@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres',
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
       AUDIT_OUTBOX_DATABASE_URL:
-        'postgresql://outbox:staging-secret@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres?sslmode=disable'
+        'postgresql://demos_outbox_runtime:staging-secret@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres?sslmode=disable'
     }
   });
   f.get();
@@ -105,4 +109,32 @@ test('no pool connection happens when URL is missing or identical to the main co
   const f = fixture({ environment: { AUDIT_OUTBOX_DATABASE_URL: '' } });
   assert.throws(() => f.get(), /DATABASE_URL_REQUIRED/);
   assert.equal(f.captured.length, 0);
+});
+
+test('cross-project or incorrect deployment scope rejects before constructing any pool', () => {
+  const stagingMain =
+    'postgresql://postgres:ci@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres';
+  const stagingOutbox =
+    'postgresql://demos_outbox_runtime:ci@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres';
+  const prodMain =
+    'postgresql://postgres:ci@db.wxnblcqoyjqxktwkcqok.supabase.co:5432/postgres';
+  for (const environment of [
+    {
+      DATABASE_URL: prodMain, AUDIT_OUTBOX_DATABASE_URL: stagingOutbox,
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production'
+    },
+    {
+      DATABASE_URL: stagingMain, AUDIT_OUTBOX_DATABASE_URL: stagingOutbox,
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production'
+    },
+    {
+      DATABASE_URL: stagingMain, AUDIT_OUTBOX_DATABASE_URL: stagingOutbox,
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: ''
+    }
+  ]) {
+    const f = fixture({ environment });
+    assert.throws(() => f.get(), /PROJECT_SCOPE_REJECTED/);
+    assert.equal(f.captured.length, 0);
+    assert.equal(f.queries.length, 0);
+  }
 });
