@@ -13,13 +13,22 @@ deve essere attivato sul backend di produzione.**
 
 | Area | Evidenza | Stato |
 | --- | --- | --- |
-| Coda PostgreSQL, lease, retry, dead-letter, collisioni e capacità | Suite PostgreSQL 17 reale su GitHub CI; dataset sintetico | PASS |
+| Coda PostgreSQL, lease, retry, dead-letter, collisioni e capacità | Suite PostgreSQL 17 reale su GitHub CI; **13/13 test**, incluso percorso integrato: account ristretto, outbox, ACK Axiom ambiguo e retry, deduplicazione, archiviazione B2 simulata e verifica del restore read-only | PASS simulazione integrata; provider esterni reali ancora NO-GO |
 | Staging Supabase | `Demos-Staging` (`fkeayjzvtuvzesljhjbc`), due migrazioni e RLS; eseguito anche INSERT/claim/lease/retry/dead-letter/DELETE **con ruolo NOLOGIN effettivo** in una transazione con `ROLLBACK`, senza creare password o dati residui | PASS SQL (non LOGIN/HTTP) |
 | Data API pubblica dello staging | GET anon su tabella/schema privato → HTTP 404/406 | PASS negativo |
 | Isolamento dei progetti | `AUDIT_OUTBOX_DEPLOYMENT_SCOPE` e `AUDIT_OUTBOX_DATABASE_URL` separata; mismatch fallisce prima della creazione del pool | PASS test |
 | Reinvio Axiom 503 → 202 con ID stabile | Axiom HTTP simulato su PostgreSQL CI; **non** consegna reale | PASS simulazione |
 | Archiviazione Axiom → B2 e recupero duplicati | CI con oggetti sintetici, hash SHA256/gzip e limiti del restore B2 (**HEAD max 8 MiB, streaming bounded, decompressione max 32 MiB, max 60.000 eventi**); lettura checkpoint rafforzata con verifica hash e dataset prima del riavvio; **27 completamenti** Render osservati, senza lettura B2 reale | PASS CI (42/42 test archiviazione, 76/76 logging e PostgreSQL reale); restore reale NON verificato |
 | Avvisi amministrativi | Retry dopo errore DB; avvisi concorrenti; DB riuscito + FCM fallito non genera duplicati; solo test sintetici | PASS simulazione |
+
+**Verifica diretta 21/10/2026:** Supabase `Demos-Staging` è
+`ACTIVE_HEALTHY`, con **0 righe** nella outbox, RLS attiva,
+ruolo `demos_outbox_worker` ancora `NOLOGIN` e senza `BYPASSRLS`;
+nessun accesso schema per `anon`/`authenticated` né SELECT per
+`service_role`. Advisor sicurezza e performance: **0 rilievi**.
+Nessun LOGIN runtime, credenziale provider o servizio di produzione modificato.
+Il test completo **con Axiom/B2 simulati** è [passato nella CI PostgreSQL](https://github.com/Nictolas/DemosApp/actions/runs/39670492893).
+Questo risultato **non chiude** i test con Axiom, B2 o FCM reali.
 
 ## Condizioni mancanti per GO
 
