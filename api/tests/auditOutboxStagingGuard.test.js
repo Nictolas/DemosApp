@@ -88,3 +88,21 @@ test('malformed or production URL is rejected before opening any connection', as
   }), /AUDIT_STAGING_TARGET_REJECTED/);
   assert.equal(opened, 0);
 });
+
+
+test('Axiom staging guard prevents accidental writes to production datasets', () => {
+  const { STAGING_AXIOM_DATASET, assertOutboxAxiomTarget } =
+    require('../services/auditOutboxAxiomTarget');
+  assert.equal(STAGING_AXIOM_DATASET, 'demos-security-staging');
+  assert.equal(assertOutboxAxiomTarget(STAGING_AXIOM_DATASET, 'staging'), STAGING_AXIOM_DATASET);
+  for (const target of ['real-time', 'centralized_logs', '', undefined, 'unknown-staging']) {
+    assert.throws(() => assertOutboxAxiomTarget(target, 'staging'),
+      error => error.message === 'OUTBOX_AXIOM_DATASET_SCOPE_REJECTED');
+  }
+  for (const target of [STAGING_AXIOM_DATASET, 'some-other-staging']) {
+    assert.throws(() => assertOutboxAxiomTarget(target, 'production'),
+      error => error.message === 'OUTBOX_AXIOM_DATASET_SCOPE_REJECTED');
+  }
+  assert.equal(assertOutboxAxiomTarget('real-time', 'production'), 'real-time');
+  assert.equal(assertOutboxAxiomTarget('real-time', 'ci-only'), 'real-time');
+});
