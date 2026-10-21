@@ -203,6 +203,31 @@ LOGIN, la generazione e gestione sicura di una password dedicata,
 la verifica del consumo ore Render Free, quindi un runtime isolato
 con `npm run audit:outbox:render-staging-preflight`.
 
+### Controllo del pooler verificato nel codice (22 ottobre 2026)
+
+- L'URL del **solo staging Supabase** è vincolato ora al Session Pooler
+  realmente mostrato da Connect:
+  `aws-1-eu-central-1.pooler.supabase.com:5432`.
+  Il guard rifiuta gli hostname generici o i cluster Supavisor con
+  un indice differente. Il controllo è applicato sia al **preflight**
+  sia all'apertura del **pool del worker**; pertanto un errore non
+  raggiunge il database.
+- Per il preflight Render si accetta **solo session pooler IPv4**,
+  non la connessione diretta IPv6 del piano Free. Nessun cambio al
+  percorso `production` o alla CI con PostgreSQL locale.
+- Le fixture dei test sono state aggiornate in modo coordinato al
+  pooler verificato, compresi test negativi contro cluster simili
+  e per la connessione diretta non supportata da Render.
+- Il database staging è `ACTIVE_HEALTHY` con
+  `demos_outbox_runtime` ancora **NOLOGIN** e nessun evento
+  nella coda. Un tentativo precedente di abilitare il ruolo era stato
+  respinto dai permessi del provider e dai controlli di sicurezza:
+  **non** ripetere con elevazioni o bypass. La prova autenticata
+  deve usare un flusso amministrativo autorizzato.
+- **Nessun deploy, nessuna password, nessuna modifica alla produzione.**
+  Il controllo della disponibilità di ore Free di Render e la scelta
+  dell'istanza isolata precedono qualsiasi attivazione.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Hostname Session
