@@ -98,3 +98,11 @@ Il codice `putVerifiedObject()` esegue PUT B2, HEAD con hash SHA-256 e verifica 
 **Rischi residui:** il job è legato a una singola istanza web Render Free, quindi può ritardare se il processo si sospende; servono monitoraggio sul checkpoint/ritardo, verifica restore, policy di retention approvata e outbox durevole per i soli eventi critici prima di dichiarare la filiera affidabile. L'attuale connettore Render consente leggere metadati, deploy, metriche e log, ma **non espone** un'azione per leggere i valori delle variabili d'ambiente o interagire direttamente con gli oggetti Backblaze. Non inferire credenziali o lifecycle dalle evidenze Render.
 
 Dashboard del servizio: https://dashboard.render.com/web/srv-d2gt3dodl3ps73fmereg
+
+### Strumento read-only di verifica B2 — PR #217
+
+- Aggiunto `AxiomArchiveService.verifyLatestArchiveBatch(dataset)` per controllare in **sola lettura** l'ultimo checkpoint B2, il manifest collegato e tutti i `.jsonl.gz` dell'ultimo batch, confrontando hash SHA-256, impronte dei singoli eventi e totale per categoria.
+- Comando locale/in ambiente autorizzato: `cd api && npm run archive:axiom:verify-latest -- centralized_logs`; ripetere con `real-time`. **Non** modifica il checkpoint, non interroga Axiom, non carica o cancella oggetti.
+- L'output contiene soltanto nome dataset, orario del checkpoint, numero oggetti/eventi verificati e conteggi per categoria; non include corpi di eventi, user ID, segreti o URL completi.
+- Test di successo con B2 in memoria, manifest manomesso e checkpoint assente. **CI Logging and archive regression #11: success**, 15/15 test logging + **15/15** test archivio, `npm audit --omit=dev --audit-level=high`: 0 vulnerabilità API produzione, verificato da GitHub Actions. La prova di recupero con credenziali del vero bucket **resta da eseguire**.
+- [Procedura operativa](../operations/axiom-b2-log-archive.md).
