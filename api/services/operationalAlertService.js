@@ -4,6 +4,7 @@ const { getFirebaseAdmin } = require('./firebaseAdmin');
 
 const DEFAULT_COOLDOWN_MS = 5 * 60 * 1000;
 const recentAlerts = new Map();
+const inFlightAlerts = new Set();
 
 function cleanText(value, maxLength = 180) {
   return String(value || '')
@@ -46,7 +47,7 @@ function isSuppressed(fingerprint, now = Date.now()) {
   );
   const previous = recentAlerts.get(fingerprint);
   if (previous && now - previous < cooldownMs) return true;
-  recentAlerts.set(fingerprint, now);
+  // A failed delivery must never start a cooldown.
 
   if (recentAlerts.size > 500) {
     const cutoff = now - cooldownMs * 2;
@@ -55,6 +56,10 @@ function isSuppressed(fingerprint, now = Date.now()) {
     }
   }
   return false;
+}
+
+function markDelivered(fingerprint) {
+  recentAlerts.set(fingerprint, Date.now());
 }
 
 async function tableExists(tableName) {
@@ -123,7 +128,8 @@ async function invalidateToken(token) {
   try {
     await pool.query('DELETE FROM user_devices WHERE fcm_token = $1', [token]);
   } catch (error) {
-    console.warn('Operational alert: impossibile eliminare token FCM invalido:', error.message);
+    // FCM/SQL exception text can include credentials or device tokens.
+    console.warn('OPERATIONAL_ALERT_TOKEN_INVALIDATION_FAILED');
   }
 }
 
@@ -193,6 +199,12 @@ class OperationalAlertService {
       return { success: true, suppressed: true, fingerprint };
     }
 
+    if (inFlightAlerts.has(fingerprint)) {
+      // A concurrent attempt is NOT proof the first notification succeeded.
+      return { success: false, suppressed: true, reason: 'IN_FLIGHT', fingerprint };
+    }
+    inFlightAlerts.add(fingerprint);
+
     const title = `DEMOS — ${normalized.severity}`;
     const endpointText = normalized.endpoint ? ` · ${normalized.endpoint}` : '';
     const body = cleanText(`${normalized.component}: ${normalized.type}${endpointText}`, 220);
@@ -201,9 +213,12 @@ class OperationalAlertService {
       const adminIds = await getAdminIds();
       const persisted = await persistAdminAlert(adminIds, title, body);
       const push = await pushToAdmins(adminIds, title, body, normalized);
+      const delivered = persisted > 0 || push.sent > 0;
+      if (delivered) markDelivered(fingerprint);
+      inFlightAlerts.delete(fingerprint);
 
       return {
-        success: persisted > 0 || push.sent > 0,
+        success: delivered,
         suppressed: false,
         fingerprint,
         adminRecipients: adminIds.length,
@@ -211,7 +226,9 @@ class OperationalAlertService {
         push
       };
     } catch (error) {
-      console.error('Operational alert delivery failed:', error.message);
+      // Never emit provider/SQL exception text: it may contain PII or secrets.
+      inFlightAlerts.delete(fingerprint);
+      console.error('OPERATIONAL_ALERT_DELIVERY_FAILED');
       return {
         success: false,
         suppressed: false,

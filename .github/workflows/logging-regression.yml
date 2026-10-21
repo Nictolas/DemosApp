@@ -17,6 +17,8 @@ on:
       - 'api/tests/auditOutboxStagingGuard.test.js'
       - 'api/tests/auditOutboxDatabase.test.js'
       - 'api/services/auditOutboxAlertService.js'
+      - 'api/services/operationalAlertService.js'
+      - 'api/tests/operationalAlertDelivery.test.js'
       - 'api/tests/auditOutboxAlertService.test.js'
       - 'api/jobs/auditOutboxWorker.js'
       - 'api/app.js'
@@ -77,6 +79,7 @@ jobs:
           node --check services/auditOutboxStagingGuard.js
           node --check scripts/verify-audit-outbox-staging.js
           node --check services/auditOutboxAlertService.js
+          node --check services/operationalAlertService.js
           node --check jobs/auditOutboxWorker.js
           node --check app.js
           node --check services/axiomArchiveService.js

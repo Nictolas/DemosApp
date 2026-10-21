@@ -247,6 +247,31 @@ ordinarie. Lentezza anomala del database o crash possono comunque produrre
 reinvii: la garanzia rimane *at-least-once*, non exactly-once. Per questo
 serve controllare la deduplicazione a valle.
 
+## Notifiche amministrative: retry dopo consegna fallita
+
+L'outbox usa il servizio esistente `OperationalAlertService`, senza
+introdurre un servizio a pagamento. Un difetto nella soppressione degli
+avvisi avrebbe potuto silenziare un errore **anche se la notifica non
+fosse stata effettivamente registrata**. Il controllo è stato corretto:
+
+- la finestra di silenziamento della notifica decorre **solo dopo**
+  una conferma di persistenza in-app o push riuscita;
+- se il database/notificatore fallisce, l'evento resta ritentabile
+  secondo le soglie del worker (senza registrare una falsa consegna);
+- gli avvisi identici contemporanei vengono coordinati in memoria;
+  uno dei tentativi non viene falsamente dichiarato riuscito prima
+  dell'esito del primo;
+- gli errori tecnici SQL/FCM non vengono stampati integralmente nei
+  log Render perché potrebbero contenere credenziali o identificativi;
+- test automatici simulano DB che fallisce al primo tentativo,
+  database poi ripristinato, assenza di destinatari e invii concorrenti.
+
+**Limite:** queste notifiche restano dipendenti dal backend e dal
+database DEMOS; l'interruzione simultanea di Render e del DB non può
+essere rilevata dal servizio interno. La consegna effettiva FCM verso
+destinatari admin autorizzati resta da collaudare. Nessuna modifica
+alla conservazione GDPR né cancellazione di eventi è inclusa qui.
+
 ## Da completare prima dell'attivazione
 
 1. Revisionare schema e impatto GDPR (finalità, IP/user ID, cifratura, accessi,
