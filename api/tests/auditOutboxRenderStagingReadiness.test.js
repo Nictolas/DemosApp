@@ -13,8 +13,8 @@ const main = `postgres://postgres.${staging}:test-password@aws-1-eu-central-1.po
 const dedicated = `postgres://demos_outbox_runtime.${staging}:test-password@aws-1-eu-central-1.pooler.supabase.com:5432/postgres`;
 const base = Object.freeze({
   NODE_ENV: 'production',
-  DATABASE_URL: main,
   AUDIT_OUTBOX_DATABASE_URL: dedicated,
+  AUDIT_OUTBOX_PREFLIGHT_ONLY: 'true',
   AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
   AXIOM_REALTIME_DATASET: 'demos-security-staging',
   AXIOM_DATASET: 'demos-security-staging',
@@ -38,12 +38,13 @@ test('safe staging env accepts only same staging project with dedicated 5432 out
 test('unsafe Render config is denied before a database preflight runs', async () => {
   const unsafeCases = [
     { AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production' },
+    { DATABASE_URL: main },
     { DATABASE_URL: main.replace(staging, production) },
+    { AUDIT_OUTBOX_PREFLIGHT_ONLY: 'false' },
     { AUDIT_OUTBOX_DATABASE_URL: dedicated.replace(staging, production) },
     { AUDIT_OUTBOX_DATABASE_URL: main },
     { AUDIT_OUTBOX_DATABASE_URL: dedicated.replace(':5432/', ':6543/') },
     { AUDIT_OUTBOX_DATABASE_URL: undefined },
-    { DATABASE_URL: undefined },
     { AXIOM_REALTIME_DATASET: 'real-time' },
     { AXIOM_DATASET: 'centralized_logs' },
     ...FORBIDDEN_ENABLED_FLAGS.map(key => ({ [key]: 'true' }))
