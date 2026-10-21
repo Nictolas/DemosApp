@@ -63,3 +63,23 @@ I valori che seguono sono **ipotesi**, non prescrizioni generali; la policy va a
 - I test usano mock per Axiom/B2: confermano logica e protocolli locali, **non** equivalgono a una prova di export/restore contro provider reali.
 - Aggiornato anche `CONFIGURAZIONE_LOG_PRODUZIONE.md` per evitare che la creazione del bucket B2 venga descritta erroneamente come archiviazione in esercizio.
 - **Blocco residuo prima dell'attivazione:** credenziali/flag in produzione e prova controllata contro il vero Axiom e il vero bucket Backblaze, senza cancellazioni; retention da approvare con privacy/DPO. Conservare i log esistenti.
+
+
+## Ricognizione aggiuntiva — audit transport e database, 21/10/2026
+- Identificato un secondo writer `api/services/auditService.js`. Prima della correzione avviava il POST Axiom in fire-and-forget, non attendeva alcun acknowledgement, e riportava comunque un "audit log inviato" includendo l'ID utente in console. Il POST poteva fallire silenziosamente.
+- Nella PR #217 ora `AuditService.logAction()` attende l'esito HTTP (timeout limitato a 5 secondi); se fallisce restituisce `null` e produce una segnalazione minimale e rate-limited. Non dichiara più una consegna inesistente, non include più l'ID dell'utente nei messaggi di successo.
+- Nuovo writer `api/utils/axiomAuditEvent.js`: marca `log_type=audit`, conserva i campi di audit previsti, non genera identificatori pseudo-sessione dal semplice ID utente, rifiuta i messaggi di errore testuali non conformi al formato di un codice breve e non esporta `details` con potenziali preferenze politiche.
+- Controlli **con finti provider, senza dati personali**: test HTTP per POST riuscito, HTTP 403 e credenziali assenti; test di minimizzazione del payload, tag e filtri. GitHub Action `Logging and archive regression` #8: **success**, 15/15 test logging e 12/12 test archivio, audit npm produzione API 0 vulnerabilità. GitHub Action generale `Security Agent Validation` #144: **success**.
+- Verifica **sola lettura** su Supabase produzione `wxnblcqoyjqxktwkcqok`: nello schema `public` non risultano tabelle `audit_logs`, `audit_logs_compressed` o `centralized_logs`; esistono soltanto tabelle di configurazione/stato come `log_retention_config`, `logging_config`, `logging_jobs`, `logging_stats`. Nessun record personale è stato letto, nessuna tabella modificata.
+- **RISCHIO RESIDUO P0:** Se Axiom rifiuta o perde la richiesta, il singolo evento audit può andare perso. Aspettare l'acknowledgement e mostrare l'errore **non sono** una garanzia di consegna. NON fare affidamento su un inesistente fallback PostgreSQL.
+
+### Specifica preliminare di consegna affidabile (non ancora implementata)
+1. Progettare una **outbox server-side** per i soli eventi audit e security essenziali (non tutti i log tecnici), in schema PostgreSQL non esposto al Data API; payload strettamente minimizzato, dimensione massima, timestamp, categoria, stato, tentativi, prossimo retry e deduplicazione. Garantire la base giuridica e la cancellazione dopo consegna e scadenza.
+2. Commit locale dell'evento prima di restituire un esito positivo di registrazione; invio asincrono tramite worker con retry esponenziale e jitter, limite tentativi, circuit breaker, e `FOR UPDATE SKIP LOCKED` / lock scadibili per più istanze; nessun log personale nel testo dell'errore.
+3. In caso di fallimento definitivo, mantenere l'evento in dead-letter accessibile solo ad amministratori autorizzati e generare un **alert indipendente da Axiom**.
+4. Metriche senza PII: lunghezza coda, evento più vecchio, numero consegnati/scartati, periodo di ritardo, failure rate. Allarmi per crescita fuori soglia; limiti di archiviazione e costi Supabase. Praticare restore/riconciliazione contro Axiom.
+5. Implementazione e test con mock/staging **prima** di creare nuove tabelle nel database di produzione; controllare RLS/privilegi e assenza di accesso `anon`/`authenticated`. Non cancellare o migrare archivi esistenti.
+
+### Blocco accesso provider
+- Il connettore Render riconosce il workspace `Nicolas`, ma **richiede che l'utente lo selezioni esplicitamente** prima di accedere a servizi e variabili. Nessun servizio Render né configurazione live Axiom/Backblaze sono stati interrogati con questo accesso.
+- Non esiste in questa sessione un connettore collegato che consenta di verificare direttamente l'account Axiom o il bucket Backblaze. La presenza del codice e dei dati del bucket nella documentazione non prova che i log siano archiviati.
