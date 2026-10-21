@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Pool } = require('pg');
 const { createAuditOutbox } = require('../services/auditOutboxService');
+const { createAuditOutboxDatabase } = require('../services/auditOutboxDatabase');
 
 function checkedTestUrl(value) {
   if (!value) return null;
@@ -108,6 +109,43 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       } finally {
         await client.query('ROLLBACK').catch(() => {});
         client.release();
+      }
+    });
+
+    await t.test('a separate login inherits only outbox grants and runs the complete queue', async () => {
+      await clean();
+      await pool.query(`CREATE ROLE demos_outbox_runtime_ci
+        LOGIN PASSWORD 'ci-only-outbox' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`);
+      await pool.query('GRANT demos_outbox_worker TO demos_outbox_runtime_ci');
+
+      const restricted = createAuditOutboxDatabase({
+        env: {
+          DATABASE_URL: testUrl,
+          AUDIT_OUTBOX_DATABASE_URL:
+            'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
+        }
+      });
+      try {
+        await restricted.ensureReady();
+        const current = await restricted.pool.query(
+          'SELECT current_user AS role, current_database() AS db'
+        );
+        assert.equal(current.rows[0].role, 'demos_outbox_runtime_ci');
+        assert.equal(current.rows[0].db, 'demos_outbox_ci');
+        let transmitted = 0;
+        const outbox = createAuditOutbox({
+          pool: restricted.pool, ensureReady: restricted.ensureReady,
+          send: async () => { transmitted++; return true; }
+        });
+        const eventId = await outbox.enqueue(synthetic, 'real-time');
+        assert.match(eventId, /^[a-f0-9-]{36}$/);
+        assert.equal((await outbox.getHealth()).total, 1);
+        const sent = await outbox.drainOnce({ limit: 1 });
+        assert.equal(sent.delivered, 1);
+        assert.equal(transmitted, 1);
+        assert.equal((await outbox.getHealth()).total, 0);
+      } finally {
+        await restricted.pool.end();
       }
     });
 

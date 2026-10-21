@@ -130,6 +130,41 @@ Non è necessaria una nuova istanza database: la tabella può vivere nello
 stesso Supabase di DEMOS, con un limite di dimensione e monitoraggio dei costi.
 
 
+## Connessione applicativa dedicata: fail-closed
+
+Il servizio usa ora `api/services/auditOutboxDatabase.js` per creare un
+**pool PostgreSQL separato** (massimo due connessioni), indipendente
+da `DATABASE_URL` e dal pool applicativo di DEMOS.
+
+L'accesso alla coda necessita della **nuova** variabile server-side
+`AUDIT_OUTBOX_DATABASE_URL` con un login Postgres dedicato: non viene
+letta finché la funzione non è attivata. La URL è obbligatoria e non può
+essere identica alla normale `DATABASE_URL`; non deve contenere account
+`postgres` o `service_role`.
+
+Al primo utilizzo, il servizio legge soltanto metadati di autorizzazione
+del ruolo effettivamente autenticato: membership nel ruolo NOLOGIN
+`demos_outbox_worker`, nessun superuser/BYPASSRLS, ruolo abilitato al
+login, RLS della tabella attiva e grant su SELECT/INSERT/UPDATE/DELETE.
+Se la verifica fallisce, **non** effettua INSERT né consegne e produce
+solo `AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED`, senza credenziali o PII.
+Un worker malconfigurato non deve impedire l'avvio del resto del backend.
+La connessione usa TLS con CA verificata come la configurazione database
+già in uso nel backend; vengono ignorati parametri SSL non affidabili
+eventualmente presenti nella URL.
+
+La migrazione dello staging ha creato il **solo** ruolo NOLOGIN di base.
+Non esiste ancora un login dedicato reale in Supabase e nessuna credenziale
+è stata copiata dai servizi di produzione. In GitHub CI il collaudo crea
+un login temporaneo e sintetico `demos_outbox_runtime_ci`, ne verifica
+i grant e usa il vero pool dedicato per accodamento, consegna fittizia
+e cancellazione dopo ACK. Le credenziali CI non devono mai essere riutilizzate.
+
+**Nota**: un account ordinario con privilegi elevati resta vietato anche
+se dispone di grant alla tabella: il controllo richiede esplicitamente
+l'assenza di `BYPASSRLS` e superuser. L'utente database effettivo deve
+essere distinto dalla connessione ordinaria dell'applicazione.
+
 ## Collaudo SQL con due connessioni PostgreSQL reali in GitHub CI
 
 Il job `postgres-outbox` di `.github/workflows/logging-regression.yml` avvia

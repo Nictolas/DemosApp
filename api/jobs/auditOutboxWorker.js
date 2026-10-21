@@ -127,12 +127,18 @@ function startProductionWorker() {
   if (process.env.AUDIT_OUTBOX_ENABLED !== 'true' ||
       process.env.AUDIT_OUTBOX_WORKER_ENABLED !== 'true') return null;
   // Lazy load: avoids DB connectivity when the feature is disabled.
-  const AuditService = require('../services/auditService');
-  const { createProductionOutboxNotifier } = require('../services/auditOutboxAlertService');
-  return createAuditOutboxWorker({
-    outbox: AuditService.getAuditOutbox(),
-    notifyAdmin: createProductionOutboxNotifier()
-  }).start();
+  // A missing dedicated DB URL must not take the rest of DEMOS offline.
+  try {
+    const AuditService = require('../services/auditService');
+    const { createProductionOutboxNotifier } = require('../services/auditOutboxAlertService');
+    return createAuditOutboxWorker({
+      outbox: AuditService.getAuditOutbox(),
+      notifyAdmin: createProductionOutboxNotifier()
+    }).start();
+  } catch (_error) {
+    console.warn('AUDIT_OUTBOX_WORKER_CONFIGURATION_REJECTED');
+    return null;
+  }
 }
 
 module.exports = { createAuditOutboxWorker, startProductionWorker };

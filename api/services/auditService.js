@@ -138,8 +138,13 @@ class AuditService {
   static getAuditOutbox() {
     if (!this._auditOutbox) {
       const { createAuditOutbox } = require('./auditOutboxService');
+      const { createAuditOutboxDatabase } = require('./auditOutboxDatabase');
+      // Fail closed if a separate, restricted DB login has not been configured.
+      // Do not reuse DEMOS's general-purpose pool (potentially privileged).
+      const { pool: outboxPool, ensureReady } = createAuditOutboxDatabase();
       this._auditOutbox = createAuditOutbox({
-        pool,
+        pool: outboxPool,
+        ensureReady,
         send: (dataset, payload) => AuditService.sendPreparedAuditEventToAxiomHTTP(dataset, payload),
         report: (code, data) => console.warn(code, data?.count === undefined ? '' : data.count)
       });

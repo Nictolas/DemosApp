@@ -9,6 +9,8 @@ on:
       - 'api/tests/axiomSecurityEvent.test.js'
       - 'api/services/auditService.js'
       - 'api/services/auditOutboxService.js'
+      - 'api/services/auditOutboxDatabase.js'
+      - 'api/tests/auditOutboxDatabase.test.js'
       - 'api/services/auditOutboxAlertService.js'
       - 'api/tests/auditOutboxAlertService.test.js'
       - 'api/jobs/auditOutboxWorker.js'
@@ -65,6 +67,7 @@ jobs:
           node --check utils/axiomSecurityEvent.js
           node --check services/auditService.js
           node --check services/auditOutboxService.js
+          node --check services/auditOutboxDatabase.js
           node --check services/auditOutboxAlertService.js
           node --check jobs/auditOutboxWorker.js
           node --check app.js

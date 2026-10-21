@@ -40,12 +40,12 @@ function nextDelayMs(attempts, random = Math.random) {
 }
 
 function createAuditOutbox({
-  pool, send, report = console.error, random = Math.random,
-  maxAttempts = DEFAULT_MAX_ATTEMPTS,
+  pool, send, ensureReady = async () => {}, report = console.error,
+  random = Math.random, maxAttempts = DEFAULT_MAX_ATTEMPTS,
   maxRecords = resolveMaxRecords()
 }) {
   if (!pool || typeof pool.query !== 'function' || typeof pool.connect !== 'function' ||
-      typeof send !== 'function') {
+      typeof send !== 'function' || typeof ensureReady !== 'function') {
     throw new Error('OUTBOX_INVALID_DEPENDENCY');
   }
   if (!Number.isSafeInteger(maxRecords) || maxRecords < 1 || maxRecords > MAX_CONFIGURED_RECORDS) {
@@ -54,6 +54,7 @@ function createAuditOutbox({
   let lastCapacityAlertMs = -Infinity;
 
   async function enqueue(event, dataset) {
+    await ensureReady();
     assertOutboxEvent(event, dataset);
     const id = randomUUID();
     const payload = { ...event, axiom_delivery_id: id };
@@ -105,6 +106,7 @@ function createAuditOutbox({
 
   // Counts and ages only. The event payload and identifiers never leave SQL.
   async function getHealth() {
+    await ensureReady();
     const result = await pool.query(`
       SELECT COUNT(*)::integer AS total,
              COUNT(*) FILTER (WHERE status = 'pending')::integer AS pending,
@@ -135,6 +137,7 @@ function createAuditOutbox({
   // 90-second leases must outlast a whole sequential HTTP batch.
   // Axiom requests use a five-second timeout; cap at 10 claims (<=50s of HTTP).
   async function drainOnce({ limit = 10 } = {}) {
+    await ensureReady();
     const batchSize = Math.max(1, Math.min(10, Number(limit) || 10));
     const leaseId = randomUUID();
     const result = await pool.query(

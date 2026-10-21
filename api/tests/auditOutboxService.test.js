@@ -204,3 +204,20 @@ test('getHealth exposes only aggregate counts and age, never payloads', async ()
     oldestWaitSeconds: 901, capacity: 5
   });
 });
+
+test('database preflight denial prevents enqueue, worker claims, and health reads', async () => {
+  let dbCalls = 0;
+  const pool = mockPool({ query: async () => {
+    dbCalls++;
+    return { rowCount: 1 };
+  } });
+  const store = createAuditOutbox({
+    pool,
+    send: async () => { throw new Error('must never contact Axiom'); },
+    ensureReady: async () => { throw new Error('AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED'); }
+  });
+  await assert.rejects(() => store.enqueue(event, 'real-time'), /PREFLIGHT_FAILED/);
+  await assert.rejects(() => store.drainOnce(), /PREFLIGHT_FAILED/);
+  await assert.rejects(() => store.getHealth(), /PREFLIGHT_FAILED/);
+  assert.equal(dbCalls, 0);
+});
