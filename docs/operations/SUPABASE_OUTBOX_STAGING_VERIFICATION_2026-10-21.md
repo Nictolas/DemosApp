@@ -104,6 +104,44 @@ una connessione di staging limitata resta ancora da effettuare.
 
 Non creare policy aperte a `anon` o `authenticated` per eliminare avvisi.
 
+## Preflight runtime isolato e sola lettura — nuovo comando
+
+Prima di creare o attivare un backend di collaudo, usare soltanto una
+connessione del ruolo PostgreSQL dedicato allo **staging**.
+Il server connesso deve avere la variabile `AUDIT_OUTBOX_DATABASE_URL`
+impostata tramite un secret manager (non salvare password in Git, issue,
+documentazione, log o cron). NON riusare `DATABASE_URL` di DEMOS.
+
+```bash
+cd api
+npm run audit:outbox:staging-preflight
+```
+
+Il comando non invia eventi ad Axiom e non esegue INSERT/UPDATE/DELETE.
+Accetta esclusivamente il progetto
+`fkeayjzvtuvzesljhjbc`: connessione diretta Postgres (porta 5432)
+oppure **Supavisor session pooler** (porta 5432) con il suffisso
+`.<project-ref>` nel nome utente. Respinge l'account amministrativo
+`postgres`, host non appartenenti al progetto, connessioni di produzione,
+database diversi da `postgres` e il pooler transaction-mode su 6543.
+Verifica i privilegi effettivi tramite il modulo
+`auditOutboxDatabase`; stampa soltanto un esito e l'identificativo
+pubblico dello staging, mai credenziali o contenuti di eventi.
+
+La connessione diretta dei progetti Free richiede IPv6; da un host
+IPv4-only usare la stringa **esatta** del Session Pooler nel
+pannello Supabase → Connect. Il prefisso `aws-[INDEX]` del pooler
+non può essere indovinato dalla regione.
+Guida ufficiale: https://supabase.com/docs/guides/database/connecting-to-postgres
+
+**Verifiche del 21/10/2026:** il controllo DNS dell'endpoint diretto
+`db.fkeayjzvtuvzesljhjbc.supabase.co` dal computer desktop collegato
+non ha restituito un indirizzo; non sono state create credenziali login
+di staging soltanto per aggirare tale limite. Il nuovo comando è
+coperto da test automatici su URI sintetiche, ma **non è stato eseguito
+contro Supabase con una password reale**. Questo resta un blocco
+esplicito del collaudo end-to-end. Non attivare il worker.
+
 ## Bloccanti prima di abilitare la coda su DEMOS
 
 1. Confermare con il titolare/DPO, ove presente, finalità, campi ammessi,

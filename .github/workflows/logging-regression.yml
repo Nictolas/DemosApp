@@ -10,6 +10,9 @@ on:
       - 'api/services/auditService.js'
       - 'api/services/auditOutboxService.js'
       - 'api/services/auditOutboxDatabase.js'
+      - 'api/services/auditOutboxStagingGuard.js'
+      - 'api/scripts/verify-audit-outbox-staging.js'
+      - 'api/tests/auditOutboxStagingGuard.test.js'
       - 'api/tests/auditOutboxDatabase.test.js'
       - 'api/services/auditOutboxAlertService.js'
       - 'api/tests/auditOutboxAlertService.test.js'
@@ -68,6 +71,8 @@ jobs:
           node --check services/auditService.js
           node --check services/auditOutboxService.js
           node --check services/auditOutboxDatabase.js
+          node --check services/auditOutboxStagingGuard.js
+          node --check scripts/verify-audit-outbox-staging.js
           node --check services/auditOutboxAlertService.js
           node --check jobs/auditOutboxWorker.js
           node --check app.js

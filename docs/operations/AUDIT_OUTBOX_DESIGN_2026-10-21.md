@@ -165,6 +165,20 @@ se dispone di grant alla tabella: il controllo richiede esplicitamente
 l'assenza di `BYPASSRLS` e superuser. L'utente database effettivo deve
 essere distinto dalla connessione ordinaria dell'applicazione.
 
+### Verifica preflight del runtime staging
+
+Per evitare collegamenti accidentali alla produzione, il comando
+`npm run audit:outbox:staging-preflight` rifiuta qualsiasi URL PostgreSQL
+che non identifichi esplicitamente `Demos-Staging`. Verifica il ruolo
+applicativo con una connessione di sola lettura e non esegue alcun
+INSERT/UPDATE/DELETE. Riconosce soltanto connessioni dirette su porta
+5432 o il Session Pooler Supabase su porta 5432 (non il pooler transaction-mode
+6543). Anche in staging il ruolo non deve essere un account amministrativo.
+Non richiede né visualizza dati personali, token Axiom o chiavi B2.
+
+Per dettagli, configurazione e limiti degli accessi consultare
+`SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md`.
+
 ## Collaudo SQL con due connessioni PostgreSQL reali in GitHub CI
 
 Il job `postgres-outbox` di `.github/workflows/logging-regression.yml` avvia
