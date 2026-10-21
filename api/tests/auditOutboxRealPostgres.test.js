@@ -225,6 +225,120 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       }
     });
 
+    await t.test('restricted PG outbox -> simulated Axiom retries -> B2 archive -> read-only restore', async () => {
+      await clean();
+      const { AxiomArchiveService } = require('../services/axiomArchiveService');
+      const restricted = createAuditOutboxDatabase({
+        env: {
+          DATABASE_URL: testUrl,
+          NODE_ENV: 'test',
+          AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
+          AUDIT_OUTBOX_DATABASE_URL:
+            'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
+        }
+      });
+      const ingested = [];
+      const b2Objects = new Map();
+      let putCalls = 0;
+      const b2Client = {
+        async send(command) {
+          const { Key, Body, Metadata, ContentEncoding, ContentType } = command.input;
+          switch (command.constructor.name) {
+            case 'PutObjectCommand':
+              putCalls++;
+              b2Objects.set(Key, {
+                body: Buffer.from(Body),
+                metadata: Metadata,
+                contentEncoding: ContentEncoding,
+                contentType: ContentType
+              });
+              return {};
+            case 'HeadObjectCommand': {
+              const saved = b2Objects.get(Key);
+              assert.ok(saved, 'HEAD must reference an uploaded synthetic object');
+              return { ContentLength: saved.body.length, Metadata: saved.metadata };
+            }
+            case 'GetObjectCommand': {
+              const saved = b2Objects.get(Key);
+              assert.ok(saved, 'GET must reference an uploaded synthetic object');
+              assert.equal(command.input.Range, `bytes=0-${saved.body.length - 1}`);
+              return {
+                Body: { async *[Symbol.asyncIterator]() { yield saved.body; } },
+                Metadata: saved.metadata,
+                ContentEncoding: saved.contentEncoding,
+                ContentType: saved.contentType
+              };
+            }
+            default:
+              throw new Error('UNEXPECTED_SYNTHETIC_B2_COMMAND');
+          }
+        }
+      };
+      try {
+        await restricted.ensureReady();
+        let attempts = 0;
+        const outbox = createAuditOutbox({
+          pool: restricted.pool,
+          ensureReady: restricted.ensureReady,
+          random: () => 0.5,
+          send: async (dataset, payload) => {
+            assert.equal(dataset, 'real-time');
+            attempts++;
+            // First Axiom receipt loses its HTTP acknowledgement; identical
+            // delivery UUID is ingested a second time after the retry.
+            ingested.push({
+              ...structuredClone(payload),
+              _id: `synthetic-ingest-${attempts}`,
+              _sysTime: `2026-10-21T12:0${attempts}:00.000Z`
+            });
+            return attempts > 1;
+          }
+        });
+
+        const id = await outbox.enqueue(synthetic, 'real-time');
+        assert.equal((await outbox.drainOnce({ limit: 1 })).rescheduled, 1);
+        await pool.query(
+          "UPDATE demos_private.audit_delivery_outbox SET next_attempt_at=NOW()-INTERVAL '1 second' WHERE id=$1",
+          [id]
+        );
+        assert.equal((await outbox.drainOnce({ limit: 1 })).delivered, 1);
+        assert.equal((await outbox.getHealth()).total, 0);
+        assert.equal(ingested.length, 2);
+        assert.equal(ingested[0].axiom_delivery_id, id);
+        assert.equal(ingested[1].axiom_delivery_id, id);
+
+        const archive = new AxiomArchiveService({
+          env: {
+            AXIOM_ARCHIVE_PREFIX: 'demos/axiom-archive/v1',
+            B2_BUCKET_NAME: 'synthetic-ci-bucket',
+            B2_S3_ENDPOINT: 'https://s3.eu-central-003.backblazeb2.com',
+            B2_S3_REGION: 'eu-central-003',
+            B2_S3_ACCESS_KEY_ID: 'synthetic-no-network',
+            B2_S3_SECRET_ACCESS_KEY: 'synthetic-no-network'
+          },
+          axiomClient: { async query() { return { matches: ingested }; } },
+          b2Client
+        });
+        const archived = await archive.archiveWindow({
+          dataset: 'real-time',
+          startTime: new Date('2026-10-21T11:55:00Z'),
+          endTime: new Date('2026-10-21T12:15:00Z'),
+          archivedAt: new Date('2026-10-21T12:16:00Z')
+        });
+        assert.equal(archived.count, 1, 'same delivery UUID must archive once');
+        assert.equal(archived.categories.audit, 1);
+        assert.equal(archived.objects.length, 1);
+        const beforeRestore = putCalls;
+        const restored = await archive.verifyLatestArchiveBatch('real-time');
+        assert.equal(restored.verifiedEvents, 1);
+        assert.equal(restored.categories.audit, 1);
+        assert.equal(restored.verifiedObjects, 1);
+        assert.equal(putCalls, beforeRestore, 'restore must not write to B2');
+      } finally {
+        await restricted.pool.end();
+      }
+    });
+
     await t.test('FOR UPDATE SKIP LOCKED does not wait on row locked by another connection', async () => {
       await clean();
       const send = async () => true;
