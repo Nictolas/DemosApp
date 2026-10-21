@@ -20,6 +20,8 @@ on:
       - 'docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'
       - 'api/services/axiomArchiveService.js'
       - 'api/services/archiveOverlapVerifier.js'
+      - 'api/services/archiveOverlapB2Reader.js'
+      - 'api/tests/archiveOverlapB2Reader.test.js'
       - 'api/tests/archiveOverlapVerifier.test.js'
       - 'api/scripts/verify-axiom-archive-overlap.js'
       - 'docs/operations/axiom-b2-log-archive.md'
@@ -66,6 +68,7 @@ jobs:
           node --check app.js
           node --check services/axiomArchiveService.js
           node --check services/archiveOverlapVerifier.js
+          node --check services/archiveOverlapB2Reader.js
           node --check scripts/verify-axiom-archive-overlap.js
           node --check scripts/verify-latest-axiom-archive.js
       - name: Logging privacy and delivery tests

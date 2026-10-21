@@ -4,6 +4,7 @@
 // PUT/DELETE, no checkpoint changes, and no personal data in stdout.
 const { AxiomArchiveService, recordFingerprint } = require('../services/axiomArchiveService');
 const { verifyArchiveOverlap } = require('../services/archiveOverlapVerifier');
+const { createReadOnlyOverlapLoader } = require('../services/archiveOverlapB2Reader');
 
 (async () => {
   const [dataset, ...keys] = process.argv.slice(2);
@@ -16,6 +17,7 @@ const { verifyArchiveOverlap } = require('../services/archiveOverlapVerifier');
     const archive = new AxiomArchiveService();
     // Config validated, but no authentication or B2 request until keys pass
     // strict prefix/category/dataset and count checks inside the verifier.
+    // Input keys must be validated before any network access.
     const result = await verifyArchiveOverlap({
       dataset,
       prefix: archive.prefix,
@@ -23,7 +25,10 @@ const { verifyArchiveOverlap } = require('../services/archiveOverlapVerifier');
       recordFingerprint,
       load: async key => {
         archive.validateB2Configuration();
-        return archive.getObject(key);
+        const loadObject = createReadOnlyOverlapLoader({
+          client: archive.getB2Client(), bucket: archive.bucket
+        });
+        return loadObject(key);
       }
     });
     console.log(JSON.stringify(result, null, 2));

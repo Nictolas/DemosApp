@@ -171,7 +171,10 @@ rejects invalid paths and requires 2–12 distinct data-object keys of the
 same dataset; it performs **GET only**, validates compressed SHA-256 metadata,
 decompresses up to 32 MiB per object, validates each event's fingerprint,
 reconciles duplicated `archive_event_id` values **across objects**, and fails
-if the same ID has incompatible event payloads or categories. It prints only
+if the same ID has incompatible event payloads or categories. It first checks object size and integrity metadata with a read-only **HEAD**
+request, refuses objects larger than **8 MiB before downloading them**, then
+uses a byte-range-limited GET and bounded streaming to prevent unexpectedly
+large transfers. It prints only
 the counts `objectsExamined`, `recordsExamined`, `uniqueEvents`,
 `duplicateCopies` and aggregate categories. It does **not** print
 identifying events, write a merged archive, perform PUT/DELETE operations or
