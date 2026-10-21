@@ -169,6 +169,31 @@ nello staging Supabase o configurata una credenziale su Render.
 Prima della prova runtime devono essere verificati i grant effettivi
 del LOGIN creato attraverso il canale sicuro del provider.
 
+### Identità Supabase runtime predisposta, connessione ancora NO-GO
+
+Il 21 ottobre 2026 è stata applicata **solo** a `Demos-Staging`
+la migrazione `20261021212727`: ora esiste
+`demos_outbox_runtime` **NOLOGIN, senza password** e membro
+del solo `demos_outbox_worker`. SQL verificato: privilegi
+`SELECT/INSERT/UPDATE/DELETE` limitati alla coda, nessun
+`SUPERUSER/BYPASSRLS/CREATEDB/CREATEROLE/REPLICATION`, nessun
+`CREATE` su `public`; **0** altre tabelle leggibili,
+**0** routine definer richiamabili e **0** eventi in coda.
+Il lavoro è reale sul database di prova, **non è un collegamento Render
+attivo** e non consente l'accesso a rete senza LOGIN.
+
+**Blocco preciso:** manca il vero hostname
+Supabase `Demos-Staging → Connect → Session pooler` (porta 5432).
+Non è derivabile dal nome della regione e Render richiede IPv4 per la
+connessione al database Supabase Free. Le interfacce già connesse
+non hanno restituito l'hostname autenticato. Non provare host
+inventati e non distribuire le credenziali del database principale.
+Dopo aver acquisito l'hostname e controllato le ore Render disponibili,
+attivare il LOGIN soltanto per questo ruolo, generare/iniettare la
+credenziale come secret nel backend di staging isolato e eseguire
+`npm run audit:outbox:render-staging-preflight`. Nessun servizio
+Render è stato modificato o aggiunto.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Ottenere da Supabase
