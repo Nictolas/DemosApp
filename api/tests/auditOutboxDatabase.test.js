@@ -68,6 +68,8 @@ test('dedicated pool is small, TLS-aware, and checks Postgres membership before 
   assert.equal(f.queries.length, 1, 'ready check cached');
   assert.deepEqual(f.queries[0].args, ['demos_outbox_worker']);
   assert.ok(f.queries[0].sql.includes('pg_has_role'));
+  assert.ok(f.queries[0].sql.includes("c.relname = 'audit_delivery_outbox'"));
+  assert.ok(f.queries[0].sql.includes('p.prosecdef'));
   assert.ok(!JSON.stringify(f.queries).includes('ci-secret'));
 });
 
