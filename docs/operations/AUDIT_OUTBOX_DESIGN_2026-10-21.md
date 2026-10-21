@@ -1,6 +1,11 @@
 # DEMOS — outbox durevole per audit e sicurezza (proposta, 21/10/2026)
 
 **Stato: componente e integrazione dietro flag completati nel ramo di sviluppo, NON attivati in produzione. Nessuna migrazione applicata.**
+
+La proposta di conservazione e di gestione degli incidenti è in
+`docs/operations/AUDIT_OUTBOX_RETENTION_PROPOSAL_2026-10-21.md`:
+le durate proposte sono **da approvare**, non regole applicate né un obbligo
+legale uniforme.
 La PR #217 ha migliorato il controllo dell'esito HTTP di Axiom, ma un evento critico
 può andare perduto se Axiom è indisponibile. L'archivio storico B2 non può
 recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
@@ -128,9 +133,12 @@ serve controllare la deduplicazione a valle.
 4. **Implementato nel codice, non attivo:** verificare in staging il trasporto Axiom di eventi già minimizzati e il worker con `AUDIT_OUTBOX_WORKER_ENABLED=true`, senza sovrapporlo al job Axiom → B2 esistente.
 5. **Implementato nel codice, non attivo:** limite hard a 5.000 record con
    lock PostgreSQL transazionale e allarmi aggregati nei log applicativi di
-   Render indipendenti da Axiom. **Ancora da completare:** notifica esterna
-   effettiva se i log Render non vengono letti, approvazione soglie e
-   runbook per revisione manuale dei dead-letter; nessuna cancellazione
+   Render indipendenti da Axiom. **Aggiunto anche un canale admin opt-in**
+   tramite l'esistente `OperationalAlertService` (notifiche in-app e push FCM
+   se disponibili), con codici fissi e retry controllato. **Ancora da
+   completare:** prova su destinatari admin reali/staging, un monitor
+   realmente esterno se sia Render sia DB non funzionano, approvazione soglie
+   e runbook per revisione manuale dei dead-letter; nessuna cancellazione
    automatica prima della decisione sulle retention GDPR.
 6. Testare in staging Axiom non disponibile, riavvio, lease scaduto,
    doppio worker, duplicazioni, dead-letter e recupero completo.
@@ -138,7 +146,7 @@ serve controllare la deduplicazione a valle.
 
 **Disponibilità staging verificata 21/10/2026:** il connettore Supabase mostra un solo progetto DEMOS attivo, senza branch di sviluppo; il secondo progetto storico `DemosReplit` è inattivo. Nel progetto DEMOS attivo non esiste ancora lo schema `demos_private` (sola lettura). Non usare il progetto attivo come staging né attivare i flag fino a collaudo PostgreSQL indipendente.
 
-**Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. Avviare solo dopo schema/permessi/retention verificati. Il codice non aggiunge al momento la cattura automatica degli eventi `security` prodotti dal logger centralizzato: quel canale necessita una successiva integrazione distinta.
+**Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. `AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED=true` abilita separatamente notifiche agli admin per backlog, dead-letter e problemi al worker attraverso `OperationalAlertService`; senza il flag il sistema emette solo contatori nei log Render. Avviare solo dopo schema/permessi/retention verificati. Il codice non aggiunge al momento la cattura automatica degli eventi `security` prodotti dal logger centralizzato: quel canale necessita una successiva integrazione distinta.
 
 ## Test locali del componente
 

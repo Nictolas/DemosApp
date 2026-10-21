@@ -117,3 +117,70 @@ test('health failure emits generic warning and does not block delivery', async (
   assert.equal(warnings[0][0], 'AUDIT_OUTBOX_HEALTH_CHECK_FAILED');
   assert.ok(!JSON.stringify(warnings).includes('private database url'));
 });
+
+test('admin alert retries after a failed delivery and stays hourly after success', async () => {
+  const calls = [];
+  const warnings = [];
+  let now = 100;
+  let successes = 0;
+  const health = {
+    total: 4001, pending: 4001, sending: 0, deadLetter: 0,
+    oldestWaitSeconds: 1000, capacity: 5000
+  };
+  const worker = createAuditOutboxWorker({
+    enabled: () => true,
+    clock: () => now,
+    outbox: {
+      drainOnce: async () => ({ delivered: 0, rescheduled: 0, deadLettered: 0 }),
+      getHealth: async () => health
+    },
+    notifyAdmin: async kind => {
+      calls.push(kind);
+      return { success: (++successes) > 1 };
+    },
+    report: (...args) => warnings.push(args)
+  });
+  await worker.runOnce(); // failed
+  await worker.runOnce(); // throttled: <5m
+  assert.deepEqual(calls, ['AUDIT_OUTBOX_CAPACITY_PRESSURE']);
+  now += 5 * 60 * 1000 + 1;
+  await worker.runOnce(); // success
+  assert.equal(calls.length, 2);
+  now += 10 * 60 * 1000;
+  await worker.runOnce(); // throttled: <1h
+  assert.equal(calls.length, 2);
+  now += 60 * 60 * 1000;
+  await worker.runOnce();
+  assert.equal(calls.length, 3);
+  assert.equal(warnings.filter(([code]) => code === 'AUDIT_OUTBOX_ADMIN_ALERT_UNDELIVERED').length, 1);
+});
+
+test('dead-letter has priority over capacity and delivery delay', async () => {
+  let got;
+  const worker = createAuditOutboxWorker({
+    enabled: () => true,
+    outbox: {
+      drainOnce: async () => ({ delivered: 0, rescheduled: 0, deadLettered: 0 }),
+      getHealth: async () => ({
+        total: 4999, pending: 4998, sending: 0, deadLetter: 1,
+        oldestWaitSeconds: 3600, capacity: 5000
+      })
+    },
+    notifyAdmin: async kind => { got = kind; return { success: true }; },
+    report: () => {}
+  });
+  await worker.runOnce();
+  assert.equal(got, 'AUDIT_OUTBOX_DEAD_LETTER');
+});
+
+test('worker failure attempts notification using fixed code only', async () => {
+  const captured = [];
+  const worker = createAuditOutboxWorker({
+    enabled: () => true,
+    outbox: { drainOnce: async () => { throw new Error('secret user email'); } },
+    notifyAdmin: async code => { captured.push(code); return { success: true }; },
+    report: () => {}
+  });
+  assert.deepEqual(await worker.runOnce(), { failed: true });
+  assert.deepEqual(captured, ['AUDIT_OUTBOX_WORKER_FAILED']);
+});
