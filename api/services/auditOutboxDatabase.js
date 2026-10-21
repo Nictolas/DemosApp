@@ -68,6 +68,9 @@ function createAuditOutboxDatabase({
           SELECT r.rolsuper AS is_superuser,
                  r.rolbypassrls AS bypass_rls,
                  r.rolcanlogin AS can_login,
+                 r.rolcreatedb AS can_create_database,
+                 r.rolcreaterole AS can_create_roles,
+                 r.rolreplication AS can_replicate,
                  pg_has_role(CURRENT_USER, $1, 'member') AS worker_member,
                  has_schema_privilege(CURRENT_USER, 'demos_private', 'USAGE') AS schema_access,
                  has_table_privilege(CURRENT_USER,
@@ -79,12 +82,48 @@ function createAuditOutboxDatabase({
                  has_table_privilege(CURRENT_USER,
                    'demos_private.audit_delivery_outbox', 'DELETE') AS can_delete,
                  (SELECT c.relrowsecurity FROM pg_class c
-                   WHERE c.oid='demos_private.audit_delivery_outbox'::regclass) AS rls_enabled
+                   WHERE c.oid='demos_private.audit_delivery_outbox'::regclass) AS rls_enabled,
+                 has_schema_privilege(CURRENT_USER, 'public', 'CREATE') AS can_create_public,
+                 -- Checking the real authenticated LOGIN is essential: membership
+                 -- in the restricted worker does NOT exclude PUBLIC or other grants.
+                 (SELECT COUNT(*)::integer
+                    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'demos_private')
+                      AND n.nspname NOT LIKE 'pg_%'
+                      AND c.relkind IN ('r','p','v','m','f')
+                      AND has_schema_privilege(CURRENT_USER, n.oid, 'USAGE')
+                      AND (
+                        has_table_privilege(CURRENT_USER,c.oid,'SELECT') OR
+                        has_table_privilege(CURRENT_USER,c.oid,'INSERT') OR
+                        has_table_privilege(CURRENT_USER,c.oid,'UPDATE') OR
+                        has_table_privilege(CURRENT_USER,c.oid,'DELETE') OR
+                        has_table_privilege(CURRENT_USER,c.oid,'TRUNCATE') OR
+                        has_table_privilege(CURRENT_USER,c.oid,'REFERENCES') OR
+                        has_table_privilege(CURRENT_USER,c.oid,'TRIGGER')
+                      )) AS unrelated_table_grants,
+                 -- PUBLIC EXECUTE on SECURITY DEFINER routines is an implicit
+                 -- privilege and could expose rows outside the private outbox.
+                 (SELECT COUNT(*)::integer
+                    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'demos_private')
+                      AND n.nspname NOT LIKE 'pg_%'
+                      AND p.prosecdef
+                      AND has_schema_privilege(CURRENT_USER,n.oid,'USAGE')
+                      AND has_function_privilege(CURRENT_USER,p.oid,'EXECUTE')
+                 ) AS unrelated_definer_grants,
+                 (SELECT COUNT(*)::integer FROM pg_roles other
+                    WHERE other.oid <> r.oid AND other.rolname <> $1
+                      AND pg_has_role(CURRENT_USER, other.oid, 'member')
+                 ) AS unrelated_role_memberships
           FROM pg_roles r WHERE r.rolname = CURRENT_USER
         `, [REQUIRED_ROLE]);
         const role = result.rows?.[0];
         if (!role || role.is_superuser !== false || role.bypass_rls !== false ||
             role.can_login !== true || role.worker_member !== true ||
+            role.can_create_database !== false || role.can_create_roles !== false ||
+            role.can_replicate !== false || role.can_create_public !== false ||
+            role.unrelated_table_grants !== 0 || role.unrelated_definer_grants !== 0 ||
+            role.unrelated_role_memberships !== 0 ||
             role.schema_access !== true || role.can_select !== true ||
             role.can_insert !== true || role.can_update !== true ||
             role.can_delete !== true || role.rls_enabled !== true) {
