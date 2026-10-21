@@ -251,3 +251,20 @@ test('database preflight denial prevents enqueue, worker claims, and health read
   await assert.rejects(() => store.getHealth(), /PREFLIGHT_FAILED/);
   assert.equal(dbCalls, 0);
 });
+
+
+test('staging outbox validation rejects a live Axiom dataset before insertion', () => {
+  const { assertOutboxEvent } = require('../services/auditOutboxService');
+  const original = process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE;
+  try {
+    process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = 'staging';
+    assert.throws(
+      () => assertOutboxEvent(event, 'real-time'),
+      error => error.message === 'OUTBOX_AXIOM_DATASET_SCOPE_REJECTED'
+    );
+    assert.doesNotThrow(() => assertOutboxEvent(event, 'demos-security-staging'));
+  } finally {
+    if (original === undefined) delete process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE;
+    else process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = original;
+  }
+});
