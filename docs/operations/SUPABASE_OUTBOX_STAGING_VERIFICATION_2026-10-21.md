@@ -117,7 +117,12 @@ Non creare policy aperte a `anon` o `authenticated` per eliminare avvisi.
    RLS e grants del ruolo tecnico NOLOGIN. **Da completare**: accesso
    end-to-end con una vera credenziale backend di staging limitata e
    collaudo delle operazioni sotto quell'identità, senza stampare password
-   o token.
+   o token. **Nel frattempo la CI PostgreSQL 17 ha eseguito con successo**
+   un test completo usando un login sintetico `demos_outbox_runtime_ci`
+   associato al ruolo NOLOGIN. Il codice applicativo crea un pool
+   dedicato da `AUDIT_OUTBOX_DATABASE_URL` e rifiuta utenti con superuser
+   o BYPASSRLS. Questa prova CI non sostituisce la connessione al progetto
+   Supabase di staging.
 4. Verificare l'ACK Axiom, l'eventuale consegna duplicata, la notifica
    amministrativa, e il comportamento in caso di ripartenza/fallimento DB.
 5. Svolgere un recupero **di sola lettura** di B2 usando credenziali
