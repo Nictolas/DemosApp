@@ -444,3 +444,28 @@ test('audit archive groups contain one copy after replayed Axiom ingestion', () 
   assert.equal(groups.get('security').length, 0);
   assert.equal(groups.get('audit')[0].archive_event_id, recordFingerprint('real-time', replay));
 });
+
+test('conflicting delivery IDs fail archive window before B2 manifest/checkpoint writes', async () => {
+  const id = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const first = {
+    _time: '2026-10-21T12:02:00.000Z', log_type: 'audit',
+    axiom_delivery_id: id, action: 'DATA_ACCESS', resource: 'users',
+    _sysTime: '2026-10-21T12:02:01.000Z'
+  };
+  const conflicting = { ...first, action: 'CONSENT_CHANGE',
+    _sysTime: '2026-10-21T12:02:05.000Z' };
+  const b2 = new MemoryB2Client();
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    axiomClient: { query: async () => ({ matches: [first, conflicting] }) },
+    b2Client: b2
+  });
+  await assert.rejects(() => service.archiveWindow({
+    dataset: 'real-time',
+    startTime: new Date('2026-10-21T12:00:00.000Z'),
+    endTime: new Date('2026-10-21T12:05:00.000Z'),
+    archivedAt: new Date('2026-10-21T12:20:00.000Z')
+  }), /AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT/);
+  assert.equal(b2.objects.size, 0,
+    'conflicts must not upload a manifest or advance archive checkpoint');
+});

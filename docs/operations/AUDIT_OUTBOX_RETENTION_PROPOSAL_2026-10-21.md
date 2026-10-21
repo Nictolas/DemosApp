@@ -8,7 +8,7 @@ se nominato, del DPO/consulente privacy, con finalità e necessità documentate.
 ## Finalità e ciclo di vita
 
 L'outbox non è un archivio storico autonomo: serve a conservare **temporaneamente**
-gli eventi audit e, in una fase successiva, sicurezza non ancora confermati
+gli eventi audit e, con flag dedicato, gli eventi di sicurezza non ancora confermati
 da Axiom. Dopo ACK di Axiom, il record della coda viene eliminato; la
 conservazione nel dataset Axiom e nell'archivio Backblaze B2 è una **policy
 separata**, da definire in base a finalità, categorie e accessi.
