@@ -63,17 +63,24 @@ router.get('/', async (req, res) => {
         const userResult = await pool.query(userQuery, [userId]);
         const userRole = userResult.rows[0]?.ruolo;
 
+        // Una sola lettura dello schema per cooldown e preferenza personale:
+        // la precedente implementazione ripeteva la query information_schema
+        // per gli utenti non amministratori ad ogni caricamento della pagina.
+        const tableInfo = await pool.query(`
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = 'voti_capo_stato'
+          ORDER BY ordinal_position
+        `);
+        const columns = tableInfo.rows.map((row) => row.column_name);
+        const hasUserId = columns.includes('userId');
+        const hasUserid = columns.includes('userid');
+        const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : 'userid'); // Default a userid
+
         // Cooldown canonico: la singola preferenza Capo di Stato può cambiare al massimo ogni 24 ore.
         if (userRole !== 'Admin' && userRole !== 'AD') {
-          const tableInfoResult = await pool.query(`
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'voti_capo_stato'
-          `);
-          const voteColumns = tableInfoResult.rows.map((row) => row.column_name);
-          const cooldownUserColumn = voteColumns.includes('userid') ? 'userid' : 'userId';
           const lastResult = await pool.query(
-            `SELECT MAX(timestamp) AS last_changed_at FROM voti_capo_stato WHERE ${cooldownUserColumn} = $1`,
+            `SELECT MAX(timestamp) AS last_changed_at FROM voti_capo_stato WHERE ${userIdColumn} = $1`,
             [userId]
           );
           const cooldown = await getPreferenceCooldown(pool, {
@@ -83,19 +90,6 @@ router.get('/', async (req, res) => {
           });
           blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
         }
-
-        // Verifica la struttura della tabella per capire quale colonna usare
-        const tableInfoQuery = `
-          SELECT column_name, data_type
-          FROM information_schema.columns
-          WHERE table_name = 'voti_capo_stato'
-          ORDER BY ordinal_position
-        `;
-        const tableInfo = await pool.query(tableInfoQuery);
-        const columns = tableInfo.rows.map(r => r.column_name);
-        const hasUserId = columns.includes('userId');
-        const hasUserid = columns.includes('userid');
-        const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : 'userid'); // Default a userid
 
         const userVotiQuery = `
           SELECT nome
