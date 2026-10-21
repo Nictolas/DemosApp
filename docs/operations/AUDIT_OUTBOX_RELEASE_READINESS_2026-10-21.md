@@ -228,6 +228,27 @@ con `npm run audit:outbox:render-staging-preflight`.
   Il controllo della disponibilità di ore Free di Render e la scelta
   dell'istanza isolata precedono qualsiasi attivazione.
 
+### LOGIN Supabase abilitato e verificato (22 ottobre 2026)
+
+Dopo l'esecuzione nel pannello SQL Editor da parte dell'utente del
+comando `ALTER ROLE demos_outbox_runtime LOGIN`, lettura in sola
+lettura dei cataloghi `Demos-Staging` conferma **`rolcanlogin=true`**,
+`rolsuper=false`, `rolbypassrls=false`, appartenenza a
+`demos_outbox_worker` e grant `SELECT/INSERT/UPDATE/DELETE`
+sulla sola tabella `demos_private.audit_delivery_outbox`.
+Sono inoltre confermati **0** accessi ad altri oggetti,
+**0** routine `SECURITY DEFINER` accessibili,
+`CREATE` in `public` negato, **0** eventi in coda e **0** rilievi
+Supabase Security Advisor.
+
+**Il requisito LOGIN è completato, ma NON il test di autenticazione.**
+Non è stata predisposta alcuna password dall'assistente, nessun secret
+è stato installato su Render e non è stato effettuato un handshake
+PostgreSQL autenticato dal runtime Render. Per il prossimo GO serve
+una credenziale robusta distinta da quella del ruolo amministrativo,
+gestita senza esporla nei log, seguita dalla scelta di un runtime Render
+isolato e dal preflight senza scritture.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Hostname Session
