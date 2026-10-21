@@ -9,8 +9,8 @@ const {
 
 const staging = 'fkeayjzvtuvzesljhjbc';
 const production = 'wxnblcqoyjqxktwkcqok';
-const main = `postgres://postgres.${staging}:test-password@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`;
-const dedicated = `postgres://demos_outbox_runtime.${staging}:test-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`;
+const main = `postgres://postgres.${staging}:test-password@aws-1-eu-central-1.pooler.supabase.com:6543/postgres`;
+const dedicated = `postgres://demos_outbox_runtime.${staging}:test-password@aws-1-eu-central-1.pooler.supabase.com:5432/postgres`;
 const base = Object.freeze({
   NODE_ENV: 'production',
   DATABASE_URL: main,
