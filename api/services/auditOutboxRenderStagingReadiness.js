@@ -26,6 +26,11 @@ function assertSafeRenderStagingEnvironment(env = process.env) {
   }
   try {
     const target = validateStagingOutboxTarget(env.AUDIT_OUTBOX_DATABASE_URL);
+    // Render Free egress is IPv4: direct Supabase Free resolves to IPv6.
+    // Require the verified IPv4 session pooler for a runnable preflight.
+    if (target.mode !== 'session-pooler') {
+      throw new Error('AUDIT_RENDER_STAGING_ENV_REJECTED');
+    }
     assertOutboxProjectScope({
       mainUrl: env.DATABASE_URL,
       outboxUrl: env.AUDIT_OUTBOX_DATABASE_URL,
