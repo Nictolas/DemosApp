@@ -152,6 +152,43 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       }
     });
 
+    await t.test('restricted runtime rejects accidental unrelated grants and PUBLIC SECURITY DEFINER', async () => {
+      const env = {
+        DATABASE_URL: testUrl,
+        NODE_ENV: 'test',
+        AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
+        AUDIT_OUTBOX_DATABASE_URL:
+          'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
+      };
+      async function preflight() {
+        const db = createAuditOutboxDatabase({ env });
+        try { await db.ensureReady(); }
+        finally { await db.pool.end(); }
+      }
+      const tableName = 'public.demos_outbox_unrelated_canary';
+      const fnName = 'public.demos_outbox_definer_canary()';
+      await preflight(); // starts with only the outbox grants
+      try {
+        await pool.query(`CREATE TABLE ${tableName} (id integer)`);
+        await pool.query(`GRANT SELECT ON ${tableName} TO demos_outbox_runtime_ci`);
+        await assert.rejects(preflight, /DATABASE_PREFLIGHT_FAILED/,
+          'runtime must not inherit read access to unrelated tables');
+        await pool.query(`REVOKE SELECT ON ${tableName} FROM demos_outbox_runtime_ci`);
+        await pool.query(`DROP TABLE ${tableName}`);
+
+        await pool.query(
+          "CREATE FUNCTION public.demos_outbox_definer_canary() RETURNS integer LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'"
+        );
+        await assert.rejects(preflight, /DATABASE_PREFLIGHT_FAILED/,
+          'PUBLIC EXECUTE on a privileged function must block the worker');
+        await pool.query(`REVOKE EXECUTE ON FUNCTION ${fnName} FROM PUBLIC`);
+        await preflight();
+      } finally {
+        await pool.query(`DROP TABLE IF EXISTS ${tableName}`).catch(() => {});
+        await pool.query(`DROP FUNCTION IF EXISTS ${fnName}`).catch(() => {});
+      }
+    });
+
     await t.test('real PG + simulated Axiom outage preserves delivery ID across retry', async () => {
       await clean();
       const restricted = createAuditOutboxDatabase({
