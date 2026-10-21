@@ -60,9 +60,12 @@ motivazione, accessi ristretti e un termine di riesame.
    nell'outbox o essere ulteriormente minimizzati.
 2. Fissare retention effettive per `pending` e `dead_letter`, con eventuali
    eccezioni motivate, registro degli incidenti e approvazione di cancellazione.
-3. Verificare su uno staging Supabase indipendente permessi, RLS, Data API,
-   soglie, indici, riavvio e doppio worker; il PostgreSQL temporaneo CI non
-   replica automaticamente la configurazione reale Supabase.
+3. **Eseguiti sul nuovo `Demos-Staging`**: migrazione, permessi `anon`/
+   `authenticated`, RLS, indici, accodamento/lease/retry/dead-letter tramite
+   query SQL reali e pulizia finale. **Ancora da verificare:** isolamento
+   Data API via HTTP, grants del ruolo Postgres backend, riavvio, doppio
+   worker e soglie con l'applicazione configurata in staging. Vedi
+   `SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md`.
 4. Provare allarmi verso destinatari admin di test e verificare il recupero
    quando FCM non è disponibile. In caso di indisponibilità dell'intero DB o
    del backend Render, il solo servizio interno non può garantire l'avviso:

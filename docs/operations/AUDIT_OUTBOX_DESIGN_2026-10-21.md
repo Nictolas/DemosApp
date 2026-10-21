@@ -1,6 +1,8 @@
 # DEMOS — outbox durevole per audit e sicurezza (proposta, 21/10/2026)
 
-**Stato: componente e integrazione dietro flag completati nel ramo di sviluppo, NON attivati in produzione. Nessuna migrazione applicata.**
+**Stato: componente e integrazione dietro flag completati nel ramo di sviluppo, NON attivati in produzione. Migrazione applicata esclusivamente a Demos-Staging; nessuna migrazione applicata al database DEMOS di produzione.**
+
+Staging Supabase creato e verificato il 21/10/2026 (progetto `fkeayjzvtuvzesljhjbc`, regione `eu-central-1`, preventivo $0/mese): report dettagliato in `docs/operations/SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md`.
 
 La proposta di conservazione e di gestione degli incidenti è in
 `docs/operations/AUDIT_OUTBOX_RETENTION_PROPOSAL_2026-10-21.md`:
@@ -37,11 +39,13 @@ ma il processo cade prima del DELETE, al riavvio l'evento può essere ritrasmess
 L'UUID `axiom_delivery_id` è stabile per consentire la deduplicazione a valle. La PR include ora la deduplicazione **per finestra** nell'archiviatore B2 per audit/security esplicitamente taggati, con errore a contenuti incompatibili; tra finestre sovrapposte resta necessaria la deduplicazione per `archive_event_id` durante il restore.
 l'archivio/ricerca deve verificarne esplicitamente la gestione.
 
-## Schema PostgreSQL proposto (NON applicato)
+## Schema PostgreSQL (applicato solo nello staging Supabase; NON in produzione)
 
 Utilizzare lo schema privato `demos_private`, escluso dagli schemi esposti
-nel Supabase Data API. Lo schema seguente serve per revisione; **non è una
-migrazione automaticamente applicabile**:
+nel Supabase Data API. Questo schema è stato creato nel progetto Demos-Staging
+mediante la migrazione `create_private_audit_delivery_outbox_staging`.
+**Non è stato applicato in produzione e non deve essere applicato senza
+approvazione e collaudo dell'identità database effettiva del backend:**
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS demos_private;
@@ -127,8 +131,10 @@ serve controllare la deduplicazione a valle.
 
 1. Revisionare schema e impatto GDPR (finalità, IP/user ID, cifratura, accessi,
    periodi di conservazione degli eventi non consegnati e `dead_letter`).
-2. Eseguire una migrazione **solo in staging** e verificare accessi, RLS,
-   indici, concorrenza e isolamento dal Data API.
+2. **Schema e test SQL reali completati nello staging:** RLS, permessi `anon`/
+   `authenticated`, indici, lease, retry, dead-letter e cleanup. **Restano**
+   il controllo HTTP della Data API, i grants dell'identità runtime del
+   backend e un test multi-connessione sulla configurazione Supabase reale.
 3. **Implementato nel codice, non attivo:** verificare in staging `AuditService.logAction()` con il flag `AUDIT_OUTBOX_ENABLED=true`, assicurando che l'acknowledgement significhi *evento persistito*, non consegnato.
 4. **Implementato nel codice, non attivo:** verificare in staging il trasporto Axiom di eventi già minimizzati e il worker con `AUDIT_OUTBOX_WORKER_ENABLED=true`, senza sovrapporlo al job Axiom → B2 esistente.
 5. **Implementato nel codice, non attivo:** limite hard a 5.000 record con
@@ -144,7 +150,7 @@ serve controllare la deduplicazione a valle.
    doppio worker, duplicazioni, dead-letter e recupero completo.
 7. Soltanto dopo queste verifiche, valutare rollout graduale su Render.
 
-**Disponibilità staging verificata 21/10/2026:** il connettore Supabase mostra un solo progetto DEMOS attivo, senza branch di sviluppo; il secondo progetto storico `DemosReplit` è inattivo. Nel progetto DEMOS attivo non esiste ancora lo schema `demos_private` (sola lettura). Non usare il progetto attivo come staging né attivare i flag fino a collaudo PostgreSQL indipendente.
+**Staging disponibile dal 21/10/2026:** `Demos-Staging` è stato creato nell'organizzazione gratuita `DemosReplit` con preventivo di 0 USD/mese. La migrazione di staging è riuscita; due eventi sintetici sono stati processati e poi cancellati singolarmente. La tabella ora è vuota. L'advisor Supabase segnala solo `rls_enabled_no_policy` (INFO, intenzionale su schema privato); l'advisor prestazioni non segnala problemi. Il progetto DEMOS attivo resta privo dello schema `demos_private`, verificato in sola lettura. **Non attivare i flag in produzione.**
 
 **Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. `AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED=true` abilita separatamente notifiche agli admin per backlog, dead-letter e problemi al worker attraverso `OperationalAlertService`; senza il flag il sistema emette solo contatori nei log Render. Avviare solo dopo schema/permessi/retention verificati. Il percorso esplicito `securityEvent=true` del logger centralizzato è ora collegabile alla stessa outbox soltanto con `AUDIT_OUTBOX_SECURITY_ENABLED=true` **oltre** ad `AUDIT_OUTBOX_ENABLED=true`; senza il nuovo flag mantiene l'invio Axiom precedente. Il payload di sicurezza minimizzato include timestamp, `log_type=security`, codice evento controllato e identificativi già anonimizzati secondo configurazione; non salva messaggi liberi, URL, body o campi arbitrari. Questo è un collegamento opt-in a livello del logger: non prova che ogni sorgente applicativa emetta un evento `securityEvent`.
 
