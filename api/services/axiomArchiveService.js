@@ -324,10 +324,31 @@ class AxiomArchiveService {
   async loadCheckpoint(dataset) {
     const key = this.checkpointKey(dataset);
     try {
-      const { body } = await this.getObject(key);
-      const parsed = JSON.parse(body.toString('utf8'));
-      if (!parsed.lastSuccessfulEnd || !Number.isFinite(new Date(parsed.lastSuccessfulEnd).getTime())) {
-        throw new Error(`Invalid archive checkpoint at ${key}`);
+      const { body, metadata } = await this.getObject(key);
+      // A valid-looking but corrupted checkpoint could skip historical events.
+      // Validate the B2 digest before using its cursor in the live archiver.
+      if (metadata?.archiveformat !== 'demos-axiom-v1' ||
+          typeof metadata.sha256 !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(metadata.sha256) ||
+          metadata.sha256 !== sha256Hex(body)) {
+        throw new Error('ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED');
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(body.toString('utf8'));
+      } catch (_error) {
+        throw new Error('ARCHIVE_CHECKPOINT_INVALID');
+      }
+      if (!parsed || parsed.version !== 1 || parsed.dataset !== dataset ||
+          typeof parsed.lastManifestKey !== 'string' ||
+          !parsed.lastManifestKey.startsWith(`${this.prefix}/manifests/`) ||
+          !parsed.lastManifestKey.includes(`/${safeSegment(dataset)}/`) ||
+          !parsed.lastManifestKey.endsWith('.json') ||
+          typeof parsed.lastManifestSha256 !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(parsed.lastManifestSha256) ||
+          !parsed.lastSuccessfulEnd ||
+          !Number.isFinite(new Date(parsed.lastSuccessfulEnd).getTime())) {
+        throw new Error('ARCHIVE_CHECKPOINT_INVALID');
       }
       return parsed;
     } catch (error) {
