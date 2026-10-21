@@ -30,6 +30,36 @@ Nessun LOGIN runtime, credenziale provider o servizio di produzione modificato.
 Il test completo **con Axiom/B2 simulati** è [passato nella CI PostgreSQL](https://github.com/Nictolas/DemosApp/actions/runs/39670492893).
 Questo risultato **non chiude** i test con Axiom, B2 o FCM reali.
 
+## Destinazioni Axiom già presenti e isolamento dei collaudi
+
+La console Axiom dell'organizzazione DEMOS mostra i dataset **interni**
+`centralized_logs` (30 giorni), `real-time` (30 giorni) e
+`demos-security-staging` (7 giorni, attualmente senza eventi nella
+schermata verificata). I due dataset `axiom-play / ...` marcati
+**External** sono esempi esterni e non sono destinazioni DEMOS.
+
+**Nuovo controllo fail-closed nel ramo PR:** quando
+`AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`, i nuovi eventi outbox possono
+essere accodati/inviati soltanto al dataset `demos-security-staging`.
+Il controllo viene ripetuto immediatamente prima della richiesta HTTP
+ad Axiom, anche per righe già presenti nella coda. In produzione un
+dataset con segmento `staging` nel nome viene rifiutato.
+Questo impedisce che le variabili predefinite `real-time` e
+`centralized_logs` facciano finire collaudi nel dataset operativo.
+
+**Istruzioni per il backend isolato (NON per Render di produzione):**
+configurare `AXIOM_REALTIME_DATASET=demos-security-staging` e
+`AXIOM_DATASET=demos-security-staging` insieme a
+`AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`, soltanto con un token Axiom di
+test limitato a quel dataset e all'organizzazione prevista. Non abilitare
+`AXIOM_ARCHIVE_ENABLED` sul backend di staging: l'archivio B2 produttivo
+deve restare indipendente. Iniettare esclusivamente eventi sintetici,
+senza `user_id` o `ip_address` reali; verificare prima che il dataset
+esistente, normalmente usato dal Security Agent, possa ospitare il
+collaudo senza alterarne alert o analisi. Questa verifica con Axiom reale
+**non è stata eseguita**. Un eventuale dataset aggiuntivo richiederà
+una decisione separata, non è stato creato.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Ottenere da Supabase
