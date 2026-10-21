@@ -207,6 +207,64 @@ test('checkpoint is not advanced when B2 post-upload integrity verification fail
 });
 
 
+
+test('corrupted checkpoint with a plausible future cursor cannot skip archive events', async () => {
+  const b2Client = new MemoryB2Client();
+  let sourceQueries = 0;
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    b2Client,
+    axiomClient: { async query() { sourceQueries++; return { matches: [] }; } }
+  });
+  const key = service.checkpointKey('centralized_logs');
+  await service.putJson(key, {
+    version: 1,
+    dataset: 'centralized_logs',
+    lastSuccessfulEnd: '2026-10-06T15:00:00.000Z',
+    lastManifestKey: `${service.prefix}/manifests/year=2026/month=10/day=06/centralized_logs/batch.json`,
+    lastManifestSha256: 'a'.repeat(64)
+  });
+  // The replacement is still valid JSON and a valid date, but not the bytes
+  // that B2 reported as successfully committed.
+  const entry = b2Client.objects.get(key);
+  entry.body = Buffer.from(entry.body.toString('utf8').replace('2026-10-06T15:00', '2027-10-06T15:00'));
+  await assert.rejects(() => service.loadCheckpoint('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED/);
+  await assert.rejects(() => service.processDataset('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED/);
+  assert.equal(sourceQueries, 0, 'must stop before querying Axiom or advancing a cursor');
+});
+
+test('checkpoint read rejects a valid digest from a different dataset', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({ env: makeEnv(), b2Client });
+  await service.putJson(service.checkpointKey('centralized_logs'), {
+    version: 1,
+    dataset: 'real-time',
+    lastSuccessfulEnd: '2026-10-06T15:00:00.000Z',
+    lastManifestKey: `${service.prefix}/manifests/year=2026/month=10/day=06/real-time/batch.json`,
+    lastManifestSha256: 'a'.repeat(64)
+  });
+  await assert.rejects(() => service.loadCheckpoint('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INVALID/);
+});
+
+test('checkpoint read rejects missing B2 SHA-256 metadata', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({ env: makeEnv(), b2Client });
+  const key = service.checkpointKey('centralized_logs');
+  await service.putJson(key, {
+    version: 1,
+    dataset: 'centralized_logs',
+    lastSuccessfulEnd: '2026-10-06T15:00:00.000Z',
+    lastManifestKey: `${service.prefix}/manifests/year=2026/month=10/day=06/centralized_logs/batch.json`,
+    lastManifestSha256: 'a'.repeat(64)
+  });
+  delete b2Client.objects.get(key).metadata.sha256;
+  await assert.rejects(() => service.loadCheckpoint('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED/);
+});
+
 test('max chunks per run bounds backfill work and advances checkpoint incrementally', async () => {
   const b2Client = new MemoryB2Client();
   const axiomClient = {
