@@ -205,18 +205,33 @@ sopra sono assenti; il ruolo eredita solo `USAGE` su `demos_private` e
 accessibili**, **0 eventi residui**. Non sono stati creati segreti
 o account `LOGIN`; il database DEMOS di produzione è intatto.
 
-**Connessione reale ancora BLOCCATA**, senza interpretazioni ambigue:
-Render non dispone di IPv6 outbound per la connessione diretta gratuita,
-quindi è necessario il vero hostname **Supavisor Session Pooler, porta
-5432**, dal pannello *Supabase → Demos-Staging → Connect → Session pooler*.
-L'hostname contiene un indice di cluster che **non può essere dedotto**
-dalla regione. È un dato non segreto: va acquisito esattamente dal
-pannello. Successivamente occorre abilitare `LOGIN` esclusivamente
-per `demos_outbox_runtime`, impostare una password casuale tramite un
-canale sicuro di configurazione, inserirla nel servizio Render isolato
-e lanciare il preflight senza mai stamparla. Non farlo prima di aver
-scelto un ambiente di staging Render sicuro e verificato il budget
-di ore Free condiviso col servizio produttivo.
+**Hostname ora verificato il 22/10/2026** nella stringa
+`Connect → Session pooler` fornita dall'utente:
+`aws-1-eu-central-1.pooler.supabase.com:5432`.
+La stringa d'esempio nel pannello contiene l'account amministrativo
+`postgres.fkeayjzvtuvzesljhjbc`: **non va utilizzato per la coda**.
+Il futuro account della coda deve essere
+`demos_outbox_runtime.fkeayjzvtuvzesljhjbc`.
+
+Un controllo dal desktop autorizzato ha verificato **DNS IPv4 (4
+risposte A)** e **porta TCP 5432 raggiungibile**. Questo non prova
+l'autenticazione PostgreSQL né la connettività dal runtime Render.
+
+**Connessione reale ancora BLOCCATA:** un tentativo di modificare
+simultaneamente attributi amministrativi e LOGIN tramite migrazione è
+stato rifiutato da PostgreSQL (permessi insufficienti per alterare gli
+attributi superuser); il successivo tentativo di abilitare soltanto
+LOGIN è stato bloccato dai controlli di sicurezza della piattaforma.
+Nessun tentativo di aggirare tali controlli. Verificato di nuovo:
+`demos_outbox_runtime.rolcanlogin=false`, 0 eventi in coda.
+Nessuna password, secret o istanza Render creata.
+
+Per la prova autentica occorre abilitare LOGIN tramite la procedura
+amministrativa autorizzata di Supabase, assegnare una password casuale
+attraverso un secret manager, poi configurare **soltanto** un backend
+Render isolato e verificare `npm run audit:outbox:render-staging-preflight`.
+Controllare prima l'utilizzo delle ore Render Free condivise col backend
+di produzione; non copiare il segreto nei documenti o nei log.
 
 ## Prova effettiva del ruolo runtime NOLOGIN sul database Staging
 
@@ -237,12 +252,10 @@ Supabase hanno restituito **0 rilievi** dopo il test.
 
 **Non confondere questa prova con un LOGIN di rete:** non è stato
 attivato `LOGIN`, non è stata assegnata una password, né avviato un
-processo Render. Il Session Pooler esatto deve ancora essere acquisito
-dal pulsante `Connect → Session pooler` del progetto `Demos-Staging`;
-l'hostname del pooler non può essere indovinato a partire dalla regione.
-Il pannello è risultato aperto nel browser autorizzato, ma l'interfaccia
-desktop connessa non ne restituisce il contenuto del sito. Nessuna
-stringa di connessione/credenziale è stata esportata.
+processo Render. La stringa Session Pooler è stata in seguito fornita
+dall'utente il 22/10/2026: vedi il paragrafo aggiornato sopra.
+Nessuna password né stringa di connessione completa è stata salvata
+nei documenti.
 
 ## Bloccanti prima di abilitare la coda su DEMOS
 
