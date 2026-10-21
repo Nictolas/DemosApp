@@ -51,7 +51,7 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
     await pool.query('CREATE ROLE anon NOLOGIN');
     await pool.query('CREATE ROLE authenticated NOLOGIN');
     const doc = fs.readFileSync(path.join(__dirname, '../../docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'), 'utf8');
-    const blocks = [...doc.matchAll(/```sql\\r?\\n([\\s\\S]*?)\\r?\\n```/g)];
+    const blocks = [...doc.matchAll(/```sql\r?\n([\s\S]*?)\r?\n```/g)];
     assert.ok(blocks.length >= 2, 'both initial schema and role migrations must be documented');
     await pool.query(blocks[0][1]);
     await pool.query(blocks[1][1]);

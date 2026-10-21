@@ -9,15 +9,19 @@ const { createAuditOutbox } = require('../services/auditOutboxService');
 
 test('proposed private SQL schema enforces privileges, retry, ACK and dead-letter in PostgreSQL', async () => {
   const doc = fs.readFileSync(path.join(__dirname, '../../docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'), 'utf8');
-  const schema = doc.match(/```sql\r?\n([\s\S]*?)\r?\n```/);
-  assert.ok(schema, 'proposed staging SQL schema must be documented');
+  const migrations = [...doc.matchAll(/```sql\r?\n([\s\S]*?)\r?\n```/g)];
+  assert.equal(migrations.length, 2, 'both staging migrations must be documented');
 
   const db = new PGlite();
   await db.waitReady;
   try {
     // PGlite starts with an empty cluster; Supabase creates these client roles.
     await db.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
-    await db.exec(schema[1]);
+    await db.exec(migrations[0][1]);
+    await db.exec(migrations[1][1]);
+    const role = await db.query("SELECT rolcanlogin, rolbypassrls, rolsuper FROM pg_roles WHERE rolname='demos_outbox_worker'");
+    assert.equal(role.rows.length, 1);
+    assert.deepEqual(Object.values(role.rows[0]), [false, false, false]);
     const access = await db.query(`SELECT
       has_table_privilege('anon', 'demos_private.audit_delivery_outbox', 'SELECT') AS anon_select,
       has_table_privilege('authenticated', 'demos_private.audit_delivery_outbox', 'SELECT') AS authenticated_select,

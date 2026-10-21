@@ -115,7 +115,11 @@ come utente di rete e non possiede `BYPASSRLS` o `CREATEROLE`.
 Non è stato creato un login o una password per il worker e **nessun
 backend è collegato allo staging**. In futuro servirà un'identità di
 connessione dedicata, una membership controllata e una verifica effettiva
-di autorizzazione e isolamento. Non concedere l'accesso alla coda ai ruoli
+di autorizzazione e isolamento, compresi i privilegi implicitamente
+concessi dal ruolo Postgres `PUBLIC`. Il ruolo NOLOGIN ha infatti
+`USAGE` sullo schema `public` per eredità, ma non `CREATE`:
+https://supabase.com/docs/guides/troubleshooting/custom-role-inherits-privileges-that-were-not-explicitly-granted-ddaa1c
+Non concedere l'accesso alla coda ai ruoli
 client `anon`, `authenticated` o `service_role`; non usare il ruolo
 `postgres` amministrativo come soluzione definitiva a privilegi minimi.
 

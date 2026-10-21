@@ -36,10 +36,18 @@ lo staging è per collaudi, non un servizio che deve restare sempre acceso.
 - L'identità Postgres proprietaria ha il permesso di inserimento. La
   `service_role` non ha un grant SELECT su questa tabella; non usare la
   chiave `service_role` per accedere alla coda attraverso la Data API.
-- Ruolo `demos_outbox_worker` creato **NOLOGIN**, senza `BYPASSRLS`, superuser
-  o permessi di creazione su `public`. Ha solo `USAGE` sullo schema privato
-  e `SELECT/INSERT/UPDATE/DELETE` sulla tabella, con policy RLS dedicata.
+- Ruolo `demos_outbox_worker` creato **NOLOGIN**, senza `BYPASSRLS`,
+  superuser o permessi di creazione su `public`. I grant **espliciti**
+  aggiunti riguardano `USAGE` sullo schema privato e
+  `SELECT/INSERT/UPDATE/DELETE` sulla tabella, con policy RLS dedicata.
   Nessuna password o appartenenza è stata assegnata.
+- **Nota sulla sicurezza Supabase:** il ruolo eredita comunque dal ruolo
+  implicito `PUBLIC` il permesso `USAGE` dello schema `public` (non
+  `CREATE`), come verificato nello staging. Prima di introdurre un
+  `LOGIN` effettivo bisogna inventariare anche gli altri privilegi
+  ereditati da `PUBLIC`; i grant espliciti sulla outbox non costituiscono
+  da soli una prova di isolamento totale. Riferimento:
+  https://supabase.com/docs/guides/troubleshooting/custom-role-inherits-privileges-that-were-not-explicitly-granted-ddaa1c
 
 **La migrazione non è stata applicata a DEMOS in produzione.** Una query
 separata di sola lettura ha confermato l'assenza di `demos_private` nel
