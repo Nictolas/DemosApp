@@ -3,6 +3,9 @@ const { pool } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
 const { sanitizeLogMeta } = require('../utils/logPrivacy');
+const { normalizeLevel, shouldWriteLogEvent } = require('../utils/logEventPolicy');
+const { createFailureReporter } = require('../utils/logDeliveryFailureReporter');
+const reportAxiomIngestFailure = createFailureReporter();
 
 // Axiom integration (opzionale)
 let Axiom;
@@ -57,7 +60,7 @@ class CentralizedLogger {
       'T': 'TRACE'
     };
     
-    this.currentLevel = process.env.LOG_LEVEL || 'INFO';
+    this.currentLevel = normalizeLevel(process.env.LOG_LEVEL);
     this.logToFile = process.env.LOG_TO_FILE === 'true';
     this.logToDatabase = process.env.LOG_TO_DATABASE !== 'false';
     this.logToConsole = process.env.LOG_TO_CONSOLE !== 'false';
@@ -87,8 +90,8 @@ class CentralizedLogger {
     }
   }
 
-  shouldLog(level) {
-    return this.logLevels[level] <= this.logLevels[this.currentLevel];
+  shouldLog(level, meta = {}) {
+    return shouldWriteLogEvent(level, this.currentLevel, meta);
   }
 
   formatMessage(level, message, meta = {}) {
@@ -146,6 +149,8 @@ class CentralizedLogger {
       };
 
       if (isAuditOrSecurity) {
+        // The archive uses this explicit category for independent retention policies.
+        logEntry.log_type = meta.securityEvent === true ? 'security' : 'audit';
         logEntry.user_id = meta.userId || null;
         logEntry.ip_address = meta.ipAddress || null;
         logEntry.session_id = meta.sessionId || null;
@@ -190,10 +195,8 @@ class CentralizedLogger {
       // Usa HTTP diretto invece dell'SDK per evitare problemi di regione
       await this.sendToAxiomHTTP(this.axiomDataset, [logEntry]);
     } catch (error) {
-      // Non bloccare applicazione se Axiom fallisce
-      if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Errore invio log Axiom:', error.message);
-      }
+      // Non interrompere le richieste utente; lascia una segnalazione operativa senza dati personali.
+      reportAxiomIngestFailure(error?.response?.status);
     }
   }
 
@@ -222,10 +225,8 @@ class CentralizedLogger {
         maxBodyLength: Infinity
       });
     } catch (error) {
-      // Silenzioso - non bloccare applicazione
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`❌ Errore invio Axiom HTTP:`, error.response?.status || error.message);
-      }
+      // Errori di rete/HTTP visibili in produzione, ma senza token, eventi o URL sensibili.
+      reportAxiomIngestFailure(error?.response?.status);
     }
   }
 
@@ -440,7 +441,7 @@ class CentralizedLogger {
   }
 
   async log(level, message, meta = {}) {
-    if (!this.shouldLog(level)) return;
+    if (!this.shouldLog(level, meta)) return;
 
     // Per default i log operativi non devono contenere identificatori diretti.
     // Audit e security events sono canali espliciti separati.

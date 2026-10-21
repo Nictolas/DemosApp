@@ -6,6 +6,7 @@ const {
   HeadObjectCommand,
   PutObjectCommand
 } = require('@aws-sdk/client-s3');
+const { classifyRecord } = require('../utils/archiveEventClassification');
 
 const DEFAULT_QUERY_LIMIT = 5000;
 const DEFAULT_MAX_WINDOW_MINUTES = 15;
@@ -107,12 +108,6 @@ function getRecordTime(record) {
   const candidate = record?._time || record?.timestamp || record?.created_at || record?.createdAt;
   const date = candidate ? new Date(candidate) : null;
   return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
-}
-
-function classifyRecord(record) {
-  if (record && record.type && record.severity) return 'security';
-  if (record && record.action && record.resource) return 'audit';
-  return 'technical';
 }
 
 function recordFingerprint(dataset, record) {
@@ -594,6 +589,73 @@ class AxiomArchiveService {
     }
 
     return { key, sha256: actualHash, recordCount: lines.length, bytes: body.length };
+  }
+
+  // Read-only recovery drill for the most recent committed archive batch.
+  // No PUT, checkpoint update, Axiom query or lifecycle modification is performed.
+  async verifyLatestArchiveBatch(dataset) {
+    this.validateB2Configuration();
+    validateDatasetName(dataset);
+    const checkpoint = await this.loadCheckpoint(dataset);
+    if (!checkpoint) throw new Error('Archive checkpoint not found');
+
+    const manifestKey = checkpoint.lastManifestKey;
+    if (typeof manifestKey !== 'string' ||
+        !manifestKey.startsWith(`${this.prefix}/manifests/`) ||
+        !manifestKey.endsWith('.json')) {
+      throw new Error('Archive checkpoint references an invalid manifest key');
+    }
+
+    const { body, metadata } = await this.getObject(manifestKey);
+    const manifestSha256 = sha256Hex(body);
+    if (metadata?.archiveformat !== 'demos-axiom-v1' ||
+        metadata?.sha256 !== manifestSha256 ||
+        checkpoint.lastManifestSha256 !== manifestSha256) {
+      throw new Error('Archive manifest integrity verification failed');
+    }
+
+    const manifest = JSON.parse(body.toString('utf8'));
+    if (manifest.dataset !== dataset ||
+        manifest.endTime !== checkpoint.lastSuccessfulEnd ||
+        !Array.isArray(manifest.objects) ||
+        !Number.isSafeInteger(manifest.recordCount) ||
+        manifest.recordCount < 0 ||
+        !manifest.categories ||
+        manifest.objects.length > 3) {
+      throw new Error('Archive manifest does not match checkpoint or expected schema');
+    }
+
+    const totals = { technical: 0, audit: 0, security: 0 };
+    let verifiedEvents = 0;
+    for (const obj of manifest.objects) {
+      if (!Object.hasOwn(totals, obj?.category) ||
+          typeof obj.key !== 'string' ||
+          !obj.key.startsWith(`${this.prefix}/data/${obj.category}/`) ||
+          !obj.key.endsWith('.jsonl.gz')) {
+        throw new Error('Invalid archive data object referenced by manifest');
+      }
+      const verified = await this.verifyArchiveObject(obj.key);
+      if (verified.sha256 !== obj.sha256 ||
+          verified.bytes !== obj.bytes ||
+          verified.recordCount !== obj.count) {
+        throw new Error('Archive data object mismatch against manifest');
+      }
+      totals[obj.category] += verified.recordCount;
+      verifiedEvents += verified.recordCount;
+    }
+
+    if (verifiedEvents !== manifest.recordCount ||
+        Object.entries(totals).some(([category, value]) => value !== manifest.categories[category])) {
+      throw new Error('Archive record totals do not match manifest');
+    }
+
+    return {
+      dataset,
+      checkpointEnd: checkpoint.lastSuccessfulEnd,
+      verifiedObjects: manifest.objects.length,
+      verifiedEvents,
+      categories: totals
+    };
   }
 
   async runOnce({ now = this.clock() } = {}) {

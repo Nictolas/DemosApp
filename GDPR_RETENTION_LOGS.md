@@ -1,267 +1,36 @@
-# 📜 GDPR - Conservazione Log: Quanti Anni?
-
-## ❓ Le Tue Domande
-
-1. **Backblaze B2 è specifico per i log?**
-2. **Per quanti anni devo conservare i log secondo GDPR?**
-
----
-
-## 1️⃣ Backblaze B2 è Specifico per i Log?
-
-### **❌ NO, Backblaze B2 NON è specifico per i log**
-
-**Backblaze B2 è:**
-- ✅ Un servizio di **cloud storage generico** (come AWS S3, Google Cloud Storage)
-- ✅ Può archiviare **qualsiasi tipo di file** (log, backup, documenti, immagini, ecc.)
-- ✅ Non ha funzionalità specifiche per i log (non analizza, non indicizza automaticamente)
-- ✅ È semplicemente **storage** per i tuoi file
-
-**Perché lo usiamo per i log?**
-- ✅ **Costo**: Molto economico ($0.005/GB/mese)
-- ✅ **Gratis**: 10GB gratis permanente
-- ✅ **GDPR**: Regione EU disponibile
-- ✅ **Backup**: Perfetto per archiviare backup di log
-
-**In pratica:**
-- Backblaze B2 = Hard disk nel cloud
-- Puoi usarlo per qualsiasi cosa (log, backup, documenti, ecc.)
-- Non è limitato ai log
-
----
-
-## 2️⃣ Per Quanti Anni Conservare i Log secondo GDPR?
-
-### **📋 Periodi di Conservazione GDPR-Compliant**
-
-**⚠️ IMPORTANTE:** I periodi variano in base al **tipo di log** e al **tipo di dato**.
-
-### **📊 Tabella Retention Policy**
-
-| Tipo di Log | Periodo Minimo | Periodo Consigliato | Base Legale |
-|-------------|----------------|---------------------|-------------|
-| **Security Events** | 6 mesi | **3 anni** | Provvedimento Garante 2008 + Best Practice |
-| **Audit Logs** | 6 mesi | **7 anni** | Art. 2220 c.c. (dati fiscali) |
-| **ERROR Logs** | 6 mesi | **2 anni** | Sicurezza e debugging |
-| **WARN Logs** | 6 mesi | **1 anno** | Monitoraggio sistema |
-| **INFO Logs** | 6 mesi | **6 mesi** | Audit trail minimo |
-| **DEBUG Logs** | - | **30 giorni** | Solo sviluppo |
-| **TRACE Logs** | - | **7 giorni** | Solo sviluppo |
-
----
-
-## 📜 Base Legale GDPR
-
-### **✅ GDPR Art. 5(1)(e) - Limitazione della Conservazione**
-
-> *"I dati personali devono essere conservati in una forma che consenta l'identificazione degli interessati per un periodo non superiore a quello necessario agli scopi per cui sono stati trattati."*
-
-**In pratica:**
-- ✅ Conserva solo per il tempo **necessario**
-- ✅ Non conservare più a lungo del necessario
-- ✅ Elimina automaticamente dopo il periodo di retention
-
-### **✅ GDPR Art. 32 - Sicurezza del Trattamento**
-
-> *"Il titolare del trattamento deve garantire la sicurezza del trattamento, incluso il mantenimento di log per dimostrare la conformità."*
-
-**In pratica:**
-- ✅ I log sono essenziali per dimostrare conformità GDPR
-- ✅ Devono essere conservati per dimostrare sicurezza del trattamento
-
-### **✅ Provvedimento Garante Privacy 2008**
-
-**Requisito minimo:**
-- ✅ **6 mesi minimi** per log di sicurezza e accesso
-
-### **✅ Art. 2220 Codice Civile - Conservazione Documenti Fiscali**
-
-**Per dati fiscali:**
-- ✅ **7 anni** per documenti fiscali e contabili
-- ✅ Si applica se i log contengono dati fiscali
-
----
-
-## 🎯 Strategia di Conservazione Consigliata
-
-### **Fase 1: Database Attivo (Hot Storage)**
-
-**Mantieni nel database solo dati recenti:**
-- ✅ **Security Events**: 90 giorni (3 mesi)
-- ✅ **Audit Logs**: 30 giorni (1 mese)
-- ✅ **ERROR/WARN**: 30 giorni (1 mese)
-- ✅ **INFO**: 14 giorni (2 settimane)
-- ✅ **DEBUG/TRACE**: 7 giorni
-
-**Motivo**: Performance e costi database
-
-### **Fase 2: Archivio Cloud (Warm Storage)**
-
-**Sposta su cloud storage:**
-- ✅ **Security Events**: Dopo 90 giorni → cloud per **3 anni totali**
-- ✅ **Audit Logs**: Dopo 30 giorni → cloud per **7 anni totali**
-- ✅ **ERROR Logs**: Dopo 30 giorni → cloud per **2 anni totali**
-- ✅ **WARN Logs**: Dopo 30 giorni → cloud per **1 anno totale**
-- ✅ **INFO Logs**: Dopo 14 giorni → cloud per **6 mesi totali**
-
-**Motivo**: Backup a lungo termine, costo minimo
-
-### **Fase 3: Eliminazione Automatica**
-
-**Dopo il periodo di retention:**
-- ✅ **Elimina automaticamente** tutti i log oltre il periodo legale
-- ✅ **Anonimizza** prima di eliminare (se necessario)
-- ✅ **Registra** l'eliminazione per audit
-
----
-
-## 📋 Implementazione Pratica
-
-### **Retention Policy Implementata nel Tuo Progetto**
-
-```javascript
-// Da api/services/dataRetentionService.js
-const RETENTION_POLICIES = {
-  // Audit logs - 7 anni (conformità fiscale)
-  audit_logs: {
-    retention_days: 2555, // 7 anni
-    reason: 'Sicurezza e conformità normativa - Art. 2220 c.c.'
-  },
-  
-  // Security Events - 3 anni (conformità GDPR)
-  security_events: {
-    retention_days: 1095, // 3 anni
-    reason: 'Conformità GDPR - Art. 32'
-  },
-  
-  // ERROR Logs - 2 anni
-  ERROR: {
-    retention_days: 730, // 2 anni
-    reason: 'Errori critici - Sicurezza e debugging'
-  },
-  
-  // WARN Logs - 1 anno
-  WARN: {
-    retention_days: 365, // 1 anno
-    reason: 'Warning - Monitoraggio sistema'
-  },
-  
-  // INFO Logs - 6 mesi
-  INFO: {
-    retention_days: 180, // 6 mesi
-    reason: 'Informazioni generali - Audit trail'
-  },
-  
-  // DEBUG Logs - 30 giorni
-  DEBUG: {
-    retention_days: 30,
-    reason: 'Debug - Solo per sviluppo'
-  },
-  
-  // TRACE Logs - 7 giorni
-  TRACE: {
-    retention_days: 7,
-    reason: 'Trace - Debugging dettagliato'
-  }
-};
-```
-
----
-
-## 💾 Strategia di Archiviazione
-
-### **Esempio Pratico: Audit Logs (7 anni)**
-
-```
-Anno 1, Mese 1-12:
-  └─ Database: 30 giorni attivi
-  └─ Cloud: Backup automatico giornaliero
-
-Anno 2-7:
-  └─ Cloud: Archivio (anonimizzato, compresso)
-  └─ Hard Disk: Backup ogni 5GB (opzionale)
-
-Dopo 7 anni:
-  └─ Eliminazione automatica
-```
-
-### **Esempio Pratico: Security Events (3 anni)**
-
-```
-Anno 1, Mese 1-3:
-  └─ Database: 90 giorni attivi
-  
-Anno 1, Mese 4 - Anno 3:
-  └─ Cloud: Archivio (anonimizzato, compresso)
-
-Dopo 3 anni:
-  └─ Eliminazione automatica
-```
-
----
-
-## ⚖️ Conformità GDPR - Checklist
-
-### **✅ Requisiti Obbligatori**
-
-- [x] **Conservazione limitata**: Solo per il tempo necessario
-- [x] **Eliminazione automatica**: Dopo periodo di retention
-- [x] **Anonimizzazione**: Dati personali anonimizzati prima archiviazione
-- [x] **Crittografia**: File archiviati crittografati
-- [x] **Audit trail**: Registrazione di tutte le operazioni
-- [x] **Documentazione**: Policy di retention documentata
-
-### **✅ Requisiti Consigliati**
-
-- [x] **Backup multipli**: Cloud + Hard Disk
-- [x] **Monitoraggio**: Alert per periodi di retention
-- [x] **Report**: Documentazione periodica per conformità
-
----
-
-## 🎯 Risposte Dirette alle Tue Domande
-
-### **1. Backblaze B2 è specifico per i log?**
-
-**NO, Backblaze B2 è un servizio di storage generico.**
-- Puoi usarlo per qualsiasi tipo di file
-- Non ha funzionalità specifiche per i log
-- È semplicemente "storage nel cloud" (come un hard disk esterno nel cloud)
-
-### **2. Per quanti anni devo conservare i log secondo GDPR?**
-
-**Dipende dal tipo di log:**
-
-| Tipo | Periodo |
-|------|---------|
-| **Audit Logs** | **7 anni** (Art. 2220 c.c.) |
-| **Security Events** | **3 anni** (GDPR Art. 32) |
-| **ERROR Logs** | **2 anni** (Sicurezza) |
-| **WARN Logs** | **1 anno** (Monitoraggio) |
-| **INFO Logs** | **6 mesi** (Minimo legale) |
-| **DEBUG/TRACE** | **7-30 giorni** (Solo sviluppo) |
-
-**⚠️ NOTA:** Il periodo minimo legale è **6 mesi** (Provvedimento Garante 2008), ma per audit e sicurezza si consiglia di conservare più a lungo.
-
----
-
-## 📞 Implementazione
-
-### **La Tua Strategia Ottimale:**
-
-1. **Database Neon**: Mantieni solo 30 giorni (costi minimi)
-2. **Backblaze B2**: Backup automatico per 7 anni (gratis per ~30 anni)
-3. **Hard Disk**: Export manuale ogni 5GB (backup locale)
-
-**Periodi di retention:**
-- ✅ Audit Logs: **7 anni** (cloud + hard disk)
-- ✅ Security Events: **3 anni** (cloud + hard disk)
-- ✅ ERROR/WARN: **2-1 anno** (cloud)
-- ✅ INFO: **6 mesi** (cloud)
-
-**Conclusione**: Con Backblaze B2 (10GB gratis permanente) e crescita attuale, sei coperto per **~30 anni** senza costi aggiuntivi!
-
----
-
-**🎉 Ora hai tutte le informazioni per una conservazione GDPR-compliant!**
-
+# DEMOS — conservazione dei log e GDPR
+
+> **Revisionato il 21 ottobre 2026.** Questo documento sostituisce le precedenti indicazioni non corrette che attribuivano al GDPR periodi minimi generalizzati di 6 mesi, 3 anni o 7 anni per ogni tipo di log. La retention effettiva in produzione **non è certificata** da questo file.
+
+**Piano operativo dettagliato:** [docs/operations/LOGGING_COST_GDPR_ACTIONS_2026-10-21.md](docs/operations/LOGGING_COST_GDPR_ACTIONS_2026-10-21.md). **Progetto archivio Axiom → Backblaze:** [docs/operations/axiom-b2-log-archive.md](docs/operations/axiom-b2-log-archive.md).
+
+## Regole da applicare
+- Il GDPR impone finalità definite, minimizzazione, misure proporzionate e **limitazione della conservazione** (artt. 5, 24, 25 e 32). Non impone di registrare ogni richiesta HTTP e non prescrive un identico numero di anni per tutti i log.
+- Per gli **accessi logici degli amministratori di sistema**, il provvedimento del Garante del 27 novembre 2008, con modifiche e ambito di applicazione specifici, prevede registrazioni integre e verificabili da conservare **non meno di sei mesi**. Questo non equivale a sei mesi per ogni richiesta degli utenti.
+- L'art. 2220 del Codice civile disciplina **scritture contabili** e indica **dieci anni**: non costituisce fondamento automatico per conservare i log di audit sette anni né per trattenere profili e opinioni politiche.
+- Dati di voto e opinioni politiche possono rientrare nell'art. 9 GDPR: evitare payload, token, identificatori inutili e preferenze individuali nei log. Per gli eventi di sicurezza/audit giustificati, definire separatamente finalità, accesso, minimizzazione e retention.
+- Distinguere logging tecnico, errori, sicurezza, accessi privilegiati e audit: serve una matrice **approvata** dopo la valutazione dei rischi/DPIA e confronto con il responsabile privacy.
+
+## Periodi da discutere (non policy vigente approvata)
+| Tipo | Intervallo iniziale ipotetico | Note |
+|---|---|---|
+| Debug/trace e log tecnici | 7–30 giorni | Minimizzzazione e campionamento |
+| Errori | 30–90 giorni | Non salvare dati sensibili negli errori |
+| Sicurezza | 90–180 giorni, salvo motivata estensione | Analisi dei rischi e indagini |
+| Accessi amministratori di sistema | almeno 6 mesi dove applicabile | Prescrizione specifica del Garante |
+| Audit amministrativo e modifiche a dati personali | da definire | Finalità e necessità documentate |
+
+Nessuno di questi intervalli autorizza da solo cancellazioni automatizzate o modifiche al codice operativo. Prima serve verificare quali eventi sono realmente raccolti, dove si trovano, il loro contenuto, la base giuridica, eventuali vincoli ulteriori e il piano di recupero.
+
+## Implementazione e costi
+- **Axiom** per ricerca recente; sul piano Personal la retention massima è 30 giorni. **Backblaze B2** è destinato all'archivio storico compresso in EU Central: la presenza del codice e del bucket **non dimostra** che i trasferimenti in produzione siano attivi.
+- Prima di abilitare `AXIOM_ARCHIVE_ENABLED`, testare su dati non personali, verificare oggetto/manifest/hash/checkpoint, effettuare restore, controllare accessi/cifratura e definire lifecycle separati per categoria.
+- Verificare i limiti e i costi dal consumo **reale** di Axiom e B2: evitare proiezioni basate soltanto sul numero di iscritti.
+- `api/services/dataRetentionService.js` e `api/config/audit-config.js` contengono durate discordanti e motivazioni giuridiche da revisionare; non considerarli automaticamente applicabili né conformi.
+
+## Fonti
+- GDPR: https://eur-lex.europa.eu/eli/reg/2016/679/oj
+- Garante, provvedimento amministratori di sistema: https://www.garanteprivacy.it/home/docweb/-/docweb-display/docweb/1577499
+- Codice civile, art. 2220: https://www.normattiva.it/
+- Axiom: https://axiom.co/docs/reference/limits
+- Backblaze B2: https://www.backblaze.com/cloud-storage/pricing

@@ -1,31 +1,42 @@
-# Configurazione log in produzione
+# DEMOS — configurazione logging in produzione
 
-Per ridurre lâ€™accumulo di log in produzione (es. visite alla pagina menu), imposta queste variabili nellâ€™ambiente di produzione (file `.env` sul server o variabili dâ€™ambiente in Vercel / altro hosting):
+> Aggiornato 21/10/2026. **Documentazione dell'architettura prevista, non certificazione di configurazione live.** Per le operazioni in sicurezza: [piano logging e GDPR](docs/operations/LOGGING_COST_GDPR_ACTIONS_2026-10-21.md) e [procedura archivio Axiom → B2](docs/operations/axiom-b2-log-archive.md).
 
-| Variabile | Valore | Effetto |
-|----------|--------|---------|
-| `NODE_ENV` | `production` | Disattiva i log di debug (UNIVERSAL LOG, middleware con metodo/path/Origin/Referer). |
-| `GDPR_LOGGING_FILTER` | `true` | Invia ad Axiom/file solo i log rilevanti per il GDPR; le GET del menu (eventi/prossimo, iniziative-popolari/prossima, referendum-abrogativi/prossima) non vengono loggati. |
+## Ambiente applicativo su Render
 
-Sono giÃ  presenti con questi valori in `env.example` nella root del progetto. Se usi un hosting con dashboard (es. Vercel), aggiungi o verifica queste due variabili nella configurazione del progetto.
+| Variabile | Valore previsto | Scopo |
+|---|---|---|
+| `NODE_ENV` | `production` | Disattiva alcuni messaggi di debug |
+| `GDPR_LOGGING_FILTER` | `true` | Filtra richieste operative a bassa rilevanza |
+| `LOG_LEVEL` | `INFO` | Livello dei log tecnici; audit/security espliciti restano attivi |
+| `AXIOM_ENABLED` | `true` **solo se configurato** | Usa Axiom come destinazione dei log |
+| `AXIOM_ARCHIVE_ENABLED` | **già attiva in produzione, rilevato il 21/10/2026** | Il job è osservato nei log Render; non disattivare senza analisi della continuità degli archivi |
 
-**In locale** puoi lasciare `NODE_ENV=development` (e opzionalmente `GDPR_LOGGING_FILTER` non impostato o `false`) per continuare a vedere i log di debug.
+**Verificare i valori sul servizio Render effettivo.** Gli `env.example` sono soltanto esempi, non dimostrano i valori in produzione. Mai includere token, URL con segreti o chiavi nei log o nel repository.
 
-## Backblaze B2 - archivio storico
+Il filtro applicativo non è una certificazione GDPR: le categorie, i dati personali inclusi, le finalità e i periodi di conservazione devono essere valutati singolarmente.
 
-DEMOS ha scelto **Backblaze B2 Cloud Storage (regione EU Central)** come archivio storico a basso costo per i log esportati da Axiom. L'account Backblaze e' stato creato il **6 ottobre 2026**; bucket privato, chiave applicativa dedicata e attivazione del job sono ancora da completare.
+## Architettura dei log
 
-Architettura prevista:
+- **Axiom EU:** ricerca, alerting e analisi dei log recenti, nei dataset `centralized_logs` e `real-time`.
+- **Backblaze B2 EU Central:** archivio storico compresso in `.jsonl.gz`, con separazione `technical`, `audit`, `security`.
+- **Stato verificato su Render (21/10/2026):** servizio `demos-backend`, workspace `Nicolas`, ramo `main`, deploy live `d80c1b90ca412e78af60621485f8ec825ad53210` del 20 ottobre 2026. I log riportano `Axiom archive job enabled (17 * * * * UTC)` e completamenti ogni ora per i dataset `centralized_logs` e `real-time`. Il bucket citato nella documentazione è `demos-log-archive-eu` (EU Central); **non abbiamo interrogato direttamente B2**. Object Lock era descritto come disabilitato. Il job è **già attivo**: non duplicare, non resettare checkpoint.
+- Le esecuzioni `completed` attestano che il codice ha terminato interrogazioni Axiom, upload con verifica HEAD/metadata e aggiornamento checkpoint senza sollevare eccezioni; **non costituiscono un test indipendente di download, decompressione e ripristino dei dati dal bucket B2**. Retention/lifecycle e consumo effettivi B2 richiedono verifica diretta.
 
-- **Axiom**: consultazione e analisi dei log recenti.
-- **Backblaze B2**: archivio storico compresso e cifrato dei log.
-- Il flusso Axiom -> B2 resta **disabilitato di default** finche' `AXIOM_ARCHIVE_ENABLED` non viene impostato esplicitamente a `true`.
-- I dati B2 saranno separati in prefissi `technical`, `audit` e `security`, con retention da definire per finalita'.
-- Le credenziali B2 non devono mai essere salvate nel repository.
+## Percorso di verifica del job già attivo (nessun intervento distruttivo)
+1. Verificare quota Axiom, uso reale dei dataset, token/permessi e conservazione attuale.
+2. Verificare che il bucket B2 EU e la chiave ad accesso limitato siano disponibili. Valutare Object Lock secondo le esigenze di integrità e cancellazione.
+3. Eseguire i test `npm run test:logging-privacy` e `npm run test:axiom-archive`; GitHub Action `Logging and archive regression` li esegue sulla PR.
+4. Effettuare un trasferimento di prova controllato di log sintetici o non personali, verificando hash, manifest, checkpoint e recupero dell'oggetto compresso.
+5. Definire e documentare con responsabile privacy/DPO durate diverse per categoria e lifecycle/cancellazioni B2; evitare retention uniforme.
+6. Il job gira **già** in produzione: non riattivarlo, riavviarlo o azzerare checkpoint. Aggiungere monitoraggio del backlog, alert indipendenti e recupero verificato prima di considerare il processo pienamente affidabile.
 
-Dettagli operativi: `docs/operations/axiom-b2-log-archive.md`.
+**Non** modificare la retention, cancellare log o attivare il job soltanto sulla base di questo documento.
 
+## Evidenza quantitativa (log Render, 20–21/10/2026)
 
-## Archivio storico Backblaze B2
-
-Dal 6 ottobre 2026 DEMOS usa anche Backblaze B2 EU Central per l'archivio storico dei log. Bucket: demos-log-archive-eu (privato, crittografia attiva, Object Lock disabilitato). Endpoint S3: https://s3.eu-central-003.backblazeb2.com. Axiom resta il sistema operativo per ricerca/analisi dei log recenti; B2 è l'archivio storico.
+- Finestra: 20 ottobre 12:00 UTC → 21 ottobre 12:00 UTC; **25** messaggi di esecuzione completata del job.
+- Sui due dataset: **529** record classificati tecnici e **7** record classificati audit elaborati, **0** security; questi sono conteggi dei batch, includono possibili sovrapposizioni/duplicazioni dovute all'overlap e **non** indicano eventi unici né byte archiviati.
+- Nei messaggi di completamento il processo risultava `caughtUp=true` per entrambi i dataset; ricerca delle righe `Axiom archive failed` nella settimana esaminata: nessuna corrispondenza, che **non prova** l'assenza di errori non segnalati.
+- Individuate **4 righe** del vecchio audit writer che stampano in chiaro un identificatore utente sui log Render: correzione predisposta in PR #217, **non ancora distribuita**.
+- [Console Render servizio backend](https://dashboard.render.com/web/srv-d2gt3dodl3ps73fmereg). I messaggi integrali dei log possono contenere dati personali: consultazione e condivisione a personale autorizzato.

@@ -1,4 +1,7 @@
 const { pool } = require('../middleware/auth');
+const { createFailureReporter } = require('../utils/logDeliveryFailureReporter');
+const { buildAxiomAuditEvent } = require('../utils/axiomAuditEvent');
+const reportAuditDeliveryFailure = createFailureReporter();
 
 // Axiom integration per audit logs
 let Axiom;
@@ -71,11 +74,11 @@ class AuditService {
       // DISABILITATO: I log vengono salvati solo su Axiom, non più su PostgreSQL
       // Questo per alleggerire il database e centralizzare i log su Axiom
       if (process.env.AXIOM_ENABLED === 'true') {
-        // Se Axiom è abilitato, invia solo ad Axiom (non blocca se fallisce)
+        // L'esito HTTP deve essere noto prima di dichiarare il log registrato.
+        // Non blocca permanentemente: timeout di rete limitato a 5 secondi.
         const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
-        AuditService.sendAuditLogToAxiomHTTP(dataset, auditLog).catch(() => {});
-        
-        console.log(`📝 Audit log inviato ad Axiom: ${action} su ${resource} per utente ${userId}`);
+        const delivered = await AuditService.sendAuditLogToAxiomHTTP(dataset, auditLog);
+        if (!delivered) return null;
         return { id: 'axiom-' + Date.now(), timestamp: new Date(now) };
       }
       
@@ -104,11 +107,11 @@ class AuditService {
 
       const result = await pool.query(query, values);
       
-      console.log(`📝 Audit log creato su PostgreSQL: ${action} su ${resource} per utente ${userId}`);
+      console.log('AUDIT_DB_WRITE_SUCCESS');
       
       return { id: result.rows[0].id, timestamp: new Date(now) };
     } catch (error) {
-      console.error('❌ Errore nel logging audit:', error);
+      reportAuditDeliveryFailure(error?.response?.status);
       // Non lanciare errore per non bloccare l'operazione principale
       return null;
     }
@@ -119,44 +122,16 @@ class AuditService {
    * @private
    */
   static async sendAuditLogToAxiomHTTP(dataset, auditLog) {
-    if (process.env.AXIOM_ENABLED !== 'true') return;
-    if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) return;
+    if (process.env.AXIOM_ENABLED !== 'true') return false;
+    if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {
+      reportAuditDeliveryFailure(null);
+      return false;
+    }
     
     try {
-      // Gestisci array o singolo oggetto
+      // Campi minimizzati e categoria esplicita per lifecycle separati.
       const auditLogs = Array.isArray(auditLog) ? auditLog : [auditLog];
-      
-      // Converti ogni audit log in formato GDPR-compliant
-      const logEntries = auditLogs.map(audit => {
-        // Genera session_id se non disponibile (per coerenza con centralized_logs)
-        let sessionId = audit.session_id || null;
-        if (!sessionId && audit.user_id) {
-          const crypto = require('crypto');
-          // Usa user_id + finestra temporale di 24 ore (stesso approccio di centralized_logs)
-          const timeWindow = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-          const sessionKey = `${audit.user_id}-${timeWindow}`;
-          sessionId = crypto
-            .createHash('sha256')
-            .update(sessionKey)
-            .digest('hex')
-            .substring(0, 16);
-          sessionId = `audit_${sessionId}`; // Prefisso per audit logs
-        }
-        
-        // Invia SOLO i campi obbligatori per GDPR (minimizzazione dati)
-        // Campi GDPR obbligatori per audit: _time, user_id, ip_address, action, resource, resource_id, success, error_message, session_id
-        return {
-          _time: new Date(audit.timestamp || Date.now()).toISOString(), // GDPR: Quando è successo
-          user_id: audit.user_id || null,                              // GDPR: Chi ha fatto l'azione
-          ip_address: audit.ip_address || null,                        // GDPR: Da dove (da anonimizzare)
-          action: audit.action || null,                                 // GDPR: Cosa è stato fatto
-          resource: audit.resource || null,                             // GDPR: Su quale risorsa
-          resource_id: audit.resource_id || null,                       // GDPR: ID specifico risorsa
-          success: audit.success !== undefined ? audit.success : null,  // GDPR: Se l'azione è riuscita
-          error_message: audit.error_message || null,                   // GDPR: Dettagli errore (se presente)
-          session_id: sessionId || null                                 // GDPR: Identifica la sessione utente
-        };
-      });
+      const logEntries = auditLogs.map(audit => buildAxiomAuditEvent(audit));
       
       // NOTA: Campi rimossi (non obbligatori per GDPR):
       // - log_type: categorizzazione non obbligatoria
@@ -207,11 +182,11 @@ class AuditService {
         maxContentLength: Infinity,
         maxBodyLength: Infinity
       });
+      return true;
     } catch (error) {
-      // Silenzioso - non bloccare applicazione
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`❌ Errore invio audit log Axiom HTTP:`, error.response?.status || error.message);
-      }
+      // Non loggare body, URL, token, indirizzi IP, identificativi o error.message.
+      reportAuditDeliveryFailure(error?.response?.status);
+      return false;
     }
   }
 
@@ -226,11 +201,10 @@ class AuditService {
       // Usa il metodo HTTP pulito (già GDPR-compliant)
       // Audit logs vanno nel dataset real-time insieme a performance e security
       const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
-      await this.sendAuditLogToAxiomHTTP(dataset, auditLog);
+      return await this.sendAuditLogToAxiomHTTP(dataset, auditLog);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Errore preparazione audit log Axiom:', error);
-      }
+      reportAuditDeliveryFailure(error?.response?.status);
+      return false;
     }
   }
 

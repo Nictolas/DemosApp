@@ -103,7 +103,12 @@ test('stableStringify and record fingerprints are deterministic', () => {
 test('record classifier separates security, audit and technical events', () => {
   assert.equal(classifyRecord({ type: 'failed_login', severity: 'high' }), 'security');
   assert.equal(classifyRecord({ action: 'DATA_ACCESS', resource: 'opinions' }), 'audit');
+  assert.equal(classifyRecord({ log_type: 'security', message: 'Evento di sicurezza: access' }), 'security');
+  assert.equal(classifyRecord({ log_type: 'audit', message: 'Audit: update su users' }), 'audit');
+  assert.equal(classifyRecord({ message: 'Evento di sicurezza: access' }), 'security');
+  assert.equal(classifyRecord({ message: 'Audit: update su users' }), 'audit');
   assert.equal(classifyRecord({ level: 'ERROR', message: 'boom' }), 'technical');
+  assert.equal(classifyRecord({ log_type: 'technical', message: 'GET /api/health' }), 'technical');
 });
 
 test('adaptive query splitting avoids silently accepting a saturated result', async () => {
@@ -306,4 +311,63 @@ test('archive restore verification rejects modified event fingerprints even with
     contentEncoding: 'gzip'
   });
   await assert.rejects(() => service.verifyArchiveObject(key), /fingerprint mismatch/);
+});
+
+test('read-only recovery drill verifies latest checkpoint, manifest and gzipped events', async () => {
+  const b2Client = new MemoryB2Client();
+  const env = makeEnv({
+    AXIOM_ARCHIVE_DATASETS: 'centralized_logs',
+    AXIOM_ARCHIVE_INITIAL_LOOKBACK_HOURS: '1',
+    AXIOM_ARCHIVE_SAFETY_LAG_SECONDS: '120'
+  });
+  const sourceTime = '2026-10-06T15:50:00.000Z';
+  const axiomClient = {
+    async query(_apl, options) {
+      return {
+        matches: new Date(options.startTime).getTime() <= Date.parse(sourceTime) &&
+          Date.parse(sourceTime) < new Date(options.endTime).getTime()
+          ? [{ _time: sourceTime, level: 'INFO', message: 'synthetic event' }]
+          : []
+      };
+    }
+  };
+  const service = new AxiomArchiveService({
+    env,
+    axiomClient,
+    b2Client,
+    clock: () => new Date('2026-10-06T16:00:00.000Z')
+  });
+  await service.runOnce();
+  const before = b2Client.objects.size;
+  const verified = await service.verifyLatestArchiveBatch('centralized_logs');
+  assert.equal(verified.dataset, 'centralized_logs');
+  assert.equal(verified.checkpointEnd, '2026-10-06T15:58:00.000Z');
+  assert.equal(verified.verifiedEvents, 1);
+  assert.equal(verified.categories.technical, 1);
+  assert.equal(verified.verifiedObjects, 1);
+  assert.equal(b2Client.objects.size, before, 'read-only drill must not upload objects');
+});
+
+test('recovery drill fails closed if latest B2 manifest bytes were changed', async () => {
+  const b2Client = new MemoryB2Client();
+  const env = makeEnv({ AXIOM_ARCHIVE_DATASETS: 'centralized_logs', AXIOM_ARCHIVE_INITIAL_LOOKBACK_HOURS: '1' });
+  const service = new AxiomArchiveService({
+    env,
+    axiomClient: { async query() { return { matches: [] }; } },
+    b2Client,
+    clock: () => new Date('2026-10-06T16:00:00.000Z')
+  });
+  await service.runOnce();
+  const checkpoint = await service.loadCheckpoint('centralized_logs');
+  const entry = b2Client.objects.get(checkpoint.lastManifestKey);
+  entry.body[0] ^= 0x01;
+  await assert.rejects(() => service.verifyLatestArchiveBatch('centralized_logs'), /manifest integrity verification failed/);
+});
+
+test('recovery drill fails closed without a B2 checkpoint', async () => {
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    b2Client: new MemoryB2Client()
+  });
+  await assert.rejects(() => service.verifyLatestArchiveBatch('centralized_logs'), /checkpoint not found/);
 });

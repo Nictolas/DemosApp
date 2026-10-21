@@ -11,8 +11,8 @@
     "test:identity": "node --test tests/identityVerificationService.test.js tests/identityVerificationStore.test.js tests/cieVerificationService.test.js tests/cieOidcTransactionService.test.js tests/cieMockFlowService.test.js tests/cieOidcAuthorizationService.test.js tests/cieOidcTransactionStore.test.js tests/cieOidcTokenService.test.js tests/cieOidcIdTokenService.test.js tests/cieOidcUserInfoService.test.js tests/cieCallbackRedirectService.test.js",
     "test:webauthn": "node --test tests/webauthnAtomicConsume.test.js tests/webauthnChallengePayloadPolicy.test.js tests/webauthnChallengeStore.integration.test.js tests/webauthnClientInstancePolicy.test.js tests/webauthnCredentialIdPolicy.test.js tests/webauthnCredentialRegistrationService.test.js tests/webauthnLoginSessionPolicy.test.js tests/webauthnPublicErrorService.test.js tests/webauthnRateLimiting.test.js tests/webauthnRegistrationPolicy.test.js tests/webauthnRegistrationSessionPolicy.test.js tests/webauthnSecurityPolicy.test.js tests/webauthnSignCounterService.test.js tests/webauthnUserHandleService.test.js",
     "test:privacy": "node --test tests/opinionPrivacy.test.js",
-    "test:logging-privacy": "node --test tests/logPrivacy.test.js",
-    "test:axiom-archive": "node --test tests/axiomArchiveService.test.js",
+    "test:logging-privacy": "node --test tests/logPrivacy.test.js tests/logDeliveryFailureReporter.test.js tests/logEventPolicy.test.js tests/axiomAuditEvent.test.js tests/auditServiceDelivery.test.js",
+    "test:axiom-archive": "node --test tests/axiomArchiveService.test.js tests/archiveEventClassification.test.js",
     "archive:axiom": "node scripts/run-axiom-archive.js",
     "archive:axiom:verify": "node scripts/verify-axiom-archive-object.js",
     "start:security-agent-shadow": "node security-agent/securityAgentWorker.js",
@@ -20,7 +20,8 @@
     "start:security-staging-stack": "node security-agent/securityStagingStack.js",
     "test:security-hardening": "node --test tests/securityProductionHardening.test.js",
     "test:security-agent": "node --test tests/securityAgentFoundation.test.js tests/securityAxiomReadOnlyProvider.test.js tests/securityStagingStack.test.js tests/securityAgentRunner.test.js tests/securityCenter.test.js tests/securityCenterAlertPolicy.test.js tests/securityAgentPostgresStore.test.js tests/securityDbCredentialGate.test.js tests/securityAgentRuntime.test.js tests/securityAgentHealth.test.js tests/securityAlertRouting.test.js tests/securityNotificationAdapters.test.js tests/securityNotificationSimulation.test.js tests/securityAiAnalystContract.test.js tests/securityAiAnalystMockRunner.test.js tests/securityAiModelGateway.test.js tests/securityAiShadowIntegration.test.js tests/securityAiAnalysisOrchestrator.test.js tests/securityAiOrchestratorObservability.test.js tests/securityPolicyEngine.test.js tests/securityPolicyIntegration.test.js tests/securityApprovalGate.test.js tests/securityApprovalIntegration.test.js tests/securityApprovalDecisionSimulation.test.js tests/securityApprovalObservabilityIntegration.test.js tests/securityApprovalSafetyInvariants.test.js tests/securityApprovalCapacitySafety.test.js tests/securityApprovalStoreConsistency.test.js tests/securityApprovalConsistencyObservability.test.js tests/securityApprovalConsistencyAlertPolicy.test.js tests/securityApprovalConsistencyHealthIntegration.test.js tests/securityExecutionBoundary.test.js tests/securityExecutionBoundaryValidator.test.js tests/securityBoundaryAudit.test.js tests/securityBoundaryAuditObservability.test.js tests/securityBoundaryAuditHealth.test.js tests/securityBoundaryHealthIntegration.test.js tests/securityBoundaryHealthAlertPolicy.test.js tests/securityApprovalObservabilityHardening.test.js tests/securityBoundaryReadApi.test.js tests/securityCenterRouteContract.test.js tests/securityCenterQueryPolicy.test.js tests/securityCenterResponsePolicy.test.js tests/securityProductionHardening.test.js",
-    "test:firebase-admin-compat": "node --test tests/firebaseAdminCompatibility.test.js"
+    "test:firebase-admin-compat": "node --test tests/firebaseAdminCompatibility.test.js",
+    "archive:axiom:verify-latest": "node scripts/verify-latest-axiom-archive.js"
   },
   "keywords": [
     "democracy",
@@ -58,6 +59,7 @@
     "nodemon": "^3.0.2"
   },
   "overrides": {
+    "follow-redirects": "1.16.1",
     "@grpc/grpc-js": "1.14.5",
     "@tootallnate/once": "2.0.1",
     "basic-ftp": "5.3.1",
