@@ -12,6 +12,7 @@ on:
       - 'api/tests/auditOutboxService.test.js'
       - 'api/tests/auditOutboxWorker.test.js'
       - 'api/tests/auditOutboxPostgres.test.js'
+      - 'api/tests/auditOutboxRealPostgres.test.js'
       - 'docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'
       - 'api/services/axiomArchiveService.js'
       - 'api/scripts/verify-latest-axiom-archive.js'
@@ -64,3 +65,37 @@ jobs:
       - name: Production dependency audit
         working-directory: api
         run: npm audit --omit=dev --audit-level=high
+
+  postgres-outbox:
+    # Real, disposable PostgreSQL service on the CI runner. NEVER production.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: demos_outbox_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_outbox_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts
+      - name: Real PostgreSQL audit outbox concurrency and crash-recovery test
+        working-directory: api
+        env:
+          DEMOS_OUTBOX_POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/demos_outbox_ci
+        run: node --test tests/auditOutboxRealPostgres.test.js

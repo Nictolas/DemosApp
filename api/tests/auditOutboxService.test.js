@@ -106,6 +106,17 @@ test('after max attempts moves event to dead-letter for investigation', async ()
   assert.deepEqual(notifications, [['AUDIT_OUTBOX_DEAD_LETTER', { count: 1 }]]);
 });
 
+test('claims are capped at ten per lease, even with a large requested batch', async () => {
+  const seen = [];
+  const store = createAuditOutbox({
+    pool: { async query(_sql, params) { seen.push(params[0]); return { rows: [] }; } },
+    send: async () => true
+  });
+  await store.drainOnce({ limit: 1000 });
+  await store.drainOnce({ limit: 1 });
+  assert.deepEqual(seen, [10, 1]);
+});
+
 test('backoff is bounded and jittered', () => {
   assert.equal(nextDelayMs(1, () => 0.5), 15000);
   assert.equal(nextDelayMs(999, () => 1), 4320000);

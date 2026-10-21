@@ -22,7 +22,7 @@ test('enabled worker schedules one interval and reports counts without personal 
   const worker = createAuditOutboxWorker({
     enabled: () => true,
     outbox: { drainOnce: async ({ limit }) => {
-      assert.equal(limit, 20);
+      assert.equal(limit, 10);
       calls++;
       return { delivered: 2, rescheduled: 1, deadLettered: 0 };
     } },

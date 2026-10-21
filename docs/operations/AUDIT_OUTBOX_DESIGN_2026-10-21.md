@@ -11,7 +11,7 @@ recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
 - `enqueue(event, dataset)`: convalida categoria `audit` o `security`, limita il
   payload a 2 KiB, assegna UUID stabile `axiom_delivery_id` e attende conferma
   di `INSERT` sul database. Se la scrittura fallisce non simula il successo.
-- `drainOnce()`: acquisisce al massimo 50 eventi dovuti usando
+- `drainOnce()`: acquisisce al massimo **10 eventi** per batch usando
   `FOR UPDATE SKIP LOCKED`, *lease* di 90 s e token di proprietà per lavoratori
   concorrenti. Cancella il record solo quando il trasporto conferma realmente
   l'invio. Altrimenti aggiorna scadenza e prossimo tentativo.
@@ -71,6 +71,43 @@ backend (privilegi dedicati da definire prima dell'attivazione), non alle
 chiavi `anon`/`authenticated`; verificare RLS e Data API con query di controllo.
 Non è necessaria una nuova istanza database: la tabella può vivere nello
 stesso Supabase di DEMOS, con un limite di dimensione e monitoraggio dei costi.
+
+
+## Collaudo SQL con due connessioni PostgreSQL reali in GitHub CI
+
+Il job `postgres-outbox` di `.github/workflows/logging-regression.yml` avvia
+`postgres:17` **solo sul runner effimero di GitHub Actions**, con database
+`demos_outbox_ci` e password sintetica di CI. Nessuna connessione al Supabase
+di DEMOS e nessuna credenziale produttiva.
+
+Il test `api/tests/auditOutboxRealPostgres.test.js` rifiuta URL che non
+puntino esattamente a `127.0.0.1:5432/demos_outbox_ci` e richiede esplicitamente
+tale URL sotto GitHub Actions (non può risultare verde saltando la prova).
+Esegue lo schema SQL descritto sopra con i seguenti controlli:
+
+- `anon` / `authenticated` non hanno accesso allo schema né alla tabella;
+  RLS abilitata e verifica negativa eseguendo `SET LOCAL ROLE anon`.
+- La `SELECT ... FOR UPDATE SKIP LOCKED` non attende un record bloccato da
+  un'altra transazione.
+- Due worker separati condividono lo stesso pool PostgreSQL con connessioni
+  indipendenti; un record in invio con lease valido non viene acquisito due
+  volte.
+- Dopo un'interruzione simulata e la scadenza forzata del lease, un secondo
+  worker recupera l'evento con lo **stesso** `axiom_delivery_id`; un ACK
+  tardivo del vecchio worker non elimina altri dati.
+- Invio fallito → prossimo tentativo, successo → DELETE, tentativi esauriti →
+  `dead_letter` senza reinvio successivo.
+
+Questa prova colma la lacuna del test PGlite a connessione singola ma resta
+un **collaudo PostgreSQL effimero**, non un collaudo di configurazione Supabase,
+rete o credenziali reali. Il job non modifica Render e non configura retention.
+
+**Motivo del limite a 10 per batch:** il worker invia in sequenza e ha timeout
+HTTP Axiom di 5 secondi per evento. Dieci richieste possono richiedere
+circa 50 secondi, inferiori al lease SQL di 90 secondi in condizioni
+ordinarie. Lentezza anomala del database o crash possono comunque produrre
+reinvii: la garanzia rimane *at-least-once*, non exactly-once. Per questo
+serve controllare la deduplicazione a valle.
 
 ## Da completare prima dell'attivazione
 

@@ -22,7 +22,7 @@ function createAuditOutboxWorker({
     if (running) return { skipped: true, reason: 'already-running' };
     running = true;
     try {
-      const result = await outbox.drainOnce({ limit: 20 });
+      const result = await outbox.drainOnce({ limit: 10 });
       // Counts only. Never print event bodies, user IDs or full provider errors.
       if (result.delivered || result.rescheduled || result.deadLettered) {
         report('AUDIT_OUTBOX_DELIVERY_METRICS', {

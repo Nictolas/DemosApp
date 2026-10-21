@@ -45,8 +45,10 @@ function createAuditOutbox({ pool, send, report = console.error, random = Math.r
     return id;
   }
 
-  async function drainOnce({ limit = 20 } = {}) {
-    const batchSize = Math.max(1, Math.min(50, Number(limit) || 20));
+  // 90-second leases must outlast a whole sequential HTTP batch.
+  // Axiom requests use a five-second timeout; cap at 10 claims (<=50s of HTTP).
+  async function drainOnce({ limit = 10 } = {}) {
+    const batchSize = Math.max(1, Math.min(10, Number(limit) || 10));
     const leaseId = randomUUID();
     const result = await pool.query(
       `WITH due AS (
