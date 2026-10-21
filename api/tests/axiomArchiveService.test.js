@@ -103,7 +103,12 @@ test('stableStringify and record fingerprints are deterministic', () => {
 test('record classifier separates security, audit and technical events', () => {
   assert.equal(classifyRecord({ type: 'failed_login', severity: 'high' }), 'security');
   assert.equal(classifyRecord({ action: 'DATA_ACCESS', resource: 'opinions' }), 'audit');
+  assert.equal(classifyRecord({ log_type: 'security', message: 'Evento di sicurezza: access' }), 'security');
+  assert.equal(classifyRecord({ log_type: 'audit', message: 'Audit: update su users' }), 'audit');
+  assert.equal(classifyRecord({ message: 'Evento di sicurezza: access' }), 'security');
+  assert.equal(classifyRecord({ message: 'Audit: update su users' }), 'audit');
   assert.equal(classifyRecord({ level: 'ERROR', message: 'boom' }), 'technical');
+  assert.equal(classifyRecord({ log_type: 'technical', message: 'GET /api/health' }), 'technical');
 });
 
 test('adaptive query splitting avoids silently accepting a saturated result', async () => {
