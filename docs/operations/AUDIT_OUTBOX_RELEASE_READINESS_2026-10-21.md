@@ -101,10 +101,13 @@ Il comando **non avvia Express, worker, Axiom o B2** ed esegue solo
 query SQL di controllo su Supabase. Prima di qualsiasi query verifica:
 
 - scope esatto `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`;
-- `DATABASE_URL` e `AUDIT_OUTBOX_DATABASE_URL` differenti, entrambe
-  vincolate al progetto **Demos-Staging** `fkeayjzvtuvzesljhjbc`;
-- per la coda solo connessione 5432 diretta o Supavisor *session*,
-  non transaction pooler 6543; sul database principale 6543 è ammesso;
+- `AUDIT_OUTBOX_PREFLIGHT_ONLY=true` e **solo**
+  `AUDIT_OUTBOX_DATABASE_URL` con account `demos_outbox_runtime`;
+  `DATABASE_URL` deve essere **assente**, senza credenziali
+  amministrative o applicative del database principale;
+- per il preflight Render solo Session Pooler verificato
+  `aws-1-eu-central-1.pooler.supabase.com:5432`, rifiutando
+  connessione diretta IPv6 e Transaction Pooler 6543;
 - `AXIOM_REALTIME_DATASET=AXIOM_DATASET=demos-security-staging`;
 - `AUDIT_OUTBOX_ENABLED`, `AUDIT_OUTBOX_WORKER_ENABLED`,
   `AUDIT_OUTBOX_SECURITY_ENABLED`,
@@ -249,15 +252,46 @@ una credenziale robusta distinta da quella del ruolo amministrativo,
 gestita senza esporla nei log, seguita dalla scelta di un runtime Render
 isolato e dal preflight senza scritture.
 
+### Preflight autonomo con un solo segreto — verificato in CI
+
+Il comando `audit:outbox:render-staging-preflight` non richiede più
+`DATABASE_URL`, quindi non è necessario copiare credenziali
+amministrative o del backend principale su Render. Accetta soltanto
+`AUDIT_OUTBOX_DATABASE_URL`, uno scope `staging`, il flag esplicito
+`AUDIT_OUTBOX_PREFLIGHT_ONLY=true`, i dataset
+`AXIOM_DATASET=AXIOM_REALTIME_DATASET=demos-security-staging` e
+i flag che controllano worker, invii e archiviazione spenti.
+Verifica hostname/porta/progetto **prima** di creare una connessione,
+poi esegue solo letture dei cataloghi PostgreSQL e non avvia Express,
+Axiom, Firebase o B2. Il normale backend e il worker mantengono
+l'obbligo di verificare entrambe le identità di progetto e
+**non possono usare l'eccezione di preflight**.
+
+Controllo CI: il preflight con un solo account è accettato in
+simulazione, mentre la connessione applicativa normale senza
+`DATABASE_URL` resta rifiutata. Sono rifiutati password/host mancanti,
+flag operativi abilitati, scope produzione e host Supavisor estranei.
+Questo **non** prova un login autenticato da Render.
+
+Prima del deploy occorre decidere quale servizio Render isolato usare
+e verificare le **ore gratuite residue direttamente dal dashboard
+Billing → Monthly Included Usage**: il connettore disponibile
+non espone il saldo di fatturazione. Non creare un nuovo servizio
+web Free senza questo controllo: le 750 ore mensili sono condivise
+anche con il backend pubblico.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Hostname Session
-  Pooler ora acquisito e testato su DNS/TCP da desktop; manca abilitare
-  in modo autorizzato il LOGIN del ruolo Postgres minimo già creato e
-  gestire la credenziale tramite secret manager. Impostare entrambe le connessioni sul **solo** backend di
-  collaudo e confermare `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`.
-  Eseguire `npm run audit:outbox:staging-preflight`; verificare
-  `roleAuthorized=true`. Non copiare le password nei log/issue.
+  Pooler acquisito e verificato su DNS/TCP desktop; il ruolo minimo
+  `demos_outbox_runtime` ha **LOGIN attivo**, grant controllati.
+  Rimangono password dedicata gestita fuori dai log/chat, configurazione
+  `AUDIT_OUTBOX_DATABASE_URL` **come unico segreto database** in un
+  runtime Render isolato, `AUDIT_OUTBOX_PREFLIGHT_ONLY=true` e
+  `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`. Non configurare
+  `DATABASE_URL` sul runtime di solo preflight. Eseguire
+  `npm run audit:outbox:render-staging-preflight` e verificare
+  `roleAuthorized=true` senza eventi reali.
 - [ ] **Axiom reale.** Con dataset, token e organizzazione di *test*,
   verificare che una singola operazione sintetica attraversi la coda,
   riceva ACK, sia visibile in Axiom con il medesimo
