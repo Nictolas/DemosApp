@@ -4,7 +4,6 @@ const { pool } = require('../../middleware/auth');
 const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
 const { createSupporterOpinionNotifications } = require('../../services/politicalOpinionNotificationService');
 const { sendPushToCurrentSupporters } = require('../../services/currentSupporterPushService');
-const { requireVerifiedCivicIdentity } = require('../../middleware/civicIdentity');
 
 const router = express.Router();
 
@@ -78,7 +77,9 @@ router.get('/profile', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente  
-router.post('/salva', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+// Expressing a personal opinion is not an institutional ballot: require account authentication
+// and explicit Art. 9 consent (checked below), but do not require CIE.
+router.post('/salva', verifyToken, async (req, res) => {
   // Le opinioni sono categorie di dati particolarmente sensibili: non loggare body o valori.
   if (typeof req.body === 'string') {
     try {

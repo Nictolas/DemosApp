@@ -6,6 +6,7 @@ on:
       - 'api/routes/opinioni/**'
       - 'api/utils/opinionStatsColumns.js'
       - 'api/tests/opinionStatsColumns.test.js'
+      - 'api/tests/ordinaryUserOpinionSave.test.js'
       - 'client/src/components/OpinionStatsBar.tsx'
       - 'client/src/pages/Opinioni*.tsx'
       - 'client/src/lib/saveAndVerifyOpinions.ts'
@@ -30,7 +31,7 @@ jobs:
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Verify opinion regressions
-        run: node --test api/tests/opinionStatsColumns.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
+        run: node --test api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend
