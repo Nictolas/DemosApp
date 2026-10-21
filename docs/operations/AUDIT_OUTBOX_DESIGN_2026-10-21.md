@@ -261,6 +261,9 @@ fosse stata effettivamente registrata**. Il controllo è stato corretto:
 - gli avvisi identici contemporanei vengono coordinati in memoria;
   uno dei tentativi non viene falsamente dichiarato riuscito prima
   dell'esito del primo;
+- se la notifica è già stata salvata nel database ma il successivo
+  invio FCM fallisce, il salvataggio resta riconosciuto come riuscito:
+  non si generano copie in-app identiche al prossimo tentativo;
 - gli errori tecnici SQL/FCM non vengono stampati integralmente nei
   log Render perché potrebbero contenere credenziali o identificativi;
 - test automatici simulano DB che fallisce al primo tentativo,

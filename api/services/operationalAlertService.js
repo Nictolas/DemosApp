@@ -212,7 +212,15 @@ class OperationalAlertService {
     try {
       const adminIds = await getAdminIds();
       const persisted = await persistAdminAlert(adminIds, title, body);
-      const push = await pushToAdmins(adminIds, title, body, normalized);
+      let push;
+      try {
+        push = await pushToAdmins(adminIds, title, body, normalized);
+      } catch (_pushError) {
+        // In-app persistence may already have succeeded; do not turn an FCM
+        // outage into a false failure that creates duplicate DB notifications.
+        // Do not log exception details (device tokens can be embedded).
+        push = { sent: 0, failed: 0, unavailable: true };
+      }
       const delivered = persisted > 0 || push.sent > 0;
       if (delivered) markDelivered(fingerprint);
       inFlightAlerts.delete(fingerprint);

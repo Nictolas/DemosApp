@@ -27,6 +27,7 @@ on:
       - 'api/tests/auditOutboxPostgres.test.js'
       - 'api/tests/auditOutboxRealPostgres.test.js'
       - 'docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'
+      - 'docs/operations/AUDIT_OUTBOX_RELEASE_READINESS_2026-10-21.md'
       - 'docs/operations/AUDIT_OUTBOX_RETENTION_PROPOSAL_2026-10-21.md'
       - 'docs/operations/SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md'
       - 'api/services/axiomArchiveService.js'

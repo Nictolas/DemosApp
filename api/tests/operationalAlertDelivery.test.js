@@ -6,7 +6,7 @@ const Module = require('node:module');
 
 const servicePath = require.resolve('../services/operationalAlertService');
 
-function makeService({ failedInserts = 0, hasAdmins = true, beforeInsert = async () => {} } = {}) {
+function makeService({ failedInserts = 0, hasAdmins = true, beforeInsert = async () => {}, pushThrows = false } = {}) {
   let inserts = 0;
   const records = [];
   const pool = {
@@ -35,7 +35,10 @@ function makeService({ failedInserts = 0, hasAdmins = true, beforeInsert = async
     Module._load = function(request, parent, isMain) {
       if (parent?.filename === servicePath && request === '../middleware/auth') return { pool };
       if (parent?.filename === servicePath && request === './firebaseAdmin') {
-        return { getFirebaseAdmin: () => null };
+        return { getFirebaseAdmin: () => {
+          if (pushThrows) throw new Error('FCM_SECRET_TOKEN_test-only');
+          return null;
+        } };
       }
       return previousLoad.call(this, request, parent, isMain);
     };
@@ -125,4 +128,27 @@ test('cooldown begins only on successful alert; no stale suppression after faile
     assert.equal(b.success, true);
     assert.equal(f.service.__testables.isSuppressed(fp), true);
   } finally { console.error = originalConsole; }
+});
+
+test('persisted in-app alert remains successful when Firebase fails immediately afterward', async () => {
+  const f = makeService({ pushThrows: true });
+  const first = await f.service.sendCriticalAlert(newAlert());
+  assert.equal(first.success, true);
+  assert.equal(first.persisted, 1);
+  assert.equal(first.push.sent, 0);
+  assert.equal(first.push.unavailable, true);
+  const repeated = await f.service.sendCriticalAlert(newAlert());
+  assert.equal(repeated.success, true);
+  assert.equal(repeated.suppressed, true);
+  assert.equal(f.inserts(), 1, 'a push outage must not create duplicate in-app records');
+});
+
+test('without any persisted recipients, a Firebase exception remains retryable', async () => {
+  const f = makeService({ hasAdmins: false, pushThrows: true });
+  const first = await f.service.sendCriticalAlert(newAlert());
+  assert.equal(first.success, false);
+  assert.equal(first.push.unavailable, true);
+  const second = await f.service.sendCriticalAlert(newAlert());
+  assert.equal(second.success, false);
+  assert.equal(second.suppressed, false);
 });
