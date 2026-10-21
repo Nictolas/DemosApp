@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { Pool } = require('pg');
+const Module = require('node:module');
 const { createAuditOutbox } = require('../services/auditOutboxService');
 const { createAuditOutboxDatabase } = require('../services/auditOutboxDatabase');
 
@@ -145,6 +146,77 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
         assert.equal(transmitted, 1);
         assert.equal((await outbox.getHealth()).total, 0);
       } finally {
+        await restricted.pool.end();
+      }
+    });
+
+    await t.test('real PG + simulated Axiom outage preserves delivery ID across retry', async () => {
+      await clean();
+      const restricted = createAuditOutboxDatabase({
+        env: {
+          DATABASE_URL: testUrl,
+          AUDIT_OUTBOX_DATABASE_URL: 'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
+        }
+      });
+      // The audit service must not load or contact DEMOS's main database.
+      const auditPath = require.resolve('../services/auditService');
+      const oldLoad = Module._load;
+      let AuditService;
+      try {
+        Module._load = function(request, parent, isMain) {
+          if (request === '../middleware/auth' && parent?.filename === auditPath) {
+            return { pool: { query: () => { throw new Error('MAIN_DB_NOT_ALLOWED'); } } };
+          }
+          return oldLoad.call(this, request, parent, isMain);
+        };
+        delete require.cache[auditPath];
+        AuditService = require('../services/auditService');
+      } finally {
+        Module._load = oldLoad;
+      }
+      const axios = require('axios');
+      const oldPost = axios.post;
+      const keys = ['AXIOM_ENABLED', 'AXIOM_API_TOKEN', 'AXIOM_ORG_ID', 'AXIOM_REGION'];
+      const previous = Object.fromEntries(keys.map(k => [k, process.env[k]]));
+      process.env.AXIOM_ENABLED = 'true';
+      process.env.AXIOM_API_TOKEN = 'ci-fake-token';
+      process.env.AXIOM_ORG_ID = 'ci-fake-org';
+      process.env.AXIOM_REGION = 'eu';
+      const attempts = [];
+      axios.post = async (url, rows) => {
+        assert.match(url, /^https:\/\/eu-central-1\.aws\.edge\.axiom\.co\/v1\/ingest\/real-time$/);
+        attempts.push(structuredClone(rows[0]));
+        if (attempts.length === 1) {
+          const err = new Error('synthetic 503');
+          err.response = { status: 503 };
+          throw err;
+        }
+        return { status: 202 };
+      };
+      try {
+        await restricted.ensureReady();
+        const outbox = createAuditOutbox({
+          pool: restricted.pool, ensureReady: restricted.ensureReady,
+          random: () => 0.5,
+          send: (dataset, payload) =>
+            AuditService.sendPreparedAuditEventToAxiomHTTP(dataset, payload)
+        });
+        const id = await outbox.enqueue(synthetic, 'real-time');
+        assert.equal((await outbox.drainOnce({ limit: 1 })).rescheduled, 1);
+        assert.equal((await outbox.getHealth()).pending, 1);
+        await pool.query("UPDATE demos_private.audit_delivery_outbox SET next_attempt_at=NOW()-INTERVAL '1 second' WHERE id=$1", [id]);
+        assert.equal((await outbox.drainOnce({ limit: 1 })).delivered, 1);
+        assert.equal((await outbox.getHealth()).total, 0);
+        assert.equal(attempts.length, 2);
+        assert.deepEqual(attempts[0], attempts[1]);
+        assert.equal(attempts[0].axiom_delivery_id, id);
+      } finally {
+        axios.post = oldPost;
+        delete require.cache[auditPath];
+        for (const [k,v] of Object.entries(previous)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
+        }
         await restricted.pool.end();
       }
     });

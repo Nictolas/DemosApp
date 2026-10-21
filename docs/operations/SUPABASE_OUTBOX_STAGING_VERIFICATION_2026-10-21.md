@@ -168,5 +168,21 @@ esplicito del collaudo end-to-end. Non attivare il worker.
 6. Soltanto dopo le verifiche e la policy approvata: valutare una migrazione
    separata e un'attivazione progressiva su DEMOS con rollback.
 
+## Integrazione reale PostgreSQL e trasporto Axiom simulato
+
+È stato aggiunto al test `api/tests/auditOutboxRealPostgres.test.js`
+uno scenario end-to-end con PostgreSQL 17 vero, login `demos_outbox_runtime_ci`
+dotato dei soli privilegi ereditati dal ruolo `demos_outbox_worker`,
+`AuditService.sendPreparedAuditEventToAxiomHTTP()` e un trasporto HTTP
+Axiom **sostituito nel test** con un adapter che prima simula un errore
+503 e poi risponde 202.
+
+La verifica controlla che la coda mantenga il record dopo il primo
+tentativo, ritenti dopo lo sblocco e conservi esattamente lo stesso
+`axiom_delivery_id` nei due payload; dopo l'ACK il record viene
+eliminato. Non viene chiamata nessuna API Axiom reale. La rete del
+database PostgreSQL è quella del container effimero GitHub Actions:
+questa prova non sostituisce un'app configurata su Demos-Staging.
+
 **Stato finale:** staging con solo schema vuoto; nessun worker collegato;
 nessun flag di outbox attivato; produzione intatta.
