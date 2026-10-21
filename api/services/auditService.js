@@ -162,6 +162,14 @@ class AuditService {
     if (!event || !['audit', 'security'].includes(event.log_type) ||
         !/^[a-zA-Z0-9_-]{1,96}$/.test(dataset)) return false;
 
+    // A stale queued row or misconfigured staging worker must not ingest into
+    // a production Axiom dataset. Check again at HTTP dispatch, not just enqueue.
+    try {
+      require('./auditOutboxAxiomTarget').assertOutboxAxiomTarget(dataset);
+    } catch (_error) {
+      return false;
+    }
+
     try {
       const axios = require('axios');
       const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
