@@ -186,6 +186,38 @@ coperto da test automatici su URI sintetiche, ma **non è stato eseguito
 contro Supabase con una password reale**. Questo resta un blocco
 esplicito del collaudo end-to-end. Non attivare il worker.
 
+## Preparazione dell'identità runtime (21 ottobre 2026, senza LOGIN)
+
+Con il progetto **Demos-Staging** confermato, è stata applicata la terza
+migrazione Supabase `20261021212727`
+(`prepare_demos_outbox_runtime_nologin_staging`). Ha creato
+`demos_outbox_runtime` con `NOLOGIN`, senza password, senza privilegi
+superuser, `BYPASSRLS`, `CREATEDB`, `CREATEROLE` né `REPLICATION`,
+e ha concesso esclusivamente l'appartenenza ereditaria al ruolo
+`demos_outbox_worker` (con `SET FALSE`). Non è una connessione di rete,
+non crea un utente applicativo utilizzabile e non abilita i flag outbox.
+
+**Verifica SQL effettiva (non simulata):** tutti gli attributi privilegiati
+sopra sono assenti; il ruolo eredita solo `USAGE` su `demos_private` e
+`SELECT/INSERT/UPDATE/DELETE` sulla tabella
+`audit_delivery_outbox`; non può creare in `public`. Inventario:
+**0 tabelle estranee leggibili**, **0 routine `SECURITY DEFINER`
+accessibili**, **0 eventi residui**. Non sono stati creati segreti
+o account `LOGIN`; il database DEMOS di produzione è intatto.
+
+**Connessione reale ancora BLOCCATA**, senza interpretazioni ambigue:
+Render non dispone di IPv6 outbound per la connessione diretta gratuita,
+quindi è necessario il vero hostname **Supavisor Session Pooler, porta
+5432**, dal pannello *Supabase → Demos-Staging → Connect → Session pooler*.
+L'hostname contiene un indice di cluster che **non può essere dedotto**
+dalla regione. È un dato non segreto: va acquisito esattamente dal
+pannello. Successivamente occorre abilitare `LOGIN` esclusivamente
+per `demos_outbox_runtime`, impostare una password casuale tramite un
+canale sicuro di configurazione, inserirla nel servizio Render isolato
+e lanciare il preflight senza mai stamparla. Non farlo prima di aver
+scelto un ambiente di staging Render sicuro e verificato il budget
+di ore Free condiviso col servizio produttivo.
+
 ## Bloccanti prima di abilitare la coda su DEMOS
 
 1. Confermare con il titolare/DPO, ove presente, finalità, campi ammessi,
@@ -228,5 +260,5 @@ eliminato. Non viene chiamata nessuna API Axiom reale. La rete del
 database PostgreSQL è quella del container effimero GitHub Actions:
 questa prova non sostituisce un'app configurata su Demos-Staging.
 
-**Stato finale:** staging con solo schema vuoto; nessun worker collegato;
+**Stato finale:** staging con schema vuoto e identità runtime NOLOGIN senza password; nessun worker collegato;
 nessun flag di outbox attivato; produzione intatta.
