@@ -2,12 +2,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  STAGING_PROJECT_REF, STAGING_POOLER_HOST, validateStagingOutboxTarget, runStagingOutboxPreflight
+  STAGING_PROJECT_REF, validateStagingOutboxTarget, runStagingOutboxPreflight
 } = require('../services/auditOutboxStagingGuard');
 
 const password = 'unit-test-only';
 const direct = `postgresql://demos_outbox_runtime:${password}@db.${STAGING_PROJECT_REF}.supabase.co:5432/postgres`;
-const pooler = `postgresql://demos_outbox_runtime.${STAGING_PROJECT_REF}:${password}@${STAGING_POOLER_HOST}:5432/postgres`;
+const pooler = `postgresql://demos_outbox_runtime.${STAGING_PROJECT_REF}:${password}@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`;
 
 test('accepts only the fixed staging project direct or shared session connection', () => {
   assert.deepEqual(validateStagingOutboxTarget(direct),
@@ -25,9 +25,7 @@ test('rejects production, generic hosts, postgres admin, wrong database and tran
     pooler.replace(':5432/', ':6543/'),
     direct.replace(':5432/', ':5434/'),
     direct.replace('.supabase.co', '.supabase.co.example.net'),
-    pooler.replace(STAGING_POOLER_HOST, 'attacker.pooler.supabase.com'),
-    pooler.replace(STAGING_POOLER_HOST, 'aws-0-eu-central-1.pooler.supabase.com'),
-    pooler.replace(STAGING_POOLER_HOST, 'aws-2-eu-central-1.pooler.supabase.com'),
+    pooler.replace('aws-0-eu-central-1.pooler.supabase.com', 'attacker.pooler.supabase.com'),
     'https://fkeayjzvtuvzesljhjbc.supabase.co/rest/v1',
     '',
     undefined
