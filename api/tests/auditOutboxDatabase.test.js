@@ -138,3 +138,26 @@ test('cross-project or incorrect deployment scope rejects before constructing an
     assert.equal(f.queries.length, 0);
   }
 });
+
+test('production can keep transaction pooler for main DB while outbox uses session pooler', () => {
+  const prodRef = 'wxnblcqoyjqxktwkcqok';
+  const main = `postgresql://postgres.${prodRef}:synthetic-main@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`;
+  const dedicated = `postgresql://demos_outbox_runtime.${prodRef}:synthetic-outbox@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`;
+  const f = fixture({ environment: {
+    NODE_ENV: 'production', AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production',
+    DATABASE_URL: main, AUDIT_OUTBOX_DATABASE_URL: dedicated
+  } });
+  const { pool } = f.get();
+  assert.ok(pool);
+  assert.equal(f.captured.length, 1);
+  assert.equal(f.captured[0].connectionString.includes(':5432/postgres'), true);
+  assert.equal(f.captured[0].ssl.rejectUnauthorized, true);
+
+  const unsafe = fixture({ environment: {
+    NODE_ENV: 'production', AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production',
+    DATABASE_URL: main, AUDIT_OUTBOX_DATABASE_URL:
+      dedicated.replace(':5432/', ':6543/')
+  } });
+  assert.throws(() => unsafe.get(), /PROJECT_SCOPE_REJECTED/);
+  assert.equal(unsafe.captured.length, 0);
+});

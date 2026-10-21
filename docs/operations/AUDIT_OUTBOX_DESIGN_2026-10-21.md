@@ -148,13 +148,22 @@ essere identica alla normale `DATABASE_URL`; non deve contenere account
 `AUDIT_OUTBOX_DATABASE_URL` devono identificare **lo stesso** progetto
 Supabase, e il suo identificativo deve essere quello immutabilmente
 previsto dal codice: `fkeayjzvtuvzesljhjbc` per lo staging,
-`wxnblcqoyjqxktwkcqok` per la produzione. Le connessioni via
-Supavisor devono usare lo username nel formato
-`ruolo.<project-ref>` sul pooler di sessione 5432; le connessioni dirette
-richiedono `db.<project-ref>.supabase.co:5432/postgres`. Se il progetto,
-il ruolo, la porta o la dichiarazione dell'ambiente non coincidono, il
-pool dedicato **non viene nemmeno creato**. Nessuna scelta automatica
-del progetto in base alla sola variabile `NODE_ENV`.
+`wxnblcqoyjqxktwkcqok` per la produzione.
+
+La connessione **principale** `DATABASE_URL` può mantenere il metodo
+già usato da DEMOS, incluso il Supavisor **transaction pooler 6543**
+(`api/config/database.js` lo prevede esplicitamente), oppure la
+connessione diretta/sessione 5432. L'URL **dedicata alla outbox** può
+usare **solo** connessione diretta o Supavisor **session pooler 5432**,
+perché la coda impiega transazioni, lease e lock PostgreSQL. Entrambe
+devono appartenere allo stesso `project-ref`, che per Supavisor è
+presente nello username `ruolo.<project-ref>`, e avere database
+`/postgres`. Nessuna connessione outbox sul pooler 6543 è accettata.
+Se il progetto, il ruolo, la porta o la dichiarazione dell'ambiente
+non coincidono, il pool dedicato **non viene nemmeno creato**.
+Nessuna scelta automatica del progetto in base alla sola `NODE_ENV`.
+
+Guida: https://supabase.com/docs/guides/database/connecting-to-postgres
 
 **Solo in CI** è consentito `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=ci-only`,
 con `NODE_ENV=test` ed entrambe le URL vincolate al database temporaneo

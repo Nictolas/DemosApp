@@ -78,3 +78,35 @@ test('ephemeral PostgreSQL CI is accepted only with both local URLs', () => {
   assert.deepEqual(parseDatabaseLocation(outboxUrl),
     { project: 'ci-only', kind: 'local-ci', role: 'worker' });
 });
+
+test('existing main transaction pooler 6543 is compatible with restricted session outbox 5432', () => {
+  for (const ref of [staging, production]) {
+    const scope = ref === staging ? 'staging' : 'production';
+    const primary = pooler(ref, 'postgres').replace(':5432/', ':6543/');
+    const directPrimary = direct(ref, 'postgres').replace(':5432/', ':6543/');
+    const dedicated = pooler(ref, 'demos_outbox_runtime');
+    for (const mainUrl of [primary, directPrimary]) {
+      assert.equal(assertOutboxProjectScope({
+        mainUrl, outboxUrl: dedicated, deploymentScope: scope
+      }), scope);
+    }
+    assert.deepEqual(parseDatabaseLocation(primary), {
+      project: ref, kind: 'transaction-pooler', role: 'postgres'
+    });
+  }
+});
+
+test('transaction pooler is always refused for the outbox connection itself', () => {
+  for (const ref of [staging, production]) {
+    const scope = ref === staging ? 'staging' : 'production';
+    for (const url of [
+      pooler(ref, 'demos_outbox_runtime').replace(':5432/', ':6543/'),
+      direct(ref, 'demos_outbox_runtime').replace(':5432/', ':6543/')
+    ]) {
+      assert.throws(() => assertOutboxProjectScope({
+        mainUrl: pooler(ref, 'postgres').replace(':5432/', ':6543/'),
+        outboxUrl: url, deploymentScope: scope
+      }), /PROJECT_SCOPE_REJECTED/);
+    }
+  }
+});

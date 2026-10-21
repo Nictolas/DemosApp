@@ -118,6 +118,14 @@ identificativi; rifiuta un backend principale collegato a DEMOS produttivo,
 anche quando la URL della outbox punta a staging. Non riusare la normale
 `DATABASE_URL` di DEMOS.
 
+L'eventuale `DATABASE_URL` dello staging può usare il pooler Supavisor
+in modalità transaction sulla porta **6543**, coerentemente con il
+backend esistente; `AUDIT_OUTBOX_DATABASE_URL` deve usare invece
+la modalità **session sulla porta 5432** o una connessione diretta 5432.
+Il controllo del progetto è indipendente dal metodo usato per il database
+principale. Il parser rifiuta 6543 **soltanto per l'outbox**, evitando
+un falso blocco del normale backend.
+
 ```bash
 cd api
 npm run audit:outbox:staging-preflight

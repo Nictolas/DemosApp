@@ -20,22 +20,32 @@ function parseDatabaseLocation(connectionString) {
     throw new Error('AUDIT_OUTBOX_PROJECT_SCOPE_REJECTED');
   }
   const host = url.hostname.toLowerCase();
-  if (url.pathname !== '/postgres' || url.port !== '5432') {
-    // Supabase direct + session pooler must point to the expected database.
-    // The CI test DB has a different name, and is checked separately.
-    if (host !== '127.0.0.1') throw new Error('AUDIT_OUTBOX_PROJECT_SCOPE_REJECTED');
+  // The primary DEMOS app can legitimately use Supavisor in transaction
+  // mode (6543), but the durable outbox needs direct/session mode (5432).
+  // Validate the project identity in either case, separately enforce the
+  // stronger connection restriction on the outbox URL.
+  if (host !== '127.0.0.1' &&
+      (url.pathname !== '/postgres' || !['5432', '6543'].includes(url.port))) {
+    throw new Error('AUDIT_OUTBOX_PROJECT_SCOPE_REJECTED');
   }
 
-  const direct = /^db\.([a-z0-9]{20})\.supabase\.co$/.exec(host);
+  const direct = /^db[.]([a-z0-9]{20})[.]supabase[.]co$/.exec(host);
   if (direct) {
-    return { project: direct[1], kind: 'direct', role: url.username };
+    return {
+      project: direct[1],
+      kind: url.port === '6543' ? 'transaction-pooler' : 'direct',
+      role: url.username
+    };
   }
-  if (/^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(host)) {
+  if (/^aws-[0-9]+-[a-z0-9-]+[.]pooler[.]supabase[.]com$/.test(host)) {
     const username = url.username;
     const split = username.lastIndexOf('.');
     if (split < 1) throw new Error('AUDIT_OUTBOX_PROJECT_SCOPE_REJECTED');
-    return { project: username.slice(split + 1), kind: 'session-pooler',
-      role: username.slice(0, split) };
+    return {
+      project: username.slice(split + 1),
+      kind: url.port === '6543' ? 'transaction-pooler' : 'session-pooler',
+      role: username.slice(0, split)
+    };
   }
   if (host === '127.0.0.1' && url.port === '5432' &&
       url.pathname === '/demos_outbox_ci') {
@@ -65,7 +75,7 @@ function assertOutboxProjectScope({
   if (!Object.hasOwn(SUPABASE_PROJECTS, deploymentScope) ||
       primary.project !== SUPABASE_PROJECTS[deploymentScope] ||
       !/^demos_outbox_[a-z0-9_]{1,40}$/.test(dedicated.role) ||
-      (dedicated.kind === 'session-pooler' && primary.kind === 'local-ci')) {
+      !['direct', 'session-pooler'].includes(dedicated.kind)) {
     throw new Error('AUDIT_OUTBOX_PROJECT_SCOPE_REJECTED');
   }
   return deploymentScope;
