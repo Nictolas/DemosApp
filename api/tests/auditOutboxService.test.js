@@ -86,7 +86,7 @@ test('drain delivers claimed row and deletes it only after true acknowledgement'
     deliveredPayload = { dataset, payload };
     return true;
   }});
-  const result = await store.drainOnce();
+  const result = await store.drainOnce({ limit: 1 });
   assert.deepEqual(result, { claimed: 1, delivered: 1, rescheduled: 0, deadLettered: 0 });
   assert.deepEqual(deliveredPayload, { dataset: 'real-time', payload: event });
   assert.ok(calls[0].includes('SKIP LOCKED'));
@@ -103,7 +103,7 @@ test('HTTP rejection schedules a retry without deleting the event', async () => 
     return { rowCount: 1 };
   }};
   const store = createAuditOutbox({ pool: mockPool(pool), random: () => 0.5, send: async () => false });
-  const result = await store.drainOnce();
+  const result = await store.drainOnce({ limit: 1 });
   assert.equal(result.rescheduled, 1);
   assert.equal(calls.length, 2);
   assert.ok(calls[1].sql.startsWith('UPDATE'));
@@ -122,20 +122,50 @@ test('after max attempts moves event to dead-letter for investigation', async ()
   }};
   const store = createAuditOutbox({ pool: mockPool(pool), send: async () => { throw new Error('sensitive provider message'); },
     report: (...args) => notifications.push(args) });
-  const result = await store.drainOnce();
+  const result = await store.drainOnce({ limit: 1 });
   assert.equal(result.deadLettered, 1);
   assert.deepEqual(notifications, [['AUDIT_OUTBOX_DEAD_LETTER', { count: 1 }]]);
 });
 
-test('claims are capped at ten per lease, even with a large requested batch', async () => {
+test('batch is bounded to ten sequential claims with separate leases', async () => {
+  const events = Array.from({ length: 13 }, (_, i) => ({
+    id: 'record-' + i, dataset: 'real-time', payload: event, attempt_count: 1
+  }));
   const seen = [];
   const store = createAuditOutbox({
-    pool: mockPool({ async query(_sql, params) { seen.push(params[0]); return { rows: [] }; } }),
-    send: async () => true
+    pool: mockPool({
+      async query(sql, params) {
+        if (sql.includes('FOR UPDATE SKIP LOCKED')) {
+          assert.equal(params[0], 1, 'each claim reserves only the next event');
+          seen.push(['claim', params[1]]);
+          return { rows: events.length ? [events.shift()] : [] };
+        }
+        if (sql.startsWith('DELETE')) {
+          seen.push(['ack', params[1]]);
+          return { rowCount: 1 };
+        }
+        throw new Error('unexpected query');
+      }
+    }),
+    send: async () => { seen.push(['send']); return true; }
   });
-  await store.drainOnce({ limit: 1000 });
-  await store.drainOnce({ limit: 1 });
-  assert.deepEqual(seen, [10, 1]);
+  const first = await store.drainOnce({ limit: 1000 });
+  assert.equal(first.claimed, 10);
+  assert.equal(first.delivered, 10);
+  assert.equal(events.length, 3);
+  const second = await store.drainOnce({ limit: 10 });
+  assert.equal(second.claimed, 3);
+  assert.equal(second.delivered, 3);
+  assert.equal(events.length, 0);
+  for (let n = 0; n < 13; n++) {
+    assert.equal(seen[n * 3][0], 'claim');
+    assert.equal(seen[n * 3 + 1][0], 'send');
+    assert.equal(seen[n * 3 + 2][0], 'ack');
+    assert.equal(seen[n * 3][1], seen[n * 3 + 2][1]);
+  }
+  // The final empty claim probes for more work but is never sent or ACKed.
+  assert.equal(new Set(seen.filter(s => s[0] === 'claim').map(s => s[1])).size, 14);
+  assert.equal(seen.filter(s => s[0] === 'ack').length, 13);
 });
 
 test('backoff is bounded and jittered', () => {

@@ -134,13 +134,15 @@ function createAuditOutbox({
     return totals;
   }
 
-  // 90-second leases must outlast a whole sequential HTTP batch.
-  // Axiom requests use a five-second timeout; cap at 10 claims (<=50s of HTTP).
+  // Each claim gets its own 90-second lease immediately before its HTTP send.
+  // Claiming ten rows up front would let the last leases expire during a slow batch.
   async function drainOnce({ limit = 10 } = {}) {
     await ensureReady();
     const batchSize = Math.max(1, Math.min(10, Number(limit) || 10));
-    const leaseId = randomUUID();
-    const result = await pool.query(
+    let claimed = 0, delivered = 0, rescheduled = 0, deadLettered = 0;
+    for (let i = 0; i < batchSize; i++) {
+      const leaseId = randomUUID();
+      const result = await pool.query(
       `WITH due AS (
         SELECT id FROM demos_private.audit_delivery_outbox
         WHERE (status = 'pending' AND next_attempt_at <= NOW())
@@ -155,12 +157,11 @@ function createAuditOutbox({
           attempt_count = o.attempt_count + 1
       FROM due WHERE o.id = due.id
       RETURNING o.id, o.dataset, o.payload, o.attempt_count`,
-      [batchSize, leaseId]
+      [1, leaseId]
     );
-    const claimed = result.rows || [];
-    let delivered = 0, rescheduled = 0, deadLettered = 0;
-
-    for (const item of claimed) {
+      const item = result.rows?.[0];
+      if (!item) break;
+      claimed++;
       let ok = false;
       try {
         ok = (await send(item.dataset, item.payload)) === true;
@@ -195,7 +196,7 @@ function createAuditOutbox({
       }
     }
     if (deadLettered) report('AUDIT_OUTBOX_DEAD_LETTER', { count: deadLettered });
-    return { claimed: claimed.length, delivered, rescheduled, deadLettered };
+    return { claimed, delivered, rescheduled, deadLettered };
   }
 
   return { enqueue, drainOnce, getHealth };

@@ -24,8 +24,10 @@ recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
   l'applicazione rifiuta l'accodamento con codice controllato
   `OUTBOX_CAPACITY_EXCEEDED`, senza eliminare eventi storici.
 - `drainOnce()`: acquisisce al massimo **10 eventi** per batch usando
-  `FOR UPDATE SKIP LOCKED`, *lease* di 90 s e token di proprietà per lavoratori
-  concorrenti. Cancella il record solo quando il trasporto conferma realmente
+  `FOR UPDATE SKIP LOCKED`, ma **uno alla volta**: il *lease* di 90 s
+  viene creato immediatamente prima dell'invio di ciascun evento, non per
+  tutti i dieci all'inizio del batch. Ogni evento ha un token di proprietà
+  distinto. Cancella il record solo quando il trasporto conferma realmente
   l'invio. Altrimenti aggiorna scadenza e prossimo tentativo.
 - Backoff esponenziale con jitter, massimo un'ora più jitter; dopo otto
   tentativi porta l'evento in `dead_letter` e produce una segnalazione priva
@@ -240,12 +242,15 @@ Questa prova colma la lacuna del test PGlite a connessione singola ma resta
 un **collaudo PostgreSQL effimero**, non un collaudo di configurazione Supabase,
 rete o credenziali reali. Il job non modifica Render e non configura retention.
 
-**Motivo del limite a 10 per batch:** il worker invia in sequenza e ha timeout
-HTTP Axiom di 5 secondi per evento. Dieci richieste possono richiedere
-circa 50 secondi, inferiori al lease SQL di 90 secondi in condizioni
-ordinarie. Lentezza anomala del database o crash possono comunque produrre
-reinvii: la garanzia rimane *at-least-once*, non exactly-once. Per questo
-serve controllare la deduplicazione a valle.
+**Correzione lease per evento:** il worker può elaborare fino a dieci
+messaggi per ciclo, ma ne acquisisce **solo uno per volta**, immediatamente
+prima di spedirlo. Nel precedente modello gli ultimi messaggi erano già
+prenotati mentre i precedenti aspettavano Axiom: sotto latenza elevata i
+lease potevano scadere prematuramente. Ogni claim usa ora il proprio token
+e ha 90 secondi dalla rispettiva acquisizione. Un crash o un timeout
+ancora maggiore può produrre reinvii: resta una garanzia *at-least-once*,
+non exactly-once. Un test PostgreSQL reale con due worker verifica che
+un primo invio lento non blocchi il secondo evento ancora pending.
 
 ## Notifiche amministrative: retry dopo consegna fallita
 
@@ -298,7 +303,7 @@ alla conservazione GDPR né cancellazione di eventi è inclusa qui.
    doppio worker, duplicazioni, dead-letter e recupero completo.
 7. Soltanto dopo queste verifiche, valutare rollout graduale su Render.
 
-**Staging disponibile dal 21/10/2026:** `Demos-Staging` è stato creato nell'organizzazione gratuita `DemosReplit` con preventivo di 0 USD/mese. La migrazione di staging è riuscita; due eventi sintetici sono stati processati e poi cancellati singolarmente. La tabella ora è vuota. L'advisor Supabase segnala solo `rls_enabled_no_policy` (INFO, intenzionale su schema privato); l'advisor prestazioni non segnala problemi. Il progetto DEMOS attivo resta privo dello schema `demos_private`, verificato in sola lettura. **Non attivare i flag in produzione.**
+**Staging disponibile dal 21/10/2026:** `Demos-Staging` è stato creato nell'organizzazione gratuita `DemosReplit` con preventivo di 0 USD/mese. La migrazione di staging è riuscita; due eventi sintetici sono stati processati e poi cancellati singolarmente. La tabella ora è vuota. Dopo la policy ristretta al ruolo NOLOGIN l'advisor Supabase non segnala problemi di sicurezza né di prestazioni. Il progetto DEMOS attivo resta privo dello schema `demos_private`, verificato in sola lettura. **Non attivare i flag in produzione.**
 
 **Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. `AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED=true` abilita separatamente notifiche agli admin per backlog, dead-letter e problemi al worker attraverso `OperationalAlertService`; senza il flag il sistema emette solo contatori nei log Render. Avviare solo dopo schema/permessi/retention verificati. Il percorso esplicito `securityEvent=true` del logger centralizzato è ora collegabile alla stessa outbox soltanto con `AUDIT_OUTBOX_SECURITY_ENABLED=true` **oltre** ad `AUDIT_OUTBOX_ENABLED=true`; senza il nuovo flag mantiene l'invio Axiom precedente. Il payload di sicurezza minimizzato include timestamp, `log_type=security`, codice evento controllato e identificativi già anonimizzati secondo configurazione; non salva messaggi liberi, URL, body o campi arbitrari. Questo è un collegamento opt-in a livello del logger: non prova che ogni sorgente applicativa emetta un evento `securityEvent`.
 

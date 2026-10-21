@@ -246,6 +246,43 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       }
     });
 
+    await t.test('slow first HTTP send never leases the next queued event prematurely', async () => {
+      await clean();
+      let releaseFirst;
+      let startedFirst;
+      const began = new Promise(resolve => { startedFirst = resolve; });
+      const gate = new Promise(resolve => { releaseFirst = resolve; });
+      const seen = [];
+      const first = make(async (_dataset, payload) => {
+        seen.push(['slow', payload.axiom_delivery_id]);
+        startedFirst();
+        await gate;
+        return true;
+      });
+      const second = make(async (_dataset, payload) => {
+        seen.push(['fast', payload.axiom_delivery_id]);
+        return true;
+      });
+      const firstId = await first.enqueue(synthetic, 'real-time');
+      const secondId = await first.enqueue(synthetic, 'real-time');
+      const batch = first.drainOnce({ limit: 2 });
+      try {
+        await began;
+        const statuses = await pool.query(
+          "SELECT id::text AS id, status FROM demos_private.audit_delivery_outbox ORDER BY created_at, id");
+        assert.equal(statuses.rows.length, 2);
+        assert.equal(statuses.rows.filter(r => r.status === 'sending').length, 1);
+        assert.equal(statuses.rows.filter(r => r.status === 'pending').length, 1);
+        const fast = await second.drainOnce({ limit: 1 });
+        assert.equal(fast.delivered, 1, 'another worker can process the still-pending second event');
+        assert.deepEqual(seen.map(s => s[1]).sort(), [firstId, secondId].sort());
+      } finally {
+        releaseFirst?.();
+        await batch;
+      }
+      assert.equal((await pool.query('SELECT count(*)::int AS n FROM demos_private.audit_delivery_outbox')).rows[0].n, 0);
+    });
+
     await t.test('simultaneous workers do not claim same unexpired lease', async () => {
       await clean();
       let release;
