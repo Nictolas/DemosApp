@@ -18,7 +18,7 @@ deve essere attivato sul backend di produzione.**
 | Data API pubblica dello staging | GET anon su tabella/schema privato → HTTP 404/406 | PASS negativo |
 | Isolamento dei progetti | `AUDIT_OUTBOX_DEPLOYMENT_SCOPE` e `AUDIT_OUTBOX_DATABASE_URL` separata; mismatch fallisce prima della creazione del pool | PASS test |
 | Reinvio Axiom 503 → 202 con ID stabile | Axiom HTTP simulato su PostgreSQL CI; **non** consegna reale | PASS simulazione |
-| Archiviazione Axiom → B2 e recupero duplicati | CI con oggetti sintetici e controlli SHA256 e gzip | PASS simulazione |
+| Archiviazione Axiom → B2 e recupero duplicati | CI con oggetti sintetici e controlli SHA256 e gzip; **27 completamenti operativi del job Render** nella finestra osservata, ma senza readback B2 | PASS simulazione + verifica operativa parziale; restore NON verificato |
 | Avvisi amministrativi | Retry dopo errore DB; avvisi concorrenti; DB riuscito + FCM fallito non genera duplicati; solo test sintetici | PASS simulazione |
 
 ## Condizioni mancanti per GO
@@ -35,7 +35,12 @@ deve essere attivato sul backend di produzione.**
   riceva ACK, sia visibile in Axiom con il medesimo
   `axiom_delivery_id`. Ripetere con Axiom temporaneamente indisponibile.
   Conservare soltanto un verbale degli esiti, senza token né PII.
-- [ ] **Backblaze B2 reale.** Con credenziali EU di *sola lettura*,
+- [ ] **Backblaze B2 reale.** L'archiviatore produttivo è stato
+  verificato indirettamente via Render: **27 completamenti, 0 errori
+  segnalati e due dataset caughtUp** nella finestra osservata il 21/10.
+  Questo non prova il recupero degli oggetti dal bucket. Vedi
+  `AXIOM_ARCHIVE_RENDER_OBSERVATION_2026-10-21.md`.
+  Con credenziali EU di *sola lettura*,
   verificare un batch già archiviato con
   `npm run archive:axiom:verify-latest -- centralized_logs` e
   `-- real-time`; se esistono oggetti sovrapposti, usare
@@ -76,6 +81,7 @@ deve essere attivato sul backend di produzione.**
 - GitHub: https://github.com/Nictolas/DemosApp/pull/218
 - `AUDIT_OUTBOX_DESIGN_2026-10-21.md`
 - `SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md`
+- `AXIOM_ARCHIVE_RENDER_OBSERVATION_2026-10-21.md`
 - `axiom-b2-log-archive.md`
 
 **Criterio di chiusura del lavoro:** tutte le condizioni GO completate con
