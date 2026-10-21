@@ -52,3 +52,14 @@ I valori che seguono sono **ipotesi**, non prescrizioni generali; la policy va a
 - Backblaze B2: https://www.backblaze.com/cloud-storage/pricing
 - Archiviazione già progettata: `docs/operations/axiom-b2-log-archive.md`.
 - Configurazione precedente: `CONFIGURAZIONE_LOG_PRODUZIONE.md`. Parti narrative storiche **non** certificano che il job sia attivo.
+
+## Aggiornamento verifica — 21/10/2026
+- PR di lavoro: https://github.com/Nictolas/DemosApp/pull/217 (bozza, **non distribuita**).
+- `LOG_LEVEL` viene normalizzato senza distinzione maiuscole/minuscole; audit/security espliciti non vengono omessi da filtri di verbosità. Gli eventi Axiom hanno `log_type` esplicito e il classificatore dell'archivio riconosce anche alcune forme legacy.
+- Gli invii falliti ad Axiom generano un segnale minimo e rate-limited; resta **da implementare** una coda durevole per garantire continuità se il provider non è disponibile.
+- Aggiornamento mirato `follow-redirects` da 1.16.0 a **1.16.1**, versione con correzioni per GHSA-q3jh-wrc6-jgq8 / GHSA-8r9p-f939-6h3c. Pinned con override e lockfile.
+- Nuova GitHub Action `Logging and archive regression`, eseguita su PR: installazione da lockfile, sintassi, test `test:logging-privacy` (**9 superati**), `test:axiom-archive` (**12 superati**), `npm audit --omit=dev --audit-level=high` (**0 vulnerabilità per dipendenze di produzione API**, alla data della verifica).
+- CI generale `Security Agent Validation` conclusa con **success**; controllo Snyk del commit di test **success**.
+- I test usano mock per Axiom/B2: confermano logica e protocolli locali, **non** equivalgono a una prova di export/restore contro provider reali.
+- Aggiornato anche `CONFIGURAZIONE_LOG_PRODUZIONE.md` per evitare che la creazione del bucket B2 venga descritta erroneamente come archiviazione in esercizio.
+- **Blocco residuo prima dell'attivazione:** credenziali/flag in produzione e prova controllata contro il vero Axiom e il vero bucket Backblaze, senza cancellazioni; retention da approvare con privacy/DPO. Conservare i log esistenti.
