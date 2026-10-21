@@ -1,6 +1,6 @@
 # Axiom -> Backblaze B2 historical log archive
 
-Status: implemented locally behind a fail-closed feature flag. Backblaze account created on 2026-10-06 in EU Central; private bucket, restricted application key and production activation are still pending. No production deployment or B2 credentials are included in the repository.
+Status (verified on Render 2026-10-21): **active in production**, not pending activation. The DEMOS backend logs show hourly archive completions since at least 2026-10-20. The B2 credentials are not stored in the repository. This does **not** yet prove an independently verified download/restore; the new read-only check described below is needed.
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The design intentionally does **not** encode a generic "GDPR = 7 years" retentio
 
 ## Safety properties
 
-- Disabled unless `AXIOM_ARCHIVE_ENABLED=true`.
+- Fail-closed in code unless `AXIOM_ARCHIVE_ENABLED=true`. **The current production service has this feature active according to its startup and hourly completion logs. Do not toggle/reset it on the assumption that it is disabled.**
 - Requires explicit Axiom query credentials and explicit B2 S3-compatible credentials.
 - Uses an EU B2 endpoint/region supplied through environment variables; nothing is hard-coded.
 - Writes gzip-compressed JSON Lines (`.jsonl.gz`).
@@ -35,11 +35,7 @@ Default source datasets:
 
 They can be overridden with `AXIOM_ARCHIVE_DATASETS`.
 
-Records are archived without modifying the event body. For storage/lifecycle partitioning only:
-
-- record with `type` + `severity` -> `security`
-- record with `action` + `resource` -> `audit`
-- everything else -> `technical`
+Records are archived without modifying the event body. Partitioning now prioritizes explicit `log_type=security|audit` and legacy `securityEvent|auditEvent` flags, then pre-existing `type`+`severity` and `action`+`resource` shapes, and finally known message prefixes for legacy security/audit records. Other events remain `technical`.
 
 This matches the field shapes currently emitted by the DEMOS Axiom writers. The original source dataset is retained in every archive envelope.
 
@@ -142,20 +138,28 @@ Verify/download/decompress an archived object and re-check every event fingerpri
 npm run archive:axiom:verify -- "demos/axiom-archive/v1/data/...jsonl.gz"
 ```
 
-## Production rollout checklist
+## Read-only recovery drill: last committed batch
 
-1. Merge only after tests/lint/security checks pass.
-2. Create the private EU B2 bucket.
-3. Enable/confirm B2 server-side encryption.
-4. Create a dedicated restricted application key; no delete permission.
-5. Add B2 secrets only in the deployment secret store.
-6. Keep `AXIOM_ARCHIVE_ENABLED=false` during configuration.
-7. Run one controlled one-shot archive with a short initial lookback.
-8. Verify the uploaded `.jsonl.gz` object with `archive:axiom:verify`.
-9. Increase the initial backfill horizon deliberately and complete the available Axiom history.
-10. Set the steady-state hourly schedule and enable the job.
-11. Define B2 lifecycle rules separately for `technical`, `audit`, and `security` only after retention periods are approved.
-12. Perform a periodic restore/integrity drill; do not rely only on successful uploads.
+After obtaining authorized access to the existing Render runtime environment (or an isolated environment with the **same restricted read credentials**), run:
+
+```bash
+cd api
+npm run archive:axiom:verify-latest -- centralized_logs
+npm run archive:axiom:verify-latest -- real-time
+```
+
+This command **does not** execute Axiom queries or PUT/DELETE B2 objects, does not advance checkpoints and does not print raw events. It reads the latest checkpoint from B2, downloads the linked manifest, verifies both SHA-256 values, downloads each referenced compressed data object, checks its hash and event fingerprint, decompresses it and verifies counts. It prints the checkpoint time, category totals and verified object counts. A no-data batch is valid and has an empty object list.
+
+A successful result is evidence of recoverability **for the latest archived batch only**, not a guarantee that the full historical archive or every retention class is complete. The production execution has not yet been performed as of 2026-10-21.
+
+## Production verification and continuity checklist
+
+1. **Do not create a second archive job, reset checkpoints, or re-enable a feature that is already active.** Preserve the existing hourly job on Render.
+2. Validate real B2 access in the authorized service environment without printing secrets.
+3. Run the read-only restore drill below separately for `centralized_logs` and `real-time`; it must verify checkpoint, manifest, object hashes, gzip restoration, event fingerprints and counts.
+4. Verify restoration periodically, especially after SDK/configuration changes. Alert independently if B2 is unavailable, a hash fails, or the last checkpoint is stale.
+5. Review the B2 object's real lifecycle configuration and retention before activating any deletion policy. Retention must be approved by the privacy/DPIA owner per event category.
+6. Keep the archive job decoupled from reliable *source* audit delivery: an outbox/retry mechanism is still needed for audit events that fail to reach Axiom in the first place.
 
 ## Files
 
