@@ -40,11 +40,11 @@ test('Android canonical override removes legacy fixed-height plus 56px clipping 
   assert.match(canonical, /body\.android-device \.app-navbar nav\.app-bottom-nav\s*\{[\s\S]*height:\s*auto\s*!important/);
   assert.match(canonical, /--app-navbar-bottom-gap:\s*min\(var\(--app-navbar-safe-bottom\), 14px\)/);
   assert.doesNotMatch(canonical, /max\(env\(safe-area-inset-bottom\),\s*56px\)/);
-  assert.match(canonical, /min-height:\\s*calc\\(3\\.75rem \\+ var\\(--app-navbar-bottom-gap\\)\\)/);
-  assert.match(canonical, /body\\.android-device \\.app-navbar \\.app-bottom-nav a\\s*\\{[\\s\\S]*min-height:\\s*44px/);
-  assert.match(canonical, /align-items:\\s*center\\s*!important/);
-  assert.doesNotMatch(canonical, /height:\\s*6rem\\s*!important/);
-  assert.doesNotMatch(canonical, /padding-bottom:\\s*calc\\(1rem \\+ max/);
+  assert.match(canonical, /min-height:\s*calc\(3\.75rem \+ var\(--app-navbar-bottom-gap\)\)/);
+  assert.match(canonical, /body\.android-device \.app-navbar \.app-bottom-nav a\s*\{[\s\S]*min-height:\s*44px/);
+  assert.match(canonical, /align-items:\s*center\s*!important/);
+  assert.doesNotMatch(canonical, /height:\s*6rem\s*!important/);
+  assert.doesNotMatch(canonical, /padding-bottom:\s*calc\(1rem \+ max/);
 });
 
 test('responsive audit matrix covers compact mobile, Android, landscape, tablet boundary and desktop', () => {
