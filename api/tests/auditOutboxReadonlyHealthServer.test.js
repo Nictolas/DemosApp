@@ -1,0 +1,108 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { healthHandler, startReadonlyHealthServer } =
+  require('../scripts/audit-outbox-readonly-health-server');
+
+const staging = 'fkeayjzvtuvzesljhjbc';
+const host = 'aws-1-eu-central-1.pooler.supabase.com';
+const base = {
+  AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
+  AUDIT_OUTBOX_PREFLIGHT_ONLY: 'true',
+  AUDIT_OUTBOX_DATABASE_URL:
+    `postgresql://demos_outbox_runtime.${staging}:synthetic-only@${host}:5432/postgres`,
+  AXIOM_REALTIME_DATASET: 'demos-security-staging',
+  AXIOM_DATASET: 'demos-security-staging',
+  AXIOM_ARCHIVE_ENABLED: 'false',
+  AUDIT_OUTBOX_ENABLED: 'false',
+  AUDIT_OUTBOX_WORKER_ENABLED: 'false',
+  AUDIT_OUTBOX_SECURITY_ENABLED: 'false',
+  AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED: 'false',
+  PORT: '10000'
+};
+
+test('health server validates isolated staging and successful DB preflight before binding', async () => {
+  const actions = [];
+  const instance = await startReadonlyHealthServer({
+    env: base,
+    verify: async () => {
+      actions.push('verified');
+      return {
+        result: 'AUDIT_RENDER_STAGING_PREFLIGHT_OK',
+        outboxEnabled: false,
+        archiveEnabled: false
+      };
+    },
+    serve: (handler, port) => {
+      assert.equal(port, 10000);
+      assert.equal(typeof handler, 'function');
+      actions.push('bound');
+      return { running: true };
+    }
+  });
+  assert.deepEqual(actions, ['verified', 'bound']);
+  assert.deepEqual(instance, { running: true });
+});
+
+test('unsafe environment and failed readiness never open a public listener', async () => {
+  for (const env of [
+    { ...base, DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL },
+    { ...base, AUDIT_OUTBOX_WORKER_ENABLED: 'true' },
+    { ...base, AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production' },
+    { ...base, AUDIT_OUTBOX_DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL.replace(host, 'aws-0-eu-central-1.pooler.supabase.com') },
+    { ...base, PORT: '70000' },
+    { ...base, PORT: '-1' }
+  ]) {
+    let opened = false;
+    await assert.rejects(
+      startReadonlyHealthServer({
+        env, verify: async () => { throw new Error('must never verify'); },
+        serve: () => { opened = true; }
+      })
+    );
+    assert.equal(opened, false);
+  }
+  let opened = false;
+  await assert.rejects(
+    startReadonlyHealthServer({
+      env: base,
+      verify: async () => ({ result: 'AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED' }),
+      serve: () => { opened = true; }
+    }),
+    /AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED/
+  );
+  assert.equal(opened, false);
+});
+
+function response() {
+  const output = { status: 0, headers: null, body: '' };
+  return {
+    output,
+    writeHead(status, headers) {
+      output.status = status;
+      output.headers = headers;
+    },
+    end(body) {
+      output.body = body;
+    }
+  };
+}
+
+test('only GET /healthz is publicly accessible, without any metadata', () => {
+  for (const request of [
+    { method: 'GET', url: '/' },
+    { method: 'POST', url: '/healthz' },
+    { method: 'GET', url: '/admin' },
+    { method: 'GET', url: '/healthz?debug=true' }
+  ]) {
+    const r = response();
+    healthHandler(request, r);
+    assert.equal(r.output.status, 404);
+    assert.equal(r.output.body, 'not found\n');
+  }
+  const r = response();
+  healthHandler({ method: 'GET', url: '/healthz' }, r);
+  assert.equal(r.output.status, 200);
+  assert.equal(r.output.body, 'ok\n');
+  assert.equal(r.output.headers['cache-control'], 'no-store');
+});
