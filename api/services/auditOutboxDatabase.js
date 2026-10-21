@@ -13,6 +13,7 @@ const REQUIRED_ROLE = 'demos_outbox_worker';
 function createAuditOutboxDatabase({
   env = process.env,
   PoolClass = Pool,
+  standalonePreflight = false,
   ca = () => fs.readFileSync(path.join(__dirname, '..', 'certs', 'prod-ca-2021.crt'), 'utf8')
 } = {}) {
   const connectionString = env.AUDIT_OUTBOX_DATABASE_URL;
@@ -35,16 +36,28 @@ function createAuditOutboxDatabase({
   // Compare tenant identities before even constructing the connection pool.
   // The scope is pinned to the explicit DEMOS project references, never to
   // the hostname alone, and refuses cross-project credentials.
-  assertOutboxProjectScope({
-    mainUrl: env.DATABASE_URL,
-    outboxUrl: connectionString,
-    deploymentScope: env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE,
-    nodeEnv: env.NODE_ENV
-  });
-  if (env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE === 'staging') {
-    // Also enforce the verified physical Supavisor host in the worker,
-    // not only in the separately invoked Render read-only preflight.
-    validateStagingOutboxTarget(connectionString);
+  if (standalonePreflight) {
+    // Only the standalone staging readiness CLI may omit DATABASE_URL.
+    // The normal application/worker MUST keep its project-comparison guard.
+    if (env.AUDIT_OUTBOX_PREFLIGHT_ONLY !== 'true' ||
+        env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE !== 'staging' ||
+        env.DATABASE_URL ||
+        ['AUDIT_OUTBOX_ENABLED', 'AUDIT_OUTBOX_WORKER_ENABLED',
+         'AUDIT_OUTBOX_SECURITY_ENABLED', 'AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED',
+         'AXIOM_ARCHIVE_ENABLED'].some(key => env[key] === 'true') ||
+        validateStagingOutboxTarget(connectionString).mode !== 'session-pooler') {
+      throw new Error('AUDIT_OUTBOX_STANDALONE_PREFLIGHT_REJECTED');
+    }
+  } else {
+    assertOutboxProjectScope({
+      mainUrl: env.DATABASE_URL,
+      outboxUrl: connectionString,
+      deploymentScope: env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE,
+      nodeEnv: env.NODE_ENV
+    });
+    if (env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE === 'staging') {
+      validateStagingOutboxTarget(connectionString);
+    }
   }
 
   // SSL URL query values must not override the verified Supabase certificate
