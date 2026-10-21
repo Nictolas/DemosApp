@@ -37,9 +37,10 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
 }, async (t) => {
   const pool = new Pool({ connectionString: testUrl, max: 8, connectionTimeoutMillis: 5000 });
   const report = [];
-  const make = send => createAuditOutbox({
+  const make = (send, options = {}) => createAuditOutbox({
     pool, send, random: () => 0.5,
-    report: (code, info) => report.push({ code, info })
+    report: (code, info) => report.push({ code, info }),
+    ...options
   });
 
   async function clean() {
@@ -151,6 +152,34 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       assert.deepEqual(seen, [id, id], 'deduplication ID must be stable across retries');
       assert.equal(report.filter(x => x.code === 'AUDIT_OUTBOX_ACK_STALE').length, 1);
       assert.equal((await pool.query('SELECT count(*)::int AS n FROM demos_private.audit_delivery_outbox')).rows[0].n, 0);
+    });
+
+    await t.test('transactional advisory lock enforces capacity with two concurrent INSERTs', async () => {
+      await clean();
+      report.length = 0;
+      const writerA = make(async () => true, { maxRecords: 1 });
+      const writerB = make(async () => true, { maxRecords: 1 });
+      const outcomes = await Promise.allSettled([
+        writerA.enqueue(synthetic, 'real-time'),
+        writerB.enqueue(synthetic, 'real-time')
+      ]);
+      assert.equal(outcomes.filter(x => x.status === 'fulfilled').length, 1);
+      assert.equal(outcomes.filter(x =>
+        x.status === 'rejected' && x.reason.message === 'OUTBOX_CAPACITY_EXCEEDED'
+      ).length, 1);
+      const tally = await pool.query('SELECT COUNT(*)::integer AS n FROM demos_private.audit_delivery_outbox');
+      assert.equal(tally.rows[0].n, 1);
+      const health = await writerA.getHealth();
+      assert.equal(health.total, 1);
+      assert.equal(health.capacity, 1);
+
+      // Dead letters consume capacity too: never auto-delete for free space.
+      await pool.query("UPDATE demos_private.audit_delivery_outbox SET status='dead_letter'");
+      await assert.rejects(
+        () => writerA.enqueue(synthetic, 'real-time'),
+        /OUTBOX_CAPACITY_EXCEEDED/
+      );
+      assert.equal((await writerA.getHealth()).deadLetter, 1);
     });
 
     await t.test('failure retains event until retry; dead-letter does not get retried', async () => {

@@ -9,8 +9,13 @@ recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
 
 `api/services/auditOutboxService.js` implementa, ma non attiva:
 - `enqueue(event, dataset)`: convalida categoria `audit` o `security`, limita il
-  payload a 2 KiB, assegna UUID stabile `axiom_delivery_id` e attende conferma
-  di `INSERT` sul database. Se la scrittura fallisce non simula il successo.
+  payload a 2 KiB, assegna UUID stabile `axiom_delivery_id`, acquisisce un
+  lock transazionale PostgreSQL e verifica che la coda abbia capacità prima
+  dell'`INSERT` e del `COMMIT`. Se la scrittura fallisce non simula il successo.
+  Il limite predefinito è **5.000 eventi**, includendo dead-letter; il massimo
+  configurabile tramite `AUDIT_OUTBOX_MAX_RECORDS` è 10.000. A capienza esaurita
+  l'applicazione rifiuta l'accodamento con codice controllato
+  `OUTBOX_CAPACITY_EXCEEDED`, senza eliminare eventi storici.
 - `drainOnce()`: acquisisce al massimo **10 eventi** per batch usando
   `FOR UPDATE SKIP LOCKED`, *lease* di 90 s e token di proprietà per lavoratori
   concorrenti. Cancella il record solo quando il trasporto conferma realmente
@@ -19,7 +24,7 @@ recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
   tentativi porta l'evento in `dead_letter` e produce una segnalazione priva
   di identificatori personali.
 - `AuditService.logAction` accoda soltanto con `AUDIT_OUTBOX_ENABLED=true` e Axiom abilitato. Restituisce `delivery: 'queued'`, non un falso successo di invio.
-- `api/jobs/auditOutboxWorker.js` esegue il drenaggio tramite timer con due flag espliciti; non sovrappone drain nello stesso processo e stampa solo metriche aggregate.
+- `api/jobs/auditOutboxWorker.js` esegue il drenaggio tramite timer con due flag espliciti; non sovrappone drain nello stesso processo e stampa solo metriche aggregate. Legge salute e profondità coda a ogni ciclo e segnala con `AUDIT_OUTBOX_HEALTH_WARNING` se la coda raggiunge l'80%, se un evento non consegnato attende da almeno 15 minuti oppure se è presente anche un solo dead-letter. L'avviso è limitato a uno per ora finché persiste il problema.
 - In modalità disattivata il servizio mantiene il flusso storico direttamente verso Axiom. Nessun cambiamento di retention o database di produzione.
 
 **Garanzia prevista: at-least-once**, non exactly-once. Se Axiom riceve l'evento
@@ -98,6 +103,10 @@ Esegue lo schema SQL descritto sopra con i seguenti controlli:
 - Invio fallito → prossimo tentativo, successo → DELETE, tentativi esauriti →
   `dead_letter` senza reinvio successivo.
 
+Il test vero comprende anche la competizione tra due INSERT per l'ultimo
+posto disponibile: un solo writer può confermare il COMMIT; gli eventi
+`dead_letter` occupano ancora spazio e non vengono eliminati automaticamente.
+
 Questa prova colma la lacuna del test PGlite a connessione singola ma resta
 un **collaudo PostgreSQL effimero**, non un collaudo di configurazione Supabase,
 rete o credenziali reali. Il job non modifica Render e non configura retention.
@@ -117,9 +126,12 @@ serve controllare la deduplicazione a valle.
    indici, concorrenza e isolamento dal Data API.
 3. **Implementato nel codice, non attivo:** verificare in staging `AuditService.logAction()` con il flag `AUDIT_OUTBOX_ENABLED=true`, assicurando che l'acknowledgement significhi *evento persistito*, non consegnato.
 4. **Implementato nel codice, non attivo:** verificare in staging il trasporto Axiom di eventi già minimizzati e il worker con `AUDIT_OUTBOX_WORKER_ENABLED=true`, senza sovrapporlo al job Axiom → B2 esistente.
-5. Mettere un limite massimo ai record in coda, segnalazioni indipendenti
-   da Axiom e metriche **senza PII**: profondità, ritardo, tentativi,
-   dead-letter, indisponibilità del database.
+5. **Implementato nel codice, non attivo:** limite hard a 5.000 record con
+   lock PostgreSQL transazionale e allarmi aggregati nei log applicativi di
+   Render indipendenti da Axiom. **Ancora da completare:** notifica esterna
+   effettiva se i log Render non vengono letti, approvazione soglie e
+   runbook per revisione manuale dei dead-letter; nessuna cancellazione
+   automatica prima della decisione sulle retention GDPR.
 6. Testare in staging Axiom non disponibile, riavvio, lease scaduto,
    doppio worker, duplicazioni, dead-letter e recupero completo.
 7. Soltanto dopo queste verifiche, valutare rollout graduale su Render.
@@ -135,7 +147,7 @@ cd api
 npm run test:logging-privacy
 ```
 
-Oltre ai mock, `api/tests/auditOutboxPostgres.test.js` usa `@electric-sql/pglite` (PostgreSQL WASM) per eseguire realmente lo schema SQL con dati sintetici e verificare RLS, mancanza di privilegi di `anon`/`authenticated`, INSERT, lease SQL, retry, DELETE dopo ACK e dead-letter. Verificati 32 test logging e 15 test archivio sul ramo di sviluppo. **PGlite non equivale a uno staging Supabase collegato né testa due connessioni realmente concorrenti.** La prova indipendente di
+Oltre ai mock, `api/tests/auditOutboxPostgres.test.js` usa `@electric-sql/pglite` (PostgreSQL WASM) per eseguire realmente lo schema SQL con dati sintetici e verificare RLS, mancanza di privilegi di `anon`/`authenticated`, INSERT, lease SQL, retry, DELETE dopo ACK e dead-letter. La suite logging include ora test di limite transazionale e monitoraggio, oltre ai 15 test di archivio; i risultati numerici aggiornati sono pubblicati dalla GitHub Action dedicata. **PGlite non equivale a uno staging Supabase collegato né testa due connessioni realmente concorrenti.** La prova indipendente di
 recupero B2 resta un'altra attività: `archive:axiom:verify-latest` è presente
 in `main` ma richiede un ambiente autorizzato con credenziali **di lettura**
 sul bucket reale, che non sono risultate disponibili nella copia di sviluppo

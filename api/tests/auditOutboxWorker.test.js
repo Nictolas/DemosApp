@@ -73,3 +73,47 @@ test('worker masks provider and DB error strings', async () => {
   assert.deepEqual(await worker.runOnce(), { failed: true });
   assert.deepEqual(messages, [['AUDIT_OUTBOX_WORKER_FAILED']]);
 });
+
+test('worker reports unhealthy backlog in aggregate and limits alert frequency', async () => {
+  const codes = [];
+  let now = 100;
+  let health = {
+    total: 4200, pending: 4199, sending: 0,
+    deadLetter: 1, oldestWaitSeconds: 1200, capacity: 5000
+  };
+  const worker = createAuditOutboxWorker({
+    enabled: () => true, clock: () => now,
+    outbox: {
+      drainOnce: async () => ({ delivered: 0, rescheduled: 0, deadLettered: 0 }),
+      getHealth: async () => health
+    },
+    report: (...args) => codes.push(args)
+  });
+  await worker.runOnce();
+  await worker.runOnce();
+  assert.deepEqual(codes, [['AUDIT_OUTBOX_HEALTH_WARNING', health]]);
+  now += 3600001;
+  await worker.runOnce();
+  assert.equal(codes.length, 2);
+  health = { total: 0, pending: 0, sending: 0, deadLetter: 0,
+    oldestWaitSeconds: 0, capacity: 5000 };
+  await worker.runOnce();
+  health = { ...health, total: 1, pending: 1, oldestWaitSeconds: 901 };
+  await worker.runOnce();
+  assert.equal(codes.length, 3, 'recovered->unhealthy transition should emit a new alert');
+});
+
+test('health failure emits generic warning and does not block delivery', async () => {
+  const warnings = [];
+  const worker = createAuditOutboxWorker({
+    enabled: () => true,
+    outbox: {
+      drainOnce: async () => ({ claimed: 1, delivered: 1, rescheduled: 0, deadLettered: 0 }),
+      getHealth: async () => { throw new Error('private database url in SQL failure'); }
+    },
+    report: (...args) => warnings.push(args)
+  });
+  assert.equal((await worker.runOnce()).delivered, 1);
+  assert.equal(warnings[0][0], 'AUDIT_OUTBOX_HEALTH_CHECK_FAILED');
+  assert.ok(!JSON.stringify(warnings).includes('private database url'));
+});

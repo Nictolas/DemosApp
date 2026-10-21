@@ -1,6 +1,27 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createAuditOutbox, nextDelayMs, MAX_EVENT_BYTES } = require('../services/auditOutboxService');
+const {
+  createAuditOutbox, nextDelayMs, MAX_EVENT_BYTES, resolveMaxRecords
+} = require('../services/auditOutboxService');
+
+// The mock exercises transaction boundaries but delegates INSERT/worker queries
+// to existing test-specific stubs. Real transactional behavior is checked in CI.
+function mockPool(pool) {
+  return {
+    ...pool,
+    connect: async () => ({
+      query: async (sql, params) => {
+        if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql) ||
+            sql.startsWith('SELECT pg_advisory_xact_lock')) return { rowCount: 1 };
+        if (sql.startsWith('SELECT COUNT(*)::integer AS total')) {
+          return { rows: [{ total: 0 }] };
+        }
+        return pool.query(sql, params);
+      },
+      release() {}
+    })
+  };
+}
 
 const event = Object.freeze({
   _time: '2026-10-21T12:00:00.000Z',
@@ -13,7 +34,7 @@ const event = Object.freeze({
 test('enqueue persists a minimal tagged event BEFORE returning ID', async () => {
   const calls = [];
   const pool = { async query(sql, params) { calls.push({ sql, params }); return { rowCount: 1 }; } };
-  const store = createAuditOutbox({ pool, send: async () => true });
+  const store = createAuditOutbox({ pool: mockPool(pool), send: async () => true });
   const id = await store.enqueue(event, 'real-time');
   assert.match(id, /^[a-f0-9-]{36}$/i);
   assert.match(calls[0].sql, /^INSERT INTO demos_private\.audit_delivery_outbox/);
@@ -25,12 +46,12 @@ test('enqueue persists a minimal tagged event BEFORE returning ID', async () => 
 });
 
 test('enqueue fails closed when DB does not acknowledge persistence', async () => {
-  const store = createAuditOutbox({ pool: { query: async () => ({ rowCount: 0 }) }, send: async () => true });
+  const store = createAuditOutbox({ pool: mockPool({ query: async () => ({ rowCount: 0 }) }), send: async () => true });
   await assert.rejects(() => store.enqueue(event, 'real-time'), /NOT_ACKNOWLEDGED/);
 });
 
 test('oversized or unclassified events cannot be persisted', async () => {
-  const store = createAuditOutbox({ pool: { query: () => { throw new Error('should not reach DB'); } }, send: async () => true });
+  const store = createAuditOutbox({ pool: mockPool({ query: () => { throw new Error('should not reach DB'); } }), send: async () => true });
   await assert.rejects(() => store.enqueue({ ...event, log_type: 'technical' }, 'real-time'), /INVALID_CATEGORY/);
   await assert.rejects(() => store.enqueue({ ...event, resource: 'x'.repeat(3000) }, 'real-time'), /TOO_LARGE/);
   await assert.rejects(() => store.enqueue(event, '../bad'), /INVALID_DATASET/);
@@ -39,7 +60,7 @@ test('oversized or unclassified events cannot be persisted', async () => {
 test('stored payload size includes generated deduplication ID', async () => {
   let queries = 0;
   const store = createAuditOutbox({
-    pool: { query: async () => { queries++; return { rowCount: 1 }; } },
+    pool: mockPool({ query: async () => { queries++; return { rowCount: 1 }; } }),
     send: async () => true
   });
   let padding = 1800;
@@ -61,7 +82,7 @@ test('drain delivers claimed row and deletes it only after true acknowledgement'
     if (sql.startsWith('DELETE')) return { rowCount: 1 };
     throw new Error('Unexpected query');
   }};
-  const store = createAuditOutbox({ pool, send: async (dataset, payload) => {
+  const store = createAuditOutbox({ pool: mockPool(pool), send: async (dataset, payload) => {
     deliveredPayload = { dataset, payload };
     return true;
   }});
@@ -81,7 +102,7 @@ test('HTTP rejection schedules a retry without deleting the event', async () => 
     }
     return { rowCount: 1 };
   }};
-  const store = createAuditOutbox({ pool, random: () => 0.5, send: async () => false });
+  const store = createAuditOutbox({ pool: mockPool(pool), random: () => 0.5, send: async () => false });
   const result = await store.drainOnce();
   assert.equal(result.rescheduled, 1);
   assert.equal(calls.length, 2);
@@ -99,7 +120,7 @@ test('after max attempts moves event to dead-letter for investigation', async ()
     assert.equal(params[2], 'dead_letter');
     return { rowCount: 1 };
   }};
-  const store = createAuditOutbox({ pool, send: async () => { throw new Error('sensitive provider message'); },
+  const store = createAuditOutbox({ pool: mockPool(pool), send: async () => { throw new Error('sensitive provider message'); },
     report: (...args) => notifications.push(args) });
   const result = await store.drainOnce();
   assert.equal(result.deadLettered, 1);
@@ -109,7 +130,7 @@ test('after max attempts moves event to dead-letter for investigation', async ()
 test('claims are capped at ten per lease, even with a large requested batch', async () => {
   const seen = [];
   const store = createAuditOutbox({
-    pool: { async query(_sql, params) { seen.push(params[0]); return { rows: [] }; } },
+    pool: mockPool({ async query(_sql, params) { seen.push(params[0]); return { rows: [] }; } }),
     send: async () => true
   });
   await store.drainOnce({ limit: 1000 });
@@ -120,4 +141,65 @@ test('claims are capped at ten per lease, even with a large requested batch', as
 test('backoff is bounded and jittered', () => {
   assert.equal(nextDelayMs(1, () => 0.5), 15000);
   assert.equal(nextDelayMs(999, () => 1), 4320000);
+});
+
+test('capacity defaults to 5000 rows and invalid overrides fail closed', () => {
+  assert.equal(resolveMaxRecords(undefined), 5000);
+  assert.equal(resolveMaxRecords('1'), 1);
+  assert.equal(resolveMaxRecords('10000'), 10000);
+  for (const invalid of ['-1', '0', '10001', '1.2', 'no', ' ', 'Infinity']) {
+    assert.throws(() => resolveMaxRecords(invalid), /OUTBOX_INVALID_CAPACITY/);
+  }
+});
+
+test('enqueue rolls back when capacity is reached without writing the event', async () => {
+  const calls = [];
+  let released = false;
+  const pool = {
+    query: async () => { throw new Error('Direct query must not be used'); },
+    connect: async () => ({
+      query: async (sql, params) => {
+        calls.push(sql);
+        if (sql.startsWith('SELECT COUNT(*)')) return { rows: [{ total: 1 }] };
+        if (sql.startsWith('INSERT')) throw new Error('Must never INSERT over capacity');
+        return { rowCount: 1 };
+      },
+      release() { released = true; }
+    })
+  };
+  const notifications = [];
+  const store = createAuditOutbox({
+    pool, send: async () => true, maxRecords: 1,
+    report: (...values) => notifications.push(values)
+  });
+  await assert.rejects(() => store.enqueue(event, 'real-time'), /OUTBOX_CAPACITY_EXCEEDED/);
+  assert.ok(calls.includes('BEGIN'));
+  assert.ok(calls.some(sql => sql.startsWith('SELECT pg_advisory_xact_lock')));
+  assert.ok(calls.includes('ROLLBACK'));
+  assert.ok(!calls.includes('COMMIT'));
+  assert.ok(released);
+  assert.deepEqual(notifications, [['AUDIT_OUTBOX_AT_CAPACITY', { capacity: 1 }]]);
+});
+
+test('getHealth exposes only aggregate counts and age, never payloads', async () => {
+  const store = createAuditOutbox({
+    pool: mockPool({
+      query: async sql => {
+        assert.ok(sql.includes('COUNT(*) FILTER'));
+        return {
+          rows: [{
+            total: 5, pending: 2, sending: 1, dead_letter: 2,
+            oldest_wait_seconds: 901,
+            ignored_payload: 'sensitive'
+          }]
+        };
+      }
+    }),
+    send: async () => true,
+    maxRecords: 5
+  });
+  assert.deepEqual(await store.getHealth(), {
+    total: 5, pending: 2, sending: 1, deadLetter: 2,
+    oldestWaitSeconds: 901, capacity: 5
+  });
 });

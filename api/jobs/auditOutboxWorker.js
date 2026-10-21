@@ -9,13 +9,37 @@ function createAuditOutboxWorker({
   schedule = setInterval,
   unschedule = clearInterval,
   report = console.warn,
-  intervalMs = 60000
+  clock = () => Date.now(),
+  intervalMs = 60000,
+  alertCooldownMs = 60 * 60 * 1000
 }) {
   if (!outbox || typeof outbox.drainOnce !== 'function') {
     throw new Error('AUDIT_OUTBOX_WORKER_INVALID_DEPENDENCY');
   }
   let timer = null;
   let running = false;
+  let lastHealthAlertMs = -Infinity;
+
+  async function checkHealth() {
+    if (typeof outbox.getHealth !== 'function') return;
+    try {
+      const health = await outbox.getHealth();
+      // Operating thresholds, NOT legal retention periods.
+      const unhealthy = health.total >= Math.ceil(health.capacity * 0.8) ||
+        health.deadLetter > 0 || health.oldestWaitSeconds >= 15 * 60;
+      if (unhealthy && clock() - lastHealthAlertMs >= alertCooldownMs) {
+        // Only aggregate counts/age. Never print event bodies or DB errors.
+        report('AUDIT_OUTBOX_HEALTH_WARNING', health);
+        lastHealthAlertMs = clock();
+      }
+      if (!unhealthy) lastHealthAlertMs = -Infinity;
+    } catch (_error) {
+      if (clock() - lastHealthAlertMs >= alertCooldownMs) {
+        report('AUDIT_OUTBOX_HEALTH_CHECK_FAILED');
+        lastHealthAlertMs = clock();
+      }
+    }
+  }
 
   async function runOnce() {
     if (!enabled()) return { skipped: true, reason: 'disabled' };
@@ -23,6 +47,7 @@ function createAuditOutboxWorker({
     running = true;
     try {
       const result = await outbox.drainOnce({ limit: 10 });
+      await checkHealth();
       // Counts only. Never print event bodies, user IDs or full provider errors.
       if (result.delivered || result.rescheduled || result.deadLettered) {
         report('AUDIT_OUTBOX_DELIVERY_METRICS', {

@@ -27,10 +27,14 @@ test('proposed private SQL schema enforces privileges, retry, ACK and dead-lette
     assert.equal(access.rows[0].rls_enabled, true);
 
     // PGlite implements SQL/parameterized queries but uses affectedRows instead of rowCount.
-    const pool = { async query(sql, params = []) {
+    const dbQuery = async (sql, params = []) => {
       const res = await db.query(sql, params);
       return { ...res, rowCount: res.affectedRows ?? res.rows.length };
-    } };
+    };
+    const pool = {
+      query: dbQuery,
+      connect: async () => ({ query: dbQuery, release() {} })
+    };
     const event = {
       _time: '2026-10-21T10:00:00.000Z',
       log_type: 'audit',

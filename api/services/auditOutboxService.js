@@ -1,11 +1,26 @@
 'use strict';
 
-// Pre-production component only: not yet wired into AuditService or runtime.
+// Pre-production feature: code wired behind opt-in flags, NOT enabled on live.
 // Provision and verify a private schema before any feature flag is enabled.
-// No automatic database migrations or network calls are performed here.
+// No automatic schema migration or log deletion is performed here.
 const { randomUUID } = require('node:crypto');
 const MAX_EVENT_BYTES = 2048;
 const DEFAULT_MAX_ATTEMPTS = 8;
+// Enforced under a transaction-scoped advisory lock across all app instances.
+// This bound includes dead-letter records (no automatic deletion of audit data).
+const DEFAULT_MAX_RECORDS = 5000;
+const MAX_CONFIGURED_RECORDS = 10000;
+const OUTBOX_CAPACITY_LOCK_ID = 730218;
+
+function resolveMaxRecords(value = process.env.AUDIT_OUTBOX_MAX_RECORDS) {
+  if (value === undefined || value === null || value === '') return DEFAULT_MAX_RECORDS;
+  if (!/^[0-9]+$/.test(String(value))) throw new Error('OUTBOX_INVALID_CAPACITY');
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n < 1 || n > MAX_CONFIGURED_RECORDS) {
+    throw new Error('OUTBOX_INVALID_CAPACITY');
+  }
+  return n;
+}
 
 function assertOutboxEvent(event, dataset) {
   if (!event || typeof event !== 'object' || !['audit', 'security'].includes(event.log_type)) {
@@ -24,9 +39,17 @@ function nextDelayMs(attempts, random = Math.random) {
   return Math.floor(base * (0.8 + Math.max(0, Math.min(1, random())) * 0.4));
 }
 
-function createAuditOutbox({ pool, send, report = console.error, random = Math.random, maxAttempts = DEFAULT_MAX_ATTEMPTS }) {
-  if (!pool || typeof pool.query !== 'function' || typeof send !== 'function') {
+function createAuditOutbox({
+  pool, send, report = console.error, random = Math.random,
+  maxAttempts = DEFAULT_MAX_ATTEMPTS,
+  maxRecords = resolveMaxRecords()
+}) {
+  if (!pool || typeof pool.query !== 'function' || typeof pool.connect !== 'function' ||
+      typeof send !== 'function') {
     throw new Error('OUTBOX_INVALID_DEPENDENCY');
+  }
+  if (!Number.isSafeInteger(maxRecords) || maxRecords < 1 || maxRecords > MAX_CONFIGURED_RECORDS) {
+    throw new Error('OUTBOX_INVALID_CAPACITY');
   }
 
   async function enqueue(event, dataset) {
@@ -37,12 +60,69 @@ function createAuditOutbox({ pool, send, report = console.error, random = Math.r
     if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > MAX_EVENT_BYTES) {
       throw new Error('OUTBOX_EVENT_TOO_LARGE');
     }
-    const result = await pool.query(
-      'INSERT INTO demos_private.audit_delivery_outbox (id, dataset, category, payload) VALUES ($1, $2, $3, $4::jsonb) RETURNING id',
-      [id, dataset, event.log_type, JSON.stringify(payload)]
-    );
-    if (result.rowCount !== 1) throw new Error('OUTBOX_INSERT_NOT_ACKNOWLEDGED');
-    return id;
+    // A transaction-scoped advisory lock serializes capacity checks across
+    // independently connected workers. The COUNT occurs after acquiring the
+    // lock, under READ COMMITTED, so two enqueues cannot both see the last slot.
+    const client = await pool.connect();
+    let inTransaction = false;
+    try {
+      await client.query('BEGIN');
+      inTransaction = true;
+      await client.query('SELECT pg_advisory_xact_lock($1::integer)', [OUTBOX_CAPACITY_LOCK_ID]);
+      const occupancy = await client.query(
+        'SELECT COUNT(*)::integer AS total FROM demos_private.audit_delivery_outbox'
+      );
+      if (!occupancy.rows?.length) throw new Error('OUTBOX_CAPACITY_UNAVAILABLE');
+      if (Number(occupancy.rows[0].total) >= maxRecords) {
+        report('AUDIT_OUTBOX_AT_CAPACITY', { capacity: maxRecords });
+        throw new Error('OUTBOX_CAPACITY_EXCEEDED');
+      }
+      const result = await client.query(
+        'INSERT INTO demos_private.audit_delivery_outbox (id, dataset, category, payload) VALUES ($1, $2, $3, $4::jsonb) RETURNING id',
+        [id, dataset, event.log_type, JSON.stringify(payload)]
+      );
+      if (result.rowCount !== 1) throw new Error('OUTBOX_INSERT_NOT_ACKNOWLEDGED');
+      await client.query('COMMIT');
+      inTransaction = false;
+      return id;
+    } catch (error) {
+      if (inTransaction) {
+        // Never leak SQL driver errors or payload contents into Render logs.
+        await client.query('ROLLBACK').catch(() => {});
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Counts and ages only. The event payload and identifiers never leave SQL.
+  async function getHealth() {
+    const result = await pool.query(`
+      SELECT COUNT(*)::integer AS total,
+             COUNT(*) FILTER (WHERE status = 'pending')::integer AS pending,
+             COUNT(*) FILTER (WHERE status = 'sending')::integer AS sending,
+             COUNT(*) FILTER (WHERE status = 'dead_letter')::integer AS dead_letter,
+             COALESCE(EXTRACT(EPOCH FROM (
+               NOW() - MIN(created_at) FILTER (WHERE status IN ('pending', 'sending'))
+             ))::integer, 0) AS oldest_wait_seconds
+      FROM demos_private.audit_delivery_outbox`);
+    if (result.rows?.length !== 1) throw new Error('OUTBOX_HEALTH_UNAVAILABLE');
+    const values = result.rows[0];
+    const totals = {
+      total: Number(values.total),
+      pending: Number(values.pending),
+      sending: Number(values.sending),
+      deadLetter: Number(values.dead_letter),
+      oldestWaitSeconds: Math.max(0, Number(values.oldest_wait_seconds)),
+      capacity: maxRecords
+    };
+    if (Object.values(totals).some(v => !Number.isSafeInteger(v) || v < 0) ||
+        totals.total !== totals.pending + totals.sending + totals.deadLetter ||
+        totals.total > maxRecords) {
+      throw new Error('OUTBOX_HEALTH_INVALID');
+    }
+    return totals;
   }
 
   // 90-second leases must outlast a whole sequential HTTP batch.
@@ -108,7 +188,10 @@ function createAuditOutbox({ pool, send, report = console.error, random = Math.r
     return { claimed: claimed.length, delivered, rescheduled, deadLettered };
   }
 
-  return { enqueue, drainOnce };
+  return { enqueue, drainOnce, getHealth };
 }
 
-module.exports = { MAX_EVENT_BYTES, assertOutboxEvent, nextDelayMs, createAuditOutbox };
+module.exports = {
+  MAX_EVENT_BYTES, DEFAULT_MAX_RECORDS, resolveMaxRecords,
+  assertOutboxEvent, nextDelayMs, createAuditOutbox
+};
