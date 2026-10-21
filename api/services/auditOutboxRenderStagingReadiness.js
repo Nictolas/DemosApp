@@ -4,7 +4,6 @@
 // audit-outbox staging service. The code must never launch the main API,
 // start workers, ingest into Axiom, or run the B2 archive.
 const { validateStagingOutboxTarget } = require('./auditOutboxStagingGuard');
-const { assertOutboxProjectScope } = require('./auditOutboxProjectScope');
 const { STAGING_AXIOM_DATASET } = require('./auditOutboxAxiomTarget');
 
 const FORBIDDEN_ENABLED_FLAGS = Object.freeze([
@@ -20,8 +19,8 @@ function assertSafeRenderStagingEnvironment(env = process.env) {
       FORBIDDEN_ENABLED_FLAGS.some(name => env[name] === 'true') ||
       env.AXIOM_REALTIME_DATASET !== STAGING_AXIOM_DATASET ||
       env.AXIOM_DATASET !== STAGING_AXIOM_DATASET ||
-      !env.DATABASE_URL || !env.AUDIT_OUTBOX_DATABASE_URL ||
-      env.DATABASE_URL === env.AUDIT_OUTBOX_DATABASE_URL) {
+      env.AUDIT_OUTBOX_PREFLIGHT_ONLY !== 'true' ||
+      env.DATABASE_URL || !env.AUDIT_OUTBOX_DATABASE_URL) {
     throw new Error('AUDIT_RENDER_STAGING_ENV_REJECTED');
   }
   try {
@@ -31,12 +30,6 @@ function assertSafeRenderStagingEnvironment(env = process.env) {
     if (target.mode !== 'session-pooler') {
       throw new Error('AUDIT_RENDER_STAGING_ENV_REJECTED');
     }
-    assertOutboxProjectScope({
-      mainUrl: env.DATABASE_URL,
-      outboxUrl: env.AUDIT_OUTBOX_DATABASE_URL,
-      deploymentScope: env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE,
-      nodeEnv: env.NODE_ENV
-    });
     return { stagingRef: target.stagingRef, mode: target.mode };
   } catch (_error) {
     // Never leak a connection URI or a database driver's error text.
