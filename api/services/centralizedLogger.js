@@ -3,6 +3,8 @@ const { pool } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
 const { sanitizeLogMeta } = require('../utils/logPrivacy');
+const { createFailureReporter } = require('../utils/logDeliveryFailureReporter');
+const reportAxiomIngestFailure = createFailureReporter();
 
 // Axiom integration (opzionale)
 let Axiom;
@@ -190,10 +192,8 @@ class CentralizedLogger {
       // Usa HTTP diretto invece dell'SDK per evitare problemi di regione
       await this.sendToAxiomHTTP(this.axiomDataset, [logEntry]);
     } catch (error) {
-      // Non bloccare applicazione se Axiom fallisce
-      if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Errore invio log Axiom:', error.message);
-      }
+      // Non interrompere le richieste utente; lascia una segnalazione operativa senza dati personali.
+      reportAxiomIngestFailure(error?.response?.status);
     }
   }
 
@@ -222,10 +222,8 @@ class CentralizedLogger {
         maxBodyLength: Infinity
       });
     } catch (error) {
-      // Silenzioso - non bloccare applicazione
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`❌ Errore invio Axiom HTTP:`, error.response?.status || error.message);
-      }
+      // Errori di rete/HTTP visibili in produzione, ma senza token, eventi o URL sensibili.
+      reportAxiomIngestFailure(error?.response?.status);
     }
   }
 
