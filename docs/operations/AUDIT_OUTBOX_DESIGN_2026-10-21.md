@@ -80,6 +80,45 @@ ALTER TABLE demos_private.audit_delivery_outbox ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON demos_private.audit_delivery_outbox FROM PUBLIC, anon, authenticated;
 ```
 
+### Ruolo tecnico minimo (seconda migrazione, applicata solo su staging)
+
+Lo staging contiene ora anche la migrazione
+`grant_private_audit_outbox_worker_staging` (versione `20261021160408`).
+La seguente istruzione è stata applicata **solo** al progetto
+`Demos-Staging`, mai al database di produzione:
+
+```sql
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'demos_outbox_worker') THEN
+    CREATE ROLE demos_outbox_worker NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+  END IF;
+END
+$$;
+
+GRANT USAGE ON SCHEMA demos_private TO demos_outbox_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLE demos_private.audit_delivery_outbox TO demos_outbox_worker;
+
+CREATE POLICY demos_outbox_worker_access
+  ON demos_private.audit_delivery_outbox
+  FOR ALL TO demos_outbox_worker
+  USING (true)
+  WITH CHECK (true);
+
+REVOKE ALL ON SCHEMA demos_private FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON demos_private.audit_delivery_outbox FROM PUBLIC, anon, authenticated;
+```
+
+`demos_outbox_worker` è intenzionalmente **NOLOGIN**, non può autenticarsi
+come utente di rete e non possiede `BYPASSRLS` o `CREATEROLE`.
+Non è stato creato un login o una password per il worker e **nessun
+backend è collegato allo staging**. In futuro servirà un'identità di
+connessione dedicata, una membership controllata e una verifica effettiva
+di autorizzazione e isolamento. Non concedere l'accesso alla coda ai ruoli
+client `anon`, `authenticated` o `service_role`; non usare il ruolo
+`postgres` amministrativo come soluzione definitiva a privilegi minimi.
+
 La tabella deve essere visibile **solo** all'identità Postgres usata dal
 backend (privilegi dedicati da definire prima dell'attivazione), non alle
 chiavi `anon`/`authenticated`; verificare RLS e Data API con query di controllo.

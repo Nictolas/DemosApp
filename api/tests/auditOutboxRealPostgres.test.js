@@ -51,9 +51,10 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
     await pool.query('CREATE ROLE anon NOLOGIN');
     await pool.query('CREATE ROLE authenticated NOLOGIN');
     const doc = fs.readFileSync(path.join(__dirname, '../../docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'), 'utf8');
-    const match = doc.match(/```sql\r?\n([\s\S]*?)\r?\n```/);
-    assert.ok(match, 'proposed schema should be embedded in the runbook');
-    await pool.query(match[1]);
+    const blocks = [...doc.matchAll(/```sql\\r?\\n([\\s\\S]*?)\\r?\\n```/g)];
+    assert.ok(blocks.length >= 2, 'both initial schema and role migrations must be documented');
+    await pool.query(blocks[0][1]);
+    await pool.query(blocks[1][1]);
 
     await t.test('anon/authenticated cannot use schema or table, RLS is enabled', async () => {
       const meta = await pool.query(`SELECT
@@ -70,6 +71,42 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
         await assert.rejects(() => client.query('SELECT count(*) FROM demos_private.audit_delivery_outbox'), err => err.code === '42501');
         await client.query('ROLLBACK');
       } finally {
+        client.release();
+      }
+    });
+
+    await t.test('restricted NOLOGIN worker exercises INSERT/UPDATE/DELETE under RLS', async () => {
+      const status = await pool.query(`SELECT
+        rolcanlogin, rolbypassrls, rolsuper,
+        has_schema_privilege('demos_outbox_worker','demos_private','USAGE') AS schema_access,
+        has_table_privilege('demos_outbox_worker','demos_private.audit_delivery_outbox','INSERT') AS insert_access,
+        has_table_privilege('demos_outbox_worker','demos_private.audit_delivery_outbox','DELETE') AS delete_access,
+        has_schema_privilege('demos_outbox_worker','public','CREATE') AS public_create
+      FROM pg_roles WHERE rolname='demos_outbox_worker'`);
+      assert.equal(status.rows.length, 1);
+      assert.deepEqual(Object.values(status.rows[0]), [
+        false, false, false, true, true, true, false
+      ]);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SET LOCAL ROLE demos_outbox_worker');
+        const who = await client.query('SELECT current_user AS role');
+        assert.equal(who.rows[0].role, 'demos_outbox_worker');
+        const id = 'b60dfd3c-f984-4dfa-8b9b-cbce52e56bb2';
+        await client.query(`INSERT INTO demos_private.audit_delivery_outbox
+           (id,dataset,category,payload)
+           VALUES ($1,'real-time','audit',$2::jsonb)`,
+        [id, JSON.stringify({ log_type: 'audit', action: 'SYNTHETIC_CI_ONLY' })]);
+        const edit = await client.query(`UPDATE demos_private.audit_delivery_outbox
+           SET attempt_count=attempt_count+1 WHERE id=$1 RETURNING attempt_count`, [id]);
+        assert.equal(edit.rows[0].attempt_count, 1);
+        const deleted = await client.query(
+          'DELETE FROM demos_private.audit_delivery_outbox WHERE id=$1 RETURNING id', [id]);
+        assert.equal(deleted.rows.length, 1);
+        await client.query('ROLLBACK');
+      } finally {
+        await client.query('ROLLBACK').catch(() => {});
         client.release();
       }
     });
