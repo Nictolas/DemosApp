@@ -60,6 +60,77 @@ collaudo senza alterarne alert o analisi. Questa verifica con Axiom reale
 **non è stata eseguita**. Un eventuale dataset aggiuntivo richiederà
 una decisione separata, non è stato creato.
 
+## Render: workspace autorizzato e preflight dedicato
+
+**Verifica del 21/10/2026.** L'utente ha confermato il workspace Render
+`Nicolas` (`tea-d2gs3eadbo4c73ag95rg`). L'inventario Render mostra il
+backend **produttivo** `demos-backend`
+(`srv-d2gt3dodl3ps73fmereg`, ramo `main`, auto-deploy attivo)
+e più servizi **già esistenti** di staging su piano `free`, inclusi
+`demos-functional-staging` (`srv-db52l1g473hc739ld250`) e
+`demos-security-staging` (`srv-db2ho5jncjis73ep4ot0`), entrambi con
+auto-deploy disattivato e su rami diversi dalla PR #218.
+
+**Nessun servizio Render creato, modificato, riavviato o ridistribuito.**
+Gli staging precedenti non sono stati riutilizzati arbitrariamente:
+il connettore espone le configurazioni generali ma non consente di
+attestare in sola lettura la separazione effettiva delle loro
+credenziali runtime. **Non assumere che siano collegati al database
+Demos-Staging solo perché contengono la parola staging nel nome.**
+
+Un'ulteriore istanza Render Free non è necessariamente priva di rischio
+economico/operativo: le **750 ore mensili gratuite sono condivise**
+fra i servizi web Free dello stesso workspace, inclusa la produzione,
+e il loro esaurimento sospende i servizi Free. È necessario controllare
+prima il consumo residuo nella fatturazione Render:
+https://render.com/docs/free .
+Non creare un nuovo servizio o modificare uno staging esistente finché
+non è chiaro il consumo disponibile e non si conoscono le credenziali
+effettivamente assegnate al backend scelto.
+
+### Preflight del futuro backend isolato (senza avviare l'app)
+
+Nel ramo PR #218 è disponibile:
+
+```bash
+cd api
+npm run audit:outbox:render-staging-preflight
+```
+
+Il comando **non avvia Express, worker, Axiom o B2** ed esegue solo
+query SQL di controllo su Supabase. Prima di qualsiasi query verifica:
+
+- scope esatto `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`;
+- `DATABASE_URL` e `AUDIT_OUTBOX_DATABASE_URL` differenti, entrambe
+  vincolate al progetto **Demos-Staging** `fkeayjzvtuvzesljhjbc`;
+- per la coda solo connessione 5432 diretta o Supavisor *session*,
+  non transaction pooler 6543; sul database principale 6543 è ammesso;
+- `AXIOM_REALTIME_DATASET=AXIOM_DATASET=demos-security-staging`;
+- `AUDIT_OUTBOX_ENABLED`, `AUDIT_OUTBOX_WORKER_ENABLED`,
+  `AUDIT_OUTBOX_SECURITY_ENABLED`,
+  `AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED` e
+  `AXIOM_ARCHIVE_ENABLED` **non attivi**.
+
+La fase SQL verifica poi il login PostgreSQL non privilegiato, la
+membership nel ruolo minimo e i permessi necessari con il preflight
+già presente. In caso di problemi esce senza stampare password,
+URL o messaggi del driver. Restituisce soltanto identificatore
+pubblico di staging, esito e flag di sola lettura.
+
+**Blocco confermato direttamente nello staging Supabase:** la coda è
+vuota, RLS attiva, nessun accesso allo schema per `anon`/
+`authenticated`; `demos_outbox_worker` è ancora `NOLOGIN` e
+**0 ruoli `demos_outbox_%` possono effettuare LOGIN**. Non è
+stato inventato un hostname pooler né creata una password.
+
+**Prossime condizioni in ordine:** (1) scegliere un servizio davvero
+isolato e verificare le ore Render; (2) ottenere la connessione session
+esatta dal pannello Supabase e creare il login a privilegi minimi tramite
+un canale sicuro per i secret; (3) eseguire il preflight dal solo
+backend isolato, con tutti i flag disattivati; (4) solo dopo abilitare
+gli eventi sintetici e verificare Axiom, quindi B2 e FCM. Il preflight
+non autorizza automaticamente né il deploy né l'attivazione.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Ottenere da Supabase
