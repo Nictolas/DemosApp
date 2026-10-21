@@ -7,6 +7,7 @@ const path = require('node:path');
 const { Pool } = require('pg');
 const { buildDatabaseSsl } = require('../utils/databaseTlsPolicy');
 const { assertOutboxProjectScope } = require('./auditOutboxProjectScope');
+const { validateStagingOutboxTarget } = require('./auditOutboxStagingGuard');
 const REQUIRED_ROLE = 'demos_outbox_worker';
 
 function createAuditOutboxDatabase({
@@ -40,6 +41,11 @@ function createAuditOutboxDatabase({
     deploymentScope: env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE,
     nodeEnv: env.NODE_ENV
   });
+  if (env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE === 'staging') {
+    // Also enforce the verified physical Supavisor host in the worker,
+    // not only in the separately invoked Render read-only preflight.
+    validateStagingOutboxTarget(connectionString);
+  }
 
   // SSL URL query values must not override the verified Supabase certificate
   // policy enforced by the common production database configuration.
