@@ -1,6 +1,6 @@
 # DEMOS — outbox durevole per audit e sicurezza (proposta, 21/10/2026)
 
-**Stato: implementazione parziale su ramo separato, NON attivata in produzione.**
+**Stato: componente e integrazione dietro flag completati nel ramo di sviluppo, NON attivati in produzione. Nessuna migrazione applicata.**
 La PR #217 ha migliorato il controllo dell'esito HTTP di Axiom, ma un evento critico
 può andare perduto se Axiom è indisponibile. L'archivio storico B2 non può
 recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
@@ -18,8 +18,9 @@ recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
 - Backoff esponenziale con jitter, massimo un'ora più jitter; dopo otto
   tentativi porta l'evento in `dead_letter` e produce una segnalazione priva
   di identificatori personali.
-- Nessun avvio automatico, query su dati personali, invio Axiom, cambio
-  retention o modifica al database di produzione.
+- `AuditService.logAction` accoda soltanto con `AUDIT_OUTBOX_ENABLED=true` e Axiom abilitato. Restituisce `delivery: 'queued'`, non un falso successo di invio.
+- `api/jobs/auditOutboxWorker.js` esegue il drenaggio tramite timer con due flag espliciti; non sovrappone drain nello stesso processo e stampa solo metriche aggregate.
+- In modalità disattivata il servizio mantiene il flusso storico direttamente verso Axiom. Nessun cambiamento di retention o database di produzione.
 
 **Garanzia prevista: at-least-once**, non exactly-once. Se Axiom riceve l'evento
 ma il processo cade prima del DELETE, al riavvio l'evento può essere ritrasmesso.
@@ -54,7 +55,13 @@ CREATE TABLE demos_private.audit_delivery_outbox (
 );
 CREATE INDEX audit_delivery_outbox_due
 ON demos_private.audit_delivery_outbox (next_attempt_at, created_at)
-WHERE status IN ('pending', 'sending');
+WHERE status = 'pending';
+CREATE INDEX audit_delivery_outbox_expired_lease
+ON demos_private.audit_delivery_outbox (lease_expires_at)
+WHERE status = 'sending';
+
+-- Defense in depth even if a schema is accidentally exposed.
+ALTER TABLE demos_private.audit_delivery_outbox ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON demos_private.audit_delivery_outbox FROM PUBLIC, anon, authenticated;
 ```
@@ -71,18 +78,18 @@ stesso Supabase di DEMOS, con un limite di dimensione e monitoraggio dei costi.
    periodi di conservazione degli eventi non consegnati e `dead_letter`).
 2. Eseguire una migrazione **solo in staging** e verificare accessi, RLS,
    indici, concorrenza e isolamento dal Data API.
-3. Collegare il metodo `AuditService.logAction()` all'accodamento con un
-   flag esplicito disattivato di default. L'acknowledgement dovrà significare
-   *evento persistito*, non necessariamente già consegnato ad Axiom.
-4. Definire il trasporto Axiom per eventi già minimizzati, con gestione
-   degli errori; aggiungere un worker con timer indipendente e avvio
-   protetto da flag, senza sovrapporlo al job Axiom → B2 esistente.
+3. **Implementato nel codice, non attivo:** verificare in staging `AuditService.logAction()` con il flag `AUDIT_OUTBOX_ENABLED=true`, assicurando che l'acknowledgement significhi *evento persistito*, non consegnato.
+4. **Implementato nel codice, non attivo:** verificare in staging il trasporto Axiom di eventi già minimizzati e il worker con `AUDIT_OUTBOX_WORKER_ENABLED=true`, senza sovrapporlo al job Axiom → B2 esistente.
 5. Mettere un limite massimo ai record in coda, segnalazioni indipendenti
    da Axiom e metriche **senza PII**: profondità, ritardo, tentativi,
    dead-letter, indisponibilità del database.
 6. Testare in staging Axiom non disponibile, riavvio, lease scaduto,
    doppio worker, duplicazioni, dead-letter e recupero completo.
 7. Soltanto dopo queste verifiche, valutare rollout graduale su Render.
+
+**Disponibilità staging verificata 21/10/2026:** il connettore Supabase mostra un solo progetto DEMOS attivo, senza branch di sviluppo; il secondo progetto storico `DemosReplit` è inattivo. Nel progetto DEMOS attivo non esiste ancora lo schema `demos_private` (sola lettura). Non usare il progetto attivo come staging né attivare i flag fino a collaudo PostgreSQL indipendente.
+
+**Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. Avviare solo dopo schema/permessi/retention verificati. Il codice non aggiunge al momento la cattura automatica degli eventi `security` prodotti dal logger centralizzato: quel canale necessita una successiva integrazione distinta.
 
 ## Test locali del componente
 

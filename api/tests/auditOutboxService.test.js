@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createAuditOutbox, nextDelayMs } = require('../services/auditOutboxService');
+const { createAuditOutbox, nextDelayMs, MAX_EVENT_BYTES } = require('../services/auditOutboxService');
 
 const event = Object.freeze({
   _time: '2026-10-21T12:00:00.000Z',
@@ -34,6 +34,20 @@ test('oversized or unclassified events cannot be persisted', async () => {
   await assert.rejects(() => store.enqueue({ ...event, log_type: 'technical' }, 'real-time'), /INVALID_CATEGORY/);
   await assert.rejects(() => store.enqueue({ ...event, resource: 'x'.repeat(3000) }, 'real-time'), /TOO_LARGE/);
   await assert.rejects(() => store.enqueue(event, '../bad'), /INVALID_DATASET/);
+});
+
+test('stored payload size includes generated deduplication ID', async () => {
+  let queries = 0;
+  const store = createAuditOutbox({
+    pool: { query: async () => { queries++; return { rowCount: 1 }; } },
+    send: async () => true
+  });
+  let padding = 1800;
+  while (Buffer.byteLength(JSON.stringify({ ...event, action: 'X'.repeat(padding) })) < MAX_EVENT_BYTES - 15) padding++;
+  const nearLimit = { ...event, action: 'X'.repeat(padding) };
+  assert.ok(Buffer.byteLength(JSON.stringify(nearLimit)) <= MAX_EVENT_BYTES);
+  await assert.rejects(() => store.enqueue(nearLimit, 'real-time'), /TOO_LARGE/);
+  assert.equal(queries, 0);
 });
 
 test('drain delivers claimed row and deletes it only after true acknowledgement', async () => {

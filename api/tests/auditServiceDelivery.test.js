@@ -95,3 +95,116 @@ test('missing Axiom credentials cannot be mistaken for delivery', async () => {
     assert.equal(saved, null);
   });
 });
+
+async function withEnabledOutbox(outbox, fn) {
+  const original = AuditService._auditOutbox;
+  const flag = process.env.AUDIT_OUTBOX_ENABLED;
+  AuditService._auditOutbox = outbox;
+  process.env.AUDIT_OUTBOX_ENABLED = 'true';
+  try {
+    return await fn();
+  } finally {
+    AuditService._auditOutbox = original;
+    if (flag === undefined) delete process.env.AUDIT_OUTBOX_ENABLED;
+    else process.env.AUDIT_OUTBOX_ENABLED = flag;
+  }
+}
+
+test('outbox mode persists prepared audit event and returns queued, not delivered', async () => {
+  let queued;
+  await withStubbedAxiom(async () => {
+    throw new Error('No direct HTTP allowed in outbox mode');
+  }, async () => withEnabledOutbox({
+    enqueue: async (event, dataset) => {
+      queued = { event, dataset };
+      return '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+    }
+  }, async () => {
+    const result = await AuditService.logAction({
+      userId: 'test-person',
+      action: 'CONSENT_CHANGE',
+      resource: 'users',
+      details: { privatePoliticalOpinion: 'never persist me' },
+      ipAddress: '192.0.2.55',
+      errorMessage: 'Email foo@example.com is invalid'
+    });
+    assert.equal(result.delivery, 'queued');
+    assert.match(result.id, /^outbox-/);
+    assert.equal(queued.dataset, 'real-time');
+    assert.equal(queued.event.log_type, 'audit');
+    assert.equal(queued.event.user_id, 'test-person');
+    assert.equal(queued.event.error_message, null);
+    assert.ok(!JSON.stringify(queued).includes('never persist me'));
+    assert.ok(!JSON.stringify(queued).includes('foo@example.com'));
+  }));
+});
+
+test('outbox mode fails closed when database enqueue rejects', async () => {
+  await withStubbedAxiom(async () => {
+    throw new Error('Must not send directly');
+  }, async () => withEnabledOutbox({
+    enqueue: async () => { throw new Error('sensitive-DB-message'); }
+  }, async () => {
+    const saved = await AuditService.logAction({
+      userId: 'test-person', action: 'DATA_ACCESS', resource: 'users'
+    });
+    assert.equal(saved, null);
+  }));
+});
+
+test('outbox delivery retains the exact event, timestamp and deduplication key', async () => {
+  const event = {
+    _time: '2026-10-21T10:01:01.000Z',
+    log_type: 'audit',
+    action: 'CONSENT_CHANGE',
+    resource: 'users',
+    user_id: 'user-test',
+    axiom_delivery_id: '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f'
+  };
+  let delivered;
+  await withStubbedAxiom(async (url, payload) => {
+    delivered = { url, payload };
+    return { status: 200 };
+  }, async () => {
+    assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), true);
+    assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), true);
+  });
+  assert.equal(delivered.payload[0].axiom_delivery_id, event.axiom_delivery_id);
+  assert.equal(delivered.payload[0]._time, event._time);
+  assert.deepEqual(delivered.payload[0], event);
+});
+
+test('outbox preprocessor applies configured anonymization before persistent storage', async () => {
+  const prev = {
+    AXIOM_ANONYMIZE: process.env.AXIOM_ANONYMIZE,
+    AXIOM_ANONYMIZE_USER_ID: process.env.AXIOM_ANONYMIZE_USER_ID,
+    EXPORT_HASH_SALT: process.env.EXPORT_HASH_SALT
+  };
+  process.env.AXIOM_ANONYMIZE = 'true';
+  process.env.AXIOM_ANONYMIZE_USER_ID = 'true';
+  process.env.EXPORT_HASH_SALT = 'unit-test-salt';
+  let persisted;
+  try {
+    await withStubbedAxiom(async () => {
+      throw new Error('must queue instead of direct post');
+    }, async () => withEnabledOutbox({
+      enqueue: async event => {
+        persisted = event;
+        return '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+      }
+    }, () => AuditService.logAction({
+      userId: 'sensitive-user-id',
+      ipAddress: '198.51.100.22',
+      action: 'DATA_ACCESS',
+      resource: 'users'
+    })));
+    assert.equal(persisted.ip_address, '198.51.100.0');
+    assert.notEqual(persisted.user_id, 'sensitive-user-id');
+    assert.match(persisted.user_id, /^[0-9a-f]{16}$/);
+  } finally {
+    for (const [key, value] of Object.entries(prev)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});

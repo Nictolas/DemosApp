@@ -33,6 +33,10 @@ function createAuditOutbox({ pool, send, report = console.error, random = Math.r
     assertOutboxEvent(event, dataset);
     const id = randomUUID();
     const payload = { ...event, axiom_delivery_id: id };
+    // Enforce the bound on the full persisted payload, including deduplication ID.
+    if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > MAX_EVENT_BYTES) {
+      throw new Error('OUTBOX_EVENT_TOO_LARGE');
+    }
     const result = await pool.query(
       'INSERT INTO demos_private.audit_delivery_outbox (id, dataset, category, payload) VALUES ($1, $2, $3, $4::jsonb) RETURNING id',
       [id, dataset, event.log_type, JSON.stringify(payload)]

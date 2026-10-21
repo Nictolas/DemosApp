@@ -625,4 +625,11 @@ if (process.env.AXIOM_ARCHIVE_ENABLED === 'true') {
   axiomArchiveJob.start();
 }
 
+// Durable audit outbox: independent opt-in, inactive until the private SQL
+// schema and database permissions are verified in staging.
+if (process.env.AUDIT_OUTBOX_ENABLED === 'true' &&
+    process.env.AUDIT_OUTBOX_WORKER_ENABLED === 'true') {
+  require('./jobs/auditOutboxWorker').startProductionWorker();
+}
+
 module.exports = app;

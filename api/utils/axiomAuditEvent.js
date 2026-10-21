@@ -26,4 +26,24 @@ function buildAxiomAuditEvent(audit, now = Date.now()) {
   };
 }
 
-module.exports = { safeAuditErrorCode, buildAxiomAuditEvent };
+// Use the same minimization and anonymization for immediate and queued delivery.
+function prepareAxiomAuditEvent(audit, env = process.env) {
+  const entry = buildAxiomAuditEvent(audit);
+  if (env.AXIOM_ANONYMIZE === 'true') {
+    if (entry.ip_address) {
+      const parts = entry.ip_address.split('.');
+      if (parts.length === 4) {
+        entry.ip_address = `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+      }
+    }
+    if (entry.user_id && env.AXIOM_ANONYMIZE_USER_ID === 'true') {
+      const crypto = require('node:crypto');
+      entry.user_id = crypto.createHash('sha256')
+        .update(entry.user_id + (env.EXPORT_HASH_SALT || 'axiom-salt'))
+        .digest('hex').substring(0, 16);
+    }
+  }
+  return entry;
+}
+
+module.exports = { safeAuditErrorCode, buildAxiomAuditEvent, prepareAxiomAuditEvent };
