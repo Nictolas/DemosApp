@@ -35,7 +35,9 @@ function validateStagingOutboxTarget(connectionString) {
 
 async function runStagingOutboxPreflight({
   env = process.env,
-  open = () => require('./auditOutboxDatabase').createAuditOutboxDatabase({ env })
+  open = () => require('./auditOutboxDatabase').createAuditOutboxDatabase({
+    env, standalonePreflight: env.AUDIT_OUTBOX_PREFLIGHT_ONLY === 'true'
+  })
 } = {}) {
   validateStagingOutboxTarget(env.AUDIT_OUTBOX_DATABASE_URL);
   const { pool, ensureReady } = open();
