@@ -6,6 +6,7 @@ const {
   HeadObjectCommand,
   PutObjectCommand
 } = require('@aws-sdk/client-s3');
+const { classifyRecord } = require('../utils/archiveEventClassification');
 
 const DEFAULT_QUERY_LIMIT = 5000;
 const DEFAULT_MAX_WINDOW_MINUTES = 15;
@@ -107,21 +108,6 @@ function getRecordTime(record) {
   const candidate = record?._time || record?.timestamp || record?.created_at || record?.createdAt;
   const date = candidate ? new Date(candidate) : null;
   return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
-}
-
-function classifyRecord(record) {
-  // New events include an explicit log_type. Legacy records need compatible
-  // fallbacks; otherwise historic audit/security logs become "technical" and
-  // could later receive an inappropriately short storage lifecycle.
-  if (record?.log_type === 'security' || record?.securityEvent === true) return 'security';
-  if (record?.log_type === 'audit' || record?.auditEvent === true) return 'audit';
-  if (record && record.type && record.severity) return 'security';
-  if (record && record.action && record.resource) return 'audit';
-  if (typeof record?.message === 'string') {
-    if (record.message.startsWith('Evento di sicurezza: ')) return 'security';
-    if (record.message.startsWith('Audit: ')) return 'audit';
-  }
-  return 'technical';
 }
 
 function recordFingerprint(dataset, record) {
