@@ -4,7 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 
 export interface OpinionStatsData {
-  stats: { favorevole: number; contrario: number; indeciso: number; astenuto?: number };
+  stats?: { favorevole: number; contrario: number; indeciso: number; astenuto?: number };
+  suppressed?: boolean;
   questionText?: string;
   totaleUtenti?: number;
 }
@@ -42,7 +43,9 @@ export function OpinionStatsBar({ opinionId, show, className = "" }: OpinionStat
       </div>
     );
   }
-  if (isError || !data?.success || !data.data) return null;
+  // The backend deliberately omits stats for small samples (privacy threshold).
+  // Never attempt to read a missing stats object: it used to crash the page.
+  if (isError || !data?.success || !data.data || data.data.suppressed || !data.data.stats) return null;
 
   const { stats, totaleUtenti } = data.data;
   const favorevole = stats.favorevole ?? 0;
