@@ -137,10 +137,11 @@ Il preflight runtime `auditOutboxDatabase.ensureReady()` controlla ora
 **l'identità PostgreSQL effettivamente autenticata**, non soltanto i grant
 del ruolo `demos_outbox_worker`. Respinge account che possano creare
 database/ruoli, fare replication o creare oggetti nello schema `public`,
-nonché login che abbiano privilegi su tabelle o viste fuori
-`demos_private`, possano invocare routine esterne
-`SECURITY DEFINER` o appartengano a ruoli ulteriori oltre a
-`demos_outbox_worker`.
+nonché login che abbiano privilegi su **qualsiasi tabella o vista
+diversa da `demos_private.audit_delivery_outbox` (anche nello stesso
+schema privato)**, possano invocare routine `SECURITY DEFINER` non di
+sistema (anche interne allo schema privato) o appartengano a ruoli
+ulteriori oltre a `demos_outbox_worker`.
 
 La scansione consulta soltanto i **cataloghi** PostgreSQL: non legge
 payload di log, dati utenti, né invoca funzioni applicative. Restituisce
@@ -154,9 +155,14 @@ estranee accessibili e **zero** routine esterne eseguibili. L'esito
 non sostituisce la prova sul futuro `LOGIN` applicativo.
 Il test su **PostgreSQL 17 usa-e-getta** ha invece verificato
 sull'account `LOGIN` reale che un `GRANT SELECT` estraneo e
-una routine `SECURITY DEFINER` richiamabile attraverso `PUBLIC`
-vengono rifiutati e che la configurazione minimale torna valida
-dopo la revoca dei permessi. [CI PostgreSQL (14/14)](https://github.com/Nictolas/DemosApp/actions/runs/39676793121).
+una routine `SECURITY DEFINER` richiamabile attraverso `PUBLIC`,
+**entrambi nello stesso schema `demos_private`**, vengono rifiutati;
+la configurazione minimale torna valida dopo la revoca.
+[CI PostgreSQL (14/14)](https://github.com/Nictolas/DemosApp/actions/runs/39677416704).
+Un'ulteriore lettura dei cataloghi sullo **staging Supabase reale**
+ha confermato: **0** oggetti estranei accessibili anche entro lo schema
+privato, **0** routine `SECURITY DEFINER` invocabili, **0** login runtime
+creati e **0** eventi nella coda.
 
 **Blocco invariato:** non è stato ancora creato alcun account LOGIN
 nello staging Supabase o configurata una credenziale su Render.
