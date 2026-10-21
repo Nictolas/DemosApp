@@ -40,7 +40,11 @@ lo staging è per collaudi, non un servizio che deve restare sempre acceso.
   superuser o permessi di creazione su `public`. I grant **espliciti**
   aggiunti riguardano `USAGE` sullo schema privato e
   `SELECT/INSERT/UPDATE/DELETE` sulla tabella, con policy RLS dedicata.
-  Nessuna password o appartenenza è stata assegnata.
+  Nessun **LOGIN applicativo** e nessuna password sono stati creati.
+  PostgreSQL/Supabase assegna comunque all'account amministrativo
+  `postgres` un'appartenenza amministrativa automatica al ruolo creato:
+  `ADMIN OPTION=true`, `INHERIT OPTION=false`, `SET OPTION=false`.
+  Non equivale a un login operativo del worker.
 - **Nota sulla sicurezza Supabase:** il ruolo eredita comunque dal ruolo
   implicito `PUBLIC` il permesso `USAGE` dello schema `public` (non
   `CREATE`), come verificato nello staging. Prima di introdurre un
@@ -87,12 +91,38 @@ eseguita con le credenziali del ruolo backend e la configurazione completa
 Supabase di staging.
 
 La prova API HTTP è stata una verifica **GET** negativa, non un tentativo
-POST o un test con credenziali amministrative. Il connettore Supabase
-non può eseguire `SET LOCAL ROLE demos_outbox_worker` senza concedere
-appositamente quella membership all'identità del connettore: è stato
-respinto con `42501`. Il test sotto ruolo tecnico effettivo viene quindi
-aggiunto al PostgreSQL effimero della CI, mentre la prova end-to-end con
-una connessione di staging limitata resta ancora da effettuare.
+POST o un test con credenziali amministrative.
+
+### Nuovo collaudo con ruolo effettivo sul PostgreSQL Supabase reale
+
+**21 ottobre 2026:** senza creare un login o una password, il connettore
+SQL è riuscito a impostare temporaneamente il ruolo **effettivo**
+`demos_outbox_worker` entro un'unica transazione, concedendo il permesso
+`SET ROLE` temporaneo a `postgres` e terminando con `ROLLBACK`.
+Il test ha verificato nel **vero** PostgreSQL 17.11 di Demos-Staging:
+
+- `current_user = demos_outbox_worker`, RLS attiva, privilegi di
+  inserimento presenti e nessun permesso di creazione nello schema privato;
+- INSERT di un evento audit **esclusivamente sintetico**;
+- acquisizione `FOR UPDATE SKIP LOCKED`, passaggio in `sending`,
+  token di lease e aumento del contatore;
+- ritorno in `pending`, passaggio in `dead_letter`, verifica di
+  presenza e DELETE sotto il ruolo limitato;
+- `ROLLBACK` conclusivo, senza lasciare righe né modificare
+  permanentemente i grant.
+
+L'ispezione successiva di `pg_auth_members` mostra che `postgres`
+possiede la consueta appartenenza amministrativa del ruolo creato
+(`ADMIN=true`, `INHERIT=false`, `SET=false`, grantor
+`supabase_admin`). Il permesso aggiuntivo di `SET ROLE` del test
+**non è rimasto attivo**. Nessuna policy è stata aggiunta e l'advisor
+Supabase Security ha restituito zero segnalazioni.
+
+**Ambito della prova:** sono operazioni SQL reali sotto un ruolo
+`NOLOGIN` mediante impersonazione temporanea; **non** dimostrano ancora
+l'autenticazione di un account LOGIN applicativo via Session Pooler, né
+un backend DEMOS isolato realmente connesso a Demos-Staging. La prova
+HTTP Axiom/FCM e il recupero read-only B2 restano da completare.
 
 ## Advisor Supabase
 

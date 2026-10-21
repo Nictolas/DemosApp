@@ -14,7 +14,7 @@ deve essere attivato sul backend di produzione.**
 | Area | Evidenza | Stato |
 | --- | --- | --- |
 | Coda PostgreSQL, lease, retry, dead-letter, collisioni e capacità | Suite PostgreSQL 17 reale su GitHub CI; dataset sintetico | PASS |
-| Staging Supabase | `Demos-Staging` (`fkeayjzvtuvzesljhjbc`), due migrazioni, RLS e permessi per ruolo NOLOGIN; prova SQL; tabella ripulita | PASS SQL |
+| Staging Supabase | `Demos-Staging` (`fkeayjzvtuvzesljhjbc`), due migrazioni e RLS; eseguito anche INSERT/claim/lease/retry/dead-letter/DELETE **con ruolo NOLOGIN effettivo** in una transazione con `ROLLBACK`, senza creare password o dati residui | PASS SQL (non LOGIN/HTTP) |
 | Data API pubblica dello staging | GET anon su tabella/schema privato → HTTP 404/406 | PASS negativo |
 | Isolamento dei progetti | `AUDIT_OUTBOX_DEPLOYMENT_SCOPE` e `AUDIT_OUTBOX_DATABASE_URL` separata; mismatch fallisce prima della creazione del pool | PASS test |
 | Reinvio Axiom 503 → 202 con ID stabile | Axiom HTTP simulato su PostgreSQL CI; **non** consegna reale | PASS simulazione |

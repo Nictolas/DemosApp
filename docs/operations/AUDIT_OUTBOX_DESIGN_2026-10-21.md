@@ -185,7 +185,15 @@ eventualmente presenti nella URL.
 
 La migrazione dello staging ha creato il **solo** ruolo NOLOGIN di base.
 Non esiste ancora un login dedicato reale in Supabase e nessuna credenziale
-è stata copiata dai servizi di produzione. In GitHub CI il collaudo crea
+è stata copiata dai servizi di produzione. Un test SQL su Supabase 17.11
+ha tuttavia impersonato temporaneamente il ruolo NOLOGIN dentro una transazione
+annullata con `ROLLBACK`, verificando realmente INSERT, claim con lease,
+retry, dead-letter e DELETE. È stato confermato dopo il test che `postgres`
+conserva soltanto l'appartenenza amministrativa creata da Supabase
+(`ADMIN=true`, `INHERIT=false`, `SET=false`), non il diritto
+aggiuntivo temporaneo di assumere il ruolo. **Non equivale a testare
+l'autenticazione di un LOGIN runtime attraverso il Session Pooler.**
+Vedi `SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md`. In GitHub CI il collaudo crea
 un login temporaneo e sintetico `demos_outbox_runtime_ci`, ne verifica
 i grant e usa il vero pool dedicato per accodamento, consegna fittizia
 e cancellazione dopo ACK. Le credenziali CI non devono mai essere riutilizzate.
