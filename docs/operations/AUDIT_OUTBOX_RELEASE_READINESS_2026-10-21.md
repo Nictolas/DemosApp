@@ -182,24 +182,33 @@ del solo `demos_outbox_worker`. SQL verificato: privilegi
 Il lavoro è reale sul database di prova, **non è un collegamento Render
 attivo** e non consente l'accesso a rete senza LOGIN.
 
-**Blocco preciso:** manca il vero hostname
-Supabase `Demos-Staging → Connect → Session pooler` (porta 5432).
-Non è derivabile dal nome della regione e Render richiede IPv4 per la
-connessione al database Supabase Free. Le interfacce già connesse
-non hanno restituito l'hostname autenticato. Non provare host
-inventati e non distribuire le credenziali del database principale.
-Dopo aver acquisito l'hostname e controllato le ore Render disponibili,
-attivare il LOGIN soltanto per questo ruolo, generare/iniettare la
-credenziale come secret nel backend di staging isolato e eseguire
-`npm run audit:outbox:render-staging-preflight`. Nessun servizio
-Render è stato modificato o aggiunto.
+**Aggiornamento 22/10/2026 — hostname ottenuto:**
+`aws-1-eu-central-1.pooler.supabase.com:5432` per
+`Demos-Staging`, verificato dalla stringa Session Pooler dell'utente.
+Risoluzione IPv4 (4 record A) e raggiungibilità TCP porta 5432
+confermate dal desktop autorizzato; **non** è una prova di accesso
+PostgreSQL o di rete dal runtime Render. La stringa Supabase mostra
+`postgres.<project-ref>`, ma il worker userà
+`demos_outbox_runtime.<project-ref>` con privilegi minimi.
+
+**Blocco residuo: LOGIN disattivato** per `demos_outbox_runtime`,
+ancora senza password. La migrazione di attivazione con modifiche
+amministrative è stata rifiutata dai permessi Supabase e il successivo
+tentativo di abilitare soltanto LOGIN è stato bloccato dai controlli
+di sicurezza della piattaforma. **Non aggirare il blocco**.
+Verifica SQL successiva: `rolcanlogin=false`, **0** eventi in coda.
+Non è stato creato nessun servizio Render né configurato alcun secret.
+Per continuare serve un'abilitazione amministrativa autorizzata di
+LOGIN, la generazione e gestione sicura di una password dedicata,
+la verifica del consumo ore Render Free, quindi un runtime isolato
+con `npm run audit:outbox:render-staging-preflight`.
 
 ## Condizioni mancanti per GO
 
-- [ ] **Connessione applicativa di staging reale.** Ottenere da Supabase
-  l'hostname esatto del pooler *session* dello staging, creare un login
-  Postgres dedicato con grant minimi e credenziali gestite in un secret
-  manager. Impostare entrambe le connessioni sul **solo** backend di
+- [ ] **Connessione applicativa di staging reale.** Hostname Session
+  Pooler ora acquisito e testato su DNS/TCP da desktop; manca abilitare
+  in modo autorizzato il LOGIN del ruolo Postgres minimo già creato e
+  gestire la credenziale tramite secret manager. Impostare entrambe le connessioni sul **solo** backend di
   collaudo e confermare `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`.
   Eseguire `npm run audit:outbox:staging-preflight`; verificare
   `roleAuthorized=true`. Non copiare le password nei log/issue.
