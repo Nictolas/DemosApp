@@ -18,7 +18,7 @@ deve essere attivato sul backend di produzione.**
 | Data API pubblica dello staging | GET anon su tabella/schema privato → HTTP 404/406 | PASS negativo |
 | Isolamento dei progetti | `AUDIT_OUTBOX_DEPLOYMENT_SCOPE` e `AUDIT_OUTBOX_DATABASE_URL` separata; mismatch fallisce prima della creazione del pool | PASS test |
 | Reinvio Axiom 503 → 202 con ID stabile | Axiom HTTP simulato su PostgreSQL CI; **non** consegna reale | PASS simulazione |
-| Archiviazione Axiom → B2 e recupero duplicati | CI con oggetti sintetici, hash SHA256/gzip e nuovi limiti del restore B2 (**HEAD max 8 MiB, streaming bounded, decompressione max 32 MiB, max 60.000 eventi**); **27 completamenti** Render osservati, senza lettura B2 reale | PASS test + osservazione; restore reale NON verificato |
+| Archiviazione Axiom → B2 e recupero duplicati | CI con oggetti sintetici, hash SHA256/gzip e limiti del restore B2 (**HEAD max 8 MiB, streaming bounded, decompressione max 32 MiB, max 60.000 eventi**); lettura checkpoint rafforzata con verifica hash e dataset prima del riavvio; **27 completamenti** Render osservati, senza lettura B2 reale | PASS suite precedenti; nuovi test checkpoint da riconfermare in CI; restore reale NON verificato |
 | Avvisi amministrativi | Retry dopo errore DB; avvisi concorrenti; DB riuscito + FCM fallito non genera duplicati; solo test sintetici | PASS simulazione |
 
 ## Condizioni mancanti per GO
