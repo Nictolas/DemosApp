@@ -165,8 +165,8 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
         try { await db.ensureReady(); }
         finally { await db.pool.end(); }
       }
-      const tableName = 'public.demos_outbox_unrelated_canary';
-      const fnName = 'public.demos_outbox_definer_canary()';
+      const tableName = 'demos_private.demos_outbox_unrelated_canary';
+      const fnName = 'demos_private.demos_outbox_definer_canary()';
       await preflight(); // starts with only the outbox grants
       try {
         await pool.query(`CREATE TABLE ${tableName} (id integer)`);
@@ -177,7 +177,7 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
         await pool.query(`DROP TABLE ${tableName}`);
 
         await pool.query(
-          "CREATE FUNCTION public.demos_outbox_definer_canary() RETURNS integer LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'"
+          "CREATE FUNCTION demos_private.demos_outbox_definer_canary() RETURNS integer LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'"
         );
         await assert.rejects(preflight, /DATABASE_PREFLIGHT_FAILED/,
           'PUBLIC EXECUTE on a privileged function must block the worker');
