@@ -218,6 +218,32 @@ e lanciare il preflight senza mai stamparla. Non farlo prima di aver
 scelto un ambiente di staging Render sicuro e verificato il budget
 di ore Free condiviso col servizio produttivo.
 
+## Prova effettiva del ruolo runtime NOLOGIN sul database Staging
+
+**21 ottobre 2026 — verificato con Supabase SQL, senza nuove credenziali.**
+È stata aperta una transazione con un permesso `SET ROLE` provvisorio,
+assunta l'identità effettiva `demos_outbox_runtime` e letti esclusivamente
+i metadati PostgreSQL sui permessi. L'esito sotto tale identità:
+membership in `demos_outbox_worker` **true**,
+`USAGE` sullo schema privato **true**, permessi
+`SELECT/INSERT/UPDATE/DELETE` sulla sola coda **true**,
+`CREATE` sullo schema `public` **false**.
+
+La transazione è terminata con `ROLLBACK`. Una query separata ha
+verificato `pg_has_role('postgres','demos_outbox_runtime','SET')=false`,
+`rolcanlogin=false` e **0 eventi nella coda**. Nessun `GRANT`
+di prova è rimasto in vigore. Security Advisor e Performance Advisor
+Supabase hanno restituito **0 rilievi** dopo il test.
+
+**Non confondere questa prova con un LOGIN di rete:** non è stato
+attivato `LOGIN`, non è stata assegnata una password, né avviato un
+processo Render. Il Session Pooler esatto deve ancora essere acquisito
+dal pulsante `Connect → Session pooler` del progetto `Demos-Staging`;
+l'hostname del pooler non può essere indovinato a partire dalla regione.
+Il pannello è risultato aperto nel browser autorizzato, ma l'interfaccia
+desktop connessa non ne restituisce il contenuto del sito. Nessuna
+stringa di connessione/credenziale è stata esportata.
+
 ## Bloccanti prima di abilitare la coda su DEMOS
 
 1. Confermare con il titolare/DPO, ove presente, finalità, campi ammessi,
