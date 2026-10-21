@@ -16,6 +16,8 @@ on:
       - 'api/services/auditOutboxStagingGuard.js'
       - 'api/services/auditOutboxRenderStagingReadiness.js'
       - 'api/scripts/verify-audit-outbox-render-staging.js'
+      - 'api/scripts/audit-outbox-readonly-health-server.js'
+      - 'api/tests/auditOutboxReadonlyHealthServer.test.js'
       - 'api/tests/auditOutboxRenderStagingReadiness.test.js'
       - 'api/scripts/verify-audit-outbox-staging.js'
       - 'api/tests/auditOutboxStagingGuard.test.js'
@@ -88,6 +90,7 @@ jobs:
           node --check services/auditOutboxStagingGuard.js
           node --check services/auditOutboxRenderStagingReadiness.js
           node --check scripts/verify-audit-outbox-render-staging.js
+          node --check scripts/audit-outbox-readonly-health-server.js
           node --check scripts/verify-audit-outbox-staging.js
           node --check services/auditOutboxAlertService.js
           node --check services/operationalAlertService.js
@@ -102,6 +105,9 @@ jobs:
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
+      - name: Read-only Render health service startup and standby tests
+        working-directory: api
+        run: node --test tests/auditOutboxReadonlyHealthServer.test.js
       - name: Axiom archive and classification tests (mocked, no production credentials)
         working-directory: api
         run: npm run test:axiom-archive
