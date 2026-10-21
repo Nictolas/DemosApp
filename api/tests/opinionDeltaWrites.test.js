@@ -112,7 +112,7 @@ test('one change among 94 answers writes only the changed field', async () => {
   assert.equal(result.response.savedCount, 94);
   assert.equal(result.writes.length, 1);
   assert.match(result.writes[0].sql, /SET "question_80" = \$1 WHERE user_id = \$2/);
-  assert.deepEqual(result.writes[0].params, ['c', 'test-user']);
+  assert.deepEqual(Array.from(result.writes[0].params), ['c', 'test-user']);
 });
 
 test('new user first answers are still inserted as a batch', async () => {
