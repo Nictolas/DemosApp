@@ -173,6 +173,7 @@ test('enqueue rolls back when capacity is reached without writing the event', as
     report: (...values) => notifications.push(values)
   });
   await assert.rejects(() => store.enqueue(event, 'real-time'), /OUTBOX_CAPACITY_EXCEEDED/);
+  await assert.rejects(() => store.enqueue(event, 'real-time'), /OUTBOX_CAPACITY_EXCEEDED/);
   assert.ok(calls.includes('BEGIN'));
   assert.ok(calls.some(sql => sql.startsWith('SELECT pg_advisory_xact_lock')));
   assert.ok(calls.includes('ROLLBACK'));

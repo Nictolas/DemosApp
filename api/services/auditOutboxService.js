@@ -51,6 +51,7 @@ function createAuditOutbox({
   if (!Number.isSafeInteger(maxRecords) || maxRecords < 1 || maxRecords > MAX_CONFIGURED_RECORDS) {
     throw new Error('OUTBOX_INVALID_CAPACITY');
   }
+  let lastCapacityAlertMs = -Infinity;
 
   async function enqueue(event, dataset) {
     assertOutboxEvent(event, dataset);
@@ -74,7 +75,13 @@ function createAuditOutbox({
       );
       if (!occupancy.rows?.length) throw new Error('OUTBOX_CAPACITY_UNAVAILABLE');
       if (Number(occupancy.rows[0].total) >= maxRecords) {
-        report('AUDIT_OUTBOX_AT_CAPACITY', { capacity: maxRecords });
+        // Rate limit independent of Axiom: prevent repeated failed writes from
+        // generating a second log-cost incident in the Render collector.
+        const nowMs = Date.now();
+        if (nowMs - lastCapacityAlertMs >= 60 * 60 * 1000) {
+          report('AUDIT_OUTBOX_AT_CAPACITY', { capacity: maxRecords });
+          lastCapacityAlertMs = nowMs;
+        }
         throw new Error('OUTBOX_CAPACITY_EXCEEDED');
       }
       const result = await client.query(
