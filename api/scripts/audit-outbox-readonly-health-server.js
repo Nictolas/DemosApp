@@ -69,9 +69,16 @@ async function startReadonlyHealthServer({
   return serve(healthHandler, port);
 }
 
+function startupStatus(env = process.env) {
+  return env.AUDIT_OUTBOX_DATABASE_URL
+    ? 'AUDIT_RENDER_STAGING_PREFLIGHT_OK'
+    : 'AUDIT_RENDER_STAGING_STANDBY_NO_DB_SECRET';
+}
+
 if (require.main === module) {
   startReadonlyHealthServer().then(() => {
-    console.log('AUDIT_RENDER_STAGING_PREFLIGHT_OK');
+    // Without a secret this is a standby listener, NOT a verified DB login.
+    console.log(startupStatus());
   }).catch(() => {
     // No exception details or secrets may reach Render logs.
     console.error('AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
@@ -79,4 +86,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { healthHandler, waitingHandler, startReadonlyHealthServer };
+module.exports = { healthHandler, waitingHandler, startupStatus, startReadonlyHealthServer };
