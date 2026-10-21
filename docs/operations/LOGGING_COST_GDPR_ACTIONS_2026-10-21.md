@@ -83,3 +83,18 @@ I valori che seguono sono **ipotesi**, non prescrizioni generali; la policy va a
 ### Blocco accesso provider
 - Il connettore Render riconosce il workspace `Nicolas`, ma **richiede che l'utente lo selezioni esplicitamente** prima di accedere a servizi e variabili. Nessun servizio Render né configurazione live Axiom/Backblaze sono stati interrogati con questo accesso.
 - Non esiste in questa sessione un connettore collegato che consenta di verificare direttamente l'account Axiom o il bucket Backblaze. La presenza del codice e dei dati del bucket nella documentazione non prova che i log siano archiviati.
+
+## CORREZIONE DELLO STATO LIVE — VERIFICA RENDER 21/10/2026
+> Questa sezione **sostituisce** ogni precedente affermazione del documento secondo cui il job Axiom → B2 fosse non attivo o ancora da abilitare.
+
+Con consenso esplicito del proprietario è stato selezionato il workspace Render **Nicolas** (`tea-d2gs3eadbo4c73ag95rg`). Il servizio di produzione è `demos-backend`, ID `srv-d2gt3dodl3ps73fmereg`, regione Frankfurt, piano Render Free, istanza singola, ramo `main` con auto-deploy. Al 21/10/2026 il deploy live è il commit `d80c1b90ca412e78af60621485f8ec825ad53210`, pubblicato il 20/10/2026.
+
+**Risultato:** il job **è già attivo**. All'avvio del deploy del 20/10 Render ha emesso `Axiom archive job enabled (17 * * * * UTC)`. Nei log applicativi dal 20/10 alle 12:00 UTC al 21/10 alle 12:00 UTC compaiono **25 completamenti** (inclusa una prima esecuzione post-deploy) per `centralized_logs` e `real-time`, ogni ora al minuto 17. In quella finestra i batch dichiarano di avere trattato complessivamente **529 record technical, 7 audit, 0 security**, senza backlog riportato (`caughtUp=true`). La sovrapposizione intenzionale delle finestre rende questi valori **conteggi di elaborazione, non dati unici** e non consente di calcolare il volume in byte. Ricerca esatta `Axiom archive failed` nei log dell'ultima settimana: **nessuna corrispondenza**, non una garanzia assoluta di assenza di errori.
+
+Il codice `putVerifiedObject()` esegue PUT B2, HEAD con hash SHA-256 e verifica della lunghezza **prima di avanzare il checkpoint**; i completamenti indicano che questa procedura è stata eseguita senza errori emersi. Rimane **non verificato** il recupero indipendente (`GetObject` da bucket B2, controllo manifest e decompressione completa) e il lifecycle/retention configurato direttamente su Backblaze. Non è stato modificato alcun dato, segreto, job o flag di Render: **non abilitare un secondo job né azzerare i checkpoint**.
+
+**Problema privacy live:** nei log Render sono state individuate **quattro** righe generate da `api/services/auditService.js` che includono un identificatore utente nel messaggio di falso successo `Audit log inviato ad Axiom`. Non riportare gli ID personali negli appunti. La PR #217 già sostituisce il messaggio e attende l'acknowledgement HTTP prima di dichiarare un successo. La patch è verificata in CI ma **non distribuita** sul servizio.
+
+**Rischi residui:** il job è legato a una singola istanza web Render Free, quindi può ritardare se il processo si sospende; servono monitoraggio sul checkpoint/ritardo, verifica restore, policy di retention approvata e outbox durevole per i soli eventi critici prima di dichiarare la filiera affidabile. L'attuale connettore Render consente leggere metadati, deploy, metriche e log, ma **non espone** un'azione per leggere i valori delle variabili d'ambiente o interagire direttamente con gli oggetti Backblaze. Non inferire credenziali o lifecycle dalle evidenze Render.
+
+Dashboard del servizio: https://dashboard.render.com/web/srv-d2gt3dodl3ps73fmereg
