@@ -4,6 +4,14 @@ const { AxiomArchiveService } = require('../services/axiomArchiveService');
 let task = null;
 let running = false;
 
+// Never write raw Axiom/S3/HTTP exceptions to Render logs. Their messages
+// may contain URLs, credentials, object keys, or fragments of query data.
+function safeArchiveErrorCode(error) {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  return /^(?:AXIOM_ARCHIVE|ARCHIVE|B2)_[A-Z0-9_]{3,64}$/.test(message)
+    ? message : 'AXIOM_ARCHIVE_UNCLASSIFIED_FAILURE';
+}
+
 async function runAxiomArchiveOnce() {
   if (running) {
     console.warn('Axiom archive skipped: previous run is still active');
@@ -26,7 +34,7 @@ async function runAxiomArchiveOnce() {
     console.log('Axiom archive completed:', JSON.stringify(summary));
     return { skipped: false, results };
   } catch (error) {
-    console.error('Axiom archive failed:', error.message);
+    console.error('Axiom archive failed:', safeArchiveErrorCode(error));
     throw error;
   } finally {
     running = false;
@@ -67,5 +75,6 @@ function stop() {
 module.exports = {
   runAxiomArchiveOnce,
   start,
-  stop
+  stop,
+  safeArchiveErrorCode
 };
