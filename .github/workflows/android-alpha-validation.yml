@@ -9,6 +9,8 @@ on:
       - 'api/tests/oauthRegistrationService.test.js'
       - 'api/tests/androidAuthNativePushIntegration.test.js'
       - 'client/android/app/build.gradle'
+      - 'client/src/css/android-navbar-fix.css'
+      - 'api/tests/navbarResponsiveContract.test.js'
       - 'client/android/app/src/main/res/mipmap-*/**'
       - 'client/public/icona.png'
       - 'client/package.json'
@@ -47,6 +49,9 @@ jobs:
       - name: Run OAuth registration and Android auth regression tests
         run: node --test api/tests/oauthRegistrationService.test.js api/tests/androidAuthNativePushIntegration.test.js
 
+      - name: Check responsive Android navbar contract
+        run: node --test api/tests/navbarResponsiveContract.test.js
+
       - name: Install client dependencies
         working-directory: client
         run: npm ci --ignore-scripts
@@ -71,8 +76,8 @@ jobs:
               test "$actual" = "$expected"
             done
           done
-          grep -q 'versionCode 9' client/android/app/build.gradle
-          grep -q 'versionName "1.0.7"' client/android/app/build.gradle
+          grep -q 'versionCode 10' client/android/app/build.gradle
+          grep -q 'versionName "1.0.8"' client/android/app/build.gradle
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
