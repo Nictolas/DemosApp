@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { healthHandler, startReadonlyHealthServer } =
+const { healthHandler, waitingHandler, startReadonlyHealthServer } =
   require('../scripts/audit-outbox-readonly-health-server');
 
 const staging = 'fkeayjzvtuvzesljhjbc';
@@ -42,6 +42,34 @@ test('health server validates isolated staging and successful DB preflight befor
   });
   assert.deepEqual(actions, ['verified', 'bound']);
   assert.deepEqual(instance, { running: true });
+});
+
+test('unconfigured staging service starts safely without a DB secret', async () => {
+  let verified = false;
+  let listener;
+  const runtime = await startReadonlyHealthServer({
+    env: { ...base, AUDIT_OUTBOX_DATABASE_URL: undefined },
+    verify: async () => { verified = true; throw new Error('must not connect'); },
+    serve: (handler, port) => { listener = handler; return { port }; }
+  });
+  assert.equal(verified, false);
+  assert.deepEqual(runtime, { port: 10000 });
+  assert.equal(listener, waitingHandler);
+  const health = response();
+  waitingHandler({ method: 'GET', url: '/healthz' }, health);
+  assert.equal(health.output.status, 503);
+  assert.equal(health.output.body, 'not ready\n');
+  const landing = response();
+  waitingHandler({ method: 'GET', url: '/' }, landing);
+  assert.equal(landing.output.status, 200);
+  assert.equal(landing.output.body, 'staging probe pending configuration\n');
+  let opened = false;
+  await assert.rejects(startReadonlyHealthServer({
+    env: { ...base, AUDIT_OUTBOX_DATABASE_URL: undefined, DATABASE_URL: 'not-allowed' },
+    verify: async () => { throw new Error('must not connect'); },
+    serve: () => { opened = true; }
+  }), /AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED/);
+  assert.equal(opened, false);
 });
 
 test('unsafe environment and failed readiness never open a public listener', async () => {
