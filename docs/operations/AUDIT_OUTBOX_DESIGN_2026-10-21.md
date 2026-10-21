@@ -34,7 +34,7 @@ recuperare eventi mai ricevuti da Axiom. Serve una coda *prima* dell'invio.
 
 **Garanzia prevista: at-least-once**, non exactly-once. Se Axiom riceve l'evento
 ma il processo cade prima del DELETE, al riavvio l'evento può essere ritrasmesso.
-L'UUID `axiom_delivery_id` è stabile per consentire la deduplicazione a valle;
+L'UUID `axiom_delivery_id` è stabile per consentire la deduplicazione a valle. La PR include ora la deduplicazione **per finestra** nell'archiviatore B2 per audit/security esplicitamente taggati, con errore a contenuti incompatibili; tra finestre sovrapposte resta necessaria la deduplicazione per `archive_event_id` durante il restore.
 l'archivio/ricerca deve verificarne esplicitamente la gestione.
 
 ## Schema PostgreSQL proposto (NON applicato)
@@ -146,7 +146,7 @@ serve controllare la deduplicazione a valle.
 
 **Disponibilità staging verificata 21/10/2026:** il connettore Supabase mostra un solo progetto DEMOS attivo, senza branch di sviluppo; il secondo progetto storico `DemosReplit` è inattivo. Nel progetto DEMOS attivo non esiste ancora lo schema `demos_private` (sola lettura). Non usare il progetto attivo come staging né attivare i flag fino a collaudo PostgreSQL indipendente.
 
-**Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. `AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED=true` abilita separatamente notifiche agli admin per backlog, dead-letter e problemi al worker attraverso `OperationalAlertService`; senza il flag il sistema emette solo contatori nei log Render. Avviare solo dopo schema/permessi/retention verificati. Il codice non aggiunge al momento la cattura automatica degli eventi `security` prodotti dal logger centralizzato: quel canale necessita una successiva integrazione distinta.
+**Flag runtime (entrambi disattivati se assenti):** `AUDIT_OUTBOX_ENABLED=true` accoda gli audit invece di inviarli direttamente, `AUDIT_OUTBOX_WORKER_ENABLED=true` consente il worker periodico, `AUDIT_OUTBOX_RUN_ON_START=true` effettua un ciclo alla partenza. `AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED=true` abilita separatamente notifiche agli admin per backlog, dead-letter e problemi al worker attraverso `OperationalAlertService`; senza il flag il sistema emette solo contatori nei log Render. Avviare solo dopo schema/permessi/retention verificati. Il percorso esplicito `securityEvent=true` del logger centralizzato è ora collegabile alla stessa outbox soltanto con `AUDIT_OUTBOX_SECURITY_ENABLED=true` **oltre** ad `AUDIT_OUTBOX_ENABLED=true`; senza il nuovo flag mantiene l'invio Axiom precedente. Il payload di sicurezza minimizzato include timestamp, `log_type=security`, codice evento controllato e identificativi già anonimizzati secondo configurazione; non salva messaggi liberi, URL, body o campi arbitrari. Questo è un collegamento opt-in a livello del logger: non prova che ogni sorgente applicativa emetta un evento `securityEvent`.
 
 ## Test locali del componente
 

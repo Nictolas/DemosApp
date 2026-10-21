@@ -6,6 +6,7 @@ const {
   AxiomArchiveService,
   classifyRecord,
   recordFingerprint,
+  sortAndDedupe,
   stableStringify
 } = require('../services/axiomArchiveService');
 
@@ -370,4 +371,76 @@ test('recovery drill fails closed without a B2 checkpoint', async () => {
     b2Client: new MemoryB2Client()
   });
   await assert.rejects(() => service.verifyLatestArchiveBatch('centralized_logs'), /checkpoint not found/);
+});
+
+test('replayed audit events dedupe on stable delivery UUID despite Axiom ingestion metadata', () => {
+  const deliveryId = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const original = {
+    _time: '2026-10-21T12:00:00.000Z', log_type: 'audit',
+    action: 'DATA_ACCESS', resource: 'users', success: true,
+    axiom_delivery_id: deliveryId,
+    _id: 'axiom-record-001',
+    _sysTime: '2026-10-21T12:00:01.000Z'
+  };
+  const retry = { ...original,
+    _id: 'axiom-record-002',
+    _sysTime: '2026-10-21T12:01:44.000Z',
+    axiom_delivery_id: deliveryId.toUpperCase()
+  };
+  assert.equal(recordFingerprint('real-time', original), recordFingerprint('real-time', retry));
+  assert.notEqual(recordFingerprint('centralized_logs', original), recordFingerprint('real-time', retry));
+  const stored = sortAndDedupe('real-time', [original, retry]);
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].record.axiom_delivery_id, deliveryId);
+  assert.equal(stored[0].record._id, undefined);
+  assert.equal(stored[0].record._sysTime, undefined);
+  assert.equal(classifyRecord(stored[0].record), 'audit');
+});
+
+test('conflicting audit events sharing a delivery UUID abort archival without leaking content', () => {
+  const id = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const first = {
+    _time: '2026-10-21T12:00:00.000Z', log_type: 'audit',
+    axiom_delivery_id: id,
+    action: 'DATA_ACCESS', resource: 'users'
+  };
+  const incompatible = { ...first, action: 'SECRET_PERSONAL_MESSAGE' };
+  assert.throws(() => sortAndDedupe('real-time', [first, incompatible]),
+    error => error.message === 'AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT');
+});
+
+test('legacy/non-audit events keep content fingerprints rather than trusting unvalidated UUID', () => {
+  const deliveryId = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const base = {
+    _time: '2026-10-21T12:00:00.000Z',
+    log_type: 'technical', axiom_delivery_id: deliveryId,
+    _sysTime: '2026-10-21T12:00:01Z'
+  };
+  const other = { ...base, _sysTime: '2026-10-21T12:10:00Z' };
+  assert.notEqual(recordFingerprint('real-time', base), recordFingerprint('real-time', other));
+  assert.equal(sortAndDedupe('real-time', [base, other]).length, 2);
+  const invalid = { ...base, log_type: 'audit', axiom_delivery_id: 'invalid-id' };
+  assert.notEqual(recordFingerprint('real-time', invalid),
+    recordFingerprint('real-time', { ...invalid, _sysTime: 'other' }));
+});
+
+test('audit archive groups contain one copy after replayed Axiom ingestion', () => {
+  const id = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const first = {
+    _time: '2026-10-21T12:00:00.000Z', log_type: 'audit',
+    axiom_delivery_id: id, action: 'CONSENT_CHANGE',
+    resource: 'users', _id: 'ingest-1'
+  };
+  const replay = { ...first, _id: 'ingest-2' };
+  const b2 = new MemoryB2Client();
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    axiomClient: { query: async () => ({ matches: [] }) },
+    b2Client: b2
+  });
+  const deduped = sortAndDedupe('real-time', [first, replay]);
+  const groups = service.buildArchiveGroups('real-time', deduped, new Date('2026-10-21T12:20:00.000Z'));
+  assert.equal(groups.get('audit').length, 1);
+  assert.equal(groups.get('security').length, 0);
+  assert.equal(groups.get('audit')[0].archive_event_id, recordFingerprint('real-time', replay));
 });

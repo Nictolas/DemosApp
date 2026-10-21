@@ -110,15 +110,43 @@ function getRecordTime(record) {
   return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
+const DELIVERY_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+
+function stableDeliveryId(record) {
+  if (!['audit', 'security'].includes(record?.log_type)) return null;
+  if (typeof record.axiom_delivery_id !== 'string' ||
+      !DELIVERY_ID_PATTERN.test(record.axiom_delivery_id)) return null;
+  return record.axiom_delivery_id.toLowerCase();
+}
+
+// Axiom-generated per-ingest fields must not make a retry of the *same*
+// outbox event look different in B2. Preserve these for legacy records.
+function canonicalDeliveryRecord(record) {
+  if (!stableDeliveryId(record)) return record;
+  const { _id, _sysTime, ...source } = record;
+  return { ...source, axiom_delivery_id: stableDeliveryId(record) };
+}
+
 function recordFingerprint(dataset, record) {
-  return sha256Hex(`${dataset}\n${stableStringify(record)}`);
+  const deliveryId = stableDeliveryId(record);
+  return deliveryId
+    ? sha256Hex([dataset, 'axiom-delivery', deliveryId].join(String.fromCharCode(10)))
+    : sha256Hex([dataset, stableStringify(record)].join(String.fromCharCode(10)));
 }
 
 function sortAndDedupe(dataset, records) {
   const byId = new Map();
-  for (const record of records) {
+  for (const rawRecord of records) {
+    const record = canonicalDeliveryRecord(rawRecord);
     const id = recordFingerprint(dataset, record);
-    if (!byId.has(id)) byId.set(id, { id, record });
+    const previous = byId.get(id);
+    if (!previous) {
+      byId.set(id, { id, record });
+    } else if (stableStringify(previous.record) !== stableStringify(record)) {
+      // Do not drop incompatible events with the same delivery ID silently.
+      // The fixed failure code excludes event content and personal information.
+      throw new Error('AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT');
+    }
   }
 
   return [...byId.values()].sort((a, b) => {

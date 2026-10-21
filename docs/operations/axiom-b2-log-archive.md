@@ -21,7 +21,7 @@ The design intentionally does **not** encode a generic "GDPR = 7 years" retentio
 - Uses a B2-resident checkpoint, so Render/local ephemeral disks are not relied on for progress state.
 - Processes backfills in bounded chunks and advances the checkpoint after every successful chunk, limiting memory usage and restart cost.
 - Re-reads an overlap window on every run to catch late-arriving events.
-- Gives every archived event a deterministic SHA-256 fingerprint; restore/import tooling can deduplicate overlaps safely.
+- Gives every archived event a deterministic SHA-256 fingerprint. For eligible replayed audit/security events with a valid `axiom_delivery_id` UUID, the fingerprint is derived from dataset + delivery UUID, rather than Axiom per-ingestion metadata. Restore/import tooling can deduplicate overlaps using `archive_event_id`.
 - Retries of the same archive chunk are idempotent at the data-object key level; the envelope uses the deterministic chunk end rather than wall-clock retry time.
 - Recursively splits saturated Axiom query windows instead of silently accepting a result that may have been truncated.
 - If a query is still saturated at the minimum window size, the run fails and the checkpoint does not advance.
@@ -35,7 +35,7 @@ Default source datasets:
 
 They can be overridden with `AXIOM_ARCHIVE_DATASETS`.
 
-Records are archived without modifying the event body. Partitioning now prioritizes explicit `log_type=security|audit` and legacy `securityEvent|auditEvent` flags, then pre-existing `type`+`severity` and `action`+`resource` shapes, and finally known message prefixes for legacy security/audit records. Other events remain `technical`.
+Records are generally archived without modifying the event body. **Exception:** eligible audit/security events carrying a valid `axiom_delivery_id` are canonically normalized before archival: ingestion-only Axiom metadata `_id` and `_sysTime` is removed, and the UUID is lowercased so retries cannot create distinct stored events. Partitioning now prioritizes explicit `log_type=security|audit` and legacy `securityEvent|auditEvent` flags, then pre-existing `type`+`severity` and `action`+`resource` shapes, and finally known message prefixes for legacy security/audit records. Other events remain `technical`.
 
 This matches the field shapes currently emitted by the DEMOS Axiom writers. The original source dataset is retained in every archive envelope.
 
@@ -67,7 +67,7 @@ A data line is an envelope:
 }
 ```
 
-`archive_event_id` is SHA-256 over the source dataset and a canonical serialization of the original event.
+`archive_event_id` is SHA-256 over the source dataset and canonical serialization for ordinary/legacy events. For a valid `axiom_delivery_id` on explicitly tagged audit/security events, it instead hashes dataset + a fixed `axiom-delivery` label + normalized UUID. Different events with the same UUID and conflicting canonicalized content cause archival to **fail without advancing the checkpoint**, rather than silently dropping either event. This deduplicates events within each fetched archive window; the same ID may still exist in physically separate overlapping objects. Consumers restoring multiple objects must deduplicate by `archive_event_id`. This is not deduplication inside Axiom itself.
 
 ## Scheduling
 

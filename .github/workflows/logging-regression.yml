@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'api/services/centralizedLogger.js'
+      - 'api/utils/axiomSecurityEvent.js'
+      - 'api/tests/axiomSecurityEvent.test.js'
       - 'api/services/auditService.js'
       - 'api/services/auditOutboxService.js'
       - 'api/services/auditOutboxAlertService.js'
@@ -52,6 +54,7 @@ jobs:
         working-directory: api
         run: |
           node --check services/centralizedLogger.js
+          node --check utils/axiomSecurityEvent.js
           node --check services/auditService.js
           node --check services/auditOutboxService.js
           node --check services/auditOutboxAlertService.js
