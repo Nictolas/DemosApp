@@ -1,3 +1,4 @@
+import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -115,7 +116,7 @@ export default function OpinioniEuropee() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinioni: newOpinions }),
+    mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("E", newOpinions),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni europee sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Europeo'] });
