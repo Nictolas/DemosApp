@@ -1,3 +1,4 @@
+import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
@@ -122,7 +123,7 @@ export default function OpinioniNazionali() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinioni: newOpinions }),
+    mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("N", newOpinions),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Nazionale'] });

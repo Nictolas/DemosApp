@@ -10,6 +10,7 @@ const {
 } = require('../../utils/politicalAggregatePrivacy');
 
 const router = express.Router();
+const { resolvePublishedOpinionColumn } = require('../../utils/opinionStatsColumns');
 
 // GET /api/opinioni/candidati - Endpoint di test senza autenticazione
 router.get('/candidati', async (req, res) => {
@@ -94,78 +95,8 @@ router.get('/stats/:opinionId', async (req, res) => {
     const { opinionId } = req.params;
     console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - opinionId ricevuto:', opinionId);
     
-    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-    const opinionMapping = {
-      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      // Opinioni ufficiali pubblicate il 20/10/2026.
-      'autonomia_differenziata': 'autonomia_differenziata',
-      'mes': 'mes',
-      'premierato': 'premierato',
-      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
-      'allevamenti_intensivi': 'allevamenti_intensivi',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'abolizione_contante': 'abolizione_contante',
-      'antifascismo': 'antifascismo',
-      'ius_soli': 'ius_soli',
-      'leva_obbligatoria': 'leva_obbligatoria',
-      'leva_obbliatoria': 'leva_obbliatoria',
-      'potenziare_rinnovabili': 'potenziare_rinnovabili',
-      'multe_in_base_al_reddito': 'multe_in_base_al_reddito',
-      'test_antidroga_per_politici': 'test_antidroga_per_politici',
-      'test_psichiatrico_per_politici': 'test_psichiatrico_per_politici',
-      'sionismo': 'sionismo',
-      'metabo_law': 'metabo_law',
-      'fuochi_d_artificio': 'fuochi_d_artificio',
-      'rilascio_di_palloncini': 'rilascio_di_palloncini',
-      'ponte_sullo_stretto': 'ponte_sullo_stretto',
-      'corrida': 'corrida',
-      'esercito_comune_europeo': 'esercito_comune_europeo',
-      'esercito_comune_ue': 'esercito_comune_ue',
-      'esercito_ue': 'esercito_ue',
-      'esercito_europeo': 'esercito_europeo',
-      
-      // Opinion regionali/comunali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    const columnName = opinionMapping[opinionId];
+    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
     if (!columnName) {
       console.log('❌ DEBUG /api/opinioni/stats/:opinionId - OpinionId non mappato:', opinionId);
       return res.status(404).json({
@@ -251,78 +182,8 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
   try {
     const { opinionId } = req.params;
     
-    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-    const opinionMapping = {
-      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      // Opinioni ufficiali pubblicate il 20/10/2026.
-      'autonomia_differenziata': 'autonomia_differenziata',
-      'mes': 'mes',
-      'premierato': 'premierato',
-      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
-      'allevamenti_intensivi': 'allevamenti_intensivi',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'abolizione_contante': 'abolizione_contante',
-      'antifascismo': 'antifascismo',
-      'ius_soli': 'ius_soli',
-      'leva_obbligatoria': 'leva_obbligatoria',
-      'leva_obbliatoria': 'leva_obbliatoria',
-      'potenziare_rinnovabili': 'potenziare_rinnovabili',
-      'multe_in_base_al_reddito': 'multe_in_base_al_reddito',
-      'test_antidroga_per_politici': 'test_antidroga_per_politici',
-      'test_psichiatrico_per_politici': 'test_psichiatrico_per_politici',
-      'sionismo': 'sionismo',
-      'metabo_law': 'metabo_law',
-      'fuochi_d_artificio': 'fuochi_d_artificio',
-      'rilascio_di_palloncini': 'rilascio_di_palloncini',
-      'ponte_sullo_stretto': 'ponte_sullo_stretto',
-      'corrida': 'corrida',
-      'esercito_comune_europeo': 'esercito_comune_europeo',
-      'esercito_comune_ue': 'esercito_comune_ue',
-      'esercito_ue': 'esercito_ue',
-      'esercito_europeo': 'esercito_europeo',
-      
-      // Opinion regionali/comunali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    const columnName = opinionMapping[opinionId];
+    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
     if (!columnName) {
       return res.status(404).json({
         success: false,
@@ -394,78 +255,8 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
   try {
     const { opinionId } = req.params;
     
-    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-    const opinionMapping = {
-      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      // Opinioni ufficiali pubblicate il 20/10/2026.
-      'autonomia_differenziata': 'autonomia_differenziata',
-      'mes': 'mes',
-      'premierato': 'premierato',
-      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
-      'allevamenti_intensivi': 'allevamenti_intensivi',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'abolizione_contante': 'abolizione_contante',
-      'antifascismo': 'antifascismo',
-      'ius_soli': 'ius_soli',
-      'leva_obbligatoria': 'leva_obbligatoria',
-      'leva_obbliatoria': 'leva_obbliatoria',
-      'potenziare_rinnovabili': 'potenziare_rinnovabili',
-      'multe_in_base_al_reddito': 'multe_in_base_al_reddito',
-      'test_antidroga_per_politici': 'test_antidroga_per_politici',
-      'test_psichiatrico_per_politici': 'test_psichiatrico_per_politici',
-      'sionismo': 'sionismo',
-      'metabo_law': 'metabo_law',
-      'fuochi_d_artificio': 'fuochi_d_artificio',
-      'rilascio_di_palloncini': 'rilascio_di_palloncini',
-      'ponte_sullo_stretto': 'ponte_sullo_stretto',
-      'corrida': 'corrida',
-      'esercito_comune_europeo': 'esercito_comune_europeo',
-      'esercito_comune_ue': 'esercito_comune_ue',
-      'esercito_ue': 'esercito_ue',
-      'esercito_europeo': 'esercito_europeo',
-      
-      // Opinion regionali/comunali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    const columnName = opinionMapping[opinionId];
+    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
     if (!columnName) {
       return res.status(404).json({
         success: false,
@@ -533,78 +324,8 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       });
     }
     
-    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-    const opinionMapping = {
-      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      // Opinioni ufficiali pubblicate il 20/10/2026.
-      'autonomia_differenziata': 'autonomia_differenziata',
-      'mes': 'mes',
-      'premierato': 'premierato',
-      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
-      'allevamenti_intensivi': 'allevamenti_intensivi',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'abolizione_contante': 'abolizione_contante',
-      'antifascismo': 'antifascismo',
-      'ius_soli': 'ius_soli',
-      'leva_obbligatoria': 'leva_obbligatoria',
-      'leva_obbliatoria': 'leva_obbliatoria',
-      'potenziare_rinnovabili': 'potenziare_rinnovabili',
-      'multe_in_base_al_reddito': 'multe_in_base_al_reddito',
-      'test_antidroga_per_politici': 'test_antidroga_per_politici',
-      'test_psichiatrico_per_politici': 'test_psichiatrico_per_politici',
-      'sionismo': 'sionismo',
-      'metabo_law': 'metabo_law',
-      'fuochi_d_artificio': 'fuochi_d_artificio',
-      'rilascio_di_palloncini': 'rilascio_di_palloncini',
-      'ponte_sullo_stretto': 'ponte_sullo_stretto',
-      'corrida': 'corrida',
-      'esercito_comune_europeo': 'esercito_comune_europeo',
-      'esercito_comune_ue': 'esercito_comune_ue',
-      'esercito_ue': 'esercito_ue',
-      'esercito_europeo': 'esercito_europeo',
-      
-      // Opinion regionali/comunali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    const columnName = opinionMapping[opinionId];
+    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
     if (!columnName) {
       return res.status(404).json({
         success: false,
@@ -693,52 +414,8 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
       });
     }
     
-    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-    const opinionMapping = {
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      // Opinioni ufficiali pubblicate il 20/10/2026.
-      'autonomia_differenziata': 'autonomia_differenziata',
-      'mes': 'mes',
-      'premierato': 'premierato',
-      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
-      'allevamenti_intensivi': 'allevamenti_intensivi',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    const columnName = opinionMapping[opinionId];
+    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
     if (!columnName) {
       return res.status(404).json({
         success: false,
@@ -824,52 +501,8 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
       });
     }
     
-    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
-    const opinionMapping = {
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      // Opinioni ufficiali pubblicate il 20/10/2026.
-      'autonomia_differenziata': 'autonomia_differenziata',
-      'mes': 'mes',
-      'premierato': 'premierato',
-      'reddito_di_cittadinanza': 'reddito_di_cittadinanza',
-      'allevamenti_intensivi': 'allevamenti_intensivi',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    const columnName = opinionMapping[opinionId];
+    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
     if (!columnName) {
       return res.status(404).json({
         success: false,
