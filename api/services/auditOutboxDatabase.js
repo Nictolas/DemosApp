@@ -88,8 +88,10 @@ function createAuditOutboxDatabase({
                  -- in the restricted worker does NOT exclude PUBLIC or other grants.
                  (SELECT COUNT(*)::integer
                     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'demos_private')
+                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
                       AND n.nspname NOT LIKE 'pg_%'
+                      AND NOT (n.nspname = 'demos_private' AND
+                               c.relname = 'audit_delivery_outbox')
                       AND c.relkind IN ('r','p','v','m','f')
                       AND has_schema_privilege(CURRENT_USER, n.oid, 'USAGE')
                       AND (
@@ -105,7 +107,7 @@ function createAuditOutboxDatabase({
                  -- privilege and could expose rows outside the private outbox.
                  (SELECT COUNT(*)::integer
                     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'demos_private')
+                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
                       AND n.nspname NOT LIKE 'pg_%'
                       AND p.prosecdef
                       AND has_schema_privilege(CURRENT_USER,n.oid,'USAGE')
