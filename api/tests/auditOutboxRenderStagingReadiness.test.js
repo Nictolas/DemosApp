@@ -28,11 +28,11 @@ const base = Object.freeze({
 test('safe staging env accepts only same staging project with dedicated 5432 outbox URL', () => {
   assert.deepEqual(assertSafeRenderStagingEnvironment(base),
     { stagingRef: staging, mode: 'session-pooler' });
-  assert.doesNotThrow(() => assertSafeRenderStagingEnvironment({
+  assert.throws(() => assertSafeRenderStagingEnvironment({
     ...base,
     AUDIT_OUTBOX_DATABASE_URL:
       `postgresql://demos_outbox_runtime:test-password@db.${staging}.supabase.co:5432/postgres`
-  }));
+  }), /AUDIT_RENDER_STAGING_ENV_REJECTED/, 'Render must not use the IPv6-only direct connection');
 });
 
 test('unsafe Render config is denied before a database preflight runs', async () => {
