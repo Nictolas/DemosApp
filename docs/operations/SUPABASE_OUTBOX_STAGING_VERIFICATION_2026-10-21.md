@@ -301,3 +301,21 @@ questa prova non sostituisce un'app configurata su Demos-Staging.
 
 **Stato finale:** staging con schema vuoto e identità runtime NOLOGIN senza password; nessun worker collegato;
 nessun flag di outbox attivato; produzione intatta.
+
+## Stato più recente: LOGIN del runtime ora abilitato (22 ottobre 2026)
+
+L'utente ha eseguito nel SQL Editor del solo progetto `Demos-Staging`
+l'attivazione di `LOGIN` per `demos_outbox_runtime`.
+Lettura successiva dei cataloghi conferma `rolcanlogin=true`, nessun
+privilegio di superutente o bypass RLS, membership in
+`demos_outbox_worker`, permessi corretti sulla sola coda,
+nessun accesso a tabelle estranee o routine privilegiate e coda
+vuota. Nessuna password è stata configurata dall'assistente.
+I paragrafi storici datati 21 e inizio 22 ottobre riportano lo stato
+`NOLOGIN` precedente e sono quindi **superati da questa verifica**.
+
+Il prossimo test resta **NO-GO** finché non sono disponibili una password
+dedicata conservata come secret Render, un backend isolato, e una
+vera autenticazione PostgreSQL tramite il Session Pooler verificato.
+Non è stato eseguito alcun deploy o cambiamento di produzione.
+
