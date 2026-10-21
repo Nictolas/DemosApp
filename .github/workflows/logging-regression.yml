@@ -19,6 +19,10 @@ on:
       - 'api/tests/auditOutboxRealPostgres.test.js'
       - 'docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'
       - 'api/services/axiomArchiveService.js'
+      - 'api/services/archiveOverlapVerifier.js'
+      - 'api/tests/archiveOverlapVerifier.test.js'
+      - 'api/scripts/verify-axiom-archive-overlap.js'
+      - 'docs/operations/axiom-b2-log-archive.md'
       - 'api/scripts/verify-latest-axiom-archive.js'
       - 'api/utils/log*.js'
       - 'api/utils/archiveEventClassification.js'
@@ -61,6 +65,8 @@ jobs:
           node --check jobs/auditOutboxWorker.js
           node --check app.js
           node --check services/axiomArchiveService.js
+          node --check services/archiveOverlapVerifier.js
+          node --check scripts/verify-axiom-archive-overlap.js
           node --check scripts/verify-latest-axiom-archive.js
       - name: Logging privacy and delivery tests
         working-directory: api

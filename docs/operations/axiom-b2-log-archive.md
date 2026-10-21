@@ -152,6 +152,39 @@ This command **does not** execute Axiom queries or PUT/DELETE B2 objects, does n
 
 A successful result is evidence of recoverability **for the latest archived batch only**, not a guarantee that the full historical archive or every retention class is complete. The production execution has not yet been performed as of 2026-10-21.
 
+## Read-only cross-object overlap reconciliation (new)
+
+For an incident drill where **two or more data object keys** from the same
+dataset may overlap, use an authorized environment with restricted B2 read
+credentials. Supply **the actual keys from existing manifests**; do not guess
+or modify object names:
+
+```bash
+cd api
+npm run archive:axiom:verify-overlap -- real-time \
+  "demos/axiom-archive/v1/data/audit/year=2026/month=10/day=21/real-time/<first-object>.jsonl.gz" \
+  "demos/axiom-archive/v1/data/audit/year=2026/month=10/day=21/real-time/<second-object>.jsonl.gz"
+```
+
+The bracketed names above are **placeholders**, not known B2 keys. The command
+rejects invalid paths and requires 2–12 distinct data-object keys of the
+same dataset; it performs **GET only**, validates compressed SHA-256 metadata,
+decompresses up to 32 MiB per object, validates each event's fingerprint,
+reconciles duplicated `archive_event_id` values **across objects**, and fails
+if the same ID has incompatible event payloads or categories. It prints only
+the counts `objectsExamined`, `recordsExamined`, `uniqueEvents`,
+`duplicateCopies` and aggregate categories. It does **not** print
+identifying events, write a merged archive, perform PUT/DELETE operations or
+alter checkpoints. At most 60,000 events are examined per invocation;
+larger audits require a carefully scoped multi-batch plan.
+
+These are **reconciliation statistics for selected objects**, not proof of
+global deduplication across all historical files. Neither Axiom query results
+nor data already present in separate B2 objects are physically removed.
+This CLI has synthetic tests only until restricted credentials are made
+available in an isolated authorized environment. Confirm the operator's
+authority and the scope before querying B2.
+
 ## Production verification and continuity checklist
 
 1. **Do not create a second archive job, reset checkpoints, or re-enable a feature that is already active.** Preserve the existing hourly job on Render.
