@@ -13,7 +13,7 @@ deve essere attivato sul backend di produzione.**
 
 | Area | Evidenza | Stato |
 | --- | --- | --- |
-| Coda PostgreSQL, lease, retry, dead-letter, collisioni e capacità | Suite PostgreSQL 17 reale su GitHub CI; **13/13 test**, incluso percorso integrato: account ristretto, outbox, ACK Axiom ambiguo e retry, deduplicazione, archiviazione B2 simulata e verifica del restore read-only | PASS simulazione integrata; provider esterni reali ancora NO-GO |
+| Coda PostgreSQL, lease, retry, dead-letter, collisioni e capacità | Suite PostgreSQL 17 reale su GitHub CI; **14/14 test**, inclusi percorso integrato fino al restore B2 sintetico e rifiuto di privilegi estranei concessi temporaneamente al login | PASS simulazione integrata; provider esterni reali ancora NO-GO |
 | Staging Supabase | `Demos-Staging` (`fkeayjzvtuvzesljhjbc`), due migrazioni e RLS; eseguito anche INSERT/claim/lease/retry/dead-letter/DELETE **con ruolo NOLOGIN effettivo** in una transazione con `ROLLBACK`, senza creare password o dati residui | PASS SQL (non LOGIN/HTTP) |
 | Data API pubblica dello staging | GET anon su tabella/schema privato → HTTP 404/406 | PASS negativo |
 | Isolamento dei progetti | `AUDIT_OUTBOX_DEPLOYMENT_SCOPE` e `AUDIT_OUTBOX_DATABASE_URL` separata; mismatch fallisce prima della creazione del pool | PASS test |
@@ -130,6 +130,38 @@ un canale sicuro per i secret; (3) eseguire il preflight dal solo
 backend isolato, con tutti i flag disattivati; (4) solo dopo abilitare
 gli eventi sintetici e verificare Axiom, quindi B2 e FCM. Il preflight
 non autorizza automaticamente né il deploy né l'attivazione.
+
+### Privilegi impliciti del login: barriera aggiuntiva (21 ottobre 2026)
+
+Il preflight runtime `auditOutboxDatabase.ensureReady()` controlla ora
+**l'identità PostgreSQL effettivamente autenticata**, non soltanto i grant
+del ruolo `demos_outbox_worker`. Respinge account che possano creare
+database/ruoli, fare replication o creare oggetti nello schema `public`,
+nonché login che abbiano privilegi su tabelle o viste fuori
+`demos_private`, possano invocare routine esterne
+`SECURITY DEFINER` o appartengano a ruoli ulteriori oltre a
+`demos_outbox_worker`.
+
+La scansione consulta soltanto i **cataloghi** PostgreSQL: non legge
+payload di log, dati utenti, né invoca funzioni applicative. Restituisce
+al servizio esclusivamente conteggi, booleani e un codice d'errore fisso.
+Il controllo considera anche i grant impliciti tramite `PUBLIC`,
+che una mera analisi dei permessi espliciti non coprirebbe.
+
+Nello **staging Supabase reale**, la ricognizione preliminare del
+ruolo `NOLOGIN` esistente ha contato **zero** tabelle o viste
+estranee accessibili e **zero** routine esterne eseguibili. L'esito
+non sostituisce la prova sul futuro `LOGIN` applicativo.
+Il test su **PostgreSQL 17 usa-e-getta** ha invece verificato
+sull'account `LOGIN` reale che un `GRANT SELECT` estraneo e
+una routine `SECURITY DEFINER` richiamabile attraverso `PUBLIC`
+vengono rifiutati e che la configurazione minimale torna valida
+dopo la revoca dei permessi. [CI PostgreSQL (14/14)](https://github.com/Nictolas/DemosApp/actions/runs/39676793121).
+
+**Blocco invariato:** non è stato ancora creato alcun account LOGIN
+nello staging Supabase o configurata una credenziale su Render.
+Prima della prova runtime devono essere verificati i grant effettivi
+del LOGIN creato attraverso il canale sicuro del provider.
 
 ## Condizioni mancanti per GO
 
