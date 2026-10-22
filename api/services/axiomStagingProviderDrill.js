@@ -9,7 +9,10 @@ const { assertStagingSyntheticOutboxEvent, assertStagingAxiomHttpTarget } =
 const HOST = 'eu-central-1.aws.edge.axiom.co';
 const DATASET = 'demos-security-staging';
 const INGEST_URL = 'https://' + HOST + '/v1/ingest/' + DATASET;
-const QUERY_URL = 'https://' + HOST + '/v1/query/_apl?format=tabular';
+// A fresh readback is essential: a cached empty first query must not make
+// the verification report a false negative on subsequent poll attempts.
+const QUERY_URL = 'https://' + HOST + '/v1/query/_apl?format=tabular&nocache=true';
+const MAX_READBACK_ATTEMPTS = 5;
 const BLOCKED_SECRETS = [
   'DATABASE_URL', 'AUDIT_OUTBOX_DATABASE_URL', 'AXIOM_API_TOKEN',
   'AXIOM_ORG_ID', 'B2_S3_SECRET_ACCESS_KEY', 'B2_APPLICATION_KEY',
@@ -114,15 +117,16 @@ async function runAxiomStagingProviderDrill({
       throw new Error('INGEST_NOT_ACKNOWLEDGED');
     }
 
-    // Allow short Axiom ingestion propagation; only the read-side query retries.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Only read-side polls retry. Bypass Axiom query cache and allow bounded
+    // ingestion propagation (1+2+4+8 seconds between five fresh reads).
+    for (let attempt = 0; attempt < MAX_READBACK_ATTEMPTS; attempt++) {
       const read = await post(QUERY_URL, query, opts);
       if (read?.status !== 200) throw new Error('QUERY_NOT_ACKNOWLEDGED');
       if (tabularReadbackContainsId(read.data, id)) {
         return { status: 'AXIOM_STAGING_PROVIDER_E2E_VERIFIED', ingested: 1,
           matched: true, attempts: attempt + 1 };
       }
-      if (attempt < 2) await sleep(1000);
+      if (attempt + 1 < MAX_READBACK_ATTEMPTS) await sleep(1000 * 2 ** attempt);
     }
     throw new Error('READBACK_NOT_FOUND');
   } catch (_) {
@@ -132,6 +136,7 @@ async function runAxiomStagingProviderDrill({
 }
 
 module.exports = {
-  HOST, DATASET, INGEST_URL, QUERY_URL, assertStagingDrillEnvironment,
+  HOST, DATASET, INGEST_URL, QUERY_URL, MAX_READBACK_ATTEMPTS,
+  assertStagingDrillEnvironment,
   tabularReadbackContainsId, runAxiomStagingProviderDrill
 };

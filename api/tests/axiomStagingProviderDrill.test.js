@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  INGEST_URL, QUERY_URL, assertStagingDrillEnvironment,
+  INGEST_URL, QUERY_URL, MAX_READBACK_ATTEMPTS, assertStagingDrillEnvironment,
   tabularReadbackContainsId, runAxiomStagingProviderDrill
 } = require('../services/axiomStagingProviderDrill');
 
@@ -18,6 +18,12 @@ const env = Object.freeze({
   AXIOM_ARCHIVE_ENABLED: 'false'
 });
 const id = '123e4567-e89b-42d3-a456-426614174000';
+test('edge readback explicitly bypasses provider caches and has bounded retry budget', () => {
+  assert.equal(QUERY_URL,
+    'https://eu-central-1.aws.edge.axiom.co/v1/query/_apl?format=tabular&nocache=true');
+  assert.equal(MAX_READBACK_ATTEMPTS, 5);
+});
+
 const matched = {
   tables: [{ fields: [{ name: 'axiom_delivery_id', type: 'string' }],
     columns: [[id]] }]
@@ -90,6 +96,32 @@ test('one synthetic event only, Axiom EU edge ingest then edge query, exact UUID
   assert.ok(!JSON.stringify(result).includes(id));
 });
 
+test('stale empty readback retries only fresh queries, then verifies on last attempt', async () => {
+  let ingests = 0, queries = 0;
+  const delays = [];
+  const result = await runAxiomStagingProviderDrill({
+    env, uuid: () => id,
+    now: () => new Date('2026-10-22T11:30:00.000Z'),
+    sleep: async ms => delays.push(ms),
+    post: async (url) => {
+      if (url === INGEST_URL) {
+        ingests++;
+        return { status: 200, data: { ingested: 1, failed: 0 } };
+      }
+      assert.equal(url, QUERY_URL);
+      queries++;
+      return queries === MAX_READBACK_ATTEMPTS
+        ? { status: 200, data: matched }
+        : { status: 200, data: { tables: [] } };
+    }
+  });
+  assert.equal(ingests, 1, 'ingest must never retry on empty readback');
+  assert.equal(queries, MAX_READBACK_ATTEMPTS);
+  assert.deepEqual(delays, [1000, 2000, 4000, 8000]);
+  assert.equal(result.attempts, MAX_READBACK_ATTEMPTS);
+  assert.equal(result.matched, true);
+});
+
 test('tabular readback cannot pass via echoed query, wrong columns or foreign id', () => {
   assert.equal(tabularReadbackContainsId({ request: { apl: id }, tables: [] }, id), false);
   assert.equal(tabularReadbackContainsId({ tables: [
@@ -104,7 +136,7 @@ test('tabular readback cannot pass via echoed query, wrong columns or foreign id
 
 test('partial ingest, provider faults, and absent readback fail closed without resending or leaking', async () => {
   for (const scenario of ['partial', 'error', 'missing', 'query403']) {
-    let sends = 0;
+    let sends = 0, readQueries = 0, slept = 0;
     const post = async url => {
       if (url === INGEST_URL) {
         sends++;
@@ -114,6 +146,7 @@ test('partial ingest, provider faults, and absent readback fail closed without r
         };
         return { status: 200, data: { ingested: 1, failed: 0 } };
       }
+      readQueries++;
       return scenario === 'query403'
         ? { status: 403, data: { secret: 'PRIVATE' } }
         : { status: 200, data: { tables: [] } };
@@ -121,8 +154,11 @@ test('partial ingest, provider faults, and absent readback fail closed without r
     await assert.rejects(runAxiomStagingProviderDrill({
       env, post, uuid: () => id,
       now: () => new Date('2026-10-22T11:30:00.000Z'),
-      sleep: async () => {}
+      sleep: async () => { slept++; }
     }), error => error.message === 'AXIOM_STAGING_PROVIDER_E2E_NOT_VERIFIED');
     assert.equal(sends, 1);
+    assert.equal(readQueries, scenario === 'missing' ? MAX_READBACK_ATTEMPTS :
+      scenario === 'query403' ? 1 : 0);
+    assert.equal(slept, scenario === 'missing' ? MAX_READBACK_ATTEMPTS - 1 : 0);
   }
 });

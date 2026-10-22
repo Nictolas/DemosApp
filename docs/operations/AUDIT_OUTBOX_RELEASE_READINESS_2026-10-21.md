@@ -9,6 +9,26 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+### 22 ottobre 2026 — Lettura Axiom senza cache per conferma E2E
+
+La documentazione ufficiale dell'endpoint edge UE
+`POST /v1/query/_apl?format=tabular` supporta `nocache=true`.
+Il verificatore one-shot CP-EA-041 applica ora questa opzione
+a **ogni** query di controllo: una risposta precedente vuota non
+deve falsare i tentativi successivi per via della cache. Per tenere
+conto dell'eventuale propagazione dell'ingest Axiom, il readback è
+limitato a **cinque interrogazioni** con pause progressive di
+1/2/4/8 secondi. Il POST di ingest rimane rigorosamente
+**singolo**: mai reinviare l'evento dopo ACK o esito ambiguo.
+
+Test senza credenziali: URL edge EU esatto con
+`nocache=true`; quattro risultati iniziali vuoti e quinto con
+l'UUID corretto; 1 solo ingest, 5 letture, pause 1/2/4/8 secondi;
+fallimenti/403 sono fail-closed. Non dimostra ancora una chiamata
+reale Axiom e non attiva la coda o il worker. Riferimenti:
+https://axiom.co/docs/restapi/endpoints/queryEdge
+e https://axiom.co/docs/restapi/endpoints/ingestToDataset.
+
 ### 22 ottobre 2026 — HTTP 2xx non prova la consegna: ACK Axiom obbligatorio
 
 Analisi del codice del worker dopo CP-EA-041: il metodo
