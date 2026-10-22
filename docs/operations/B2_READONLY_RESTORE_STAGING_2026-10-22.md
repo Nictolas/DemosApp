@@ -40,6 +40,52 @@ Non aggiungere credenziali del database, API Axiom o worker/archiviatore.
 
 **Dopo il salvataggio dei segreti**, avviare un solo deploy manuale del servizio isolato. Il codice prima verifica checkpoint e manifest di `centralized_logs` e `real-time`, poi legge i soli oggetti del batch più recente. Ogni GET è limitato sotto 8 MiB, l'espansione gzip a 32 MiB e la verifica a 60.000 eventi per oggetto; confronta hash SHA-256, fingerprint, categorie, conteggi e dataset. Il wrapper SDK nega ogni comando diverso da `HEAD`/`GET` e qualsiasi bucket o prefisso differente.
 
+## Riconciliazione anti-duplicati del 22/10/2026 — prima di qualunque nuova chiave
+
+È stato consultato **prima** dell'intervento il Google Sheet canonico
+`DEMOS – Tecnologia – Stato Implementazione e Scostamenti`
+(`IMP-047`), insieme a Engineering `CP-EA-032`, GitHub PR #218,
+Render e log. Il bucket `demos-log-archive-eu` e l'archiviazione
+Axiom → B2 in produzione **esistono già**: non ricrearli.
+
+Render `demos-b2-readonly-restore-staging` è **Live** e il suo ultimo
+log di startup noto è `B2_READONLY_RESTORE_STANDBY_NO_SECRET`,
+con un solo deploy iniziale. **Questo attesta unicamente l'assenza
+delle credenziali nel servizio di prova al suo ultimo avvio**;
+non permette di concludere che sul conto Backblaze non esista
+una Application Key dedicata Read Only.
+
+Il connettore Backblaze non è disponibile. Al tentativo di controllare
+il computer autorizzato, Desktop MCP ha risposto che il tunnel client
+non è connesso. Perciò **l'inventario delle Application Keys è
+SCONOSCIUTO e richiede una consultazione diretta della console,
+senza leggere/trasferire segreti**.
+
+Checklist pre-azione:
+1. Aprire Backblaze B2 Cloud Storage → Application Keys e controllare
+   esclusivamente i metadata delle chiavi *già esistenti*: nome,
+   scope bucket `demos-log-archive-eu`, accesso `Read Only`,
+   prefisso `demos/axiom-archive/v1/` (se presente), scadenza.
+2. Se una chiave adeguata **esiste e il segreto è già custodito** in
+   un secret manager autorizzato, riutilizzare quella chiave
+   soltanto sul servizio di sola lettura. La console Backblaze
+   non mostra di nuovo il valore dell'Application Key dopo la
+   creazione. Non copiare segreti del job di scrittura in produzione.
+3. Creare una chiave aggiuntiva *solo dopo aver accertato* che non
+   è disponibile una chiave minima recuperabile.
+4. Dopo la configurazione, testare `HEAD/GET` reali e la
+   catena checkpoint → manifest → contenuto almeno di **un oggetto dati**
+   tra i due dataset. Unicamente checkpoint e manifest vuoti
+   **non** sono sufficienti per un PASS di ripristino: lo script
+   rifiuta ora `B2_READONLY_RESTORE_NO_DATA_OBJECT_VERIFIED`.
+
+Evidenze codice: `api/scripts/verify-b2-restore-readonly.js`,
+nuovo test `verifyB2RestoreReadonly.test.js`, commit
+`33643b7f284a712242862218bcf62ac8f25deda5`.
+Google Sheet aggiornati e riletti nel medesimo intervento:
+`IMP-047` e `CP-EA-033`.
+Nessuna modifica a produzione, bucket, segreti o Render.
+
 ## Criteri di risultato
 
 - `B2_READONLY_RESTORE_STANDBY_NO_SECRET`, `GET /healthz` → 503: attesa delle credenziali, **non verificato**.
