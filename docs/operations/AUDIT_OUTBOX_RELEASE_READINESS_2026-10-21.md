@@ -9,6 +9,53 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+### 22 ottobre 2026 — Retention staging verificata da Render con ruolo minimo
+
+Il **nuovo** comando di snapshot retention, già implementato e
+verificato in CI, è stato ora eseguito anche **realmente
+sull'istanza Render di staging esistente**. Il deploy manuale
+`dep-dbcukhmq1p3s73dcarqg` (commit
+`1698d3e8ca08147b20c8205723c8ec26621b78e5`)
+di `demos-outbox-readonly-staging` è **LIVE** dalle 10:50 UTC
+del 22/10/2026. La sua `autoDeploy` era già disattivata.
+
+La sequenza di avvio è: (1) preflight Postgres autenticato
+con account `demos_outbox_runtime` limitato su Supabase
+`Demos-Staging`; (2) query **sola lettura** di COUNT/età
+sulla tabella outbox, con una connessione separata con la
+**stessa credenziale limitata**, chiusa al termine; (3)
+solo se entrambi i controlli passano, apertura dell'endpoint
+`/healthz` che restituisce esclusivamente `ok`.
+Il deploy e i log Render verificati registrano:
+```text
+{"status":"OUTBOX_RETENTION_STAGING_SNAPSHOT_OK","total":0,"pending":0,"sending":0,"dead_letter":0,"needsReview":false}
+AUDIT_RENDER_STAGING_PREFLIGHT_OK
+```
+Nessun payload, identificativo utente o IP letto/mostrato,
+nessun evento inserito o cancellato, nessuna migrazione,
+chiave, bucket o servizio aggiuntivo. Il comando rimane
+inutilizzabile con scope produzione, DB principale,
+worker/outbox o archiviatore attivo.
+
+La [CI logging/archivio/PostgreSQL](https://github.com/Nictolas/DemosApp/actions/runs/39765849833)
+e la [CI di sicurezza](https://github.com/Nictolas/DemosApp/actions/runs/39765849967)
+risultano **SUCCESS** sul commit `1698d3e8`.
+I Google Sheet canonici sono stati aggiornati e riletti
+nella stessa sessione: Tecnologia `IMP-047` riga 56 e
+Stato moduli riga 26; Privacy `RP-17` riga 21;
+Engineering `CP-EA-036` riga 38.
+
+**Milestone: lettura reale aggregata del ruolo minimo su
+staging PASS.** Non è una prova con backlog, non decide
+alcun periodo di retention, non approva GDPR e non sostituisce
+le prove vere Axiom/B2/FCM. Produrre una query aggregata
+non autorizza mai cancellazioni automatiche.
+La PR resta **DRAFT / NO-GO** per la produzione. Le
+precedenti sezioni storiche che dicono che lo snapshot
+non era ancora stato eseguito da Render si riferiscono
+a uno stato ora superato.
+
+
 **AGGIORNAMENTO 22/10/2026 — CONNESSIONE RENDER → SUPABASE STAGING: PASS.**
 Il deploy Render isolato `dep-dbclkreq1p3s73ch6ac0` (commit
 `acd98a16971df16f145b4c924a07ea3b19e12fe3`) è **live**.
