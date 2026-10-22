@@ -63,7 +63,7 @@ async function ensureParlamentoTableExists() {
         NEW.updated_at = CURRENT_TIMESTAMP;
         RETURN NEW;
       END;
-      $$ LANGUAGE plpgsql
+      $$ LANGUAGE plpgsql SET search_path = ''
     `);
     
     await pool.query(`
@@ -138,7 +138,7 @@ async function ensureTableExists() {
         NEW.data_aggiornamento = CURRENT_TIMESTAMP;
         RETURN NEW;
       END;
-      $$ LANGUAGE plpgsql
+      $$ LANGUAGE plpgsql SET search_path = ''
     `);
     
     // Crea trigger
