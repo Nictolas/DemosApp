@@ -165,7 +165,10 @@ class AuditService {
     // A stale queued row or misconfigured staging worker must not ingest into
     // a production Axiom dataset. Check again at HTTP dispatch, not just enqueue.
     try {
-      require('./auditOutboxAxiomTarget').assertOutboxAxiomTarget(dataset);
+      const { assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent } =
+        require('./auditOutboxAxiomTarget');
+      assertOutboxAxiomTarget(dataset);
+      assertStagingSyntheticOutboxEvent(event);
     } catch (_error) {
       return false;
     }
