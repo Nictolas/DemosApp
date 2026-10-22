@@ -76,6 +76,57 @@ coda e deploy di produzione restano disattivati. Serve il
 successivo collaudo reale con token Axiom limitato al dataset e
 senza dati utenti.
 
+### 22 ottobre 2026 — Snapshot retention di staging, sola lettura, reale
+
+Riletti PR #218 e Google Sheet canonici `DEMOS – Tecnologia`
+(`IMP-047`), `Engineering` (`CP-EA-034`) e
+`Privacy/Retention policy` (`RP-17`). Le verifiche
+reali Axiom e Backblaze restano bloccate dall'assenza
+di un canale autorizzato per inventariare le credenziali:
+**nessuna nuova chiave, bucket, servizio o migrazione creati**.
+
+È stata eseguita una query SQL **soltanto aggregata**
+sulla tabella privata `demos_private.audit_delivery_outbox`
+nel database reale **Supabase Demos-Staging**.
+Esito del 22/10/2026:
+`total=0`, `pending=0`, `sending=0`,
+`dead_letter=0`, `pending_over_15m=0`,
+`pending_over_24h=0`, `dead_letter_over_72h=0`,
+`dead_letter_over_30d=0`, `oldest_age_seconds=0`.
+**Nessuna PII o contenuto evento letto**; nessuna
+operazione `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`
+o nuovo oggetto SQL eseguiti.
+
+Il controllo è ora ripetibile nel ramo PR:
+`api/services/auditOutboxRetentionSnapshot.js` e comando
+`cd api && npm run audit:outbox:retention-staging-snapshot`
+(`api/scripts/verify-audit-outbox-retention-staging.js`).
+Il comando richiede un account Postgres dedicato allo staging,
+`AUDIT_OUTBOX_PREFLIGHT_ONLY=true`, progetto e host del
+pooler già verificati, flag worker/archivio spenti e
+nessun `DATABASE_URL` principale. Verifica ruolo e grant
+prima di un'unica query di aggregazione e chiude il pool.
+Rifiuta risultati mancanti/incoerenti e non riporta errori
+del driver, segreti o identificatori personali.
+**La query reale è stata eseguita tramite il connettore
+Supabase; il nuovo CLI è verificato in CI, ma non è
+stato eseguito sul runtime Render**: mantenere distinte
+le due evidenze.
+
+[Logging/archivio + PostgreSQL CI](https://github.com/Nictolas/DemosApp/actions/runs/39765086311)
+**SUCCESS**, [Security Agent Validation](https://github.com/Nictolas/DemosApp/actions/runs/39765086217)
+**SUCCESS** sul commit `45cbd878925eace5fce27ed333c900d836e9cc8c`.
+Checkpoints Google Sheets aggiornati e riletti nello
+stesso intervento: `IMP-047`, `CP-EA-035` ed `RP-17`.
+
+Queste soglie di età costituiscono soltanto **segnali di
+riesame operativo**, NON una durata di conservazione
+approvata né una regola di eliminazione. Il titolare/
+consulente privacy deve ancora approvare finalità,
+campi e retention effettiva. Nessun evento cancellato,
+nessun auto-purge introdotto, nessun rollout autorizzato.
+B2 restore, invio Axiom reale e FCM di test sono **NO-GO**.
+
 ## Verifiche già svolte
 
 | Area | Evidenza | Stato |
