@@ -319,3 +319,44 @@ dedicata conservata come secret Render, un backend isolato, e una
 vera autenticazione PostgreSQL tramite il Session Pooler verificato.
 Non è stato eseguito alcun deploy o cambiamento di produzione.
 
+
+## Collegamento autenticato Render → Demos-Staging verificato (22 ottobre 2026)
+
+**PASS di connettività e autorizzazione del ruolo**, senza eventi o
+credenziali nei log. Il servizio Render separato e Free
+`demos-outbox-readonly-staging` (`srv-dbckvbivcj2c73f0i7e0`)
+ha avviato il preflight autenticato da runtime Node tramite il
+Session Pooler verificato
+`aws-1-eu-central-1.pooler.supabase.com:5432`.
+Il deploy `dep-dbclkreq1p3s73ch6ac0` (commit
+`acd98a16971df16f145b4c924a07ea3b19e12fe3`) è **live**,
+e i log Render contengono `AUDIT_RENDER_STAGING_PREFLIGHT_OK`.
+Un controllo HTTPS esterno ha restituito `GET /healthz` **200**
+con corpo `ok`, mentre `GET /` → **404** (nessuna API pubblica
+e nessun valore di ambiente divulgato).
+
+Il runtime verifica `demos_outbox_runtime`, membership al ruolo
+`demos_outbox_worker`, privilegi minimi e permessi RLS. Verifica
+indipendente su Supabase Staging: account ancora `LOGIN`, membership
+corretta, `CREATE` nello schema `public` negato, coda vuota,
+Security Advisor senza rilievi. Nessun worker o archiviatore avviato,
+nessun evento pubblicato, nessun cambiamento a `main` o al progetto
+Supabase DEMOS di produzione.
+
+La prima configurazione Render risultava non interpretabile dal
+parser `URL`. È stata aggiunta una normalizzazione mirata
+**solo al preflight read-only**, che tratta i caratteri URL riservati
+nella sola porzione password **solo quando prefisso del ruolo e
+suffisso host/porta/database corrispondono esattamente a staging**.
+La normalizzazione opera in memoria, senza esporre il segreto,
+e non modifica la connessione standard del worker. I test CI per
+questo caso e la validazione di sicurezza sono verdi:
+[logging/PostgreSQL](https://github.com/Nictolas/DemosApp/actions/runs/39700593118)
+e [sicurezza](https://github.com/Nictolas/DemosApp/actions/runs/39700592991).
+
+**GO limitato alla connessione reale Render → Supabase Staging**.
+Il rilascio della coda di audit resta **NO-GO**: mancano verifiche
+con Axiom, B2 e FCM reali, decisioni GDPR e rollout controllato.
+I paragrafi precedenti di questo documento descrivono stati
+storici superati, compreso quello `NOLOGIN` e l'assenza di un
+collegamento applicativo autenticato.
