@@ -12,6 +12,9 @@ on:
       - 'api/services/auditOutboxDatabase.js'
       - 'api/services/auditOutboxProjectScope.js'
       - 'api/services/auditOutboxAxiomTarget.js'
+      - 'api/services/axiomStagingProviderDrill.js'
+      - 'api/scripts/verify-axiom-staging-provider.js'
+      - 'api/tests/axiomStagingProviderDrill.test.js'
       - 'api/tests/auditOutboxProjectScope.test.js'
       - 'api/services/auditOutboxStagingGuard.js'
       - 'api/services/auditOutboxRenderStagingReadiness.js'
@@ -95,6 +98,8 @@ jobs:
           node --check services/auditOutboxDatabase.js
           node --check services/auditOutboxProjectScope.js
           node --check services/auditOutboxAxiomTarget.js
+          node --check services/axiomStagingProviderDrill.js
+          node --check scripts/verify-axiom-staging-provider.js
           node --check services/auditOutboxRetentionSnapshot.js
           node --check scripts/verify-audit-outbox-retention-staging.js
           node --check services/auditOutboxStagingGuard.js
@@ -120,6 +125,9 @@ jobs:
       - name: Read-only audit retention age and no-deletion safety tests
         working-directory: api
         run: node --test tests/auditOutboxRetentionSnapshot.test.js
+      - name: Axiom staging single-shot provider drill isolated no-secret regression
+        working-directory: api
+        run: node --test tests/axiomStagingProviderDrill.test.js
       - name: Synthetic-only staging Axiom privacy gate
         working-directory: api
         run: node --test tests/auditOutboxSyntheticStagingGuard.test.js

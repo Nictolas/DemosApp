@@ -9,6 +9,46 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+### 22 ottobre 2026 — Verificatore Axiom HTTP reale predisposto, senza token
+
+Dopo CP-EA-040, aggiunto **solo sulla PR** il comando
+`cd api && npm run audit:axiom:staging-provider-drill`.
+È un processo una-tantum, non il worker outbox: senza un token autorizzato
+**non effettua alcuna richiesta**. Richiede variabili esatte
+`AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`,
+`AXIOM_REALTIME_DATASET=demos-security-staging`,
+`AXIOM_DATASET=demos-security-staging`,
+`AXIOM_REGION=eu`,
+`AXIOM_STAGING_DRILL_ARMED=true` e
+`AXIOM_STAGING_DRILL_TOKEN` gestito SOLO nel secret manager
+del runtime di test isolato. Prima dell'esecuzione il titolare deve aver
+verificato negli accessi Axiom che sia **un API token, non PAT**,
+limitato al **solo dataset già esistente** `demos-security-staging`
+con permessi **Ingest:create + Query:read** (nessun CRUD dataset/utente).
+
+Il comando rifiuta le credenziali standard della produzione
+`AXIOM_API_TOKEN`/`AXIOM_ORG_ID`, tutti i database,
+chiavi B2, CI automatica, flag worker/archivio attivi, scope non-staging
+e host/dataset/regione diversi dal target UE. Invia esattamente
+**un evento audit synthetic** con ID UUID casuale, senza utente, IP
+o payload libero, a
+`https://eu-central-1.aws.edge.axiom.co/v1/ingest/demos-security-staging`.
+Richiede ACK `ingested=1, failed=0` e legge tramite query APL
+**sullo stesso edge UE** in `/v1/query/_apl?format=tabular`,
+filtrando unicamente per l'UUID sintetico e proiettando solo tale campo.
+Non basta la risposta HTTP 200: deve risultare una colonna
+`axiom_delivery_id` con il medesimo UUID. La lettura può
+essere ritentata due volte, **l'invio non è mai ritentato**.
+Se il provider restituisce errore, non si riportano segreti né query
+o payload nei log. Nessuna connessione a PostgreSQL, FCM o Backblaze.
+
+**Gate non completato:** il verificatore e i test mock **non** sono una
+prova HTTP reale Axiom. Senza token scoped confermato e senza avvio
+intenzionale del comando in un ambiente di prova, **AXIOM PROVIDER NO-GO**.
+Anche una futura verifica di ingest/query Axiom separata non prova ancora
+la consegna attraverso l'intera coda PostgreSQL/worker/retry e non
+approva retention GDPR. Non attivare il backend principale.
+
 ### 22 ottobre 2026 — Gate HTTP Axiom di staging prima di un token
 
 Il codice di consegna dell'outbox ora rifiuta, **prima della richiesta
