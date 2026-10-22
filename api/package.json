@@ -23,6 +23,7 @@
     "test:firebase-admin-compat": "node --test tests/firebaseAdminCompatibility.test.js",
     "archive:axiom:verify-latest": "node scripts/verify-latest-axiom-archive.js",
     "archive:axiom:verify-readonly-b2": "node scripts/verify-b2-restore-readonly.js",
+    "archive:axiom:readonly-health": "node scripts/b2-restore-readonly-health-server.js",
     "archive:axiom:verify-overlap": "node scripts/verify-axiom-archive-overlap.js",
     "audit:outbox:staging-preflight": "node scripts/verify-audit-outbox-staging.js",
     "audit:outbox:render-staging-preflight": "node scripts/verify-audit-outbox-render-staging.js",
