@@ -4,7 +4,7 @@
 // Provision and verify a private schema before any feature flag is enabled.
 // No automatic schema migration or log deletion is performed here.
 const { randomUUID } = require('node:crypto');
-const { assertOutboxAxiomTarget } = require('./auditOutboxAxiomTarget');
+const { assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent } = require('./auditOutboxAxiomTarget');
 const MAX_EVENT_BYTES = 2048;
 const DEFAULT_MAX_ATTEMPTS = 8;
 // Enforced under a transaction-scoped advisory lock across all app instances.
@@ -31,6 +31,7 @@ function assertOutboxEvent(event, dataset) {
     throw new Error('OUTBOX_INVALID_DATASET');
   }
   assertOutboxAxiomTarget(dataset);
+  assertStagingSyntheticOutboxEvent(event);
   if (Buffer.byteLength(JSON.stringify(event), 'utf8') > MAX_EVENT_BYTES) {
     throw new Error('OUTBOX_EVENT_TOO_LARGE');
   }
