@@ -34,6 +34,35 @@ function waitingHandler(req, res) {
   res.end('not found\n');
 }
 
+// Supabase's URI is fixed except for the password. If a password includes
+// literal URL-reserved characters (for example '#', '?' or '/'), WHATWG URL
+// may reject the whole URI even though the host/role are correct. In this
+// isolated staging-only diagnostic we can percent-encode ONLY the password,
+// and only when both the prefix and suffix exactly match the verified target.
+// We never print, return or persist either form of the secret.
+function normalizeReadonlyStagingUri(connectionString) {
+  if (typeof connectionString !== 'string') return connectionString;
+  const prefix = 'postgresql://demos_outbox_runtime.fkeayjzvtuvzesljhjbc:';
+  const suffix = '@aws-1-eu-central-1.pooler.supabase.com:5432/postgres';
+  if (!connectionString.startsWith(prefix) ||
+      !connectionString.endsWith(suffix)) return connectionString;
+  const password = connectionString.slice(prefix.length, -suffix.length);
+  if (!password || password.length > 1024 ||
+      /[\r\n\t]/.test(password)) return connectionString;
+  try {
+    const url = new URL(connectionString);
+    if (url.hostname === 'aws-1-eu-central-1.pooler.supabase.com' &&
+        url.port === '5432' && url.pathname === '/postgres' &&
+        url.username === 'demos_outbox_runtime.fkeayjzvtuvzesljhjbc' &&
+        url.password && !url.hash && !url.search) {
+      return connectionString;
+    }
+  } catch (_) {
+    // The exact role/host/port suffix is required before any normalization.
+  }
+  return prefix + encodeURIComponent(password) + suffix;
+}
+
 async function startReadonlyHealthServer({
   env = process.env,
   verify = runRenderStagingReadiness,
@@ -60,8 +89,15 @@ async function startReadonlyHealthServer({
     // Standby mode explicitly cannot report a successful /healthz.
     return serve(waitingHandler, port);
   }
-  assertSafeRenderStagingEnvironment(env);
-  const result = await verify({ env });
+  // Decode neither the password nor endpoint metadata. Normalize only
+  // syntactically reserved characters in the password of the pinned staging
+  // URL; all normal worker code keeps its existing strict URL rules.
+  const readinessEnv = {
+    ...env,
+    AUDIT_OUTBOX_DATABASE_URL: normalizeReadonlyStagingUri(env.AUDIT_OUTBOX_DATABASE_URL)
+  };
+  assertSafeRenderStagingEnvironment(readinessEnv);
+  const result = await verify({ env: readinessEnv });
   if (result?.result !== 'AUDIT_RENDER_STAGING_PREFLIGHT_OK' ||
       result?.outboxEnabled !== false || result?.archiveEnabled !== false) {
     throw new Error('AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
@@ -132,4 +168,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { healthHandler, waitingHandler, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer };
+module.exports = { healthHandler, waitingHandler, normalizeReadonlyStagingUri, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer };
