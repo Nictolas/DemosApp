@@ -23,7 +23,9 @@ router.get('/', async (req, res) => {
     
     // 2. Poi genera statistiche aggregate dalle risposte degli utenti
     const stats = {};
-    const questions = [];
+    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
+    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    const questions = opinioni.map(({ id, text }) => ({ id, text }));
     
     for (const opinione of opinioni) {
       const questionId = opinione.id;
@@ -96,15 +98,9 @@ router.get('/', async (req, res) => {
           continue;
         }
         stats[questionId] = aggregate;
-        
-        questions.push({
-          id: questionId,
-          text: questionText
-        });
-        
-        // Log per debug: verifica se l'opinione viene aggiunta alla lista
+// Log per debug: verifica se l'opinione viene aggiunta alla lista
         if (questionText && questionText.toLowerCase().includes('leva')) {
-          console.log(`✅ DEBUG: Opinione "Leva obbligatoria" aggiunta alla lista questions`);
+          console.log(`✅ DEBUG: Opinione "Leva obbligatoria" con aggregato pubblicabile`);
         }
       } catch (statsError) {
         console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} (text: "${questionText}"):`, statsError.message);
@@ -360,7 +356,9 @@ router.get('/:regione', async (req, res) => {
     
     // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la regione
     const stats = {};
-    const questions = [];
+    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
+    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    const questions = opinioni.map(({ id, text }) => ({ id, text }));
     
     for (const opinione of opinioni) {
       const questionId = opinione.id;
@@ -414,12 +412,7 @@ router.get('/:regione', async (req, res) => {
           continue;
         }
         stats[questionId] = aggregate;
-        
-        questions.push({
-          id: questionId,
-          text: questionText
-        });
-      } catch (statsError) {
+} catch (statsError) {
         console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in regione ${regionName}:`, statsError.message);
         // Se la colonna non esiste, salta questa opinione
         continue;
@@ -479,7 +472,9 @@ router.get('/:regione/:provincia', async (req, res) => {
     
     // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la provincia
     const stats = {};
-    const questions = [];
+    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
+    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    const questions = opinioni.map(({ id, text }) => ({ id, text }));
     
     for (const opinione of opinioni) {
       const questionId = opinione.id;
@@ -533,12 +528,7 @@ router.get('/:regione/:provincia', async (req, res) => {
           continue;
         }
         stats[questionId] = aggregate;
-        
-        questions.push({
-          id: questionId,
-          text: questionText
-        });
-      } catch (statsError) {
+} catch (statsError) {
         console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in provincia ${provinciaName}:`, statsError.message);
         continue;
       }
@@ -600,7 +590,9 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
     
     // 2. Poi genera statistiche aggregate dalle risposte degli utenti per il comune
     const stats = {};
-    const questions = [];
+    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
+    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    const questions = opinioni.map(({ id, text }) => ({ id, text }));
     
     for (const opinione of opinioni) {
       const questionId = opinione.id;
@@ -655,12 +647,7 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
           continue;
         }
         stats[questionId] = aggregate;
-        
-        questions.push({
-          id: questionId,
-          text: questionText
-        });
-      } catch (statsError) {
+} catch (statsError) {
         console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in comune ${comuneName}:`, statsError.message);
         continue;
       }
