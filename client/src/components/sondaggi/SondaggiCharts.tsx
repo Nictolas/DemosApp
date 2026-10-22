@@ -45,9 +45,6 @@ export function SondaggiCharts({
           .map(q => {
             const pieData = preparePieData(q.id);
             
-            if (pieData.length === 0) {
-              return null;
-            }
             
             return (
               <Card key={q.id} className="bg-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -60,7 +57,13 @@ export function SondaggiCharts({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <div className="h-64">
+                  {pieData.length === 0 ? (
+                    <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 text-center text-sm text-gray-600" role="status">
+                      Dati insufficienti per mostrare il grafico. Sono necessarie almeno 10 risposte pubblicabili.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie 
@@ -101,6 +104,8 @@ export function SondaggiCharts({
                       </div>
                     ))}
                   </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             );
