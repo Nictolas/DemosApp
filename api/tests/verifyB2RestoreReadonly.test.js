@@ -55,11 +55,13 @@ test('B2 transport allows only HEAD/GET in the pinned bucket and prefix', async 
   for (const command of [
     new PutObjectCommand({ ...input, Body: 'no-write' }),
     new DeleteObjectCommand(input),
+    new GetObjectCommand(input),
+    new GetObjectCommand({ ...input, Range: 'bytes=0-8388608' }),
     new HeadObjectCommand({ Bucket: 'other-bucket', Key: key }),
     new GetObjectCommand({ Bucket: env.B2_BUCKET_NAME, Key: 'other/prefix' })
   ]) {
     await assert.rejects(gateway.send(command),
-      /B2_READONLY_RESTORE_WRITE_REJECTED|B2_READONLY_RESTORE_TARGET_REJECTED/);
+      /B2_READONLY_RESTORE_WRITE_REJECTED|B2_READONLY_RESTORE_TARGET_REJECTED|B2_READONLY_RESTORE_RANGE_REJECTED/);
   }
   assert.equal(commands.length, 2, 'forbidden commands never reach the client');
 });
