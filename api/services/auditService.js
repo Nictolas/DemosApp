@@ -183,7 +183,7 @@ class AuditService {
         ? 'eu-central-1.aws.edge.axiom.co'
         : (process.env.AXIOM_EDGE_DOMAIN
           || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co'));
-      await axios.post(`https://${edgeDomain}/v1/ingest/${dataset}`, [event], {
+      const response = await axios.post(`https://${edgeDomain}/v1/ingest/${dataset}`, [event], {
         headers: {
           Authorization: `Bearer ${process.env.AXIOM_API_TOKEN}`,
           'Content-Type': 'application/json',
@@ -195,6 +195,15 @@ class AuditService {
         // Never leak a staging-only API token to proxies or redirects.
         ...(stagingHttp ? { proxy: false, maxRedirects: 0 } : {})
       });
+      // A 2xx transport response is NOT proof of ingestion. Axiom can report
+      // individual failures with HTTP 200. Only ACK a single queued event
+      // when the provider confirms exactly one ingested and zero failed;
+      // otherwise the outbox must keep it for retry/dead-letter review.
+      if ((response?.status !== 200 && response?.status !== 202) ||
+          response?.data?.ingested !== 1 ||
+          response?.data?.failed !== 0) {
+        return false;
+      }
       return true;
     } catch (error) {
       reportAuditDeliveryFailure(error?.response?.status);

@@ -9,6 +9,31 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+### 22 ottobre 2026 — HTTP 2xx non prova la consegna: ACK Axiom obbligatorio
+
+Analisi del codice del worker dopo CP-EA-041: il metodo
+`sendPreparedAuditEventToAxiomHTTP` considerava riuscita ogni
+richiesta Axios risolta, **senza verificare i contatori di ingestione**.
+La risposta di Axiom può essere HTTP 200 con
+`{"ingested":0,"failed":1}`: in questo caso il worker avrebbe potuto
+rimuovere indebitamente il record dalla coda, dando un falso ACK.
+
+Ora il worker conferma il singolo evento soltanto con HTTP
+**200/202**, `ingested === 1` e `failed === 0`, altrimenti
+restituisce `false` e conserva l'evento nel percorso di retry/
+dead-letter senza riportare dati sensibili. Il controllo segue
+il contratto HTTP Axiom, non la sola assenza di eccezioni.
+È un cambiamento di protezione sul codice branch draft, **non**
+una modifica o deploy del backend produttivo.
+
+Prove: unit test con 2xx parziale/incoerente/mancante; test
+**PostgreSQL 17 effimero reale** con ruolo limitato e Axiom simulato:
+il primo HTTP 200 con evento rifiutato lascia il record in `pending`
+con `attempt_count=1`, poi ACK confermato rimuove il record.
+Due tentativi mantengono esattamente lo stesso
+`axiom_delivery_id`. Zero invii HTTP al provider reale e nessuna
+scrittura su Supabase staging/produzione.
+
 ### 22 ottobre 2026 — Verificatore Axiom HTTP reale predisposto, senza token
 
 Dopo CP-EA-040, aggiunto **solo sulla PR** il comando

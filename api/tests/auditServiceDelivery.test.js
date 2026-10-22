@@ -164,7 +164,7 @@ test('outbox delivery retains the exact event, timestamp and deduplication key',
   let delivered;
   await withStubbedAxiom(async (url, payload) => {
     delivered = { url, payload };
-    return { status: 200 };
+    return { status: 200, data: { ingested: 1, failed: 0 } };
   }, async () => {
     assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), true);
     assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), true);
@@ -172,6 +172,39 @@ test('outbox delivery retains the exact event, timestamp and deduplication key',
   assert.equal(delivered.payload[0].axiom_delivery_id, event.axiom_delivery_id);
   assert.equal(delivered.payload[0]._time, event._time);
   assert.deepEqual(delivered.payload[0], event);
+});
+
+test('outbox HTTP only acknowledges a fully confirmed Axiom ingest, never a partial 2xx', async () => {
+  const event = {
+    _time: '2026-10-22T12:00:00.000Z',
+    log_type: 'audit', action: 'DATA_ACCESS', resource: 'users',
+    axiom_delivery_id: '123e4567-e89b-42d3-a456-426614174000'
+  };
+  let calls = 0;
+  const bad = [
+    { status: 200, data: { ingested: 0, failed: 1 } },
+    { status: 200, data: { ingested: 1, failed: 1 } },
+    { status: 202, data: { ingested: 0, failed: 0 } },
+    { status: 200, data: { ingested: '1', failed: 0 } },
+    { status: 200, data: { ingested: 1, failed: undefined } },
+    { status: 200, data: undefined },
+    { status: 204, data: { ingested: 1, failed: 0 } }
+  ];
+  await withStubbedAxiom(async (url, payload) => {
+    assert.match(url, /\/v1\/ingest\/real-time$/);
+    assert.equal(payload.length, 1);
+    return bad[calls++];
+  }, async () => {
+    for (let i = 0; i < bad.length; i++) {
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), false);
+    }
+  });
+  assert.equal(calls, bad.length);
+  for (const status of [200, 202]) {
+    await withStubbedAxiom(async () => ({ status, data: { ingested: 1, failed: 0 } }), async () => {
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), true);
+    });
+  }
 });
 
 test('outbox preprocessor applies configured anonymization before persistent storage', async () => {
@@ -227,7 +260,7 @@ test('staging Axiom HTTP dispatch refuses foreign hosts before network and disab
       assert.equal(options.proxy, false);
       assert.equal(options.maxRedirects, 0);
       assert.equal(payload[0].synthetic, true);
-      return { status: 202 };
+      return { status: 202, data: { ingested: 1, failed: 0 } };
     }, async () => {
       process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = 'staging';
       for (const [region, edge] of [

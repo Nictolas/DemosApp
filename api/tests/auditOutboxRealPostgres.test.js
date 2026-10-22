@@ -311,7 +311,7 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
           err.response = { status: 503 };
           throw err;
         }
-        return { status: 202 };
+        return { status: 202, data: { ingested: 1, failed: 0 } };
       };
       try {
         await restricted.ensureReady();
@@ -330,6 +330,86 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
         assert.equal(attempts.length, 2);
         assert.deepEqual(attempts[0], attempts[1]);
         assert.equal(attempts[0].axiom_delivery_id, id);
+      } finally {
+        axios.post = oldPost;
+        delete require.cache[auditPath];
+        for (const [k,v] of Object.entries(previous)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
+        }
+        await restricted.pool.end();
+      }
+    });
+
+    await t.test('real PG: HTTP 200 with failed ingest must retain the row and retry identical payload', async () => {
+      await clean();
+      const restricted = createAuditOutboxDatabase({
+        env: {
+          DATABASE_URL: testUrl,
+          NODE_ENV: 'test',
+          AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
+          AUDIT_OUTBOX_DATABASE_URL: 'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
+        }
+      });
+      // Existing audit service module was imported in the preceding test,
+      // with the main database connection replaced; reuse the same protection.
+      const auditPath = require.resolve('../services/auditService');
+      const oldLoad = Module._load;
+      let AuditService;
+      try {
+        Module._load = function(request, parent, isMain) {
+          if (request === '../middleware/auth' && parent?.filename === auditPath) {
+            return { pool: { query: () => { throw new Error('MAIN_DB_NOT_ALLOWED'); } } };
+          }
+          return oldLoad.call(this, request, parent, isMain);
+        };
+        delete require.cache[auditPath];
+        AuditService = require('../services/auditService');
+      } finally {
+        Module._load = oldLoad;
+      }
+      const axios = require('axios');
+      const oldPost = axios.post;
+      const envKeys = ['AXIOM_ENABLED', 'AXIOM_API_TOKEN', 'AXIOM_ORG_ID', 'AXIOM_REGION'];
+      const previous = Object.fromEntries(envKeys.map(k => [k, process.env[k]]));
+      process.env.AXIOM_ENABLED = 'true';
+      process.env.AXIOM_API_TOKEN = 'ci-fake-token';
+      process.env.AXIOM_ORG_ID = 'ci-fake-org';
+      process.env.AXIOM_REGION = 'eu';
+      const sent = [];
+      axios.post = async (url, rows) => {
+        assert.match(url, /^https:\/\/eu-central-1\.aws\.edge\.axiom\.co\/v1\/ingest\/real-time$/);
+        sent.push(structuredClone(rows[0]));
+        return sent.length === 1
+          ? { status: 200, data: { ingested: 0, failed: 1 } }
+          : { status: 200, data: { ingested: 1, failed: 0 } };
+      };
+      try {
+        await restricted.ensureReady();
+        const outbox = createAuditOutbox({
+          pool: restricted.pool, ensureReady: restricted.ensureReady,
+          random: () => 0.5,
+          send: (dataset, payload) =>
+            AuditService.sendPreparedAuditEventToAxiomHTTP(dataset, payload)
+        });
+        const id = await outbox.enqueue(synthetic, 'real-time');
+        const first = await outbox.drainOnce({ limit: 1 });
+        assert.equal(first.rescheduled, 1);
+        assert.equal(first.delivered, 0);
+        const remaining = await restricted.pool.query(
+          'SELECT status, attempt_count FROM demos_private.audit_delivery_outbox WHERE id=$1', [id]);
+        assert.equal(remaining.rows.length, 1, 'partial 200 cannot delete the queued event');
+        assert.equal(remaining.rows[0].status, 'pending');
+        assert.equal(remaining.rows[0].attempt_count, 1);
+        await pool.query(
+          "UPDATE demos_private.audit_delivery_outbox SET next_attempt_at=NOW()-INTERVAL '1 second' WHERE id=$1", [id]
+        );
+        const second = await outbox.drainOnce({ limit: 1 });
+        assert.equal(second.delivered, 1);
+        assert.equal((await outbox.getHealth()).total, 0);
+        assert.equal(sent.length, 2);
+        assert.deepEqual(sent[0], sent[1]);
+        assert.equal(sent[0].axiom_delivery_id, id);
       } finally {
         axios.post = oldPost;
         delete require.cache[auditPath];
