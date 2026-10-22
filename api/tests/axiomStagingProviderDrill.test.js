@@ -59,7 +59,7 @@ test('split-token environment rejects partial, same-value and mixed credentials 
     { AXIOM_STAGING_DRILL_QUERY_TOKEN: '' },
     { AXIOM_STAGING_DRILL_INGEST_TOKEN: 'fake-query-only' },
     { AXIOM_STAGING_DRILL_QUERY_TOKEN: 'fake-ingest-only' },
-    { AXIOM_STAGING_DRILL_QUERY_TOKEN: 'malformed\\nvalue' },
+    { AXIOM_STAGING_DRILL_QUERY_TOKEN: 'malformed\nvalue' },
     { AXIOM_STAGING_DRILL_TOKEN: 'combined-token-not-allowed-when-split' },
     { AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production' },
     { AXIOM_API_TOKEN: 'never-use-production' },
