@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { healthHandler, waitingHandler, startupStatus, startReadonlyHealthServer } =
+const { healthHandler, waitingHandler, safeStartupFailureCode, startupStatus, startReadonlyHealthServer } =
   require('../scripts/audit-outbox-readonly-health-server');
 
 const staging = 'fkeayjzvtuvzesljhjbc';
@@ -77,6 +77,18 @@ test('log status never reports success when the service has no database credenti
     'AUDIT_RENDER_STAGING_STANDBY_NO_DB_SECRET');
   assert.equal(startupStatus({ AUDIT_OUTBOX_DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL }),
     'AUDIT_RENDER_STAGING_PREFLIGHT_OK');
+});
+
+test('diagnostics emit only constant codes and never database driver strings', () => {
+  assert.equal(safeStartupFailureCode(new Error('AUDIT_RENDER_STAGING_ENV_REJECTED')),
+    'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED');
+  assert.equal(safeStartupFailureCode(new Error('AUDIT_STAGING_TARGET_REJECTED')),
+    'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED');
+  assert.equal(safeStartupFailureCode(new Error('AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED')),
+    'AUDIT_RENDER_STAGING_DATABASE_CONNECTION_REJECTED');
+  assert.equal(safeStartupFailureCode(new Error('postgres://user:secret@host:5432/postgres')),
+    'AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
+  assert.doesNotMatch(safeStartupFailureCode({ message: 'private password secret' }), /secret|password|postgres:/i);
 });
 
 test('unsafe environment and failed readiness never open a public listener', async () => {
