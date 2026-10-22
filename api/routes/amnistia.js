@@ -16,7 +16,7 @@ router.get('/', verifyToken, async (req, res) => {
     const userId = req.userId || req.user?.id;
     
     // Query per tutte le amnistie
-    const amnistieQuery = `SELECT * FROM amnistia ORDER BY legge`;
+    const amnistieQuery = `SELECT * FROM amnistia WHERE attiva = true ORDER BY legge`;
     const amnistieResult = await pool.query(amnistieQuery);
     console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
     
@@ -56,6 +56,8 @@ router.get('/', verifyToken, async (req, res) => {
       legge: amnistia.legge,
       articolo: amnistia.articolo || '',
       descrizione: amnistia.descrizione || '',
+      fonte_url: amnistia.fonte_url || null,
+      precedente_storico: amnistia.precedente_storico || null,
       voti: votiCountMap[amnistia.legge] || 0
     }));
     
@@ -107,7 +109,7 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     
     // Prima trova l'ID di amnistia corrispondente alla legge
     const amnistiaResult = await pool.query(
-      'SELECT id FROM amnistia WHERE legge = $1',
+      'SELECT id FROM amnistia WHERE legge = $1 AND attiva = true',
       [legge]
     );
     
@@ -172,24 +174,10 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
     const { legge } = req.body;
     const userId = req.userId;
     
-    // Prima trova l'ID di amnistia corrispondente alla legge
-    const amnistiaResult = await pool.query(
-      'SELECT id FROM amnistia WHERE legge = $1',
-      [legge]
-    );
-    
-    if (amnistiaResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Amnistia non trovata'
-      });
-    }
-    
-    const amnistiaId = amnistiaResult.rows[0].id;
-
+    // I voti storici o per reati disattivati restano rimovibili.
     const existing = await pool.query(
-      'SELECT id FROM voti_amnistia WHERE userid = $1 AND amnistia_id = $2 LIMIT 1',
-      [userId, amnistiaId]
+      'SELECT id FROM voti_amnistia WHERE userid = $1 AND legge = $2 LIMIT 1',
+      [userId, legge]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Voto non trovato' });
@@ -205,8 +193,8 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
     try {
       await client.query('BEGIN');
       const result = await client.query(
-        'DELETE FROM voti_amnistia WHERE userid = $1 AND amnistia_id = $2',
-        [userId, amnistiaId]
+        'DELETE FROM voti_amnistia WHERE userid = $1 AND legge = $2',
+        [userId, legge]
       );
       if (result.rowCount === 0) {
         await client.query('ROLLBACK');

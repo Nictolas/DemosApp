@@ -32,10 +32,10 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
-            <span>Classifica Leggi</span>
+            <span>Classifica Reati</span>
           </CardTitle>
           <CardDescription>
-            Le leggi che hanno ricevuto più richieste di amnistia (0 totali)
+            I reati che hanno ricevuto più richieste di amnistia (0 totali)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -59,16 +59,17 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
             <Trophy className="h-5 w-5 text-white" />
           </div>
           <span className="bg-gradient-to-r from-yellow-600 to-amber-700 bg-clip-text text-transparent font-bold">
-            Classifica Leggi
+            Classifica Reati
           </span>
         </CardTitle>
         <CardDescription className="text-gray-600 mt-2">
-          Le leggi che hanno ricevuto più richieste di amnistia ({classifica.length} totali)
+          I reati che hanno ricevuto più richieste di amnistia ({classifica.length} totali)
         </CardDescription>
+        <p className="mt-2 text-xs text-gray-600">Alcune voci derivano da precedenti normativi storici: non sono iniziative parlamentari attualmente in corso.</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Tutte le leggi visibili, ordinate per voti */}
+          {/* Tutti i reati visibili, ordinate per voti */}
           <div className="space-y-3">
             {classifica.map((item, index) => (
               <LeggeItem

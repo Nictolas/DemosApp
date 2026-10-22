@@ -32,7 +32,7 @@ export const Header: React.FC = () => {
             Amnistia
           </CardTitle>
           <CardDescription className="text-base max-w-3xl mx-auto leading-relaxed text-gray-700 font-medium px-4">
-            Per quale tipo di reato secondo te si dovrebbe concedere un'amnistia, ovvero la decisione dello Stato di cancellare la colpa e la pena per tutti quelli che lo hanno commesso?
+            Per quali reati ritieni dovrebbe essere concessa un'amnistia? L'amnistia estingue il reato e fa cessare l'esecuzione della relativa pena nei casi previsti dalla legge.
           </CardDescription>
         </CardHeader>
       </Card>
