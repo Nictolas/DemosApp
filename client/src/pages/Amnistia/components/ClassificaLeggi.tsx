@@ -67,7 +67,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
         </CardDescription>
         <p className="mt-2 text-xs text-gray-600">Alcune voci derivano da precedenti normativi storici: non sono iniziative parlamentari attualmente in corso.</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3 sm:p-6">
         <div className="space-y-4">
           {/* Tutti i reati visibili, ordinate per voti */}
           <div className="space-y-3">
