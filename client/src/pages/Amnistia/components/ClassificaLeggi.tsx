@@ -38,7 +38,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
             I reati che hanno ricevuto più richieste di amnistia (0 totali)
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6">
           <div className="text-center py-12 text-gray-500">
             <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Trophy className="h-10 w-10 text-gray-400" />
@@ -53,7 +53,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
 
   return (
     <Card className="bg-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-yellow-100">
+      <CardHeader className="border-b border-yellow-100 bg-gradient-to-r from-yellow-50 to-amber-50 px-4 py-5 sm:p-6">
         <CardTitle className="flex items-center space-x-2 text-xl">
           <div className="p-2 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-lg">
             <Trophy className="h-5 w-5 text-white" />
@@ -67,7 +67,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
         </CardDescription>
         <p className="mt-2 text-xs text-gray-600">Alcune voci derivano da precedenti normativi storici: non sono iniziative parlamentari attualmente in corso.</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3 sm:p-6">
         <div className="space-y-4">
           {/* Tutti i reati visibili, ordinate per voti */}
           <div className="space-y-3">
