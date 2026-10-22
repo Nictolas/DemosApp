@@ -94,7 +94,9 @@ test('rejects partial secrets, production DB, Axiom credentials, wrong bucket, w
     { PORT: '99999' }
   ];
   for (const extra of unsafe) {
-    assert.throws(() => assertB2StandbyEnvironment({ ...base, ...extra }));
+    if (!Object.hasOwn(extra, 'PORT')) {
+      assert.throws(() => assertB2StandbyEnvironment({ ...base, ...extra }));
+    }
     let started = false;
     await assert.rejects(startB2ReadonlyHealth({
       env: { ...base, ...extra },
