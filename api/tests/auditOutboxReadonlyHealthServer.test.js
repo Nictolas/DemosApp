@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { healthHandler, waitingHandler, safeStartupFailureCode, startupStatus, startReadonlyHealthServer } =
+const { healthHandler, waitingHandler, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer } =
   require('../scripts/audit-outbox-readonly-health-server');
 
 const staging = 'fkeayjzvtuvzesljhjbc';
@@ -80,15 +80,35 @@ test('log status never reports success when the service has no database credenti
 });
 
 test('diagnostics emit only constant codes and never database driver strings', () => {
-  assert.equal(safeStartupFailureCode(new Error('AUDIT_RENDER_STAGING_ENV_REJECTED')),
+  assert.equal(safeStartupFailureCode(new Error('AUDIT_RENDER_STAGING_ENV_REJECTED'), base),
     'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED');
-  assert.equal(safeStartupFailureCode(new Error('AUDIT_STAGING_TARGET_REJECTED')),
+  assert.equal(safeStartupFailureCode(new Error('AUDIT_STAGING_TARGET_REJECTED'), base),
     'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED');
   assert.equal(safeStartupFailureCode(new Error('AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED')),
     'AUDIT_RENDER_STAGING_DATABASE_CONNECTION_REJECTED');
   assert.equal(safeStartupFailureCode(new Error('postgres://user:secret@host:5432/postgres')),
     'AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
   assert.doesNotMatch(safeStartupFailureCode({ message: 'private password secret' }), /secret|password|postgres:/i);
+});
+
+test('staging configuration reasons expose no URL values or credentials', () => {
+  const tests = [
+    [{ ...base, AUDIT_OUTBOX_PREFLIGHT_ONLY: 'false' }, 'AUDIT_RENDER_CONFIG_FLAGS_REJECTED'],
+    [{ ...base, DATABASE_URL: 'not-for-staging' }, 'AUDIT_RENDER_CONFIG_PRIMARY_DB_FORBIDDEN'],
+    [{ ...base, AUDIT_OUTBOX_DATABASE_URL: '' }, 'AUDIT_RENDER_CONFIG_OUTBOX_URL_MISSING'],
+    [{ ...base, AUDIT_OUTBOX_DATABASE_URL: 'not-a-url' }, 'AUDIT_RENDER_CONFIG_URL_INVALID'],
+    [{ ...base, AUDIT_OUTBOX_DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL.replace('synthetic-only@', '@') },
+      'AUDIT_RENDER_CONFIG_PASSWORD_MISSING'],
+    [{ ...base, AUDIT_OUTBOX_DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL.replace('demos_outbox_runtime.', 'postgres.') },
+      'AUDIT_RENDER_CONFIG_ROLE_REJECTED'],
+    [{ ...base, AUDIT_OUTBOX_DATABASE_URL: base.AUDIT_OUTBOX_DATABASE_URL.replace(host, 'aws-0-eu-central-1.pooler.supabase.com') },
+      'AUDIT_RENDER_CONFIG_ENDPOINT_REJECTED']
+  ];
+  for (const [env, code] of tests) {
+    assert.equal(safeStagingConfigurationCode(env), code);
+    assert.doesNotMatch(code, /synthetic-only|postgresql:|aws-0/);
+  }
+  assert.equal(safeStagingConfigurationCode(base), 'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED');
 });
 
 test('unsafe environment and failed readiness never open a public listener', async () => {
