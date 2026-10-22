@@ -262,7 +262,10 @@ test('staging outbox validation rejects a live Axiom dataset before insertion', 
       () => assertOutboxEvent(event, 'real-time'),
       error => error.message === 'OUTBOX_AXIOM_DATASET_SCOPE_REJECTED'
     );
-    assert.doesNotThrow(() => assertOutboxEvent(event, 'demos-security-staging'));
+    assert.doesNotThrow(() => assertOutboxEvent({
+      _time: event._time, log_type: 'audit', synthetic: true,
+      action: 'STAGING_OUTBOX_DRILL', resource: 'outbox', success: true
+    }, 'demos-security-staging'));
   } finally {
     if (original === undefined) delete process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE;
     else process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = original;
