@@ -69,13 +69,45 @@ async function startReadonlyHealthServer({
   return serve(healthHandler, port);
 }
 
-function safeStartupFailureCode(error) {
+function safeStagingConfigurationCode(env = process.env) {
+  // Never echo values. This is a closed list of fixed diagnostic labels.
+  if (env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE !== 'staging' ||
+      env.AUDIT_OUTBOX_PREFLIGHT_ONLY !== 'true' ||
+      env.AXIOM_REALTIME_DATASET !== 'demos-security-staging' ||
+      env.AXIOM_DATASET !== 'demos-security-staging' ||
+      ['AUDIT_OUTBOX_ENABLED', 'AUDIT_OUTBOX_WORKER_ENABLED',
+       'AUDIT_OUTBOX_SECURITY_ENABLED', 'AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED',
+       'AXIOM_ARCHIVE_ENABLED'].some(key => env[key] === 'true')) {
+    return 'AUDIT_RENDER_CONFIG_FLAGS_REJECTED';
+  }
+  if (env.DATABASE_URL) return 'AUDIT_RENDER_CONFIG_PRIMARY_DB_FORBIDDEN';
+  if (!env.AUDIT_OUTBOX_DATABASE_URL) return 'AUDIT_RENDER_CONFIG_OUTBOX_URL_MISSING';
+  let target;
+  try {
+    target = new URL(env.AUDIT_OUTBOX_DATABASE_URL);
+  } catch (_) {
+    return 'AUDIT_RENDER_CONFIG_URL_INVALID';
+  }
+  if (!target.password) return 'AUDIT_RENDER_CONFIG_PASSWORD_MISSING';
+  if (target.username !== 'demos_outbox_runtime.fkeayjzvtuvzesljhjbc') {
+    return 'AUDIT_RENDER_CONFIG_ROLE_REJECTED';
+  }
+  if (!['postgres:', 'postgresql:'].includes(target.protocol) ||
+      target.hostname !== 'aws-1-eu-central-1.pooler.supabase.com' ||
+      target.port !== '5432' || target.pathname !== '/postgres' ||
+      target.hash !== '') {
+    return 'AUDIT_RENDER_CONFIG_ENDPOINT_REJECTED';
+  }
+  return 'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED';
+}
+
+function safeStartupFailureCode(error, env = process.env) {
   // Never print arbitrary driver/URL exception text to Render logs.
   switch (error?.message) {
     case 'AUDIT_RENDER_STAGING_ENV_REJECTED':
     case 'AUDIT_OUTBOX_STANDALONE_PREFLIGHT_REJECTED':
     case 'AUDIT_STAGING_TARGET_REJECTED':
-      return 'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED';
+      return safeStagingConfigurationCode(env);
     case 'AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED':
       return 'AUDIT_RENDER_STAGING_DATABASE_CONNECTION_REJECTED';
     default:
@@ -100,4 +132,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { healthHandler, waitingHandler, safeStartupFailureCode, startupStatus, startReadonlyHealthServer };
+module.exports = { healthHandler, waitingHandler, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer };
