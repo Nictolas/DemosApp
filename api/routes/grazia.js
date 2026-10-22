@@ -65,13 +65,25 @@ router.get('/', async (req, res) => {
     const result = await pool.query(query);
     console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
 
-    // Creiamo una classifica basata sul numero di voti per carcerato
-    // Rimosso LIMIT per mostrare tutti i risultati (rimosso "Mostra Altro")
+    // La classifica include anche i carcerati inseriti dagli amministratori,
+    // senza attribuire loro voti fittizi. Il catalogo è separato dalle preferenze.
     const classificaQuery = `
-      SELECT nome, COUNT(*) as richieste
-      FROM voti_grazia
+      WITH voti_per_nome AS (
+        SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
+        FROM voti_grazia
+        WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
+        GROUP BY BTRIM(nome)
+      ), classificati AS (
+        SELECT nome, richieste FROM voti_per_nome
+        UNION ALL
+        SELECT nome, 0::bigint AS richieste
+        FROM grazia_carcerati
+        WHERE attivo = true
+      )
+      SELECT nome, SUM(richieste)::integer AS richieste
+      FROM classificati
       GROUP BY nome
-      ORDER BY richieste DESC
+      ORDER BY richieste DESC, nome ASC
     `;
 
     const classificaResult = await pool.query(classificaQuery);
