@@ -75,7 +75,7 @@ BEGIN
   NEW.updated_at = CURRENT_TIMESTAMP;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 CREATE TRIGGER trigger_update_parlamento_updated_at
   BEFORE UPDATE ON parlamento
