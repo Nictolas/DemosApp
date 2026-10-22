@@ -42,7 +42,7 @@ function assertStagingSyntheticOutboxEvent(event, scope = process.env.AUDIT_OUTB
     event.resource === 'outbox' &&
     event.success === true &&
     typeof event._time === 'string' &&
-    /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(event._time) &&
+    /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$/.test(event._time) &&
     Number.isFinite(Date.parse(event._time)) &&
     (event.axiom_delivery_id === undefined ||
       (typeof event.axiom_delivery_id === 'string' &&
