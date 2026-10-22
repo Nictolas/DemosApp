@@ -61,7 +61,7 @@ BEGIN
   NEW.data_aggiornamento = CURRENT_TIMESTAMP;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 CREATE TRIGGER trigger_update_voti_politici_updated_at
   BEFORE UPDATE ON voti_politici
