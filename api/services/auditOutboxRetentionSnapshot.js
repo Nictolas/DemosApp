@@ -8,6 +8,8 @@ SELECT
   COUNT(*)::integer AS total,
   COUNT(*) FILTER (WHERE status = 'pending')::integer AS pending,
   COUNT(*) FILTER (WHERE status = 'sending')::integer AS sending,
+  COUNT(*) FILTER (WHERE status = 'sending' AND lease_expires_at < NOW())::integer AS sending_expired_lease,
+  COUNT(*) FILTER (WHERE status = 'sending' AND lease_expires_at IS NULL)::integer AS sending_missing_lease,
   COUNT(*) FILTER (WHERE status = 'dead_letter')::integer AS dead_letter,
   COUNT(*) FILTER (WHERE status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes')::integer AS pending_over_15m,
   COUNT(*) FILTER (WHERE status = 'pending' AND created_at < NOW() - INTERVAL '24 hours')::integer AS pending_over_24h,
@@ -18,7 +20,8 @@ FROM demos_private.audit_delivery_outbox
 `;
 
 const COUNT_FIELDS = Object.freeze([
-  'total','pending','sending','dead_letter','pending_over_15m',
+  'total','pending','sending','sending_expired_lease','sending_missing_lease',
+  'dead_letter','pending_over_15m',
   'pending_over_24h','dead_letter_over_72h','dead_letter_over_30d',
   'oldest_age_seconds'
 ]);
@@ -51,6 +54,7 @@ async function readRetentionSnapshot({ pool, ensureReady, env = process.env } = 
     if (value.total !== value.pending + value.sending + value.dead_letter ||
         value.pending_over_24h > value.pending_over_15m ||
         value.pending_over_15m > value.pending ||
+        value.sending_expired_lease + value.sending_missing_lease > value.sending ||
         value.dead_letter_over_30d > value.dead_letter_over_72h ||
         value.dead_letter_over_72h > value.dead_letter) {
       throw new Error('BAD_AGGREGATES');
@@ -61,7 +65,9 @@ async function readRetentionSnapshot({ pool, ensureReady, env = process.env } = 
       // These indicate only operational review candidates, never legal expiry
       // and are not permission to delete even a single outbox event.
       needsReview: value.pending_over_24h > 0 ||
-        value.dead_letter_over_72h > 0
+        value.dead_letter_over_72h > 0 ||
+        value.sending_expired_lease > 0 ||
+        value.sending_missing_lease > 0
     };
   } catch (_) {
     // Sanitized code, never expose SQL errors or event contents.

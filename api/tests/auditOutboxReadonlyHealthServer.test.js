@@ -24,6 +24,7 @@ const base = {
 const stagingRetentionSummary = Object.freeze({
   status: 'OUTBOX_RETENTION_STAGING_SNAPSHOT_OK',
   total: 0, pending: 0, sending: 0, dead_letter: 0,
+  sending_expired_lease: 0, sending_missing_lease: 0,
   needsReview: false
 });
 const startReadonlyHealthServer = options => rawStartReadonlyHealthServer({
@@ -68,7 +69,10 @@ test('failed or inconsistent retention read never announces an all-clear health'
     { ...stagingRetentionSummary, status: 'OUTBOX_RETENTION_READONLY_FAILED' },
     { ...stagingRetentionSummary, total: 5 },
     { ...stagingRetentionSummary, dead_letter: null },
-    { ...stagingRetentionSummary, needsReview: 'false' }
+    { ...stagingRetentionSummary, needsReview: 'false' },
+    { ...stagingRetentionSummary, sending_expired_lease: undefined },
+    { ...stagingRetentionSummary, sending_missing_lease: -1 },
+    { ...stagingRetentionSummary, sending: 1, total: 1, sending_expired_lease: 1, sending_missing_lease: 1 }
   ]) {
     let opened = false, reported = false;
     await assert.rejects(startReadonlyHealthServer({

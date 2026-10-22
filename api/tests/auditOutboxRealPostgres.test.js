@@ -173,18 +173,20 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
         await client.query('BEGIN');
         await client.query(`
           INSERT INTO demos_private.audit_delivery_outbox
-            (id, dataset, category, payload, status, created_at)
+            (id, dataset, category, payload, status, created_at, lease_expires_at)
           SELECT gen_random_uuid(), 'real-time', 'audit',
             '{"synthetic":true,"action":"CI_RETENTION_ONLY"}'::jsonb,
-            ages.status, NOW() - ages.age
+            ages.status, NOW() - ages.age,
+            CASE WHEN ages.lease_lag IS NOT NULL THEN NOW() - ages.lease_lag ELSE NULL END
           FROM (VALUES
-            ('pending', INTERVAL '1 minute'),
-            ('pending', INTERVAL '16 minutes'),
-            ('pending', INTERVAL '25 hours'),
-            ('sending', INTERVAL '2 hours'),
-            ('dead_letter', INTERVAL '4 days'),
-            ('dead_letter', INTERVAL '31 days')
-          ) AS ages(status, age)
+            ('pending', INTERVAL '1 minute', NULL::interval),
+            ('pending', INTERVAL '16 minutes', NULL::interval),
+            ('pending', INTERVAL '25 hours', NULL::interval),
+            ('sending', INTERVAL '2 hours', INTERVAL '1 minute'),
+            ('sending', INTERVAL '2 hours', NULL::interval),
+            ('dead_letter', INTERVAL '4 days', NULL::interval),
+            ('dead_letter', INTERVAL '31 days', NULL::interval)
+          ) AS ages(status, age, lease_lag)
         `);
         const result = await readRetentionSnapshot({
           pool: client,
@@ -204,11 +206,14 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
           dead_letter: result.dead_letter, pending_over_15m: result.pending_over_15m,
           pending_over_24h: result.pending_over_24h,
           dead_letter_over_72h: result.dead_letter_over_72h,
+          sending_expired_lease: result.sending_expired_lease,
+          sending_missing_lease: result.sending_missing_lease,
           dead_letter_over_30d: result.dead_letter_over_30d,
           needsReview: result.needsReview
         }, {
-          total: 6, pending: 3, sending: 1, dead_letter: 2,
+          total: 7, pending: 3, sending: 2, dead_letter: 2,
           pending_over_15m: 2, pending_over_24h: 1,
+          sending_expired_lease: 1, sending_missing_lease: 1,
           dead_letter_over_72h: 2, dead_letter_over_30d: 1,
           needsReview: true
         });

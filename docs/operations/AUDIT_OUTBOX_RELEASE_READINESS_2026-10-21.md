@@ -195,6 +195,30 @@ su PostgreSQL temporaneo non sostituisce un collaudo runtime Render né
 un backlog reale in Supabase-Staging**. RP-17 e RP-09/RP-10 rimangono
 non approvate. PR draft; main e produzione invariati.
 
+### 22 ottobre 2026 — Monitoraggio dei lease `sending` (checkpoint dedicato)
+
+Il controllo di retention read-only esistente identificava i ritardi `pending` e
+`dead_letter`, ma **non** segnalava un record `sending` con
+`lease_expires_at` scaduto o NULL. Quest'ultimo è soprattutto un rischio
+operativo: il worker recupera le lease **scadute**, mentre con `NULL`
+la sua query di recupero non seleziona il record.
+
+Senza modifiche allo schema, senza leggere eventi o identificatori,
+`SNAPSHOT_SQL` include ora `sending_expired_lease` e
+`sending_missing_lease`. Entrambi attivano `needsReview=true`; i
+contatori sono verificati come sottoinsiemi disgiunti di `sending`.
+Il probe Render, quando aggiornato separatamente e dopo test, potrà
+registrare solo questi conteggi. NON attiva il worker, non effettua
+riparazioni automatiche e non dichiara scadenze GDPR.
+
+Nuova regressione PG17 CI: sette eventi interamente sintetici nella
+transazione temporanea già esistente, due `sending` (uno con lease scaduto,
+uno senza lease), con `ROLLBACK` e verifica tabella vuota. Il test unitario
+verifica anche l'allerta quando **soltanto** un lease è irregolare e
+rifiuta conteggi incoerenti. Nessun test su dati reali Supabase; nessun
+deploy automatico richiesto né nuove risorse o credenziali. RP-17 resta
+**NON APPROVATA**; Axiom/B2/FCM reali restano **NO-GO**.
+
 ## Verifiche già svolte
 
 | Area | Evidenza | Stato |

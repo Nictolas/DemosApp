@@ -23,6 +23,7 @@ const env = Object.freeze({
 function data(overrides = {}) {
   return {
     total: 5, pending: 2, sending: 1, dead_letter: 2,
+    sending_expired_lease: 0, sending_missing_lease: 0,
     pending_over_15m: 1, pending_over_24h: 1,
     dead_letter_over_72h: 1, dead_letter_over_30d: 0,
     oldest_age_seconds: 130000, ...overrides
@@ -59,6 +60,7 @@ test('an empty outbox is measured successfully without implying retention approv
     ensureReady: async () => {},
     pool: { query: async () => ({ rows: [data({
       total: 0, pending: 0, sending: 0, dead_letter: 0,
+      sending_expired_lease: 0, sending_missing_lease: 0,
       pending_over_15m: 0, pending_over_24h: 0,
       dead_letter_over_72h: 0, dead_letter_over_30d: 0,
       oldest_age_seconds: 0
@@ -72,6 +74,9 @@ test('an empty outbox is measured successfully without implying retention approv
 test('invalid aggregates and driver errors reject safely without leaking database errors', async () => {
   for (const row of [
     data({ total: 999 }),
+    data({ sending_expired_lease: 2 }),
+    data({ sending_missing_lease: 2 }),
+    data({ sending_expired_lease: 1, sending_missing_lease: 1 }),
     data({ pending_over_24h: 3 }),
     data({ dead_letter_over_30d: 2 }),
     data({ oldest_age_seconds: -1 }),
@@ -88,6 +93,28 @@ test('invalid aggregates and driver errors reject safely without leaking databas
     env, ensureReady: async () => {},
     pool: { query: async () => { throw new Error('postgres password PRIVATE'); } }
   }), e => e.message === 'OUTBOX_RETENTION_READONLY_FAILED');
+});
+
+test('expired or missing sending leases raise a review even with no old pending/dead-letter', async () => {
+  for (const fields of [
+    { sending_expired_lease: 1, sending_missing_lease: 0 },
+    { sending_expired_lease: 0, sending_missing_lease: 1 }
+  ]) {
+    const row = data({
+      total: 1, pending: 0, sending: 1, dead_letter: 0,
+      pending_over_15m: 0, pending_over_24h: 0,
+      dead_letter_over_72h: 0, dead_letter_over_30d: 0,
+      oldest_age_seconds: 240, ...fields
+    });
+    const result = await readRetentionSnapshot({
+      env,
+      ensureReady: async () => {},
+      pool: { query: async () => ({ rows: [row] }) }
+    });
+    assert.equal(result.needsReview, true);
+    assert.equal(result.sending_expired_lease, fields.sending_expired_lease);
+    assert.equal(result.sending_missing_lease, fields.sending_missing_lease);
+  }
 });
 
 test('rejects enabled worker, production scope, primary database and invalid dependencies before SQL', async () => {

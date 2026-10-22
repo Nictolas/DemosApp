@@ -72,6 +72,8 @@ async function startReadonlyHealthServer({
     total: snapshot.total,
     pending: snapshot.pending,
     sending: snapshot.sending,
+    sending_expired_lease: snapshot.sending_expired_lease,
+    sending_missing_lease: snapshot.sending_missing_lease,
     dead_letter: snapshot.dead_letter,
     needsReview: snapshot.needsReview
   })),
@@ -120,6 +122,9 @@ async function startReadonlyHealthServer({
       !Number.isSafeInteger(summary.pending) || summary.pending < 0 ||
       !Number.isSafeInteger(summary.sending) || summary.sending < 0 ||
       !Number.isSafeInteger(summary.dead_letter) || summary.dead_letter < 0 ||
+      !Number.isSafeInteger(summary.sending_expired_lease) || summary.sending_expired_lease < 0 ||
+      !Number.isSafeInteger(summary.sending_missing_lease) || summary.sending_missing_lease < 0 ||
+      summary.sending_expired_lease + summary.sending_missing_lease > summary.sending ||
       summary.total !== summary.pending + summary.sending + summary.dead_letter ||
       typeof summary.needsReview !== 'boolean') {
     throw new Error('OUTBOX_RETENTION_STAGING_SNAPSHOT_REJECTED');
