@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   assertOutboxAxiomTarget,
-  assertStagingSyntheticOutboxEvent
+  assertStagingSyntheticOutboxEvent, assertStagingAxiomHttpTarget
 } = require('../services/auditOutboxAxiomTarget');
 const { createAuditOutbox } = require('../services/auditOutboxService');
 
@@ -46,6 +46,25 @@ test('staging accepts only a clearly marked, strictly bounded synthetic audit dr
   for (const event of rejects) {
     assert.throws(() => assertStagingSyntheticOutboxEvent(event, 'staging'),
       error => error.message === 'OUTBOX_STAGING_SYNTHETIC_ONLY');
+  }
+});
+
+test('staging Axiom HTTP credentials can only target the pinned EU ingest host', () => {
+  assert.equal(assertStagingAxiomHttpTarget({ AXIOM_REGION: 'eu' }, 'staging'),
+    'eu-central-1.aws.edge.axiom.co');
+  assert.equal(assertStagingAxiomHttpTarget({
+    AXIOM_REGION: 'EU', AXIOM_EDGE_DOMAIN: 'eu-central-1.aws.edge.axiom.co'
+  }, 'staging'), 'eu-central-1.aws.edge.axiom.co');
+
+  for (const env of [
+    { AXIOM_REGION: 'us' },
+    { AXIOM_REGION: 'asia' },
+    { AXIOM_REGION: 'eu', AXIOM_EDGE_DOMAIN: 'redirect.invalid' },
+    { AXIOM_REGION: 'eu', AXIOM_EDGE_DOMAIN: 'https://eu-central-1.aws.edge.axiom.co' },
+    { AXIOM_REGION: 'eu', AXIOM_EDGE_DOMAIN: 'eu-central-1.aws.edge.axiom.co.evil.test' }
+  ]) {
+    assert.throws(() => assertStagingAxiomHttpTarget(env, 'staging'),
+      /OUTBOX_STAGING_AXIOM_HTTP_TARGET_REJECTED/);
   }
 });
 

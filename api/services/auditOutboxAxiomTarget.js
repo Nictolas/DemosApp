@@ -6,6 +6,7 @@
 // This is an explicit opt-in destination, already used for non-production
 // security telemetry; only synthetic events may be sent during staging drills.
 const STAGING_AXIOM_DATASET = 'demos-security-staging';
+const STAGING_AXIOM_EDGE_DOMAIN = 'eu-central-1.aws.edge.axiom.co';
 
 function assertOutboxAxiomTarget(dataset, scope = process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE) {
   const isStagingName = typeof dataset === 'string' &&
@@ -51,4 +52,21 @@ function assertStagingSyntheticOutboxEvent(event, scope = process.env.AUDIT_OUTB
   return true;
 }
 
-module.exports = { STAGING_AXIOM_DATASET, assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent };
+// Staging API tokens must never be sent to an arbitrary host configured via
+// AXIOM_EDGE_DOMAIN, or via an HTTP proxy/redirect at dispatch time.
+// This is a staging-only restriction; production transports are unchanged.
+function assertStagingAxiomHttpTarget(env = process.env, scope = env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE) {
+  if (scope !== 'staging') return STAGING_AXIOM_EDGE_DOMAIN;
+  const region = (env.AXIOM_REGION || 'eu').toLowerCase();
+  if (region !== 'eu' ||
+      (env.AXIOM_EDGE_DOMAIN && env.AXIOM_EDGE_DOMAIN !== STAGING_AXIOM_EDGE_DOMAIN)) {
+    throw new Error('OUTBOX_STAGING_AXIOM_HTTP_TARGET_REJECTED');
+  }
+  return STAGING_AXIOM_EDGE_DOMAIN;
+}
+
+module.exports = {
+  STAGING_AXIOM_DATASET, STAGING_AXIOM_EDGE_DOMAIN,
+  assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent,
+  assertStagingAxiomHttpTarget
+};

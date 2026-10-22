@@ -165,10 +165,12 @@ class AuditService {
     // A stale queued row or misconfigured staging worker must not ingest into
     // a production Axiom dataset. Check again at HTTP dispatch, not just enqueue.
     try {
-      const { assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent } =
-        require('./auditOutboxAxiomTarget');
+      const { assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent,
+        assertStagingAxiomHttpTarget } = require('./auditOutboxAxiomTarget');
       assertOutboxAxiomTarget(dataset);
       assertStagingSyntheticOutboxEvent(event);
+      // Guard the destination before the token enters an HTTP request.
+      assertStagingAxiomHttpTarget();
     } catch (_error) {
       return false;
     }
@@ -176,8 +178,11 @@ class AuditService {
     try {
       const axios = require('axios');
       const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
-      const edgeDomain = process.env.AXIOM_EDGE_DOMAIN
-        || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co');
+      const stagingHttp = process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE === 'staging';
+      const edgeDomain = stagingHttp
+        ? 'eu-central-1.aws.edge.axiom.co'
+        : (process.env.AXIOM_EDGE_DOMAIN
+          || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co'));
       await axios.post(`https://${edgeDomain}/v1/ingest/${dataset}`, [event], {
         headers: {
           Authorization: `Bearer ${process.env.AXIOM_API_TOKEN}`,
@@ -186,7 +191,9 @@ class AuditService {
         },
         timeout: 5000,
         maxContentLength: Infinity,
-        maxBodyLength: Infinity
+        maxBodyLength: Infinity,
+        // Never leak a staging-only API token to proxies or redirects.
+        ...(stagingHttp ? { proxy: false, maxRedirects: 0 } : {})
       });
       return true;
     } catch (error) {

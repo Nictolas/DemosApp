@@ -9,6 +9,29 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+### 22 ottobre 2026 — Gate HTTP Axiom di staging prima di un token
+
+Il codice di consegna dell'outbox ora rifiuta, **prima della richiesta
+HTTP**, impostazioni `AXIOM_REGION` extra-UE e qualunque
+`AXIOM_EDGE_DOMAIN` diverso da `eu-central-1.aws.edge.axiom.co`
+quando `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`. Inoltre, sul
+trasporto di staging sono disattivati il proxy automatico di Axios
+(`proxy: false`) e i reindirizzamenti (`maxRedirects: 0`):
+il token dataset-scoped di prova non deve essere inoltrato a un
+host o proxy arbitrario. Le verifiche agiscono dopo i guard del
+dataset `demos-security-staging` e del payload
+`STAGING_OUTBOX_DRILL` esclusivamente sintetico. I test
+verificano rifiuto delle destinazioni estranee **senza effettuare
+una richiesta** e il corretto host, senza usare token veri.
+
+Questa è **solo una protezione del codice**, non una prova Axiom E2E.
+Non sono stati creati token, inviate chiamate HTTP al provider,
+abilitati worker/outbox o effettuati deploy. Il token e l'organizzazione
+di test dovranno comunque essere verificati presso Axiom per scope
+effettivo limitato al dataset, senza riutilizzare credenziali
+produttive. La produzione mantiene invariata la propria
+configurazione HTTP.
+
 ### 22 ottobre 2026 — Retention staging verificata da Render con ruolo minimo
 
 Il **nuovo** comando di snapshot retention, già implementato e

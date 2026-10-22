@@ -210,6 +210,57 @@ test('outbox preprocessor applies configured anonymization before persistent sto
 });
 
 
+test('staging Axiom HTTP dispatch refuses foreign hosts before network and disables proxies/redirects', async () => {
+  const keys = ['AUDIT_OUTBOX_DEPLOYMENT_SCOPE','AXIOM_REGION','AXIOM_EDGE_DOMAIN'];
+  const original = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  const event = {
+    _time: '2026-10-22T12:00:00.000Z', log_type: 'audit',
+    action: 'STAGING_OUTBOX_DRILL', resource: 'outbox',
+    synthetic: true, success: true
+  };
+  let sent = 0;
+  try {
+    await withStubbedAxiom(async (url, payload, options) => {
+      sent++;
+      assert.equal(url,
+        'https://eu-central-1.aws.edge.axiom.co/v1/ingest/demos-security-staging');
+      assert.equal(options.proxy, false);
+      assert.equal(options.maxRedirects, 0);
+      assert.equal(payload[0].synthetic, true);
+      return { status: 202 };
+    }, async () => {
+      process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = 'staging';
+      for (const [region, edge] of [
+        ['us', undefined],
+        ['eu', 'example.invalid'],
+        ['eu', 'https://eu-central-1.aws.edge.axiom.co'],
+        ['eu', 'eu-central-1.aws.edge.axiom.co.evil.test']
+      ]) {
+        process.env.AXIOM_REGION = region;
+        if (edge === undefined) delete process.env.AXIOM_EDGE_DOMAIN;
+        else process.env.AXIOM_EDGE_DOMAIN = edge;
+        assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP(
+          'demos-security-staging', event), false);
+        assert.equal(sent, 0, 'no token may be sent to a wrong endpoint');
+      }
+      process.env.AXIOM_REGION = 'eu';
+      delete process.env.AXIOM_EDGE_DOMAIN;
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP(
+        'demos-security-staging', event), true);
+      assert.equal(sent, 1);
+      process.env.AXIOM_EDGE_DOMAIN = 'eu-central-1.aws.edge.axiom.co';
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP(
+        'demos-security-staging', event), true);
+      assert.equal(sent, 2);
+    });
+  } finally {
+    for (const [key, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test('outbox HTTP worker never crosses Axiom staging/production dataset boundaries', async () => {
   const oldScope = process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE;
   const event = {
