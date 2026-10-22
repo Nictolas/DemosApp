@@ -74,7 +74,12 @@ router.get('/', async (req, res) => {
         WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
         GROUP BY BTRIM(nome)
       ), classificati AS (
-        SELECT nome, richieste FROM voti_per_nome
+        SELECT v.nome, v.richieste
+        FROM voti_per_nome v
+        WHERE NOT EXISTS (
+          SELECT 1 FROM grazia_carcerati c
+          WHERE LOWER(BTRIM(c.nome)) = LOWER(v.nome) AND c.attivo = false
+        )
         UNION ALL
         SELECT nome, 0::bigint AS richieste
         FROM grazia_carcerati
