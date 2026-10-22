@@ -27,6 +27,7 @@
     "archive:axiom:verify-overlap": "node scripts/verify-axiom-archive-overlap.js",
     "audit:outbox:staging-preflight": "node scripts/verify-audit-outbox-staging.js",
     "audit:outbox:render-staging-preflight": "node scripts/verify-audit-outbox-render-staging.js",
+    "audit:outbox:retention-staging-snapshot": "node scripts/verify-audit-outbox-retention-staging.js",
     "audit:outbox:readonly-health": "node scripts/audit-outbox-readonly-health-server.js"
   },
   "keywords": [
