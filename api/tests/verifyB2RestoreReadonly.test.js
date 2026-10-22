@@ -89,6 +89,19 @@ test('both latest datasets are checked, returning counts without object keys or 
   assert.ok(!JSON.stringify(result).includes('SECRET_KEY_MUST_NOT_APPEAR'));
 });
 
+test('does not claim a real restore when only empty checkpoints and manifests were read', async () => {
+  await assert.rejects(verifyB2RestoreReadOnly({
+    env,
+    makeClient: () => ({ send: async () => { throw new Error('network prohibited in test'); } }),
+    makeService: () => ({
+      verifyLatestArchiveBatch: async dataset => ({
+        dataset, verifiedObjects: 0, verifiedEvents: 0,
+        checkpointEnd: '2026-10-22T00:00:00.000Z'
+      })
+    })
+  }), /B2_READONLY_RESTORE_NO_DATA_OBJECT_VERIFIED/);
+});
+
 test('refuses invalid summary instead of claiming an unverified restore', async () => {
   await assert.rejects(verifyB2RestoreReadOnly({
     env,
