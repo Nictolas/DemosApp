@@ -152,6 +152,80 @@ test('real PostgreSQL: private grants, concurrent leases, recovery, and retry', 
       }
     });
 
+    await t.test('real PostgreSQL retention snapshot classifies synthetic aged backlog and rolls back', async () => {
+      // Unlike mocked unit tests, exercise the exact SNAPSHOT_SQL against
+      // disposable PostgreSQL 17 with a restricted login. Never staging/prod.
+      await clean();
+      const { readRetentionSnapshot } = require('../services/auditOutboxRetentionSnapshot');
+      const restricted = createAuditOutboxDatabase({
+        env: {
+          DATABASE_URL: testUrl,
+          NODE_ENV: 'test',
+          AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
+          AUDIT_OUTBOX_DATABASE_URL:
+            'postgresql://demos_outbox_runtime_ci:ci-only-outbox@127.0.0.1:5432/demos_outbox_ci'
+        }
+      });
+      let client;
+      try {
+        await restricted.ensureReady();
+        client = await restricted.pool.connect();
+        await client.query('BEGIN');
+        await client.query(`
+          INSERT INTO demos_private.audit_delivery_outbox
+            (id, dataset, category, payload, status, created_at)
+          SELECT gen_random_uuid(), 'real-time', 'audit',
+            '{"synthetic":true,"action":"CI_RETENTION_ONLY"}'::jsonb,
+            ages.status, NOW() - ages.age
+          FROM (VALUES
+            ('pending', INTERVAL '1 minute'),
+            ('pending', INTERVAL '16 minutes'),
+            ('pending', INTERVAL '25 hours'),
+            ('sending', INTERVAL '2 hours'),
+            ('dead_letter', INTERVAL '4 days'),
+            ('dead_letter', INTERVAL '31 days')
+          ) AS ages(status, age)
+        `);
+        const result = await readRetentionSnapshot({
+          pool: client,
+          ensureReady: restricted.ensureReady,
+          env: {
+            AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
+            AUDIT_OUTBOX_PREFLIGHT_ONLY: 'true',
+            AUDIT_OUTBOX_ENABLED: 'false',
+            AUDIT_OUTBOX_WORKER_ENABLED: 'false',
+            AUDIT_OUTBOX_SECURITY_ENABLED: 'false',
+            AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED: 'false',
+            AXIOM_ARCHIVE_ENABLED: 'false'
+          }
+        });
+        assert.deepEqual({
+          total: result.total, pending: result.pending, sending: result.sending,
+          dead_letter: result.dead_letter, pending_over_15m: result.pending_over_15m,
+          pending_over_24h: result.pending_over_24h,
+          dead_letter_over_72h: result.dead_letter_over_72h,
+          dead_letter_over_30d: result.dead_letter_over_30d,
+          needsReview: result.needsReview
+        }, {
+          total: 6, pending: 3, sending: 1, dead_letter: 2,
+          pending_over_15m: 2, pending_over_24h: 1,
+          dead_letter_over_72h: 2, dead_letter_over_30d: 1,
+          needsReview: true
+        });
+        assert.ok(result.oldest_age_seconds >= 30 * 24 * 60 * 60);
+        // A rollback preserves all pre-existing state and leaves no fixture.
+        await client.query('ROLLBACK');
+        const after = await restricted.pool.query(
+          'SELECT COUNT(*)::integer AS n FROM demos_private.audit_delivery_outbox'
+        );
+        assert.equal(after.rows[0].n, 0);
+      } finally {
+        await client?.query('ROLLBACK').catch(() => {});
+        client?.release();
+        await restricted.pool.end();
+      }
+    });
+
     await t.test('restricted runtime rejects accidental unrelated grants and PUBLIC SECURITY DEFINER', async () => {
       const env = {
         DATABASE_URL: testUrl,

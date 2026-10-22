@@ -127,6 +127,27 @@ campi e retention effettiva. Nessun evento cancellato,
 nessun auto-purge introdotto, nessun rollout autorizzato.
 B2 restore, invio Axiom reale e FCM di test sono **NO-GO**.
 
+### 22 ottobre 2026 — Regressione SQL sul backlog sintetico (solo CI)
+
+A seguito di `CP-EA-035`, la verifica reale di staging era stata
+fatta con **0 righe**. È stata aggiunta una prova diversa,
+`auditOutboxRealPostgres.test.js`, che usa **il medesimo**
+`readRetentionSnapshot / SNAPSHOT_SQL` su PostgreSQL 17 effimero
+della GitHub CI, con login non amministrativo e sei eventi interamente
+sintetici: 3 pending, 1 sending, 2 dead-letter.
+
+L'esperimento avviene in una transazione con **ROLLBACK**, poi verifica
+che il conteggio della coda sia tornato a zero. Controlla il risultato
+atteso: pending >15m=2, pending >24h=1, dead-letter >72h=2,
+dead-letter >30d=1 e `needsReview=true`. Nessun dato reale,
+nessuna operazione su database Supabase e nessun provider Axiom/B2/FCM.
+La simulazione delle età non approva né modifica durate di retention GDPR.
+
+La CI associata al commit va verificata separatamente: **il test
+su PostgreSQL temporaneo non sostituisce un collaudo runtime Render né
+un backlog reale in Supabase-Staging**. RP-17 e RP-09/RP-10 rimangono
+non approvate. PR draft; main e produzione invariati.
+
 ## Verifiche già svolte
 
 | Area | Evidenza | Stato |
