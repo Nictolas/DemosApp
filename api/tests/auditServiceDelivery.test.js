@@ -215,7 +215,10 @@ test('outbox HTTP worker never crosses Axiom staging/production dataset boundari
   const event = {
     _time: '2026-10-21T12:00:00.000Z',
     log_type: 'audit',
-    action: 'SYNTHETIC_STAGING_TEST',
+    action: 'STAGING_OUTBOX_DRILL',
+    resource: 'outbox',
+    success: true,
+    synthetic: true,
     axiom_delivery_id: '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f'
   };
   let requests = 0;
@@ -229,6 +232,11 @@ test('outbox HTTP worker never crosses Axiom staging/production dataset boundari
       assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), false);
       assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('centralized_logs', event), false);
       assert.equal(requests, 0, 'staging must not contact live Axiom datasets');
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP(
+        'demos-security-staging', { ...event, synthetic: undefined }), false);
+      assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP(
+        'demos-security-staging', { ...event, user_id: 'personal-id' }), false);
+      assert.equal(requests, 0, 'unmarked or personal-data events never touch Axiom');
       assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('demos-security-staging', event), true);
       assert.equal(requests, 1, 'the existing isolated staging dataset is allowed');
 
