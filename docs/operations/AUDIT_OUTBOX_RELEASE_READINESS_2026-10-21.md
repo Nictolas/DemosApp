@@ -280,6 +280,38 @@ non espone il saldo di fatturazione. Non creare un nuovo servizio
 web Free senza questo controllo: le 750 ore mensili sono condivise
 anche con il backend pubblico.
 
+### Verifica effettiva Render in standby e correzione del log (22 ottobre 2026)
+
+Il servizio Free isolato `demos-outbox-readonly-staging`
+(`srv-dbckvbivcj2c73f0i7e0`) è stato interrogato realmente da
+un client HTTPS del desktop autorizzato, senza credenziali:
+`GET /` → **200** con `staging probe pending configuration`;
+`GET /healthz` → **503** con `not ready`. Questo conferma lo
+stato di attesa, NON il collegamento Supabase.
+
+Nel primo deploy Render `dep-dbckvcavcj2c73f0i9j0` il server loggava
+erroneamente `AUDIT_RENDER_STAGING_PREFLIGHT_OK` anche se l'URL
+PostgreSQL era assente. Corretta la distinzione nel codice:
+assenza della credenziale → `AUDIT_RENDER_STAGING_STANDBY_NO_DB_SECRET`;
+solo un controllo PostgreSQL reale riuscito può produrre
+`AUDIT_RENDER_STAGING_PREFLIGHT_OK`. Aggiunto test di regressione.
+La correzione è stata distribuita con successo in
+`dep-dbcl3bivcj2c73f117t0` (commit `4799445e`); i
+**log Render** confermano il nuovo stato di standby, senza password
+e senza worker/archiviatore.
+
+Restano ancora due passaggi distinti:
+1. la password robusta di `demos_outbox_runtime` deve essere impostata
+   **dall'amministratore autorizzato** e mai condivisa via chat,
+   file GitHub o log;
+2. il segreto completo deve essere aggiunto **solo** come
+   `AUDIT_OUTBOX_DATABASE_URL` nelle Environment Variables
+   di questo servizio Render, usando `Session Pooler` porta 5432.
+   NON aggiungere `DATABASE_URL`; flag operativi disattivati.
+   Solo allora eseguire un redeploy e verificare `GET /healthz`=200
+   insieme a un log `AUDIT_RENDER_STAGING_PREFLIGHT_OK`.
+   Prima del test la risposta corretta resta **503**.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Hostname Session
