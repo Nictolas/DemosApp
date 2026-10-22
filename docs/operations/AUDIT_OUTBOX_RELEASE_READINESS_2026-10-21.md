@@ -34,6 +34,48 @@ sezioni storiche che indicano URL non valido, LOGIN mancante e preflight
 non ancora svolto sono precedenti a questo esito, e vanno interpretate
 come cronologia dei tentativi.
 
+### 22 ottobre 2026 — Staging Axiom: soltanto eventi sintetici, senza PII
+
+Prima di apportare modifiche è stato riletto il Google Sheet canonico
+`DEMOS – Tecnologia` (`IMP-047`) e il checkpoint Engineering
+`CP-EA-033`, poi verificati GitHub PR #218 e servizi Render.
+L'inventario delle chiavi Backblaze **resta ignoto**: DeskMCP è ancora
+offline, non esiste un connettore B2 diretto, mentre il probe B2
+`demos-b2-readonly-restore-staging` è ancora in standby senza key.
+Non è stato creato alcun bucket, nuova chiave o servizio.
+
+È stato individuato e corretto un limite nel codice del **nuovo**
+outbox su staging: il dataset Axiom era isolato, ma non era imposta
+la natura rigorosamente sintetica dei payload. Ora, nello scope
+`AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`, i guard di
+`api/services/auditOutboxAxiomTarget.js` impongono
+`synthetic=true`, `log_type=audit`,
+`action=STAGING_OUTBOX_DRILL`, `resource=outbox`,
+`success=true`, timestamp ISO preciso, sole chiavi consentite
+e nessun `user_id`, indirizzo IP, `resource_id`,
+`session_id`, messaggio d'errore o testo libero.
+Il controllo viene eseguito **sia prima dell'INSERT**
+nella coda PostgreSQL, sia prima di ogni HTTP ingest Axiom,
+anche per righe preesistenti. Il percorso `production`
+rimane invariato e l'invio ai dataset produttivi è ancora vietato
+allo staging.
+
+Aggiunti test di casi negativi (identificativi personali, payload
+arbitrari, segnali senza marker, dataset errato) e aggiornati test
+HTTP/worker esistenti. Dopo un primo test CI fallito per un
+vecchio fixture privo di `synthetic=true`, corretto il fixture.
+[Logging and archive regression](https://github.com/Nictolas/DemosApp/actions/runs/39762449259)
+risultato **SUCCESS** sull'HEAD `d9f5726361fccecb0770336442a2e153ee8e62ed`.
+La Security Agent Validation dello stesso HEAD era ancora in corso
+durante il primo riscontro.
+
+**Stato: guard sintetico PASS (CI), ma Axiom E2E provider reale
+NON ESEGUITO.** Non sono state configurate nuove chiavi né
+inviati eventi a `demos-security-staging`; worker della nuova
+coda e deploy di produzione restano disattivati. Serve il
+successivo collaudo reale con token Axiom limitato al dataset e
+senza dati utenti.
+
 ## Verifiche già svolte
 
 | Area | Evidenza | Stato |
