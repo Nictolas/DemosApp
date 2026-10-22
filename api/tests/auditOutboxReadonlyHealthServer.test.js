@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { healthHandler, waitingHandler, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer } =
+const { healthHandler, waitingHandler, normalizeReadonlyStagingUri, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer } =
   require('../scripts/audit-outbox-readonly-health-server');
 
 const staging = 'fkeayjzvtuvzesljhjbc';
@@ -89,6 +89,39 @@ test('diagnostics emit only constant codes and never database driver strings', (
   assert.equal(safeStartupFailureCode(new Error('postgres://user:secret@host:5432/postgres')),
     'AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
   assert.doesNotMatch(safeStartupFailureCode({ message: 'private password secret' }), /secret|password|postgres:/i);
+});
+
+test('reserved characters in a literal password are encoded only for the pinned readonly staging endpoint', async () => {
+  const prefix = `postgresql://demos_outbox_runtime.${staging}:`;
+  const suffix = `@${host}:5432/postgres`;
+  const raw = prefix + 'simulated#password/with?characters' + suffix;
+  const normalized = normalizeReadonlyStagingUri(raw);
+  assert.equal(new URL(normalized).hostname, host);
+  assert.equal(new URL(normalized).password,
+    'simulated%23password%2Fwith%3Fcharacters');
+  assert.equal(normalizeReadonlyStagingUri(base.AUDIT_OUTBOX_DATABASE_URL),
+    base.AUDIT_OUTBOX_DATABASE_URL, 'properly formed secrets must not change');
+  assert.equal(normalizeReadonlyStagingUri(prefix + 'encoded%23test' + suffix),
+    prefix + 'encoded%23test' + suffix, 'already encoded values must not change');
+  for (const unsafe of [
+    prefix + 'any#thing@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',
+    `postgresql://postgres.${staging}:any#thing${suffix}`,
+    prefix + 'any#thing@' + host + ':6543/postgres',
+    prefix + 'anything\n' + suffix
+  ]) {
+    assert.equal(normalizeReadonlyStagingUri(unsafe), unsafe,
+      'never repair a wrong host, role, port or multiline secret');
+  }
+  const started = await startReadonlyHealthServer({
+    env: { ...base, AUDIT_OUTBOX_DATABASE_URL: raw },
+    verify: async ({ env }) => {
+      assert.equal(env.AUDIT_OUTBOX_DATABASE_URL, normalized);
+      return { result: 'AUDIT_RENDER_STAGING_PREFLIGHT_OK',
+        outboxEnabled: false, archiveEnabled: false };
+    },
+    serve: () => ({ started: true })
+  });
+  assert.equal(started.started, true);
 });
 
 test('staging configuration reasons expose no URL values or credentials', () => {
