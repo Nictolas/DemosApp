@@ -28,15 +28,18 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
 
   return (
     <div className={`group flex items-center justify-between p-4 rounded-xl border transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${leggeStyle}`}>
-      <div className="flex items-center space-x-4">
+      <div className="flex min-w-0 flex-1 items-center space-x-4">
         <div className={`flex items-center justify-center w-10 h-10 text-white rounded-full font-bold text-lg shadow-md transition-all duration-300 ${numberStyle}`}>
           {index + 1}
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 ${textStyle} flex items-center gap-2`}>
             <span className="text-xl">{getLeggeEmoji(item.legge)}</span>
             {item.legge}
           </h4>
+          {item.articolo && <p className="mt-1 text-xs text-gray-600">{item.articolo}</p>}
+          {item.descrizione && <p className="mt-1 text-xs text-gray-600">{item.descrizione}</p>}
+          {item.precedente_storico && <p className="mt-1 text-xs text-amber-800">{item.precedente_storico}{item.fonte_url?.startsWith('https://') && <> · <a href={item.fonte_url} target="_blank" rel="noopener noreferrer" className="underline">Fonte</a></>}</p>}
           <p className="text-sm text-gray-600 flex items-center">
             <Trophy className={`h-4 w-4 mr-2 ${trophyColor}`} />
             {item.voti} voti
@@ -48,7 +51,7 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
         size="sm"
         onClick={() => onVote(item.legge)}
         disabled={isPending || (hasReachedLimit && !isSelected)}
-        className={`transition-all duration-300 ${
+        className={`shrink-0 transition-all duration-300 ${
           isSelected 
             ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
             : buttonStyle

@@ -108,7 +108,7 @@ export default function Amnistia() {
             )}
           </div>
 
-          {/* Colonna destra: Classifica Leggi */}
+          {/* Colonna destra: Classifica Reati */}
           {!isLoadingData && (
             <div className="lg:sticky lg:top-4">
               <ClassificaLeggi

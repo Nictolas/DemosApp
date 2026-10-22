@@ -32,7 +32,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
           </span>
         </CardTitle>
         <CardDescription className="text-gray-600 mt-2">
-          Inserisci la legge per cui vuoi chiedere l'amnistia.
+          Inserisci il reato per cui vuoi chiedere l'amnistia.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -40,7 +40,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
           <div className="flex space-x-2">
             <div className="flex-1 relative">
               <Input
-                placeholder="Nome della legge..."
+                placeholder="Nome del reato..."
                 value={leggeInput}
                 onChange={(e) => { 
                   onUpdateField('leggeInput', e.target.value); 
@@ -100,7 +100,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
               ))}
             </div>
             <p className="text-xs text-gray-600 mt-2 italic">
-              Clicca su un nome per rimuovere la richiesta.
+              Clicca su un reato per rimuovere la richiesta.
             </p>
           </div>
         )}

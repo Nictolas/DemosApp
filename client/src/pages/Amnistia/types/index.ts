@@ -1,6 +1,10 @@
 export interface Classifica {
   legge: string;
   voti: number;
+  articolo?: string;
+  descrizione?: string;
+  fonte_url?: string | null;
+  precedente_storico?: string | null;
 }
 
 export interface AmnistiaData {
