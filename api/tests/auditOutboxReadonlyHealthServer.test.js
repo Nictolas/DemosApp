@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { healthHandler, waitingHandler, normalizeReadonlyStagingUri, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer } =
+const { healthHandler, waitingHandler, normalizeReadonlyStagingUri, safeStagingConfigurationCode, safeStartupFailureCode, startupStatus, startReadonlyHealthServer: rawStartReadonlyHealthServer } =
   require('../scripts/audit-outbox-readonly-health-server');
 
 const staging = 'fkeayjzvtuvzesljhjbc';
@@ -20,6 +20,78 @@ const base = {
   AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED: 'false',
   PORT: '10000'
 };
+
+const stagingRetentionSummary = Object.freeze({
+  status: 'OUTBOX_RETENTION_STAGING_SNAPSHOT_OK',
+  total: 0, pending: 0, sending: 0, dead_letter: 0,
+  needsReview: false
+});
+const startReadonlyHealthServer = options => rawStartReadonlyHealthServer({
+  // Existing tests verify connectivity only; they must NEVER attempt a real DB.
+  retention: async () => stagingRetentionSummary,
+  reportSnapshot: () => {},
+  ...options
+});
+
+test('read-only retention query completes after role checks and before public health status', async () => {
+  const actions = [];
+  const result = await startReadonlyHealthServer({
+    env: base,
+    verify: async () => {
+      actions.push('restricted-authenticated');
+      return { result: 'AUDIT_RENDER_STAGING_PREFLIGHT_OK',
+        outboxEnabled: false, archiveEnabled: false };
+    },
+    retention: async ({ env }) => {
+      assert.equal(env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE, 'staging');
+      assert.equal(env.DATABASE_URL, undefined);
+      actions.push('retention-aggregate');
+      return stagingRetentionSummary;
+    },
+    reportSnapshot: summary => {
+      assert.equal(summary.total, 0);
+      assert.equal(summary.needsReview, false);
+      actions.push('aggregate-only-log');
+    },
+    serve: () => { actions.push('health-bound'); return { running: true }; }
+  });
+  assert.deepEqual(result, { running: true });
+  assert.deepEqual(actions, [
+    'restricted-authenticated', 'retention-aggregate',
+    'aggregate-only-log', 'health-bound'
+  ]);
+});
+
+test('failed or inconsistent retention read never announces an all-clear health', async () => {
+  for (const response of [
+    null,
+    { ...stagingRetentionSummary, status: 'OUTBOX_RETENTION_READONLY_FAILED' },
+    { ...stagingRetentionSummary, total: 5 },
+    { ...stagingRetentionSummary, dead_letter: null },
+    { ...stagingRetentionSummary, needsReview: 'false' }
+  ]) {
+    let opened = false, reported = false;
+    await assert.rejects(startReadonlyHealthServer({
+      env: base,
+      verify: async () => ({ result: 'AUDIT_RENDER_STAGING_PREFLIGHT_OK',
+        outboxEnabled: false, archiveEnabled: false }),
+      retention: async () => response,
+      reportSnapshot: () => { reported = true; },
+      serve: () => { opened = true; }
+    }), /OUTBOX_RETENTION_STAGING_SNAPSHOT_REJECTED/);
+    assert.equal(opened, false);
+    assert.equal(reported, false);
+  }
+  let opened = false;
+  await assert.rejects(startReadonlyHealthServer({
+    env: base,
+    verify: async () => ({ result: 'AUDIT_RENDER_STAGING_PREFLIGHT_OK',
+      outboxEnabled: false, archiveEnabled: false }),
+    retention: async () => { throw new Error('private database failure'); },
+    serve: () => { opened = true; }
+  }));
+  assert.equal(opened, false);
+});
 
 test('health server validates isolated staging and successful DB preflight before binding', async () => {
   const actions = [];
