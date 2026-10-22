@@ -82,6 +82,11 @@ async function verifyB2RestoreReadOnly({
       checkpointEnd: result.checkpointEnd
     });
   }
+  // A checkpoint/manifest with zero data objects in both datasets proves
+  // connectivity and metadata only, not recovery of any archived event.
+  if (summaries.every(item => item.verifiedObjects === 0)) {
+    throw new Error('B2_READONLY_RESTORE_NO_DATA_OBJECT_VERIFIED');
+  }
   return { status: 'B2_READONLY_RESTORE_VERIFIED', summaries };
 }
 
