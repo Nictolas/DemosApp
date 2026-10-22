@@ -312,6 +312,51 @@ Restano ancora due passaggi distinti:
    insieme a un log `AUDIT_RENDER_STAGING_PREFLIGHT_OK`.
    Prima del test la risposta corretta resta **503**.
 
+### Primo deploy autenticato tentato: URL Render non valido (22 ottobre 2026)
+
+L'utente ha indicato di aver configurato password e URL Render.
+Una verifica **senza leggere la password** su Demos-Staging ha
+confermato `rolcanlogin=true`, `rolpassword IS NOT NULL=true`
+e **0** eventi nella coda. Il servizio Render isolato
+`srv-dbckvbivcj2c73f0i7e0` è stato ridistribuito per eseguire
+l'autenticazione; il primo deploy `dep-dbclb3q9lscs73e9vj70`
+è fallito dopo una build riuscita, con errore generico
+`AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED`.
+
+Per distinguere in modo sicuro le cause, è stata aggiunta una
+diagnostica a **codici costanti**, senza mai stampare URL, password,
+errori driver o contenuti di eventi. Nuovi test unitari controllano
+che i codici non includano segreti. La prima prova diagnostica
+`dep-dbclcttg1s2s73dmlje0` ha riportato
+`AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED`: non era una prova
+di password fallita.
+
+Il deploy successivo `dep-dbcle83rjlhs73dt86cg` (commit
+`30b1fe91d6d032cbb2f78d2ce88e5baba147f25d`) ha
+restituito **`AUDIT_RENDER_CONFIG_URL_INVALID`**. Questo
+significa esclusivamente che il valore presente nella variabile
+`AUDIT_OUTBOX_DATABASE_URL` su Render non è interpretabile
+da `new URL(...)`, **prima** di effettuare qualunque accesso
+a Postgres. Non sono state lette, mostrate o cambiate le password.
+
+**Blocco rimanente:** aggiornare il valore della singola variabile
+su Render con una URI PostgreSQL completa su una riga, senza
+backtick, apici esterni, spazi, righe spezzate o segnaposto. Il formato
+(omettendo il segreto reale) è:
+
+```text
+postgresql://demos_outbox_runtime.fkeayjzvtuvzesljhjbc:LA_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres
+```
+
+Se la password contiene caratteri riservati URL, codificarli
+percentualmente nella stringa Render senza cambiare la password
+effettiva su Supabase. Esempi: `@` → `%40`, `#` → `%23`,
+`%` → `%25`, `/` → `%2F`. Non condividere il valore
+completo in chat o nei log. Dopo il salvataggio, avviare un
+nuovo deploy e verificare `AUDIT_RENDER_STAGING_PREFLIGHT_OK`
+e `GET /healthz` → 200. Fino ad allora il collegamento
+Render → Supabase **NON è stato convalidato**.
+
 ## Condizioni mancanti per GO
 
 - [ ] **Connessione applicativa di staging reale.** Hostname Session
