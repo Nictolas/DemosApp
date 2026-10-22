@@ -30,6 +30,9 @@ on:
       - 'api/app.js'
       - 'api/tests/auditOutboxService.test.js'
       - 'api/tests/auditOutboxSyntheticStagingGuard.test.js'
+      - 'api/services/auditOutboxRetentionSnapshot.js'
+      - 'api/scripts/verify-audit-outbox-retention-staging.js'
+      - 'api/tests/auditOutboxRetentionSnapshot.test.js'
       - 'api/tests/auditOutboxWorker.test.js'
       - 'api/tests/auditOutboxPostgres.test.js'
       - 'api/tests/auditOutboxRealPostgres.test.js'
@@ -92,6 +95,8 @@ jobs:
           node --check services/auditOutboxDatabase.js
           node --check services/auditOutboxProjectScope.js
           node --check services/auditOutboxAxiomTarget.js
+          node --check services/auditOutboxRetentionSnapshot.js
+          node --check scripts/verify-audit-outbox-retention-staging.js
           node --check services/auditOutboxStagingGuard.js
           node --check services/auditOutboxRenderStagingReadiness.js
           node --check scripts/verify-audit-outbox-render-staging.js
@@ -112,6 +117,9 @@ jobs:
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
+      - name: Read-only audit retention age and no-deletion safety tests
+        working-directory: api
+        run: node --test tests/auditOutboxRetentionSnapshot.test.js
       - name: Synthetic-only staging Axiom privacy gate
         working-directory: api
         run: node --test tests/auditOutboxSyntheticStagingGuard.test.js
