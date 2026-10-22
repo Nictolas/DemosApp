@@ -42,7 +42,9 @@ async function readRetentionSnapshot({ pool, ensureReady, env = process.env } = 
     if (raw.rows?.length !== 1) throw new Error('BAD_AGGREGATES');
     const value = {};
     for (const name of COUNT_FIELDS) {
-      const n = Number(raw.rows[0][name]);
+      const original = raw.rows[0][name];
+      if (original === null || original === undefined) throw new Error('BAD_AGGREGATES');
+      const n = Number(original);
       if (!Number.isSafeInteger(n) || n < 0) throw new Error('BAD_AGGREGATES');
       value[name] = n;
     }
