@@ -66,6 +66,15 @@ function normalizeReadonlyStagingUri(connectionString) {
 async function startReadonlyHealthServer({
   env = process.env,
   verify = runRenderStagingReadiness,
+  retention = ({ env }) => require('./verify-audit-outbox-retention-staging').checkStagingRetention({ env }),
+  reportSnapshot = snapshot => console.log(JSON.stringify({
+    status: 'OUTBOX_RETENTION_STAGING_SNAPSHOT_OK',
+    total: snapshot.total,
+    pending: snapshot.pending,
+    sending: snapshot.sending,
+    dead_letter: snapshot.dead_letter,
+    needsReview: snapshot.needsReview
+  })),
   serve = (handler, port) => http.createServer(handler).listen(port, '0.0.0.0')
 } = {}) {
   const port = Number(env.PORT || '10000');
@@ -102,6 +111,20 @@ async function startReadonlyHealthServer({
       result?.outboxEnabled !== false || result?.archiveEnabled !== false) {
     throw new Error('AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
   }
+  // Use the SAME verified limited staging credential for one additional
+  // read-only aggregate SQL inventory. No worker, no events, no B2/FCM/Axiom.
+  // A failed inventory means /healthz must not falsely imply an audit PASS.
+  const summary = await retention({ env: readinessEnv });
+  if (summary?.status !== 'OUTBOX_RETENTION_STAGING_SNAPSHOT_OK' ||
+      !Number.isSafeInteger(summary.total) || summary.total < 0 ||
+      !Number.isSafeInteger(summary.pending) || summary.pending < 0 ||
+      !Number.isSafeInteger(summary.sending) || summary.sending < 0 ||
+      !Number.isSafeInteger(summary.dead_letter) || summary.dead_letter < 0 ||
+      summary.total !== summary.pending + summary.sending + summary.dead_letter ||
+      typeof summary.needsReview !== 'boolean') {
+    throw new Error('OUTBOX_RETENTION_STAGING_SNAPSHOT_REJECTED');
+  }
+  reportSnapshot(summary);
   return serve(healthHandler, port);
 }
 
