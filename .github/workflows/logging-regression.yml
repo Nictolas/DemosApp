@@ -29,6 +29,7 @@ on:
       - 'api/jobs/auditOutboxWorker.js'
       - 'api/app.js'
       - 'api/tests/auditOutboxService.test.js'
+      - 'api/tests/auditOutboxSyntheticStagingGuard.test.js'
       - 'api/tests/auditOutboxWorker.test.js'
       - 'api/tests/auditOutboxPostgres.test.js'
       - 'api/tests/auditOutboxRealPostgres.test.js'
@@ -111,6 +112,9 @@ jobs:
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
+      - name: Synthetic-only staging Axiom privacy gate
+        working-directory: api
+        run: node --test tests/auditOutboxSyntheticStagingGuard.test.js
       - name: Read-only Render health service startup and standby tests
         working-directory: api
         run: node --test tests/auditOutboxReadonlyHealthServer.test.js
