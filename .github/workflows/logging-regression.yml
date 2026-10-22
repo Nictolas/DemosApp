@@ -43,6 +43,8 @@ on:
       - 'api/services/archiveOverlapVerifier.js'
       - 'api/services/archiveOverlapB2Reader.js'
       - 'api/tests/archiveOverlapB2Reader.test.js'
+      - 'api/scripts/verify-b2-restore-readonly.js'
+      - 'api/tests/verifyB2RestoreReadonly.test.js'
       - 'api/tests/archiveOverlapVerifier.test.js'
       - 'api/scripts/verify-axiom-archive-overlap.js'
       - 'docs/operations/axiom-b2-log-archive.md'
@@ -102,6 +104,7 @@ jobs:
           node --check services/archiveOverlapB2Reader.js
           node --check scripts/verify-axiom-archive-overlap.js
           node --check scripts/verify-latest-axiom-archive.js
+          node --check scripts/verify-b2-restore-readonly.js
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
@@ -111,6 +114,9 @@ jobs:
       - name: Axiom archive and classification tests (mocked, no production credentials)
         working-directory: api
         run: npm run test:axiom-archive
+      - name: Isolated Backblaze B2 read-only capability tests
+        working-directory: api
+        run: node --test tests/verifyB2RestoreReadonly.test.js
       - name: Production dependency audit
         working-directory: api
         run: npm audit --omit=dev --audit-level=high
