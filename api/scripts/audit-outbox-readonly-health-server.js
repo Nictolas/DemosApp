@@ -69,6 +69,20 @@ async function startReadonlyHealthServer({
   return serve(healthHandler, port);
 }
 
+function safeStartupFailureCode(error) {
+  // Never print arbitrary driver/URL exception text to Render logs.
+  switch (error?.message) {
+    case 'AUDIT_RENDER_STAGING_ENV_REJECTED':
+    case 'AUDIT_OUTBOX_STANDALONE_PREFLIGHT_REJECTED':
+    case 'AUDIT_STAGING_TARGET_REJECTED':
+      return 'AUDIT_RENDER_STAGING_CONFIGURATION_REJECTED';
+    case 'AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED':
+      return 'AUDIT_RENDER_STAGING_DATABASE_CONNECTION_REJECTED';
+    default:
+      return 'AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED';
+  }
+}
+
 function startupStatus(env = process.env) {
   return env.AUDIT_OUTBOX_DATABASE_URL
     ? 'AUDIT_RENDER_STAGING_PREFLIGHT_OK'
@@ -79,11 +93,11 @@ if (require.main === module) {
   startReadonlyHealthServer().then(() => {
     // Without a secret this is a standby listener, NOT a verified DB login.
     console.log(startupStatus());
-  }).catch(() => {
-    // No exception details or secrets may reach Render logs.
-    console.error('AUDIT_RENDER_STAGING_PREFLIGHT_REJECTED');
+  }).catch(error => {
+    // Only fixed error categories: never log driver errors or connection URL.
+    console.error(safeStartupFailureCode(error));
     process.exitCode = 1;
   });
 }
 
-module.exports = { healthHandler, waitingHandler, startupStatus, startReadonlyHealthServer };
+module.exports = { healthHandler, waitingHandler, safeStartupFailureCode, startupStatus, startReadonlyHealthServer };
