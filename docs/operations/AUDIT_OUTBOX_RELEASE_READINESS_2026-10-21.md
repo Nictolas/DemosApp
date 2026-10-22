@@ -382,6 +382,61 @@ nuovo deploy e verificare `AUDIT_RENDER_STAGING_PREFLIGHT_OK`
 e `GET /healthz` → 200. Fino ad allora il collegamento
 Render → Supabase **NON è stato convalidato**.
 
+### Verifica osservazionale Axiom → B2 e preparazione del restore isolato (22 ottobre 2026)
+
+Consultazione **solo read** dei log Render di `demos-backend`,
+dalle 18:00 UTC del 21/10 al 22/10, ultimo ciclo
+**22/10 alle 00:17:12 UTC**: **10** riepiloghi
+`Axiom archive completed:`, **0** righe
+`Axiom archive failed:`. Tutti e dieci dichiarano
+`caughtUp=true` e `remainingMs=0` per entrambi i dataset.
+Somma contatori riportati dai cicli:
+`centralized_logs=1170`, `real-time=32`.
+**Non sono 1202 eventi unici**: finestre sovrapposte,
+ripartenze e batch possono contare gli stessi eventi più volte.
+Non è stata verificata l'esistenza o l'integrità di alcun oggetto B2
+e non è stata effettuata una query indipendente ai dataset Axiom.
+
+Aggiunto `npm run archive:axiom:verify-readonly-b2` come
+strumento di **restore indipendente dalla produzione**, da eseguire
+esclusivamente in un ambiente privo di `DATABASE_URL`,
+`AUDIT_OUTBOX_DATABASE_URL` e token Axiom. Richiede un account B2
+dedicato, con permessi **solo di lettura**, e questi valori espliciti:
+
+```text
+B2_RESTORE_READONLY_MODE=true
+AXIOM_ARCHIVE_ENABLED=false
+B2_BUCKET_NAME=demos-log-archive-eu
+B2_S3_ENDPOINT=https://s3.eu-central-003.backblazeb2.com
+B2_S3_REGION=eu-central-003
+B2_S3_ACCESS_KEY_ID=<impostare nel secret manager>
+B2_S3_SECRET_ACCESS_KEY=<impostare nel secret manager>
+```
+
+La classe accetta solo i comandi AWS `HeadObject` e `GetObject`,
+solo il bucket e il prefisso `demos/axiom-archive/v1/`,
+e limita i GET a un range esplicito sotto **8 MiB**.
+Riutilizza il restore esistente con verifiche hash SHA-256,
+checkpoint, manifest, categorie e fingerprint dei record per
+**entrambi** i dataset; stampa solo esiti aggregati e date.
+Qualsiasi comando PUT/DELETE o destinazione diversa è rifiutato
+prima della chiamata di rete. La CI esercita questo perimetro
+con un client fittizio. **La prova con un bucket B2 reale resta
+DA FARE**: nessuna chiave B2 è stata copiata dalle variabili
+di produzione e non è stata installata nessuna credenziale
+nel servizio Render già usato per PostgreSQL.
+
+**Limite FCM chiarito con una query di soli cataloghi SQL
+su Supabase `Demos-Staging`:** esiste
+`demos_private.audit_delivery_outbox`, ma non esistono
+`public.users`, `public.notifiche_demos` né
+`public.user_devices`. Il test reale delle notifiche
+in-app e Firebase non può quindi utilizzare questo progetto
+così com'è. Per il collaudo servono tabelle e amministratori
+**esclusivamente sintetici**, un token dispositivo di test
+e credenziali Firebase limitate alla prova. Non prelevare
+token o destinatari dal database pubblico di produzione.
+
 ## Condizioni mancanti per GO
 
 - [x] **Connessione di staging reale — completata il 22/10/2026.**
