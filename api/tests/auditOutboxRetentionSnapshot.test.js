@@ -75,7 +75,9 @@ test('invalid aggregates and driver errors reject safely without leaking databas
     data({ pending_over_24h: 3 }),
     data({ dead_letter_over_30d: 2 }),
     data({ oldest_age_seconds: -1 }),
-    data({ pending: 'not-a-number' })
+    data({ pending: 'not-a-number' }),
+    data({ oldest_age_seconds: null }),
+    data({ pending_over_24h: undefined })
   ]) {
     await assert.rejects(readRetentionSnapshot({
       env, ensureReady: async () => {},
