@@ -9,6 +9,31 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+**AGGIORNAMENTO 22/10/2026 — CONNESSIONE RENDER → SUPABASE STAGING: PASS.**
+Il deploy Render isolato `dep-dbclkreq1p3s73ch6ac0` (commit
+`acd98a16971df16f145b4c924a07ea3b19e12fe3`) è **live**.
+Nei log di startup appare `AUDIT_RENDER_STAGING_PREFLIGHT_OK` solo dopo
+un'autenticazione PostgreSQL riuscita e la verifica del ruolo/grants
+limitati su `Demos-Staging`. Verifica HTTPS indipendente dal desktop:
+`GET /healthz` **200 / `ok`**, `GET /` **404**;
+nessun payload, URL di database o credenziale restituiti.
+La coda resta **0 eventi**, il login limitato non ha CREATE su `public`,
+Supabase Security Advisor ha **0 rilievi**. Le pipeline GitHub
+[logging/PostgreSQL](https://github.com/Nictolas/DemosApp/actions/runs/39700593118)
+e [sicurezza](https://github.com/Nictolas/DemosApp/actions/runs/39700592991)
+sono **SUCCESS**. La normalizzazione dei caratteri riservati è
+limitata esclusivamente alla password della URI di staging con prefisso
+e suffisso esatti, dentro il runtime di sola lettura; i worker normali
+mantengono i guard originali. La password non è stata letta o scritta
+in questa documentazione.
+
+**GO solo per la prova di connettività staging, NON per la feature
+audit in produzione.** Restano da verificare con provider reali Axiom,
+Backblaze B2, notifiche FCM, retention GDPR e rollout/rollback. Le
+sezioni storiche che indicano URL non valido, LOGIN mancante e preflight
+non ancora svolto sono precedenti a questo esito, e vanno interpretate
+come cronologia dei tentativi.
+
 ## Verifiche già svolte
 
 | Area | Evidenza | Stato |
@@ -359,16 +384,14 @@ Render → Supabase **NON è stato convalidato**.
 
 ## Condizioni mancanti per GO
 
-- [ ] **Connessione applicativa di staging reale.** Hostname Session
-  Pooler acquisito e verificato su DNS/TCP desktop; il ruolo minimo
-  `demos_outbox_runtime` ha **LOGIN attivo**, grant controllati.
-  Rimangono password dedicata gestita fuori dai log/chat, configurazione
-  `AUDIT_OUTBOX_DATABASE_URL` **come unico segreto database** in un
-  runtime Render isolato, `AUDIT_OUTBOX_PREFLIGHT_ONLY=true` e
-  `AUDIT_OUTBOX_DEPLOYMENT_SCOPE=staging`. Non configurare
-  `DATABASE_URL` sul runtime di solo preflight. Eseguire
-  `npm run audit:outbox:render-staging-preflight` e verificare
-  `roleAuthorized=true` senza eventi reali.
+- [x] **Connessione di staging reale — completata il 22/10/2026.**
+  Il servizio Render Free `demos-outbox-readonly-staging` ha eseguito
+  un preflight SQL autenticato su Supabase `Demos-Staging` tramite
+  Session Pooler 5432, ruolo dedicato con permessi minimi.
+  Log applicativo `AUDIT_RENDER_STAGING_PREFLIGHT_OK`,
+  verifica esterna `GET /healthz`=**200**. Nessuna scrittura nella
+  coda, rimasta vuota. Questa voce certifica **soltanto** la connettività
+  e il profilo di accesso, non la consegna Axiom o il rollout.
 - [ ] **Axiom reale.** Con dataset, token e organizzazione di *test*,
   verificare che una singola operazione sintetica attraversi la coda,
   riceva ACK, sia visibile in Axiom con il medesimo
