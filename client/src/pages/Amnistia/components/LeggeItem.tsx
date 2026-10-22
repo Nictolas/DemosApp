@@ -27,48 +27,54 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
   const buttonStyle = getButtonStyle(isTopThree);
 
   return (
-    <div className={`group flex items-center justify-between p-4 rounded-xl border transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${leggeStyle}`}>
-      <div className="flex min-w-0 flex-1 items-center space-x-4">
-        <div className={`flex items-center justify-center w-10 h-10 text-white rounded-full font-bold text-lg shadow-md transition-all duration-300 ${numberStyle}`}>
-          {index + 1}
+    <article className={["group min-w-0 rounded-2xl border p-3.5 shadow-sm transition-colors transition-shadow duration-200 hover:shadow-md sm:p-4", leggeStyle].join(" ")}>
+      {/* Rank and vote count sit above the title, never alongside it. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className={["flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-sm sm:h-10 sm:w-10 sm:text-lg", numberStyle].join(" ")}>
+            {index + 1}
+          </span>
+          <span className="text-xl" aria-hidden="true">{getLeggeEmoji(item.legge)}</span>
         </div>
-        <div className="min-w-0 flex-1">
-          <h4 className={`font-bold text-gray-800 text-lg transition-colors duration-300 ${textStyle} flex items-center gap-2`}>
-            <span className="text-xl">{getLeggeEmoji(item.legge)}</span>
-            {item.legge}
-          </h4>
-          {item.articolo && <p className="mt-1 text-xs text-gray-600">{item.articolo}</p>}
-          {item.descrizione && <p className="mt-1 text-xs text-gray-600">{item.descrizione}</p>}
-          {item.precedente_storico && <p className="mt-1 text-xs text-amber-800">{item.precedente_storico}{item.fonte_url?.startsWith('https://') && <> · <a href={item.fonte_url} target="_blank" rel="noopener noreferrer" className="underline">Fonte</a></>}</p>}
-          <p className="text-sm text-gray-600 flex items-center">
-            <Trophy className={`h-4 w-4 mr-2 ${trophyColor}`} />
-            {item.voti} voti
-          </p>
-        </div>
+        <p className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-600">
+          <Trophy className={["h-4 w-4", trophyColor].join(" ")} aria-hidden="true" />
+          <span>{item.voti} voti</span>
+        </p>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onVote(item.legge)}
-        disabled={isPending || (hasReachedLimit && !isSelected)}
-        className={`shrink-0 transition-all duration-300 ${
-          isSelected 
-            ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
-            : buttonStyle
-        }`}
-      >
-        {isSelected ? (
-          <>
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            Votato
-          </>
-        ) : (
-          <>
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            Vota
-          </>
+
+      {/* The title and its details use the entire card width, also on phones. */}
+      <div className="mt-3 min-w-0">
+        <h4 className={["break-words text-[1.075rem] font-bold leading-snug text-gray-900 transition-colors duration-200 sm:text-lg", textStyle].join(" ")}>
+          {item.legge}
+        </h4>
+        {item.articolo && <p className="mt-2 text-sm font-medium leading-relaxed text-gray-600">{item.articolo}</p>}
+        {item.descrizione && <p className="mt-2 break-words text-sm leading-relaxed text-gray-600">{item.descrizione}</p>}
+        {item.precedente_storico && (
+          <p className="mt-2 break-words text-sm leading-relaxed text-amber-800">
+            {item.precedente_storico}
+            {item.fonte_url?.startsWith("https://") && (
+              <> · <a href={item.fonte_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Fonte</a></>
+            )}
+          </p>
         )}
-      </Button>
-    </div>
+      </div>
+
+      {/* Keep the action reachable without squeezing or overlapping the title. */}
+      <div className="mt-4 flex justify-end border-t border-gray-200/80 pt-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onVote(item.legge)}
+          disabled={isPending || (hasReachedLimit && !isSelected)}
+          aria-label={isSelected ? "Rimuovi il voto per " + item.legge : "Vota per " + item.legge}
+          className={["min-h-11 shrink-0 px-4 transition-colors duration-200", isSelected
+            ? "border-green-500 bg-green-100 text-green-700 shadow-sm hover:bg-green-200"
+            : buttonStyle].join(" ")}
+        >
+          <ThumbsUp className="mr-2 h-4 w-4" aria-hidden="true" />
+          {isSelected ? "Votato" : "Vota"}
+        </Button>
+      </div>
+    </article>
   );
 };
