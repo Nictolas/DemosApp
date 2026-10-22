@@ -310,7 +310,7 @@ test('outbox HTTP worker never crosses Axiom staging/production dataset boundari
     await withStubbedAxiom(async (url) => {
       requests++;
       assert.match(url, /\/v1\/ingest\//);
-      return { status: 202 };
+      return { status: 202, data: { ingested: 1, failed: 0 } };
     }, async () => {
       process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE = 'staging';
       assert.equal(await AuditService.sendPreparedAuditEventToAxiomHTTP('real-time', event), false);
