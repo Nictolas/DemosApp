@@ -24,18 +24,39 @@ const BLOCKED_TRUE_FLAGS = [
   'AXIOM_ARCHIVE_ENABLED', 'AXIOM_ENABLED'
 ];
 
+// Mutually exclusive credential modes:
+// 1) a dedicated combined staging token (legacy), or
+// 2) separate ingest-only and query-only staging tokens.
+// A read-only token must never be sent to the ingest endpoint, nor the
+// ingest-only token to the query endpoint.
+function validDrillToken(token) {
+  return typeof token === 'string' && token.length > 0 &&
+    token.length <= 4096 && !/[\r\n]/.test(token);
+}
+
+function validDrillCredentials(env) {
+  const has = key => Object.prototype.hasOwnProperty.call(env, key);
+  const single = has('AXIOM_STAGING_DRILL_TOKEN');
+  const ingest = has('AXIOM_STAGING_DRILL_INGEST_TOKEN');
+  const query = has('AXIOM_STAGING_DRILL_QUERY_TOKEN');
+  if (single) {
+    return !ingest && !query && validDrillToken(env.AXIOM_STAGING_DRILL_TOKEN);
+  }
+  return ingest && query &&
+    validDrillToken(env.AXIOM_STAGING_DRILL_INGEST_TOKEN) &&
+    validDrillToken(env.AXIOM_STAGING_DRILL_QUERY_TOKEN) &&
+    env.AXIOM_STAGING_DRILL_INGEST_TOKEN !== env.AXIOM_STAGING_DRILL_QUERY_TOKEN;
+}
+
 function assertStagingDrillEnvironment(env = process.env) {
-  // Dedicated API token MUST be independently confirmed to have only
-  // dataset-scoped Ingest:create and Query:read capabilities in Axiom.
-  // Neither the CLI nor its tests can inspect the actual server-side grants.
+  // Before running, inspect Axiom metadata: each configured API token must
+  // be restricted to the one staging dataset with only its required operation.
+  // Client code cannot independently verify server-side token grants.
   if (env.AXIOM_STAGING_DRILL_ARMED !== 'true' ||
       env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE !== 'staging' ||
       env.AXIOM_REALTIME_DATASET !== DATASET ||
       env.AXIOM_DATASET !== DATASET ||
-      !env.AXIOM_STAGING_DRILL_TOKEN ||
-      typeof env.AXIOM_STAGING_DRILL_TOKEN !== 'string' ||
-      env.AXIOM_STAGING_DRILL_TOKEN.length > 4096 ||
-      /[\r\n]/.test(env.AXIOM_STAGING_DRILL_TOKEN) ||
+      !validDrillCredentials(env) ||
       env.CI === 'true' ||
       BLOCKED_SECRETS.some(key => Boolean(env[key])) ||
       BLOCKED_TRUE_FLAGS.some(key => env[key] === 'true')) {
@@ -93,14 +114,20 @@ async function runAxiomStagingProviderDrill({
     axiom_delivery_id: id
   };
   assertStagingSyntheticOutboxEvent(event, 'staging');
-  const headers = {
-    Authorization: 'Bearer ' + env.AXIOM_STAGING_DRILL_TOKEN,
-    'Content-Type': 'application/json'
-  };
-  const opts = {
-    headers, timeout: 5000, proxy: false, maxRedirects: 0,
+  const ingestToken = env.AXIOM_STAGING_DRILL_TOKEN ||
+    env.AXIOM_STAGING_DRILL_INGEST_TOKEN;
+  const queryToken = env.AXIOM_STAGING_DRILL_TOKEN ||
+    env.AXIOM_STAGING_DRILL_QUERY_TOKEN;
+  const requestOptions = token => ({
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    timeout: 5000, proxy: false, maxRedirects: 0,
     maxBodyLength: 2048, maxContentLength: 131072
-  };
+  });
+  const ingestOpts = requestOptions(ingestToken);
+  const queryOpts = requestOptions(queryToken);
   const apl = "['" + DATASET + "'] | where axiom_delivery_id == '" +
     id + "' | project axiom_delivery_id | take 1";
   const query = {
@@ -111,7 +138,7 @@ async function runAxiomStagingProviderDrill({
   try {
     // Never resend after an ambiguous timeout: at-least-once duplicates can
     // otherwise be mistaken for a successful single-delivery drill.
-    const ack = await post(INGEST_URL, [event], opts);
+    const ack = await post(INGEST_URL, [event], ingestOpts);
     if (![200, 202].includes(ack?.status) ||
         ack?.data?.ingested !== 1 || ack?.data?.failed !== 0) {
       throw new Error('INGEST_NOT_ACKNOWLEDGED');
@@ -120,7 +147,7 @@ async function runAxiomStagingProviderDrill({
     // Only read-side polls retry. Bypass Axiom query cache and allow bounded
     // ingestion propagation (1+2+4+8 seconds between five fresh reads).
     for (let attempt = 0; attempt < MAX_READBACK_ATTEMPTS; attempt++) {
-      const read = await post(QUERY_URL, query, opts);
+      const read = await post(QUERY_URL, query, queryOpts);
       if (read?.status !== 200) throw new Error('QUERY_NOT_ACKNOWLEDGED');
       if (tabularReadbackContainsId(read.data, id)) {
         return { status: 'AXIOM_STAGING_PROVIDER_E2E_VERIFIED', ingested: 1,

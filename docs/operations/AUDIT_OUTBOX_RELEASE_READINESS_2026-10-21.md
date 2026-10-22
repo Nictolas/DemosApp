@@ -9,6 +9,43 @@ provider reali, la valutazione privacy e il rilascio controllato non lo sono.
 soddisfare tutte le condizioni obbligatorie sotto. Nessun flag di outbox
 deve essere attivato sul backend di produzione.**
 
+### 22 ottobre 2026 — Axiom: privilegi del token Query di staging accertati da screenshot
+
+Dai dettagli del token già esistente **DEMOS Security Staging Query**
+nel pannello Axiom autenticato: la sola voce selezionata è
+`Individual datasets → demos-security-staging → Query:read`.
+La casella `Ingest:create` è **NON** selezionata e i permessi per
+`All datasets` visibili non sono selezionati. Scadenza mostrata:
+**5 novembre 2026**. I valori della chiave non sono stati
+consultati o copiati; si tratta di inventario visivo delle capability,
+non di un collaudo provider.
+
+Di conseguenza il verificatore HTTP one-shot di CP-EA-041
+supporta ora, in aggiunta alla modalità legacy con un token
+staging combinato, una modalità **a due credenziali separate**:
+`AXIOM_STAGING_DRILL_INGEST_TOKEN` (solo Ingest:create) per
+l'**unico** POST dell'evento sintetico, e
+`AXIOM_STAGING_DRILL_QUERY_TOKEN` (solo Query:read) per le query
+di conferma. Le due variabili devono essere entrambe presenti,
+valide, **diverse**, e non possono coesistere con
+`AXIOM_STAGING_DRILL_TOKEN`. La configurazione viene
+rifiutata prima di qualsiasi rete se incompleta, ambigua
+o mista con le credenziali ordinarie di produzione.
+In entrambi i casi restano obbligatori dataset UE fissato,
+flag staging e arm esplicito, nessun DB/worker/archivio,
+proxy disabilitato, redirect bloccati, un solo ingest e
+soltanto query fresche limitate.
+
+I test usano **solo stringhe finte** e stub HTTP, verificando che
+nessuna credenziale di lettura vada all'endpoint ingest
+né la credenziale ingest all'endpoint query. Il codice
+**non può verificare i privilegi server-side** dei token:
+prima di eseguire l'E2E reale occorre inventariare, e solo se
+necessario predisporre in modo autorizzato, un token
+di ingestione **esclusivamente** per `demos-security-staging`.
+Non riutilizzare né alterare il token Render attivo.
+**Nessun test reale Axiom, nessuna nuova chiave, produzione NO-GO.**
+
 ### 22 ottobre 2026 — Lettura Axiom senza cache per conferma E2E
 
 La documentazione ufficiale dell'endpoint edge UE

@@ -18,6 +18,74 @@ const env = Object.freeze({
   AXIOM_ARCHIVE_ENABLED: 'false'
 });
 const id = '123e4567-e89b-42d3-a456-426614174000';
+test('split-token mode routes only its purpose-specific credentials to each EU edge endpoint', async () => {
+  const split = { ...env };
+  delete split.AXIOM_STAGING_DRILL_TOKEN;
+  split.AXIOM_STAGING_DRILL_INGEST_TOKEN = 'fake-ingest-only-for-ci';
+  split.AXIOM_STAGING_DRILL_QUERY_TOKEN = 'fake-query-only-for-ci';
+  const calls = [];
+  const outcome = await runAxiomStagingProviderDrill({
+    env: split, uuid: () => id,
+    now: () => new Date('2026-10-22T12:00:00.000Z'),
+    post: async (url, body, opts) => {
+      calls.push({ url, authorization: opts.headers.Authorization });
+      assert.equal(opts.proxy, false);
+      assert.equal(opts.maxRedirects, 0);
+      if (url === INGEST_URL) {
+        assert.equal(opts.headers.Authorization, 'Bearer fake-ingest-only-for-ci');
+        return { status: 200, data: { ingested: 1, failed: 0 } };
+      }
+      assert.equal(url, QUERY_URL);
+      assert.equal(opts.headers.Authorization, 'Bearer fake-query-only-for-ci');
+      assert.equal(body.apl.includes('demos-security-staging'), true);
+      return { status: 200, data: matched };
+    }
+  });
+  assert.deepEqual(calls, [
+    { url: INGEST_URL, authorization: 'Bearer fake-ingest-only-for-ci' },
+    { url: QUERY_URL, authorization: 'Bearer fake-query-only-for-ci' }
+  ]);
+  assert.equal(outcome.status, 'AXIOM_STAGING_PROVIDER_E2E_VERIFIED');
+  assert.equal(outcome.attempts, 1);
+});
+
+test('split-token environment rejects partial, same-value and mixed credentials before network', async () => {
+  const split = { ...env };
+  delete split.AXIOM_STAGING_DRILL_TOKEN;
+  split.AXIOM_STAGING_DRILL_INGEST_TOKEN = 'fake-ingest-only';
+  split.AXIOM_STAGING_DRILL_QUERY_TOKEN = 'fake-query-only';
+  const bad = [
+    { AXIOM_STAGING_DRILL_INGEST_TOKEN: '' },
+    { AXIOM_STAGING_DRILL_QUERY_TOKEN: '' },
+    { AXIOM_STAGING_DRILL_INGEST_TOKEN: 'fake-query-only' },
+    { AXIOM_STAGING_DRILL_QUERY_TOKEN: 'fake-ingest-only' },
+    { AXIOM_STAGING_DRILL_QUERY_TOKEN: 'malformed\\nvalue' },
+    { AXIOM_STAGING_DRILL_TOKEN: 'combined-token-not-allowed-when-split' },
+    { AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production' },
+    { AXIOM_API_TOKEN: 'never-use-production' },
+    { AXIOM_REGION: 'us' }
+  ];
+  for (const override of bad) {
+    let sent = 0;
+    await assert.rejects(
+      runAxiomStagingProviderDrill({
+        env: { ...split, ...override },
+        post: async () => { sent++; throw new Error('network attempted'); }
+      }),
+      /AXIOM_STAGING_DRILL_ENV_REJECTED/
+    );
+    assert.equal(sent, 0, 'no request should be made with invalid credentials');
+  }
+  let network = false;
+  const oneSided = { ...split };
+  delete oneSided.AXIOM_STAGING_DRILL_QUERY_TOKEN;
+  await assert.rejects(runAxiomStagingProviderDrill({
+    env: oneSided, post: async () => { network = true; }
+  }), /AXIOM_STAGING_DRILL_ENV_REJECTED/);
+  assert.equal(network, false);
+  assert.equal(assertStagingDrillEnvironment(split), true);
+});
+
 test('edge readback explicitly bypasses provider caches and has bounded retry budget', () => {
   assert.equal(QUERY_URL,
     'https://eu-central-1.aws.edge.axiom.co/v1/query/_apl?format=tabular&nocache=true');
