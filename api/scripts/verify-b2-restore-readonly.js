@@ -45,6 +45,12 @@ function readOnlyB2Transport(client) {
           !command.input.Key.startsWith(PREFIX + '/')) {
         throw new Error('B2_READONLY_RESTORE_TARGET_REJECTED');
       }
+      if (command instanceof GetObjectCommand) {
+        const match = /^bytes=0-([0-9]{1,9})$/.exec(command.input?.Range || '');
+        if (!match || Number(match[1]) >= 8 * 1024 * 1024) {
+          throw new Error('B2_READONLY_RESTORE_RANGE_REJECTED');
+        }
+      }
       return client.send(command);
     }
   };
