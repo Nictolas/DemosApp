@@ -154,6 +154,7 @@ const corsOptions = {
       'https://www.demos.community',
       'https://demos.community',
       'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
+      'https://demos-frontend-r3so.onrender.com', // Frontend Render di DEMOS
       'http://localhost:3000',
       'http://localhost:5173',
       'http://127.0.0.1:3000',
@@ -187,6 +188,7 @@ app.use((req, res, next) => {
     'https://www.demos.community',
     'https://demos.community',
     'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
+    'https://demos-frontend-r3so.onrender.com', // Frontend Render di DEMOS
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:3000',
@@ -216,6 +218,7 @@ app.options('*', (req, res) => {
     'https://www.demos.community',
     'https://demos.community',
     'https://demos-c7k0.onrender.com', // Backend Render (per form HTML del mock CIE)
+    'https://demos-frontend-r3so.onrender.com', // Frontend Render di DEMOS
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:3000',
