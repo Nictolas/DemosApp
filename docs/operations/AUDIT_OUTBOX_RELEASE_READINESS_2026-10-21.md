@@ -437,6 +437,45 @@ così com'è. Per il collaudo servono tabelle e amministratori
 e credenziali Firebase limitate alla prova. Non prelevare
 token o destinatari dal database pubblico di produzione.
 
+### 22 ottobre 2026 — Servizio dedicato al restore B2 creato, in standby
+
+**Nuova evidenza osservativa:** nelle 9 esecuzioni ogni ora
+dalle **00:17 alle 08:17 UTC del 22 ottobre 2026**, il backend
+produttivo ha registrato **9** `Axiom archive completed` e
+**0** `Axiom archive failed`; entrambi i dataset sono
+`caughtUp=true`, `remainingMs=0` in 9/9. Questa evidenza
+riguarda il **job operativo**, non un recupero reale del bucket.
+
+È stato creato su Render, isolato dal backend pubblico e dal
+preflight PostgreSQL, il servizio Free
+`demos-b2-readonly-restore-staging`
+(`srv-dbct3vmq1p3s73d7rhg0`, autoDeploy=no, Frankfurt).
+Il deploy iniziale `dep-dbct40eq1p3s73d7rj2g` (commit
+`6341383154a9834a21f70f4ed0f4d39f1731a5d1`)
+è **live**. I log riportano esattamente
+`B2_READONLY_RESTORE_STANDBY_NO_SECRET`: non ci sono
+ancora chiavi e **nessun file B2 è stato letto**.
+Lo startup senza credenziali serve solo `/healthz` (503
+finché non c'è la verifica), non esporta endpoint, oggetti o
+password, non avvia worker né job Axiom.
+Test della nuova istanza (standby, avvio dopo verifica,
+rifiuto credenziali parziali/flag pericolosi) aggiunti alla CI.
+
+**Passaggio necessario per il restore autenticato:** creare
+nel pannello Backblaze una Application Key **Read Only**
+limitata a `demos-log-archive-eu`, preferibilmente al
+prefisso `demos/axiom-archive/v1/`, temporanea, e salvarne
+solo ID e secret nelle due variabili d'ambiente
+`B2_S3_ACCESS_KEY_ID` / `B2_S3_SECRET_ACCESS_KEY`
+del **solo servizio dedicato**. Non inviarle in chat
+o copiarle dal backend produttivo. Dopo il salvataggio eseguire
+un deploy manuale e verificare un vero `HEAD/GET`,
+checkpoint, manifest e file su entrambi i dataset.
+Procedura completa:
+`B2_READONLY_RESTORE_STAGING_2026-10-22.md`.
+Restano **NO-GO** sia l'autenticazione B2 reale sia
+l'approvazione della retention GDPR e i collaudi FCM/Axiom.
+
 ## Condizioni mancanti per GO
 
 - [x] **Connessione di staging reale — completata il 22/10/2026.**
