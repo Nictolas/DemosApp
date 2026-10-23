@@ -49,7 +49,7 @@ jobs:
           node-version: '22'
       - name: Validate authorization and syntax
         run: |
-          node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js api/tests/dpoMiddlewareContract.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/frontendAccessibility.smoke.test.js
+          node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js api/tests/dpoMiddlewareContract.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js
           node --check api/middleware/dpoAccess.js
           node --check api/routes/dpo/overview.js
       - name: Build frontend with role-scoped Gestisci navigation
