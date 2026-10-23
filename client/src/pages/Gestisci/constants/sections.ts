@@ -1,4 +1,4 @@
-import { Users, BookOpen, Trophy, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award } from "lucide-react";
+import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -34,17 +34,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-cyan-500 hover:bg-cyan-600",
     route: "/gestisci-opinioni",
     buttonText: "Gestisci Opinioni"
-  },
-  {
-    id: "governo",
-    category: "amministrazione",
-    title: "Gestisci Governo",
-    description: "Gestisci i dati e le funzionalità relative al Governo ideale",
-    icon: Trophy,
-    color: "text-amber-600 group-hover:text-amber-800",
-    buttonColor: "bg-amber-500 hover:bg-amber-600",
-    route: "/gestisci-governo",
-    buttonText: "Gestisci Governo"
   },
   {
     id: "riconoscimenti",
@@ -168,7 +157,7 @@ export const gestisciCategoryOrder: Array<GestisciSection["category"]> = [
 export const gestisciCategoryMeta: Record<GestisciSection["category"], { title: string; description: string }> = {
   "amministrazione": {
     title: "Amministrazione",
-    description: "Gestione utenti, riconoscimenti, opinioni e governo."
+    description: "Gestione utenti, riconoscimenti e opinioni."
   },
   "monitoraggio-sicurezza": {
     title: "Monitoraggio e Sicurezza",
