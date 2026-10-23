@@ -233,6 +233,8 @@ class PrivacyErasureLedgerService {
 
     // Altri record applicativi direttamente riconducibili all'account.
     const directLinks = [
+      ['notifiche_demos', 'id_utente'],
+      ['notifiche_comunali', 'id_utente'],
       ['programmi', 'utente_id'],
       ['user_devices', 'user_id'],
       ['user_notifications', 'user_id'],
