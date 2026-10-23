@@ -304,7 +304,7 @@ test('retrying the same chunk is idempotent at the B2 data-object key level', as
   const b2Client = new MemoryB2Client();
   const axiomClient = {
     async query() {
-      return { matches: [{ _time: '2026-10-06T15:05:00.000Z', level: 'INFO', message: 'same event' }] };
+      return { matches: [{ _time: '2026-10-06T15:05:00.000Z', log_type: 'audit', action: 'USER_ACCESS', resource: 'users' }] };
     }
   };
   const env = makeEnv({
@@ -391,7 +391,7 @@ test('read-only recovery drill verifies latest checkpoint, manifest and gzipped 
       return {
         matches: new Date(options.startTime).getTime() <= Date.parse(sourceTime) &&
           Date.parse(sourceTime) < new Date(options.endTime).getTime()
-          ? [{ _time: sourceTime, level: 'INFO', message: 'synthetic event' }]
+          ? [{ _time: sourceTime, log_type: 'audit', action: 'USER_ACCESS', resource: 'users' }]
           : []
       };
     }
@@ -408,7 +408,8 @@ test('read-only recovery drill verifies latest checkpoint, manifest and gzipped 
   assert.equal(verified.dataset, 'centralized_logs');
   assert.equal(verified.checkpointEnd, '2026-10-06T15:58:00.000Z');
   assert.equal(verified.verifiedEvents, 1);
-  assert.equal(verified.categories.technical, 1);
+  assert.equal(verified.categories.technical, 0);
+  assert.equal(verified.categories.audit, 1);
   assert.equal(verified.verifiedObjects, 1);
   assert.equal(b2Client.objects.size, before, 'read-only drill must not upload objects');
 });
