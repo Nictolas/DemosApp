@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface DpoOverview {
-  role: 'DPO';
+  role: 'DPO' | 'Admin';
   gdpr_requests_total: number;
 }
 
@@ -16,8 +16,10 @@ export default function DpoPanel() {
     apiRequest('GET', '/dpo/overview')
       .then((response) => {
         if (!mounted) return;
-        if (response?.success && response.data?.role === 'DPO') {
-          setData(response.data);
+        const overview = response?.data?.data;
+        if (response?.ok && response?.data?.success === true &&
+            (overview?.role === 'DPO' || overview?.role === 'Admin')) {
+          setData(overview);
         } else {
           setError('Permessi DPO non disponibili.');
         }
@@ -41,6 +43,7 @@ export default function DpoPanel() {
       {!loading && data && (
         <section className="rounded-lg border p-5">
           <h2 className="mb-3 text-lg font-medium">Riepilogo privacy</h2>
+          <p className="mb-3 text-sm">Consultazione in sola lettura come {data.role}.</p>
           <p>Richieste GDPR registrate: <strong>{data.gdpr_requests_total}</strong></p>
           <p className="mt-3 text-sm">Durate di conservazione: revisione in corso.</p>
           <p className="mt-1 text-sm">Log obbligatori: perimetro giuridico da verificare.</p>
