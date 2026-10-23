@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { OpinioneProposta } from "../types";
 import { useToast } from "@/hooks/use-toast";
-import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
+import { hasReachedVotingLimit } from "@/config/votingLimits";
 
 export const useProponiOpinioneData = (user: any) => {
   const { toast } = useToast();
@@ -10,63 +10,56 @@ export const useProponiOpinioneData = (user: any) => {
   const [loadingData, setLoadingData] = useState(true);
   const [userVoti, setUserVoti] = useState<string[]>([]);
   const [haGiaProposto, setHaGiaProposto] = useState(false);
+  const [votiVerificati, setVotiVerificati] = useState(false);
+  const [votiError, setVotiError] = useState<string | null>(null);
+  const [votingPending, setVotingPending] = useState(false);
+  const voteInFlight = useRef(false);
 
-  // Carica opinioni proposte e voti utente dall'API
-  const loadData = useCallback(async () => {
-    if (!user) return;
+  // Non mostrare mai 0/1 come fallback se la lettura dei voti non funziona.
+  // Un errore di rete/auth deve bloccare il voto e rendere visibile il retry.
+  const loadData = useCallback(async (): Promise<string[] | null> => {
+    if (!user) return null;
     setLoadingData(true);
+    setVotiVerificati(false);
+    setVotiError(null);
     try {
-      console.log('🔍 Caricamento opinioni proposte...');
       const res = await apiRequest('GET', '/api/opinioni-proposte');
-      const body = res?.data; // body = { success, data: [...] }
-      console.log('📊 Dati ricevuti:', body);
-      
-      if (body?.success && Array.isArray(body.data)) {
-        const opinioniMapped = body.data.map((op: any) => ({
-          id: op.id,
-          testo: op.testo,
-          voti: op.voti || 0,
-          proponente: op.nome && op.cognome ? `${op.nome} ${op.cognome}` : op.email || 'Utente',
-          titolo: op.titolo,
-          descrizione: op.descrizione,
-          categoria: op.categoria,
-          data_creazione: op.data_creazione
-        }));
-        
-        // Ordina le opinioni per numero di voti decrescente (più votate in alto)
-        const opinioniOrdinate = opinioniMapped.sort((a, b) => b.voti - a.voti);
-        
-        setOpinioni(opinioniOrdinate);
-        setHaGiaProposto(!!body.ha_gia_proposto);
-        
-        // Carica i voti dell'utente
-        console.log('🔍 Caricamento voti utente...');
-        try {
-          const votiRes = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
-          const votiBody = votiRes?.data;
-          setUserVoti(Array.isArray(votiBody?.data) ? votiBody.data : []);
-          console.log('✅ Voti utente caricati:', votiBody?.data);
-        } catch (error) {
-          console.log('⚠️ Errore nel caricare voti utente:', error);
-          setUserVoti([]);
-        }
-        
-        console.log(`✅ Caricate ${opinioniMapped.length} opinioni proposte`);
-      } else {
-        console.log('⚠️ Nessuna opinione proposta trovata');
-        setOpinioni([]);
-        setUserVoti([]);
+      const body = res?.data;
+      if (body?.success !== true || !Array.isArray(body.data)) {
+        throw new Error('Impossibile caricare le opinioni proposte.');
       }
-      if (body && typeof body.ha_gia_proposto === 'boolean') setHaGiaProposto(body.ha_gia_proposto);
+
+      const opinioniMapped = body.data.map((op: any) => ({
+        id: String(op.id),
+        testo: op.testo,
+        voti: Number(op.voti) || 0,
+        proponente: op.proponente || 'Utente',
+        titolo: op.titolo,
+        descrizione: op.descrizione,
+        categoria: op.categoria,
+        data_creazione: op.data_creazione
+      }));
+      setOpinioni(opinioniMapped.sort((a, b) => b.voti - a.voti));
+      setHaGiaProposto(body.ha_gia_proposto === true);
+
+      const votiRes = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
+      const votiBody = votiRes?.data;
+      if (votiBody?.success !== true || !Array.isArray(votiBody.data)) {
+        throw new Error('Impossibile verificare i voti già registrati.');
+      }
+
+      const voti = votiBody.data.map((id: unknown) => String(id));
+      setUserVoti(voti);
+      setVotiVerificati(true);
+      return voti;
     } catch (error) {
-      console.error('❌ Errore nel caricamento opinioni proposte:', error);
-      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
-      setOpinioni([]);
-      setUserVoti([]);
+      console.error('Errore nel caricamento dei voti delle proposte:', error);
+      setVotiError('Non è stato possibile verificare i tuoi voti. Riprova per poter votare.');
+      return null;
     } finally {
       setLoadingData(false);
     }
-  }, [user, toast]);
+  }, [user]);
 
   // Proponi nuova opinione tramite API (max 1 per utente)
   const handleProponi = async (testoInput: string) => {
@@ -121,52 +114,44 @@ export const useProponiOpinioneData = (user: any) => {
     }
   };
 
-  // Vota opinione tramite API
+  // Un ref blocca i tocchi rapidi prima del successivo render di React.
   const handleVota = async (id: string) => {
+    if (voteInFlight.current) return false;
+    if (!votiVerificati) {
+      toast({ title: 'Voti non verificati', description: 'Ricarica i voti prima di procedere.', variant: 'destructive' });
+      return false;
+    }
     if (userVoti.includes(id)) {
-      toast({ title: "Voto già registrato", description: "Hai già votato questa opinione." });
+      toast({ title: 'Voto già registrato', description: 'Hai già votato questa opinione.' });
       return false;
     }
-    
-    // Controlla il limite di voti per opinioni proposte
-    const currentVotes = userVoti.length;
-    const limit = getVotingLimit('opinioni_proposte');
-    
-    if (hasReachedVotingLimit('opinioni_proposte', currentVotes)) {
-      toast({ 
-        title: "Limite voti raggiunto", 
-        description: `Puoi votare al massimo ${limit} opinioni proposte. Rimuovi un voto esistente per votarne una nuova.`,
-        variant: "destructive"
-      });
+    if (hasReachedVotingLimit('opinioni_proposte', userVoti.length)) {
+      toast({ title: 'Limite raggiunto', description: 'Rimuovi il voto attuale prima di sceglierne un altro.', variant: 'destructive' });
       return false;
     }
-    
+
+    voteInFlight.current = true;
+    setVotingPending(true);
     try {
-      console.log('👍 Invio voto per opinione:', id);
-      await apiRequest('POST', `/api/opinioni-proposte/${id}/vota`);
-      
-      console.log('✅ Voto registrato con successo');
-      
-      // Aggiorna immediatamente i voti dell'utente
-      setUserVoti(prev => [...prev, id]);
-      
-      const remainingVotes = getRemainingVotes('opinioni_proposte', currentVotes + 1);
-      toast({ 
-        title: "Successo", 
-        description: `Il tuo voto è stato registrato! Voti rimanenti: ${remainingVotes}` 
-      });
-      
-      // Ricarica i dati per aggiornare i voti
-      await loadData();
+      const response = await apiRequest('POST', `/api/opinioni-proposte/${encodeURIComponent(id)}/vota`);
+      if (response?.data?.success !== true) throw new Error('Il server non ha confermato il voto.');
+      const votiConfermati = await loadData();
+      if (!votiConfermati?.includes(id)) {
+        toast({ title: 'Verifica necessaria', description: 'Il server ha risposto, ma non è stato possibile confermare il voto. Ricarica i voti.', variant: 'destructive' });
+        return false;
+      }
+      toast({ title: 'Successo', description: 'Il tuo voto è stato registrato!' });
       return true;
     } catch (error) {
-      console.error('❌ Errore nel voto:', error);
-      toast({ 
-        title: "Errore", 
-        description: error instanceof Error ? error.message : "Errore nel voto", 
-        variant: "destructive" 
-      });
+      console.error('Errore registrazione voto:', error);
+      const message = error instanceof Error ? error.message : 'Errore nel voto';
+      toast({ title: 'Voto non confermato', description: message, variant: 'destructive' });
+      // Dopo un errore, anche un 409 per dati obsoleti, riallinea lo stato reale.
+      await loadData();
       return false;
+    } finally {
+      voteInFlight.current = false;
+      setVotingPending(false);
     }
   };
 
@@ -214,39 +199,29 @@ export const useProponiOpinioneData = (user: any) => {
     loadData(); 
   }, [loadData]);
 
-  // Rimuovi voto da un'opinione
+  // Rimozione: conferma l'assenza del voto dopo l'ACK del backend.
   const handleRimuoviVoto = async (id: string) => {
-    if (!userVoti.includes(id)) {
-      toast({ title: "Voto non trovato", description: "Non hai votato questa opinione." });
-      return false;
-    }
-    
+    if (voteInFlight.current || !votiVerificati || !userVoti.includes(id)) return false;
+    voteInFlight.current = true;
+    setVotingPending(true);
     try {
-      console.log('👎 Rimozione voto per opinione:', id);
-      await apiRequest('DELETE', `/api/opinioni-proposte/${id}/vota`);
-      
-      console.log('✅ Voto rimosso con successo');
-      
-      // Aggiorna immediatamente i voti dell'utente
-      setUserVoti(prev => prev.filter(votoId => votoId !== id));
-      
-      const remainingVotes = getRemainingVotes('opinioni_proposte', userVoti.length - 1);
-      toast({ 
-        title: "Successo", 
-        description: `Il tuo voto è stato rimosso! Voti rimanenti: ${remainingVotes}` 
-      });
-      
-      // Ricarica i dati per aggiornare i voti
-      await loadData();
+      const response = await apiRequest('DELETE', `/api/opinioni-proposte/${encodeURIComponent(id)}/vota`);
+      if (response?.data?.success !== true) throw new Error('Il server non ha confermato la rimozione.');
+      const votiConfermati = await loadData();
+      if (!votiConfermati || votiConfermati.includes(id)) {
+        toast({ title: 'Verifica necessaria', description: 'Non è stato possibile confermare la rimozione. Ricarica i voti.', variant: 'destructive' });
+        return false;
+      }
+      toast({ title: 'Successo', description: 'Il tuo voto è stato rimosso.' });
       return true;
     } catch (error) {
-      console.error('❌ Errore nella rimozione voto:', error);
-      toast({ 
-        title: "Errore", 
-        description: error instanceof Error ? error.message : "Errore nella rimozione del voto", 
-        variant: "destructive" 
-      });
+      console.error('Errore rimozione voto:', error);
+      toast({ title: 'Errore', description: error instanceof Error ? error.message : 'Errore nella rimozione', variant: 'destructive' });
+      await loadData();
       return false;
+    } finally {
+      voteInFlight.current = false;
+      setVotingPending(false);
     }
   };
 
@@ -291,6 +266,9 @@ export const useProponiOpinioneData = (user: any) => {
     loadingData,
     userVoti,
     haGiaProposto,
+    votiVerificati,
+    votiError,
+    votingPending,
     loadData,
     handleProponi,
     handleVota,

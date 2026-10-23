@@ -10,6 +10,9 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
   opinioni,
   userVoti,
   isVoting,
+  votiVerificati,
+  votiError,
+  onRiprova,
   onVota,
   onRimuoviVoto,
   onCancella,
@@ -18,7 +21,7 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
   const currentVotes = userVoti.length;
   const limit = getVotingLimit('opinioni_proposte');
   const remainingVotes = getRemainingVotes('opinioni_proposte', currentVotes);
-  const hasReachedLimit = remainingVotes === 0;
+  const hasReachedLimit = !votiVerificati || remainingVotes === 0;
 
   if (opinioni.length === 0) {
     return (
@@ -52,13 +55,19 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
           <div className="flex items-center space-x-2">
             <Badge variant={hasReachedLimit ? "destructive" : "secondary"} className="flex items-center space-x-1">
               <Info className="h-3 w-3" />
-              <span>{currentVotes}/{limit}</span>
+              <span>{votiVerificati ? currentVotes : "—"}/{limit}</span>
             </Badge>
           </div>
         </div>
         <CardDescription>
           Vota l'opinione che vorresti vedere aggiunta.
         </CardDescription>
+        {votiError && (
+          <div role="alert" className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-destructive/30 bg-red-50 p-3 text-sm text-red-800">
+            <span>{votiError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={onRiprova} disabled={isVoting}>Riprova</Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <ul className="space-y-4">
@@ -73,7 +82,7 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
                   <Button 
                     size="sm" 
                     variant="destructive" 
-                    disabled={isVoting} 
+                    disabled={isVoting || !votiVerificati} 
                     onClick={() => onRimuoviVoto(op.id)}
                   >
                     <ThumbsDown className="h-4 w-4 mr-1" /> 
