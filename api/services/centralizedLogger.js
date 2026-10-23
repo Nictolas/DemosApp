@@ -2,7 +2,7 @@
 const { pool } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
-const { sanitizeLogMeta } = require('../utils/logPrivacy');
+const { sanitizeLogMeta, minimizeOperationalPath, safeDiagnosticCode } = require('../utils/logPrivacy');
 const { normalizeLevel, shouldWriteLogEvent } = require('../utils/logEventPolicy');
 const { createFailureReporter } = require('../utils/logDeliveryFailureReporter');
 const reportAxiomIngestFailure = createFailureReporter();
@@ -513,12 +513,12 @@ class CentralizedLogger {
    * si applicano minimizzazione e proporzionalità.
    */
   shouldLogForGDPR(url, method, statusCode) {
-    // SEMPRE loggare errori (necessari per sicurezza GDPR)
+    // Conserva segnali tecnici sugli errori, non perché ogni log sia imposto dal GDPR.
     if (statusCode >= 400) {
       return true;
     }
 
-    // Endpoint che NON accedono a dati personali - NON loggare per GDPR
+    // Endpoint a bassa necessità diagnostica, quando il filtro opzionale è attivo.
     // Include le GET del menu (prossimo evento, prossima iniziativa, prossimo referendum)
     // per evitare accumulo di log su ogni visita alla pagina menu
     const publicEndpoints = [
@@ -543,7 +543,7 @@ class CentralizedLogger {
       }
     }
 
-    // Endpoint che accedono a dati personali - SEMPRE loggare per GDPR
+    // Endpoint sensibili per cui può essere utile un evento tecnico minimizzato; nessun obbligo GDPR generalizzato.
     const gdprRequiredEndpoints = [
       '/api/users',           // Dati utenti
       '/api/auth',            // Autenticazione (dati personali)
@@ -559,32 +559,33 @@ class CentralizedLogger {
       '/api/delete-account'   // Cancellazione account
     ];
 
-    // Verifica se è un endpoint GDPR-required
+    // Verifica categorie selezionate dalla policy applicativa attuale, ancora da sottoporre al DPO.
     for (const endpoint of gdprRequiredEndpoints) {
       if (url.startsWith(endpoint)) {
-        return true; // Necessario per GDPR
+        return true; // Selezione tecnica prudenziale, NON requisito legale generale.
       }
     }
 
-    // Metodi che modificano dati - loggare per GDPR
+    // Metodi mutativi: preferenza tecnica per eventi minimizzati, non obbligo normativo generale.
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       return true; // Modifiche ai dati potrebbero riguardare dati personali
     }
 
-    // Di default, se non è chiaro, loggare per sicurezza (meglio avere più log che meno)
-    // Ma puoi cambiare questo comportamento se vuoi essere più restrittivo
+    // Default legacy ampio, da valutare con DPO per un eventuale restringimento.
+    // Non abilitare ulteriori raccolte basandosi soltanto su questo flag.
     return process.env.GDPR_LOGGING_STRICT === 'true' ? false : true;
   }
 
   // Logging specifico per richieste HTTP
   async logRequest(req, res, responseTime) {
-    const url = req.originalUrl.split('?')[0]; // Rimuovi query string per matching
+    const originalPath = String(req.originalUrl || '').split(/[?#]/, 1)[0];
+    const url = minimizeOperationalPath(originalPath);
     const method = req.method;
     const statusCode = res.statusCode;
 
     // Filtra per GDPR se abilitato
     if (process.env.GDPR_LOGGING_FILTER === 'true') {
-      if (!this.shouldLogForGDPR(url, method, statusCode)) {
+      if (!this.shouldLogForGDPR(originalPath, method, statusCode)) {
         // Non loggare su Axiom (ma puoi ancora loggare su console/file per debugging)
         if (this.logToAxiom) {
           return; // Skip logging to Axiom
@@ -593,7 +594,7 @@ class CentralizedLogger {
     }
 
     // I request log operativi non generano né conservano session identifier.
-    const sensitiveActivity = this.isSensitiveActivityEndpoint(url);
+    const sensitiveActivity = this.isSensitiveActivityEndpoint(originalPath);
 
     const meta = {
       method: req.method,
@@ -615,24 +616,21 @@ class CentralizedLogger {
   async logError(error, req = null, meta = {}) {
     const errorMeta = {
       ...meta,
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        code: error.code
-      }
+      // Only controlled diagnostic codes, not free text/stack in durable logs.
+      error: { code: safeDiagnosticCode(error?.code) }
     };
 
     if (req) {
-      const endpoint = req.originalUrl?.split('?')[0] || '';
-      const sensitiveActivity = this.isSensitiveActivityEndpoint(endpoint);
+      const originalPath = String(req.originalUrl || '').split(/[?#]/, 1)[0];
+      const endpoint = minimizeOperationalPath(originalPath);
+      const sensitiveActivity = this.isSensitiveActivityEndpoint(originalPath);
 
       errorMeta.method = req.method;
       errorMeta.url = endpoint;
       errorMeta.sensitiveActivity = sensitiveActivity;
     }
 
-    await this.error(`Errore: ${error.message}`, errorMeta);
+    await this.error(`Errore applicativo: ${safeDiagnosticCode(error?.code)}`, errorMeta);
 
     // Gli errori non gestiti dal middleware globale devono generare un alert operativo reale.
     // Il dettaglio completo resta nei log; la notifica Admin contiene solo metadati minimali.
