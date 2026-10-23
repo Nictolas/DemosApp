@@ -56,7 +56,14 @@ test('HTTP API against temporary PostgreSQL: authorization, aggregate response, 
     assert.equal((await request()).status, 401);
     assert.equal((await request('ordinary')).status, 403);
     assert.equal((await request('inactive')).status, 403);
+    const adminOverview = await request('admin');
+    assert.equal(adminOverview.status, 200);
+    assert.equal(adminOverview.body.data.role, 'Admin');
+    assert.equal(adminOverview.body.data.gdpr_requests_total, 1);
+    assert.equal(JSON.stringify(adminOverview.body).includes('user_id'), false);
+    await pool.query("UPDATE public.users SET is_admin=FALSE WHERE id='admin'");
     assert.equal((await request('admin')).status, 403);
+    await pool.query("UPDATE public.users SET is_admin=TRUE WHERE id='admin'");
     const approved = await request('dpo');
     assert.equal(approved.status, 200);
     assert.equal(approved.body.data.role, 'DPO');
