@@ -69,7 +69,6 @@ import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
-import GestisciGoverno from "./pages/GestisciGoverno";
 import TestMinistero from "./pages/TestMinistero";
 import ModificaImmagine from "./pages/ModificaImmagine";
 import StatisticheUtenti from "./pages/StatisticheUtenti";
@@ -990,13 +989,6 @@ export default function App() {
               </Route>
 
 
-
-              {/* Route gestisci governo */}
-              <Route path="/gestisci-governo">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/gestisci-governo" component={GestisciGoverno} />
-                </PageTransition>
-              </Route>
 
               {/* Route test ministero */}
               <Route path="/test-ministero">
