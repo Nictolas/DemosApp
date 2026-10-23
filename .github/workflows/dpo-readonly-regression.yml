@@ -1,0 +1,85 @@
+name: DPO read-only regression
+on:
+  pull_request:
+    paths:
+      - 'api/middleware/dpoAccess.js'
+      - 'api/utils/dpoAuthorization.js'
+      - 'api/routes/dpo/**'
+      - 'api/tests/dpoAuthorization.test.js'
+      - 'api/tests/dpoRoleMatrix.test.js'
+      - 'api/tests/dpoMiddlewareContract.test.js'
+      - 'api/tests/dpoHttpPostgres.integration.test.js'
+      - 'api/migrations/20261023_dpo_readonly_capability.sql'
+      - '.github/workflows/dpo-readonly-regression.yml'
+jobs:
+  dpo-role:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: dpo_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_only
+      PGDATABASE: dpo_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate authorization and syntax
+        run: |
+          node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js api/tests/dpoMiddlewareContract.test.js
+          node --check api/middleware/dpoAccess.js
+          node --check api/routes/dpo/overview.js
+      - name: Install API dependencies for HTTP integration
+        run: npm ci --prefix api --ignore-scripts
+      - name: PostgreSQL migration and authorization integration (synthetic only)
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE public.users (
+            id TEXT PRIMARY KEY, status TEXT NOT NULL,
+            is_admin BOOLEAN NOT NULL DEFAULT FALSE
+          );
+          CREATE TABLE public.user_rights_requests (
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+          );
+          SQL
+          psql -v ON_ERROR_STOP=1 -f api/migrations/20261023_dpo_readonly_capability.sql
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO public.users (id,status,is_admin,is_dpo) VALUES
+            ('dpo','a',FALSE,TRUE),
+            ('ordinary','a',FALSE,FALSE),
+            ('inactive','i',FALSE,TRUE),
+            ('admin','a',TRUE,FALSE);
+          DO $$
+          DECLARE permitted INTEGER;
+          BEGIN
+            SELECT count(*) INTO permitted FROM public.users
+              WHERE status='a' AND is_dpo IS TRUE AND is_admin IS NOT TRUE;
+            IF permitted <> 1 THEN RAISE EXCEPTION 'DPO grant matrix failed: %', permitted; END IF;
+            BEGIN
+              UPDATE public.users SET is_dpo=TRUE WHERE id='admin';
+              RAISE EXCEPTION 'Admin-DPO separation constraint did not reject dual grant';
+            EXCEPTION WHEN check_violation THEN NULL;
+            END;
+            UPDATE public.users SET is_dpo=FALSE WHERE id='dpo';
+            IF EXISTS (SELECT 1 FROM public.users WHERE id='dpo' AND is_dpo=TRUE)
+              THEN RAISE EXCEPTION 'DPO revocation not persisted'; END IF;
+            IF (SELECT count(*) FROM public.user_rights_requests) <> 0
+              THEN RAISE EXCEPTION 'Synthetic requests fixture polluted'; END IF;
+          END $$;
+          SQL
+      - name: Test HTTP endpoint with real temporary PostgreSQL
+        run: node --test api/tests/dpoHttpPostgres.integration.test.js

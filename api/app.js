@@ -77,6 +77,7 @@ const downloadDataRoutes = require('./routes/user/download-data');
 const deleteAccountRoutes = require('./routes/user/delete-account');
 const privacySettingsRoutes = require('./routes/user/privacy-settings');
 const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
+const dpoOverviewRoutes = require('./routes/dpo/overview');
 const dataRetentionRoutes = require('./routes/admin/data-retention');
 const violationRoutes = require('./routes/admin/violations');
 const backupRoutes = require('./routes/admin/backup');
@@ -426,6 +427,8 @@ app.use('/api/user/political-opinions-consent', userLimiter, politicalOpinionsCo
 app.use('/api/user/registration-consents', userLimiter, registrationConsentsRoutes);
 
 // Route per dashboard audit
+// DPO: separate, explicitly authorized read-only privacy oversight.
+app.use('/api/dpo', userLimiter, dpoOverviewRoutes);
 app.use('/api/admin/audit-dashboard', adminLimiter, auditDashboardRoutes);
 
 // Route per data retention

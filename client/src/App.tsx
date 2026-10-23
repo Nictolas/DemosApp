@@ -120,6 +120,7 @@ import AuditDashboard from "./pages/AuditDashboard";
 import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
 import OpsCenter from "./pages/Admin/OpsCenter";
 import Parametri from "./pages/Admin/Parametri";
+import DpoPanel from "./pages/DpoPanel";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
 import DataExport from "./pages/DataExport";
 import CentralizedLogs from "./pages/CentralizedLogs";
@@ -462,6 +463,11 @@ export default function App() {
                 </Route>
 
                 {/* Route per Gestione GDPR e Legale */}
+                <Route path="/dpo">
+                  <PageTransition location={location} type="fade-up">
+                    <DpoPanel />
+                  </PageTransition>
+                </Route>
                 <Route path="/admin/gdpr-legal">
                   <PageTransition location={location} type="fade-up">
                     <GDPRLegalManagement />
