@@ -142,3 +142,42 @@ senza alterare l'archiviatore di produzione.
 Lo stato rimane **B2 restore reale: NON VERIFICATO**. Nessun token,
 bucket, file, servizio Render o configurazione di produzione è stato
 modificato.
+
+## 23/10/2026 — Prima chiave di restore creata e revocata perché esposta
+
+L'utente ha creato una credenziale B2 temporanea denominata
+`demos-b2-restore-readonly-20261023` per il ripristino di staging,
+ma ha pubblicato per errore uno screenshot **contenente l'applicationKey
+in chiaro**. La credenziale è pertanto da considerarsi **esposta**.
+
+**Contenimento eseguito il 23/10/2026:** attraverso la console Backblaze
+autenticata, identificata la riga esatta della sola credenziale di
+restore creata oggi, invocato il suo comando `Delete Key` e confermata
+la revoca. La rilettura dell'elenco ha confermato che la chiave esposta
+**non compare più**, mentre la chiave produttiva
+`demos-log-archive` **è tuttora presente**. Nessun token/valore segreto
+è stato copiato, riutilizzato, loggato o caricato su Render.
+
+**Stato dei servizi:** `demos-b2-readonly-restore-staging` continua
+senza il collaudo autenticato di ripristino; nessun deploy e nessun
+cambiamento al servizio di archivio produttivo. Una seconda credenziale
+sostitutiva **non è stata creata in questo intervento**, perché
+l'interfaccia utente remota non ha permesso di verificare in modo
+continuo tutti i parametri del nuovo modulo.
+
+**Prossima azione sicura:** creare una nuova chiave B2 dall'account
+Backblaze, con nome univoco diverso dal precedente, bucket
+`demos-log-archive-eu`, permesso `Read Only`,
+`namePrefix=demos/axiom-archive/v1/`, durata breve
+(`86400` secondi). Non condividere mai lo schermo o screenshot in cui
+è visibile `applicationKey`. Copiare `keyID` e `applicationKey`
+**direttamente** nei campi di ambiente `B2_S3_ACCESS_KEY_ID` e
+`B2_S3_SECRET_ACCESS_KEY` del servizio isolato Render
+`demos-b2-readonly-restore-staging`, non nel repository, nei fogli
+Google o in chat. Solo dopo che entrambe sono configurate verificare
+la presenza tramite segnali non segreti e autorizzare un unico
+`HEAD/GET` read-only senza mutare la produzione. Se la chiave nuova
+non si può configurare correttamente, fermarsi, non riutilizzare quella
+compromessa.
+
+**Gate B2 restore LIVE: NON VERIFICATO / NO-GO**.
