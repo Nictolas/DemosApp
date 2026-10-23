@@ -66,7 +66,9 @@ jobs:
             is_admin BOOLEAN NOT NULL DEFAULT FALSE
           );
           CREATE TABLE public.user_rights_requests (
-            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            status TEXT DEFAULT 'pending',
+            request_data JSONB
           );
           SQL
           psql -v ON_ERROR_STOP=1 -f api/migrations/20261023_dpo_readonly_capability.sql
