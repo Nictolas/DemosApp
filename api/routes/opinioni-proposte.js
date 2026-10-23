@@ -22,6 +22,25 @@ async function assertVotiTableExists() {
   }
 }
 
+// Tutti i controlli di limite usano solo proposte ancora attive. I voti storici
+// di proposte chiuse restano conservati, ma non occupano più lo slot corrente.
+async function getActiveProposalVotes(db, userId, hasSeparateProposals) {
+  const source = hasSeparateProposals
+    ? "JOIN opinioni_proposte p ON p.id::text = v.opinione_id::text"
+    : "JOIN opinioni_domande p ON p.id::text = v.opinione_id::text AND p.gradi_opinione::text LIKE '%da approvare%'";
+  return db.query(
+    `SELECT v.opinione_id FROM voti_opinioni_proposte v ${source} WHERE v.utente_id = $1`,
+    [userId]
+  );
+}
+
+async function hasSeparateProposalsTable(db) {
+  const result = await db.query(
+    "SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals"
+  );
+  return result.rows[0]?.has_separate_proposals === true;
+}
+
 // GET /api/opinioni-proposte/test-voto - Diagnostica Admin read-only dello schema voti.
 router.get('/test-voto', verifyToken, requireAdmin, async (_req, res) => {
   try {
@@ -116,39 +135,21 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/opinioni-proposte/voti-utente - Ottieni voti dell'utente autenticato
+// GET /api/opinioni-proposte/voti-utente - restituisce solo voti su proposte pendenti
 router.get('/voti-utente', verifyToken, async (req, res) => {
   try {
-    const userId = req.userId;
-    console.log('🔍 GET /api/opinioni-proposte/voti-utente - Voti utente:', userId);
-    
-    const query = `
-      SELECT opinione_id 
-      FROM voti_opinioni_proposte 
-      WHERE utente_id = $1
-    `;
-    
-    const result = await pool.query(query, [userId]);
-    const votiUtente = result.rows.map(row => String(row.opinione_id)); // Assicura che siano stringhe
-    
-    // Debug: mostra i primi 3 ID voti per verificare il formato
-    if (votiUtente.length > 0) {
-      console.log('🔍 DEBUG - Prime 3 ID voti utente:', votiUtente.slice(0, 3).map(id => ({ id, idType: typeof id, idLength: id?.length })));
-    }
-    
-    console.log(`✅ Trovati ${votiUtente.length} voti per utente ${userId}`);
-    
-    res.json({
+    await assertVotiTableExists();
+    const separate = await hasSeparateProposalsTable(pool);
+    const result = await getActiveProposalVotes(pool, req.userId, separate);
+    return res.json({
       success: true,
-      data: votiUtente
+      data: result.rows.map(row => String(row.opinione_id))
     });
-    
   } catch (error) {
-    console.error('❌ Errore nel recuperare voti utente:', error);
-    res.status(500).json({
+    console.error('Errore lettura voti opinioni proposte:', error.code || 'UNEXPECTED');
+    return res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare voti utente',
-      message: error.message
+      error: 'Impossibile verificare i voti registrati. Riprova.'
     });
   }
 });
@@ -480,6 +481,24 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
           [id, userId]
         );
 
+        // Il voto automatico del proponente deve rispettare lo stesso limite
+        // anche durante richieste concorrenti; la riga users è già in FOR UPDATE.
+        // Se ha votato un'altra proposta, mantiene il suo voto senza aggiungerne uno.
+        const votesTable = await client.query(
+          "SELECT to_regclass('public.voti_opinioni_proposte') IS NOT NULL AS exists"
+        );
+        if (votesTable.rows[0]?.exists) {
+          const currentVotes = await getActiveProposalVotes(client, userId, hasSeparateProposals);
+          if (currentVotes.rows.length === 0) {
+            await client.query(
+              `INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
+               VALUES ($1, $2)
+               ON CONFLICT (utente_id, opinione_id) DO NOTHING`,
+              [userId, id]
+            );
+          }
+        }
+
         await client.query('COMMIT');
         console.log('✅ Transazione committata con successo');
         
@@ -496,45 +515,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         if (finalCheck.rows.length > 1) {
           console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
           // Non blocchiamo, ma loggiamo l'errore
-        }
-        
-        // Se l'utente è autenticato, aggiungi automaticamente il suo voto (fuori dalla transazione principale)
-        if (userId) {
-          try {
-            // Assicurati che la tabella esista
-            await assertVotiTableExists();
-            
-            const insertVoteQuery = `
-              INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
-              VALUES ($1, $2)
-              ON CONFLICT (utente_id, opinione_id) DO NOTHING
-              RETURNING *
-            `;
-            const voteResult = await pool.query(insertVoteQuery, [userId, id]);
-            console.log(`✅ Voto automatico - Query eseguita per utente ${userId} su opinione ${id}`);
-            console.log(`✅ Voto automatico - Righe inserite: ${voteResult.rowCount}`);
-            console.log(`✅ Voto automatico - Dati inseriti:`, voteResult.rows);
-            
-            if (voteResult.rowCount === 0) {
-              // Verifica se il voto esiste già
-              const checkExisting = await pool.query(
-                'SELECT * FROM voti_opinioni_proposte WHERE utente_id = $1 AND opinione_id = $2',
-                [userId, id]
-              );
-              console.log(`⚠️ Voto automatico - Voto già esistente? Righe trovate: ${checkExisting.rows.length}`);
-              if (checkExisting.rows.length > 0) {
-                console.log(`✅ Voto automatico già presente per utente ${userId} su opinione ${id}`);
-              } else {
-                console.error(`❌ Voto automatico - Impossibile inserire voto per utente ${userId} su opinione ${id}`);
-              }
-            } else {
-              console.log(`✅ Voto automatico aggiunto con successo per utente ${userId} su opinione ${id}`);
-            }
-          } catch (error) {
-            console.error('❌ Errore nell\'aggiungere voto automatico:', error);
-            console.error('❌ Stack trace:', error.stack);
-            // Non bloccare l'operazione se il voto non può essere aggiunto
-          }
         }
         
         console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
@@ -595,60 +575,75 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
   }
 });
 
-// POST /api/opinioni-proposte/:id/vota - Vota un'opinione proposta
+// POST /api/opinioni-proposte/:id/vota - massimo un voto attivo per utente
 router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client;
+  let inTransaction = false;
   try {
     const { id } = req.params;
-    const userId = req.userId; // User ID dall'autenticazione JWT
-    
-    console.log('👍 POST /api/opinioni-proposte/:id/vota - Voto opinione proposta');
-    console.log('🔍 ID opinione:', id);
-    console.log('🔍 User ID:', userId);
-    
+    const userId = req.userId;
     await assertVotiTableExists();
-    let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
-    if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-        [id]
-      );
+    client = await pool.connect();
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    // Serializza i voti concorrenti dello stesso utente. Il solo UNIQUE
+    // (utente_id, opinione_id) non impedisce di votare proposte diverse.
+    const userRow = await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (userRow.rows.length === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(401).json({ success: false, error: 'Utente non trovato' });
     }
-    if (checkResult.rows.length === 0) {
-      console.log('❌ Opinione non trovata o non in stato da approvare');
-      return res.status(404).json({
-        success: false,
-        error: 'Opinione non trovata o non in stato da approvare'
-      });
+
+    const separate = await hasSeparateProposalsTable(client);
+    const proposal = separate
+      ? await client.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id])
+      : await client.query(
+          "SELECT id FROM opinioni_domande WHERE id = $1 AND gradi_opinione::text LIKE '%da approvare%'",
+          [id]
+        );
+    if (proposal.rows.length === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(404).json({ success: false, error: 'Opinione non più disponibile' });
     }
-    console.log('✅ Opinione trovata, procedo con il voto...');
-    
-    // Inserisci il voto nella tabella voti_opinioni_proposte
-    const insertVotoQuery = `
-      INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
-      VALUES ($1, $2)
-      ON CONFLICT (utente_id, opinione_id) DO NOTHING
-    `;
-    
-    console.log('🔍 Inserimento voto con parametri:', { userId, id });
-    const insertResult = await pool.query(insertVotoQuery, [userId, id]);
-    console.log('📊 Risultato inserimento:', insertResult);
-    
-    console.log('✅ Voto registrato con successo per opinione:', id);
-    
-    res.json({
-      success: true,
-      message: 'Voto registrato con successo'
-    });
-    
+
+    const currentVotes = await getActiveProposalVotes(client, userId, separate);
+    if (currentVotes.rows.some(row => String(row.opinione_id) === String(id))) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({ success: false, error: 'VOTO_GIA_REGISTRATO', message: 'Hai già votato questa proposta.' });
+    }
+    if (currentVotes.rows.length >= 1) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({ success: false, error: 'LIMITE_VOTI_RAGGIUNTO', message: 'Puoi votare una sola proposta. Rimuovi prima il voto precedente.' });
+    }
+
+    const inserted = await client.query(
+      `INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
+       VALUES ($1, $2) ON CONFLICT (utente_id, opinione_id) DO NOTHING
+       RETURNING opinione_id`,
+      [userId, id]
+    );
+    if (inserted.rowCount !== 1) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({ success: false, error: 'VOTO_GIA_REGISTRATO' });
+    }
+
+    await client.query('COMMIT');
+    inTransaction = false;
+    return res.json({ success: true, message: 'Voto registrato', data: { opinione_id: String(id) } });
   } catch (error) {
-    console.error('❌ Errore nel voto:', error);
-    console.error('❌ Stack trace:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel voto',
-      message: error.message,
-      details: error.stack
-    });
+    if (inTransaction && client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* errore già gestito */ }
+    }
+    console.error('Errore salvataggio voto proposto:', error.code || 'UNEXPECTED');
+    return res.status(500).json({ success: false, error: 'Impossibile registrare il voto. Riprova.' });
+  } finally {
+    if (client) client.release();
   }
 });
 
