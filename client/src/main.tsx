@@ -5,7 +5,6 @@ import "./index.css";
 import { installNativeApiFetchBridge } from "./lib/native-api-fetch-bridge";
 import GestisciGrazia from "./pages/GestisciGrazia";
 import Limiti from "./pages/Limiti";
-import GestisciGoverno from "./pages/GestisciGoverno";
 
 // Prima di montare React, normalizza le vecchie fetch relative /api nella build
 // Capacitor. Sul web il bridge è un no-op.
