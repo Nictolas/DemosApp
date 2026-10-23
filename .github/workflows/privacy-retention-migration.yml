@@ -1,0 +1,84 @@
+name: Privacy legacy log cleanup guard
+on:
+  pull_request:
+    paths:
+      - 'api/migrations/20261023_disable_legacy_log_cleanup_unapproved.sql'
+      - '.github/workflows/privacy-retention-migration.yml'
+permissions:
+  contents: read
+jobs:
+  protect-legacy-retention:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: retention_test
+          POSTGRES_PASSWORD: synthetic_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic_only
+      PGDATABASE: retention_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed synthetic legacy functions and config
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE ROLE service_role NOLOGIN;
+          CREATE TABLE public.logging_jobs (
+            job_name text PRIMARY KEY,
+            enabled boolean NOT NULL,
+            next_run timestamp
+          );
+          INSERT INTO public.logging_jobs VALUES ('cleanup_old_logs', TRUE, now());
+          CREATE FUNCTION public.cleanup_old_logs() RETURNS integer
+          LANGUAGE sql AS 'SELECT 101';
+          CREATE FUNCTION public.compress_log_metadata() RETURNS integer
+          LANGUAGE sql AS 'SELECT 102';
+          CREATE FUNCTION public.record_logging_stats() RETURNS void
+          LANGUAGE plpgsql AS 'BEGIN NULL; END';
+          SQL
+      - name: Apply read-only-policy guard migration (no data deletion)
+        run: psql -v ON_ERROR_STOP=1 -f api/migrations/20261023_disable_legacy_log_cleanup_unapproved.sql
+      - name: Verify cleanup blocked and API roles revoked
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            routine TEXT;
+            api_role TEXT;
+          BEGIN
+            FOREACH routine IN ARRAY ARRAY['cleanup_old_logs','compress_log_metadata','record_logging_stats']
+            LOOP
+              FOREACH api_role IN ARRAY ARRAY['anon','authenticated','service_role']
+              LOOP
+                IF has_function_privilege(api_role, 'public.' || routine || '()', 'EXECUTE') THEN
+                  RAISE EXCEPTION 'Legacy routine still callable: % / %', routine, api_role;
+                END IF;
+              END LOOP;
+            END LOOP;
+            IF EXISTS (SELECT 1 FROM public.logging_jobs WHERE job_name='cleanup_old_logs' AND enabled) THEN
+              RAISE EXCEPTION 'Cleanup descriptor still enabled';
+            END IF;
+            IF pg_get_functiondef('public.cleanup_old_logs()'::regprocedure) ILIKE '%DELETE FROM%' THEN
+              RAISE EXCEPTION 'Destructive SQL remains in cleanup function';
+            END IF;
+            BEGIN
+              PERFORM public.cleanup_old_logs();
+              RAISE EXCEPTION 'Unexpectedly allowed legacy cleanup';
+            EXCEPTION WHEN SQLSTATE 'P0001' THEN
+              IF SQLERRM <> 'RETENTION_POLICY_NOT_APPROVED' THEN RAISE; END IF;
+            END;
+          END $$;
+          SQL
