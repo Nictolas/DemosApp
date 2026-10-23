@@ -101,3 +101,44 @@ La presenza del log `Axiom archive completed` sul backend principale **non certi
 - Dopo il test reale, annotare solo timestamp, `PASS/FAIL`, conteggi aggregati e dataset. Non memorizzare contenuti dei log archiviati, chiavi oggetto, link firmati, password o token.
 
 La PR #218 rimane **draft** e `main` invariato. Il criterio di rilascio GDPR/FCM/Axiom resta indipendente da questa sola verifica.
+
+## Inventario autenticato di Backblaze del 23/10/2026
+
+È stata verificata **direttamente** nel browser Chrome autorizzato la
+pagina autenticata `B2 Cloud Storage → Application Keys`, senza
+accedere ai valori segreti. La console elenca una Application Key
+`demos-log-archive` collegata a `demos-log-archive-eu`, con
+`namePrefix=demos/axiom-archive/v1/` e nessuna scadenza esplicita
+indicata. Dai metadati `capabilities` risultano `readFiles` e
+`listFiles`, ma **anche `writeFiles` e `deleteFiles`**.
+Pertanto **non** deve essere riciclata sul servizio di restore
+read-only, nemmeno se fosse possibile recuperare il suo segreto:
+viola il principio del minimo privilegio. La Master Application Key
+non è stata ruotata né usata.
+
+Nella lista accessibile non è emersa una credenziale dedicata
+`Read Only` per il ripristino. È stato aperto il comando
+`Add a New Application Key`, ma la pagina/modal successiva
+non ha esposto i propri campi ai controlli di accessibilità remoti
+in modo verificabile. **Nessuna nuova chiave è stata creata**.
+Non assumere che il modulo sia stato compilato o che l'utente abbia
+autorizzato l'uso di segreti della produzione.
+
+**Prossima operazione manuale minima se il browser remoto non torna
+accessibile:** riportare in primo piano la pagina Backblaze
+`Application Keys` e aprire il modulo `Add a New Application Key`,
+così da consentire di verificare i campi. In alternativa creare
+una sola nuova credenziale temporanea **Read Only**, esclusivamente
+bucket `demos-log-archive-eu`, prefisso
+`demos/axiom-archive/v1/`, scadenza breve (es. 24 h).
+Il valore segreto, visibile una sola volta, non deve essere incollato
+in chat o in Google Sheet/GitHub. Destinazione prevista:
+**soltanto** servizio Render
+`demos-b2-readonly-restore-staging`, variabili
+`B2_S3_ACCESS_KEY_ID` e `B2_S3_SECRET_ACCESS_KEY`.
+Verificare il test univoco `HEAD/GET` sul servizio isolato,
+senza alterare l'archiviatore di produzione.
+
+Lo stato rimane **B2 restore reale: NON VERIFICATO**. Nessun token,
+bucket, file, servizio Render o configurazione di produzione è stato
+modificato.
