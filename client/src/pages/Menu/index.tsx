@@ -7,6 +7,7 @@ import { useMenuActions } from "./hooks/useMenuActions";
 import { MenuHeader } from "./components/MenuHeader";
 import { MenuGrid } from "./components/MenuGrid";
 import { PageContainer } from "@/components/PageContainer";
+import { hasDpoCapability } from "@/lib/admin-access";
 import ProssimoEventoRiquadro from "@/components/ProssimoEventoRiquadro";
 import ProssimaIniziativaRiquadro from "@/components/ProssimaIniziativaRiquadro";
 import ProssimoReferendumRiquadro from "@/components/ProssimoReferendumRiquadro";
@@ -52,8 +53,8 @@ export default function Menu() {
           <Card className="w-full flex-shrink-0">
             <MenuHeader 
               key={`header-${user?.email || 'no-user'}`}
-              isAdmin={isAdmin}
-              onAdminClick={() => setLocation("/gestisci")}
+              canOpenGestisci={isAdmin || hasDpoCapability(user)}
+              onGestisciClick={() => setLocation("/gestisci")}
             />
           </Card>
           <div className="mt-0 flex flex-col">
