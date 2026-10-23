@@ -839,6 +839,48 @@ nel checkpoint `CP-EA-049` dei Google Sheet ufficiali e nel
 commento della PR #218. La versione precedente `CP-EA-048` resta
 lo storico del primo tentativo, non va sovrascritta.
 
+### 23 ottobre 2026 — Smoke-test SQL rollback sul PostgreSQL reale di staging (CP-EA-051)
+
+Eseguite **due transazioni SQL reversibili** direttamente sul progetto
+Supabase `Demos-Staging` (`fkeayjzvtuvzesljhjbc`), regione UE,
+PostgreSQL 17. Non è stato avviato alcun worker, nessun trasporto
+Axiom, nessuna scrittura alla produzione.
+
+- **Verifica iniziale:** tabella privata `demos_private.audit_delivery_outbox`
+  presente, RLS attivo, `demos_outbox_runtime` con LOGIN e privilegi
+  SELECT/INSERT/UPDATE/DELETE, membro del ruolo `demos_outbox_worker`;
+  coda inizialmente vuota (0 pending/sending/dead-letter),
+  nessun trigger applicativo sulla tabella.
+- **Transazione n. 1:** unica riga sintetica in `BEGIN`/`ROLLBACK`.
+  Inserimento pending, acquisizione con il medesimo SQL
+  `FOR UPDATE SKIP LOCKED` usato dal worker, lease da 90 secondi,
+  passaggio a pending per retry, nuova acquisizione con nuovo lease,
+  rimozione mediante ACK vincolato a ID/lease/status. Tutte le
+  transizioni hanno verificato `ROW_COUNT=1`; zero righe persistite
+  dopo rollback.
+- **Transazione n. 2:** unica riga sintetica `sending` con lease scaduto,
+  sette tentativi già contati. Recupero via stesso SQL
+  `FOR UPDATE SKIP LOCKED`, ottavo tentativo, passaggio a
+  `dead_letter` con cancellazione del lease, verifiche sulle colonne.
+  Anche qui rollback completo e **0 righe persistite**.
+- **Limitazione essenziale:** la console SQL Supabase esegue come
+  `postgres` e il tentativo `SET LOCAL ROLE demos_outbox_runtime`
+  è stato rifiutato (`permission denied to set role`).
+  Le prove appena descritte verificano **schema e semantica SQL**
+  sul database reale, **non** l'esecuzione con l'identità
+  autenticata del worker. La presenza di grant e membership è
+  un controllo catalogo, non un sostituto del login reale.
+  Le due prove non dimostrano inoltro, ACK remoto o retry verso Axiom.
+
+**Non ri-eseguire** automaticamente queste transazioni e **non
+abilitare** `AUDIT_OUTBOX_WORKER_ENABLED` in produzione.
+Resta obbligatorio un vero one-shot staging con credenziale DB
+`demos_outbox_runtime` nel runtime isolato, invio Axiom e readback
+del medesimo ID, seguito da prova di indisponibilità provider.
+Il token Axiom temporaneo impiegato nel test diretto ha scadenza
+23/10/2026 ore 21:21 italiane: non presumere che sia ancora valido,
+non copiarlo e non crearne un duplicato senza esigenza verificata.
+
 ## Condizioni mancanti per GO
 
 - [x] **Connessione di staging reale — completata il 22/10/2026.**
