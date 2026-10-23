@@ -13,6 +13,7 @@ import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent
 import { vibrateShort } from '@/utils/vibration';
 import { PoliticalOpinionsConsentModal } from '@/components/PoliticalOpinionsConsentModal';
 import { OpinionStatsBar } from '@/components/OpinionStatsBar';
+import { useUnsavedOpinionsGuard } from "@/hooks/useUnsavedOpinionsGuard";
 
 const options = [
   { value: 'f', color: 'bg-green-500 text-white', label: 'Favorevole' },
@@ -114,6 +115,13 @@ export default function OpinioniEuropee() {
     }
   }, [questions]);
 
+  // Avvisa soltanto in presenza di risposte nuove o modificate.
+  const isDirty = questions.some((question) =>
+    normalizeAnswer(opinions[question.id]) !== normalizeAnswer(question.userAnswer ?? undefined)
+  );
+  const saveHandlerRef = React.useRef<() => void>(() => {});
+  const exitGuard = useUnsavedOpinionsGuard(isDirty, setLocation, () => saveHandlerRef.current());
+
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("E", newOpinions),
@@ -122,9 +130,11 @@ export default function OpinioniEuropee() {
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Europeo'] });
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
-      setTimeout(() => setLocation("/opinioni"), 1500);
+      const nextPage = exitGuard.onSaveSuccess();
+      setTimeout(() => setLocation(nextPage), 1500);
     },
     onError: (error: any) => {
+      exitGuard.onSaveError();
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
     }
   });
@@ -180,6 +190,8 @@ export default function OpinioniEuropee() {
     console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
+
+  saveHandlerRef.current = handleSave;
 
   // Funzione chiamata quando il consenso viene concesso
   const handleConsentGranted = async () => {
@@ -294,9 +306,12 @@ export default function OpinioniEuropee() {
                   </div>
                 )}
 
-                <div className="flex justify-center pt-6">
+                <div className="flex flex-col items-center gap-3 pt-6">
                   <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
                     {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
+                  </Button>
+                  <Button variant="outline" type="button" onClick={exitGuard.onBack} disabled={saveMutation.isPending} className="px-8 py-3 text-lg">
+                    Indietro
                   </Button>
                 </div>
                 {blocco?.isBlocked && (
@@ -312,6 +327,7 @@ export default function OpinioniEuropee() {
       </div>
 
       {/* Dialog per il consenso alle opinioni politiche */}
+      {exitGuard.dialog}
       <PoliticalOpinionsConsentModal
         open={showConsentDialog}
         onOpenChange={setShowConsentDialog}
