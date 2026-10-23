@@ -331,7 +331,7 @@ router.post('/send-user-notification', (req, res, next) => {
     debugLog(`      - Numero token: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
       fcmTokens.forEach((token, idx) => {
-        debugLog(`      - Token ${idx + 1}: ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
+        debugLog(`      - Token ${idx + 1}: ${'[omesso]'}... (lunghezza: ${token.length})`);
       });
     } else {
       debugLog(`      - ⚠️ Nessun token FCM trovato nel database`);
@@ -355,7 +355,7 @@ router.post('/send-user-notification', (req, res, next) => {
     if (fcmTokens.length > 0) {
       debugLog(`   📋 Token disponibili:`);
       fcmTokens.forEach((token, index) => {
-        debugLog(`      ${index + 1}. ${token.substring(0, 50)}... (lunghezza: ${token.length})`);
+        debugLog(`      ${index + 1}. ${'[omesso]'}... (lunghezza: ${token.length})`);
       });
     }
 
@@ -377,14 +377,14 @@ router.post('/send-user-notification', (req, res, next) => {
     
     if (fcmTokens.length > 1) {
       debugLog(`    ⚠️ ATTENZIONE: Trovati ${fcmTokens.length} token nel database (dovrebbe esserci solo 1 token mobile).`);
-      debugLog(`    📋 Token che verrà usato (ultimo): ${tokensToSend[0]?.substring(0, 50)}...`);
+      debugLog(`    📋 Token che verrà usato (ultimo): ${'[omesso]'}...`);
       debugLog(`    📋 Token che verranno IGNORATI (${fcmTokens.length - 1} token):`);
       fcmTokens.slice(0, -1).forEach((token, idx) => {
-        debugLog(`       - Token ${idx + 1}: ${token.substring(0, 50)}...`);
+        debugLog(`       - Token ${idx + 1}: ${'[omesso]'}...`);
       });
       debugLog(`    💡 Suggerimento: I token extra verranno rimossi automaticamente al prossimo salvataggio token mobile.`);
     } else if (fcmTokens.length === 1) {
-      debugLog(`    ✅ Token mobile trovato: ${tokensToSend[0].substring(0, 50)}...`);
+      debugLog(`    ✅ Token mobile trovato: ${'[omesso]'}...`);
     } else {
       debugLog(`    ⚠️ Nessun token FCM disponibile per l'invio.`);
     }
@@ -398,7 +398,7 @@ router.post('/send-user-notification', (req, res, next) => {
         continue;
       }
       
-      debugLog(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${token.substring(0, 50)}...`);
+      debugLog(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${'[omesso]'}...`);
       
       try {
         const result = await sendPushNotification(
@@ -1201,7 +1201,7 @@ async function notifyAllUsers(titolo, commento) {
       debugLog(`      - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
       if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
         utente.fcm_tokens.forEach((token, tokenIndex) => {
-          debugLog(`         Token ${tokenIndex + 1}: ${token.substring(0, 50)}...`);
+          debugLog(`         Token ${tokenIndex + 1}: ${'[omesso]'}...`);
         });
       }
     });
@@ -1215,7 +1215,7 @@ async function notifyAllUsers(titolo, commento) {
       // Invia push notification a tutti i token FCM dell'utente
       for (const token of fcmTokens) {
         if (token && token.trim()) {
-          debugLog(`    🔔 Invio notifica push a token: ${token.substring(0, 50)}...`);
+          debugLog(`    🔔 Invio notifica push a token: ${'[omesso]'}...`);
           
           const result = await sendPushNotification(
             token,
