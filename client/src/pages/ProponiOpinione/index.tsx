@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
@@ -19,10 +19,13 @@ export default function ProponiOpinione() {
     loadingData,
     userVoti,
     haGiaProposto,
+    votiVerificati,
+    votiError,
+    votingPending,
+    loadData,
     handleProponi,
     handleVota,
     handleRimuoviVoto,
-    handleSalvaVoti,
     handleCancella
   } = useProponiOpinioneData(user);
 
@@ -30,18 +33,12 @@ export default function ProponiOpinione() {
     proponiOpinioneState,
     updateField,
     setSubmitting,
-    setIsVoting,
-    setOpinioni,
-    setUserVoti,
-    setLoadingData
+    setIsVoting
   } = useProponiOpinioneActions(user);
 
-  // Sincronizza i dati tra i due hooks
-  useEffect(() => {
-    setOpinioni(opinioni);
-    setUserVoti(userVoti);
-    setLoadingData(loadingData);
-  }, [opinioni, userVoti, loadingData, setOpinioni, setUserVoti, setLoadingData]);
+  // Le proposte e i voti hanno un'unica fonte di verità nel data hook.
+  // Il vecchio effetto copiava ogni stato in un secondo hook e innescava
+  // aggiornamenti ripetuti a ogni render.
 
   const handleProponiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,12 +88,6 @@ export default function ProponiOpinione() {
     setIsVoting(false);
   };
 
-  const handleConfermaSalva = async () => {
-    setIsVoting(true);
-    await handleSalvaVoti(proponiOpinioneState.selectedVoti);
-    setIsVoting(false);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -131,7 +122,10 @@ export default function ProponiOpinione() {
                 <OpinioniList
                   opinioni={opinioni}
                   userVoti={userVoti}
-                  isVoting={proponiOpinioneState.isVoting}
+                  isVoting={proponiOpinioneState.isVoting || votingPending}
+                  votiVerificati={votiVerificati}
+                  votiError={votiError}
+                  onRiprova={() => { void loadData(); }}
                   onVota={handleVotaOpinione}
                   onRimuoviVoto={handleRimuoviVotoOpinione}
                   onCancella={handleCancellaOpinione}
