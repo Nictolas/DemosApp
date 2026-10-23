@@ -60,7 +60,7 @@ router.get('/me', async (req, res) => {
     try {
       result = await pool.query(
         `SELECT
-           u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.created_at, u.updated_at,
+           u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.is_dpo, u.created_at, u.updated_at,
            COALESCE(up.genere, u.genere) AS genere,
            COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
            COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -155,6 +155,9 @@ router.get('/me', async (req, res) => {
         ruolo: accountSubject?.legacyRole || user.ruolo,
         account_type: accountSubject?.capabilities?.accountType || null,
         is_admin: accountSubject?.capabilities?.isAdmin ?? (user.ruolo === 'AD'),
+        // Solo indicazione autenticata per la navigazione UI; il backend
+        // ricontrolla sempre i permessi DPO su DB ad ogni richiesta sensibile.
+        is_dpo: user.status === 'a' && user.is_dpo === true && user.is_admin !== true && !(accountSubject?.capabilities?.isAdmin ?? (user.ruolo === 'AD')),
         is_activist: accountSubject?.capabilities?.isActivist ?? (user.ruolo === 'A'),
         is_candidate: accountSubject?.capabilities?.isCandidate ?? ['C', 'CP'].includes(user.ruolo),
         is_politician: accountSubject?.capabilities?.isPolitician ?? ['P', 'CP'].includes(user.ruolo),
