@@ -806,6 +806,39 @@ Procedura completa:
 Restano **NO-GO** sia l'autenticazione B2 reale sia
 l'approvazione della retention GDPR e i collaudi FCM/Axiom.
 
+### 23 ottobre 2026 — Axiom provider staging: prova live PASS (CP-EA-049)
+
+**Prova reale completata il 22/10/2026:** un solo evento *interamente sintetico*
+è stato inviato all'endpoint UE `eu-central-1.aws.edge.axiom.co`,
+dataset `demos-security-staging`. Il provider ha restituito
+**HTTP 200, `ingested=1`, `failed=0`**; il processo di invio
+è terminato con exit code 0. Una query APL autenticata,
+con filtro su `axiom_delivery_id`, ha restituito **una riga**
+contenente l'identificativo di test
+`ec4d7b66-e8c6-482f-9133-e1d1cea51262`.
+Nessun identificativo utente, indirizzo IP o dato reale è stato inviato.
+
+Il primo tentativo era fallito: il token Basic, pur limitato al dataset
+corretto, risultava **già scaduto** al momento della creazione
+(creazione 22/10/2026, scadenza erronea 11/05/2026).
+Una sola credenziale sostitutiva, autorizzata dal titolare, ha
+permesso di completare la prova. **Token di staging temporaneo**:
+`demos-security-staging-ingest-drill-20261022`, soltanto ingest
+sul dataset `demos-security-staging` (nessun altro dataset o query),
+scadenza **23/10/2026 alle 21:21 ora italiana**. Non conservarne
+il valore in repo, CI, Sheets o log, non duplicarlo e non usarlo in
+produzione. Il token di Query staging e il token Render sono invariati.
+
+**Perimetro esatto del PASS:** autenticazione ingest + accettazione HTTP
++ indicizzazione + readback APL da Axiom. **Non è** ancora una prova
+end-to-end dell'applicazione `Supabase/PostgreSQL → outbox → worker →
+Axiom`, né della gestione retry/lease su Axiom non disponibile.
+Queste verifiche restano **NO-GO**; non abilitarle in produzione.
+L'evidenza completa e la separazione degli stati si trovano
+nel checkpoint `CP-EA-049` dei Google Sheet ufficiali e nel
+commento della PR #218. La versione precedente `CP-EA-048` resta
+lo storico del primo tentativo, non va sovrascritta.
+
 ## Condizioni mancanti per GO
 
 - [x] **Connessione di staging reale — completata il 22/10/2026.**
@@ -816,7 +849,8 @@ l'approvazione della retention GDPR e i collaudi FCM/Axiom.
   verifica esterna `GET /healthz`=**200**. Nessuna scrittura nella
   coda, rimasta vuota. Questa voce certifica **soltanto** la connettività
   e il profilo di accesso, non la consegna Axiom o il rollout.
-- [ ] **Axiom reale.** Con dataset, token e organizzazione di *test*,
+- [ ] **Axiom integrato con worker/outbox (ancora NO-GO).** Il test provider diretto con evento sintetico è già PASS (CP-EA-049); ora
+  collegare una coda e un worker *esclusivamente staging* e
   verificare che una singola operazione sintetica attraversi la coda,
   riceva ACK, sia visibile in Axiom con il medesimo
   `axiom_delivery_id`. Ripetere con Axiom temporaneamente indisponibile.
