@@ -212,6 +212,10 @@ class AxiomArchiveService {
     const configuredDatasets = parseCsv(env.AXIOM_ARCHIVE_DATASETS);
     const defaultDatasets = [env.AXIOM_DATASET || 'centralized_logs', env.AXIOM_REALTIME_DATASET || 'real-time'];
     this.datasets = unique(configuredDatasets.length ? configuredDatasets : defaultDatasets).map(validateDatasetName);
+    // Data minimization: operational/technical events remain available in Axiom
+    // for its configured retention. B2 persists explicit audit/security events only.
+    // Historical technical copies are untouched; explicit opt-in supports justified exceptions.
+    this.archiveTechnical = env.AXIOM_ARCHIVE_INCLUDE_TECHNICAL === 'true';
 
     this.axiomClient = axiomClient;
     this.b2Client = b2Client;
@@ -386,6 +390,7 @@ class AxiomArchiveService {
 
     for (const { id, record } of dedupedRecords) {
       const category = classifyRecord(record);
+      if (category === 'technical' && !this.archiveTechnical) continue;
       groups.get(category).push({
         archive_event_id: id,
         source_dataset: dataset,
@@ -440,6 +445,8 @@ class AxiomArchiveService {
     // Use the deterministic window end in archive envelopes so a retry of the same chunk
     // produces the same compressed object/key instead of creating duplicate retry objects.
     const groups = this.buildArchiveGroups(dataset, deduped, new Date(endTime));
+    // Only persist counters for events we actually retain in this archive.
+    const archivedCount = [...groups.values()].reduce((sum, entries) => sum + entries.length, 0);
     const objects = [];
 
     for (const [category, records] of groups.entries()) {
@@ -454,7 +461,7 @@ class AxiomArchiveService {
       dataset,
       startTime: new Date(startTime).toISOString(),
       endTime: new Date(endTime).toISOString(),
-      recordCount: deduped.length,
+      recordCount: archivedCount,
       categories,
       objects,
       // Deterministic for idempotent retry of an already-uploaded-but-not-checkpointed chunk.
@@ -483,7 +490,7 @@ class AxiomArchiveService {
     });
 
     return {
-      count: deduped.length,
+      count: archivedCount,
       categories,
       objects,
       manifest: manifestObject,
