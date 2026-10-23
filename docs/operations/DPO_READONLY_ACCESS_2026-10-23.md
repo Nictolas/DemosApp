@@ -21,3 +21,11 @@ L'account senza email del 2025 è stato disattivato e ha perso `is_admin`, ma **
 
 ## Perimetro giuridico
 L'esistenza di un solo Admin applicativo non dimostra che il titolare sia l'unico amministratore di sistema tecnico; occorre inventario effettivo degli accessi Render/Supabase/GitHub/fornitori e valutazione GDPR/Garante prima di ridurre i log. PR #218 e retention RP-09, RP-10, RP-17 restano in revisione.
+
+## Estensione consultazione aggregata agli Admin (23 ottobre 2026)
+- `GET /api/dpo/overview` è **sola lettura** e disponibile a utenti attivi con `is_admin=true` oppure a utenti attivi con `is_dpo=true` e `is_admin=false`. Autorizzazione controllata su `public.users` a ogni richiesta, senza fidarsi del solo JWT.
+- `requireDpo` e `isDpoGrantAllowed` restano **DPO-only** per future eventuali operazioni riservate al DPO; la route di riepilogo usa uno specifico `requirePrivacyOverviewAccess`. Nessun permesso DPO assegnato automaticamente agli Admin.
+- I dati restituiti restano aggregati; risposta indica il ruolo applicativo effettivo `Admin` o `DPO` senza esporre identità individuali.
+- Frontend `DpoPanel` adeguato al formato effettivo `apiRequest` (`{ok,data:{success,data}}`) e a entrambi i ruoli. In precedenza, anche un HTTP 200 sarebbe potuto apparire come errore.
+- L'account Mattia Picariello dispone già del solo flag `is_dpo=true`; non va modificato per questa correzione. Nomina DPO formale e diritto all'accesso tecnico restano procedure separate.
+- Convalidare CI sintetiche, merge e deploy backend/frontend, 401 anonimo e 200 con account Admin e DPO autentici ove disponibili; nessun secret o voto individuale nei log.
