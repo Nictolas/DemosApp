@@ -4,6 +4,11 @@ import { apiRequest } from '@/lib/queryClient';
 interface DpoOverview {
   role: 'DPO' | 'Admin';
   gdpr_requests_total: number;
+  gdpr_requests_pending: number;
+  gdpr_requests_processing: number;
+  gdpr_requests_completed: number;
+  gdpr_requests_migration_excluded: number;
+  rights_counter_scope: 'user_rights_requests_excluding_migration_seed';
 }
 
 export default function DpoPanel() {
@@ -44,7 +49,15 @@ export default function DpoPanel() {
         <section className="rounded-lg border p-5">
           <h2 className="mb-3 text-lg font-medium">Riepilogo privacy</h2>
           <p className="mb-3 text-sm">Consultazione in sola lettura come {data.role}.</p>
-          <p>Richieste GDPR registrate: <strong>{data.gdpr_requests_total}</strong></p>
+          <p>Richieste registrate nel sistema dei diritti (escluse migrazioni): <strong>{data.gdpr_requests_total}</strong></p>
+          <p className="mt-2 text-sm">In attesa: <strong>{data.gdpr_requests_pending}</strong> · In lavorazione: <strong>{data.gdpr_requests_processing}</strong> · Completate: <strong>{data.gdpr_requests_completed}</strong></p>
+          <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
+            Record iniziali di migrazione esclusi dal conteggio: <strong>{data.gdpr_requests_migration_excluded}</strong>.
+            Non equivalgono a richieste realmente ricevute o evase. Sono conservati in attesa della revisione della loro necessità.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Questa statistica riguarda solo la tabella dedicata alle richieste dei diritti: non attesta la completezza di altri canali o registri.
+          </p>
           <p className="mt-3 text-sm">Durate di conservazione: revisione in corso.</p>
           <p className="mt-1 text-sm">Log obbligatori: perimetro giuridico da verificare.</p>
           <p className="mt-4 text-xs text-muted-foreground">
