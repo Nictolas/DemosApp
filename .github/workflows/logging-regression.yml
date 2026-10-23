@@ -10,6 +10,12 @@ on:
       - 'api/routes/auth/profile.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/logCredentialMinimization.test.js'
+      - 'api/tests/diagnosticTokenMinimization.smoke.test.js'
+      - 'client/src/hooks/useFCM.ts'
+      - 'scripts/*axiom*.js'
+      - 'scripts/test-token-ingest-direct.js'
+      - 'scripts/test-apl-query.js'
+      - 'scripts/test-dataset-api.js'
       - 'api/services/axiomArchiveService.js'
       - 'api/scripts/verify-latest-axiom-archive.js'
       - 'api/utils/log*.js'
@@ -31,7 +37,7 @@ permissions:
 jobs:
   logging:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,7 +64,12 @@ jobs:
           node --check routes/auth/profile.js
           node --check routes/comunicazioni.js
           node --check services/axiomMigrationService.js
-          node --test tests/logCredentialMinimization.test.js
+          node --test tests/logCredentialMinimization.test.js tests/diagnosticTokenMinimization.smoke.test.js
+          for file in ../scripts/verifica-token-axiom.js ../scripts/verify-axiom-data.js ../scripts/check-axiom-simple-query.js ../scripts/test-token-ingest-direct.js ../scripts/test-axiom-token.js ../scripts/test-axiom-sdk-stats.js ../scripts/test-axiom-direct-curl.js ../scripts/test-axiom-varianti.js ../scripts/test-apl-query.js ../scripts/test-dataset-api.js; do node --check "$file"; done
+      - name: Build frontend to validate FCM hook
+        run: |
+          npm ci --prefix client --ignore-scripts
+          npm run build --prefix client
       - name: Axiom archive and classification tests (mocked, no production credentials)
         working-directory: api
         run: npm run test:axiom-archive

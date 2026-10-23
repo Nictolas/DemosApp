@@ -14,7 +14,7 @@ async function testDatasetAPI() {
   
   console.log('🔍 Test API Dataset\n');
   console.log(`📍 URL: ${AXIOM_BASE_URL}/v1/datasets/${dataset}`);
-  console.log(`🔑 Token: ${token ? token.substring(0, 20) + '...' : 'MISSING'}`);
+  console.log('Token Axiom configurato:', Boolean(token));
   console.log(`🏢 Org ID: ${orgId || 'MISSING'}\n`);
   
   try {
