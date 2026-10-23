@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { preflightMetadata } = require('../scripts/verify-audit-outbox-worker-staging');
 const { normalizeReadonlyStagingUri } = require('../scripts/audit-outbox-readonly-health-server');
 const {
-  DATASET, INGEST, QUERY,
+  DATASET, INGEST, QUERY, countExactSyntheticMatches,
   assertStagingWorkerDrillEnvironment, runStagingWorkerDrill
 } = require('../services/auditOutboxStagingWorkerDrill');
 
@@ -64,7 +64,8 @@ test('staging-only guards reject all production secrets, flags and alternate DB 
   }
 });
 
-function buildFake({ nonempty = false, ack = true, readback = true } = {}) {
+function buildFake({ nonempty = false, ack = true, readback = true,
+  duplicate = false, partial = false, missingStatus = false } = {}) {
   let queued = nonempty ? 1 : 0;
   let ingests = 0, queries = 0, enqueues = 0, closes = 0, opens = 0;
   let payload;
@@ -90,10 +91,13 @@ function buildFake({ nonempty = false, ack = true, readback = true } = {}) {
       'Bearer ' + base.AXIOM_STAGING_DRILL_QUERY_TOKEN);
     queries++;
     assert.match(body.apl, new RegExp(ID));
-    return { status: 200, data: { tables: [{
-      fields: [{ name: 'axiom_delivery_id' }],
-      columns: [readback ? [ID] : []]
-    }] } };
+    return { status: 200, data: {
+      ...(missingStatus ? {} : { status: { isPartial: partial } }),
+      tables: [{
+        fields: [{ name: 'axiom_delivery_id' }],
+        columns: [readback ? (duplicate ? [ID, ID] : [ID]) : []]
+      }]
+    } };
   };
   const makeOutbox = ({ send, ensureReady, maxRecords }) => {
     assert.equal(typeof ensureReady, 'function');
@@ -230,5 +234,40 @@ test('malformed or wrong-project staging target remains blocked after normalizat
       open: () => { opened = true; }
     }), /STAGING_WORKER_DRILL_ENV_REJECTED/);
     assert.equal(opened, false);
+  }
+});
+
+
+test('readback parser checks exactly one ID, complete tabular result and no extra fields', () => {
+  const response = (ids, partial) => ({
+    status: { isPartial: partial },
+    tables: [{ fields: [{ name: 'axiom_delivery_id' }], columns: [ids] }]
+  });
+  assert.equal(countExactSyntheticMatches(response([ID], false), ID), 1);
+  assert.equal(countExactSyntheticMatches(response([], false), ID), 0);
+  assert.equal(countExactSyntheticMatches(response([ID, ID], false), ID), 2);
+  assert.equal(countExactSyntheticMatches(response([ID], true), ID), -1);
+  assert.equal(countExactSyntheticMatches({ tables: [] }, ID), -1);
+  assert.equal(countExactSyntheticMatches({ status: { isPartial: false },
+    tables: [{ fields: [{ name: 'different' }], columns: [[ID]] }] }, ID), -1);
+});
+
+test('duplicate UUID readback never certifies one delivery and does not re-ingest', async () => {
+  const fake = buildFake({ duplicate: true });
+  await assert.rejects(runStagingWorkerDrill({ env: base, ...fake }),
+    /STAGING_WORKER_DRILL_READBACK_UNVERIFIED/);
+  assert.deepEqual(fake.counts(), {
+    queued: 0, ingests: 1, queries: 1, enqueues: 1, opens: 1, closes: 1
+  });
+});
+
+test('partial results or absent query completeness must not yield a false PASS', async () => {
+  for (const change of [{ partial: true }, { missingStatus: true }]) {
+    const fake = buildFake(change);
+    await assert.rejects(runStagingWorkerDrill({ env: base, ...fake }),
+      /STAGING_WORKER_DRILL_READBACK_UNVERIFIED/);
+    assert.deepEqual(fake.counts(), {
+      queued: 0, ingests: 1, queries: 1, enqueues: 1, opens: 1, closes: 1
+    });
   }
 });

@@ -917,6 +917,14 @@ Riusa la normalizzazione strettamente vincolata della password
 PostgreSQL di staging già collaudata nel servizio Render di lettura,
 per gestire caratteri riservati senza alterare progetto o destinazione.
 
+Il readback Axiom fa una query `take 2` e accetta soltanto un
+**singolo UUID corrispondente**, a condizione che la risposta tabellare
+dichiari `status.isPartial=false`. Due righe con lo stesso UUID, una
+risposta parziale o la mancanza del metadato di completezza determinano
+`READBACK_UNVERIFIED`, senza ulteriori invii o pulizia automatica
+della coda. La risposta tabellare viene esaminata soltanto nella
+colonna `axiom_delivery_id`.
+
 **NON ANCORA ESEGUITO con credenziali reali.**
 Il token di prova ingest creato per CP-EA-049 aveva scadenza
 23/10/2026 alle 21:21; non presumere la validità e

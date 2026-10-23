@@ -12,7 +12,23 @@ const {
   STAGING_AXIOM_DATASET, STAGING_AXIOM_EDGE_DOMAIN,
   assertStagingSyntheticOutboxEvent, assertStagingAxiomHttpTarget
 } = require('./auditOutboxAxiomTarget');
-const { tabularReadbackContainsId } = require('./axiomStagingProviderDrill');
+// A single matching UUID is not sufficient if the provider returned partial
+// data, or if the same UUID has been ingested twice. Count the limited
+// projected-ID result, never inspect unrelated fields or event payloads.
+function countExactSyntheticMatches(result, id) {
+  if (result?.status?.isPartial !== false ||
+      !Array.isArray(result.tables)) return -1;
+  let matches = 0;
+  for (const table of result.tables) {
+    if (!Array.isArray(table?.fields) || !Array.isArray(table?.columns)) {
+      return -1;
+    }
+    const column = table.fields.findIndex(field => field?.name === 'axiom_delivery_id');
+    if (column < 0 || !Array.isArray(table.columns[column])) return -1;
+    matches += table.columns[column].filter(value => value === id).length;
+  }
+  return matches;
+}
 
 const DATASET = STAGING_AXIOM_DATASET;
 const HOST = STAGING_AXIOM_EDGE_DOMAIN;
@@ -149,7 +165,7 @@ async function runStagingWorkerDrill({
     }
     const query = {
       apl: "['" + DATASET + "'] | where axiom_delivery_id == '" +
-        expectedId + "' | project axiom_delivery_id | take 1",
+        expectedId + "' | project axiom_delivery_id | take 2",
       startTime: new Date(start.getTime() - 60000).toISOString(),
       endTime: new Date(start.getTime() + 900000).toISOString()
     };
@@ -165,7 +181,13 @@ async function runStagingWorkerDrill({
       if (response?.status !== 200) {
         throw new Error('STAGING_WORKER_DRILL_READBACK_UNVERIFIED');
       }
-      if (tabularReadbackContainsId(response.data, expectedId)) {
+      const matches = countExactSyntheticMatches(response.data, expectedId);
+      if (matches < 0 || matches > 1) {
+        // Missing completeness metadata or two rows with the same synthetic
+        // UUID: never certify single delivery. No second HTTP ingest.
+        throw new Error('STAGING_WORKER_DRILL_READBACK_UNVERIFIED');
+      }
+      if (matches === 1) {
         return { status: 'STAGING_WORKER_OUTBOX_AXIOM_E2E_PASS',
           claimed: 1, delivered: 1, matched: true,
           readAttempts: attempt + 1 };
@@ -180,5 +202,6 @@ async function runStagingWorkerDrill({
 
 module.exports = {
   DATASET, HOST, INGEST, QUERY,
-  assertStagingWorkerDrillEnvironment, runStagingWorkerDrill
+  assertStagingWorkerDrillEnvironment, countExactSyntheticMatches,
+  runStagingWorkerDrill
 };
