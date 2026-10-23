@@ -340,9 +340,9 @@ router.post('/cleanup', auditMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore pulizia log:', error);
-    res.status(500).json({
+    res.status(error.code === 'LOG_RETENTION_POLICY_NOT_APPROVED' ? 409 : 500).json({
       success: false,
-      error: 'Errore pulizia log',
+      error: error.code === 'LOG_RETENTION_POLICY_NOT_APPROVED' ? error.code : 'Errore pulizia log',
       message: error.message
     });
   }
