@@ -1,0 +1,23 @@
+name: DPO read-only regression
+on:
+  pull_request:
+    paths:
+      - 'api/middleware/dpoAccess.js'
+      - 'api/utils/dpoAuthorization.js'
+      - 'api/routes/dpo/**'
+      - 'api/tests/dpoAuthorization.test.js'
+      - 'api/migrations/20261023_dpo_readonly_capability.sql'
+      - '.github/workflows/dpo-readonly-regression.yml'
+jobs:
+  dpo-role:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate authorization and syntax
+        run: |
+          node --test api/tests/dpoAuthorization.test.js
+          node --check api/middleware/dpoAccess.js
+          node --check api/routes/dpo/overview.js
