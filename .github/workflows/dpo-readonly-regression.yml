@@ -17,6 +17,7 @@ on:
       - 'client/src/hooks/use-auth.tsx'
       - 'client/src/lib/admin-access.ts'
       - 'client/src/pages/Gestisci/**'
+      - 'client/src/pages/DpoPanel.tsx'
       - 'client/src/pages/Menu/**'
       - 'client/src/pages/Preferiti/index.tsx'
       - '.github/workflows/dpo-readonly-regression.yml'
