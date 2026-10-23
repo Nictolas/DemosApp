@@ -85,8 +85,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Build Android debug APK
+      - name: Build Android debug APK and release AAB (unsigned in CI)
         working-directory: client/android
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
+          test -f app/build/outputs/bundle/release/app-release.aab
