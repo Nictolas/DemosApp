@@ -513,12 +513,12 @@ class CentralizedLogger {
    * si applicano minimizzazione e proporzionalità.
    */
   shouldLogForGDPR(url, method, statusCode) {
-    // SEMPRE loggare errori (necessari per sicurezza GDPR)
+    // Conserva segnali tecnici sugli errori, non perché ogni log sia imposto dal GDPR.
     if (statusCode >= 400) {
       return true;
     }
 
-    // Endpoint che NON accedono a dati personali - NON loggare per GDPR
+    // Endpoint a bassa necessità diagnostica, quando il filtro opzionale è attivo.
     // Include le GET del menu (prossimo evento, prossima iniziativa, prossimo referendum)
     // per evitare accumulo di log su ogni visita alla pagina menu
     const publicEndpoints = [
@@ -543,7 +543,7 @@ class CentralizedLogger {
       }
     }
 
-    // Endpoint che accedono a dati personali - SEMPRE loggare per GDPR
+    // Endpoint sensibili per cui può essere utile un evento tecnico minimizzato; nessun obbligo GDPR generalizzato.
     const gdprRequiredEndpoints = [
       '/api/users',           // Dati utenti
       '/api/auth',            // Autenticazione (dati personali)
@@ -559,20 +559,20 @@ class CentralizedLogger {
       '/api/delete-account'   // Cancellazione account
     ];
 
-    // Verifica se è un endpoint GDPR-required
+    // Verifica categorie selezionate dalla policy applicativa attuale, ancora da sottoporre al DPO.
     for (const endpoint of gdprRequiredEndpoints) {
       if (url.startsWith(endpoint)) {
-        return true; // Necessario per GDPR
+        return true; // Selezione tecnica prudenziale, NON requisito legale generale.
       }
     }
 
-    // Metodi che modificano dati - loggare per GDPR
+    // Metodi mutativi: preferenza tecnica per eventi minimizzati, non obbligo normativo generale.
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       return true; // Modifiche ai dati potrebbero riguardare dati personali
     }
 
-    // Di default, se non è chiaro, loggare per sicurezza (meglio avere più log che meno)
-    // Ma puoi cambiare questo comportamento se vuoi essere più restrittivo
+    // Default legacy ampio, da valutare con DPO per un eventuale restringimento.
+    // Non abilitare ulteriori raccolte basandosi soltanto su questo flag.
     return process.env.GDPR_LOGGING_STRICT === 'true' ? false : true;
   }
 
