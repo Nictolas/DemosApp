@@ -189,7 +189,7 @@ export function useFCM() {
           
           if (currentToken) {
             setToken(currentToken);
-            console.log('✅ Token FCM ottenuto:', currentToken.substring(0, 30) + '...');
+            console.log('✅ Token FCM ottenuto correttamente');
           } else {
             throw new Error('Nessun token FCM disponibile');
           }
