@@ -1,6 +1,6 @@
 # DEMOS — Collaudo di recupero B2 isolato (22 ottobre 2026)
 
-**Stato:** infrastruttura preparata, primo deploy Render Free **LIVE IN STANDBY**; nessuna verifica su oggetti B2 reali ancora eseguita. Non confondere il processo archiviatore già attivo su `main` con questo servizio di sola lettura.
+**Stato aggiornato al 23 ottobre 2026:** **B2 RESTORE REALE IN SOLA LETTURA SU STAGING PASS** (CP-EA-057, deploy `dep-dbdmch7avr4c73aj6afg`, marker `B2_READONLY_RESTORE_VERIFIED`, `GET /healthz` HTTP 200). Il primo deploy del 22 ottobre era in standby: le sezioni storiche sottostanti lo descrivono come stato precedente. L'archiviatore produttivo su `main` resta separato e il rilascio complessivo della PR #218 rimane **NO-GO**.
 
 ## Ambiente dedicato e verificato
 
@@ -11,8 +11,8 @@
 - Piano `Free` di Render, regione Frankfurt, ramo `fix/audit-outbox-20261021`, `autoDeploy=no`.
 - Build: `cd api && npm ci --ignore-scripts`.
 - Start: `cd api && npm run archive:axiom:readonly-health`.
-- Log startup verificato: `B2_READONLY_RESTORE_STANDBY_NO_SECRET`. Questo è un **NO-GO di restore**, non un fallimento di connessione.
-- Nessun segreto B2 configurato. Nessun `DATABASE_URL`, `AUDIT_OUTBOX_DATABASE_URL`, token Axiom o Firebase. Job Axiom produttivo invariato.
+- Log del **primo** startup (22/10) `B2_READONLY_RESTORE_STANDBY_NO_SECRET` (storico). **Startup dopo il deploy del 23/10:** `B2_READONLY_RESTORE_VERIFIED` — **PASS** nel servizio isolato.
+- **Al primo deploy** non era configurato alcun segreto B2. **Dal 23/10** la nuova credenziale temporanea è configurata esclusivamente nelle variabili segrete di Render; nessun `DATABASE_URL`, `AUDIT_OUTBOX_DATABASE_URL`, token Axiom o Firebase nel servizio. Job Axiom produttivo invariato.
 
 ## Credenziale da configurare tramite i pannelli autorizzati
 
