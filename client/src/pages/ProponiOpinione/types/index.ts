@@ -43,6 +43,9 @@ export interface OpinioniListProps {
   opinioni: OpinioneProposta[];
   userVoti: string[];
   isVoting: boolean;
+  votiVerificati: boolean;
+  votiError: string | null;
+  onRiprova: () => void;
   onVota: (id: string) => void;
   onRimuoviVoto: (id: string) => void;
   onCancella?: (id: string) => void;
