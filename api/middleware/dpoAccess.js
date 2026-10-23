@@ -1,6 +1,6 @@
 'use strict';
 const { pool } = require('./auth');
-const { isDpoGrantAllowed } = require('../utils/dpoAuthorization');
+const { isDpoGrantAllowed, isPrivacyOverviewAccessAllowed } = require('../utils/dpoAuthorization');
 
 /**
  * Must follow verifyToken. Recheck authorization against the DB every time:
@@ -34,4 +34,31 @@ async function requireDpo(req, res, next) {
   }
 }
 
-module.exports = { requireDpo };
+/**
+ * Only for aggregate, read-only privacy overview routes.
+ * Authorization comes from a fresh database read, never solely from JWT flags.
+ * DPO-only middleware above remains separate and unchanged.
+ */
+async function requirePrivacyOverviewAccess(req, res, next) {
+  if (!req.user?.id) {
+    return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+  }
+
+  try {
+    const result = await pool.query(
+      "SELECT is_dpo, is_admin, status FROM public.users WHERE id = $1 LIMIT 1",
+      [req.user.id]
+    );
+    const account = result.rows?.[0];
+    if (!isPrivacyOverviewAccessAllowed(account)) {
+      return res.status(403).json({ success: false, error: 'Accesso al riepilogo privacy non autorizzato' });
+    }
+    req.privacyOverviewRole = account.is_admin === true ? 'Admin' : 'DPO';
+    return next();
+  } catch (_) {
+    console.error('Privacy overview authorization unavailable');
+    return res.status(503).json({ success: false, error: 'Verifica permessi privacy non disponibile' });
+  }
+}
+
+module.exports = { requireDpo, requirePrivacyOverviewAccess };
