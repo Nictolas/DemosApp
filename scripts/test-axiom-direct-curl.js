@@ -15,7 +15,7 @@ async function testDirect() {
   
   console.log('🔍 Test diretto API Axiom\n');
   console.log(`📍 URL: ${AXIOM_BASE_URL}/v1/datasets/${dataset}/ingest`);
-  console.log(`🔑 Token: ${token ? token.substring(0, 15) + '...' : 'MISSING'}`);
+  console.log('Token Axiom configurato:', Boolean(token));
   console.log(`🏢 Org ID: ${orgId || 'MISSING'}\n`);
   
   // Test con evento minimo
