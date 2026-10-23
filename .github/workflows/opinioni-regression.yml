@@ -41,4 +41,4 @@ jobs:
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Verify opinion regressions
-        run: node --test api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
+        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
