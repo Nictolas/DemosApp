@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
+import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -126,23 +127,23 @@ export function DesktopAppHeader() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const isPreferiti = location === "/preferiti" || location.startsWith("/preferiti/");
-  const isAdmin = user?.ruolo === "AD";
+  const canOpenGestisci = hasAdminCapability(user) || hasDpoCapability(user);
 
   const handleBrandClick = () => {
     if (isPreferiti) {
-      if (isAdmin) setLocation("/gestisci");
+      if (canOpenGestisci) setLocation("/gestisci");
       return;
     }
     setLocation("/preferiti");
   };
 
-  const brandLabel = isPreferiti && isAdmin ? "Vai a Gestisci" : isPreferiti ? "DEMOS" : "Torna a Preferiti";
+  const brandLabel = isPreferiti && canOpenGestisci ? "Vai a Gestisci" : isPreferiti ? "DEMOS" : "Torna a Preferiti";
 
   return (
     <div className="demos-desktop-topbar">
       <header className="demos-dash-nav">
         <div className="demos-dash-nav__left">
-          {isPreferiti && !isAdmin ? (
+          {isPreferiti && !canOpenGestisci ? (
             <div className="demos-dash-brand" aria-label="DEMOS">
               <img src="/icona.png" alt="" className="demos-dash-brand__logo" />
               <span className="demos-dash-brand__text">DEMOS</span>

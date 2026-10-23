@@ -22,6 +22,7 @@ interface User {
   ruolo?: string;
   status?: string;
   is_admin?: boolean;
+  is_dpo?: boolean;
 }
 
 type AuthContextType = {

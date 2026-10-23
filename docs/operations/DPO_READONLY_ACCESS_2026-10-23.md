@@ -29,3 +29,10 @@ L'esistenza di un solo Admin applicativo non dimostra che il titolare sia l'unic
 - Frontend `DpoPanel` adeguato al formato effettivo `apiRequest` (`{ok,data:{success,data}}`) e a entrambi i ruoli. In precedenza, anche un HTTP 200 sarebbe potuto apparire come errore.
 - L'account Mattia Picariello dispone già del solo flag `is_dpo=true`; non va modificato per questa correzione. Nomina DPO formale e diritto all'accesso tecnico restano procedure separate.
 - Convalidare CI sintetiche, merge e deploy backend/frontend, 401 anonimo e 200 con account Admin e DPO autentici ove disponibili; nessun secret o voto individuale nei log.
+
+## Hub /gestisci condiviso per Admin e DPO (23 ottobre 2026)
+- Il profilo `GET /api/auth/me` espone `is_dpo` dalla tabella `users`, soltanto per account attivi e non Admin. Nessun claim JWT o ruolo legacy può inventare tale flag.
+- Un Admin mantiene le cinque sezioni Gestisci e vede in più il collegamento `Pannello DPO` a `/dpo`.
+- Il DPO con account attivo può cliccare sul logo in Menu/Preferiti (anche nell'header desktop quando è nella home Preferiti) e aprire `/gestisci`; qui vede **solo** il collegamento `Pannello DPO`, nessuna sezione Ops Center, utenti, notifiche amministrative o export.
+- L'eccezione di routing client vale **solo** per la home esatta `/gestisci`, non per `/gestisci/...`, `/gestisci-...` o `/admin/...`; gli endpoint backend conservano autorizzazione propria.
+- Nessuna nuova autorizzazione database, modifica ai ruoli, log o dati politici. Collaudo: Admin full hub + DPO, DPO solo DPO, utente normale senza hub, click del logo da Preferiti/Menu, accesso diretto a URL Admin negato al DPO. UI capability aggiornata da `/auth/me` e all'apertura pagina/focus, non è sostitutiva delle verifiche backend.

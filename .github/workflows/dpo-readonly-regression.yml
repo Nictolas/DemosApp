@@ -10,6 +10,15 @@ on:
       - 'api/tests/dpoMiddlewareContract.test.js'
       - 'api/tests/dpoHttpPostgres.integration.test.js'
       - 'api/migrations/20261023_dpo_readonly_capability.sql'
+      - 'api/routes/auth/profile.js'
+      - 'api/tests/dpoGestisciNavigation.smoke.test.js'
+      - 'client/src/components/AppWrapper.tsx'
+      - 'client/src/components/DesktopAppHeader.tsx'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/src/lib/admin-access.ts'
+      - 'client/src/pages/Gestisci/**'
+      - 'client/src/pages/Menu/**'
+      - 'client/src/pages/Preferiti/index.tsx'
       - '.github/workflows/dpo-readonly-regression.yml'
 jobs:
   dpo-role:
@@ -40,9 +49,13 @@ jobs:
           node-version: '22'
       - name: Validate authorization and syntax
         run: |
-          node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js api/tests/dpoMiddlewareContract.test.js
+          node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js api/tests/dpoMiddlewareContract.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js
           node --check api/middleware/dpoAccess.js
           node --check api/routes/dpo/overview.js
+      - name: Build frontend with role-scoped Gestisci navigation
+        run: |
+          npm ci --prefix client --ignore-scripts
+          npm run build --prefix client
       - name: Install API dependencies for HTTP integration
         run: npm ci --prefix api --ignore-scripts
       - name: PostgreSQL migration and authorization integration (synthetic only)

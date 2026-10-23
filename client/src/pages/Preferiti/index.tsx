@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { Users, Award, UserCheck, Building2, MessageSquare, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
 import { Card, CardHeader } from "@/components/ui/card";
 import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
 import { apiRequest } from "@/lib/queryClient";
@@ -274,7 +275,7 @@ export default function Preferiti() {
       <div className="preferiti-page__inner flex h-full min-h-0 flex-col px-3 py-1 sm:px-4 sm:py-2">
         <Card className="preferiti-page__logo w-full shrink-0 shadow-sm">
             <CardHeader className="text-center py-1 px-3 sm:py-2 sm:px-4">
-              {user?.ruolo === "AD" ? (
+              {(hasAdminCapability(user) || hasDpoCapability(user)) ? (
                 <button
                   type="button"
                   onClick={() => setLocation("/gestisci")}

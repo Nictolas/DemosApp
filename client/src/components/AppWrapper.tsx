@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Redirect, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
-import { hasAdminCapability, isAdminOnlyPath } from '@/lib/admin-access';
+import { hasAdminCapability, hasDpoCapability, isAdminOnlyPath, isGestisciHomePath } from '@/lib/admin-access';
 import VotaReferendum from '@/pages/VotaReferendum';
 import { SplashScreen } from './SplashScreen';
 
@@ -84,7 +84,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
       return <Redirect to="/auth" />;
     }
 
-    if (!hasAdminCapability(user)) {
+    if (!hasAdminCapability(user) && !(isGestisciHomePath(location) && hasDpoCapability(user))) {
       return <Redirect to="/menu" />;
     }
   }
