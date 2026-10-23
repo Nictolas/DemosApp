@@ -2,7 +2,7 @@
 const { pool } = require('../middleware/auth');
 const fs = require('fs').promises;
 const path = require('path');
-const { sanitizeLogMeta } = require('../utils/logPrivacy');
+const { sanitizeLogMeta, minimizeOperationalPath, safeDiagnosticCode } = require('../utils/logPrivacy');
 const { normalizeLevel, shouldWriteLogEvent } = require('../utils/logEventPolicy');
 const { createFailureReporter } = require('../utils/logDeliveryFailureReporter');
 const reportAxiomIngestFailure = createFailureReporter();
@@ -578,13 +578,14 @@ class CentralizedLogger {
 
   // Logging specifico per richieste HTTP
   async logRequest(req, res, responseTime) {
-    const url = req.originalUrl.split('?')[0]; // Rimuovi query string per matching
+    const originalPath = String(req.originalUrl || '').split(/[?#]/, 1)[0];
+    const url = minimizeOperationalPath(originalPath);
     const method = req.method;
     const statusCode = res.statusCode;
 
     // Filtra per GDPR se abilitato
     if (process.env.GDPR_LOGGING_FILTER === 'true') {
-      if (!this.shouldLogForGDPR(url, method, statusCode)) {
+      if (!this.shouldLogForGDPR(originalPath, method, statusCode)) {
         // Non loggare su Axiom (ma puoi ancora loggare su console/file per debugging)
         if (this.logToAxiom) {
           return; // Skip logging to Axiom
@@ -593,7 +594,7 @@ class CentralizedLogger {
     }
 
     // I request log operativi non generano né conservano session identifier.
-    const sensitiveActivity = this.isSensitiveActivityEndpoint(url);
+    const sensitiveActivity = this.isSensitiveActivityEndpoint(originalPath);
 
     const meta = {
       method: req.method,
@@ -615,24 +616,21 @@ class CentralizedLogger {
   async logError(error, req = null, meta = {}) {
     const errorMeta = {
       ...meta,
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        code: error.code
-      }
+      // Only controlled diagnostic codes, not free text/stack in durable logs.
+      error: { code: safeDiagnosticCode(error?.code) }
     };
 
     if (req) {
-      const endpoint = req.originalUrl?.split('?')[0] || '';
-      const sensitiveActivity = this.isSensitiveActivityEndpoint(endpoint);
+      const originalPath = String(req.originalUrl || '').split(/[?#]/, 1)[0];
+      const endpoint = minimizeOperationalPath(originalPath);
+      const sensitiveActivity = this.isSensitiveActivityEndpoint(originalPath);
 
       errorMeta.method = req.method;
       errorMeta.url = endpoint;
       errorMeta.sensitiveActivity = sensitiveActivity;
     }
 
-    await this.error(`Errore: ${error.message}`, errorMeta);
+    await this.error(`Errore applicativo: ${safeDiagnosticCode(error?.code)}`, errorMeta);
 
     // Gli errori non gestiti dal middleware globale devono generare un alert operativo reale.
     // Il dettaglio completo resta nei log; la notifica Admin contiene solo metadati minimali.
