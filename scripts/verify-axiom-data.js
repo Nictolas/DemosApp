@@ -12,7 +12,7 @@ async function verifyAxiomData() {
   console.log('🔍 Verifica dati su Axiom...\n');
   console.log(`📍 Regione: ${AXIOM_REGION}`);
   console.log(`📍 API URL: ${AXIOM_API_URL}`);
-  console.log(`🔑 Token: ${process.env.AXIOM_API_TOKEN ? process.env.AXIOM_API_TOKEN.substring(0, 20) + '...' : 'NON CONFIGURATO'}`);
+  console.log('Token Axiom configurato:', Boolean(process.env.AXIOM_API_TOKEN));
   console.log(`🏢 Org ID: ${process.env.AXIOM_ORG_ID || 'NON CONFIGURATO'}\n`);
   
   const datasets = [
