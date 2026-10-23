@@ -53,13 +53,26 @@ test('HTTP API against temporary PostgreSQL: authorization, aggregate response, 
   try {
     await pool.query("UPDATE public.users SET is_dpo=TRUE WHERE id='dpo'");
     await pool.query('INSERT INTO public.user_rights_requests DEFAULT VALUES');
+    await pool.query("INSERT INTO public.user_rights_requests (status,request_data) VALUES ('completed',$1::jsonb)", [
+      JSON.stringify({source:'migration_seed',note:'baseline record'})
+    ]);
+    await pool.query("INSERT INTO public.user_rights_requests (status,request_data) VALUES ('processing',$1::jsonb)", [
+      JSON.stringify({format:'json',export_date:'2026-10-23'})
+    ]);
     assert.equal((await request()).status, 401);
     assert.equal((await request('ordinary')).status, 403);
     assert.equal((await request('inactive')).status, 403);
     const adminOverview = await request('admin');
     assert.equal(adminOverview.status, 200);
     assert.equal(adminOverview.body.data.role, 'Admin');
-    assert.equal(adminOverview.body.data.gdpr_requests_total, 1);
+    assert.equal(adminOverview.body.data.gdpr_requests_total, 2);
+    assert.equal(adminOverview.body.data.gdpr_requests_migration_excluded, 1);
+    assert.equal(adminOverview.body.data.gdpr_requests_pending, 1);
+    assert.equal(adminOverview.body.data.gdpr_requests_processing, 1);
+    assert.equal(adminOverview.body.data.gdpr_requests_completed, 0);
+    assert.equal(adminOverview.body.data.rights_counter_scope, 'user_rights_requests_excluding_migration_seed');
+    assert.equal(JSON.stringify(adminOverview.body).includes('migration_seed'), true);
+    assert.equal(JSON.stringify(adminOverview.body).includes('baseline record'), false);
     assert.equal(JSON.stringify(adminOverview.body).includes('user_id'), false);
     await pool.query("UPDATE public.users SET is_admin=FALSE WHERE id='admin'");
     assert.equal((await request('admin')).status, 403);
@@ -67,7 +80,10 @@ test('HTTP API against temporary PostgreSQL: authorization, aggregate response, 
     const approved = await request('dpo');
     assert.equal(approved.status, 200);
     assert.equal(approved.body.data.role, 'DPO');
-    assert.equal(approved.body.data.gdpr_requests_total, 1);
+    assert.equal(approved.body.data.gdpr_requests_total, 2);
+    assert.equal(approved.body.data.gdpr_requests_migration_excluded, 1);
+    assert.equal(approved.body.data.gdpr_requests_pending, 1);
+    assert.equal(approved.body.data.gdpr_requests_processing, 1);
     assert.equal(JSON.stringify(approved.body).includes('user_id'), false);
     await pool.query("UPDATE public.users SET is_dpo=FALSE WHERE id='dpo'");
     assert.equal((await request('dpo')).status, 403);
