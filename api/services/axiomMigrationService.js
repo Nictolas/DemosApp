@@ -177,7 +177,7 @@ async function sendToAxiomHTTP(dataset, events) {
   console.log(`📤 Invio a Axiom: ${url}`);
   console.log(`   Dataset: ${dataset}`);
   console.log(`   Eventi: ${events.length}`);
-  console.log(`   Token: ${token ? token.substring(0, 10) + '...' : 'MISSING'}`);
+  console.log(`   Credenziale Axiom disponibile: ${Boolean(token)}`);
   console.log(`   Org ID: ${orgId || 'MISSING'}`);
   
   if (!token) {

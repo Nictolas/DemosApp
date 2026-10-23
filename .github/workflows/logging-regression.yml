@@ -6,6 +6,10 @@ on:
     paths:
       - 'api/services/centralizedLogger.js'
       - 'api/services/auditService.js'
+      - 'api/services/axiomMigrationService.js'
+      - 'api/routes/auth/profile.js'
+      - 'api/routes/comunicazioni.js'
+      - 'api/tests/logCredentialMinimization.test.js'
       - 'api/services/axiomArchiveService.js'
       - 'api/scripts/verify-latest-axiom-archive.js'
       - 'api/utils/log*.js'
@@ -48,6 +52,13 @@ jobs:
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
+      - name: Credential log minimization regression
+        working-directory: api
+        run: |
+          node --check routes/auth/profile.js
+          node --check routes/comunicazioni.js
+          node --check services/axiomMigrationService.js
+          node --test tests/logCredentialMinimization.test.js
       - name: Axiom archive and classification tests (mocked, no production credentials)
         working-directory: api
         run: npm run test:axiom-archive
