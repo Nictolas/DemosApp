@@ -12,6 +12,7 @@ on:
       - 'client/src/lib/crashDiagnostic.ts'
       - 'client/tests/crashDiagnostic.test.mjs'
       - 'client/src/pages/Opinioni*.tsx'
+      - 'client/src/pages/GestisciOpinioni/components/ApprofondimentoDialog.tsx'
       - 'client/src/lib/saveAndVerifyOpinions.ts'
       - '.github/workflows/opinioni-regression.yml'
 
