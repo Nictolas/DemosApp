@@ -37,3 +37,43 @@ Query aggregate di sola lettura su `public.logging_config`:
 - GDPR: https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng
 
 **Divieti:** niente token/segreti in documenti o log; nessuna lettura di preferenze politiche individuali; nessuna nuova retention o cancellazione in questa fase.
+
+
+## Aggiornamento verificato — 24 ottobre 2026: accessi AdS e limiti dei piani Free
+
+**Scopo:** decidere se serva un archivio con durata >=6 mesi per **accessi logici degli amministratori di sistema**, non per la diagnostica ordinaria o per gli audit di voto/opinioni. Verifica senza leggere dati personali degli utenti, senza nuove raccolte e senza modifiche ai provider.
+
+### Perimetro giuridico effettivo (fonte primaria)
+
+Il Garante, provv. 27/11/2008 n. 1577499 (modificato 25/06/2009), punto 4.5 e FAQ:
+- **FAQ 9, 11 e 19:** eventi di autenticazione e disconnessione degli AdS su sistemi e DBMS; identità, ora, sistema, esito; raccolta completa e verificabile **se** il provvedimento si applica.
+- **FAQ 15 e 22:** non richiede comandi o operazioni interattive né, in quanto tale, il login al pannello applicativo DEMOS.
+- **FAQ 3:** nel caso-limite in cui il titolare è realmente **l'unico amministratore di sistema**, non si applicano tenuta del log degli accessi e verifica dell'operato di quell'AdS. Questa eccezione non si deduce dalla sola presenza di un unico Admin nell'app: accertare i ruoli tecnici realmente assegnati.
+- L'obbligo specifico, quando applicabile, è **almeno sei mesi**, non un obbligo di sette mesi su ogni evento di sicurezza o audit.
+
+Fonte: https://www.garanteprivacy.it/home/docweb/-/docweb-display/docweb/1577499
+
+### Risultati reali dei provider
+
+| Fonte | Evidenza 24/10 | Cosa NON dimostra / limite |
+| --- | --- | --- |
+| Supabase org `vvovvqtczxrbmexpsyhv`, progetto `wxnblcqoyjqxktwkcqok` | Piano **Free** confermato da API. Flussi recenti aggregati: `postgres_logs`, `supavisor_logs`, `postgrest_logs`, `pgbouncer_logs`, altri. `auth.audit_log_entries`: **0 righe** (SQL read-only). | I flussi DB/API/connection e gli Auth Audit Log dell'app **non** costituiscono i Platform Audit Logs degli amministratori della console. Documentazione ufficiale: i Platform Audit Logs dell'organizzazione sono disponibili nei piani **Team e Enterprise**. La stessa documentazione menziona i log dell'account personale, senza garantirne qui esportabilità o copertura. |
+| Render, backend `srv-d2gt3dodl3ps73fmereg` | Servizio/workspace collegato con servizio **Free**. | L'API dei log di servizio e degli eventi di deploy **non** equivale al registro login/logout console/SSH. Documentazione ufficiale: gli audit log workspace (`LoginEvent`, `LogoutEvent`, `StartShellEvent`, `EndShellEvent`) sono esportabili **dal piano workspace Pro in su**; la conservazione parte dall'upgrade, senza retroattività. Il piano workspace va verificato separatamente dal piano servizio. |
+| Axiom | Dataset `centralized_logs` e `real-time`, retention 30 giorni attestata 23/10; archiviatore Axiom→B2 su audit/security. | I messaggi di audit **dell'app** non provano gli accessi privilegiati alle console dei provider. |
+| Backblaze `demos-log-archive-eu` | Bucket privato e `Keep all versions` documentati il 23/10; nuovo codice esclude i tecnici prospetticamente. | Nessuna prova di un flusso autenticazioni AdS→B2 né di una scadenza automatica per audit/security. Inventario attuale delle versioni non completato; **non** impostare policy sull'intero bucket. |
+
+Fonti dei fornitori:
+- https://supabase.com/docs/guides/security/platform-audit-logs
+- https://render.com/docs/audit-logs
+- https://www.backblaze.com/docs/en/cloud-storage-lifecycle-rules
+
+### Decisione operativa del titolare e requisiti di chiusura
+
+1. **Nessun nuovo servizio, DB, log generico, piano a pagamento o copia su PC** soltanto per presunta necessità GDPR; partire dalla verifica fattuale dei soggetti che amministrano i sistemi e dei privilegi effettivi. Il titolare indica un solo Admin **applicativo**, che è cosa diversa dall'AdS.
+2. **Non considerare conformi sei mesi gli archivi attuali**, né assumere un obbligo di sei mesi per tutti gli audit. **Non configurare 210 giorni sui prefissi correnti** `.../data/audit/` e `.../data/security/`.
+3. Se emergono effettivi accessi AdS soggetti al provvedimento, documentare per ogni piattaforma: sorgente autentica, login/logout/tentativi falliti, identità tecnica, timestamp, sistema, completezza, integrità, disponibilità di estrazione/esportazione. Una conservazione B2 **dedicata e minimizzata** è possibile **solo dopo** che esista una fonte reale e verificata. Proposta tecnica, non attiva: prefisso separato, 210 giorni se adeguati e ciclo automatizzato testato.
+4. **Non usare audit dell'app per surrogare l'accesso ai provider**. Se il piano Free non espone né esporta la fonte, registrare il limite e verificare alternative realmente disponibili prima di valutare upgrade; una copia di un dato che non arriva non crea conformità.
+5. Mantenere **temporaneamente inalterato** B2 corrente fino a un inventario live, confronto con manifest/checkpoint e verifica degli eventuali vincoli; l'autorizzazione del titolare a cancellare **solo** storici non necessari è già stata concessa il 24/10. Non attribuire un'approvazione formale a terzi in assenza di un verbale.
+6. **Stato produzione:** Axiom 30 giorni; B2 archivia solo audit/security nuovi; nessuna nuova policy lifecycle, cancellazione o collector AdS attivato da questa revisione. `logging_jobs.cleanup_old_logs` risulta **disabled** nella lettura di produzione del 24/10 (corregge il vecchio snapshot sopra, in cui risultava enabled).
+
+**Esito:** la necessità dell'archivio B2 **AdS** rimane condizionata alla verifica del perimetro; l'attuale B2 è utile come archivio di audit/security ma non è provato come registro conforme degli accessi AdS. Nessuna modifica all'ambiente di produzione.
