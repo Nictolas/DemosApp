@@ -16,7 +16,7 @@ async function testAxiomSDKStats() {
     });
     
     console.log(`📍 Regione: ${region}`);
-    console.log(`🔑 Token: ${process.env.AXIOM_API_TOKEN ? process.env.AXIOM_API_TOKEN.substring(0, 20) + '...' : 'MISSING'}`);
+    console.log('Token Axiom configurato:', Boolean(process.env.AXIOM_API_TOKEN));
     console.log(`🏢 Org ID: ${process.env.AXIOM_ORG_ID || 'MISSING'}\n`);
     
     const dataset = process.env.AXIOM_DATASET || 'centralized_logs';
