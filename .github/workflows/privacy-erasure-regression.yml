@@ -1,0 +1,37 @@
+name: Privacy erasure regression
+on:
+  pull_request:
+    paths:
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/legacyAdminCleanup.smoke.test.js'
+      - 'api/tests/accountDeletion.integration.test.js'
+      - 'api/tests/legacyLinkedRows.integration.test.js'
+      - '.github/workflows/privacy-erasure-regression.yml'
+jobs:
+  account-erasure:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: privacy_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:synthetic_only@localhost:5432/privacy_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix api --ignore-scripts
+      - name: Test canonical account erasure with synthetic users
+        run: node --test api/tests/legacyAdminCleanup.smoke.test.js api/tests/accountDeletion.integration.test.js
+      - name: Verify legacy linked rows and foreign keys
+        run: node --test api/tests/legacyLinkedRows.integration.test.js
