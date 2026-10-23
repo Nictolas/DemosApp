@@ -30,13 +30,13 @@ router.get('/me', async (req, res) => {
     }
 
     const token = authHeader.substring(7);
-    console.log('🔑 Token ricevuto:', token.substring(0, 20) + '...');
+    // Non stampare token di accesso o loro prefissi nei log.
 
     // Verifica e decodifica token (access normale o pending OAuth)
     let decoded;
     try {
       decoded = verifyAccessToken(token);
-      console.log('✅ Token JWT verificato per utente (id):', decoded.userId);
+      console.log('✅ Verifica accesso riuscita');
     } catch (accessError) {
       try {
         decoded = verifyOAuthPendingToken(token);
