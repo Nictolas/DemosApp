@@ -8,6 +8,7 @@ on:
       - 'api/tests/dpoAuthorization.test.js'
       - 'api/tests/dpoRoleMatrix.test.js'
       - 'api/tests/dpoMiddlewareContract.test.js'
+      - 'api/tests/dpoHttpPostgres.integration.test.js'
       - 'api/migrations/20261023_dpo_readonly_capability.sql'
       - '.github/workflows/dpo-readonly-regression.yml'
 jobs:
@@ -42,6 +43,8 @@ jobs:
           node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js api/tests/dpoMiddlewareContract.test.js
           node --check api/middleware/dpoAccess.js
           node --check api/routes/dpo/overview.js
+      - name: Install API dependencies for HTTP integration
+        run: npm ci --prefix api --ignore-scripts
       - name: PostgreSQL migration and authorization integration (synthetic only)
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
@@ -78,3 +81,5 @@ jobs:
               THEN RAISE EXCEPTION 'Synthetic requests fixture polluted'; END IF;
           END $$;
           SQL
+      - name: Test HTTP endpoint with real temporary PostgreSQL
+        run: node --test api/tests/dpoHttpPostgres.integration.test.js
