@@ -161,7 +161,7 @@ test('one archive run writes gzipped category data, manifest and checkpoint with
   };
 
   const now = new Date('2026-10-06T16:00:00.000Z');
-  const service = new AxiomArchiveService({ env: makeEnv(), axiomClient, b2Client, clock: () => now });
+  const service = new AxiomArchiveService({ env: makeEnv({ AXIOM_ARCHIVE_INCLUDE_TECHNICAL: 'true' }), axiomClient, b2Client, clock: () => now });
   const results = await service.runOnce({ now });
 
   assert.equal(results.length, 2);
@@ -185,6 +185,71 @@ test('one archive run writes gzipped category data, manifest and checkpoint with
 
   const verified = await service.verifyArchiveObject(archiveKey);
   assert.equal(verified.recordCount, 1);
+});
+
+test('minimal B2 mode archives audit/security only and its manifest stays verifiable', async () => {
+  const b2Client = new MemoryB2Client();
+  const sourceEvents = [
+    { _time: '2026-10-06T15:05:00.000Z', level: 'INFO', message: 'GET /api/users/123' },
+    { _time: '2026-10-06T15:05:01.000Z', log_type: 'audit', action: 'DATA_ACCESS', resource: 'users' },
+    { _time: '2026-10-06T15:05:02.000Z', log_type: 'security', message: 'Evento di sicurezza: denied' }
+  ];
+  const service = new AxiomArchiveService({
+    env: makeEnv({ AXIOM_ARCHIVE_DATASETS: 'centralized_logs' }),
+    axiomClient: { async query() { return { matches: sourceEvents }; } },
+    b2Client
+  });
+
+  assert.equal(service.archiveTechnical, false, 'technical copies are off by default');
+  const result = await service.archiveWindow({
+    dataset: 'centralized_logs',
+    startTime: '2026-10-06T15:00:00.000Z',
+    endTime: '2026-10-06T15:15:00.000Z',
+    archivedAt: new Date('2026-10-06T16:00:00.000Z')
+  });
+
+  assert.equal(result.count, 2);
+  assert.deepEqual(result.categories, { technical: 0, audit: 1, security: 1 });
+  assert.equal(result.objects.length, 2);
+  const keys = [...b2Client.objects.keys()];
+  assert.ok(!keys.some(key => key.includes('/data/technical/')), 'no new technical data file in B2');
+  assert.ok(keys.some(key => key.includes('/data/audit/')));
+  assert.ok(keys.some(key => key.includes('/data/security/')));
+  const verified = await service.verifyLatestArchiveBatch('centralized_logs');
+  assert.equal(verified.verifiedEvents, 2);
+  assert.deepEqual(verified.categories, { technical: 0, audit: 1, security: 1 });
+});
+
+test('technical category archive can only be restored by explicit true opt-in', () => {
+  const oldMode = new AxiomArchiveService({ env: makeEnv({ AXIOM_ARCHIVE_INCLUDE_TECHNICAL: 'true' }) });
+  assert.equal(oldMode.archiveTechnical, true);
+  const records = [{ id: 'test-id', record: { level: 'INFO', message: 'synthetic event' } }];
+  assert.equal(oldMode.buildArchiveGroups('centralized_logs', records, new Date()).get('technical').length, 1);
+  const offMode = new AxiomArchiveService({ env: makeEnv({ AXIOM_ARCHIVE_INCLUDE_TECHNICAL: 'false' }) });
+  assert.equal(offMode.buildArchiveGroups('centralized_logs', records, new Date()).get('technical').length, 0);
+});
+
+test('empty technical-only windows continue checkpoints without persisting an event body', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({
+    env: makeEnv({ AXIOM_ARCHIVE_DATASETS: 'centralized_logs' }),
+    axiomClient: { async query() { return { matches: [
+      { _time: '2026-10-06T15:05:00.000Z', level: 'INFO', message: 'GET /api/opinioni/user-1' }
+    ] }; } },
+    b2Client
+  });
+  const result = await service.archiveWindow({
+    dataset: 'centralized_logs',
+    startTime: '2026-10-06T15:00:00.000Z',
+    endTime: '2026-10-06T15:15:00.000Z',
+    archivedAt: new Date('2026-10-06T16:00:00.000Z')
+  });
+  assert.equal(result.count, 0);
+  assert.equal(result.objects.length, 0);
+  assert.ok(![...b2Client.objects.keys()].some(key => key.includes('/data/technical/')));
+  const verified = await service.verifyLatestArchiveBatch('centralized_logs');
+  assert.equal(verified.verifiedEvents, 0);
+  assert.equal(verified.checkpointEnd, '2026-10-06T15:15:00.000Z');
 });
 
 test('checkpoint is not advanced when B2 post-upload integrity verification fails', async () => {
@@ -239,7 +304,7 @@ test('retrying the same chunk is idempotent at the B2 data-object key level', as
   const b2Client = new MemoryB2Client();
   const axiomClient = {
     async query() {
-      return { matches: [{ _time: '2026-10-06T15:05:00.000Z', level: 'INFO', message: 'same event' }] };
+      return { matches: [{ _time: '2026-10-06T15:05:00.000Z', log_type: 'audit', action: 'USER_ACCESS', resource: 'users' }] };
     }
   };
   const env = makeEnv({
@@ -326,7 +391,7 @@ test('read-only recovery drill verifies latest checkpoint, manifest and gzipped 
       return {
         matches: new Date(options.startTime).getTime() <= Date.parse(sourceTime) &&
           Date.parse(sourceTime) < new Date(options.endTime).getTime()
-          ? [{ _time: sourceTime, level: 'INFO', message: 'synthetic event' }]
+          ? [{ _time: sourceTime, log_type: 'audit', action: 'USER_ACCESS', resource: 'users' }]
           : []
       };
     }
@@ -343,7 +408,8 @@ test('read-only recovery drill verifies latest checkpoint, manifest and gzipped 
   assert.equal(verified.dataset, 'centralized_logs');
   assert.equal(verified.checkpointEnd, '2026-10-06T15:58:00.000Z');
   assert.equal(verified.verifiedEvents, 1);
-  assert.equal(verified.categories.technical, 1);
+  assert.equal(verified.categories.technical, 0);
+  assert.equal(verified.categories.audit, 1);
   assert.equal(verified.verifiedObjects, 1);
   assert.equal(b2Client.objects.size, before, 'read-only drill must not upload objects');
 });
