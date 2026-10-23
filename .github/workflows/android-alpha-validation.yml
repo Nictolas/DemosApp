@@ -76,8 +76,8 @@ jobs:
               test "$actual" = "$expected"
             done
           done
-          grep -q 'versionCode 10' client/android/app/build.gradle
-          grep -q 'versionName "1.0.8"' client/android/app/build.gradle
+          grep -q 'versionCode 11' client/android/app/build.gradle
+          grep -q 'versionName "1.0.9"' client/android/app/build.gradle
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -85,8 +85,17 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Build Android debug APK
+      - name: Build Android debug APK and release AAB (unsigned in CI)
         working-directory: client/android
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
+          test -f app/build/outputs/bundle/release/app-release.aab
+
+      - name: Archive UNSIGNED release candidate for authorized signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-android-1.0.9-v11-UNSIGNED-aab
+          path: client/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
