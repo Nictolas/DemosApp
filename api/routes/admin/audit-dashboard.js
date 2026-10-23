@@ -641,9 +641,9 @@ router.post('/cleanup', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nella pulizia log audit:', error);
-    res.status(500).json({
+    res.status(error.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED' ? 409 : 500).json({
       success: false,
-      error: 'Errore interno del server',
+      error: error.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED' ? error.code : 'Errore interno del server',
       message: error.message
     });
   }
