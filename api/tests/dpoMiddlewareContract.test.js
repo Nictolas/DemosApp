@@ -16,7 +16,7 @@ const fakePool = {
   }
 };
 
-let requireDpo;
+let requireDpo, requirePrivacyOverviewAccess;
 try {
   Module._load = function (request, parent, isMain) {
     if (parent?.filename === middlewarePath && request === './auth') {
@@ -25,18 +25,20 @@ try {
     return load.apply(this, arguments);
   };
   delete require.cache[middlewarePath];
-  ({ requireDpo } = require(middlewarePath));
+  ({ requireDpo, requirePrivacyOverviewAccess } = require(middlewarePath));
 } finally {
   Module._load = load;
 }
 
-async function exercise(user) {
+async function exercise(user, middleware = requireDpo) {
   const result = { status: 200, body: null, next: false };
   const res = {
     status(n) { result.status = n; return this; },
     json(body) { result.body = body; return this; }
   };
-  await requireDpo({ user }, res, () => { result.next = true; });
+  const req = { user };
+  await middleware(req, res, () => { result.next = true; });
+  result.privacyOverviewRole = req.privacyOverviewRole;
   return result;
 }
 
@@ -76,4 +78,35 @@ test('actual DPO middleware: fails closed on DB error', async () => {
   console.error = () => {};
   try { assert.equal((await exercise({ id: 'db-error', isAdmin: false })).status, 503); }
   finally { console.error = previous; }
+});
+
+test('privacy overview: active Admin and DPO may read aggregates, no role elevation', async () => {
+  records.splice(0, records.length,
+    { id: 'admin', status: 'a', is_admin: true, is_dpo: false },
+    { id: 'dpo', status: 'a', is_admin: false, is_dpo: true },
+    { id: 'ordinary', status: 'a', is_admin: false, is_dpo: false },
+    { id: 'inactive-admin', status: 'i', is_admin: true, is_dpo: false }
+  );
+  const admin = await exercise({ id: 'admin', isAdmin: true }, requirePrivacyOverviewAccess);
+  assert.equal(admin.next, true);
+  assert.equal(admin.privacyOverviewRole, 'Admin');
+  const dpo = await exercise({ id: 'dpo', isAdmin: false }, requirePrivacyOverviewAccess);
+  assert.equal(dpo.next, true);
+  assert.equal(dpo.privacyOverviewRole, 'DPO');
+  assert.equal((await exercise({ id: 'ordinary' }, requirePrivacyOverviewAccess)).status, 403);
+  assert.equal((await exercise({ id: 'inactive-admin' }, requirePrivacyOverviewAccess)).status, 403);
+  assert.equal((await exercise(null, requirePrivacyOverviewAccess)).status, 401);
+  assert.equal((await exercise({ id: 'missing', isAdmin: true }, requirePrivacyOverviewAccess)).status, 403);
+
+  // A forged/stale JWT Admin claim does not grant access without the DB flag.
+  assert.equal((await exercise({ id: 'ordinary', isAdmin: true }, requirePrivacyOverviewAccess)).status, 403);
+  records[0].is_admin = false;
+  assert.equal((await exercise({ id: 'admin', isAdmin: true }, requirePrivacyOverviewAccess)).status, 403);
+  const previous = console.error;
+  console.error = () => {};
+  try {
+    assert.equal((await exercise({ id: 'db-error' }, requirePrivacyOverviewAccess)).status, 503);
+  } finally {
+    console.error = previous;
+  }
 });
