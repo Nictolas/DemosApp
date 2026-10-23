@@ -759,17 +759,13 @@ class CentralizedLogger {
         return 0; // Non è necessario pulire manualmente
       }
       
-      // Fallback a Neon se Axiom non è abilitato
-      const query = `
-        DELETE FROM centralized_logs 
-        WHERE timestamp < (EXTRACT(EPOCH FROM NOW() - INTERVAL '${retentionDays} days') * 1000)::BIGINT
-      `;
-      
-      const result = await pool.query(query);
-      console.log(`🧹 Puliti ${result.rowCount} log vecchi (${retentionDays} giorni)`);
-      
-      return result.rowCount;
+      // RP-09 non approvata: bloccare ogni cleanup locale fino a policy validata.
+      const policyError = new Error('LOG_RETENTION_POLICY_NOT_APPROVED');
+      policyError.code = 'LOG_RETENTION_POLICY_NOT_APPROVED';
+      policyError.statusCode = 409;
+      throw policyError;
     } catch (error) {
+      if (error.code === 'LOG_RETENTION_POLICY_NOT_APPROVED') throw error;
       console.error('❌ Errore pulizia log:', error);
       return 0;
     }
