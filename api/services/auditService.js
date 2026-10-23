@@ -398,16 +398,11 @@ class AuditService {
         return 0; // Non è necessario pulire manualmente
       }
       
-      // Fallback a PostgreSQL se Axiom non è abilitato
-      const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000); // Converti in millisecondi
-      const query = `
-        DELETE FROM audit_logs_compressed 
-        WHERE timestamp < $1
-      `;
-      
-      const result = await pool.query(query, [cutoffTime]);
-      console.log(`🧹 Puliti ${result.rowCount} log di audit più vecchi di ${daysToKeep} giorni`);
-      return result.rowCount;
+      // La retention RP-10 non è stata approvata: nessuna DELETE locale implicita.
+      const policyError = new Error('AUDIT_RETENTION_POLICY_NOT_APPROVED');
+      policyError.code = 'AUDIT_RETENTION_POLICY_NOT_APPROVED';
+      policyError.statusCode = 409;
+      throw policyError;
     } catch (error) {
       console.error('❌ Errore nella pulizia audit logs:', error);
       throw error;
