@@ -18,6 +18,6 @@ jobs:
           node-version: '22'
       - name: Validate authorization and syntax
         run: |
-          node --test api/tests/dpoAuthorization.test.js
+          node --test api/tests/dpoAuthorization.test.js api/tests/dpoRoleMatrix.test.js
           node --check api/middleware/dpoAccess.js
           node --check api/routes/dpo/overview.js
