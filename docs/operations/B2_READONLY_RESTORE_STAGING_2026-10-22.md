@@ -181,3 +181,51 @@ non si può configurare correttamente, fermarsi, non riutilizzare quella
 compromessa.
 
 **Gate B2 restore LIVE: NON VERIFICATO / NO-GO**.
+
+## 23/10/2026 — Restore B2 reale da servizio isolato: PASS (CP-EA-057)
+
+**Evidenza reale del 23/10/2026 alle 13:51 UTC / 15:51 ora italiana**.
+Dopo che l'utente ha inserito *direttamente* nelle variabili segrete di
+Render una nuova credenziale temporanea di ripristino (mai trasmessa in
+chat), è stato avviato **un solo deploy manuale** del servizio isolato
+`demos-b2-readonly-restore-staging` (`srv-dbct3vmq1p3s73d7rhg0`),
+`autoDeploy=no`, `clearCache=false`:
+`dep-dbdmch7avr4c73aj6afg`, commit PR
+`ad76454b5b28bea7115652f87336b421b1fd3385`.
+Il deploy è passato a **`live`** alle **13:51:46 UTC**.
+
+**Riscontro provider non segreto:** i log applicativi dello startup
+alle **13:51:41 UTC** riportano esattamente
+`B2_READONLY_RESTORE_VERIFIED`; prova indipendente
+`GET https://demos-b2-readonly-restore-staging.onrender.com/healthz`
+restituisce **HTTP 200 / `ok`**.
+
+Lo script realmente deployato
+`api/scripts/b2-restore-readonly-health-server.js` dichiara READY solo
+dopo che `verifyB2RestoreReadOnly` ha restituito
+`status=B2_READONLY_RESTORE_VERIFIED`, con **due riepiloghi** coerenti,
+nell'ordine `centralized_logs`, `real-time`.
+Il verificatore accetta solo `HeadObjectCommand` e
+`GetObjectCommand` verso il bucket
+`demos-log-archive-eu` e prefisso `demos/axiom-archive/v1/`,
+limita i byte scaricati per oggetto e convalida
+checkpoint/manifest/integrità dei dati; inoltre richiede
+almeno **un oggetto dati archiviato** effettivamente verificato
+fra i due dataset. Pertanto il risultato è una **vera prova di recupero
+read-only** e non un semplice controllo di rete o di manifest vuoti.
+Il marker non rende disponibili, nei log pubblici, i conteggi per
+dataset: **non inventare cifre** relative a eventi od oggetti.
+
+**Isolamento e sicurezza:** nessun nuovo bucket, nessuna modifica alla
+chiave di archiviazione di produzione, nessuna scrittura/cancellazione B2,
+nessuna copia delle nuove credenziali in chat, GitHub o Sheets; l'endpoint
+HTTP esposto è solo `/healthz`. La prima credenziale inavvertitamente
+esposta nello screenshot era già stata revocata (CP-EA-056) e non è
+stata riutilizzata in questo test. La durata della nuova chiave era
+prevista di 86400 secondi: verificarne la scadenza effettiva direttamente
+nella console Backblaze, senza assumere un rinnovo automatico.
+
+**Gate aggiornato:** `B2 READ-ONLY RESTORE STAGING: PASS`.
+Questo non approva retention/privacy, non attesta test FCM o percorso
+completo `Supabase outbox → worker → Axiom`, e non consente il rilascio
+produttivo: **PR #218 draft e produzione NO-GO**.
