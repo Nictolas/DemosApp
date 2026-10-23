@@ -13,7 +13,7 @@ async function verificaToken() {
   const orgId = process.env.AXIOM_ORG_ID;
   
   console.log('🔍 Verifica Token Axiom\n');
-  console.log(`🔑 Token: ${token ? token.substring(0, 20) + '...' : 'MISSING'}`);
+  console.log('Token Axiom configurato:', Boolean(token));
   console.log(`🏢 Org ID: ${orgId || 'MISSING'}\n`);
   
   // Test 1: Verifica se il token può listare i datasets
