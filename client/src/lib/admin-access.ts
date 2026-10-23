@@ -27,6 +27,18 @@ export function hasAdminCapability(user: unknown): boolean {
   return (user as { is_admin?: unknown }).is_admin === true;
 }
 
+/** La capability DPO proviene da /auth/me, mai dal ruolo legacy o dal JWT. */
+export function hasDpoCapability(user: unknown): boolean {
+  if (!user || typeof user !== "object") return false;
+  const account = user as { is_dpo?: unknown; is_admin?: unknown; status?: unknown };
+  return account.is_dpo === true && account.is_admin !== true && account.status === "a";
+}
+
+/** Solo la home /gestisci e NON le sottoroute Admin è condivisa col DPO. */
+export function isGestisciHomePath(path: string): boolean {
+  return normalizePath(path) === "/gestisci";
+}
+
 export function isAdminOnlyPath(path: string): boolean {
   const normalized = normalizePath(path);
 
