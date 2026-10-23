@@ -881,6 +881,41 @@ Il token Axiom temporaneo impiegato nel test diretto ha scadenza
 23/10/2026 ore 21:21 italiane: non presumere che sia ancora valido,
 non copiarlo e non crearne un duplicato senza esigenza verificata.
 
+### 23 ottobre 2026 — Esecutore isolato outbox → worker → Axiom preparato, NON ancora live
+
+La PR #218 include uno script standalone **disattivato di default**
+(`npm run audit:outbox:staging-worker-once`) per collaudare la catena
+`demos_outbox_runtime → PostgreSQL → runOnce() worker → Axiom
+EU staging → APL readback`, senza scheduler o API pubblica.
+Richiede `AUDIT_OUTBOX_STAGING_WORKER_DRILL_ARMED=true`,
+scope `staging`, `AUDIT_OUTBOX_PREFLIGHT_ONLY=true`, il URL
+Postgres del progetto `fkeayjzvtuvzesljhjbc` con login dedicato
+`demos_outbox_runtime` via Session Pooler 5432, dataset
+`demos-security-staging` e due token separati ingest-only e
+query-only **esclusivamente** per quel dataset. Verificarne manualmente
+gli scope nel pannello Axiom prima dell'esecuzione.
+
+Il preflight rifiuta `DATABASE_URL`, token e flag produttivi,
+esecuzioni in CI e destinazioni diverse. Chiede una coda
+**completamente vuota** prima di accodare un solo evento sintetico.
+Il worker viene chiamato una sola volta senza avviare un servizio,
+con un solo tentativo di ingest HTTP. L'esito richiede
+`ingested=1,failed=0`, coda tornata vuota e lettura dello stesso
+`axiom_delivery_id` via query Axiom `nocache=true`. Possono
+essere ripetute soltanto le query di lettura, mai l'ingestione.
+Se il provider non dà ACK, la riga sintetica può restare pending
+per diagnosi manuale; nessun retry automatico o eliminazione
+di audit non autorizzata.
+
+**NON ANCORA ESEGUITO con credenziali reali.**
+Il token di prova ingest creato per CP-EA-049 aveva scadenza
+23/10/2026 alle 21:21; non presumere la validità e
+non riutilizzare token produttivi. Il servizio esistente
+`demos-outbox-readonly-staging` deve restare read-only:
+non modificarne le impostazioni per aggirare la separazione.
+Non creare nuovi servizi o duplicare test provider già completati.
+Privacy RP-09/10/17, B2 e FCM restano NO-GO.
+
 ## Condizioni mancanti per GO
 
 - [x] **Connessione di staging reale — completata il 22/10/2026.**

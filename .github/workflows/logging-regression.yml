@@ -13,6 +13,9 @@ on:
       - 'api/services/auditOutboxProjectScope.js'
       - 'api/services/auditOutboxAxiomTarget.js'
       - 'api/services/axiomStagingProviderDrill.js'
+      - 'api/services/auditOutboxStagingWorkerDrill.js'
+      - 'api/scripts/verify-audit-outbox-worker-staging.js'
+      - 'api/tests/auditOutboxStagingWorkerDrill.test.js'
       - 'api/scripts/verify-axiom-staging-provider.js'
       - 'api/tests/axiomStagingProviderDrill.test.js'
       - 'api/tests/auditOutboxProjectScope.test.js'
@@ -99,6 +102,8 @@ jobs:
           node --check services/auditOutboxProjectScope.js
           node --check services/auditOutboxAxiomTarget.js
           node --check services/axiomStagingProviderDrill.js
+          node --check services/auditOutboxStagingWorkerDrill.js
+          node --check scripts/verify-audit-outbox-worker-staging.js
           node --check scripts/verify-axiom-staging-provider.js
           node --check services/auditOutboxRetentionSnapshot.js
           node --check scripts/verify-audit-outbox-retention-staging.js
@@ -128,6 +133,9 @@ jobs:
       - name: Axiom staging single-shot provider drill isolated no-secret regression
         working-directory: api
         run: node --test tests/axiomStagingProviderDrill.test.js
+      - name: Isolated one-shot staging outbox worker drill (mocked, no credentials)
+        working-directory: api
+        run: node --test tests/auditOutboxStagingWorkerDrill.test.js
       - name: Synthetic-only staging Axiom privacy gate
         working-directory: api
         run: node --test tests/auditOutboxSyntheticStagingGuard.test.js
