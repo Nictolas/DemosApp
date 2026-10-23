@@ -12,6 +12,7 @@ on:
       - 'client/src/lib/crashDiagnostic.ts'
       - 'client/tests/crashDiagnostic.test.mjs'
       - 'client/src/pages/Opinioni*.tsx'
+      - 'client/src/pages/GestisciOpinioni/components/ApprofondimentoDialog.tsx'
       - 'client/src/lib/saveAndVerifyOpinions.ts'
       - '.github/workflows/opinioni-regression.yml'
 
@@ -31,13 +32,13 @@ jobs:
           cache-dependency-path: |
             api/package-lock.json
             client/package-lock.json
-      - name: Install API dependencies
-        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
-      - name: Verify opinion regressions
-        run: node --test api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic
         run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify opinion regressions
+        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js

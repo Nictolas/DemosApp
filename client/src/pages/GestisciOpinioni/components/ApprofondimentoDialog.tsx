@@ -439,9 +439,9 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col bg-white">
-        <DialogHeader className="bg-white">
-          <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="flex h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] max-w-5xl flex-col gap-3 overflow-hidden bg-white p-3 sm:h-[min(90dvh,52rem)] sm:w-[calc(100vw-2rem)] sm:p-6">
+        <DialogHeader className="shrink-0 bg-white pr-8 text-left">
+          <DialogTitle className="flex flex-wrap items-center gap-2 break-words text-base leading-snug sm:text-lg">
             <span>Approfondimento: {opinionText || opinione?.text}</span>
             {!readOnly && (
               <span className="text-sm text-muted-foreground">
@@ -457,7 +457,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden flex flex-col bg-white">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
 
           {/* Campo ID personalizzato - Solo per opinioni "da approvare" (solo admin) */}
           {!readOnly && opinione?.gradi_opinione?.includes('da approvare') && (
@@ -479,15 +479,15 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
             </div>
           )}
 
-          {/* Contenuto */}
-          <div className="flex-1 overflow-hidden">
+          {/* Contenuto: unico contenitore scrollabile, anche su Android/WebView */}
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y pr-1" style={{ WebkitOverflowScrolling: "touch" }}>
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <span className="ml-2">Caricamento approfondimento...</span>
               </div>
             ) : readOnly ? (
-              <div className="h-full overflow-y-auto">
+              <div className="min-w-0">
                 {approfondimento && approfondimento.trim() ? (
                   <div className="space-y-3">
                     {isAdmin && (
@@ -501,16 +501,11 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                         </Button>
                       </div>
                     )}
-                    <div className="flex items-start space-x-3">
-                      <span className="text-2xl mt-1">📝</span>
-                      <div className="flex-1">
-                        <div className="bg-gray-50 p-4 rounded-lg border">
-                          <div
-                            className="prose max-w-none text-gray-900"
-                            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(approfondimento)) }}
-                          />
-                        </div>
-                      </div>
+                    <div className="min-w-0 rounded-lg border bg-gray-50 p-3 sm:p-5">
+                      <div
+                        className="prose max-w-none break-words text-gray-900 [overflow-wrap:anywhere]"
+                        dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(approfondimento)) }}
+                      />
                     </div>
                   </div>
                 ) : (
@@ -521,7 +516,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               </div>
             ) : (
               // Modalità admin: UI completa con descrizione e sezioni per grado
-              <div className="h-full overflow-y-auto space-y-6">
+              <div className="min-w-0 space-y-6">
                 {(() => {
                   // Sezione Descrizione
                   const descrizioneSection = (
@@ -644,7 +639,7 @@ Puoi aggiungere:
 
         {/* Footer */}
         {!readOnly && (
-          <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+          <div className="flex shrink-0 justify-end gap-2 border-t bg-white pt-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
@@ -670,7 +665,7 @@ Puoi aggiungere:
         )}
         
         {readOnly && (
-          <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+          <div className="flex shrink-0 justify-end gap-2 border-t bg-white pt-3">
             <Button onClick={() => onOpenChange(false)} className="min-w-[120px]">
               Chiudi
             </Button>
@@ -682,7 +677,7 @@ Puoi aggiungere:
       {/* Dialog secondario per modifica rapida dell'approfondimento (solo admin) */}
       {isAdmin && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-3xl bg-white">
+          <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto bg-white p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>
                 Modifica approfondimento: {opinionText || opinione?.text}
@@ -700,7 +695,7 @@ Puoi aggiungere:
               />
             </div>
 
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+            <div className="flex shrink-0 justify-end gap-2 border-t bg-white pt-3">
               <Button
                 variant="outline"
                 onClick={() => setIsEditDialogOpen(false)}
