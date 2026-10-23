@@ -1,0 +1,169 @@
+'use strict';
+
+// One-shot, explicitly armed and isolated HTTP provider drill. Never opens
+// DEMOS DB connections or starts the audit worker. No real user event fields.
+const { randomUUID } = require('node:crypto');
+const { assertStagingSyntheticOutboxEvent, assertStagingAxiomHttpTarget } =
+  require('./auditOutboxAxiomTarget');
+
+const HOST = 'eu-central-1.aws.edge.axiom.co';
+const DATASET = 'demos-security-staging';
+const INGEST_URL = 'https://' + HOST + '/v1/ingest/' + DATASET;
+// A fresh readback is essential: a cached empty first query must not make
+// the verification report a false negative on subsequent poll attempts.
+const QUERY_URL = 'https://' + HOST + '/v1/query/_apl?format=tabular&nocache=true';
+const MAX_READBACK_ATTEMPTS = 5;
+const BLOCKED_SECRETS = [
+  'DATABASE_URL', 'AUDIT_OUTBOX_DATABASE_URL', 'AXIOM_API_TOKEN',
+  'AXIOM_ORG_ID', 'B2_S3_SECRET_ACCESS_KEY', 'B2_APPLICATION_KEY',
+  'FIREBASE_PRIVATE_KEY'
+];
+const BLOCKED_TRUE_FLAGS = [
+  'AUDIT_OUTBOX_ENABLED', 'AUDIT_OUTBOX_WORKER_ENABLED',
+  'AUDIT_OUTBOX_SECURITY_ENABLED', 'AUDIT_OUTBOX_ADMIN_ALERTS_ENABLED',
+  'AXIOM_ARCHIVE_ENABLED', 'AXIOM_ENABLED'
+];
+
+// Mutually exclusive credential modes:
+// 1) a dedicated combined staging token (legacy), or
+// 2) separate ingest-only and query-only staging tokens.
+// A read-only token must never be sent to the ingest endpoint, nor the
+// ingest-only token to the query endpoint.
+function validDrillToken(token) {
+  return typeof token === 'string' && token.length > 0 &&
+    token.length <= 4096 && !/[\r\n]/.test(token);
+}
+
+function validDrillCredentials(env) {
+  const has = key => Object.prototype.hasOwnProperty.call(env, key);
+  const single = has('AXIOM_STAGING_DRILL_TOKEN');
+  const ingest = has('AXIOM_STAGING_DRILL_INGEST_TOKEN');
+  const query = has('AXIOM_STAGING_DRILL_QUERY_TOKEN');
+  if (single) {
+    return !ingest && !query && validDrillToken(env.AXIOM_STAGING_DRILL_TOKEN);
+  }
+  return ingest && query &&
+    validDrillToken(env.AXIOM_STAGING_DRILL_INGEST_TOKEN) &&
+    validDrillToken(env.AXIOM_STAGING_DRILL_QUERY_TOKEN) &&
+    env.AXIOM_STAGING_DRILL_INGEST_TOKEN !== env.AXIOM_STAGING_DRILL_QUERY_TOKEN;
+}
+
+function assertStagingDrillEnvironment(env = process.env) {
+  // Before running, inspect Axiom metadata: each configured API token must
+  // be restricted to the one staging dataset with only its required operation.
+  // Client code cannot independently verify server-side token grants.
+  if (env.AXIOM_STAGING_DRILL_ARMED !== 'true' ||
+      env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE !== 'staging' ||
+      env.AXIOM_REALTIME_DATASET !== DATASET ||
+      env.AXIOM_DATASET !== DATASET ||
+      !validDrillCredentials(env) ||
+      env.CI === 'true' ||
+      BLOCKED_SECRETS.some(key => Boolean(env[key])) ||
+      BLOCKED_TRUE_FLAGS.some(key => env[key] === 'true')) {
+    throw new Error('AXIOM_STAGING_DRILL_ENV_REJECTED');
+  }
+  try {
+    if (assertStagingAxiomHttpTarget(env, 'staging') !== HOST) {
+      throw new Error('WRONG_HOST');
+    }
+  } catch (_) {
+    throw new Error('AXIOM_STAGING_DRILL_ENV_REJECTED');
+  }
+  return true;
+}
+
+function tabularReadbackContainsId(result, id) {
+  // Axiom tabular tables contain fields[] and column-wise columns[][].
+  // Inspect only the selected synthetic ID field; never scan arbitrary data.
+  if (!Array.isArray(result?.tables)) return false;
+  return result.tables.some(table => {
+    if (!Array.isArray(table?.fields) || !Array.isArray(table?.columns)) {
+      return false;
+    }
+    const index = table.fields.findIndex(field => field?.name === 'axiom_delivery_id');
+    return index >= 0 && Array.isArray(table.columns[index]) &&
+      table.columns[index].some(value => value === id);
+  });
+}
+
+async function runAxiomStagingProviderDrill({
+  env = process.env,
+  post = (...args) => require('axios').post(...args),
+  uuid = randomUUID,
+  now = () => new Date(),
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+} = {}) {
+  // Must reject before generating an event, connecting, or reading secrets.
+  assertStagingDrillEnvironment(env);
+  const id = uuid();
+  if (typeof id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error('AXIOM_STAGING_DRILL_ID_REJECTED');
+  }
+  const start = now();
+  if (!(start instanceof Date) || !Number.isFinite(start.getTime())) {
+    throw new Error('AXIOM_STAGING_DRILL_CLOCK_REJECTED');
+  }
+  const event = {
+    _time: start.toISOString(),
+    log_type: 'audit',
+    action: 'STAGING_OUTBOX_DRILL',
+    resource: 'outbox',
+    success: true,
+    synthetic: true,
+    axiom_delivery_id: id
+  };
+  assertStagingSyntheticOutboxEvent(event, 'staging');
+  const ingestToken = env.AXIOM_STAGING_DRILL_TOKEN ||
+    env.AXIOM_STAGING_DRILL_INGEST_TOKEN;
+  const queryToken = env.AXIOM_STAGING_DRILL_TOKEN ||
+    env.AXIOM_STAGING_DRILL_QUERY_TOKEN;
+  const requestOptions = token => ({
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    timeout: 5000, proxy: false, maxRedirects: 0,
+    maxBodyLength: 2048, maxContentLength: 131072
+  });
+  const ingestOpts = requestOptions(ingestToken);
+  const queryOpts = requestOptions(queryToken);
+  const apl = "['" + DATASET + "'] | where axiom_delivery_id == '" +
+    id + "' | project axiom_delivery_id | take 1";
+  const query = {
+    apl, startTime: new Date(start.getTime() - 60000).toISOString(),
+    endTime: new Date(start.getTime() + 300000).toISOString()
+  };
+
+  try {
+    // Never resend after an ambiguous timeout: at-least-once duplicates can
+    // otherwise be mistaken for a successful single-delivery drill.
+    const ack = await post(INGEST_URL, [event], ingestOpts);
+    if (![200, 202].includes(ack?.status) ||
+        ack?.data?.ingested !== 1 || ack?.data?.failed !== 0) {
+      throw new Error('INGEST_NOT_ACKNOWLEDGED');
+    }
+
+    // Only read-side polls retry. Bypass Axiom query cache and allow bounded
+    // ingestion propagation (1+2+4+8 seconds between five fresh reads).
+    for (let attempt = 0; attempt < MAX_READBACK_ATTEMPTS; attempt++) {
+      const read = await post(QUERY_URL, query, queryOpts);
+      if (read?.status !== 200) throw new Error('QUERY_NOT_ACKNOWLEDGED');
+      if (tabularReadbackContainsId(read.data, id)) {
+        return { status: 'AXIOM_STAGING_PROVIDER_E2E_VERIFIED', ingested: 1,
+          matched: true, attempts: attempt + 1 };
+      }
+      if (attempt + 1 < MAX_READBACK_ATTEMPTS) await sleep(1000 * 2 ** attempt);
+    }
+    throw new Error('READBACK_NOT_FOUND');
+  } catch (_) {
+    // Never include token, provider errors, query body, event id or payload.
+    throw new Error('AXIOM_STAGING_PROVIDER_E2E_NOT_VERIFIED');
+  }
+}
+
+module.exports = {
+  HOST, DATASET, INGEST_URL, QUERY_URL, MAX_READBACK_ATTEMPTS,
+  assertStagingDrillEnvironment,
+  tabularReadbackContainsId, runAxiomStagingProviderDrill
+};

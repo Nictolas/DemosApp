@@ -19,9 +19,10 @@ The design intentionally does **not** encode a generic "GDPR = 7 years" retentio
 - Verifies each upload with `HEAD`: compressed byte length and a SHA-256 value stored in metadata must match before progress is committed.
 - Advances the checkpoint only after all data objects and the manifest for a dataset were uploaded and verified.
 - Uses a B2-resident checkpoint, so Render/local ephemeral disks are not relied on for progress state.
+- On resume, checks the checkpoint's B2 SHA-256 metadata against the downloaded bytes and validates the dataset/manifest reference **before** using its date cursor. Corrupted, mismatched or untrusted checkpoints fail closed: the archiver does not advance or silently skip events. This is an integrity check against accidental corruption, not proof of cryptographic authenticity against a party who can replace both content and metadata.
 - Processes backfills in bounded chunks and advances the checkpoint after every successful chunk, limiting memory usage and restart cost.
 - Re-reads an overlap window on every run to catch late-arriving events.
-- Gives every archived event a deterministic SHA-256 fingerprint; restore/import tooling can deduplicate overlaps safely.
+- Gives every archived event a deterministic SHA-256 fingerprint. For eligible replayed audit/security events with a valid `axiom_delivery_id` UUID, the fingerprint is derived from dataset + delivery UUID, rather than Axiom per-ingestion metadata. Restore/import tooling can deduplicate overlaps using `archive_event_id`.
 - Retries of the same archive chunk are idempotent at the data-object key level; the envelope uses the deterministic chunk end rather than wall-clock retry time.
 - Recursively splits saturated Axiom query windows instead of silently accepting a result that may have been truncated.
 - If a query is still saturated at the minimum window size, the run fails and the checkpoint does not advance.
@@ -35,7 +36,7 @@ Default source datasets:
 
 They can be overridden with `AXIOM_ARCHIVE_DATASETS`.
 
-Records are archived without modifying the event body. Partitioning now prioritizes explicit `log_type=security|audit` and legacy `securityEvent|auditEvent` flags, then pre-existing `type`+`severity` and `action`+`resource` shapes, and finally known message prefixes for legacy security/audit records. Other events remain `technical`.
+Records are generally archived without modifying the event body. **Exception:** eligible audit/security events carrying a valid `axiom_delivery_id` are canonically normalized before archival: ingestion-only Axiom metadata `_id` and `_sysTime` is removed, and the UUID is lowercased so retries cannot create distinct stored events. Partitioning now prioritizes explicit `log_type=security|audit` and legacy `securityEvent|auditEvent` flags, then pre-existing `type`+`severity` and `action`+`resource` shapes, and finally known message prefixes for legacy security/audit records. Other events remain `technical`.
 
 This matches the field shapes currently emitted by the DEMOS Axiom writers. The original source dataset is retained in every archive envelope.
 
@@ -67,7 +68,7 @@ A data line is an envelope:
 }
 ```
 
-`archive_event_id` is SHA-256 over the source dataset and a canonical serialization of the original event.
+`archive_event_id` is SHA-256 over the source dataset and canonical serialization for ordinary/legacy events. For a valid `axiom_delivery_id` on explicitly tagged audit/security events, it instead hashes dataset + a fixed `axiom-delivery` label + normalized UUID. Different events with the same UUID and conflicting canonicalized content cause archival to **fail without advancing the checkpoint**, rather than silently dropping either event. This deduplicates events within each fetched archive window; the same ID may still exist in physically separate overlapping objects. Consumers restoring multiple objects must deduplicate by `archive_event_id`. This is not deduplication inside Axiom itself.
 
 ## Scheduling
 
@@ -148,9 +149,45 @@ npm run archive:axiom:verify-latest -- centralized_logs
 npm run archive:axiom:verify-latest -- real-time
 ```
 
-This command **does not** execute Axiom queries or PUT/DELETE B2 objects, does not advance checkpoints and does not print raw events. It reads the latest checkpoint from B2, downloads the linked manifest, verifies both SHA-256 values, downloads each referenced compressed data object, checks its hash and event fingerprint, decompresses it and verifies counts. It prints the checkpoint time, category totals and verified object counts. A no-data batch is valid and has an empty object list.
+This command **does not** execute Axiom queries or PUT/DELETE B2 objects, does not advance checkpoints and does not print raw events. **New safety limit:** before reading each checkpoint, manifest or data object it calls B2 `HEAD` and refuses compressed objects over **8 MiB**; the subsequent GET is range-limited and streamed with a strict byte count. Gzip expansion is capped at **32 MiB**, and verification refuses over **60,000 records per object**. These limits prevent unexpectedly large downloads and decompression bombs during a recovery drill; historically larger objects require a separately approved, bounded recovery procedure. The production restore has still **not** been performed. It reads the latest checkpoint from B2, downloads the linked manifest, verifies both SHA-256 values, downloads each referenced compressed data object, checks its hash and event fingerprint, decompresses it and verifies counts. It prints the checkpoint time, category totals and verified object counts. A no-data batch is valid and has an empty object list.
 
 A successful result is evidence of recoverability **for the latest archived batch only**, not a guarantee that the full historical archive or every retention class is complete. The production execution has not yet been performed as of 2026-10-21.
+
+## Read-only cross-object overlap reconciliation (new)
+
+For an incident drill where **two or more data object keys** from the same
+dataset may overlap, use an authorized environment with restricted B2 read
+credentials. Supply **the actual keys from existing manifests**; do not guess
+or modify object names:
+
+```bash
+cd api
+npm run archive:axiom:verify-overlap -- real-time \
+  "demos/axiom-archive/v1/data/audit/year=2026/month=10/day=21/real-time/<first-object>.jsonl.gz" \
+  "demos/axiom-archive/v1/data/audit/year=2026/month=10/day=21/real-time/<second-object>.jsonl.gz"
+```
+
+The bracketed names above are **placeholders**, not known B2 keys. The command
+rejects invalid paths and requires 2–12 distinct data-object keys of the
+same dataset; it performs **GET only**, validates compressed SHA-256 metadata,
+decompresses up to 32 MiB per object, validates each event's fingerprint,
+reconciles duplicated `archive_event_id` values **across objects**, and fails
+if the same ID has incompatible event payloads or categories. It first checks object size and integrity metadata with a read-only **HEAD**
+request, refuses objects larger than **8 MiB before downloading them**, then
+uses a byte-range-limited GET and bounded streaming to prevent unexpectedly
+large transfers. It prints only
+the counts `objectsExamined`, `recordsExamined`, `uniqueEvents`,
+`duplicateCopies` and aggregate categories. It does **not** print
+identifying events, write a merged archive, perform PUT/DELETE operations or
+alter checkpoints. At most 60,000 events are examined per invocation;
+larger audits require a carefully scoped multi-batch plan.
+
+These are **reconciliation statistics for selected objects**, not proof of
+global deduplication across all historical files. Neither Axiom query results
+nor data already present in separate B2 objects are physically removed.
+This CLI has synthetic tests only until restricted credentials are made
+available in an isolated authorized environment. Confirm the operator's
+authority and the scope before querying B2.
 
 ## Production verification and continuity checklist
 

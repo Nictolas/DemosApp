@@ -1,6 +1,6 @@
 const { pool } = require('../middleware/auth');
 const { createFailureReporter } = require('../utils/logDeliveryFailureReporter');
-const { buildAxiomAuditEvent } = require('../utils/axiomAuditEvent');
+const { buildAxiomAuditEvent, prepareAxiomAuditEvent } = require('../utils/axiomAuditEvent');
 const reportAuditDeliveryFailure = createFailureReporter();
 
 // Axiom integration per audit logs
@@ -71,6 +71,19 @@ class AuditService {
         timestamp: new Date(now)
       };
       
+      // Opt-in durable queue: acknowledgement means persisted, NOT delivered to Axiom.
+      // This flag is off until a private, access-controlled schema is deployed.
+      if (process.env.AUDIT_OUTBOX_ENABLED === 'true') {
+        if (process.env.AXIOM_ENABLED !== 'true') {
+          reportAuditDeliveryFailure(null);
+          return null;
+        }
+        const dataset = process.env.AXIOM_REALTIME_DATASET || process.env.AXIOM_AUDIT_DATASET || 'real-time';
+        const event = prepareAxiomAuditEvent(auditLog);
+        const queuedId = await AuditService.getAuditOutbox().enqueue(event, dataset);
+        return { id: 'outbox-' + queuedId, timestamp: new Date(now), delivery: 'queued' };
+      }
+
       // DISABILITATO: I log vengono salvati solo su Axiom, non più su PostgreSQL
       // Questo per alleggerire il database e centralizzare i log su Axiom
       if (process.env.AXIOM_ENABLED === 'true') {
@@ -121,6 +134,83 @@ class AuditService {
    * Invia audit log ad Axiom usando HTTP diretto
    * @private
    */
+  // Lazily initialized only when AUDIT_OUTBOX_ENABLED is explicitly true.
+  static getAuditOutbox() {
+    if (!this._auditOutbox) {
+      const { createAuditOutbox } = require('./auditOutboxService');
+      const { createAuditOutboxDatabase } = require('./auditOutboxDatabase');
+      // Fail closed if a separate, restricted DB login has not been configured.
+      // Do not reuse DEMOS's general-purpose pool (potentially privileged).
+      const { pool: outboxPool, ensureReady } = createAuditOutboxDatabase();
+      this._auditOutbox = createAuditOutbox({
+        pool: outboxPool,
+        ensureReady,
+        send: (dataset, payload) => AuditService.sendPreparedAuditEventToAxiomHTTP(dataset, payload),
+        report: (code, data) => console.warn(code, data?.count === undefined ? '' : data.count)
+      });
+    }
+    return this._auditOutbox;
+  }
+
+  // Retries forward the same prepared payload, timestamp and delivery identifier.
+  static async sendPreparedAuditEventToAxiomHTTP(dataset, event) {
+    if (process.env.AXIOM_ENABLED !== 'true' ||
+        !process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {
+      reportAuditDeliveryFailure(null);
+      return false;
+    }
+    if (!event || !['audit', 'security'].includes(event.log_type) ||
+        !/^[a-zA-Z0-9_-]{1,96}$/.test(dataset)) return false;
+
+    // A stale queued row or misconfigured staging worker must not ingest into
+    // a production Axiom dataset. Check again at HTTP dispatch, not just enqueue.
+    try {
+      const { assertOutboxAxiomTarget, assertStagingSyntheticOutboxEvent,
+        assertStagingAxiomHttpTarget } = require('./auditOutboxAxiomTarget');
+      assertOutboxAxiomTarget(dataset);
+      assertStagingSyntheticOutboxEvent(event);
+      // Guard the destination before the token enters an HTTP request.
+      assertStagingAxiomHttpTarget();
+    } catch (_error) {
+      return false;
+    }
+
+    try {
+      const axios = require('axios');
+      const region = (process.env.AXIOM_REGION || 'eu').toLowerCase();
+      const stagingHttp = process.env.AUDIT_OUTBOX_DEPLOYMENT_SCOPE === 'staging';
+      const edgeDomain = stagingHttp
+        ? 'eu-central-1.aws.edge.axiom.co'
+        : (process.env.AXIOM_EDGE_DOMAIN
+          || (region === 'eu' ? 'eu-central-1.aws.edge.axiom.co' : 'us-east-1.aws.edge.axiom.co'));
+      const response = await axios.post(`https://${edgeDomain}/v1/ingest/${dataset}`, [event], {
+        headers: {
+          Authorization: `Bearer ${process.env.AXIOM_API_TOKEN}`,
+          'Content-Type': 'application/json',
+          'X-Axiom-Org-Id': process.env.AXIOM_ORG_ID
+        },
+        timeout: 5000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        // Never leak a staging-only API token to proxies or redirects.
+        ...(stagingHttp ? { proxy: false, maxRedirects: 0 } : {})
+      });
+      // A 2xx transport response is NOT proof of ingestion. Axiom can report
+      // individual failures with HTTP 200. Only ACK a single queued event
+      // when the provider confirms exactly one ingested and zero failed;
+      // otherwise the outbox must keep it for retry/dead-letter review.
+      if ((response?.status !== 200 && response?.status !== 202) ||
+          response?.data?.ingested !== 1 ||
+          response?.data?.failed !== 0) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      reportAuditDeliveryFailure(error?.response?.status);
+      return false;
+    }
+  }
+
   static async sendAuditLogToAxiomHTTP(dataset, auditLog) {
     if (process.env.AXIOM_ENABLED !== 'true') return false;
     if (!process.env.AXIOM_API_TOKEN || !process.env.AXIOM_ORG_ID) {

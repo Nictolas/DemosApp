@@ -5,8 +5,61 @@ on:
     branches: [main]
     paths:
       - 'api/services/centralizedLogger.js'
+      - 'api/utils/axiomSecurityEvent.js'
+      - 'api/tests/axiomSecurityEvent.test.js'
       - 'api/services/auditService.js'
+      - 'api/services/auditOutboxService.js'
+      - 'api/services/auditOutboxDatabase.js'
+      - 'api/services/auditOutboxProjectScope.js'
+      - 'api/services/auditOutboxAxiomTarget.js'
+      - 'api/services/axiomStagingProviderDrill.js'
+      - 'api/services/auditOutboxStagingWorkerDrill.js'
+      - 'api/scripts/verify-audit-outbox-worker-staging.js'
+      - 'api/tests/auditOutboxStagingWorkerDrill.test.js'
+      - 'api/scripts/verify-axiom-staging-provider.js'
+      - 'api/tests/axiomStagingProviderDrill.test.js'
+      - 'api/tests/auditOutboxProjectScope.test.js'
+      - 'api/services/auditOutboxStagingGuard.js'
+      - 'api/services/auditOutboxRenderStagingReadiness.js'
+      - 'api/scripts/verify-audit-outbox-render-staging.js'
+      - 'api/scripts/audit-outbox-readonly-health-server.js'
+      - 'api/tests/auditOutboxReadonlyHealthServer.test.js'
+      - 'api/tests/auditOutboxRenderStagingReadiness.test.js'
+      - 'api/scripts/verify-audit-outbox-staging.js'
+      - 'api/tests/auditOutboxStagingGuard.test.js'
+      - 'api/tests/auditOutboxDatabase.test.js'
+      - 'api/services/auditOutboxAlertService.js'
+      - 'api/services/operationalAlertService.js'
+      - 'api/tests/operationalAlertDelivery.test.js'
+      - 'api/tests/auditOutboxAlertService.test.js'
+      - 'api/jobs/auditOutboxWorker.js'
+      - 'api/app.js'
+      - 'api/tests/auditOutboxService.test.js'
+      - 'api/tests/auditOutboxSyntheticStagingGuard.test.js'
+      - 'api/services/auditOutboxRetentionSnapshot.js'
+      - 'api/scripts/verify-audit-outbox-retention-staging.js'
+      - 'api/tests/auditOutboxRetentionSnapshot.test.js'
+      - 'api/tests/auditOutboxWorker.test.js'
+      - 'api/tests/auditOutboxPostgres.test.js'
+      - 'api/tests/auditOutboxRealPostgres.test.js'
+      - 'docs/operations/AUDIT_OUTBOX_DESIGN_2026-10-21.md'
+      - 'docs/operations/AUDIT_OUTBOX_RELEASE_READINESS_2026-10-21.md'
+      - 'docs/operations/AUDIT_OUTBOX_RETENTION_PROPOSAL_2026-10-21.md'
+      - 'docs/operations/SUPABASE_OUTBOX_STAGING_VERIFICATION_2026-10-21.md'
+      - 'api/jobs/axiomArchiveJob.js'
+      - 'api/tests/axiomArchiveJobPrivacy.test.js'
+      - 'docs/operations/AXIOM_ARCHIVE_RENDER_OBSERVATION_2026-10-21.md'
       - 'api/services/axiomArchiveService.js'
+      - 'api/services/archiveOverlapVerifier.js'
+      - 'api/services/archiveOverlapB2Reader.js'
+      - 'api/tests/archiveOverlapB2Reader.test.js'
+      - 'api/scripts/verify-b2-restore-readonly.js'
+      - 'api/scripts/b2-restore-readonly-health-server.js'
+      - 'api/tests/b2RestoreReadonlyHealth.test.js'
+      - 'api/tests/verifyB2RestoreReadonly.test.js'
+      - 'api/tests/archiveOverlapVerifier.test.js'
+      - 'api/scripts/verify-axiom-archive-overlap.js'
+      - 'docs/operations/axiom-b2-log-archive.md'
       - 'api/scripts/verify-latest-axiom-archive.js'
       - 'api/utils/log*.js'
       - 'api/utils/archiveEventClassification.js'
@@ -42,15 +95,93 @@ jobs:
         working-directory: api
         run: |
           node --check services/centralizedLogger.js
+          node --check utils/axiomSecurityEvent.js
           node --check services/auditService.js
+          node --check services/auditOutboxService.js
+          node --check services/auditOutboxDatabase.js
+          node --check services/auditOutboxProjectScope.js
+          node --check services/auditOutboxAxiomTarget.js
+          node --check services/axiomStagingProviderDrill.js
+          node --check services/auditOutboxStagingWorkerDrill.js
+          node --check scripts/verify-audit-outbox-worker-staging.js
+          node --check scripts/verify-axiom-staging-provider.js
+          node --check services/auditOutboxRetentionSnapshot.js
+          node --check scripts/verify-audit-outbox-retention-staging.js
+          node --check services/auditOutboxStagingGuard.js
+          node --check services/auditOutboxRenderStagingReadiness.js
+          node --check scripts/verify-audit-outbox-render-staging.js
+          node --check scripts/audit-outbox-readonly-health-server.js
+          node --check scripts/verify-audit-outbox-staging.js
+          node --check services/auditOutboxAlertService.js
+          node --check services/operationalAlertService.js
+          node --check jobs/auditOutboxWorker.js
+          node --check app.js
+          node --check jobs/axiomArchiveJob.js
           node --check services/axiomArchiveService.js
+          node --check services/archiveOverlapVerifier.js
+          node --check services/archiveOverlapB2Reader.js
+          node --check scripts/verify-axiom-archive-overlap.js
           node --check scripts/verify-latest-axiom-archive.js
+          node --check scripts/verify-b2-restore-readonly.js
+          node --check scripts/b2-restore-readonly-health-server.js
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
+      - name: Read-only audit retention age and no-deletion safety tests
+        working-directory: api
+        run: node --test tests/auditOutboxRetentionSnapshot.test.js
+      - name: Axiom staging single-shot provider drill isolated no-secret regression
+        working-directory: api
+        run: node --test tests/axiomStagingProviderDrill.test.js
+      - name: Isolated one-shot staging outbox worker drill (mocked, no credentials)
+        working-directory: api
+        run: node --test tests/auditOutboxStagingWorkerDrill.test.js
+      - name: Synthetic-only staging Axiom privacy gate
+        working-directory: api
+        run: node --test tests/auditOutboxSyntheticStagingGuard.test.js
+      - name: Read-only Render health service startup and standby tests
+        working-directory: api
+        run: node --test tests/auditOutboxReadonlyHealthServer.test.js
       - name: Axiom archive and classification tests (mocked, no production credentials)
         working-directory: api
         run: npm run test:axiom-archive
+      - name: Isolated Backblaze B2 read-only capability and probe tests
+        working-directory: api
+        run: node --test tests/verifyB2RestoreReadonly.test.js tests/b2RestoreReadonlyHealth.test.js
       - name: Production dependency audit
         working-directory: api
         run: npm audit --omit=dev --audit-level=high
+
+  postgres-outbox:
+    # Real, disposable PostgreSQL service on the CI runner. NEVER production.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: demos_outbox_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_outbox_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts
+      - name: Real PostgreSQL audit outbox concurrency and crash-recovery test
+        working-directory: api
+        env:
+          DEMOS_OUTBOX_POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/demos_outbox_ci
+        run: node --test tests/auditOutboxRealPostgres.test.js

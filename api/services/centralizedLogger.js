@@ -192,6 +192,21 @@ class CentralizedLogger {
         }
       }
 
+      // Explicit security records can opt into the same durable outbox as
+      // AuditService. No free-text message, request URL, or arbitrary metadata
+      // is persisted. Failed DB writes never fall through to direct Axiom.
+      if (meta.securityEvent === true &&
+          process.env.AUDIT_OUTBOX_ENABLED === 'true' &&
+          process.env.AUDIT_OUTBOX_SECURITY_ENABLED === 'true') {
+        const AuditService = require('./auditService');
+        const { buildQueuedSecurityEvent } = require('../utils/axiomSecurityEvent');
+        await AuditService.getAuditOutbox().enqueue(
+          buildQueuedSecurityEvent(logEntry, meta),
+          this.axiomDataset
+        );
+        return;
+      }
+
       // Usa HTTP diretto invece dell'SDK per evitare problemi di regione
       await this.sendToAxiomHTTP(this.axiomDataset, [logEntry]);
     } catch (error) {

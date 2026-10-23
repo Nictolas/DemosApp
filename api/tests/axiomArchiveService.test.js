@@ -6,6 +6,7 @@ const {
   AxiomArchiveService,
   classifyRecord,
   recordFingerprint,
+  sortAndDedupe,
   stableStringify
 } = require('../services/axiomArchiveService');
 
@@ -29,7 +30,7 @@ class MemoryB2Client {
       }
       return {
         Body: {
-          transformToByteArray: async () => Uint8Array.from(entry.body)
+          async *[Symbol.asyncIterator]() { yield entry.body; }
         },
         Metadata: entry.metadata,
         ContentEncoding: entry.contentEncoding,
@@ -50,7 +51,6 @@ class MemoryB2Client {
     }
 
     if (name === 'HeadObjectCommand') {
-      if (this.failHead) return { ContentLength: -1, Metadata: {} };
       const entry = this.objects.get(input.Key);
       if (!entry) {
         const error = new Error('NoSuchKey');
@@ -58,6 +58,7 @@ class MemoryB2Client {
         error.$metadata = { httpStatusCode: 404 };
         throw error;
       }
+      if (this.failHead) return { ContentLength: -1, Metadata: {} };
       return {
         ContentLength: entry.body.length,
         Metadata: entry.metadata
@@ -205,6 +206,64 @@ test('checkpoint is not advanced when B2 post-upload integrity verification fail
   assert.equal([...b2Client.objects.keys()].some(key => key.includes('/control/')), false);
 });
 
+
+
+test('corrupted checkpoint with a plausible future cursor cannot skip archive events', async () => {
+  const b2Client = new MemoryB2Client();
+  let sourceQueries = 0;
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    b2Client,
+    axiomClient: { async query() { sourceQueries++; return { matches: [] }; } }
+  });
+  const key = service.checkpointKey('centralized_logs');
+  await service.putJson(key, {
+    version: 1,
+    dataset: 'centralized_logs',
+    lastSuccessfulEnd: '2026-10-06T15:00:00.000Z',
+    lastManifestKey: `${service.prefix}/manifests/year=2026/month=10/day=06/centralized_logs/batch.json`,
+    lastManifestSha256: 'a'.repeat(64)
+  });
+  // The replacement is still valid JSON and a valid date, but not the bytes
+  // that B2 reported as successfully committed.
+  const entry = b2Client.objects.get(key);
+  entry.body = Buffer.from(entry.body.toString('utf8').replace('2026-10-06T15:00', '2027-10-06T15:00'));
+  await assert.rejects(() => service.loadCheckpoint('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED/);
+  await assert.rejects(() => service.processDataset('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED/);
+  assert.equal(sourceQueries, 0, 'must stop before querying Axiom or advancing a cursor');
+});
+
+test('checkpoint read rejects a valid digest from a different dataset', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({ env: makeEnv(), b2Client });
+  await service.putJson(service.checkpointKey('centralized_logs'), {
+    version: 1,
+    dataset: 'real-time',
+    lastSuccessfulEnd: '2026-10-06T15:00:00.000Z',
+    lastManifestKey: `${service.prefix}/manifests/year=2026/month=10/day=06/real-time/batch.json`,
+    lastManifestSha256: 'a'.repeat(64)
+  });
+  await assert.rejects(() => service.loadCheckpoint('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INVALID/);
+});
+
+test('checkpoint read rejects missing B2 SHA-256 metadata', async () => {
+  const b2Client = new MemoryB2Client();
+  const service = new AxiomArchiveService({ env: makeEnv(), b2Client });
+  const key = service.checkpointKey('centralized_logs');
+  await service.putJson(key, {
+    version: 1,
+    dataset: 'centralized_logs',
+    lastSuccessfulEnd: '2026-10-06T15:00:00.000Z',
+    lastManifestKey: `${service.prefix}/manifests/year=2026/month=10/day=06/centralized_logs/batch.json`,
+    lastManifestSha256: 'a'.repeat(64)
+  });
+  delete b2Client.objects.get(key).metadata.sha256;
+  await assert.rejects(() => service.loadCheckpoint('centralized_logs'),
+    /ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED/);
+});
 
 test('max chunks per run bounds backfill work and advances checkpoint incrementally', async () => {
   const b2Client = new MemoryB2Client();
@@ -370,4 +429,189 @@ test('recovery drill fails closed without a B2 checkpoint', async () => {
     b2Client: new MemoryB2Client()
   });
   await assert.rejects(() => service.verifyLatestArchiveBatch('centralized_logs'), /checkpoint not found/);
+});
+
+test('replayed audit events dedupe on stable delivery UUID despite Axiom ingestion metadata', () => {
+  const deliveryId = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const original = {
+    _time: '2026-10-21T12:00:00.000Z', log_type: 'audit',
+    action: 'DATA_ACCESS', resource: 'users', success: true,
+    axiom_delivery_id: deliveryId,
+    _id: 'axiom-record-001',
+    _sysTime: '2026-10-21T12:00:01.000Z'
+  };
+  const retry = { ...original,
+    _id: 'axiom-record-002',
+    _sysTime: '2026-10-21T12:01:44.000Z',
+    axiom_delivery_id: deliveryId.toUpperCase()
+  };
+  assert.equal(recordFingerprint('real-time', original), recordFingerprint('real-time', retry));
+  assert.notEqual(recordFingerprint('centralized_logs', original), recordFingerprint('real-time', retry));
+  const stored = sortAndDedupe('real-time', [original, retry]);
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].record.axiom_delivery_id, deliveryId);
+  assert.equal(stored[0].record._id, undefined);
+  assert.equal(stored[0].record._sysTime, undefined);
+  assert.equal(classifyRecord(stored[0].record), 'audit');
+});
+
+test('conflicting audit events sharing a delivery UUID abort archival without leaking content', () => {
+  const id = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const first = {
+    _time: '2026-10-21T12:00:00.000Z', log_type: 'audit',
+    axiom_delivery_id: id,
+    action: 'DATA_ACCESS', resource: 'users'
+  };
+  const incompatible = { ...first, action: 'SECRET_PERSONAL_MESSAGE' };
+  assert.throws(() => sortAndDedupe('real-time', [first, incompatible]),
+    error => error.message === 'AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT');
+});
+
+test('legacy/non-audit events keep content fingerprints rather than trusting unvalidated UUID', () => {
+  const deliveryId = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const base = {
+    _time: '2026-10-21T12:00:00.000Z',
+    log_type: 'technical', axiom_delivery_id: deliveryId,
+    _sysTime: '2026-10-21T12:00:01Z'
+  };
+  const other = { ...base, _sysTime: '2026-10-21T12:10:00Z' };
+  assert.notEqual(recordFingerprint('real-time', base), recordFingerprint('real-time', other));
+  assert.equal(sortAndDedupe('real-time', [base, other]).length, 2);
+  const invalid = { ...base, log_type: 'audit', axiom_delivery_id: 'invalid-id' };
+  assert.notEqual(recordFingerprint('real-time', invalid),
+    recordFingerprint('real-time', { ...invalid, _sysTime: 'other' }));
+});
+
+test('audit archive groups contain one copy after replayed Axiom ingestion', () => {
+  const id = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const first = {
+    _time: '2026-10-21T12:00:00.000Z', log_type: 'audit',
+    axiom_delivery_id: id, action: 'CONSENT_CHANGE',
+    resource: 'users', _id: 'ingest-1'
+  };
+  const replay = { ...first, _id: 'ingest-2' };
+  const b2 = new MemoryB2Client();
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    axiomClient: { query: async () => ({ matches: [] }) },
+    b2Client: b2
+  });
+  const deduped = sortAndDedupe('real-time', [first, replay]);
+  const groups = service.buildArchiveGroups('real-time', deduped, new Date('2026-10-21T12:20:00.000Z'));
+  assert.equal(groups.get('audit').length, 1);
+  assert.equal(groups.get('security').length, 0);
+  assert.equal(groups.get('audit')[0].archive_event_id, recordFingerprint('real-time', replay));
+});
+
+test('conflicting delivery IDs fail archive window before B2 manifest/checkpoint writes', async () => {
+  const id = '9b5d5063-d6bf-4c23-9bbc-ef979a1c587f';
+  const first = {
+    _time: '2026-10-21T12:02:00.000Z', log_type: 'audit',
+    axiom_delivery_id: id, action: 'DATA_ACCESS', resource: 'users',
+    _sysTime: '2026-10-21T12:02:01.000Z'
+  };
+  const conflicting = { ...first, action: 'CONSENT_CHANGE',
+    _sysTime: '2026-10-21T12:02:05.000Z' };
+  const b2 = new MemoryB2Client();
+  const service = new AxiomArchiveService({
+    env: makeEnv(),
+    axiomClient: { query: async () => ({ matches: [first, conflicting] }) },
+    b2Client: b2
+  });
+  await assert.rejects(() => service.archiveWindow({
+    dataset: 'real-time',
+    startTime: new Date('2026-10-21T12:00:00.000Z'),
+    endTime: new Date('2026-10-21T12:05:00.000Z'),
+    archivedAt: new Date('2026-10-21T12:20:00.000Z')
+  }), /AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT/);
+  assert.equal(b2.objects.size, 0,
+    'conflicts must not upload a manifest or advance archive checkpoint');
+});
+
+test('read-only B2 restore refuses oversized remote object before GET', async () => {
+  let getCalls = 0;
+  const b2Client = {
+    async send(command) {
+      if (command.constructor.name === 'HeadObjectCommand') {
+        return { ContentLength: 9 * 1024 * 1024, Metadata: {} };
+      }
+      if (command.constructor.name === 'GetObjectCommand') {
+        getCalls++;
+        throw new Error('GET must not execute for oversized object');
+      }
+      throw new Error('unexpected command');
+    }
+  };
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.getObject('test/oversized.gz'),
+    /ARCHIVE_RESTORE_OBJECT_SIZE_REJECTED/);
+  assert.equal(getCalls, 0);
+});
+
+test('read-only B2 restore aborts a stream when body exceeds HEAD ContentLength', async () => {
+  const b2Client = {
+    async send(command) {
+      if (command.constructor.name === 'HeadObjectCommand') {
+        return { ContentLength: 3, Metadata: {} };
+      }
+      if (command.constructor.name === 'GetObjectCommand') {
+        assert.equal(command.input.Range, 'bytes=0-2');
+        return { Body: {
+          async *[Symbol.asyncIterator]() {
+            yield Buffer.from('abcd');
+          }
+        } };
+      }
+      throw new Error('unexpected command');
+    }
+  };
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.getObject('test/changed.gz'),
+    /ARCHIVE_RESTORE_OBJECT_SIZE_CHANGED/);
+});
+
+test('read-only B2 restore rejects gzip expansion above 32 MiB', async () => {
+  const { createHash } = require('node:crypto');
+  const b2Client = new MemoryB2Client();
+  const body = zlib.gzipSync(Buffer.alloc(32 * 1024 * 1024 + 32, 65));
+  const key = 'test/data/technical/oversized.jsonl.gz';
+  b2Client.objects.set(key, {
+    body,
+    metadata: {
+      sha256: createHash('sha256').update(body).digest('hex'),
+      archiveformat: 'demos-axiom-v1'
+    },
+    contentEncoding: 'gzip',
+    contentType: 'application/x-ndjson'
+  });
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.verifyArchiveObject(key),
+    /ARCHIVE_RESTORE_DECOMPRESSION_REJECTED/);
+});
+
+test('read-only B2 restore rejects more than 60000 records in a single object', async () => {
+  const { createHash } = require('node:crypto');
+  const b2Client = new MemoryB2Client();
+  const body = zlib.gzipSync(Buffer.from(('{"a":1}\n').repeat(60001)));
+  const key = 'test/data/technical/too-many.jsonl.gz';
+  b2Client.objects.set(key, {
+    body,
+    metadata: {
+      sha256: createHash('sha256').update(body).digest('hex'),
+      archiveformat: 'demos-axiom-v1'
+    },
+    contentEncoding: 'gzip',
+    contentType: 'application/x-ndjson'
+  });
+  const service = new AxiomArchiveService({
+    env: makeEnv(), axiomClient: {}, b2Client
+  });
+  await assert.rejects(service.verifyArchiveObject(key),
+    /ARCHIVE_RESTORE_RECORD_LIMIT/);
 });

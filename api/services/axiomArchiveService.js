@@ -7,6 +7,9 @@ const {
   PutObjectCommand
 } = require('@aws-sdk/client-s3');
 const { classifyRecord } = require('../utils/archiveEventClassification');
+const { boundedBodyToBuffer, MAX_COMPRESSED_BYTES } = require('./archiveOverlapB2Reader');
+const MAX_RESTORE_DECOMPRESSED_BYTES = 32 * 1024 * 1024;
+const MAX_RESTORE_EVENTS_PER_OBJECT = 60000;
 
 const DEFAULT_QUERY_LIMIT = 5000;
 const DEFAULT_MAX_WINDOW_MINUTES = 15;
@@ -110,15 +113,43 @@ function getRecordTime(record) {
   return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
+const DELIVERY_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+
+function stableDeliveryId(record) {
+  if (!['audit', 'security'].includes(record?.log_type)) return null;
+  if (typeof record.axiom_delivery_id !== 'string' ||
+      !DELIVERY_ID_PATTERN.test(record.axiom_delivery_id)) return null;
+  return record.axiom_delivery_id.toLowerCase();
+}
+
+// Axiom-generated per-ingest fields must not make a retry of the *same*
+// outbox event look different in B2. Preserve these for legacy records.
+function canonicalDeliveryRecord(record) {
+  if (!stableDeliveryId(record)) return record;
+  const { _id, _sysTime, ...source } = record;
+  return { ...source, axiom_delivery_id: stableDeliveryId(record) };
+}
+
 function recordFingerprint(dataset, record) {
-  return sha256Hex(`${dataset}\n${stableStringify(record)}`);
+  const deliveryId = stableDeliveryId(record);
+  return deliveryId
+    ? sha256Hex([dataset, 'axiom-delivery', deliveryId].join(String.fromCharCode(10)))
+    : sha256Hex([dataset, stableStringify(record)].join(String.fromCharCode(10)));
 }
 
 function sortAndDedupe(dataset, records) {
   const byId = new Map();
-  for (const record of records) {
+  for (const rawRecord of records) {
+    const record = canonicalDeliveryRecord(rawRecord);
     const id = recordFingerprint(dataset, record);
-    if (!byId.has(id)) byId.set(id, { id, record });
+    const previous = byId.get(id);
+    if (!previous) {
+      byId.set(id, { id, record });
+    } else if (stableStringify(previous.record) !== stableStringify(record)) {
+      // Do not drop incompatible events with the same delivery ID silently.
+      // The fixed failure code excludes event content and personal information.
+      throw new Error('AXIOM_ARCHIVE_DELIVERY_ID_CONFLICT');
+    }
   }
 
   return [...byId.values()].sort((a, b) => {
@@ -261,25 +292,63 @@ class AxiomArchiveService {
   }
 
   async getObject(key) {
-    const response = await this.getB2Client().send(new GetObjectCommand({
+    // Reject oversized B2 objects before GET to cap readback egress and RAM.
+    const head = await this.getB2Client().send(new HeadObjectCommand({
       Bucket: this.bucket,
       Key: key
     }));
+    const size = Number(head.ContentLength);
+    if (!Number.isSafeInteger(size) || size < 1 || size > MAX_COMPRESSED_BYTES) {
+      throw new Error('ARCHIVE_RESTORE_OBJECT_SIZE_REJECTED');
+    }
+    const response = await this.getB2Client().send(new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Range: `bytes=0-${size - 1}`
+    }));
+    let body;
+    try {
+      // Never invoke transformToByteArray(): it allocates before size checks.
+      body = await boundedBodyToBuffer(response.Body, size);
+    } catch (_error) {
+      throw new Error('ARCHIVE_RESTORE_OBJECT_SIZE_CHANGED');
+    }
     return {
-      body: await bodyToBuffer(response.Body),
-      metadata: response.Metadata || {},
-      contentEncoding: response.ContentEncoding,
-      contentType: response.ContentType
+      body,
+      metadata: response.Metadata || head.Metadata || {},
+      contentEncoding: response.ContentEncoding || head.ContentEncoding,
+      contentType: response.ContentType || head.ContentType
     };
   }
 
   async loadCheckpoint(dataset) {
     const key = this.checkpointKey(dataset);
     try {
-      const { body } = await this.getObject(key);
-      const parsed = JSON.parse(body.toString('utf8'));
-      if (!parsed.lastSuccessfulEnd || !Number.isFinite(new Date(parsed.lastSuccessfulEnd).getTime())) {
-        throw new Error(`Invalid archive checkpoint at ${key}`);
+      const { body, metadata } = await this.getObject(key);
+      // A valid-looking but corrupted checkpoint could skip historical events.
+      // Validate the B2 digest before using its cursor in the live archiver.
+      if (metadata?.archiveformat !== 'demos-axiom-v1' ||
+          typeof metadata.sha256 !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(metadata.sha256) ||
+          metadata.sha256 !== sha256Hex(body)) {
+        throw new Error('ARCHIVE_CHECKPOINT_INTEGRITY_REJECTED');
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(body.toString('utf8'));
+      } catch (_error) {
+        throw new Error('ARCHIVE_CHECKPOINT_INVALID');
+      }
+      if (!parsed || parsed.version !== 1 || parsed.dataset !== dataset ||
+          typeof parsed.lastManifestKey !== 'string' ||
+          !parsed.lastManifestKey.startsWith(`${this.prefix}/manifests/`) ||
+          !parsed.lastManifestKey.includes(`/${safeSegment(dataset)}/`) ||
+          !parsed.lastManifestKey.endsWith('.json') ||
+          typeof parsed.lastManifestSha256 !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(parsed.lastManifestSha256) ||
+          !parsed.lastSuccessfulEnd ||
+          !Number.isFinite(new Date(parsed.lastSuccessfulEnd).getTime())) {
+        throw new Error('ARCHIVE_CHECKPOINT_INVALID');
       }
       return parsed;
     } catch (error) {
@@ -575,8 +644,21 @@ class AxiomArchiveService {
       throw new Error(`Unexpected archive format metadata for ${key}`);
     }
 
-    const decoded = contentEncoding === 'gzip' || key.endsWith('.gz') ? zlib.gunzipSync(body) : body;
+    let decoded;
+    try {
+      decoded = contentEncoding === 'gzip' || key.endsWith('.gz')
+        ? zlib.gunzipSync(body, { maxOutputLength: MAX_RESTORE_DECOMPRESSED_BYTES })
+        : body;
+    } catch (_error) {
+      throw new Error('ARCHIVE_RESTORE_DECOMPRESSION_REJECTED');
+    }
+    if (decoded.length > MAX_RESTORE_DECOMPRESSED_BYTES) {
+      throw new Error('ARCHIVE_RESTORE_DECOMPRESSION_REJECTED');
+    }
     const lines = decoded.toString('utf8').split('\n').filter(Boolean);
+    if (lines.length > MAX_RESTORE_EVENTS_PER_OBJECT) {
+      throw new Error('ARCHIVE_RESTORE_RECORD_LIMIT');
+    }
     for (const line of lines) {
       const envelope = JSON.parse(line);
       if (!envelope.archive_event_id || !envelope.source_dataset || !envelope.category || !('event' in envelope)) {

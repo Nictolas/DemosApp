@@ -1,0 +1,234 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createAuditOutboxDatabase } = require('../services/auditOutboxDatabase');
+
+const local = 'postgresql://audit_user:ci-secret@127.0.0.1:5432/demos_outbox_ci';
+const role = Object.freeze({
+  is_superuser: false, bypass_rls: false, can_login: true,
+  can_create_database: false, can_create_roles: false,
+  can_replicate: false, can_create_public: false,
+  unrelated_table_grants: 0, unrelated_definer_grants: 0,
+  unrelated_role_memberships: 0,
+  worker_member: true, schema_access: true,
+  can_select: true, can_insert: true, can_update: true,
+  can_delete: true, rls_enabled: true
+});
+
+function fixture({ resultRole = role, environment = {}, failFirst = false } = {}) {
+  const queries = [];
+  let calls = 0;
+  const captured = [];
+  class StubPool {
+    constructor(config) {
+      captured.push(config);
+    }
+    async query(sql, args) {
+      queries.push({ sql, args });
+      calls++;
+      if (failFirst && calls === 1) throw new Error('postgres://leaked-username:password@secret');
+      return { rows: resultRole ? [resultRole] : [] };
+    }
+  }
+  const env = { NODE_ENV: 'test', AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'ci-only',
+    AUDIT_OUTBOX_DATABASE_URL: local,
+    DATABASE_URL: 'postgresql://main_user:ci-password@127.0.0.1:5432/demos_outbox_ci',
+    ...environment };
+  return {
+    get: (options = {}) => createAuditOutboxDatabase({ env, PoolClass: StubPool, ca: () => 'CA-TEST-ONLY', ...options }),
+    queries,
+    captured
+  };
+}
+
+test('default: dedicated URL is mandatory and cannot equal general DEMOS DB URL', () => {
+  assert.throws(
+    () => createAuditOutboxDatabase({ env: { DATABASE_URL: local, AUDIT_OUTBOX_DATABASE_URL: local } }),
+    /MUST_BE_DISTINCT/
+  );
+  assert.throws(
+    () => createAuditOutboxDatabase({ env: {} }), /DATABASE_URL_REQUIRED/
+  );
+  assert.throws(
+    () => createAuditOutboxDatabase({ env: { AUDIT_OUTBOX_DATABASE_URL: 'https://not-postgres' } }),
+    /DATABASE_URL_INVALID/
+  );
+});
+
+test('dedicated pool is small, TLS-aware, and checks Postgres membership before use', async () => {
+  const f = fixture();
+  const { pool, ensureReady } = f.get();
+  assert.ok(pool);
+  assert.equal(f.captured.length, 1);
+  assert.equal(f.captured[0].max, 2);
+  assert.equal(f.captured[0].min, 0);
+  assert.equal(f.captured[0].ssl, false, 'loopback CI uses no TLS');
+  await ensureReady();
+  await ensureReady();
+  assert.equal(f.queries.length, 1, 'ready check cached');
+  assert.deepEqual(f.queries[0].args, ['demos_outbox_worker']);
+  assert.ok(f.queries[0].sql.includes('pg_has_role'));
+  assert.ok(f.queries[0].sql.includes("c.relname = 'audit_delivery_outbox'"));
+  assert.ok(f.queries[0].sql.includes('p.prosecdef'));
+  assert.ok(!JSON.stringify(f.queries).includes('ci-secret'));
+});
+
+test('Supabase connection has verified TLS and ignores untrusted sslmode URL override', async () => {
+  const f = fixture({
+    environment: {
+      DATABASE_URL:
+        'postgresql://postgres:staging-test-secret@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres',
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
+      AUDIT_OUTBOX_DATABASE_URL:
+        'postgresql://demos_outbox_runtime:staging-secret@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres?sslmode=disable'
+    }
+  });
+  f.get();
+  assert.deepEqual(f.captured[0].ssl, { rejectUnauthorized: true, ca: 'CA-TEST-ONLY' });
+  assert.ok(!f.captured[0].connectionString.includes('sslmode=disable'));
+});
+
+test('staging worker rejects lookalike Supavisor hosts before opening a pool', () => {
+  const staging = 'fkeayjzvtuvzesljhjbc';
+  const verified = 'aws-1-eu-central-1.pooler.supabase.com';
+  const make = host => fixture({ environment: {
+    DATABASE_URL:
+      `postgresql://postgres.${staging}:synthetic-main@${verified}:6543/postgres`,
+    AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
+    AUDIT_OUTBOX_DATABASE_URL:
+      `postgresql://demos_outbox_runtime.${staging}:synthetic-worker@${host}:5432/postgres`
+  } });
+  assert.equal(make(verified).get().pool !== undefined, true);
+  for (const host of ['aws-0-eu-central-1.pooler.supabase.com',
+                      'aws-2-eu-central-1.pooler.supabase.com']) {
+    const f = make(host);
+    assert.throws(() => f.get(), /AUDIT_STAGING_TARGET_REJECTED/);
+    assert.equal(f.captured.length, 0);
+  }
+});
+
+test('standalone staging readiness needs only restricted outbox credential, never admin DATABASE_URL', async () => {
+  const staging = 'fkeayjzvtuvzesljhjbc';
+  const host = 'aws-1-eu-central-1.pooler.supabase.com';
+  const f = fixture({ environment: {
+    DATABASE_URL: undefined,
+    AUDIT_OUTBOX_PREFLIGHT_ONLY: 'true',
+    AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
+    AUDIT_OUTBOX_DATABASE_URL:
+      `postgresql://demos_outbox_runtime.${staging}:synthetic-password@${host}:5432/postgres`
+  } });
+  assert.throws(() => f.get(), /PROJECT_SCOPE_REJECTED/,
+    'normal application path still requires the separate primary database');
+  assert.equal(f.captured.length, 0);
+  const db = f.get({ standalonePreflight: true });
+  assert.ok(db.pool);
+  await db.ensureReady();
+  assert.equal(f.captured.length, 1);
+  assert.equal(f.captured[0].ssl.rejectUnauthorized, true);
+
+  for (const envOverrides of [
+    { AUDIT_OUTBOX_PREFLIGHT_ONLY: 'false' },
+    { DATABASE_URL: `postgresql://postgres.${staging}:synthetic@${host}:6543/postgres` },
+    { AUDIT_OUTBOX_WORKER_ENABLED: 'true' },
+    { AUDIT_OUTBOX_ENABLED: 'true' },
+    { AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production' },
+    { AUDIT_OUTBOX_DATABASE_URL:
+      `postgresql://demos_outbox_runtime.${staging}:synthetic-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres` }
+  ]) {
+    const unsafe = fixture({ environment: {
+      DATABASE_URL: undefined,
+      AUDIT_OUTBOX_PREFLIGHT_ONLY: 'true',
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'staging',
+      AUDIT_OUTBOX_DATABASE_URL:
+        `postgresql://demos_outbox_runtime.${staging}:synthetic-password@${host}:5432/postgres`,
+      ...envOverrides
+    } });
+    assert.throws(() => unsafe.get({ standalonePreflight: true }),
+      /STANDALONE_PREFLIGHT_REJECTED|STAGING_TARGET_REJECTED/);
+    assert.equal(unsafe.captured.length, 0);
+  }
+});
+
+test('preflight denies owner/bypass/admin permissions, missing grants and absent policy', async () => {
+  for (const extra of [
+    { is_superuser: true }, { bypass_rls: true }, { worker_member: false },
+    { can_insert: false }, { rls_enabled: false }, { can_login: false },
+    { can_create_database: true }, { can_create_roles: true },
+    { can_replicate: true }, { can_create_public: true },
+    { unrelated_table_grants: 1 }, { unrelated_definer_grants: 1 },
+    { unrelated_role_memberships: 1 }
+  ]) {
+    const f = fixture({ resultRole: { ...role, ...extra } });
+    await assert.rejects(() => f.get().ensureReady(), /DATABASE_PREFLIGHT_FAILED/);
+  }
+  const f = fixture({ resultRole: null });
+  await assert.rejects(() => f.get().ensureReady(), /DATABASE_PREFLIGHT_FAILED/);
+});
+
+test('preflight errors never disclose the connection string; transient failures can retry', async () => {
+  const f = fixture({ failFirst: true });
+  const db = f.get();
+  await assert.rejects(
+    () => db.ensureReady(),
+    e => e.message === 'AUDIT_OUTBOX_DATABASE_PREFLIGHT_FAILED'
+  );
+  await db.ensureReady();
+  assert.equal(f.queries.length, 2);
+});
+
+test('no pool connection happens when URL is missing or identical to the main connection', () => {
+  const f = fixture({ environment: { AUDIT_OUTBOX_DATABASE_URL: '' } });
+  assert.throws(() => f.get(), /DATABASE_URL_REQUIRED/);
+  assert.equal(f.captured.length, 0);
+});
+
+test('cross-project or incorrect deployment scope rejects before constructing any pool', () => {
+  const stagingMain =
+    'postgresql://postgres:ci@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres';
+  const stagingOutbox =
+    'postgresql://demos_outbox_runtime:ci@db.fkeayjzvtuvzesljhjbc.supabase.co:5432/postgres';
+  const prodMain =
+    'postgresql://postgres:ci@db.wxnblcqoyjqxktwkcqok.supabase.co:5432/postgres';
+  for (const environment of [
+    {
+      DATABASE_URL: prodMain, AUDIT_OUTBOX_DATABASE_URL: stagingOutbox,
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production'
+    },
+    {
+      DATABASE_URL: stagingMain, AUDIT_OUTBOX_DATABASE_URL: stagingOutbox,
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production'
+    },
+    {
+      DATABASE_URL: stagingMain, AUDIT_OUTBOX_DATABASE_URL: stagingOutbox,
+      AUDIT_OUTBOX_DEPLOYMENT_SCOPE: ''
+    }
+  ]) {
+    const f = fixture({ environment });
+    assert.throws(() => f.get(), /PROJECT_SCOPE_REJECTED/);
+    assert.equal(f.captured.length, 0);
+    assert.equal(f.queries.length, 0);
+  }
+});
+
+test('production can keep transaction pooler for main DB while outbox uses session pooler', () => {
+  const prodRef = 'wxnblcqoyjqxktwkcqok';
+  const main = `postgresql://postgres.${prodRef}:synthetic-main@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`;
+  const dedicated = `postgresql://demos_outbox_runtime.${prodRef}:synthetic-outbox@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`;
+  const f = fixture({ environment: {
+    NODE_ENV: 'production', AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production',
+    DATABASE_URL: main, AUDIT_OUTBOX_DATABASE_URL: dedicated
+  } });
+  const { pool } = f.get();
+  assert.ok(pool);
+  assert.equal(f.captured.length, 1);
+  assert.equal(f.captured[0].connectionString.includes(':5432/postgres'), true);
+  assert.equal(f.captured[0].ssl.rejectUnauthorized, true);
+
+  const unsafe = fixture({ environment: {
+    NODE_ENV: 'production', AUDIT_OUTBOX_DEPLOYMENT_SCOPE: 'production',
+    DATABASE_URL: main, AUDIT_OUTBOX_DATABASE_URL:
+      dedicated.replace(':5432/', ':6543/')
+  } });
+  assert.throws(() => unsafe.get(), /PROJECT_SCOPE_REJECTED/);
+  assert.equal(unsafe.captured.length, 0);
+});
