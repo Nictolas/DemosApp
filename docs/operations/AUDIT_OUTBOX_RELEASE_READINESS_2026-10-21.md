@@ -907,6 +907,16 @@ Se il provider non dà ACK, la riga sintetica può restare pending
 per diagnosi manuale; nessun retry automatico o eliminazione
 di audit non autorizzata.
 
+È disponibile una verifica preliminare **senza invio**:
+`cd api && npm run audit:outbox:staging-worker-once -- --preflight`.
+Questa modalità controlla soltanto forma e presenza delle variabili
+d'ambiente e restituisce **i nomi** dei parametri mancanti, mai valori
+o segreti. **Non** verifica privilegi reali né scope Axiom; un esito
+`CONFIG_SHAPE_OK` non è un'autorizzazione al collaudo live.
+Riusa la normalizzazione strettamente vincolata della password
+PostgreSQL di staging già collaudata nel servizio Render di lettura,
+per gestire caratteri riservati senza alterare progetto o destinazione.
+
 **NON ANCORA ESEGUITO con credenziali reali.**
 Il token di prova ingest creato per CP-EA-049 aveva scadenza
 23/10/2026 alle 21:21; non presumere la validità e

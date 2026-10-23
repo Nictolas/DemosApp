@@ -1,6 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { preflightMetadata } = require('../scripts/verify-audit-outbox-worker-staging');
+const { normalizeReadonlyStagingUri } = require('../scripts/audit-outbox-readonly-health-server');
 const {
   DATASET, INGEST, QUERY,
   assertStagingWorkerDrillEnvironment, runStagingWorkerDrill
@@ -166,4 +168,67 @@ test('missing readback polls only queries and never resends the event', async ()
   assert.deepEqual(fake.counts(), {
     queued: 0, ingests: 1, queries: 5, enqueues: 1, opens: 1, closes: 1
   });
+});
+
+
+test('local-only preflight reports only missing variable NAMES, never values or secrets', () => {
+  const result = preflightMetadata({});
+  assert.equal(result.status, 'STAGING_WORKER_DRILL_LOCAL_PREFLIGHT_BLOCKED');
+  assert.deepEqual(result.missingVariables, [
+    'AUDIT_OUTBOX_DATABASE_URL',
+    'AXIOM_STAGING_DRILL_INGEST_TOKEN',
+    'AXIOM_STAGING_DRILL_QUERY_TOKEN'
+  ]);
+  assert.equal(result.sent, false);
+  assert.equal(result.realDbLoginChecked, false);
+  assert.equal(result.axiomTokenScopesChecked, false);
+  const ready = preflightMetadata(base);
+  assert.equal(ready.status,
+    'STAGING_WORKER_DRILL_CONFIG_SHAPE_OK_PROVIDER_SCOPES_UNVERIFIED');
+  assert.deepEqual(ready.missingVariables, []);
+  assert.equal(JSON.stringify(ready).includes('not-a-real-password'), false);
+  assert.equal(JSON.stringify(ready).includes('ingest-only-test-credential'), false);
+});
+
+test('staging preflight reuses exact pinned readonly password normalization', async () => {
+  const raw = base.AUDIT_OUTBOX_DATABASE_URL.replace(
+    'not-a-real-password', 'staging#private?password/with:reserved'
+  );
+  const normalized = normalizeReadonlyStagingUri(raw);
+  assert.notEqual(normalized, raw);
+  assert.match(normalized, /%23/);
+  assert.match(normalized, /%3F/);
+  assert.match(normalized, /%2F/);
+  assert.equal(assertStagingWorkerDrillEnvironment({
+    ...base, AUDIT_OUTBOX_DATABASE_URL: normalized
+  }), true);
+  // Never open DB; solely confirm normalized env is handed to its opener.
+  let handedUrl;
+  await assert.rejects(runStagingWorkerDrill({
+    env: { ...base, AUDIT_OUTBOX_DATABASE_URL: raw },
+    open: passedEnv => {
+      handedUrl = passedEnv.AUDIT_OUTBOX_DATABASE_URL;
+      throw new Error('SAFE_OFFLINE_STOP');
+    }
+  }), /SAFE_OFFLINE_STOP/);
+  assert.equal(handedUrl, normalized);
+  assert.equal(preflightMetadata({
+    ...base, AUDIT_OUTBOX_DATABASE_URL: raw
+  }).status, 'STAGING_WORKER_DRILL_CONFIG_SHAPE_OK_PROVIDER_SCOPES_UNVERIFIED');
+});
+
+test('malformed or wrong-project staging target remains blocked after normalization', async () => {
+  const invalid = [
+    base.AUDIT_OUTBOX_DATABASE_URL.replace('fkeayjzvtuvzesljhjbc','wxnblcqoyjqxktwkcqok'),
+    base.AUDIT_OUTBOX_DATABASE_URL.replace('aws-1-eu-central-1.pooler.supabase.com','example.invalid'),
+    'postgresql://demos_outbox_runtime.fkeayjzvtuvzesljhjbc:secret@example.com:5432/postgres'
+  ];
+  for (const value of invalid) {
+    let opened = false;
+    await assert.rejects(runStagingWorkerDrill({
+      env: { ...base, AUDIT_OUTBOX_DATABASE_URL: value },
+      open: () => { opened = true; }
+    }), /STAGING_WORKER_DRILL_ENV_REJECTED/);
+    assert.equal(opened, false);
+  }
 });

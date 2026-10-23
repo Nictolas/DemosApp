@@ -6,6 +6,7 @@
 const { createAuditOutbox } = require('./auditOutboxService');
 const { createAuditOutboxWorker } = require('../jobs/auditOutboxWorker');
 const { createAuditOutboxDatabase } = require('./auditOutboxDatabase');
+const { normalizeReadonlyStagingUri } = require('../scripts/audit-outbox-readonly-health-server');
 const { validateStagingOutboxTarget } = require('./auditOutboxStagingGuard');
 const {
   STAGING_AXIOM_DATASET, STAGING_AXIOM_EDGE_DOMAIN,
@@ -69,18 +70,25 @@ function requestOptions(token) {
 
 async function runStagingWorkerDrill({
   env = process.env,
-  open = () => createAuditOutboxDatabase({ env, standalonePreflight: true }),
+  open = runtimeEnv => createAuditOutboxDatabase({ env: runtimeEnv, standalonePreflight: true }),
   makeOutbox = createAuditOutbox,
   makeWorker = createAuditOutboxWorker,
   post = (...args) => require('axios').post(...args),
   now = () => new Date(),
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 } = {}) {
+  // An existing dedicated staging probe has already validated the exact
+  // fixed-prefix/fixed-suffix password escaping rules. Reuse it without
+  // weakening host, role, project, scope, or target validation.
+  const runtimeEnv = {
+    ...env,
+    AUDIT_OUTBOX_DATABASE_URL: normalizeReadonlyStagingUri(env.AUDIT_OUTBOX_DATABASE_URL)
+  };
   // Reject all bad environments BEFORE opening a pool or contacting Axiom.
-  assertStagingWorkerDrillEnvironment(env);
+  assertStagingWorkerDrillEnvironment(runtimeEnv);
   let pool;
   try {
-    const db = open();
+    const db = open(runtimeEnv);
     if (!db || !db.pool || typeof db.ensureReady !== 'function') {
       throw new Error('STAGING_WORKER_DRILL_DATABASE_UNAVAILABLE');
     }
