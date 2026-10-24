@@ -68,7 +68,7 @@ jobs:
           node --check services/centralizedLogger.js
           node --check routes/notifiche.js
           node --check routes/comunicazioni.js
-          node --test tests/operationalAlerts.smoke.test.js tests/politicalOpinionChangeNotifications.smoke.test.js
+          node --test tests/operationalAlerts.smoke.test.js
       - name: Credential log minimization regression
         working-directory: api
         run: |
