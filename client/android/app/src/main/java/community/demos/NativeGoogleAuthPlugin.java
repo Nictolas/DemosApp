@@ -34,6 +34,31 @@ import java.util.concurrent.Executor;
 @CapacitorPlugin(name = "NativeGoogleAuth")
 public class NativeGoogleAuthPlugin extends Plugin {
 
+    private String publicCredentialError(GetCredentialException error) {
+        String type = error.getType();
+        if (type == null || type.trim().isEmpty()) {
+            type = error.getClass().getSimpleName();
+        }
+
+        // Classifichiamo tramite il type pubblico di Credential Manager invece di
+        // dipendere da sottoclassi AndroidX specifiche: il messaggio resta utile
+        // anche se il provider restituisce una variante nuova o specifica OEM.
+        if (type.contains("TYPE_USER_CANCELED") || type.contains("CANCELLATION")) {
+            return "Accesso Google annullato.";
+        }
+        if (type.contains("PROVIDER_CONFIGURATION")) {
+            return "Google Sign-In non è configurato per questa build dell'app. Codice: provider_configuration.";
+        }
+        if (type.contains("TYPE_NO_CREDENTIAL") || type.contains("NO_CREDENTIAL")) {
+            return "Nessun account Google utilizzabile è stato restituito al dispositivo. Codice: no_credential.";
+        }
+        if (type.contains("UNSUPPORTED")) {
+            return "Il servizio credenziali Google non è supportato o aggiornato su questo dispositivo. Codice: unsupported.";
+        }
+
+        return "Accesso Google non riuscito. Codice: " + type + ".";
+    }
+
     @PluginMethod
     public void signIn(PluginCall call) {
         String serverClientId = call.getString("serverClientId");
@@ -70,7 +95,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
 
                         CustomCredential customCredential = (CustomCredential) credential;
                         if (!GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(customCredential.getType())) {
-                            call.reject("Risposta Google inattesa");
+                            call.reject("Risposta Google inattesa: tipo credenziale non ID token");
                             return;
                         }
 
@@ -79,7 +104,7 @@ public class NativeGoogleAuthPlugin extends Plugin {
 
                         String idToken = googleCredential.getIdToken();
                         if (idToken == null || idToken.isEmpty()) {
-                            call.reject("Google non ha restituito un ID token");
+                            call.reject("Google ha restituito una credenziale senza ID token");
                             return;
                         }
 
@@ -87,13 +112,13 @@ public class NativeGoogleAuthPlugin extends Plugin {
                         resultObject.put("idToken", idToken);
                         call.resolve(resultObject);
                     } catch (Exception error) {
-                        call.reject("Impossibile leggere la credenziale Google", error);
+                        call.reject("Impossibile leggere la credenziale Google (" + error.getClass().getSimpleName() + ")", error);
                     }
                 }
 
                 @Override
                 public void onError(GetCredentialException error) {
-                    call.reject("Accesso Google annullato o non riuscito", error);
+                    call.reject(publicCredentialError(error), error);
                 }
             }
         );
