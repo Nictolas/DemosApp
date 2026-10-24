@@ -213,7 +213,7 @@ async function exportBackup(db, onSnapshotOpen) {
   const t = tables(PREFIX);
   await db.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
   try {
-    const head = (await db.query('SELECT version FROM ' + t.head +
+    const head = (await db.query('SELECT singleton,version FROM ' + t.head +
       ' WHERE singleton=true')).rows;
     // This read fixes a single MVCC snapshot for all subsequent tables.
     if (onSnapshotOpen) await onSnapshotOpen();
