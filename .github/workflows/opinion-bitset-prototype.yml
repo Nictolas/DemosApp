@@ -13,6 +13,7 @@ on:
       - 'api/scripts/verify-opinion-catalog-persistence.js'
       - 'api/scripts/verify-opinion-rls-isolation.js'
       - 'api/scripts/verify-opinion-packed-http-concurrency.js'
+      - 'api/scripts/verify-opinion-revocation-race.js'
       - 'api/tests/opinionBitset.test.js'
       - 'api/tests/opinionTextAggregateProbe.test.js'
       - 'api/utils/opinionTextAggregateProbe.js'
@@ -162,3 +163,12 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-opinion-packed-http-concurrency.js
+      - name: Exercise save-versus-revoke races with consent-row locks and negative control
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-revocation-race.js

@@ -392,3 +392,59 @@ già scritte. Il lock è una convenzione fra scrittori cooperanti: non
 sostituisce i vincoli e permessi necessari in un disegno produttivo.
 La convenienza della compressione rispetto a TEXT resta da dimostrare.
 **OP-41 In corso; KPI-23 Non verificato; OP-42 Da fare.**
+
+
+## Revoca del consenso durante POST: prova di concorrenza (DOC-034)
+
+In `api/scripts/verify-opinion-revocation-race.js` si usa SOLO il
+PostgreSQL 17 effimero del job GitHub Actions `physical-storage`.
+Guardia obbligatoria: `GITHUB_ACTIONS=true`,
+`OPINION_BENCH_EPHEMERAL=yes`, database `opinion_bitset_ci` su
+`127.0.0.1:5432` e utente/password fittizi. Schema isolato
+`ci_opinion_revoke_race_247`, dati sintetici, nessun Supabase,
+nessuna migration o nuova route DEMOS.
+
+Il nuovo esperimento riproduce, per tutti e tre i formati
+`fixed`, `trimmed`, `sparse`, tre sequenze con barriere e vere
+connessioni SQL separate:
+
+1. **Controllo negativo volutamente insicuro**: POST legge
+   `granted=true` FUORI dalla transazione, viene sospeso, la revoca
+   aggiorna il consenso e cancella i voti nello stesso commit, poi il
+   POST prosegue e ricrea un blob BYTEA. Il test DEVE osservare la
+   ricomparsa, dimostrando che il controllo esclusivamente preventivo
+   non è una garanzia sufficiente. Il dato di prova ricreato viene
+   cancellato prima di terminare il test.
+2. **Salvataggio prima della revoca, versione protetta**: il POST
+   apre la transazione, blocca la riga del consenso con
+   `SELECT ... FOR UPDATE`, verifica `granted` e solo allora
+   salva. La revoca in parallelo aspetta realmente il lock PostgreSQL
+   (verificato con `pg_blocking_pids`), quindi disattiva il consenso
+   e cancella i voti. Dopo il commit della revoca non rimane BYTEA
+   e nuovi POST ottengono HTTP 403.
+3. **Revoca prima del salvataggio, versione protetta**: `UPDATE`
+   del consenso e `DELETE` operano nella stessa transazione. Il
+   POST in parallelo aspetta il lock, vede `granted=false` e
+   risponde HTTP 403 senza inserire la risposta. Il test verifica il
+   lock nel database, non deduce la concorrenza da ritardi arbitrari.
+
+Un quarto test per formato provoca un errore dopo `UPDATE` del
+consenso e `DELETE` ma prima del `COMMIT`: il `ROLLBACK`
+deve preservare sia il consenso attivo sia il blob precedente.
+
+**Rilevanza per il codice attuale:** l'endpoint reale
+`api/routes/opinioni/user-answers.js` controlla oggi il consenso
+con `pool.query` **prima** della transazione di salvataggio;
+`api/routes/user/political-opinions-consent.js` effettua la revoca
+e il cleanup dentro una transazione separata. Questo è un
+**rischio di competizione da approfondire**, non la conferma
+di una violazione su dati reali. In questa PR il test NON modifica
+i due endpoint effettivi: mostra il difetto del modello insicuro e
+una contromisura candidata, che richiederebbe progettazione/test
+anche con le vere tabelle consenso e gli altri processi di scrittura.
+
+**Non verificati**: route reali sotto concorrenza, permessi
+Supabase/Auth/RLS/pooler, cancellazione degli altri dati GDPR,
+Android e confronto economico totale TEXT vs BYTEA. Un test positivo
+sulla soluzione in miniatura non elimina questi limiti.
+OP-41 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
