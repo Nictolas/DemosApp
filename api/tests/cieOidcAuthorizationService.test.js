@@ -78,3 +78,30 @@ test('OIDC CIE reale resta disabilitato senza flag esplicito', () => {
     error => error.code === 'CIE_OIDC_DISABLED'
   );
 });
+
+test('richiede nomi soltanto nella reautenticazione CIE per profilo pubblico', () => {
+  const { authorizationUrl, transaction } = createAuthorizationRequest(1700000000, 'recognition');
+  const object = new URL(authorizationUrl).searchParams.get('request');
+  const claims = jwt.verify(object, publicKey, {
+    algorithms: ['RS256'], audience: 'https://cie-op.example',
+    issuer: 'https://demos.example/rp', clockTimestamp: 1700000000
+  }).claims.userinfo;
+
+  assert.deepEqual(claims, {
+    [FISCAL_NUMBER_CLAIM]: null,
+    given_name: { essential: true },
+    family_name: { essential: true }
+  });
+  assert.equal(transaction.purpose, 'recognition');
+
+  const ordinaryClaims = jwt.verify(
+    new URL(createAuthorizationRequest(1700000000).authorizationUrl).searchParams.get('request'),
+    publicKey,
+    { algorithms: ['RS256'], audience: 'https://cie-op.example', issuer: 'https://demos.example/rp', clockTimestamp: 1700000000 }
+  ).claims.userinfo;
+  assert.deepEqual(ordinaryClaims, { [FISCAL_NUMBER_CLAIM]: null });
+});
+
+test('blocca finalita arbitrarie che espanderebbero i claims CIE', () => {
+  assert.throws(() => createAuthorizationRequest(1700000000, 'all_data'), /Finalita richiesta CIE non valida/);
+});
