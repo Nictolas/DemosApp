@@ -637,8 +637,19 @@ class CentralizedLogger {
     if (meta.globalError === true || meta.operationalCritical === true) {
       try {
         const OperationalAlertService = require('./operationalAlertService');
+        // Un URIError dovuto a una URL malformata è una richiesta client errata,
+        // non un incidente del server. Controllare il percorso prima di minimizzarlo.
+        let malformedClientUri = false;
+        if (req && String(error?.code || error?.name || '').toLowerCase() === 'urierror') {
+          try {
+            decodeURI(String(req.originalUrl || '').split(/[?#]/, 1)[0]);
+          } catch {
+            malformedClientUri = true;
+          }
+        }
         await OperationalAlertService.sendCriticalAlert({
           type: 'UNHANDLED_API_ERROR',
+          malformedClientUri,
           component: 'api',
           severity: 'CRITICAL',
           endpoint: errorMeta.url || meta.endpoint || '',
