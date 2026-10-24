@@ -62,6 +62,8 @@ on:
       - 'api/scripts/verify-opinion-pgdump-restore.js'
       - 'api/scripts/verify-opinion-erasure-after-restore.sh'
       - 'api/scripts/verify-opinion-erasure-after-restore.js'
+      - 'api/scripts/verify-opinion-remote-erasure-journal.js'
+      - 'api/scripts/verify-opinion-remote-erasure-journal.sh'
       - 'api/scripts/benchmark-opinion-queries.js'
       - 'api/scripts/verify-opinion-privacy-equivalence.js'
       - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
@@ -212,6 +214,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: bash api/scripts/verify-opinion-erasure-after-restore.sh
+      - name: Restore stale opinions with a separate PostgreSQL revocation journal
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: bash api/scripts/verify-opinion-remote-erasure-journal.sh
       - name: Verify SQL statistics, row locks and CAS; sample server query times
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
