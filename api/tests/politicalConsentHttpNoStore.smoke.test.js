@@ -30,6 +30,7 @@ test('real consent router prevents HTTP caching before authentication and on eve
     async query(sql) {
       databaseReads++;
       assert.match(String(sql), /FROM users u/);
+      assert.doesNotMatch(String(sql), /political_opinions_consent_(?:ip_address|user_agent)/, 'read only fields needed by the UI');
       if (mode === 'fail') throw new Error('synthetic database error');
       if (mode === 'missing') return { rows: [] };
       return { rows: [{
@@ -78,7 +79,10 @@ test('real consent router prevents HTTP caching before authentication and on eve
     requirePrivateNoStore(res);
     const data = await res.json();
     assert.equal(data.consent.granted, true);
-    assert.equal(data.consent.ipAddress, '198.51.100.20');
+    assert.deepEqual(Object.keys(data.consent).sort(), ['granted', 'timestamp']);
+    assert.equal(data.consent.timestamp, '2026-10-25T00:00:00Z');
+    assert.equal(JSON.stringify(data).includes('198.51.100.20'), false, 'IP must not reach the browser');
+    assert.equal(JSON.stringify(data).includes('synthetic-agent'), false, 'user-agent must not reach the browser');
 
     mode = 'missing';
     res = await fetch(base, { headers: authorized });
