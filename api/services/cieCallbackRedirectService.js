@@ -30,6 +30,16 @@ function buildCieCallbackRedirect(outcome) {
   return url.toString();
 }
 
+function buildRecognitionCieCallbackRedirect(outcome) {
+  if (!['success', 'error'].includes(outcome)) throw new Error('Esito riconoscimento CIE non valido');
+  const url = getTrustedFrontendBaseUrl();
+  url.pathname = '/riconoscimento';
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('cie', outcome);
+  return url.toString();
+}
+
 function buildRegistrationCieCallbackRedirect(outcome, ticket = null) {
   if (!['success', 'error', 'already-linked', 'account-already-verified'].includes(outcome)) {
     throw new Error('Esito callback CIE registrazione non valido');
@@ -53,5 +63,6 @@ function buildRegistrationCieCallbackRedirect(outcome, ticket = null) {
 module.exports = {
   getTrustedFrontendBaseUrl,
   buildCieCallbackRedirect,
+  buildRecognitionCieCallbackRedirect,
   buildRegistrationCieCallbackRedirect
 };
