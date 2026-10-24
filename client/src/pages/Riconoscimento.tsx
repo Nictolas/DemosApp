@@ -150,6 +150,19 @@ export default function Riconoscimento() {
   }, []);
 
   const handleStartCie = async () => {
+    const officialSource = (url: string) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:" && Boolean(parsed.hostname) &&
+          !parsed.username && !parsed.password;
+      } catch (_error) { return false; }
+    };
+    if ((mostraElezione && !officialSource(form.fonte_elezione_url)) ||
+        (mostraCandidatura && !officialSource(form.fonte_candidatura_url))) {
+      toast({ title: "Fonte ufficiale mancante", description: "Inserisci un collegamento HTTPS valido per ogni ruolo richiesto.", variant: "destructive" });
+      return;
+    }
+
     const token = localStorage.getItem("auth_token");
     if (!token) {
       toast({ title: "Accesso richiesto", description: "Accedi a DEMOS prima di verificare la CIE.", variant: "destructive" });
@@ -265,10 +278,15 @@ export default function Riconoscimento() {
       return;
     }
 
-    if (!form.nome || !form.cognome || !form.email) {
+    if (identity !== "verified") {
+      toast({ title: "Verifica CIE necessaria", description: "Completa prima la verifica dell'identità.", variant: "destructive" });
+      return;
+    }
+
+    if (!form.nome || !form.cognome) {
       toast({
         title: "Campi obbligatori mancanti",
-        description: "Nome, cognome ed email sono obbligatori.",
+        description: "Completa nome e cognome nel tuo profilo.",
         variant: "destructive"
       });
       return;
@@ -319,6 +337,7 @@ export default function Riconoscimento() {
         throw new Error(errorBody?.message || errorBody?.error || "Impossibile inviare la richiesta di riconoscimento.");
       }
 
+      setRequestStatus({ tipo_ruolo: form.tipo_ruolo, status: "pending", created_at: new Date().toISOString() });
       toast({
         title: "Richiesta inviata",
         description: "La tua richiesta di riconoscimento è stata inviata agli amministratori.",
@@ -344,10 +363,10 @@ export default function Riconoscimento() {
         <Card className="w-full max-w-2xl shadow-xl border-0">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              Riconoscimento - Sono un politico / candidato
+              Riconoscimento del profilo politico
             </CardTitle>
             <CardDescription>
-              Invia una richiesta di riconoscimento del tuo ruolo. Un amministratore verificherà i dati e, se approvata, il tuo ruolo sarà aggiornato in Demos.
+              Verifica la tua identità con CIE e indica una fonte ufficiale che dimostri la candidatura o la carica. La richiesta sarà esaminata prima dell’approvazione.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -364,9 +383,9 @@ export default function Riconoscimento() {
                   <SelectValue placeholder="Seleziona il ruolo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="P">Politico</SelectItem>
+                  <SelectItem value="P">Politico eletto</SelectItem>
                   <SelectItem value="C">Candidato</SelectItem>
-                  <SelectItem value="CP">Candidato Politico</SelectItem>
+                  <SelectItem value="CP">Politico eletto e candidato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -376,7 +395,7 @@ export default function Riconoscimento() {
                 <label className="text-sm font-medium text-gray-700">Nome</label>
                 <Input
                   value={form.nome}
-                  onChange={e => handleChange("nome", e.target.value)}
+                  readOnly
                   placeholder="Nome"
                   required
                 />
@@ -385,7 +404,7 @@ export default function Riconoscimento() {
                 <label className="text-sm font-medium text-gray-700">Cognome</label>
                 <Input
                   value={form.cognome}
-                  onChange={e => handleChange("cognome", e.target.value)}
+                  readOnly
                   placeholder="Cognome"
                   required
                 />
@@ -397,9 +416,8 @@ export default function Riconoscimento() {
               <Input
                 type="email"
                 value={form.email}
-                onChange={e => handleChange("email", e.target.value)}
-                placeholder="la-tua-email@example.com"
-                required
+                readOnly
+                placeholder="Email dal profilo"
               />
             </div>
 
@@ -649,13 +667,37 @@ export default function Riconoscimento() {
               </div>
             )}
 
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">3. Fonti ufficiali</div>
+                <p className="text-sm text-slate-600">
+                  Indica una pagina o un documento istituzionale che riporti il tuo nome.
+                  Non bastano social network, articoli giornalistici o siti di partito.
+                </p>
+                {mostraElezione && (
+                  <div className="space-y-2">
+                    <label htmlFor="fonte-elezione" className="text-sm font-medium text-gray-700">URL ufficiale della carica ricoperta *</label>
+                    <Input id="fonte-elezione" type="url" maxLength={2048}
+                      placeholder="https://..." value={form.fonte_elezione_url}
+                      onChange={e => handleChange("fonte_elezione_url", e.target.value)} required />
+                  </div>
+                )}
+                {mostraCandidatura && (
+                  <div className="space-y-2">
+                    <label htmlFor="fonte-candidatura" className="text-sm font-medium text-gray-700">URL ufficiale della candidatura *</label>
+                    <Input id="fonte-candidatura" type="url" maxLength={2048}
+                      placeholder="https://..." value={form.fonte_candidatura_url}
+                      onChange={e => handleChange("fonte_candidatura_url", e.target.value)} required />
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Non è necessario allegare documenti d'identità.</p>
+              </div>
               <div className="pt-2 flex justify-end">
                 <Button
                   type="submit"
                   className="min-w-[180px]"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || identity !== "verified" || !form.tipo_ruolo}
                 >
-                  {isSubmitting ? "Invio in corso..." : "Invia richiesta"}
+                  {isSubmitting ? "Invio in corso..." : "Invia richiesta di riconoscimento"}
                 </Button>
               </div>
             </form>
