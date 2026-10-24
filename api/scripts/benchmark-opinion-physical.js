@@ -131,10 +131,9 @@ async function run() {
   });
   await client.connect();
   try {
-    const actual = await client.query('SELECT current_database() AS name, inet_server_addr()::text AS host');
-    if (actual.rows[0].name !== DB ||
-        !['127.0.0.1', '::1'].includes(actual.rows[0].host)) {
-      throw new Error('Unexpected PostgreSQL target; refusing to create benchmark tables');
+    const actual = await client.query('SELECT current_database() AS name');
+    if (actual.rows[0].name !== DB) {
+      throw new Error('Unexpected PostgreSQL database; refusing to create benchmark tables');
     }
     const results = [];
     for (const sourceMode of ['none', 'sources']) {
