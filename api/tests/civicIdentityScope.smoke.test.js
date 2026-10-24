@@ -6,7 +6,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('political-consent writes also require CIE civic identity', () => {
+test('political-consent writes retain central server-side civic identity gate', () => {
   for (const rel of [
     'api/routes/amnistia.js','api/routes/capo-stato.js','api/routes/governo.js',
     'api/routes/grazia.js','api/routes/iniziative-popolari.js',
@@ -18,7 +18,7 @@ test('political-consent writes also require CIE civic identity', () => {
   }
 });
 
-test('canonical opinions and political selections require CIE on writes', () => {
+test('canonical political selections retain the configurable civic identity gate', () => {
   assert.match(read('api/routes/opinioni/user-answers.js'), /router\.post\('\/salva',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
   assert.match(read('api/routes/candidati.js'), /router\.put\('\/seleziona-candidato',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
   assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/political-selection',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
