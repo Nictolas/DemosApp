@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'api/routes/opinioni/user-answers.js'
+      - 'api/routes/users/profile.js'
+      - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
       - 'api/routes/user/political-opinions-consent.js'
       - 'api/services/politicalConsentService.js'
       - 'api/tests/ordinaryUserOpinionSave.test.js'
