@@ -543,8 +543,12 @@ test('multi-batch snapshots reject pools without checkout, rather than silently 
 test('opt-in direct-filter SQL keeps the four real route contracts and remains default-off',async()=>{
  const name='SONDAGGI_EXPERIMENTAL_DIRECT_FILTER';
  const before=process.env[name];
+ const beforeCI=process.env.SONDAGGI_TEXT_CI;
+ const beforeActions=process.env.GITHUB_ACTIONS;
  const {buildDirectFilterTextAggregateQuery}=require('../utils/sondaggiTextBulk');
  try{
+  process.env.GITHUB_ACTIONS='true';
+  process.env.SONDAGGI_TEXT_CI='isolated';
   for(const mode of ['unset','false','true']){
    if(mode==='unset')delete process.env[name];
    else process.env[name]=mode;
@@ -577,8 +581,20 @@ test('opt-in direct-filter SQL keeps the four real route contracts and remains d
   assert.doesNotMatch(query,/Pisa|DROP TABLE|UPDATE users/);
   assert.throws(()=>buildDirectFilterTextAggregateQuery(['caccia'],
     {scope:'unknown',params:['TO']}));
+  // Production, even with an accidental experimental flag, must use
+  // the known-good grouped query. The UI flag is not sufficient alone.
+  delete process.env.GITHUB_ACTIONS;
+  delete process.env.SONDAGGI_TEXT_CI;
+  process.env[name]='true';
+  const prod=fakePool();
+  await getNationalSurveyStats(prod.pool,QUESTIONS);
+  assert.doesNotMatch(prod.calls[1].sql,/FROM \(SELECT COUNT\(\*\) FILTER/);
  }finally{
   if(before===undefined)delete process.env[name];
   else process.env[name]=before;
+  if(beforeCI===undefined)delete process.env.SONDAGGI_TEXT_CI;
+  else process.env.SONDAGGI_TEXT_CI=beforeCI;
+  if(beforeActions===undefined)delete process.env.GITHUB_ACTIONS;
+  else process.env.GITHUB_ACTIONS=beforeActions;
  }
 });
