@@ -17,6 +17,7 @@ const { getIdentityVerificationStatus } = require('../../services/identityVerifi
 const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 const { completeOAuthRegistrationWithoutCie } = require('../../services/oauthRegistrationService');
 const { isCieRequiredForRegistration } = require('../../services/identityRegistrationPolicy');
+const { isCieRequiredForCivicActions } = require('../../services/civicIdentityPolicy');
 
 const router = express.Router();
 const pool = getPool();
@@ -311,7 +312,9 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
         success: true,
         requiresCie: false,
         identityVerified: false,
-        message: 'Registrazione completata. La CIE sarà richiesta per le azioni civiche sensibili.',
+        message: isCieRequiredForCivicActions()
+          ? 'Registrazione completata. Per le azioni civiche è richiesta la verifica CIE.'
+          : 'Registrazione completata. Puoi utilizzare le funzioni civiche senza CIE nella fase iniziale.',
         user: { id: completed.userId, ruolo: completed.role },
         hasPasskey: false,
         ...tokens,
