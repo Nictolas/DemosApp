@@ -50,6 +50,7 @@ const { saveCieRegistrationTransaction } = require('../../services/cieOidcTransa
 const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 const { completePasskeyRegistrationWithoutCie } = require('../../services/passkeyRegistrationService');
 const { isCieRequiredForRegistration } = require('../../services/identityRegistrationPolicy');
+const { isCieRequiredForCivicActions } = require('../../services/civicIdentityPolicy');
 const {
   webauthnStatusLimiter,
   webauthnChallengeLimiter,
@@ -339,7 +340,9 @@ router.post('/webauthn/register/verify', webauthnVerifyLimiter, async (req, res)
           success: true,
           requiresCie: false,
           identityVerified: false,
-          message: 'Registrazione completata. La CIE sarà richiesta per le azioni civiche sensibili.',
+          message: isCieRequiredForCivicActions()
+          ? 'Registrazione completata. Per le azioni civiche è richiesta la verifica CIE.'
+          : 'Registrazione completata. Puoi utilizzare le funzioni civiche senza CIE nella fase iniziale.',
           user: { id: completed.userId, ruolo: completed.role },
           hasPasskey: true,
           ...tokens,
