@@ -28,16 +28,21 @@ test('DPO is a separate capability, never a synonym for Admin', () => {
   assert.match(wrapper, /!hasAdminCapability\(user\) && !\(isGestisciHomePath\(location\) && hasDpoCapability\(user\)\)/);
 });
 
-test('Gestisci renders only the DPO shortcut for DPO accounts, and all hubs for Admins', () => {
+test('Gestisci exposes DPO overview cards without granting underlying Admin routes', () => {
   const home = read('client/src/pages/Gestisci/index.tsx');
+  const hubs = read('client/src/pages/Gestisci/components/SectionsGrid.tsx');
+  const panel = read('client/src/pages/DpoPanel.tsx');
   assert.match(home, /const isAdmin = hasAdminCapability\(user\)/);
   assert.match(home, /const isDpo = hasDpoCapability\(user\)/);
   assert.match(home, /if \(!isAdmin && !isDpo\)/);
   assert.match(home, /data-testid="gestisci-dpo"/);
-  assert.match(home, /setLocation\("\/dpo"\)/);
-  assert.match(home, /Pannello DPO/);
-  assert.match(home, /\{isAdmin && <SectionsGrid \/>\}/);
-  assert.doesNotMatch(home, /isDpo && <SectionsGrid/);
+  assert.match(home, /<SectionsGrid dpoReadOnly=\{!isAdmin && isDpo\} \/>/);
+  assert.match(hubs, /if \(dpoReadOnly\)/);
+  assert.match(hubs, /\/dpo\?section=/);
+  assert.match(hubs, /Riepilogo aggregato in sola lettura/);
+  assert.match(panel, /\/dpo\/areas/);
+  assert.match(panel, /aggregated_readonly/);
+  assert.doesNotMatch(panel, /\/admin\/data-export|\/backup-dashboard/);
 });
 
 test('main logos link Admin and DPO capabilities to Gestisci without legacy-role assumptions', () => {
