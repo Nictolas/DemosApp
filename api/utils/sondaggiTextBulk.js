@@ -12,6 +12,28 @@ const { cellThresholdMet } = require('./politicalAggregatePrivacy');
 
 const SAFE_COLUMN = /^[a-z][a-z0-9_]{0,62}$/;
 const MAX_GROUPED_COLUMNS = 256;
+const MAX_LEGACY_FALLBACK_COLUMNS = 128;
+
+// Keep the SQL text for each grouped statement bounded as the catalog grows.
+// A 300-question catalog takes two aggregates instead of >600 legacy reads.
+async function queryGroupedChunks(pool, columns, builder, params = []) {
+  const rows = [];
+  for (let start = 0; start < columns.length; start += MAX_GROUPED_COLUMNS) {
+    const batch = columns.slice(start, start + MAX_GROUPED_COLUMNS);
+    const result = await pool.query(builder(batch), params);
+    rows.push(...result.rows);
+  }
+  return rows;
+}
+
+function enforceLegacyFallbackBudget(ids) {
+  if (ids.length > MAX_LEGACY_FALLBACK_COLUMNS) {
+    const error = new Error('Survey legacy fallback exceeds safe query budget');
+    error.code = 'SONDAGGI_FALLBACK_LIMIT';
+    throw error;
+  }
+}
+
 
 // An unavailable/overloaded database must never trigger up to two extra
 // queries per question. Only stable SQL feature / syntax incompatibilities
@@ -86,6 +108,7 @@ function buildNationalTextAggregateQuery(columns) {
 }
 
 async function legacyNationalStatsFallback(pool, ids) {
+  enforceLegacyFallbackBudget(ids);
   const stats = {};
   for (const id of ids) {
     try {
@@ -121,17 +144,12 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
   const ids = safeOpinionIds(questions);
   if (ids.length === 0) return {};
   try {
-    // Very large catalogs take the established, bounded-column fallback
-    // rather than constructing an unbounded VALUES list.
-    if (ids.length > MAX_GROUPED_COLUMNS) {
-      return legacyNationalStatsFallback(pool, ids);
-    }
     const metadata = await pool.query(COLUMN_SQL, [ids]);
     const existing = new Set(metadata.rows.map(row => row.column_name));
     const columns = ids.filter(id => existing.has(id));
     if (columns.length === 0) return {};
-    const result = await pool.query(buildNationalTextAggregateQuery(columns));
-    return asPublishedStats(result.rows.filter(row => existing.has(row.opinion_id)));
+    const rows = await queryGroupedChunks(pool, columns, buildNationalTextAggregateQuery);
+    return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
   } catch (error) {
     // Never amplify outages: connection failures, statement timeouts,
     // permissions, pool exhaustion and unknown failures fail fast as 500.
@@ -196,6 +214,7 @@ function buildTerritorialTextAggregateQuery(columns, { scope, params } = {}) {
 
 async function legacyTerritorialStatsFallback(pool, ids, scope, params) {
   const filter = territorialFilter(scope, params);
+  enforceLegacyFallbackBudget(ids);
   const stats = {};
   for (const id of ids) {
     try {
@@ -233,19 +252,14 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
   territorialFilter(scope, params);
   const ids = safeOpinionIds(questions);
   if (ids.length === 0) return {};
-  if (ids.length > MAX_GROUPED_COLUMNS) {
-    return legacyTerritorialStatsFallback(pool, ids, scope, params);
-  }
   try {
     const metadata = await pool.query(COLUMN_SQL, [ids]);
     const existing = new Set(metadata.rows.map(row => row.column_name));
     const columns = ids.filter(id => existing.has(id));
     if (columns.length === 0) return {};
-    const result = await pool.query(
-      buildTerritorialTextAggregateQuery(columns, { scope, params }),
-      params
-    );
-    return asPublishedStats(result.rows.filter(row => existing.has(row.opinion_id)));
+    const rows = await queryGroupedChunks(pool, columns,
+      batch => buildTerritorialTextAggregateQuery(batch, { scope, params }), params);
+    return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
   } catch (error) {
     if (!eligibleForLegacyFallback(error)) throw error;
     logger.warn?.('Territorial TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
