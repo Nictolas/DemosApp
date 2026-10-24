@@ -7,10 +7,12 @@ on:
       - 'api/services/cieOidcUserInfoService.js'
       - 'api/services/cieOidcTransactionStore.js'
       - 'api/services/ciePublicIdentityProofStore.js'
+      - 'api/services/oauthRegistrationService.js'
       - 'api/routes/auth/identity.js'
       - 'api/routes/riconoscimenti.js'
       - 'api/services/cieCallbackRedirectService.js'
       - 'api/tests/cie*.test.js'
+      - 'api/tests/oauthRegistrationService.test.js'
       - 'client/src/pages/Riconoscimento.tsx'
       - '.github/workflows/cie-public-identity.yml'
   push:
@@ -41,7 +43,7 @@ jobs:
           node --check api/services/ciePublicIdentityProofStore.js
       - name: CIE public identity tests
         run: |
-          node --test api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieOidcTransactionStore.test.js api/tests/cieCallbackRedirectService.test.js api/tests/ciePublicIdentityProofStore.test.js
+          node --test api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieOidcTransactionStore.test.js api/tests/cieCallbackRedirectService.test.js api/tests/ciePublicIdentityProofStore.test.js api/tests/oauthRegistrationService.test.js
       - name: Install client
         run: npm ci --prefix client --ignore-scripts
       - name: Build client
