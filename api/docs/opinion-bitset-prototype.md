@@ -1397,4 +1397,26 @@ conformità GDPR o convenienza BYTEA. PR #247 **DRAFT**,
 nessun deploy, migrazione o accesso Supabase. OP-41
 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
 
-**Esito DOC-053:** ancora in verifica GitHub Actions.
+**Esito DOC-053:** run PostgreSQL 17 GitHub Actions
+[#40107276835](https://github.com/Nictolas/DemosApp/actions/runs/40107276835)
+**SUCCESS** nel job `physical-storage` e `codec-tests`.
+Lo step di verifica ha emesso `OPINION_LOCAL_ADMISSION_FENCE_PASS`
+e dichiarato **zero interrogazioni remote nel percorso della
+lettura dimostrativa**. Ha osservato 1 attesa reale PostgreSQL
+tra lettura e sigillo locale, registrazione remota soltanto dopo
+la chiusura del gate, recupero da blocco per indisponibilità
+del journal, recupero dopo commit remoto prima del cleanup locale,
+e **4 soggetti sintetici** con payload BYTEA e registro retry
+rimossi al termine.
+
+Il test **dimostra anche l'insufficienza del modello contro
+scrittori non coordinati**: l'inserimento diretto di un evento
+nel journal mentre il gate locale è aperto lascia leggibile
+la risposta revocata. Questo esclude qualsiasi
+dichiarazione di sicurezza end-to-end prima di imporre
+il coordinamento a tutte le scritture e un gate esterno
+di riapertura durante recovery. Gli otto workflow sul
+commit `6d9d915` sono tutti **SUCCESS** (Opinioni, Privacy,
+Security, DPO, Logging, Civic identity, Legacy Menu, prototipo).
+**DOC-053 PASS soltanto nel modello CI con limiti espliciti**;
+non introdotto nelle API reali né in Supabase.
