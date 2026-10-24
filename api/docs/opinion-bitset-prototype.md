@@ -1333,3 +1333,68 @@ dimensionamento; cinque eventi fittizi in catena.
 rischio prestazionale e di disponibilità concreto per
 il design di blocco remoto per lettura.** OP-41 rimane
 **In corso** e KPI-23 **Non verificato**.
+
+
+## Ammissione locale senza interrogazione remota per ogni lettura (DOC-053)
+
+Il prototipo DOC-052 aveva misurato il costo di un blocco
+`FOR SHARE` sul registro PostgreSQL **remoto a ogni lettura**.
+DOC-053 propone un esperimento alternativo nel nuovo file
+`api/scripts/verify-opinion-local-admission-fence.js`, avviato
+dopo DOC-052 dalla CI su database sintetico isolato
+`opinion_local_fence_ci` e sullo stesso secondo PostgreSQL 17
+temporaneo destinato al registro. Non modifica alcuna route
+o tabella di DEMOS.
+
+Il punto d'ammissione delle letture è una funzione SQL
+`SECURITY DEFINER` eseguibile soltanto da un ruolo di prova.
+La funzione ottiene `FOR SHARE` sulla riga di stato
+**nel database locale**, nega qualsiasi lettura se `sealed=true`
+e restituisce il BYTEA soltanto agli utenti con consenso attivo.
+Il chiamante non ha privilegi per interrogare direttamente la
+tabella dei voti. Nella normale lettura questo protocollo
+**non contatta il database remoto**.
+
+Ogni revoca autorizzata deve usare un unico coordinator:
+(1) ottenere un advisory lock applicativo per serializzare
+i coordinatori; (2) aggiornare `sealed=true` e registrare
+**un intento locale durabile** nella stessa transazione,
+aspettando che siano finite eventuali letture con `FOR SHARE`;
+(3) solo dopo, committare l'evento di revoca sul database remoto;
+(4) rigiocare il registro, cancellare BYTEA e chiavi di retry
+e riaprire lo stato locale nella stessa transazione, prima
+di rilasciare il lock del coordinator.
+
+Il test verifica una lettura iniziata prima della chiusura,
+`pg_blocking_pids` con blocco SQL reale e nessun evento
+pubblicato prima che il gate locale sia chiuso. Inoltre simula
+l'indisponibilità del registro *dopo* il seal: la lettura resta
+rifiutata e un coordinator riavviato deve completare l'intento.
+Se il registro ha già accettato la revoca ma il processo si
+interrompe prima della cancellazione locale, i vecchi dati sono
+ancora presenti fisicamente ma inaccessibili dalla funzione
+fino alla riconciliazione.
+
+**Prova negativa fondamentale:** se un componente non autorizzato
+scrive direttamente sul registro remoto **senza prima chiudere
+il gate locale**, il test dimostra che la lettura locale
+continua a poter vedere un voto nel frattempo revocato.
+L'alternativa è dunque valida **soltanto** con un protocollo
+di scrittura unico e imposto ovunque; il modello non è sicuro
+contro eventi da servizi esterni o altri operatori che lo
+aggirano. Il test ripara poi il dato sintetico dimostrativo.
+
+**Limiti:** non esiste un COMMIT atomico fra i due PostgreSQL;
+un guasto intermedio richiede una macchina a stati e recupero
+espliciti. Un vecchio backup con `sealed=false` potrebbe
+riaprire dati revocati al bootstrap: resta indispensabile
+una barriera esterna di avvio prima di pubblicare il database.
+La funzione protegge un unico percorso SQL/ruolo dimostrativo,
+non autenticazione, Supabase RLS, altre API, export, Android,
+cache e backup reali. Advisory lock globale e verifiche
+di recupero hanno costi da misurare. Nessuna prova di
+conformità GDPR o convenienza BYTEA. PR #247 **DRAFT**,
+nessun deploy, migrazione o accesso Supabase. OP-41
+**In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
+
+**Esito DOC-053:** ancora in verifica GitHub Actions.
