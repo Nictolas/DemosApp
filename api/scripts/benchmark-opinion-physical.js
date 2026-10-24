@@ -14,12 +14,13 @@
 const { Client } = require('pg');
 const { encodeAnswers } = require('../utils/opinionBitset');
 const { encodeTrimmed } = require('../utils/opinionTrimmedBitset');
+const { encodeSparse } = require('../utils/opinionSparseBitset');
 
 const DB = 'opinion_bitset_ci';
 const COUNT = 94;
 const ROWS = 1200;
 const RATES = [0, 0.05, 0.09, 0.33, 1];
-const FORMATS = ['text', 'fixed', 'trimmed', 'jsonb'];
+const FORMATS = ['text', 'fixed', 'trimmed', 'sparse', 'jsonb'];
 const OPINIONS = Array.from({ length: COUNT }, (_, i) => 'q' + i);
 const SAFE_NAMES = OPINIONS.map((_, i) => 'q' + i);
 const PHYSICAL_COLUMNS = OPINIONS.map((_, i) => 'opinion_' + String(i).padStart(3, '0') + '_synthetic_topic');
@@ -86,6 +87,9 @@ function makeParameters(row, format) {
   }
   if (format === 'trimmed') {
     return [row.userId, encodeTrimmed(SAFE_NAMES, row.answers), row.source];
+  }
+  if (format === 'sparse') {
+    return [row.userId, encodeSparse(SAFE_NAMES, row.answers), row.source];
   }
   // Use intentionally LONG synthetic keys resembling real-world opinion IDs.
   // Keeping q0..q93 in JSONB would unfairly favor this format.
