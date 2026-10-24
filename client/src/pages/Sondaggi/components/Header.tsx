@@ -6,10 +6,10 @@ import { ArrowLeft, BarChart as BarChartIcon } from "lucide-react";
 export const Header: React.FC = () => {
   return (
     <div className="mb-8">
-      <Link href="/menu">
+      <Link href="/preferiti">
         <Button variant="ghost" className="mb-4 flex items-center text-gray-600 hover:text-gray-800 hover:bg-white/50">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Torna al Menu
+          Torna ai Preferiti
         </Button>
       </Link>
       
