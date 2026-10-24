@@ -282,3 +282,40 @@ del consenso né l'endpoint HTTP esistente. L'accesso SQL con privilegi
 amministrativi può aggirare le policy. Le policy di produzione e la
 migrazione restano non autorizzate. Anche dopo un esito PASS, OP-41 rimane
 **In corso** e KPI-23 **Non verificato**.
+
+
+## Simulazione end-to-end HTTP senza migrazione BYTEA (DOC-031)
+
+I nuovi casi di `api/tests/opinionCodecHttpContract.test.js` montano
+il router sperimentale `api/tests/fixtures/opinionPackedShadowHttpFixture.js`
+**solo durante il test**, sotto percorsi `/_synthetic/{fixed|trimmed|sparse}/api`.
+Nessuna route pubblicata importa questo router e il codice non è usato
+da server DEMOS, Android o Supabase.
+
+I test eseguono veri POST e GET HTTP locali per confrontare
+**la route Express legacy attuale** (database e JWT mock)
+con tre router di prova che memorizzano soltanto Buffer binari in Map.
+Le risposte sono confrontate come oggetti JSON, inclusi i campi di domanda
+`id`, `text`, `grado`, `userAnswer` e, per il salvataggio riuscito,
+`success`, `message`, `savedCount`, `errorCount`,
+`notificationsCreated`; `timestamp` è validato separatamente,
+perché nasce da richieste diverse. Non devono apparire
+`payload`, `encoding`, `catalogFingerprint` o `catalogVersion` nelle
+risposte pubbliche.
+
+Sono inclusi account A/B isolati, assenza iniziale di voto,
+salvataggio di f/c/i e alias testuali, modifica di una sola opinione senza
+perdere le altre, ampliamento append-only del catalogo da v1 a v2 senza
+riscrivere i blob vecchi, blocco POST al cambio del flag consenso,
+autenticazione assente/non valida e rifiuto di valori/ID non validi.
+
+**Confini e decisioni aperte**: il router shadow è un modello del
+contratto pubblico ma non contiene tutta la logica delle route reali,
+come notifiche dei rappresentanti, errori parziali, autentica revoca
+atomica dei voti e CAS SQL. La sua Map non dimostra concorrenza
+transazionale o durabilità. Per i casi di input misti validi/invalidi
+il parser di prova resta più restrittivo della route attuale: la
+compatibilità totale non è ancora dimostrata. Il test Android installato
+e la verifica di RLS/pooler/Supabase rimangono fuori ambito.
+La convenienza economica della codifica a 2 bit resta **non dimostrata**,
+OP-41 **In corso**, KPI-23 **Non verificato**.

@@ -12,6 +12,8 @@ const assert=require('node:assert/strict');
 const http=require('node:http');
 const path=require('node:path');
 const express=require('express');
+const {mountSyntheticPackedOpinionApi}=
+  require('./fixtures/opinionPackedShadowHttpFixture');
 const {createCatalogRegistry,encodeEnvelope,decodeLegacyQuestionRows}=
   require('../utils/opinionCodecEnvelope');
 
@@ -31,7 +33,7 @@ const QUESTIONS=IDS.map((id,index)=>({
 }));
 const registry=createCatalogRegistry([{version:1,ids:IDS}]);
 
-async function withActualRoutes(fn){
+async function withActualRoutes(fn,{packedShadow=false}={}){
   const old=new Map(Object.values(paths).map(p=>[p,require.cache[p]]));
   const answers=new Map();
   const consents=new Map([['account-a',true],['account-b',true]]);
@@ -120,6 +122,11 @@ async function withActualRoutes(fn){
   app.use(express.json());
   app.use('/api',require(paths.compat));
   app.use('/api/opinioni',require(paths.answers));
+  const shadowRouters=packedShadow
+    ? ['fixed','trimmed','sparse'].map(encoding=>mountSyntheticPackedOpinionApi(app,{
+        encoding,questions:QUESTIONS,catalogIds:IDS,consents
+      }))
+    : [];
   const server=http.createServer(app);
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
@@ -137,7 +144,7 @@ async function withActualRoutes(fn){
     return {status:response.status,body:response.status===304?null:await response.json(),headers:response.headers};
   };
   try{
-    await fn({request,answers,consents,calls});
+    await fn({request,answers,consents,calls,shadowRouters});
   }finally{
     await new Promise(resolve=>server.close(resolve));
     for(const [p,original] of old){
@@ -332,3 +339,128 @@ test('personal opinion GET forbids caching on unauthenticated and empty response
 });
 
 test.todo('client-side cache purge on logout/account deletion/consent change and real Android verification');
+
+
+test('test-only packed HTTP shadow mirrors real legacy GET/POST for all codecs and accounts',async()=>{
+  await withActualRoutes(async({request,consents,shadowRouters})=>{
+    const formats=['fixed','trimmed','sparse'];
+    assert.deepEqual(shadowRouters.map(r=>r.encoding),formats);
+    const url='/api/opinioni-list?grado=N';
+    const postUrl='/api/opinioni/salva';
+    const shadowPath=(format,path)=>'/_synthetic/'+format+path;
+    const read=token=>request('GET',url,token);
+    const post=(token,opinioni)=>request('POST',postUrl,token,{opinioni});
+
+    const compareRead=async(token)=>{
+      const real=await read(token);
+      assert.equal(real.status,200);
+      for(const format of formats){
+        const packed=await request('GET',shadowPath(format,url),token);
+        assert.equal(packed.status,real.status,format+' GET status');
+        assert.deepEqual(packed.body,real.body,format+' GET legacy JSON body');
+        assert.match(packed.headers.get('cache-control')||'',/\bno-store\b/i);
+        for(const forbidden of ['encoding','catalogVersion','catalogFingerprint','payload']){
+          assert.equal(Object.hasOwn(packed.body,forbidden),false);
+          assert.equal(packed.body.data.some(q=>Object.hasOwn(q,forbidden)),false);
+        }
+      }
+    };
+    const compareWrite=async(token,opinioni)=>{
+      const real=await post(token,opinioni);
+      for(const format of formats){
+        const packed=await request('POST',shadowPath(format,postUrl),token,{opinioni});
+        assert.equal(packed.status,real.status,format+' POST status');
+        if(real.status===200) {
+          // Timestamp is generated independently by two real HTTP handlers.
+          const {timestamp:realTime,...realBody}=real.body;
+          const {timestamp:packedTime,...packedBody}=packed.body;
+          assert.ok(!Number.isNaN(Date.parse(realTime)));
+          assert.ok(!Number.isNaN(Date.parse(packedTime)));
+          assert.deepEqual(packedBody,realBody,format+' POST legacy success contract');
+          const buffer=shadowRouters.find(r=>r.encoding===format).snapshot(token);
+          assert.ok(buffer && Buffer.isBuffer(buffer.payload));
+          assert.equal(buffer.encoding,format);
+          assert.equal(buffer.catalogVersion,shadowRouters.find(r=>r.encoding===format).catalogVersion);
+        }else{
+          assert.equal(real.status,403,'Only consent denial is compared in this helper');
+          assert.deepEqual(packed.body,real.body,format+' consent rejection contract');
+        }
+      }
+      return real;
+    };
+
+    await compareRead('account-a');
+    await compareRead('account-b');
+    assert.equal((await compareWrite('account-a',{
+      caccia:'F',nato:'contrario',salario_minimo:'non lo so'
+    })).status,200);
+    await compareRead('account-a');
+    assert.equal((await compareWrite('account-b',{nato:'i'})).status,200);
+    await compareRead('account-a');
+    await compareRead('account-b');
+    assert.equal((await compareWrite('account-a',{nato:'f'})).status,200);
+    await compareRead('account-a');
+
+    // A catalog append does not rewrite old envelopes. Their votes remain
+    // readable as legacy JSON while the new slot remains implicitly NULL.
+    for(const shadow of shadowRouters){
+      assert.equal(shadow.snapshot('account-a').catalogVersion,1);
+      shadow.promote([...IDS,'carne_coltivata']);
+      assert.equal(shadow.catalogVersion,2);
+      assert.equal(shadow.snapshot('account-a').catalogVersion,1);
+    }
+    await compareRead('account-a');
+    await compareRead('account-b');
+    assert.equal((await compareWrite('account-a',{caccia:'i'})).status,200);
+    await compareRead('account-a');
+    for(const shadow of shadowRouters){
+      assert.equal(shadow.snapshot('account-a').catalogVersion,2);
+      assert.equal(shadow.snapshot('account-b').catalogVersion,1);
+    }
+
+    // Characterization only: this flips the consent flag, not the real
+    // revocation DELETE transaction. Both HTTP models must reject writes.
+    consents.set('account-a',false);
+    assert.equal((await compareWrite('account-a',{caccia:'c'})).status,403);
+    await compareRead('account-a');
+    await compareRead('account-b');
+    consents.set('account-a',true);
+    assert.equal((await compareWrite('account-a',{caccia:'c'})).status,200);
+    await compareRead('account-a');
+
+    // No synthetic authentication bypass or cross-account access.
+    for(const token of [undefined,'invalid','inactive']){
+      const original=await request('GET',url,token);
+      assert.equal(original.status,401);
+      for(const format of formats){
+        const fake=await request('GET',shadowPath(format,url),token);
+        assert.equal(fake.status,401);
+      }
+    }
+
+    // The test harness can simulate deletion, without claiming that this
+    // executes DEMOS's real consent-revocation or account-erasure route.
+    for(const shadow of shadowRouters){
+      shadow.erase('account-b');
+      assert.equal(shadow.snapshot('account-b'),null);
+    }
+    assert.ok(shadowRouters.every(shadow=>shadow.snapshot('account-a')!==null));
+  },{packedShadow:true});
+});
+
+test('test-only packed shadow rejects invalid answer without corrupting a previous BYTEA',async()=>{
+  await withActualRoutes(async({request,shadowRouters})=>{
+    const endpoint='/api/opinioni/salva';
+    const write=async(path,answers)=>request('POST',path,'account-a',{opinioni:answers});
+    assert.equal((await write(endpoint,{caccia:'f'})).status,200);
+    for(const shadow of shadowRouters){
+      const url='/_synthetic/'+shadow.encoding+endpoint;
+      assert.equal((await write(url,{caccia:'f'})).status,200);
+      const previous=shadow.snapshot('account-a');
+      assert.equal((await write(url,{caccia:'unsupported'})).status,400);
+      assert.equal((await write(url,{unknown_opinion:'f'})).status,400);
+      assert.deepEqual(shadow.snapshot('account-a'),previous);
+    }
+    assert.equal((await write(endpoint,{caccia:'unsupported'})).status,400);
+  },{packedShadow:true});
+});
