@@ -61,6 +61,14 @@ jobs:
       - name: Logging privacy and delivery tests
         working-directory: api
         run: npm run test:logging-privacy
+      - name: Operational alert privacy and readability regression
+        working-directory: api
+        run: |
+          node --check services/operationalAlertService.js
+          node --check services/centralizedLogger.js
+          node --check routes/notifiche.js
+          node --check routes/comunicazioni.js
+          node --test tests/operationalAlerts.smoke.test.js tests/politicalOpinionChangeNotifications.smoke.test.js
       - name: Credential log minimization regression
         working-directory: api
         run: |
