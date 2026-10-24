@@ -217,6 +217,15 @@ async function main() {
     const query=await validateQueries(client);
     const locks=await lockTest();
     const cas=await casTest(client);
+    // Each concurrency scenario mutates one synthetic sparse row. Restore both
+    // original rows before any later CI checks (consent, privacy, geography),
+    // otherwise the formats no longer represent an identical dataset.
+    for (const row of rows.slice(0, 2)) {
+      await client.query(
+        'UPDATE ci_query_sparse SET opinions=$1, revision=0 WHERE user_id=$2',
+        [encodeSparse(IDS, row.answers), row.uuid]
+      );
+    }
     console.log('CI QUERY & CONCURRENCY PASS: f/c/i/NULL stats equal across all codecs');
     console.log('EXPLAIN server times are indicative, not production SLA.');
     console.table(query.times);
