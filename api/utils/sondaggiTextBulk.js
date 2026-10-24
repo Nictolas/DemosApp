@@ -26,6 +26,38 @@ async function queryGroupedChunks(pool, columns, builder, params = []) {
   return rows;
 }
 
+// Multiple statements must observe one consent/answer snapshot. A pool.query()
+// call may use a different connection and each READ COMMITTED statement can
+// otherwise see a different set of consents. Use one read-only REPEATABLE READ
+// transaction for catalogs that require multiple aggregate batches.
+// A request that starts before a revocation may still finish on its earlier
+// snapshot; a NEW request sees the committed revocation.
+async function withMultiBatchSnapshot(pool, ids, read) {
+  if (ids.length <= MAX_GROUPED_COLUMNS) return read(pool);
+  if (typeof pool.connect !== 'function') {
+    throw new TypeError('Multi-batch survey reads require a transaction-capable pool');
+  }
+  const client = await pool.connect();
+  let begun = false;
+  try {
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    begun = true;
+    const value = await read(client);
+    await client.query('COMMIT');
+    begun = false;
+    return value;
+  } catch (error) {
+    if (begun) {
+      try { await client.query('ROLLBACK'); } catch (_) {
+        // Keep the first error. Releasing the failed connection is handled below.
+      }
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 function enforceLegacyFallbackBudget(ids) {
   if (ids.length > MAX_LEGACY_FALLBACK_COLUMNS) {
     const error = new Error('Survey legacy fallback exceeds safe query budget');
@@ -144,12 +176,14 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
   const ids = safeOpinionIds(questions);
   if (ids.length === 0) return {};
   try {
-    const metadata = await pool.query(COLUMN_SQL, [ids]);
-    const existing = new Set(metadata.rows.map(row => row.column_name));
-    const columns = ids.filter(id => existing.has(id));
-    if (columns.length === 0) return {};
-    const rows = await queryGroupedChunks(pool, columns, buildNationalTextAggregateQuery);
-    return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
+    return await withMultiBatchSnapshot(pool, ids, async client => {
+      const metadata = await client.query(COLUMN_SQL, [ids]);
+      const existing = new Set(metadata.rows.map(row => row.column_name));
+      const columns = ids.filter(id => existing.has(id));
+      if (columns.length === 0) return {};
+      const rows = await queryGroupedChunks(client, columns, buildNationalTextAggregateQuery);
+      return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
+    });
   } catch (error) {
     // Never amplify outages: connection failures, statement timeouts,
     // permissions, pool exhaustion and unknown failures fail fast as 500.
@@ -253,13 +287,15 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
   const ids = safeOpinionIds(questions);
   if (ids.length === 0) return {};
   try {
-    const metadata = await pool.query(COLUMN_SQL, [ids]);
-    const existing = new Set(metadata.rows.map(row => row.column_name));
-    const columns = ids.filter(id => existing.has(id));
-    if (columns.length === 0) return {};
-    const rows = await queryGroupedChunks(pool, columns,
-      batch => buildTerritorialTextAggregateQuery(batch, { scope, params }), params);
-    return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
+    return await withMultiBatchSnapshot(pool, ids, async client => {
+      const metadata = await client.query(COLUMN_SQL, [ids]);
+      const existing = new Set(metadata.rows.map(row => row.column_name));
+      const columns = ids.filter(id => existing.has(id));
+      if (columns.length === 0) return {};
+      const rows = await queryGroupedChunks(client, columns,
+        batch => buildTerritorialTextAggregateQuery(batch, { scope, params }), params);
+      return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
+    });
   } catch (error) {
     if (!eligibleForLegacyFallback(error)) throw error;
     logger.warn?.('Territorial TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
