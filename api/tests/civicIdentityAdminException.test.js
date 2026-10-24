@@ -66,11 +66,14 @@ test('admin: civic write proceeds without consulting CIE persistence', async () 
   });
 });
 
-test('non-admin: identity persistence failure remains fail-closed', async () => {
-  await withIdentityLookup(async () => {
-    throw new Error('identity_verifications missing');
-  }, async (requireVerifiedCivicIdentity) => {
-    const req = { userId: 'regular-user', user: { isAdmin: false } };
+test('non-admin in cie_required: identity persistence failure remains fail-closed', async () => {
+  const previous = process.env.DEMOS_CIVIC_IDENTITY_MODE;
+  process.env.DEMOS_CIVIC_IDENTITY_MODE = 'cie_required';
+  try {
+    await withIdentityLookup(async () => {
+      throw new Error('identity_verifications missing');
+    }, async (requireVerifiedCivicIdentity) => {
+      const req = { userId: 'regular-user', user: { isAdmin: false } };
     const res = makeResponse();
     let nextCalled = false;
 
@@ -80,6 +83,10 @@ test('non-admin: identity persistence failure remains fail-closed', async () => 
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 503);
-    assert.equal(res.body?.code, 'CIVIC_IDENTITY_CHECK_UNAVAILABLE');
-  });
+      assert.equal(res.body?.code, 'CIVIC_IDENTITY_CHECK_UNAVAILABLE');
+    });
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_CIVIC_IDENTITY_MODE;
+    else process.env.DEMOS_CIVIC_IDENTITY_MODE = previous;
+  }
 });
