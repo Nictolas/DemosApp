@@ -1,6 +1,6 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
-const { isIP } = require('node:net');
+const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 const { decrypt: decryptEmail } = require('../utils/emailCrypto');
 const { getIdentityVerificationStatus } = require('../services/identityVerificationStore');
 const { pool, verifyToken, requireAdmin } = require('../middleware/auth');
@@ -12,22 +12,6 @@ const router = express.Router();
 
 const isVerifiedCie = (identity) =>
   identity?.verified === true && String(identity.provider || '').toUpperCase() === 'CIE';
-
-// Validation only: never fetch URLs from the backend, to avoid SSRF. The
-// institutional nature of the page/document must be reviewed by an admin.
-function validateEvidenceUrl(input) {
-  if (typeof input !== 'string' || input.length > 2048 || !input.trim()) return null;
-  try {
-    const url = new URL(input.trim());
-    const host = url.hostname.toLowerCase().replace(/\.$/, '');
-    if (url.protocol !== 'https:' || url.username || url.password ||
-        !host.includes('.') || host === 'localhost' || host.endsWith('.localhost') ||
-        host.endsWith('.local') || isIP(host)) return null;
-    return url.toString();
-  } catch (_error) {
-    return null;
-  }
-}
 
 // Request status is persisted so that users can see the outcome after review.
 router.get('/mine', verifyToken, async (req, res) => {
