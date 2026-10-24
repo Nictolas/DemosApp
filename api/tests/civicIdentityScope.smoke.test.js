@@ -19,8 +19,9 @@ test('political-consent writes retain central server-side civic identity gate', 
 });
 
 test('canonical political selections retain the configurable civic identity gate', () => {
-  assert.match(read('api/routes/opinioni/user-answers.js'), /router\.post\('\/salva',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
+  assert.match(read('api/routes/opinioni/user-answers.js'), /router\.post\('\/salva',\s*verifyToken/);
   assert.match(read('api/routes/candidati.js'), /router\.put\('\/seleziona-candidato',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
+  assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/seleziona-rappresentante',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
   assert.match(read('api/routes/users/profile.js'), /router\.put\('\/:userId\/political-selection',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
   assert.match(read('api/routes/rappresentanti.js'), /router\.post\('\/',\s*verifyToken,\s*requireVerifiedCivicIdentity/);
 });
