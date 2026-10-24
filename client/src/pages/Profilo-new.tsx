@@ -139,7 +139,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     } else if (userId) {
       setLocation("/gestisci-grazia");
     } else {
-      setLocation("/menu");
+      setLocation("/preferiti");
     }
   };
 
