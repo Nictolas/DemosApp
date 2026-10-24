@@ -10,7 +10,8 @@ const {performance}=require('node:perf_hooks');
 const {Client,Pool}=require('pg');
 const {
   getNationalSurveyStats,getTerritorialSurveyStats,
-  buildNationalTextAggregateQuery,buildTerritorialTextAggregateQuery
+  buildNationalTextAggregateQuery,buildTerritorialTextAggregateQuery,
+  buildDirectFilterTextAggregateQuery
 }=require('../utils/sondaggiTextBulk');
 
 const DB='sondaggi_scale_ci';
@@ -128,34 +129,6 @@ async function read(db,scope){
 // directly before pivoting one result row per opinion. Compare with the
 // existing lateral-per-person implementation; do not publish the candidate
 // as app code until relative performance is measured.
-function directFilterAggregateSql(columns,scope={}){
- const names=columns.map((id,i)=>({
-   id,f:'f'+i,c:'c'+i,u:'i'+i
- }));
- const filters={
-  regione:' AND u.regione_residenza=$1',
-  provincia:' AND u.regione_residenza=$1 AND u.provincia_residenza=$2',
-  comune:' AND u.regione_residenza=$1 AND u.provincia_residenza=$2 AND u.comune_residenza=$3'
- };
- const geography=scope.scope?filters[scope.scope]:''; 
- assert.ok(!scope.scope||typeof geography==='string'&&geography!=='');
- const checks=names.flatMap(({id,f,c,u})=>[
-  "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'f')::integer AS "+f,
-  "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'c')::integer AS "+c,
-  "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'i')::integer AS "+u
- ]);
- const points=names.map(({id,f,c,u})=>
-  "('"+id+"', counts."+f+", counts."+c+", counts."+u+")");
- return "SELECT v.opinion_id,v.favorevole,v.contrario,v.indeciso FROM ("+
-  "SELECT "+checks.join(',')+
-  " FROM opinioni_risposte orr JOIN users u ON u.id=orr.user_id "+
-  "LEFT JOIN user_consents uc ON uc.user_id=u.id "+
-  "WHERE u.account_type='PERSON' AND "+
-  "COALESCE(uc.political_opinions_consent,u.political_opinions_consent,false) IS TRUE"+geography+
-  ") counts CROSS JOIN LATERAL (VALUES "+
-  points.join(',')+") AS v(opinion_id,favorevole,contrario,indeciso) "+
-  "WHERE (v.favorevole+v.contrario+v.indeciso)>0";
-}
 function normalizeStatRows(rows){
  return Object.fromEntries(rows.map(r=>[r.opinion_id,
   [Number(r.favorevole),Number(r.contrario),Number(r.indeciso)]])
@@ -166,7 +139,7 @@ async function compareAlternativeSql(db,scope){
  const oldSql=scope.scope?
   buildTerritorialTextAggregateQuery(ids,{scope:scope.scope,params:scope.params}):
   buildNationalTextAggregateQuery(ids);
- const candidateSql=directFilterAggregateSql(ids,scope);
+ const candidateSql=buildDirectFilterTextAggregateQuery(ids,scope);
  const params=scope.params||[];
  const original=normalizeStatRows((await db.query(oldSql,params)).rows);
  const proposed=normalizeStatRows((await db.query(candidateSql,params)).rows);
