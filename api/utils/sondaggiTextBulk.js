@@ -108,8 +108,9 @@ async function legacyNationalStatsFallback(pool, ids) {
       const aggregate = aggregateRow(result.rows[0] || {});
       if (cellThresholdMet(aggregate)) stats[id] = aggregate;
     } catch (error) {
-      // Same best-effort per-question behavior as the old national route:
-      // a failed column should not reveal partial/under-threshold counts.
+      // A concurrent schema change can remove an individual column;
+      // all other errors stop the loop instead of multiplying DB work.
+      if (error?.code !== '42703') throw error;
       continue;
     }
   }
@@ -219,7 +220,9 @@ async function legacyTerritorialStatsFallback(pool, ids, scope, params) {
       const aggregate = aggregateRow(result.rows[0] || {});
       if (cellThresholdMet(aggregate)) stats[id] = aggregate;
     } catch (error) {
-      // A failing opinion does not expose a small cell or hide other stats.
+      // A concurrent schema change can remove an individual column;
+      // all other errors stop the loop instead of multiplying DB work.
+      if (error?.code !== '42703') throw error;
       continue;
     }
   }
