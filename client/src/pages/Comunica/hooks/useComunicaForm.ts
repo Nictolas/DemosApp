@@ -85,7 +85,7 @@ export const useComunicaForm = () => {
         description: "La tua comunicazione è stata registrata con successo.",
       });
       queryClient.invalidateQueries({ queryKey: ["ultimaComunicazione"] });
-      setLocation("/menu");
+      setLocation("/preferiti");
     },
     onError: (error) => {
       console.error("Errore nell'invio:", error);
