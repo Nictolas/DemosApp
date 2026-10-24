@@ -190,3 +190,46 @@ sarebbe scorretto considerarli integrati e approvati.
   corretta, preservando consenso e soglia anti-inferenza, PR #216
   salvataggio delle sole risposte modificate e client legacy.
 - Nessun cambiamento a Supabase né merge della PR #247.
+
+
+## Verifica dei consensi e della soglia privacy (24 ottobre)
+
+CI: https://github.com/Nictolas/DemosApp/actions/runs/40045932564
+Script: api/scripts/verify-opinion-privacy-equivalence.js.
+
+Questa verifica usa soltanto 1.200 account **sintetici** in tabelle
+TEMP di PostgreSQL 17 sul runner GitHub Actions (nessun DDL né accesso
+ai progetti Supabase). Replica le condizioni principali dell'endpoint
+/api/opinioni/stats/:opinionId per selezionare le risposte:
+
+- JOIN users per escludere risposte senza un account esistente;
+- u.account_type = 'PERSON': organizzazioni e istituzioni non incluse;
+- LEFT JOIN user_consents e COALESCE del consenso esplicito, fallback
+  sul consenso precedente, default false;
+- NULL significa non risposto e non viene conteggiato come indeciso;
+- soglia privacy MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE = 10.
+
+I dati sintetici includono consenso positivo, negativo e NULL,
+consenso esplicito che prevale su quello precedente, soggetti
+non PERSON, regioni e risposte mancanti. Per sei posizioni del
+catalogo (0, 3, 14, 45, 63, 93) sono stati confrontati i conteggi
+globali e segmentati per regione, in tutti e quattro i formati
+(TEXT, fixed, trimmed e sparse). Tutti i risultati sono equivalenti.
+
+Casi specifici controllati:
+- regione sintetica rare9: nove account PERSON con consenso valido e
+  risposta, più quattro risposte inammissibili; risultato soppresso;
+- regione sintetica rare10: dieci risposte consentite più un account
+  che non ha risposto; risultato pubblicabile, con dieci risposte.
+
+Una prima esecuzione ha individuato un errore di isolamento dei TEST:
+gli esperimenti row-lock e CAS modificavano due righe sintetiche della
+sola codifica sparse, senza ripristinarle. Aggiunto il ripristino delle
+due righe iniziali dopo il test di concorrenza. La nuova CI è SUCCESS:
+30/30 test del codec, benchmark fisico, query/concorrenza e verifica
+di consensi e soglia tutti superati.
+
+Limiti: non sono verificati ancora i veri endpoint HTTP, RLS,
+tutti i filtri per età/genere/provincia/comune, client Android,
+cache e revoca dinamica del consenso. Non è stata effettuata
+alcuna migrazione e nessun dato di Supabase è stato modificato.
