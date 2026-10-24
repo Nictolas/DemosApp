@@ -200,9 +200,10 @@ router.get('/', verifyToken, async (req, res) => {
             NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine
           FROM notifiche_demos
+          WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
           ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 50
-        `);
+        `, [user_id]);
       }
     } catch (err) {
       console.error('❌ Errore query notifiche_demos:', err);
@@ -945,9 +946,10 @@ router.get('/ultima', verifyToken, async (req, res) => {
           data_creazione,
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
+        WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
-      `);
+      `, [userId]);
       
       if (demosResult.rows.length > 0) {
         comunicazioni.push({
