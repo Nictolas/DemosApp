@@ -220,7 +220,7 @@ function validateCieUserInfoJws(
   const cleanName = value =>
     typeof value === 'string' &&
     value.trim().length > 0 && value.trim().length <= 150 &&
-    !/[\\x00-\\x1F\\x7F]/.test(value)
+    !Array.from(value).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
       ? value.trim()
       : null;
   const givenName = cleanName(claims.given_name);
