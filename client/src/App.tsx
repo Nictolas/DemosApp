@@ -23,7 +23,6 @@ import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
 import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneConsensiWizard from "./pages/registrazione-consensi";
 import RegistrazioneCreaPasskey from "./pages/registrazione-crea-passkey";
-import Menu from "./pages/Menu";
 import Profilo from "./pages/Profilo";
 import Impostazioni from "./pages/Impostazioni";
 import SegnalaProblema from "./pages/SegnalaProblema";
@@ -208,25 +207,25 @@ function useTouchNavigation() {
     // Funzione helper per determinare il percorso precedente
     const getPreviousPath = (currentPath: string): string | null => {
     const pathMap: { [key: string]: string } = {
-      '/menu': '/strumenti',
+      '/menu': '/preferiti',
       '/preferiti': '/',
-      '/profilo': '/menu',
-      '/menu/profilo': '/menu',
-        '/opinioni': '/menu',
-        '/rappresentanti': '/menu',
-        '/governo': '/menu',
-        '/elezioni': '/menu',
-        '/ice': '/menu',
-        '/eci': '/menu',
-        '/iniziative-popolari': '/menu',
-        '/referendum-abrogativi': '/menu',
-        '/grazia': '/menu',
-        '/amnistia': '/menu',
-        '/capo-stato': '/menu',
-        '/sondaggi': '/menu',
-        '/comunicazioni': '/menu',
-        '/eventi': '/menu',
-        '/notifiche': '/menu',
+      '/profilo': '/preferiti',
+      '/menu/profilo': '/preferiti',
+        '/opinioni': '/preferiti',
+        '/rappresentanti': '/preferiti',
+        '/governo': '/preferiti',
+        '/elezioni': '/preferiti',
+        '/ice': '/preferiti',
+        '/eci': '/preferiti',
+        '/iniziative-popolari': '/preferiti',
+        '/referendum-abrogativi': '/preferiti',
+        '/grazia': '/preferiti',
+        '/amnistia': '/preferiti',
+        '/capo-stato': '/preferiti',
+        '/sondaggi': '/preferiti',
+        '/comunicazioni': '/preferiti',
+        '/eventi': '/preferiti',
+        '/notifiche': '/preferiti',
         '/auth': '/',
         '/registrazione-nome': '/auth',
         '/registrazione-consensi-privacy': '/auth',
@@ -547,11 +546,9 @@ export default function App() {
                   <RegistrazioneResidenza />
                 </PageTransition>
               </Route>
-              {/* Route del menu principale */}
+              {/* URL legacy: il Menu non è pubblico, reindirizza ai Preferiti. */}
               <Route path="/menu">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/menu" component={Menu} />
-                </PageTransition>
+                <Redirect to="/preferiti" />
               </Route>
 
               {/* Route del profilo - URL diretto */}
