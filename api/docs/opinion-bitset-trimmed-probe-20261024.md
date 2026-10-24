@@ -134,3 +134,59 @@ La soluzione finale potrebbe essere un formato adattivo (sparse per
 pochi voti, trimmed/fisso per molti), ma aggiungere un selettore di formato
 e complessità di querying richiede un benchmark ulteriore. Non introdurlo
 in produzione senza prova del beneficio complessivo.
+
+
+## Benchmark di aggregazione SQL e scritture simultanee (24 ottobre)
+
+Script: api/scripts/benchmark-opinion-queries.js.
+Test CI: https://github.com/Nictolas/DemosApp/actions/runs/40045221798.
+Usa esclusivamente PostgreSQL 17 effimero su runner GitHub Actions:
+1.200 account sintetici, ciascuno con 94 opinioni, circa 9% compilate;
+stessi valori per quattro formati, nessuna identità o opinione reale.
+
+**Correttezza:** per 6 posizioni (inizio, fine e intermedie), il conteggio
+f/c/i/NULL è IDENTICO nelle rappresentazioni TEXT, fixed, trimmed e sparse.
+Lo script confronta ogni conteggio e fallisce la CI in caso di discrepanza.
+Questa prova NON include ancora filtri ACCOUNT_TYPE, consenso, segmenti
+geografici o regola pubblica di soglia minima 10.
+
+### Tempo di esecuzione server PostgreSQL (ms, mediana 9 EXPLAIN)
+
+| Slot | TEXT | Fixed | Trimmed | Sparse diretto | Sparse MATERIALIZED |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 0,183 | 0,362 | 0,359 | 4,384 | 1,564 |
+| 45 | 0,321 | 0,371 | 0,366 | 11,072 | 3,272 |
+| 93 | 0,445 | 0,364 | 0,282 | 16,831 | 4,736 |
+
+La query SPARSE diretta chiama una funzione PL/pgSQL ripetutamente per
+gli aggregati. Una CTE MATERIALIZED calcola il decoder una volta per
+riga: migliora i tempi, ma la scansione sparse resta più costosa delle
+colonne TEXT/fixed/trimmed. Sono tempi su campione piccolo, senza rete
+e cache di produzione. Non inferire da questi numeri una SLA, il costo
+su un milione di utenti o la prestazione di tutte le query Sondaggi.
+
+### Aggiornamenti simultanei
+
+Il test ha verificato con successo due strategie su BYTEA sparse,
+con due salvataggi di opinioni diverse:
+- transazioni con SELECT ... FOR UPDATE: la seconda lettura parte dalla
+  versione aggiornata e nessun voto viene perso;
+- optimistic concurrency CAS con campo revision: il secondo UPDATE con
+  revisione vecchia modifica zero righe; la successiva rilettura e
+  ripetizione conserva entrambe le opinioni.
+
+Entrambe le verifiche sono PASS su database di prova. Il codice di
+produzione e i client Android NON utilizzano ancora questi protocolli:
+sarebbe scorretto considerarli integrati e approvati.
+
+### Decisione provvisoria
+
+- Preferire un'analisi congiunta **spazio + CPU + I/O + semplicità**,
+  non la codifica più piccola in assoluto.
+- La soluzione sparse potrebbe essere economicamente sfavorevole
+  per una pagina che calcola molti aggregati, anche se risparmia
+  ~20 B/utente nello scenario senza fonti e con densità 9%.
+- Confrontare aggregazione SQL precomputata/caching con invalidazione
+  corretta, preservando consenso e soglia anti-inferenza, PR #216
+  salvataggio delle sole risposte modificate e client legacy.
+- Nessun cambiamento a Supabase né merge della PR #247.
