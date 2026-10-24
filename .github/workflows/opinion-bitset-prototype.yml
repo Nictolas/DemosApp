@@ -14,6 +14,9 @@ on:
       - 'api/scripts/verify-opinion-rls-isolation.js'
       - 'api/scripts/verify-opinion-packed-http-concurrency.js'
       - 'api/scripts/verify-opinion-revocation-race.js'
+      - 'api/scripts/verify-opinion-consent-real-route-race.js'
+      - 'api/routes/opinioni/user-answers.js'
+      - 'api/routes/user/political-opinions-consent.js'
       - 'api/tests/opinionBitset.test.js'
       - 'api/tests/opinionTextAggregateProbe.test.js'
       - 'api/utils/opinionTextAggregateProbe.js'
@@ -172,3 +175,12 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-opinion-revocation-race.js
+      - name: Verify actual opinion POST route coordinates with concurrent consent revocation
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-consent-real-route-race.js

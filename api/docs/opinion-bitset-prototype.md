@@ -448,3 +448,59 @@ Supabase/Auth/RLS/pooler, cancellazione degli altri dati GDPR,
 Android e confronto economico totale TEXT vs BYTEA. Un test positivo
 sulla soluzione in miniatura non elimina questi limiti.
 OP-41 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
+
+
+## Contratto delle route effettive: lock del consenso sul POST (DOC-035)
+
+Nel codice **reale ma NON distribuito** del branch sperimentale PR #247,
+`api/routes/opinioni/user-answers.js` mantiene il controllo preliminare
+del consenso, per conservare il contratto degli errori HTTP 403/404,
+e aggiunge una **seconda verifica obbligatoria nella transazione SQL
+che effettua il salvataggio**. Prima della prima scrittura, acquisisce
+`SELECT id FROM users WHERE id=$1 FOR UPDATE` sulla medesima
+riga aggiornata dalla vera route di revoca, poi esegue una *nuova*
+`SELECT COALESCE(uc.political_opinions_consent,
+u.political_opinions_consent,false) AS granted` tramite lo **stesso
+client DB** dopo aver ottenuto il lock. Il secondo statement
+in `READ COMMITTED` evita di utilizzare una snapshot precedente di
+`user_consents` dopo aver atteso l'UPDATE della revoca.
+Se l'utente non esiste più: rollback + 404; se il consenso risulta
+revocato: rollback + 403. Il lock viene conservato sino a COMMIT/ROLLBACK
+delle risposte e delle notifiche nel DB.
+
+In `api/routes/user/political-opinions-consent.js` è stata
+documentata, senza cambiare la logica esistente, l'invariante
+**UPDATE users prima del cleanup**. L'UPDATE in revoca e il
+`SELECT ... FOR UPDATE` nel salvataggio si escludono a vicenda
+sulla stessa riga. Non è stata modificata la struttura delle
+risposte né sono stati aggiunti codec BYTEA alle vere route.
+
+Test:
+- `api/tests/ordinaryUserOpinionSave.test.js`: verifica ordine
+  BEGIN → lock utenti → nuova lettura consenso → INSERT, che la revoca
+  interposta dopo il primo controllo restituisca 403 senza scritture e
+  che la cancellazione utente interposta restituisca 404;
+- `api/tests/opinionCodecHttpContract.test.js`: esercita l'autentica
+  route Express con mock JWT/DB simulando revoca dopo il preflight;
+- `api/scripts/verify-opinion-consent-real-route-race.js`:
+  **esclusivamente GitHub Actions, PostgreSQL 17 effimero**,
+  carica la **vera sorgente** `user-answers.js` con autenticazione
+  e notifiche fittizie, ma con **query e transazioni PostgreSQL reali**.
+  La revoca concorrente è una transazione SQL *di test* che usa lo stesso
+  ordine UPDATE users → UPDATE user_consents → DELETE risposte della
+  vera route. Sono verificate con `pg_blocking_pids` le sequenze
+  revoke-first (POST attende, 403, nessuna risposta ricreata),
+  save-first (il POST trattiene lock, completa, poi la revoca cancella),
+  rollback del revoker (il POST riprende e salva legittimamente).
+  La prova usa solo schema e utenti di fantasia.
+
+**Limiti e condizioni prima di qualunque deploy**: la prova non
+esegue in concorrenza la vera route PUT /revoke con tutta la logica
+di cancellazione GDPR, non verifica Supabase JWT, pooler, policy RLS,
+fonti, notifiche distribuite, Android fisico o tutte le altre vie
+di modifica del consenso. In particolare, scrittori che alterano
+`user_consents` senza prima coordinarsi tramite `users` non
+rispettano questo protocollo e richiedono audit. La PR è in DRAFT
+e la modifica RESTA NON DISTRIBUITA. OP-41 **In corso**,
+KPI-23 **Non verificato**: i vantaggi economici e prestazionali
+del BYTEA non sono provati e la codifica binaria non è attiva.

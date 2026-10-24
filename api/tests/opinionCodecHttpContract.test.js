@@ -33,7 +33,7 @@ const QUESTIONS=IDS.map((id,index)=>({
 }));
 const registry=createCatalogRegistry([{version:1,ids:IDS}]);
 
-async function withActualRoutes(fn,{packedShadow=false}={}){
+async function withActualRoutes(fn,{packedShadow=false,onConsentLock=null}={}){
   const old=new Map(Object.values(paths).map(p=>[p,require.cache[p]]));
   const answers=new Map();
   const consents=new Map([['account-a',true],['account-b',true]]);
@@ -49,6 +49,14 @@ async function withActualRoutes(fn,{packedShadow=false}={}){
         return ['account-a','account-b'].includes(id)?
           {rows:[{id,status:'a',ruolo:'user'}],rowCount:1}:
           {rows:[],rowCount:0};
+      }
+      if(sql.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE')){
+        // Simulates a revoke committed after an optimistic preflight but
+        // before the authoritative consent read under the row lock.
+        if(onConsentLock)await onConsentLock({account:params[0],consents,calls});
+        return ['account-a','account-b'].includes(params[0])
+          ? {rows:[{id:params[0]}],rowCount:1}
+          : {rows:[],rowCount:0};
       }
       if(sql.includes('AS granted')&&sql.includes('user_consents')){
         return {rows:[{granted:consents.get(params[0])===true}],rowCount:1};
@@ -596,4 +604,32 @@ test('all-invalid or empty POST matches legacy 400 and keeps all packed snapshot
       assert.equal(selected.body.data[0].userAnswer,'f');
     }
   },{packedShadow:true});
+});
+
+
+test('real HTTP opinion save rechecks consent under transaction lock after a concurrent revoke',async()=>{
+  let revokeCount=0;
+  await withActualRoutes(async({request,answers,calls,consents})=>{
+    const result=await request('POST','/api/opinioni/salva','account-a',{
+      opinioni:{caccia:'f',nato:'c'}
+    });
+    assert.equal(result.status,403);
+    assert.equal(result.body.consent_required,true);
+    assert.equal(consents.get('account-a'),false);
+    assert.equal(answers.has('account-a'),false);
+    const sqls=calls.map(c=>c.sql);
+    const begin=sqls.indexOf('BEGIN');
+    const lock=sqls.findIndex(s=>s.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE'));
+    const recheck=sqls.findIndex((s,i)=>i>lock&&s.includes('AS granted')&&s.includes('user_consents'));
+    const rollback=sqls.indexOf('ROLLBACK');
+    assert.ok(begin>=0&&begin<lock&&lock<recheck&&recheck<rollback);
+    assert.equal(sqls.some(s=>s.startsWith('INSERT INTO opinioni_risposte')),false);
+    assert.equal(sqls.some(s=>s.startsWith('UPDATE opinioni_risposte SET')),false);
+    assert.equal(revokeCount,1);
+  },{onConsentLock:async({account,consents})=>{
+    if(account==='account-a'){
+      consents.set(account,false);
+      revokeCount++;
+    }
+  }});
 });
