@@ -17,7 +17,10 @@ const express = require('express');
 const {Pool} = require('pg');
 
 const STAGING_REF='fkeayjzvtuvzesljhjbc';
-const EXPECTED_HOST='db.'+STAGING_REF+'.supabase.co';
+// Supabase direct db.<ref>.supabase.co is IPv6-only on Free; Render
+// outbound networking is IPv4-only. Require an actual session-pooler host
+// copied from Demos-Staging -> Connect (cluster index is NOT predictable).
+const SESSION_POOLER_HOST=/^aws-[0-9]+-eu-central-1\.pooler\.supabase\.com$/;
 const SCHEMA='op37_sondaggi_ci';
 const READ_ROLE='op37_http_staging_reader';
 const PATHS=['/api/sondaggi','/api/sondaggi/toscana',
@@ -26,17 +29,23 @@ const TRIALS=12;
 const QUESTION='synthetic_opinion_093';
 const SCOPE=['national','region','province','municipality'];
 
-function guard() {
- const e=process.env;
- const valid=e.OP37_STAGING_HTTP_ONLY==='yes' &&
-   e.RENDER==='true' && e.PGHOST===EXPECTED_HOST &&
+function validStagingConfig(e) {
+ return e.OP37_STAGING_HTTP_ONLY==='yes' &&
+   e.RENDER==='true' &&
+   typeof e.PGHOST==='string' &&
+   SESSION_POOLER_HOST.test(e.PGHOST) &&
    e.PGPORT==='5432' && e.PGDATABASE==='postgres' &&
-   e.PGUSER===READ_ROLE && typeof e.PGPASSWORD==='string' &&
+   e.PGUSER===READ_ROLE+'.'+STAGING_REF &&
+   typeof e.PGPASSWORD==='string' &&
    e.PGPASSWORD.length>=48 && typeof e.OP37_HTTP_TOKEN==='string' &&
    e.OP37_HTTP_TOKEN.length>=48 &&
    !e.DATABASE_URL && !e.SUPABASE_SERVICE_ROLE_KEY &&
    !e.SUPABASE_DB_URL && !e.SUPABASE_URL;
- if(!valid) throw Error('OP37_STAGING_GUARD_FAILED: service must use only dedicated staging credentials');
+}
+function guard() {
+ if(!validStagingConfig(process.env)) {
+   throw Error('OP37_STAGING_GUARD_FAILED: session pooler and isolated staging role required');
+ }
 }
 function eqToken(a,b) {
  if(typeof a!=='string'||typeof b!=='string')return false;
@@ -111,7 +120,9 @@ async function main(){
  guard();
  const pool=new Pool({
   host:process.env.PGHOST,port:5432,database:'postgres',
-  user:READ_ROLE,password:process.env.PGPASSWORD,
+  // Supavisor routes custom roles via <role>.<project_ref>, while SQL
+  // current_user is still the bare READ_ROLE, asserted below.
+  user:process.env.PGUSER,password:process.env.PGPASSWORD,
   ssl:{rejectUnauthorized:true},
   max:3,statement_timeout:11000,connectionTimeoutMillis:6500,
   idleTimeoutMillis:10000,application_name:'op37-render-staging-http'
@@ -256,7 +267,7 @@ async function main(){
 // Export pure guards for isolated CI tests. Requiring this module may
 // never open a listener or an external connection.
 module.exports = Object.freeze({
-  guard, eqToken, assertSafeRead, rewriteOnlySyntheticTables
+  guard, validStagingConfig, eqToken, assertSafeRead, rewriteOnlySyntheticTables
 });
 
 if (require.main === module) {
