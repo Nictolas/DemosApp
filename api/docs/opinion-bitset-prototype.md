@@ -1205,3 +1205,52 @@ La prova NON dimostra una soluzione di conservazione
 autonoma e duratura, una barriera distribuita di
 cutover né l'integrazione con Supabase.
 
+
+
+## Finestra tra registro esterno e riapertura: blocco condiviso (DOC-051)
+
+Dopo DOC-050 rimaneva una finestra TOCTOU: una revoca può essere
+inserita nel registro esterno appena dopo il controllo finale, prima
+o dopo il COMMIT del database ripristinato. DOC-051 aggiunge
+`api/scripts/verify-opinion-remote-cutover-fence.js` alla stessa
+CI con due processi PostgreSQL17 temporanei. Il test riutilizza
+l'archivio pre-revoca e il secondo cluster di DOC-050.
+
+Il **protocollo sperimentale di lettura** apre una transazione sul
+registro remoto, blocca la riga head con `SELECT ... FOR SHARE`,
+verifica la catena di eventi HMAC e confronta l'ultima sequenza
+con `ci_remote_gate.last_seq` nel DB ripristinato. Solo dopo
+queste verifiche consente al ruolo SQL di prova di leggere la
+vista protetta; il lock remoto viene mantenuto fino a dopo
+la lettura. Ogni scrittore del registro usa `FOR UPDATE` sulla
+stessa riga head. I due lock PostgreSQL sono incompatibili,
+quindi una nuova revoca **non può essere committata sul registro**
+durante una lettura ammessa dal protocollo di prova.
+
+Durante **la riconciliazione**, il coordinator mantiene il lock
+remoto `FOR SHARE` fino a dopo il COMMIT del DB ripristinato.
+Il test inietta un secondo scrittore concorrente ed osserva
+`pg_blocking_pids`: lo scrittore deve attendere, mentre il
+coordinator cancella BYTEA e chiavi retry e aggiorna il watermark
+nella medesima transazione locale. Rilasciato il lock, lo
+scrittore può avanzare il registro; da quel momento le nuove
+letture sono **negate** per mismatch della sequenza fino a una
+nuova riconciliazione. Sono previsti due blocchi SQL realmente
+osservati: accesso e cutover. Un registro indisponibile rifiuta
+ogni accesso protetto.
+
+**Limiti del risultato:** il coordinamento riguarda **soltanto**
+questa funzione sperimentale di lettura e l'esempio di restore,
+non tutte le route DEMOS, query SQL interne, cache, client Android
+o servizi che leggono direttamente i dati. Non implementa una
+transazione atomica distribuita, una reale modalità maintenance,
+pubblicazione sicura del nuovo database, log offsite durabile,
+gestione delle chiavi, autenticazione, RLS Supabase, consenso
+in produzione o GDPR. I lock remoti introducono dipendenza dalla
+disponibilità dell'altro cluster e richiederebbero misure su
+prestazioni, timeout e blocchi prolungati. I due cluster
+restano sulla stessa macchina GitHub Actions effimera.
+**Nessun deploy/merge/migrazione:** PR #247 DRAFT;
+OP-41 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
+
+**Evidenza CI DOC-051:** da registrare soltanto dopo PASS verificato.
