@@ -138,7 +138,7 @@ function makeAdminPool({ granted = true, revokedBeforeWrite = false } = {}) {
     writes,
     sequence,
     async query(sql, params = []) {
-      const s = String(sql).replace(/\\s+/g, ' ').trim();
+      const s = String(sql).replace(/\s+/g, ' ').trim();
       if (['BEGIN','COMMIT','ROLLBACK'].includes(s)) {
         sequence.push(s);
         return {rows:[],rowCount:0};
