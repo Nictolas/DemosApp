@@ -1,0 +1,54 @@
+name: Civic identity rollout regression
+
+on:
+  pull_request:
+    paths:
+      - 'api/middleware/civicIdentity.js'
+      - 'api/services/civicIdentityPolicy.js'
+      - 'api/routes/auth/oauth.js'
+      - 'api/routes/auth/webauthn.js'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/candidati.js'
+      - 'api/routes/rappresentanti.js'
+      - 'api/tests/civicIdentity*.test.js'
+      - 'api/tests/politicalRepresentativeSelection.smoke.test.js'
+      - 'api/tests/politicalSelectionRoute.test.js'
+      - 'api/tests/politicalConsentScope.smoke.test.js'
+      - '.github/workflows/civic-identity-rollout.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/middleware/civicIdentity.js'
+      - 'api/services/civicIdentityPolicy.js'
+      - 'api/routes/auth/oauth.js'
+      - 'api/routes/auth/webauthn.js'
+      - 'api/tests/civicIdentity*.test.js'
+      - '.github/workflows/civic-identity-rollout.yml'
+
+jobs:
+  civic-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Syntax and rollout regression
+        run: |
+          node --check middleware/civicIdentity.js
+          node --check services/civicIdentityPolicy.js
+          node --test \
+            tests/civicIdentityRollout.test.js \
+            tests/civicIdentityAdminException.test.js \
+            tests/civicIdentityScope.smoke.test.js \
+            tests/politicalRepresentativeSelection.smoke.test.js \
+            tests/politicalSelectionRoute.test.js \
+            tests/politicalConsentScope.smoke.test.js
