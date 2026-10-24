@@ -63,3 +63,22 @@ Il 24 ottobre 2026 è stato eseguito un **deploy manuale soltanto sul servizio g
 Non è stato attivato il login né configurato alcun segreto su Render; il codice HTTP collegato al DB non è stato eseguito. La pipeline GitHub Actions per la PR verifica gli endpoint pubblici `/`, `/health`, `/benchmark/summary`, le quattro route Sondaggi e `/api/users` con soli dinieghi, senza credenziali. Si attende il risultato del workflow sul commit documentale.
 
 **Restante dipendenza necessaria:** configurazione manuale e temporanea nei dashboard di Supabase **Demos-Staging** e Render del pooler di sessione IPv4 e di un ruolo con password esclusiva; non chiedere, copiare o trasferire segreti in chat né aggirare i controlli di sicurezza. La PR #258 resta DRAFT, nessun deploy produzione, nessuna migrazione BYTEA.
+
+## DOC-070 · Correzione TLS verificata (24/10/2026)
+
+L'utente ha abilitato **LOGIN** per il ruolo dedicato sul solo progetto Demos-Staging e inserito credenziali temporanee sul servizio gratuito Render `demos-sondaggi-op37-http-staging`. La configurazione IPv4 Session pooler è `aws-1-eu-central-1.pooler.supabase.com:5432` e il nome utente del pooler è `op37_http_staging_reader.fkeayjzvtuvzesljhjbc`. **Non riportare qui password o token.**
+
+Il deploy Render `dep-dbehj6cs728c73c8rmq0` sul commit `0ee0f612` è stato tentato il 24 ottobre: **UPDATE FAILED** con errore `SELF_SIGNED_CERT_IN_CHAIN`, prima dell'autenticazione PostgreSQL. Questo errore è coerente con la CA privata di Supabase, non con una password errata. Non disattivare mai `rejectUnauthorized` e non usare `sslmode=require` senza verifica del certificato.
+
+La nuova versione della PR #258 introduce `OP37_SUPABASE_CA_CERT`, una variabile ambientale che contiene il **certificato di CA pubblico** fornito da Supabase. Il programma rifiuta un PEM mancante, sintatticamente non valido, non di CA o scaduto; lo passa a `pg` con `ssl: { ca, servername: PGHOST, rejectUnauthorized: true }`. La verifica del certificato e dell'hostname resta obbligatoria. **Il codice aggiornato non è ancora distribuito su Render.**
+
+### Passaggio manuale residuo (certificato pubblico, non password)
+
+1. Accedere al dashboard del solo progetto Supabase **Demos-Staging** → **Database → Settings / Database settings → SSL Configuration** → **Download Certificate**. I documenti ufficiali Supabase chiamano spesso il file `prod-ca-2021.crt`, anche quando è usato per lo staging. Non usare certificati inventati o scaricati da fonti alternative.
+2. Aprire il file scaricato come **testo**; copiare integralmente il certificato, comprese le righe `-----BEGIN CERTIFICATE-----` e `-----END CERTIFICATE-----`. Questo certificato è una CA **pubblica**, non una chiave privata; non copiare alcuna password/chiave privata.
+3. Nel servizio Render isolato → **Environment**, aggiungere una sola variabile `OP37_SUPABASE_CA_CERT` incollandone il contenuto PEM. Usare **Save only** per non distribuire vecchio codice senza CA.
+4. Controllare che `PGHOST`, `PGUSER`, `PGPORT`, `PGDATABASE`, `PGPASSWORD`, `OP37_HTTP_TOKEN` siano quelli *dello staging*, e che `OP37_STAGING_SETUP_ONLY=no`. Non condividere valori segreti o screenshot che li rivelino.
+5. Una volta salvato il PEM, eseguire il deploy **manuale solo del ramo PR #258 nel servizio Render isolato**. Il servizio è configurato con deploy automatici OFF. Controllare marker `OP37_RENDER_STAGING_HTTP_PASS` e la sintesi `/benchmark/summary`; se TLS fallisce ancora, indagare in modalità fail-closed senza aggirare la verifica.
+6. A benchmark concluso, ripristinare staging setup-only: rimuovere password e token dal servizio e disabilitare LOGIN nel DB staging. Il software **setup-only** rifiuta l'avvio se una password rimane configurata; la pulizia e il deploy di rollback devono essere coordinati.
+
+Fonti: https://supabase.com/docs/guides/database/connecting-to-postgres e https://supabase.com/docs/guides/platform/ssl-enforcement. La sola verifica HTTP connessa potrà misurare il costo della rete Render→Supabase; nessuna misura realistica al momento.
