@@ -57,3 +57,14 @@ test('no live or dormant client navigation target points to exactly /menu', () =
     }
   }
 });
+
+test('empty candidate state explains unavailability without internal grade codes and offers recognition', () => {
+  const empty = read('client/src/pages/ScegliRappresentante/components/EmptyState.tsx');
+  const page = read('client/src/pages/ScegliRappresentante/index.tsx');
+  assert.match(page, /<EmptyState isCandidate=\{location === "\/candidati" \|\| location\.startsWith\("\/candidati\/"\)\} \/>/);
+  assert.match(empty, /isCandidate \? "Nessun candidato disponibile" : "Nessun rappresentante disponibile"/);
+  assert.match(empty, /Al momento non c'è una data per queste elezioni o non ci sono candidati disponibili\./);
+  assert.match(empty, /\{isCandidate && \(/);
+  assert.match(empty, /<Link href="\/riconoscimento">Clicca qui se sei un Candidato<\/Link>/);
+  assert.doesNotMatch(empty, /categoria|\{getTitolo\(\)\}|categoria "E"/);
+});
