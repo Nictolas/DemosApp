@@ -56,7 +56,7 @@ export default function Gestisci() {
             </span>
             <ArrowRight className="absolute bottom-5 right-5 h-5 w-5 text-slate-500 transition-transform group-hover:translate-x-1" aria-hidden="true" />
           </button>
-          {isAdmin && <SectionsGrid />}
+          <SectionsGrid dpoReadOnly={!isAdmin && isDpo} />
         </div>
       </div>
     </PageContainer>
