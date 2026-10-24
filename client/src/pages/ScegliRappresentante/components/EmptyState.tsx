@@ -13,7 +13,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ categoria, getTitolo }) 
           Non ci sono rappresentanti disponibili per la categoria "{getTitolo()}" nella tua zona.
         </p>
         <Button asChild>
-          <Link to="/menu">Torna al Menu</Link>
+          <Link to="/preferiti">Torna ai Preferiti</Link>
         </Button>
       </CardContent>
     </Card>
