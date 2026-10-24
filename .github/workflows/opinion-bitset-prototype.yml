@@ -156,15 +156,6 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-mixed-sources.js
-      - name: Compare synthetic TEXT and packed read, write and catalog lookup latency
-        env:
-          OPINION_BENCH_EPHEMERAL: 'yes'
-          PGHOST: 127.0.0.1
-          PGPORT: '5432'
-          PGDATABASE: opinion_bitset_ci
-          PGUSER: postgres
-          PGPASSWORD: synthetic-only
-        run: node api/scripts/benchmark-opinion-mixed-performance.js
       - name: Evaluate provisional 2-bit migration economics and shared catalog overhead
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
@@ -174,6 +165,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/evaluate-opinion-two-bit-decision.js
+      - name: Compare synthetic TEXT and packed read, write and catalog lookup latency
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-mixed-performance.js
       - name: Stress synthetic concurrent TEXT/BYTEA saves and versioned catalog caches
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
