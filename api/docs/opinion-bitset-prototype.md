@@ -732,3 +732,67 @@ dell'allocazione in pagine. Si confrontano soltanto alternative
 sperimentali: **nessuna decisione di migrare BYTEA** è autorizzata
 dal benchmark. OP-40 e OP-41 restano **In corso**, KPI-23
 **Non verificato**; OP-42 **Da fare**.
+
+
+## Latenza di lettura, aggiornamento e lookup catalogo (DOC-043)
+
+Il nuovo `api/scripts/benchmark-opinion-mixed-performance.js` esegue
+**solo nel PostgreSQL 17 effimero di GitHub Actions**, usando
+le tabelle sintetiche `ci_mixed_2_*` (scenario **35% di fonti**)
+prodotte precedentemente dal test DOC-042. Il runner controlla
+rigidamente `GITHUB_ACTIONS=true`, `OPINION_BENCH_EPHEMERAL=yes`,
+host locale `127.0.0.1`, porta 5432, database
+`opinion_bitset_ci`, utente `postgres`, password `synthetic-only`,
+versione 17 del server, 824 righe per tabella e 288 fonti sintetiche.
+**Nessun dato personale, Supabase o connessione di produzione.**
+
+Ogni rappresentazione (TEXT, fixed, trimmed, sparse,
+sparse_versioned e sparse_envelope) affronta lo stesso set deterministico
+di 120 letture complete e 120 letture di una singola opinione,
+con dieci richieste di warm-up, misurando wall-clock locale che include
+roundtrip DB, driver Node e normalizzazione/decodifica. La lettura
+completa normalizza tutte le 94 posizioni, mentre per la singola
+opinione il TEXT legge una colonna e il binario deve recuperare il
+payload e decodificarne la posizione. I campi JSONB delle fonti
+**non sono letti**: non è una misura dell'intero endpoint HTTP DEMOS.
+
+Si eseguono inoltre **72 aggiornamenti per formato**, ciascuno con
+BEGIN, SELECT ... FOR UPDATE, UPDATE e COMMIT, sullo stesso elenco
+deterministico di account sintetici e slot, più 8 warm-up; viene
+verificato il valore finale memorizzato per ciascuno. TEXT aggiorna
+soltanto la colonna scelta; i formati binari leggono il BYTEA sotto
+lock, lo modificano con il codec Node e riscrivono l'intero BYTEA.
+Letture e scritture riportano mediana, p95 e media locali in ms:
+non simulano carico concorrente o Round-Trip Android.
+
+La prova include un catalogo CI autonomo
+`ci_mixed_catalog_bench`, contenente la versione 1 da 94 ID
+e una versione 2 **append-only** con un nuovo ID. Le due fingerprint
+SHA-256 sono verificate e l'ordine storico invariato. Vengono misurate
+120 verifiche con catalogo in cache Node e 120 SELECT dirette
+del catalogo sul PostgreSQL locale (entrambe includono la verifica
+SHA-256). Lo spazio fisico della tabella catalogo viene riportato.
+La versione 2 serve a esercitare lookup/immutabilità sintetici:
+**non** è aggiunta al catalogo DEMOS di produzione.
+
+Un benchmark CPU Node separato normalizza 1.000 volte la medesima
+riga di ogni formato, senza DB né rete, e riporta il tempo di decode
+per iterazione; include volutamente l'allocazione della mappa
+completa delle 94 risposte.
+
+Tutti gli output sono in
+`OPINION_MIXED_PERFORMANCE_RESULT_JSON` (incluse mediane e p95);
+il marcatore `OPINION_MIXED_PERFORMANCE_PASS` è emesso **solo dopo**
+verifica del conteggio campioni, dei valori riscritti e del catalogo.
+
+**Cautela fondamentale:** la differenza tra formati dipende dalla cache
+SQL, JIT Node, page allocation, carico dei runner e dalla scelta di
+SELECT/UPDATE. Il benchmark **non** misura consenso o RLS reali,
+altre route, contesa multiutente, indice su opinioni, endpoint
+statistici, latenza client, costi e capacità del piano Free.
+È una *sensibilità locale* su 824 account simulati, non una stima
+di latenza p95 in produzione, né un benchmark per prendere una
+decisione automatica di migrazione. Il formato BYTEA resta escluso
+dalle route effettive; la PR è DRAFT, nessun merge/deploy/migrazione
+Supabase, OP-41 **In corso**, KPI-23 **Non verificato**, OP-42
+**Da fare**.
