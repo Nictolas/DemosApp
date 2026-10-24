@@ -21,7 +21,9 @@ async function withOpinionApi({ consent = true } = {}, fn) {
       return { rows: [], rowCount: 0 };
     }
     if (sql.includes('AS granted') && sql.includes('user_consents')) {
-      return { rows: [{ granted: consent }], rowCount: 1 };
+      assert.match(sql, /FOR UPDATE OF u$/, 'consent MUST hold a users row lock');
+      writes.push('CONSENT_LOCK');
+      return { rows: [{ id: 'ordinary-account', granted: consent }], rowCount: 1 };
     }
     if (sql.includes('information_schema.columns') && sql.includes('opinioni_risposte')) {
       return { rows: [{ column_name: 'energia_nucleare' }], rowCount: 1 };
@@ -97,6 +99,9 @@ test('regular authenticated account with consent saves its opinion without CIE',
     assert.equal(body.errorCount, 0);
     assert.equal(writes.some(w => typeof w === 'object' && w.sql.startsWith('INSERT INTO opinioni_risposte')), true);
     assert.equal(writes.includes('COMMIT'), true);
+    assert.ok(writes.indexOf('BEGIN') < writes.indexOf('CONSENT_LOCK'));
+    const insertAt = writes.findIndex(w => typeof w === 'object');
+    assert.ok(writes.indexOf('CONSENT_LOCK') < insertAt, 'lock before insert');
   });
 });
 
@@ -106,7 +111,8 @@ test('non-admin without political opinion consent remains blocked', async () => 
     assert.equal(response.status, 403);
     const body = await response.json();
     assert.equal(body.consent_required, true);
-    assert.equal(writes.length, 0);
+    assert.deepEqual(writes, ['BEGIN','CONSENT_LOCK','ROLLBACK']);
+    assert.ok(!writes.includes('COMMIT'));
   });
 });
 
