@@ -24,6 +24,7 @@ on:
       - 'client/tests/politicalOpinionPrivacyCache.test.mjs'
       - 'client/tests/politicalOpinionHttpCancellation.test.mjs'
       - 'client/src/lib/queryClient.ts'
+      - 'client/src/hooks/usePoliticalOpinionsConsent.ts'
       - 'DPIA_DemosApp.md'
       - '.github/workflows/political-consent-save-revoke-ci.yml'
 permissions:

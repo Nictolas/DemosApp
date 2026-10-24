@@ -30,3 +30,9 @@ Workflow CI `.github/workflows/political-consent-save-revoke-ci.yml` con Postgre
 ## Rilascio e rollback
 
 **Non effettuare merge automatico di PR #264 finché tutti i controlli non siano verdi e il rilascio backend+frontend non sia pronto.** La modifica coinvolge il server, la UI e una DPIA in bozza; deve essere verificata anche nel deploy del frontend. La PR #258 in produzione resta invariata fino a eventuale merge separato. In caso di problema, revert della sola PR #264, senza manipolare utenti o voti, e monitoraggio HTTP 403/500, tempi di salvataggio, errori di pool e revoca.
+
+## Ulteriore minimizzazione della risposta — PR stacked 2026-10-25
+
+La route autenticata `GET /api/user/political-opinions-consent` invia alla UI soltanto `consent.granted` e `consent.timestamp`. L'indirizzo IP e lo user-agent raccolti come prova del consenso non vengono più letti per questa risposta né inseriti nella cache React Query. Restano invariati il salvataggio della prova lato server, la revoca atomica, il registro di cancellazione e i percorsi separati di accesso GDPR.
+
+Test HTTP sul router Express con database sintetico verifica la lista precisa dei campi del JSON e l'assenza di query SQL sui campi IP/user-agent. Un test client impedisce che il contratto della UI li reintroduca. Il cambiamento è in bozza, non rilasciato; la DPIA richiede ancora la validazione del DPO. Eventuali consumatori API esterni devono verificare la compatibilità con la risposta minimizzata.

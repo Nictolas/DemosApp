@@ -5,8 +5,6 @@ import { useAuth } from '@/hooks/use-auth';
 interface ConsentData {
   granted: boolean;
   timestamp: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
 }
 
 interface ConsentResponse {
