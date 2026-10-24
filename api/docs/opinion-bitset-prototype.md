@@ -880,7 +880,12 @@ o alla perdita di un disco. Il test non copre conferme COMMIT ambigue,
 idempotenza dei retry HTTP, backup e restore, riavvio del server
 PostgreSQL, cache distribuite, dispositivi Android, RLS o JWT reali.
 È un test del pattern sperimentale, NON una modifica delle route.
-Finché la CI non termina non è dichiarato superato.
+CI PostgreSQL 17 #40100198634 **SUCCESS**: il job physical-storage
+conferma il passo `Recover versioned opinions from terminated PostgreSQL
+backend` PASS, marcatore `OPINION_CRASH_RECOVERY_PASS`.
+Anche le altre cinque CI sul medesimo HEAD #b554ced sono SUCCESS:
+Opinioni #40100198612, Security #40100198610, Privacy erasure
+#40100198613, DPO #40100198643, Logging #40100198619.
 PR #247 ancora DRAFT; nessun merge, deploy, DDL in produzione o
 migrazione BYTEA. OP-41 **In corso**, KPI-23 **Non verificato**,
 OP-42 **Da fare**.
