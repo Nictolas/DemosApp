@@ -1,0 +1,54 @@
+name: Sondaggi TEXT aggregation regression
+
+on:
+  pull_request:
+    paths:
+      - 'api/routes/sondaggi.js'
+      - 'api/utils/sondaggiTextBulk.js'
+      - 'api/tests/sondaggiTextBulk.test.js'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'api/scripts/verify-sondaggi-text-standalone.js'
+      - '.github/workflows/sondaggi-text-aggregation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sondaggio-text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: sondaggi_text_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sondaggi_text_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API packages without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Unit tests for safe identifiers, fallback, response contract and geography
+        run: node --test --test-concurrency=1 api/tests/sondaggiTextBulk.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/opinionPrivacy.test.js
+      - name: Verify real GET Sondaggi on synthetic PostgreSQL 17 and 10-to-9 consent
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-sondaggi-text-standalone.js
