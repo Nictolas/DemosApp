@@ -41,8 +41,7 @@ export interface RappresentanteCardProps {
 }
 
 export interface EmptyStateProps {
-  categoria: string;
-  getTitolo: () => string;
+  isCandidate: boolean;
 }
 
 export interface HeaderProps {
