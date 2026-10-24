@@ -9,6 +9,7 @@ on:
       - 'api/tests/opinionStatsAccountPopulation.test.js'
       - 'api/scripts/verify-sondaggi-text-standalone.js'
       - 'api/scripts/benchmark-sondaggi-text-paired.js'
+      - 'api/docs/sondaggi-text-benchmark-20261024.md'
       - '.github/workflows/sondaggi-text-aggregation.yml'
 
 permissions:
