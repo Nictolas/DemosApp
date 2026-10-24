@@ -50,3 +50,24 @@ test('central API client must not log raw response payloads',()=>{
  assert.doesNotMatch(s,/console\.(?:log|error)\([^\n]*(?:text|JSON\.stringify\(data|data\.data)/);
  assert.doesNotMatch(s,/Text preview|Parsed data|Text that failed to parse/);
 });
+
+test('every personal opinion read forwards the React Query AbortSignal to the HTTP client',()=>{
+ for(const [file,grado] of [
+  ['pages/OpinioniNazionali.tsx','N'],
+  ['pages/OpinioniRegionali.tsx','R'],
+  ['pages/OpinioniComunali.tsx','CO'],
+  ['pages/OpinioniEuropee.tsx','E']
+ ]){
+  const s=source(file);
+  assert.match(s,/queryFn: async \(\{ signal \}\) => \{/);
+  assert.ok(s.includes('apiRequest("GET", "/api/opinioni-list?grado='+grado+'", undefined, undefined, signal)'),file);
+ }
+ const selector=source('pages/StatisticheOpinione/components/OpinionSelector.tsx');
+ assert.match(selector,/queryFn: async \(\{ signal \}\) => \{/);
+ assert.ok(selector.includes('undefined, undefined, signal'));
+ assert.ok(selector.includes('enabled: !!user'));
+ const client=source('lib/queryClient.ts');
+ assert.match(client,/externalSignal\?: AbortSignal/);
+ assert.match(client,/externalSignal\?\.addEventListener\('abort', abortFromQuery/);
+ assert.match(client,/externalSignal\?\.removeEventListener\('abort', abortFromQuery/);
+});
