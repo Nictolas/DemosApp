@@ -1,0 +1,106 @@
+name: DEMOS production health (read-only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/demos-production-readonly-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public API and database connectivity without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_url() {
+            local label="$1"
+            local url="$2"
+            local response_path
+            response_path="$(mktemp)"
+            local status
+            status="$(curl --location --retry 1 --connect-timeout 8 --max-time 25 --silent --show-error --output "$response_path" --write-out '%{http_code}' "$url")"
+            python3 - "$label" "$status" "$response_path" <<'PY'
+          import json,sys
+          label,status,path=sys.argv[1:4]
+          try:
+              with open(path,encoding='utf-8') as f:
+                  payload=json.load(f)
+          except (ValueError,UnicodeError,OSError):
+              print(f'{label}: HTTP {status}, JSON unavailable')
+              sys.exit(1)
+          ok=(status=='200' and payload.get('success') is True)
+          print(f'{label}: HTTP {status}, success={payload.get("success")!r}, verified={ok}')
+          sys.exit(0 if ok else 1)
+          PY
+            rm -f "$response_path"
+          }
+          check_url "public-api-health" "https://api.demos.community/api/health"
+          check_url "public-db-readonly-health" "https://api.demos.community/api/test-db"
+
+      - name: Check public DB-backed statistics and reject unauthenticated private reads
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          import urllib.request
+          from urllib.error import HTTPError, URLError
+
+          ROOT = 'https://api.demos.community'
+          CHECKS = [
+              ('public-user-aggregate', '/api/statistiche/utenti', 'public'),
+              ('public-opinion-aggregate', '/api/statistiche/opinioni', 'public'),
+              ('private-auth-profile', '/api/auth/me', 'private'),
+              ('private-user-profile', '/api/users/me', 'private'),
+              ('private-opinion-profile', '/api/opinioni/profile', 'private'),
+              ('private-political-consent', '/api/user/political-opinions-consent', 'private'),
+          ]
+
+          failures = []
+          for name, path, visibility in CHECKS:
+              request = urllib.request.Request(
+                  ROOT + path,
+                  headers={'Accept': 'application/json', 'User-Agent': 'DEMOS-ReadOnly-SecurityCheck/1.0'},
+                  method='GET',
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=18) as response:
+                      status = response.status
+                      body = response.read(32768) if visibility == 'public' else b''
+              except HTTPError as exc:
+                  status, body = exc.code, b''
+                  exc.close()
+              except (URLError, TimeoutError, OSError) as exc:
+                  print(f'{name}: network-unavailable ({exc.__class__.__name__})')
+                  failures.append(name)
+                  continue
+
+              if visibility == 'public':
+                  try:
+                      payload = json.loads(body)
+                  except (UnicodeError, ValueError, TypeError):
+                      payload = {}
+                  valid = status == 200 and payload.get('success') is True and isinstance(payload.get('data'), dict)
+              else:
+                  # Every private endpoint must reject missing credentials;
+                  # never inspect or log private response bodies.
+                  valid = status in (401, 403)
+
+              print(f'{name}: HTTP {status}; expected_behavior={valid}')
+              if not valid:
+                  failures.append(name)
+
+          if failures:
+              print('FAIL: Unexpected behavior at ' + ', '.join(failures))
+              sys.exit(1)
+          print('PASS: Public DB aggregates work and private endpoints reject anonymous reads.')
+          PY
+
+# This job intentionally does not authenticate, mutate Supabase, fetch personal
+# records or handle API keys. It checks only public health JSON success fields.
