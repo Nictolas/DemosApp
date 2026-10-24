@@ -49,11 +49,19 @@ router.get('/areas', async (_req, res) => {
       SELECT
         (SELECT COUNT(*)::integer FROM public.users) AS users_total,
         (SELECT COUNT(*)::integer FROM public.users WHERE status = 'a') AS users_active,
+        (SELECT COUNT(*)::integer FROM public.users WHERE created_at >= NOW() - INTERVAL '30 days') AS users_recent,
         (SELECT COUNT(*)::integer FROM public.riconoscimenti) AS recognitions_total,
+        (SELECT COUNT(*)::integer FROM public.riconoscimenti WHERE created_at >= NOW() - INTERVAL '30 days') AS recognitions_recent,
         (SELECT COUNT(*)::integer FROM public.opinioni_domande) AS opinions_total,
+        (SELECT COUNT(*)::integer FROM public.opinioni_domande WHERE approfondimento IS NOT NULL AND BTRIM(approfondimento) <> '') AS opinions_with_detail,
         (SELECT COUNT(*)::integer FROM public.opinioni_proposte) AS proposed_opinions_total,
+        (SELECT COUNT(*)::integer FROM public.opinioni_proposte WHERE created_at >= NOW() - INTERVAL '30 days') AS proposed_opinions_recent,
         (SELECT COUNT(*)::integer FROM public.notifiche_demos) AS notifications_total,
+        (SELECT COUNT(*)::integer FROM public.notifiche_demos WHERE data_creazione >= NOW() - INTERVAL '30 days') AS notifications_recent,
+        (SELECT MAX(data_creazione) FROM public.notifiche_demos) AS notifications_latest_at,
         (SELECT COUNT(*)::integer FROM public.iniziative_ministero) AS ministry_initiatives_total,
+        (SELECT COUNT(*)::integer FROM public.iniziative_ministero WHERE data_fine >= CURRENT_DATE) AS ministry_initiatives_not_ended,
+        (SELECT MAX(data_ultimo_aggiornamento) FROM public.iniziative_ministero) AS ministry_last_updated_at,
         (SELECT COUNT(*)::integer FROM public.votazioni_parlamento) AS parliamentary_votes_total
     `);
     const counts = result.rows?.[0];
@@ -65,15 +73,25 @@ router.get('/areas', async (_req, res) => {
         'utenti-verifiche': {
           users_total: counts.users_total,
           users_active: counts.users_active,
-          recognitions_total: counts.recognitions_total
+          users_recent: counts.users_recent,
+          recognitions_total: counts.recognitions_total,
+          recognitions_recent: counts.recognitions_recent
         },
         contenuti: {
           opinions_total: counts.opinions_total,
-          proposed_opinions_total: counts.proposed_opinions_total
+          opinions_with_detail: counts.opinions_with_detail,
+          proposed_opinions_total: counts.proposed_opinions_total,
+          proposed_opinions_recent: counts.proposed_opinions_recent
         },
-        comunicazioni: { notifications_total: counts.notifications_total },
+        comunicazioni: {
+          notifications_total: counts.notifications_total,
+          notifications_recent: counts.notifications_recent,
+          notifications_latest_at: counts.notifications_latest_at
+        },
         'dati-istituzionali': {
           ministry_initiatives_total: counts.ministry_initiatives_total,
+          ministry_initiatives_not_ended: counts.ministry_initiatives_not_ended,
+          ministry_last_updated_at: counts.ministry_last_updated_at,
           parliamentary_votes_total: counts.parliamentary_votes_total
         },
         'ops-center': { access: 'privacy_oversight_only' }
