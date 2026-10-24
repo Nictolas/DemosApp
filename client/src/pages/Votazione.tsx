@@ -357,7 +357,7 @@ const Votazione = React.memo(function Votazione() {
       setExistingComunicazione(null);
       console.log('🔄 Invalidando notificationBadge dopo invio comunicazione');
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
-      setTimeout(() => setLocation("/menu"), 1000);
+      setTimeout(() => setLocation("/preferiti"), 1000);
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message || "Invio fallito.", variant: "destructive" });
